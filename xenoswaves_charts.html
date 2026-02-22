@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>XenosWaves — Chart Terminal</title>
+<title>XenosFinance — Chart Terminal</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.26.0/plotly.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@300;400;600;700;900&display=swap" rel="stylesheet">
 <style>
@@ -255,11 +255,12 @@
 
 <!-- HEADER -->
 <header>
-  <div class="logo">XENOS<span>WAVES</span> <span style="font-size:13px;color:var(--grey)">// CHART TERMINAL</span></div>
+  <div class="logo">XENOS<span>FINANCE</span> <span style="font-size:13px;color:var(--grey)">// CHART TERMINAL</span></div>
   <div class="status-bar">
     <span><span class="status-dot"></span>LIVE DATA</span>
+    <span id="demoBadge" style="display:none;background:rgba(255,152,0,0.15);border:1px solid rgba(255,152,0,0.4);color:#ff9800;padding:2px 10px;border-radius:2px;font-size:10px;letter-spacing:1px">⚠ DATI DEMO SIMULATI</span>
     <span id="clock">--:--:--</span>
-    <span style="color:var(--grey)">Yahoo Finance API</span>
+    <span style="color:var(--grey)">Market Data</span>
   </div>
 </header>
 
@@ -304,21 +305,25 @@
     </select>
   </div>
   <div class="ctrl-group">
-    <div class="ctrl-label">Periodo</div>
-    <select id="periodSelect">
-      <option value="3mo">3 Mesi</option>
-      <option value="6mo" selected>6 Mesi</option>
-      <option value="1y">1 Anno</option>
-      <option value="2y">2 Anni</option>
+    <div class="ctrl-label">Timeframe</div>
+    <select id="tfPreset" onchange="applyTfPreset(this.value)">
+      <optgroup label="── INTRADAY ──">
+        <option value="5d|5m">5 Giorni / 5M</option>
+        <option value="5d|15m" selected>5 Giorni / 15M</option>
+        <option value="5d|30m">5 Giorni / 30M</option>
+        <option value="1mo|1h">1 Mese / 1H</option>
+        <option value="3mo|1h">3 Mesi / 1H</option>
+      </optgroup>
+      <optgroup label="── SWING ──">
+        <option value="3mo|1d">3 Mesi / Daily</option>
+        <option value="6mo|1d">6 Mesi / Daily</option>
+        <option value="1y|1d">1 Anno / Daily</option>
+        <option value="2y|1wk">2 Anni / Weekly</option>
+      </optgroup>
     </select>
   </div>
-  <div class="ctrl-group">
-    <div class="ctrl-label">Intervallo</div>
-    <select id="intervalSelect">
-      <option value="1d" selected>Daily</option>
-      <option value="1wk">Weekly</option>
-    </select>
-  </div>
+  <input type="hidden" id="periodSelect" value="5d">
+  <input type="hidden" id="intervalSelect" value="15m">
   <button class="btn" id="loadBtn" onclick="loadAll()">▶ ANALIZZA</button>
 </div>
 
@@ -500,26 +505,140 @@ function switchTab(name, el) {
 }
 
 // ════════════════════════════════════════════════════════════════
-// DATA FETCH — Yahoo Finance via CORS proxy (allorigins)
+// DATA FETCH — Multi-proxy + Demo fallback
 // ════════════════════════════════════════════════════════════════
-async function fetchOHLCV(sym, period, interval) {
-  const yf_url = `https://query1.finance.yahoo.com/v8/finance/chart/${sym}?period1=0&period2=9999999999&range=${period}&interval=${interval}&events=div,split`;
-  const url = `https://api.allorigins.win/get?url=${encodeURIComponent(yf_url)}`;
-  const r = await fetch(url, { headers: { 'Accept': 'application/json' } });
-  const wrapper = await r.json();
-  const data = JSON.parse(wrapper.contents);
-  const res  = data.chart.result[0];
-  const ts   = res.timestamp;
-  const q    = res.indicators.quote[0];
-  const dates= ts.map(t => new Date(t*1000).toISOString().slice(0,10));
-  return {
-    dates, open: q.open, high: q.high, low: q.low, close: q.close,
-    volume: q.volume || Array(dates.length).fill(0),
-    sym, period, interval,
-    name: res.meta.longName || sym,
-    currency: res.meta.currency || '',
-    lastPrice: res.meta.regularMarketPrice || q.close.at(-1)
+function seededRand(seed) {
+  let s = seed;
+  return function() {
+    s = (s * 1664525 + 1013904223) & 0xffffffff;
+    return (s >>> 0) / 0xffffffff;
   };
+}
+
+function generateDemoData(sym, nBars = 200, interval = '1d') {
+  const SEEDS = {
+    'CL=F':    { price: 78.40,   vol: 280000, trend:  0.0003, vola: 0.018 },
+    'GC=F':    { price: 2320.0,  vol: 180000, trend:  0.0004, vola: 0.010 },
+    'SI=F':    { price: 27.50,   vol: 120000, trend:  0.0002, vola: 0.022 },
+    'NG=F':    { price: 2.15,    vol: 200000, trend: -0.0002, vola: 0.030 },
+    'BTC-USD': { price: 67500,   vol:  45000, trend:  0.0008, vola: 0.035 },
+    'ETH-USD': { price: 3500,    vol:  60000, trend:  0.0006, vola: 0.038 },
+    'SPY':     { price: 535.0,   vol: 900000, trend:  0.0003, vola: 0.009 },
+    '^IXIC':   { price: 16800,   vol: 500000, trend:  0.0004, vola: 0.012 },
+    '^DJI':    { price: 39500,   vol: 300000, trend:  0.0002, vola: 0.008 },
+    'EURUSD=X':{ price: 1.0850,  vol: 800000, trend:  0.0001, vola: 0.004 },
+    'GBPUSD=X':{ price: 1.2650,  vol: 600000, trend:  0.0001, vola: 0.005 },
+    'USDJPY=X':{ price: 149.5,   vol: 700000, trend:  0.0001, vola: 0.004 },
+    'AUDUSD=X':{ price: 0.6550,  vol: 500000, trend:  0.0001, vola: 0.005 },
+    'USDCHF=X':{ price: 0.8980,  vol: 450000, trend: -0.0001, vola: 0.004 },
+    'NVDA':    { price: 880.0,   vol: 450000, trend:  0.0010, vola: 0.030 },
+    'AAPL':    { price: 187.0,   vol: 700000, trend:  0.0003, vola: 0.012 },
+    'TSLA':    { price: 175.0,   vol: 800000, trend: -0.0002, vola: 0.035 },
+    'META':    { price: 510.0,   vol: 350000, trend:  0.0005, vola: 0.018 },
+    'AMZN':    { price: 195.0,   vol: 420000, trend:  0.0004, vola: 0.015 },
+    'MSFT':    { price: 415.0,   vol: 380000, trend:  0.0003, vola: 0.010 },
+    'GOOGL':   { price: 175.0,   vol: 320000, trend:  0.0004, vola: 0.012 },
+    'JPM':     { price: 198.0,   vol: 280000, trend:  0.0002, vola: 0.010 },
+    'GS':      { price: 460.0,   vol: 150000, trend:  0.0002, vola: 0.012 },
+  };
+  const cfg  = SEEDS[sym] || { price: 100, vol: 200000, trend: 0.0002, vola: 0.015 };
+  const seed = sym.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+  const rand = seededRand(seed);
+  const dates = [], open = [], high = [], low = [], close = [], volume = [];
+  const today = new Date();
+  let price = cfg.price, momentum = 0;
+
+  const minuteMap = {'5m':5,'15m':15,'30m':30,'1h':60,'1d':1440,'1wk':10080};
+  const barMinutes = minuteMap[interval] || 1440;
+  const scaleFactor = barMinutes / 1440; // intraday bars are smaller
+  const adjustedVola = cfg.vola * Math.sqrt(scaleFactor);
+  const adjustedTrend = cfg.trend * scaleFactor;
+
+  for (let i = nBars - 1; i >= 0; i--) {
+    const d = new Date(today);
+    if (barMinutes < 1440) {
+      d.setMinutes(d.getMinutes() - i * barMinutes);
+      // Skip outside market-ish hours (rough sim)
+      const h = d.getUTCHours();
+      if (h < 8 || h > 22) continue;
+    } else {
+      d.setDate(d.getDate() - i);
+      if (d.getDay() === 0 || d.getDay() === 6) continue;
+    }
+    const noise   = (rand() - 0.5) * 2;
+    momentum      = momentum * 0.92 + noise * 0.08;
+    const ret     = adjustedTrend + momentum * adjustedVola + (rand() - 0.5) * adjustedVola * 0.8;
+    const o = price;
+    price   = price * (1 + ret);
+    const c = price;
+    const range = Math.abs(c - o) * (1 + rand() * 1.5);
+    const hh = Math.max(o, c) + range * rand() * 0.6;
+    const ll = Math.min(o, c) - range * rand() * 0.6;
+    const label = barMinutes < 1440
+      ? d.toISOString().slice(0,16).replace('T',' ')
+      : d.toISOString().slice(0,10);
+    dates.push(label);
+    open.push(+o.toFixed(5)); high.push(+hh.toFixed(5));
+    low.push(+ll.toFixed(5));  close.push(+c.toFixed(5));
+    volume.push(Math.round(cfg.vol * scaleFactor * (0.5 + rand() * 1.5)));
+  }
+  const NAMES = {
+    'CL=F':'Crude Oil WTI','GC=F':'Gold','SI=F':'Silver','NG=F':'Natural Gas',
+    'BTC-USD':'Bitcoin','ETH-USD':'Ethereum','SPY':'S&P 500 (SPY)',
+    '^IXIC':'Nasdaq','^DJI':'Dow Jones','EURUSD=X':'EUR/USD',
+    'GBPUSD=X':'GBP/USD','USDJPY=X':'USD/JPY','AUDUSD=X':'AUD/USD','USDCHF=X':'USD/CHF',
+    'NVDA':'Nvidia','AAPL':'Apple','TSLA':'Tesla','META':'Meta','AMZN':'Amazon',
+    'MSFT':'Microsoft','GOOGL':'Alphabet','JPM':'JPMorgan','GS':'Goldman Sachs',
+  };
+  return { dates, open, high, low, close, volume, sym, period: '6mo', interval: '1d',
+           isDemo: true, name: NAMES[sym] || sym, currency: '', lastPrice: close.at(-1) };
+}
+
+async function tryFetch(url, opts = {}) {
+  const ctrl = new AbortController();
+  const tid  = setTimeout(() => ctrl.abort(), 6000);
+  try {
+    const r = await fetch(url, { ...opts, signal: ctrl.signal });
+    clearTimeout(tid);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return r;
+  } catch(e) { clearTimeout(tid); throw e; }
+}
+
+async function fetchOHLCV(sym, period, interval) {
+  const yf_url = `https://query1.finance.yahoo.com/v8/finance/chart/${sym}?range=${period}&interval=${interval}`;
+  const PROXIES = [
+    `https://corsproxy.io/?${encodeURIComponent(yf_url)}`,
+    `https://api.allorigins.win/get?url=${encodeURIComponent(yf_url)}`,
+  ];
+  for (const proxyUrl of PROXIES) {
+    try {
+      const r   = await tryFetch(proxyUrl, { headers: { Accept: 'application/json' } });
+      const raw = await r.text();
+      let parsed;
+      try { const w = JSON.parse(raw); parsed = w.contents ? JSON.parse(w.contents) : w; }
+      catch { continue; }
+      const res = parsed?.chart?.result?.[0];
+      if (!res || !res.timestamp) continue;
+      const ts  = res.timestamp;
+      const q   = res.indicators.quote[0];
+      const clean = arr => arr ? arr.map(v => v ?? null) : [];
+      const dates = ts.map(t => new Date(t * 1000).toISOString().slice(0, 10));
+      return {
+        dates, open: clean(q.open), high: clean(q.high),
+        low: clean(q.low),   close: clean(q.close),
+        volume: q.volume ? clean(q.volume) : Array(dates.length).fill(0),
+        sym, period, interval, isDemo: false,
+        name: res.meta.longName || sym,
+        currency: res.meta.currency || '',
+        lastPrice: res.meta.regularMarketPrice || q.close.at(-1),
+      };
+    } catch(e) { console.warn('Proxy failed:', proxyUrl.slice(0,40), e.message); }
+  }
+  console.warn('⚠️ Connessione non disponibile — uso dati simulati per', sym);
+  const nBars = interval && ['5m','15m','30m'].includes(interval) ? 500 :
+                interval === '1h' ? 300 : 200;
+  return generateDemoData(sym, nBars, interval);
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -713,6 +832,12 @@ function baseLayout(extra = {}) {
 // ════════════════════════════════════════════════════════════════
 // LOAD ALL
 // ════════════════════════════════════════════════════════════════
+function applyTfPreset(val) {
+  const [period, interval] = val.split('|');
+  document.getElementById('periodSelect').value  = period;
+  document.getElementById('intervalSelect').value = interval;
+}
+
 async function loadAll() {
   const sym      = document.getElementById('symSelect').value;
   const period   = document.getElementById('periodSelect').value;
@@ -726,9 +851,21 @@ async function loadAll() {
     renderOrderFlow();
     renderVolumeProfile();
     updateTicker();
+    // Show demo warning if needed
+    const demoBadge = document.getElementById('demoBadge');
+    if (STATE.ohlcv.isDemo) {
+      demoBadge.style.display = 'inline-block';
+    } else {
+      demoBadge.style.display = 'none';
+    }
   } catch(e) {
     console.error(e);
-    alert('Errore caricamento dati. Controlla la console.\n' + e.message);
+    // On any error, try demo data
+    try {
+      STATE.ohlcv = generateDemoData(document.getElementById('symSelect').value, 200);
+      renderElliott(); renderOrderFlow(); renderVolumeProfile(); updateTicker();
+      document.getElementById('demoBadge').style.display = 'inline-block';
+    } catch(e2) { console.error('Demo also failed:', e2); }
   } finally {
     btn.textContent = '▶ ANALIZZA'; btn.classList.remove('btn-loading');
     showLoading(false);
