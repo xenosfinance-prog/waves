@@ -1,0 +1,1247 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>XenosWaves — Chart Terminal</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.26.0/plotly.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:       #060a0f;
+    --panel:    #0b1017;
+    --border:   #1a2535;
+    --border2:  #243044;
+    --green:    #00d4a0;
+    --red:      #ff4466;
+    --blue:     #2196f3;
+    --orange:   #ff9800;
+    --yellow:   #ffd600;
+    --purple:   #9c27b0;
+    --white:    #e2eaf4;
+    --grey:     #4a6080;
+    --grey2:    #2a3a50;
+    --mono:     'Share Tech Mono', monospace;
+    --sans:     'Barlow Condensed', sans-serif;
+    --glow-g:   0 0 18px rgba(0,212,160,0.35);
+    --glow-r:   0 0 18px rgba(255,68,102,0.35);
+    --glow-b:   0 0 18px rgba(33,150,243,0.3);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--white);
+    font-family: var(--mono);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── SCANLINES overlay ── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0; z-index: 9999; pointer-events: none;
+    background: repeating-linear-gradient(
+      0deg, transparent, transparent 2px,
+      rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px
+    );
+  }
+
+  /* ── HEADER ── */
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 24px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; z-index: 100;
+  }
+  .logo {
+    font-family: var(--sans); font-weight: 900; font-size: 22px;
+    letter-spacing: 3px; text-transform: uppercase;
+    color: var(--green); text-shadow: var(--glow-g);
+  }
+  .logo span { color: var(--grey); font-weight: 300; }
+  .status-bar {
+    display: flex; gap: 20px; align-items: center;
+    font-size: 11px; color: var(--grey);
+  }
+  .status-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--green); animation: pulse 2s infinite;
+    display: inline-block; margin-right: 5px;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  #clock { color: var(--white); font-size: 12px; }
+
+  /* ── CONTROLS ── */
+  .controls {
+    display: flex; gap: 12px; align-items: flex-end; padding: 16px 24px;
+    background: var(--panel); border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .ctrl-group { display: flex; flex-direction: column; gap: 4px; }
+  .ctrl-label { font-size: 9px; color: var(--grey); letter-spacing: 2px; text-transform: uppercase; }
+  select, input[type=text] {
+    background: var(--bg); border: 1px solid var(--border2);
+    color: var(--white); padding: 7px 12px; font-family: var(--mono);
+    font-size: 12px; border-radius: 3px; outline: none;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  select:focus, input:focus {
+    border-color: var(--green); box-shadow: 0 0 8px rgba(0,212,160,0.2);
+  }
+  .btn {
+    padding: 8px 20px; border: 1px solid var(--green); background: transparent;
+    color: var(--green); font-family: var(--sans); font-weight: 700;
+    font-size: 13px; letter-spacing: 2px; text-transform: uppercase;
+    cursor: pointer; border-radius: 3px; transition: all .2s;
+  }
+  .btn:hover { background: var(--green); color: var(--bg); box-shadow: var(--glow-g); }
+  .btn:active { transform: scale(0.97); }
+  .btn-loading { opacity: 0.6; pointer-events: none; }
+
+  /* ── TICKER STRIP ── */
+  .ticker-strip {
+    background: rgba(0,212,160,0.05);
+    border-bottom: 1px solid var(--border);
+    padding: 6px 24px; font-size: 11px;
+    display: flex; gap: 24px; overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .ticker-strip::-webkit-scrollbar { display: none; }
+  .tick-item { white-space: nowrap; }
+  .tick-up   { color: var(--green); }
+  .tick-dn   { color: var(--red); }
+  .tick-sym  { color: var(--grey); margin-right: 5px; }
+
+  /* ── TABS ── */
+  .tabs {
+    display: flex; gap: 0; padding: 0 24px; margin-top: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .tab {
+    padding: 10px 24px; font-family: var(--sans); font-weight: 600;
+    font-size: 13px; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--grey); cursor: pointer; border-bottom: 2px solid transparent;
+    transition: all .2s; position: relative; top: 1px;
+  }
+  .tab:hover { color: var(--white); }
+  .tab.active { color: var(--green); border-bottom-color: var(--green); }
+
+  /* ── MAIN LAYOUT ── */
+  .main { padding: 16px 24px; }
+
+  /* ── METRICS ROW ── */
+  .metrics {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 1px; background: var(--border); margin-bottom: 16px;
+    border: 1px solid var(--border); border-radius: 4px; overflow: hidden;
+  }
+  .metric {
+    background: var(--panel); padding: 12px 14px;
+    display: flex; flex-direction: column; gap: 3px;
+  }
+  .metric-label { font-size: 9px; color: var(--grey); letter-spacing: 2px; text-transform: uppercase; }
+  .metric-value { font-size: 18px; font-weight: 700; font-family: var(--sans); }
+  .metric-sub   { font-size: 10px; color: var(--grey); }
+  .up   { color: var(--green); }
+  .dn   { color: var(--red); }
+  .neu  { color: var(--white); }
+  .yel  { color: var(--yellow); }
+  .blu  { color: var(--blue); }
+  .pur  { color: var(--purple); }
+
+  /* ── CHART AREAS ── */
+  .chart-grid { display: grid; gap: 12px; }
+  .chart-grid.split-3 { grid-template-rows: 58% 21% 21%; height: 680px; }
+  .chart-grid.split-2 { grid-template-rows: 60% 40%; height: 680px; }
+  .chart-grid.vp-layout {
+    grid-template-columns: 68% 32%;
+    grid-template-rows: 68% 32%;
+    height: 680px;
+  }
+  .chart-box {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 4px; overflow: hidden; position: relative;
+  }
+  .chart-box.vp-main  { grid-row: 1/3; }
+  .chart-box.vp-right { grid-row: 1/3; }
+  .chart-header {
+    padding: 8px 14px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 10px; color: var(--grey); letter-spacing: 1px;
+    text-transform: uppercase; background: rgba(0,0,0,0.2);
+  }
+  .chart-header-title { font-family: var(--sans); font-weight: 600; font-size: 12px; color: var(--white); }
+  .chart-inner { width: 100%; height: calc(100% - 38px); }
+
+  /* ── INFO PANELS ── */
+  .info-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 12px; margin-top: 16px;
+  }
+  .info-panel {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 4px; padding: 14px 16px;
+  }
+  .info-title {
+    font-family: var(--sans); font-weight: 700; font-size: 11px;
+    letter-spacing: 2px; text-transform: uppercase; color: var(--grey);
+    margin-bottom: 10px; border-bottom: 1px solid var(--border); padding-bottom: 8px;
+  }
+  .info-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 4px 0; font-size: 11px; border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .info-row:last-child { border-bottom: none; }
+  .info-key   { color: var(--grey); }
+  .info-val   { font-weight: 600; font-family: var(--sans); font-size: 13px; }
+
+  /* ── LEVEL BADGE ── */
+  .badge {
+    display: inline-block; padding: 2px 8px; border-radius: 2px;
+    font-family: var(--sans); font-weight: 700; font-size: 11px;
+    letter-spacing: 1px;
+  }
+  .badge-g { background: rgba(0,212,160,0.15); color: var(--green); border: 1px solid rgba(0,212,160,0.3); }
+  .badge-r { background: rgba(255,68,102,0.15); color: var(--red);   border: 1px solid rgba(255,68,102,0.3); }
+  .badge-y { background: rgba(255,214,0,0.12);  color: var(--yellow);border: 1px solid rgba(255,214,0,0.3); }
+  .badge-b { background: rgba(33,150,243,0.12); color: var(--blue);  border: 1px solid rgba(33,150,243,0.3); }
+  .badge-p { background: rgba(156,39,176,0.15); color: var(--purple);border: 1px solid rgba(156,39,176,0.3); }
+
+  /* ── LOADING ── */
+  .loading-overlay {
+    position: absolute; inset: 0; background: rgba(6,10,15,0.85);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 50; flex-direction: column; gap: 12px;
+  }
+  .loading-spinner {
+    width: 40px; height: 40px; border: 2px solid var(--border2);
+    border-top-color: var(--green); border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { font-size: 11px; color: var(--grey); letter-spacing: 2px; }
+
+  /* ── TAB CONTENT ── */
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* ── CROSSHAIR INFO ── */
+  .crosshair-box {
+    position: absolute; top: 50px; left: 14px;
+    background: rgba(11,16,23,0.9); border: 1px solid var(--border2);
+    padding: 8px 12px; font-size: 10px; border-radius: 3px;
+    pointer-events: none; display: none; z-index: 10;
+  }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  /* ── SECTION DIVIDER ── */
+  .section-title {
+    font-family: var(--sans); font-size: 11px; font-weight: 700;
+    letter-spacing: 3px; text-transform: uppercase; color: var(--grey);
+    padding: 12px 0 8px; border-top: 1px solid var(--border); margin-top: 8px;
+  }
+  .no-data {
+    display: flex; align-items: center; justify-content: center;
+    height: 100%; color: var(--grey); font-size: 12px; letter-spacing: 2px;
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">XENOS<span>WAVES</span> <span style="font-size:13px;color:var(--grey)">// CHART TERMINAL</span></div>
+  <div class="status-bar">
+    <span><span class="status-dot"></span>LIVE DATA</span>
+    <span id="clock">--:--:--</span>
+    <span style="color:var(--grey)">Yahoo Finance API</span>
+  </div>
+</header>
+
+<!-- CONTROLS -->
+<div class="controls">
+  <div class="ctrl-group">
+    <div class="ctrl-label">Simbolo</div>
+    <select id="symSelect">
+      <optgroup label="FX">
+        <option value="EURUSD=X">EURUSD</option>
+        <option value="GBPUSD=X">GBPUSD</option>
+        <option value="USDJPY=X">USDJPY</option>
+        <option value="AUDUSD=X">AUDUSD</option>
+        <option value="USDCHF=X">USDCHF</option>
+      </optgroup>
+      <optgroup label="Commodities">
+        <option value="CL=F" selected>OIL (WTI)</option>
+        <option value="GC=F">GOLD</option>
+        <option value="SI=F">SILVER</option>
+        <option value="NG=F">NAT GAS</option>
+      </optgroup>
+      <optgroup label="Equity">
+        <option value="SPY">S&P 500 (SPY)</option>
+        <option value="^IXIC">NASDAQ</option>
+        <option value="^DJI">DOW JONES</option>
+      </optgroup>
+      <optgroup label="Crypto">
+        <option value="BTC-USD">BITCOIN</option>
+        <option value="ETH-USD">ETHEREUM</option>
+      </optgroup>
+      <optgroup label="Blue Chip">
+        <option value="NVDA">NVIDIA</option>
+        <option value="AAPL">APPLE</option>
+        <option value="TSLA">TESLA</option>
+        <option value="META">META</option>
+        <option value="AMZN">AMAZON</option>
+        <option value="MSFT">MICROSOFT</option>
+        <option value="GOOGL">ALPHABET</option>
+        <option value="JPM">JPMORGAN</option>
+        <option value="GS">GOLDMAN SACHS</option>
+      </optgroup>
+    </select>
+  </div>
+  <div class="ctrl-group">
+    <div class="ctrl-label">Periodo</div>
+    <select id="periodSelect">
+      <option value="3mo">3 Mesi</option>
+      <option value="6mo" selected>6 Mesi</option>
+      <option value="1y">1 Anno</option>
+      <option value="2y">2 Anni</option>
+    </select>
+  </div>
+  <div class="ctrl-group">
+    <div class="ctrl-label">Intervallo</div>
+    <select id="intervalSelect">
+      <option value="1d" selected>Daily</option>
+      <option value="1wk">Weekly</option>
+    </select>
+  </div>
+  <button class="btn" id="loadBtn" onclick="loadAll()">▶ ANALIZZA</button>
+</div>
+
+<!-- TICKER STRIP -->
+<div class="ticker-strip" id="tickerStrip">
+  <span style="color:var(--grey)">Caricamento dati...</span>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('elliott', this)">🌊 Elliott Wave</div>
+  <div class="tab" onclick="switchTab('orderflow', this)">💸 Order Flow</div>
+  <div class="tab" onclick="switchTab('profile', this)">📊 Volume Profile</div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- ═══ ELLIOTT WAVE TAB ═══ -->
+  <div class="tab-content active" id="tab-elliott">
+    <div class="metrics" id="ew-metrics">
+      <div class="metric"><div class="metric-label">Prezzo</div><div class="metric-value neu" id="ew-price">—</div><div class="metric-sub" id="ew-chg">—</div></div>
+      <div class="metric"><div class="metric-label">Onda</div><div class="metric-value yel" id="ew-wave">—</div><div class="metric-sub" id="ew-degree">—</div></div>
+      <div class="metric"><div class="metric-label">Bias</div><div class="metric-value" id="ew-bias">—</div><div class="metric-sub" id="ew-conf">—</div></div>
+      <div class="metric"><div class="metric-label">Target</div><div class="metric-value up" id="ew-target">—</div><div class="metric-sub" id="ew-inv">INV: —</div></div>
+      <div class="metric"><div class="metric-label">R/R</div><div class="metric-value" id="ew-rr">—</div><div class="metric-sub">Risk/Reward</div></div>
+      <div class="metric"><div class="metric-label">RSI</div><div class="metric-value blu" id="ew-rsi">—</div><div class="metric-sub" id="ew-rsi-state">—</div></div>
+      <div class="metric"><div class="metric-label">ATR</div><div class="metric-value neu" id="ew-atr">—</div><div class="metric-sub">Volatilità</div></div>
+    </div>
+
+    <div class="chart-grid split-3" id="ew-chart-grid">
+      <div class="chart-box" style="position:relative;">
+        <div class="chart-header">
+          <span class="chart-header-title">PRICE ACTION + ELLIOTT LEVELS</span>
+          <span id="ew-chart-sub">SMA20 · SMA50 · SMA200 · EMA8/21 · Fib · Target · Invalidation</span>
+        </div>
+        <div id="ewChart" class="chart-inner"></div>
+        <div class="loading-overlay" id="ew-loading">
+          <div class="loading-spinner"></div>
+          <div class="loading-text">CARICAMENTO DATI...</div>
+        </div>
+      </div>
+      <div class="chart-box">
+        <div class="chart-header">
+          <span class="chart-header-title">RSI(14) — DIVERGENZE</span>
+          <span>IC > 70  ·  IV < 30</span>
+        </div>
+        <div id="rsiChart" class="chart-inner"></div>
+      </div>
+      <div class="chart-box">
+        <div class="chart-header">
+          <span class="chart-header-title">MACD (12,26,9)</span>
+          <span>Istogramma · MACD · Signal</span>
+        </div>
+        <div id="macdChart" class="chart-inner"></div>
+      </div>
+    </div>
+
+    <div class="info-grid" id="ew-info-grid"></div>
+  </div>
+
+  <!-- ═══ ORDER FLOW TAB ═══ -->
+  <div class="tab-content" id="tab-orderflow">
+    <div class="metrics" id="of-metrics">
+      <div class="metric"><div class="metric-label">Prezzo</div><div class="metric-value neu" id="of-price">—</div><div class="metric-sub" id="of-chg">—</div></div>
+      <div class="metric"><div class="metric-label">Bias Istituz.</div><div class="metric-value" id="of-bias">—</div><div class="metric-sub" id="of-flow">—</div></div>
+      <div class="metric"><div class="metric-label">VWAP</div><div class="metric-value blu" id="of-vwap">—</div><div class="metric-sub" id="of-vwap-dev">—</div></div>
+      <div class="metric"><div class="metric-label">Vol Ratio</div><div class="metric-value" id="of-volratio">—</div><div class="metric-sub">vs SMA20</div></div>
+      <div class="metric"><div class="metric-label">Delta 20</div><div class="metric-value" id="of-delta20">—</div><div class="metric-sub">Cumulativo</div></div>
+      <div class="metric"><div class="metric-label">Setup</div><div class="metric-value yel" id="of-setup">—</div><div class="metric-sub" id="of-tfalign">—</div></div>
+      <div class="metric"><div class="metric-label">Trigger 30M</div><div class="metric-value" id="of-trigger">—</div><div class="metric-sub">Immediato</div></div>
+    </div>
+
+    <div class="chart-grid split-3" id="of-chart-grid">
+      <div class="chart-box" style="position:relative;">
+        <div class="chart-header">
+          <span class="chart-header-title">PRICE + VWAP + ORDER FLOW LEVELS</span>
+          <span>VWAP · MA20 · POC · Livelli Buy/Sell</span>
+        </div>
+        <div id="ofChart" class="chart-inner"></div>
+        <div class="loading-overlay" id="of-loading">
+          <div class="loading-spinner"></div>
+          <div class="loading-text">CARICAMENTO DATI...</div>
+        </div>
+      </div>
+      <div class="chart-box">
+        <div class="chart-header">
+          <span class="chart-header-title">VOLUME — BULL/BEAR COLORING</span>
+          <span>Vol SMA20 · Vol Ratio</span>
+        </div>
+        <div id="volChart" class="chart-inner"></div>
+      </div>
+      <div class="chart-box">
+        <div class="chart-header">
+          <span class="chart-header-title">DELTA CUMULATIVO (20 BARRE)</span>
+          <span>Pressione acquisto vs vendita</span>
+        </div>
+        <div id="deltaChart" class="chart-inner"></div>
+      </div>
+    </div>
+
+    <div class="info-grid" id="of-info-grid"></div>
+  </div>
+
+  <!-- ═══ VOLUME PROFILE TAB ═══ -->
+  <div class="tab-content" id="tab-profile">
+    <div class="metrics" id="vp-metrics">
+      <div class="metric"><div class="metric-label">Prezzo</div><div class="metric-value neu" id="vp-price">—</div><div class="metric-sub" id="vp-chg">—</div></div>
+      <div class="metric"><div class="metric-label">POC</div><div class="metric-value yel" id="vp-poc">—</div><div class="metric-sub" id="vp-poc-dist">Dist: —</div></div>
+      <div class="metric"><div class="metric-label">VAH</div><div class="metric-value up" id="vp-vah">—</div><div class="metric-sub">Value Area High</div></div>
+      <div class="metric"><div class="metric-label">VAL</div><div class="metric-value dn" id="vp-val">—</div><div class="metric-sub">Value Area Low</div></div>
+      <div class="metric"><div class="metric-label">Struttura</div><div class="metric-value" id="vp-ctx">—</div><div class="metric-sub" id="vp-pos">—</div></div>
+      <div class="metric"><div class="metric-label">VPOC Naked</div><div class="metric-value pur" id="vp-vpoc">—</div><div class="metric-sub">Target magnetico</div></div>
+      <div class="metric"><div class="metric-label">ATR</div><div class="metric-value neu" id="vp-atr">—</div><div class="metric-sub">Volatilità</div></div>
+    </div>
+
+    <div class="chart-grid vp-layout">
+      <div class="chart-box vp-main" style="position:relative;">
+        <div class="chart-header">
+          <span class="chart-header-title">PRICE ACTION + LIVELLI VP</span>
+          <span>POC · VAH · VAL · HVN · LVN · VPOC Naked</span>
+        </div>
+        <div id="vpPriceChart" class="chart-inner"></div>
+        <div class="loading-overlay" id="vp-loading">
+          <div class="loading-spinner"></div>
+          <div class="loading-text">CARICAMENTO DATI...</div>
+        </div>
+      </div>
+      <div class="chart-box vp-right">
+        <div class="chart-header">
+          <span class="chart-header-title">VOLUME PROFILE ORIZZONTALE</span>
+          <span>POC · Value Area · HVN · LVN</span>
+        </div>
+        <div id="vpProfileChart" class="chart-inner"></div>
+      </div>
+    </div>
+
+    <div class="info-grid" id="vp-info-grid"></div>
+  </div>
+
+</div><!-- /main -->
+
+<script>
+// ════════════════════════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════════════════════════
+let STATE = { ohlcv: null, sym: 'CL=F', period: '6mo', interval: '1d' };
+
+const PLOTLY_CFG = { responsive: true, displayModeBar: false };
+const DARK_LAYOUT = {
+  paper_bgcolor: '#0b1017', plot_bgcolor: '#0b1017',
+  font: { color: '#e2eaf4', family: 'Share Tech Mono, monospace', size: 10 },
+  xaxis: { gridcolor: '#1a2535', linecolor: '#1a2535', tickfont: { size: 9 }, showgrid: true, zeroline: false },
+  yaxis: { gridcolor: '#1a2535', linecolor: '#1a2535', tickfont: { size: 9 }, showgrid: true, zeroline: false },
+  margin: { t: 6, r: 10, b: 30, l: 55 },
+  legend: { bgcolor: 'rgba(11,16,23,0.8)', bordercolor: '#1a2535', borderwidth: 1, font: { size: 9 } },
+  hovermode: 'x unified',
+  hoverlabel: { bgcolor: '#0b1017', bordercolor: '#243044', font: { color: '#e2eaf4', size: 10, family: 'Share Tech Mono' } },
+};
+
+// ════════════════════════════════════════════════════════════════
+// CLOCK
+// ════════════════════════════════════════════════════════════════
+function updateClock() {
+  document.getElementById('clock').textContent = new Date().toISOString().replace('T',' ').slice(0,19) + ' UTC';
+}
+updateClock(); setInterval(updateClock, 1000);
+
+// ════════════════════════════════════════════════════════════════
+// TABS
+// ════════════════════════════════════════════════════════════════
+function switchTab(name, el) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  el.classList.add('active');
+  // Trigger resize on plotly charts
+  setTimeout(() => { window.dispatchEvent(new Event('resize')); }, 100);
+}
+
+// ════════════════════════════════════════════════════════════════
+// DATA FETCH — Yahoo Finance via CORS proxy (allorigins)
+// ════════════════════════════════════════════════════════════════
+async function fetchOHLCV(sym, period, interval) {
+  const yf_url = `https://query1.finance.yahoo.com/v8/finance/chart/${sym}?period1=0&period2=9999999999&range=${period}&interval=${interval}&events=div,split`;
+  const url = `https://api.allorigins.win/get?url=${encodeURIComponent(yf_url)}`;
+  const r = await fetch(url, { headers: { 'Accept': 'application/json' } });
+  const wrapper = await r.json();
+  const data = JSON.parse(wrapper.contents);
+  const res  = data.chart.result[0];
+  const ts   = res.timestamp;
+  const q    = res.indicators.quote[0];
+  const dates= ts.map(t => new Date(t*1000).toISOString().slice(0,10));
+  return {
+    dates, open: q.open, high: q.high, low: q.low, close: q.close,
+    volume: q.volume || Array(dates.length).fill(0),
+    sym, period, interval,
+    name: res.meta.longName || sym,
+    currency: res.meta.currency || '',
+    lastPrice: res.meta.regularMarketPrice || q.close.at(-1)
+  };
+}
+
+// ════════════════════════════════════════════════════════════════
+// TECHNICAL INDICATORS
+// ════════════════════════════════════════════════════════════════
+function sma(arr, n) {
+  return arr.map((_, i) => i < n - 1 ? null : arr.slice(i - n + 1, i + 1).reduce((a, b) => a + b) / n);
+}
+function ema(arr, span) {
+  const k = 2 / (span + 1); let result = [arr[0]];
+  for (let i = 1; i < arr.length; i++) result.push(arr[i] * k + result[i-1] * (1-k));
+  return result;
+}
+function rsi(close, period = 14) {
+  let gains = [], losses = [];
+  for (let i = 1; i < close.length; i++) {
+    const d = close[i] - close[i-1];
+    gains.push(Math.max(d, 0)); losses.push(Math.max(-d, 0));
+  }
+  const result = [null];
+  let ag = gains.slice(0, period).reduce((a,b)=>a+b)/period;
+  let al = losses.slice(0, period).reduce((a,b)=>a+b)/period;
+  result.push(...Array(period - 1).fill(null));
+  result.push(100 - 100 / (1 + ag / (al || 1e-10)));
+  for (let i = period; i < gains.length; i++) {
+    ag = (ag * (period-1) + gains[i]) / period;
+    al = (al * (period-1) + losses[i]) / period;
+    result.push(100 - 100 / (1 + ag / (al || 1e-10)));
+  }
+  return result;
+}
+function macdCalc(close) {
+  const e12 = ema(close, 12), e26 = ema(close, 26);
+  const macdLine = close.map((_, i) => e12[i] - e26[i]);
+  const signal   = ema(macdLine, 9);
+  const hist     = macdLine.map((v, i) => v - signal[i]);
+  return { macdLine, signal, hist };
+}
+function atr(high, low, close, period = 14) {
+  const tr = high.map((h, i) => {
+    if (i === 0) return h - low[i];
+    return Math.max(h - low[i], Math.abs(h - close[i-1]), Math.abs(low[i] - close[i-1]));
+  });
+  return sma(tr, period);
+}
+function vwap(high, low, close, volume) {
+  const tp = high.map((h, i) => (h + low[i] + close[i]) / 3);
+  let cumTpV = 0, cumV = 0;
+  return tp.map((t, i) => { cumTpV += t * (volume[i] || 0); cumV += (volume[i] || 0); return cumV > 0 ? cumTpV / cumV : t; });
+}
+
+// ════════════════════════════════════════════════════════════════
+// VOLUME PROFILE COMPUTE
+// ════════════════════════════════════════════════════════════════
+function computeProfile(highs, lows, closes, volumes, nBins = 40) {
+  const priceMin = Math.min(...lows.filter(Boolean));
+  const priceMax = Math.max(...highs.filter(Boolean));
+  const binSize  = (priceMax - priceMin) / nBins;
+  const bins     = Array(nBins).fill(0);
+  const centers  = Array.from({ length: nBins }, (_, i) => priceMin + (i + 0.5) * binSize);
+
+  for (let i = 0; i < closes.length; i++) {
+    if (!closes[i]) continue;
+    const v = volumes[i] || 0;
+    for (let b = 0; b < nBins; b++) {
+      const bc = centers[b];
+      if (lows[i] <= bc && bc <= highs[i]) bins[b] += v / nBins;
+    }
+  }
+
+  const maxBin  = Math.max(...bins);
+  const pocIdx  = bins.indexOf(maxBin);
+  const poc     = centers[pocIdx];
+  const totalV  = bins.reduce((a, b) => a + b, 0);
+  const target  = totalV * 0.70;
+
+  // Build value area (70% volume around POC)
+  let lo = pocIdx, hi = pocIdx, cumV = bins[pocIdx];
+  while (cumV < target && (lo > 0 || hi < nBins - 1)) {
+    const addLo = lo > 0 ? bins[lo - 1] : -Infinity;
+    const addHi = hi < nBins - 1 ? bins[hi + 1] : -Infinity;
+    if (addLo >= addHi) { cumV += bins[lo - 1]; lo--; }
+    else { cumV += bins[hi + 1]; hi++; }
+  }
+  const vah = centers[hi]; const val = centers[lo];
+
+  const mean = totalV / nBins;
+  const hvn  = centers.filter((_, i) => bins[i] > 1.5 * mean);
+  const lvn  = centers.filter((_, i) => bins[i] < 0.4 * mean && bins[i] > 0);
+
+  return { bins, centers, poc, vah, val, hvn, lvn, binSize, priceMin, priceMax };
+}
+
+// ════════════════════════════════════════════════════════════════
+// ELLIOTT WAVE CLASSIFICATION
+// ════════════════════════════════════════════════════════════════
+function classifyWave(close, rsiArr, macdHist, sma20, sma50, sma200) {
+  const n   = close.length;
+  const p   = close[n - 1];
+  const rv  = rsiArr[n - 1] || 50;
+  const mh  = macdHist[n - 1] || 0;
+  const s20 = sma20[n - 1]; const s50 = sma50[n - 1]; const s200 = sma200[n - 1];
+  const t20 = p > close[n - 20]; const t50 = s50 && p > s50; const t200 = s200 && p > s200;
+
+  // Bearish divergence
+  const pk20 = Math.max(...close.slice(-20));
+  const rpk20 = Math.max(...rsiArr.slice(-20).filter(Boolean));
+  const bearDiv = p >= pk20 * 0.998 && rv < rpk20 - 5;
+  const lw20  = Math.min(...close.slice(-20));
+  const rlw20 = Math.min(...rsiArr.slice(-20).filter(Boolean));
+  const bullDiv = p <= lw20 * 1.002 && rv > rlw20 + 5;
+
+  let wn, wp, wDesc, inv, tgt, rr;
+  if (!t200 && !t50 && t20 && rv > 40 && rv < 62 && mh > 0) {
+    wn = '①'; wp = 'IMPULSIVA'; wDesc = 'Onda 1 — Primo Impulso Rialzista';
+    inv = Math.min(...close.slice(-30)); tgt = p * 1.05;
+  } else if (t200 && !t20 && rv < 48 && mh < 0 && s20 && p < s20) {
+    wn = '②'; wp = 'CORRETTIVA'; wDesc = 'Onda 2 — Correzione 50-61.8% Fib';
+    inv = lw20; tgt = p * 1.08;
+  } else if (t20 && t50 && t200 && rv > 58 && mh > 0 && s20 && p > s20) {
+    wn = '③'; wp = 'IMPULSIVA'; wDesc = 'Onda 3 — Impulso Dominante (161.8% W1)';
+    inv = s50 || p * 0.95; tgt = p * 1.10;
+  } else if (t50 && t200 && !t20 && rv > 38 && rv < 62 && mh < 0) {
+    wn = '④'; wp = 'CORRETTIVA'; wDesc = 'Onda 4 — Consolidamento 23.6-38.2%';
+    inv = s200 || p * 0.90; tgt = p * 1.06;
+  } else if (t20 && t50 && t200 && rv > 60 && mh > 0 && bearDiv) {
+    wn = '⑤'; wp = 'TERMINALE'; wDesc = 'Onda 5 — Terminale + Divergenza RSI';
+    inv = p * 0.96; tgt = p * 1.03;
+  } else if (t200 && !t50 && !t20 && rv < 50 && mh < 0) {
+    wn = '🅐'; wp = 'CORRETTIVA ABC'; wDesc = 'Onda A — Prima Gamba Correttiva';
+    inv = Math.max(...close.slice(-20)); tgt = p * 0.95;
+  } else if (!t200 && t20 && rv > 48 && rv < 68 && mh > 0) {
+    wn = '🅑'; wp = 'RIMBALZO'; wDesc = 'Onda B — Rimbalzo Correttivo (trappola)';
+    inv = p * 0.97; tgt = p * 0.94;
+  } else if (!t200 && !t50 && rv < 42 && mh < 0) {
+    wn = '🅒'; wp = 'CORRETTIVA ABC'; wDesc = 'Onda C — Ultima Gamba Ribassista';
+    inv = Math.max(...close.slice(-10)); tgt = p * 0.93;
+  } else {
+    wn = '?'; wp = 'TRANSIZIONE'; wDesc = 'Fase di Transizione — Attendi conferma';
+    inv = lw20; tgt = Math.max(...close.slice(-20));
+  }
+
+  rr = Math.abs(tgt - p) / Math.abs(p - inv) || 0;
+  const bias = ['IMPULSIVA','TERMINALE'].includes(wp) ? 'BULLISH' :
+               ['CORRETTIVA ABC','RIMBALZO'].includes(wp) ? 'BEARISH' :
+               wp === 'CORRETTIVA' ? 'PULLBACK/SETUP LONG' : 'NEUTRALE';
+  const conf = Math.min(95, Math.max(30,
+    ([t20, t50, t200, rv > 50, mh > 0].filter(Boolean).length * 14) +
+    (bearDiv || bullDiv ? 10 : 0)
+  ));
+
+  // Fibonacci
+  const high100 = Math.max(...close.slice(-100));
+  const low100  = Math.min(...close.slice(-100));
+  const diff    = high100 - low100;
+  const fib = {
+    '0%':    high100,
+    '23.6%': high100 - diff * 0.236,
+    '38.2%': high100 - diff * 0.382,
+    '50%':   high100 - diff * 0.5,
+    '61.8%': high100 - diff * 0.618,
+    '78.6%': high100 - diff * 0.786,
+    '100%':  low100,
+  };
+
+  return { wn, wp, wDesc, inv, tgt, rr: rr.toFixed(1), bias, conf, bearDiv, bullDiv, fib };
+}
+
+// ════════════════════════════════════════════════════════════════
+// FORMAT HELPERS
+// ════════════════════════════════════════════════════════════════
+function fmt(v, d) {
+  if (v === null || v === undefined || isNaN(v)) return '—';
+  return Number(v).toFixed(d ?? (v > 1000 ? 2 : v > 10 ? 4 : 5));
+}
+function fmtChg(v) {
+  if (!v) return '—';
+  const s = v > 0 ? '+' : '';
+  return `${s}${v.toFixed(2)}%`;
+}
+function colorClass(v) { return v > 0 ? 'up' : v < 0 ? 'dn' : 'neu'; }
+function badge(text, type) { return `<span class="badge badge-${type}">${text}</span>`; }
+
+// ════════════════════════════════════════════════════════════════
+// PLOTLY BASE LAYOUT CLONE
+// ════════════════════════════════════════════════════════════════
+function baseLayout(extra = {}) {
+  return Object.assign({}, JSON.parse(JSON.stringify(DARK_LAYOUT)), extra);
+}
+
+// ════════════════════════════════════════════════════════════════
+// LOAD ALL
+// ════════════════════════════════════════════════════════════════
+async function loadAll() {
+  const sym      = document.getElementById('symSelect').value;
+  const period   = document.getElementById('periodSelect').value;
+  const interval = document.getElementById('intervalSelect').value;
+  const btn      = document.getElementById('loadBtn');
+  btn.textContent = '⟳ CARICAMENTO...'; btn.classList.add('btn-loading');
+  showLoading(true);
+  try {
+    STATE.ohlcv = await fetchOHLCV(sym, period, interval);
+    renderElliott();
+    renderOrderFlow();
+    renderVolumeProfile();
+    updateTicker();
+  } catch(e) {
+    console.error(e);
+    alert('Errore caricamento dati. Controlla la console.\n' + e.message);
+  } finally {
+    btn.textContent = '▶ ANALIZZA'; btn.classList.remove('btn-loading');
+    showLoading(false);
+  }
+}
+
+function showLoading(on) {
+  ['ew-loading','of-loading','vp-loading'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = on ? 'flex' : 'none';
+  });
+}
+
+// ════════════════════════════════════════════════════════════════
+// TICKER STRIP
+// ════════════════════════════════════════════════════════════════
+function updateTicker() {
+  const d = STATE.ohlcv;
+  const n = d.close.length;
+  const chg = ((d.close[n-1] - d.close[n-2]) / d.close[n-2] * 100).toFixed(2);
+  const cls = parseFloat(chg) >= 0 ? 'tick-up' : 'tick-dn';
+  const s = document.getElementById('symSelect');
+  const symName = s.options[s.selectedIndex].text;
+  document.getElementById('tickerStrip').innerHTML =
+    `<span class="tick-item"><span class="tick-sym">${symName}</span><span class="${cls}">${fmt(d.close[n-1])} (${chg}%)</span></span>
+     <span class="tick-item" style="color:var(--grey)">H: ${fmt(d.high[n-1])}</span>
+     <span class="tick-item" style="color:var(--grey)">L: ${fmt(d.low[n-1])}</span>
+     <span class="tick-item" style="color:var(--grey)">Vol: ${(d.volume[n-1]/1e6).toFixed(1)}M</span>
+     <span class="tick-item" style="color:var(--grey)">Bars: ${n}</span>`;
+}
+
+// ════════════════════════════════════════════════════════════════
+// ═══════════  RENDER ELLIOTT WAVE  ═══════════
+// ════════════════════════════════════════════════════════════════
+function renderElliott() {
+  const d   = STATE.ohlcv;
+  const n   = d.close.length;
+  const p   = d.close[n-1];
+  const pfn = (v) => fmt(v);
+
+  const sma20  = sma(d.close, 20);
+  const sma50  = sma(d.close, 50);
+  const sma200 = sma(d.close, 200);
+  const ema8   = ema(d.close, 8);
+  const ema21  = ema(d.close, 21);
+  const rsiArr = rsi(d.close);
+  const { macdLine, signal, hist } = macdCalc(d.close);
+  const atrArr = atr(d.high, d.low, d.close);
+  const atrVal = atrArr[n-1] || 0;
+  const chgPct = (p - d.close[n-2]) / d.close[n-2] * 100;
+  const ew     = classifyWave(d.close, rsiArr, hist, sma20, sma50, sma200);
+
+  // ── Metrics ──
+  const bCol = ew.bias.includes('BULL') ? 'up' : ew.bias.includes('BEAR') ? 'dn' : 'yel';
+  document.getElementById('ew-price').textContent = pfn(p);
+  document.getElementById('ew-price').className   = 'metric-value ' + colorClass(chgPct);
+  document.getElementById('ew-chg').textContent   = fmtChg(chgPct);
+  document.getElementById('ew-wave').textContent  = ew.wn;
+  document.getElementById('ew-degree').textContent = ew.wDesc;
+  document.getElementById('ew-bias').textContent  = ew.bias;
+  document.getElementById('ew-bias').className    = 'metric-value ' + bCol;
+  document.getElementById('ew-conf').textContent  = `Confidenza: ${ew.conf}%`;
+  document.getElementById('ew-target').textContent = pfn(ew.tgt);
+  document.getElementById('ew-inv').textContent   = `INV: ${pfn(ew.inv)}`;
+  document.getElementById('ew-rr').textContent    = `${ew.rr}:1`;
+  document.getElementById('ew-rr').className      = 'metric-value ' + (ew.rr >= 2 ? 'up' : ew.rr >= 1.5 ? 'yel' : 'dn');
+  document.getElementById('ew-rsi').textContent   = fmt(rsiArr[n-1], 1);
+  document.getElementById('ew-rsi-state').textContent = rsiArr[n-1] > 70 ? '⚠ IPERCOMPRATO' : rsiArr[n-1] < 30 ? '⚡ IPERVENDUTO' : 'Neutrale';
+  document.getElementById('ew-atr').textContent   = pfn(atrVal);
+
+  // ── Main Chart ──
+  const traces = [
+    { type: 'candlestick', x: d.dates, open: d.open, high: d.high, low: d.low, close: d.close,
+      name: 'OHLC', increasing: { line: { color: '#00d4a0' }, fillcolor: 'rgba(0,212,160,0.6)' },
+      decreasing: { line: { color: '#ff4466' }, fillcolor: 'rgba(255,68,102,0.6)' },
+      hoverinfo: 'x+y' },
+    { type: 'scatter', x: d.dates, y: sma20,  name: 'SMA20',  line: { color: '#2196f3', width: 1.2 }, hoverinfo: 'skip' },
+    { type: 'scatter', x: d.dates, y: sma50,  name: 'SMA50',  line: { color: '#ff9800', width: 1.2 }, hoverinfo: 'skip' },
+    { type: 'scatter', x: d.dates, y: sma200, name: 'SMA200', line: { color: '#9c27b0', width: 1.2 }, hoverinfo: 'skip' },
+    { type: 'scatter', x: d.dates, y: ema8,   name: 'EMA8',   line: { color: '#00d4a0', width: 0.8, dash: 'dot' }, hoverinfo: 'skip' },
+    { type: 'scatter', x: d.dates, y: ema21,  name: 'EMA21',  line: { color: '#ffd600', width: 0.8, dash: 'dot' }, hoverinfo: 'skip' },
+  ];
+
+  // Fibonacci horizontal lines as shapes
+  const shapes = [];
+  const annotations = [];
+  const fibColors = { '38.2%': '#ff9800', '50%': '#ffd600', '61.8%': '#9c27b0', '78.6%': '#f44336' };
+  Object.entries(ew.fib).forEach(([k, v]) => {
+    if (fibColors[k]) {
+      shapes.push({ type: 'line', x0: d.dates[0], x1: d.dates[n-1], y0: v, y1: v,
+        line: { color: fibColors[k], width: 0.7, dash: 'dot' }, opacity: 0.5 });
+      annotations.push({ x: d.dates[n-1], y: v, text: ` Fib ${k}`, showarrow: false,
+        font: { color: fibColors[k], size: 8 }, xanchor: 'left' });
+    }
+  });
+  // Target line
+  if (ew.tgt) {
+    shapes.push({ type: 'line', x0: d.dates[0], x1: d.dates[n-1], y0: ew.tgt, y1: ew.tgt,
+      line: { color: '#00d4a0', width: 1.5, dash: 'dash' }, opacity: 0.85 });
+    annotations.push({ x: d.dates[n-1], y: ew.tgt, text: ` TARGET ${pfn(ew.tgt)}`,
+      showarrow: false, font: { color: '#00d4a0', size: 9, family:'Share Tech Mono' }, xanchor: 'left' });
+  }
+  // Invalidation line
+  if (ew.inv) {
+    shapes.push({ type: 'line', x0: d.dates[0], x1: d.dates[n-1], y0: ew.inv, y1: ew.inv,
+      line: { color: '#ff4466', width: 1.5, dash: 'dash' }, opacity: 0.85 });
+    annotations.push({ x: d.dates[n-1], y: ew.inv, text: ` INVALID ${pfn(ew.inv)}`,
+      showarrow: false, font: { color: '#ff4466', size: 9, family:'Share Tech Mono' }, xanchor: 'left' });
+  }
+
+  const ewLayout = baseLayout({ shapes, annotations, showlegend: true, legend: { x: 0, y: 1 } });
+
+  Plotly.react('ewChart', traces, ewLayout, PLOTLY_CFG);
+
+  // ── RSI Chart ──
+  const rsiTraces = [
+    { type: 'scatter', x: d.dates, y: rsiArr, name: 'RSI(14)', line: { color: '#2196f3', width: 1.5 },
+      fill: 'tonexty', fillcolor: 'rgba(33,150,243,0.05)' },
+    { type: 'scatter', x: d.dates, y: Array(n).fill(70), name: 'OC(70)', line: { color: '#ff4466', width: 0.7, dash: 'dot' }, hoverinfo: 'skip' },
+    { type: 'scatter', x: d.dates, y: Array(n).fill(30), name: 'OV(30)', line: { color: '#00d4a0', width: 0.7, dash: 'dot' }, hoverinfo: 'skip' },
+    { type: 'scatter', x: d.dates, y: Array(n).fill(50), name: '',       line: { color: '#4a6080', width: 0.5, dash: 'dot' }, hoverinfo: 'skip', showlegend: false },
+  ];
+  if (ew.bearDiv) {
+    annotations.push({ x: d.dates[n-1], y: rsiArr[n-1],
+      text: '⚠ DIV BEARISH', font: { color: '#ff4466', size: 9 }, showarrow: true, arrowcolor: '#ff4466' });
+  }
+  const rsiLayout = baseLayout({ yaxis: { ...DARK_LAYOUT.yaxis, range: [0, 100] }, showlegend: false });
+  Plotly.react('rsiChart', rsiTraces, rsiLayout, PLOTLY_CFG);
+
+  // ── MACD Chart ──
+  const macdTraces = [
+    { type: 'bar', x: d.dates, y: hist, name: 'Hist',
+      marker: { color: hist.map(v => v >= 0 ? 'rgba(0,212,160,0.7)' : 'rgba(255,68,102,0.7)') } },
+    { type: 'scatter', x: d.dates, y: macdLine, name: 'MACD', line: { color: '#2196f3', width: 1.2 } },
+    { type: 'scatter', x: d.dates, y: signal,   name: 'Signal',line: { color: '#ff9800', width: 1.2 } },
+  ];
+  Plotly.react('macdChart', macdTraces, baseLayout({ showlegend: true }), PLOTLY_CFG);
+
+  // ── Info Panels ──
+  const pp = (key, val, cls='') => `<div class="info-row"><span class="info-key">${key}</span><span class="info-val ${cls}">${val}</span></div>`;
+  document.getElementById('ew-info-grid').innerHTML = `
+    <div class="info-panel">
+      <div class="info-title">📐 Fibonacci (100 barre)</div>
+      ${Object.entries(ew.fib).map(([k,v]) => pp(k, pfn(v), k==='61.8%'?'yel':'')).join('')}
+    </div>
+    <div class="info-panel">
+      <div class="info-title">🎯 Livelli Operativi</div>
+      ${pp('Onda', `${ew.wn} — ${ew.wp}`, 'yel')}
+      ${pp('Bias', ew.bias, bCol)}
+      ${pp('Confidenza', `${ew.conf}%`)}
+      ${pp('Target', pfn(ew.tgt), 'up')}
+      ${pp('Invalidation', pfn(ew.inv), 'dn')}
+      ${pp('R/R', `${ew.rr}:1`, parseFloat(ew.rr)>=2?'up':'yel')}
+      ${pp('ATR(14)', pfn(atrVal))}
+    </div>
+    <div class="info-panel">
+      <div class="info-title">📊 Medie Mobili</div>
+      ${pp('EMA 8',   pfn(ema8[n-1]),   p>ema8[n-1]?'up':'dn')}
+      ${pp('EMA 21',  pfn(ema21[n-1]),  p>ema21[n-1]?'up':'dn')}
+      ${pp('SMA 20',  pfn(sma20[n-1]),  p>sma20[n-1]?'up':'dn')}
+      ${pp('SMA 50',  pfn(sma50[n-1]),  p>sma50[n-1]?'up':'dn')}
+      ${pp('SMA 200', pfn(sma200[n-1]), p>sma200[n-1]?'up':'dn')}
+    </div>
+    <div class="info-panel">
+      <div class="info-title">🔄 Oscillatori</div>
+      ${pp('RSI(14)', fmt(rsiArr[n-1],1), rsiArr[n-1]>70?'dn':rsiArr[n-1]<30?'up':'neu')}
+      ${pp('MACD',    fmt(macdLine[n-1],5))}
+      ${pp('Signal',  fmt(signal[n-1],5))}
+      ${pp('Hist',    fmt(hist[n-1],5),  hist[n-1]>0?'up':'dn')}
+      ${pp('Div Bearish', ew.bearDiv ? badge('ATTIVA','r') : 'No')}
+      ${pp('Div Bullish', ew.bullDiv ? badge('ATTIVA','g') : 'No')}
+    </div>`;
+}
+
+// ════════════════════════════════════════════════════════════════
+// ═══════════  RENDER ORDER FLOW  ═══════════
+// ════════════════════════════════════════════════════════════════
+function renderOrderFlow() {
+  const d   = STATE.ohlcv;
+  const n   = d.close.length;
+  const p   = d.close[n-1];
+  const pfn = (v) => fmt(v);
+
+  const sma20V = sma(d.volume, 20);
+  const ma20   = sma(d.close, 20);
+  const vwapLine = vwap(d.high, d.low, d.close, d.volume);
+  const atrArr = atr(d.high, d.low, d.close);
+  const atrVal = atrArr[n-1] || 0;
+  const chgPct = (p - d.close[n-2]) / d.close[n-2] * 100;
+
+  // Delta (close - open per bar)
+  const deltaBar = d.close.map((c, i) => c - d.open[i]);
+  const delta20  = deltaBar.map((_, i) => deltaBar.slice(Math.max(0, i-19), i+1).reduce((a,b)=>a+b, 0));
+  const delta3   = deltaBar.map((_, i) => deltaBar.slice(Math.max(0, i-2), i+1).reduce((a,b)=>a+b, 0));
+
+  const vwapLast = vwapLine[n-1];
+  const vwapDev  = (p - vwapLast) / vwapLast * 100;
+  const volRatio = d.volume[n-1] / (sma20V[n-1] || 1);
+  const d20      = delta20[n-1];
+  const d3       = delta3[n-1];
+  const d1       = deltaBar[n-1];
+
+  // Profile (for POC)
+  const prof = computeProfile(d.high.slice(-20), d.low.slice(-20), d.close.slice(-20), d.volume.slice(-20), 30);
+  const poc  = prof.poc;
+
+  // Bias logic
+  const rsiArr = rsi(d.close);
+  const rsi5   = rsi(d.close, 5);
+  const rvLast = rsiArr[n-1] || 50;
+  const rv5    = rsi5[n-1] || 50;
+  const upDays = deltaBar.slice(-20).filter(v => v > 0).length;
+  const buyPct = upDays / 20 * 100;
+
+  let instBias, flowDir;
+  if      (volRatio > 1.8 && d20 > 0) { instBias = 'ACQUISTI ISTITUZIONALI 🏦'; flowDir = 'BULLISH'; }
+  else if (volRatio > 1.8 && d20 < 0) { instBias = 'VENDITE ISTITUZIONALI 🏦';  flowDir = 'BEARISH'; }
+  else if (volRatio > 1.3 && d20 > 0) { instBias = 'ACCUMULO PROGRESSIVO';       flowDir = 'BULLISH'; }
+  else if (volRatio > 1.3 && d20 < 0) { instBias = 'DISTRIBUZIONE PROGRESSIVA';  flowDir = 'BEARISH'; }
+  else if (volRatio > 1.1)             { instBias = 'ATTIVITÀ ELEVATA — MISTO';  flowDir = 'MISTO'; }
+  else                                  { instBias = 'FLUSSO RETAIL NORMALE';      flowDir = 'NEUTRALE'; }
+
+  let trigger30m;
+  if      (d1 > 0 && d3 > 0 && rv5 > 55) trigger30m = '🟢 LONG TRIGGER ATTIVO';
+  else if (d1 < 0 && d3 < 0 && rv5 < 45) trigger30m = '🔴 SHORT TRIGGER ATTIVO';
+  else if (d1 > 0 && rv5 > 50)            trigger30m = '🟡 LONG TRIGGER DEBOLE';
+  else if (d1 < 0 && rv5 < 50)            trigger30m = '🟡 SHORT TRIGGER DEBOLE';
+  else                                     trigger30m = '⚪ NESSUN TRIGGER CHIARO';
+
+  let tfAlign = 0;
+  if (flowDir === 'BULLISH') tfAlign++;
+  if (p > vwapLast)         tfAlign++;
+  if (d20 > 0)              tfAlign++;
+  if (d3 > 0)               tfAlign++;
+  if (volRatio > 1.2)       tfAlign++;
+
+  let sq;
+  if      (tfAlign >= 4) sq = 'A+ — Confluenza Totale';
+  else if (tfAlign === 3) sq = 'A  — Alta Probabilità';
+  else if (tfAlign === 2) sq = 'B  — Setup Parziale';
+  else                    sq = 'C  — Setup Debole';
+
+  // ── Metrics ──
+  const fCol = flowDir === 'BULLISH' ? 'up' : flowDir === 'BEARISH' ? 'dn' : 'yel';
+  document.getElementById('of-price').textContent = pfn(p);
+  document.getElementById('of-price').className   = 'metric-value ' + colorClass(chgPct);
+  document.getElementById('of-chg').textContent   = fmtChg(chgPct);
+  document.getElementById('of-bias').textContent  = instBias;
+  document.getElementById('of-bias').className    = 'metric-value ' + fCol;
+  document.getElementById('of-flow').textContent  = flowDir;
+  document.getElementById('of-vwap').textContent  = pfn(vwapLast);
+  document.getElementById('of-vwap-dev').textContent = fmtChg(vwapDev);
+  document.getElementById('of-volratio').textContent  = volRatio.toFixed(2) + 'x';
+  document.getElementById('of-volratio').className    = 'metric-value ' + (volRatio > 1.5 ? 'up' : 'neu');
+  document.getElementById('of-delta20').textContent   = (d20 >= 0 ? '+' : '') + pfn(d20);
+  document.getElementById('of-delta20').className     = 'metric-value ' + colorClass(d20);
+  document.getElementById('of-setup').textContent     = sq;
+  document.getElementById('of-tfalign').textContent   = `${tfAlign}/5 TF allineati`;
+  document.getElementById('of-trigger').textContent   = trigger30m.replace(/[🟢🔴🟡⚪]/g,'').trim();
+  document.getElementById('of-trigger').className     = 'metric-value ' + (trigger30m.includes('🟢') ? 'up' : trigger30m.includes('🔴') ? 'dn' : 'yel');
+
+  // ── Price + VWAP Chart ──
+  const ofShapes = [
+    { type:'line', x0:d.dates[0], x1:d.dates[n-1], y0:poc, y1:poc,
+      line:{color:'#ff9800',width:1.2,dash:'dot'}, opacity:0.85 },
+    { type:'line', x0:d.dates[0], x1:d.dates[n-1], y0:p,   y1:p,
+      line:{color:'#e2eaf4',width:0.8}, opacity:0.5 },
+  ];
+  const ofAnnot = [
+    { x:d.dates[n-1], y:poc, text:` POC ${pfn(poc)}`, showarrow:false, font:{color:'#ff9800',size:9}, xanchor:'left' },
+  ];
+  const ofTraces = [
+    { type:'candlestick', x:d.dates, open:d.open, high:d.high, low:d.low, close:d.close, name:'OHLC',
+      increasing:{line:{color:'#00d4a0'},fillcolor:'rgba(0,212,160,0.6)'},
+      decreasing:{line:{color:'#ff4466'},fillcolor:'rgba(255,68,102,0.6)'} },
+    { type:'scatter', x:d.dates, y:vwapLine, name:`VWAP ${pfn(vwapLast)}`, line:{color:'#ffd600',width:2}, hoverinfo:'skip' },
+    { type:'scatter', x:d.dates, y:ma20,     name:'MA20', line:{color:'#2196f3',width:1,dash:'dot'}, hoverinfo:'skip' },
+  ];
+  Plotly.react('ofChart', ofTraces, baseLayout({ shapes:ofShapes, annotations:ofAnnot, showlegend:true }), PLOTLY_CFG);
+
+  // ── Volume Chart ──
+  const volColors = deltaBar.map(v => v >= 0 ? 'rgba(0,212,160,0.7)' : 'rgba(255,68,102,0.7)');
+  const volTraces = [
+    { type:'bar',     x:d.dates, y:d.volume, name:'Volume', marker:{color:volColors} },
+    { type:'scatter', x:d.dates, y:sma20V,   name:'Vol SMA20', line:{color:'#e2eaf4',width:1.2} },
+  ];
+  Plotly.react('volChart', volTraces, baseLayout({ showlegend:true }), PLOTLY_CFG);
+
+  // ── Delta Chart ──
+  const deltaColors = delta20.map(v => v >= 0 ? 'rgba(0,212,160,0.7)' : 'rgba(255,68,102,0.7)');
+  const deltaTraces = [
+    { type:'bar', x:d.dates, y:delta20, name:'Delta Cum 20', marker:{color:deltaColors} },
+  ];
+  const deltaShapes = [{ type:'line', x0:d.dates[0], x1:d.dates[n-1], y0:0, y1:0, line:{color:'#4a6080',width:1} }];
+  Plotly.react('deltaChart', deltaTraces, baseLayout({ shapes:deltaShapes, showlegend:false }), PLOTLY_CFG);
+
+  // ── Info Panels ──
+  const pp = (key, val, cls='') => `<div class="info-row"><span class="info-key">${key}</span><span class="info-val ${cls}">${val}</span></div>`;
+  document.getElementById('of-info-grid').innerHTML = `
+    <div class="info-panel">
+      <div class="info-title">🏦 Bias Istituzionale</div>
+      ${pp('Bias', instBias, fCol)}
+      ${pp('Flow Direction', flowDir, fCol)}
+      ${pp('Up Days (20)', `${upDays}/20 (${buyPct.toFixed(0)}%)`)}
+      ${pp('Vol Ratio', volRatio.toFixed(2)+'x', volRatio>1.5?'up':'neu')}
+    </div>
+    <div class="info-panel">
+      <div class="info-title">⚡ Delta Analysis</div>
+      ${pp('Delta 20', (d20>=0?'+':'')+pfn(d20), colorClass(d20))}
+      ${pp('Delta 3',  (d3>=0?'+':'')+pfn(d3),  colorClass(d3))}
+      ${pp('Delta 1',  (d1>=0?'+':'')+pfn(d1),  colorClass(d1))}
+    </div>
+    <div class="info-panel">
+      <div class="info-title">📐 VWAP & Livelli</div>
+      ${pp('VWAP',     pfn(vwapLast), 'blu')}
+      ${pp('Dev VWAP', fmtChg(vwapDev), colorClass(vwapDev))}
+      ${pp('POC',      pfn(poc), 'yel')}
+      ${pp('Posiz vs VWAP', p>vwapLast ? badge('SOPRA','g') : badge('SOTTO','r'))}
+    </div>
+    <div class="info-panel">
+      <div class="info-title">🏆 Setup Quality</div>
+      ${pp('Quality', sq, tfAlign>=3?'up':tfAlign>=2?'yel':'dn')}
+      ${pp('TF Align', `${tfAlign}/5`)}
+      ${pp('Trigger 30M', trigger30m.replace(/[🟢🔴🟡⚪]/g,'').trim())}
+      ${pp('RSI(14)', fmt(rvLast,1))} 
+      ${pp('RSI(5)',  fmt(rv5,1))}
+    </div>`;
+}
+
+// ════════════════════════════════════════════════════════════════
+// ═══════════  RENDER VOLUME PROFILE  ═══════════
+// ════════════════════════════════════════════════════════════════
+function renderVolumeProfile() {
+  const d   = STATE.ohlcv;
+  const n   = d.close.length;
+  const p   = d.close[n-1];
+  const pfn = (v) => fmt(v);
+  const chgPct = (p - d.close[n-2]) / d.close[n-2] * 100;
+
+  // Compute profiles
+  const prof20 = computeProfile(d.high.slice(-20), d.low.slice(-20), d.close.slice(-20), d.volume.slice(-20), 40);
+  const prof5  = computeProfile(d.high.slice(-5),  d.low.slice(-5),  d.close.slice(-5),  d.volume.slice(-5),  20);
+  const prof60 = computeProfile(d.high.slice(-60), d.low.slice(-60), d.close.slice(-60), d.volume.slice(-60), 50);
+  const atrArr = atr(d.high, d.low, d.close);
+  const atrVal = atrArr[n-1] || 0;
+
+  const { poc, vah, val, hvn, lvn } = prof20;
+
+  // VPOC Naked check (poc60 not touched in last 5 bars)
+  const poc60 = prof60.poc;
+  const min5  = Math.min(...d.low.slice(-5));
+  const max5  = Math.max(...d.high.slice(-5));
+  const vpocNaked = (poc60 < min5 || poc60 > max5) ? poc60 : null;
+
+  // Value Area context
+  let vaCtx, vaPos;
+  if      (p > vah) { vaCtx = 'BULLISH';    vaPos = 'SOPRA VA'; }
+  else if (p < val) { vaCtx = 'BEARISH';    vaPos = 'SOTTO VA'; }
+  else               { vaCtx = 'BILANCIATO'; vaPos = 'DENTRO VA'; }
+  const pocDist = ((p - poc) / poc * 100).toFixed(2);
+
+  // ── Metrics ──
+  const vCol = vaCtx === 'BULLISH' ? 'up' : vaCtx === 'BEARISH' ? 'dn' : 'yel';
+  document.getElementById('vp-price').textContent = pfn(p);
+  document.getElementById('vp-price').className   = 'metric-value ' + colorClass(chgPct);
+  document.getElementById('vp-chg').textContent   = fmtChg(chgPct);
+  document.getElementById('vp-poc').textContent   = pfn(poc);
+  document.getElementById('vp-poc-dist').textContent = `Dist: ${pocDist}%`;
+  document.getElementById('vp-vah').textContent   = pfn(vah);
+  document.getElementById('vp-val').textContent   = pfn(val);
+  document.getElementById('vp-ctx').textContent   = vaCtx;
+  document.getElementById('vp-ctx').className     = 'metric-value ' + vCol;
+  document.getElementById('vp-pos').textContent   = vaPos;
+  document.getElementById('vp-vpoc').textContent  = vpocNaked ? pfn(vpocNaked) : 'Nessuno';
+  document.getElementById('vp-vpoc').className    = 'metric-value ' + (vpocNaked ? 'pur' : 'grey');
+  document.getElementById('vp-atr').textContent   = pfn(atrVal);
+
+  // ── Price Chart with VP Levels ──
+  const vpShapes = [
+    // Value Area shading
+    { type:'rect', x0:d.dates[0], x1:d.dates[n-1], y0:val, y1:vah,
+      fillcolor:'rgba(33,150,243,0.06)', line:{width:0}, layer:'below' },
+    // POC
+    { type:'line', x0:d.dates[0], x1:d.dates[n-1], y0:poc, y1:poc,
+      line:{color:'#ffd600',width:2,dash:'solid'} },
+    // VAH
+    { type:'line', x0:d.dates[0], x1:d.dates[n-1], y0:vah, y1:vah,
+      line:{color:'#00d4a0',width:1.2,dash:'dash'} },
+    // VAL
+    { type:'line', x0:d.dates[0], x1:d.dates[n-1], y0:val, y1:val,
+      line:{color:'#ff4466',width:1.2,dash:'dash'} },
+  ];
+  const vpAnnot = [
+    { x:d.dates[n-1], y:poc, text:` POC ${pfn(poc)}`,  showarrow:false, font:{color:'#ffd600',size:9,family:'Share Tech Mono'}, xanchor:'left' },
+    { x:d.dates[n-1], y:vah, text:` VAH ${pfn(vah)}`,  showarrow:false, font:{color:'#00d4a0',size:9}, xanchor:'left' },
+    { x:d.dates[n-1], y:val, text:` VAL ${pfn(val)}`,  showarrow:false, font:{color:'#ff4466',size:9}, xanchor:'left' },
+  ];
+  // HVN lines
+  hvn.slice(0,5).forEach(h => {
+    vpShapes.push({ type:'line', x0:d.dates[0], x1:d.dates[n-1], y0:h, y1:h,
+      line:{color:'rgba(0,212,160,0.4)',width:0.7,dash:'dot'} });
+  });
+  // LVN lines
+  lvn.slice(0,5).forEach(l => {
+    vpShapes.push({ type:'line', x0:d.dates[0], x1:d.dates[n-1], y0:l, y1:l,
+      line:{color:'rgba(255,68,102,0.4)',width:0.7,dash:'dot'} });
+  });
+  // VPOC Naked
+  if (vpocNaked) {
+    vpShapes.push({ type:'line', x0:d.dates[0], x1:d.dates[n-1], y0:vpocNaked, y1:vpocNaked,
+      line:{color:'#9c27b0',width:1.5,dash:'longdash'} });
+    vpAnnot.push({ x:d.dates[n-1], y:vpocNaked, text:` VPOC Naked ${pfn(vpocNaked)}`,
+      showarrow:false, font:{color:'#9c27b0',size:9}, xanchor:'left' });
+  }
+
+  const vpPriceTraces = [
+    { type:'candlestick', x:d.dates, open:d.open, high:d.high, low:d.low, close:d.close, name:'OHLC',
+      increasing:{line:{color:'#00d4a0'},fillcolor:'rgba(0,212,160,0.6)'},
+      decreasing:{line:{color:'#ff4466'},fillcolor:'rgba(255,68,102,0.6)'} },
+  ];
+  Plotly.react('vpPriceChart', vpPriceTraces,
+    baseLayout({ shapes:vpShapes, annotations:vpAnnot, showlegend:false }), PLOTLY_CFG);
+
+  // ── Horizontal Volume Profile ──
+  const { bins, centers, binSize } = prof20;
+  const maxBin = Math.max(...bins);
+  const barColors = centers.map((c, i) => {
+    if (Math.abs(c - poc) < binSize * 1.5) return '#ffd600';
+    if (c >= val && c <= vah)              return 'rgba(33,150,243,0.7)';
+    if (hvn.some(h => Math.abs(h - c) < binSize)) return 'rgba(0,212,160,0.8)';
+    if (lvn.some(l => Math.abs(l - c) < binSize)) return 'rgba(255,68,102,0.6)';
+    return '#2a3a50';
+  });
+  const vpProfileTraces = [
+    { type:'bar', x:bins, y:centers, orientation:'h', name:'Volume Profile',
+      marker:{ color:barColors }, width:Array(bins.length).fill(binSize * 0.85),
+      hovertemplate:'Price: %{y:.5f}<br>Vol: %{x:.0f}<extra></extra>' },
+  ];
+  const vpProfileShapes = [
+    { type:'line', y0:poc, y1:poc, x0:0, x1:maxBin, line:{color:'#ffd600',width:2} },
+    { type:'line', y0:vah, y1:vah, x0:0, x1:maxBin, line:{color:'#00d4a0',width:1,dash:'dash'} },
+    { type:'line', y0:val, y1:val, x0:0, x1:maxBin, line:{color:'#ff4466',width:1,dash:'dash'} },
+    { type:'line', y0:p,   y1:p,   x0:0, x1:maxBin, line:{color:'#e2eaf4',width:1} },
+  ];
+  if (vpocNaked) vpProfileShapes.push(
+    { type:'line', y0:vpocNaked, y1:vpocNaked, x0:0, x1:maxBin, line:{color:'#9c27b0',width:1.5,dash:'longdash'} }
+  );
+  const vpProfileLayout = baseLayout({
+    shapes: vpProfileShapes, showlegend: false,
+    xaxis: { ...DARK_LAYOUT.xaxis, title:{text:'Volume',font:{size:9,color:'#4a6080'}} },
+    yaxis: { ...DARK_LAYOUT.yaxis, title:{text:'Prezzo',font:{size:9,color:'#4a6080'}} },
+    margin: { t:6, r:10, b:40, l:65 },
+  });
+  Plotly.react('vpProfileChart', vpProfileTraces, vpProfileLayout, PLOTLY_CFG);
+
+  // ── Info Panels ──
+  const pp = (key, val, cls='') => `<div class="info-row"><span class="info-key">${key}</span><span class="info-val ${cls}">${val}</span></div>`;
+  const nearHVN = hvn.filter(h => h > p).sort()[0];
+  const nearHVNb = hvn.filter(h => h < p).sort().reverse()[0];
+  const nearLVN = lvn.filter(l => l > p).sort()[0];
+  const nearLVNb = lvn.filter(l => l < p).sort().reverse()[0];
+
+  let trigger;
+  const pocDistAbs = Math.abs(p - poc);
+  if      (pocDistAbs < 0.3*atrVal && vaCtx==='BULLISH') trigger = '🟢 RETEST POC BULLISH — setup long';
+  else if (pocDistAbs < 0.3*atrVal && vaCtx==='BEARISH') trigger = '🔴 RETEST POC BEARISH — setup short';
+  else if (p > vah)                                       trigger = '🟢 SOPRA VAH — trend long, pullback a VAH';
+  else if (p < val)                                       trigger = '🔴 SOTTO VAL — trend short, rimbalzo a VAL';
+  else if (nearLVN && Math.abs(p-nearLVN) < 0.5*atrVal) trigger = '⚡ LVN VICINO SOPRA — accelerazione breakout';
+  else if (nearLVNb && Math.abs(p-nearLVNb)<0.5*atrVal) trigger = '⚡ LVN VICINO SOTTO — accelerazione breakdown';
+  else                                                    trigger = '⚪ DENTRO STRUTTURA — attendi livello chiaro';
+
+  document.getElementById('vp-info-grid').innerHTML = `
+    <div class="info-panel">
+      <div class="info-title">📊 Struttura Daily (20 sessioni)</div>
+      ${pp('POC', pfn(poc), 'yel')}
+      ${pp('VAH', pfn(vah), 'up')}
+      ${pp('VAL', pfn(val), 'dn')}
+      ${pp('Value Area', vaCtx, vCol)}
+      ${pp('Posizione', vaPos)}
+      ${pp('Dist POC', `${pocDist}%`, Math.abs(parseFloat(pocDist))>1?'dn':Math.abs(parseFloat(pocDist))>0.3?'yel':'up')}
+    </div>
+    <div class="info-panel">
+      <div class="info-title">🎯 Struttura 4H (5 sessioni)</div>
+      ${pp('POC 5gg', pfn(prof5.poc), 'yel')}
+      ${pp('VAH 5gg', pfn(prof5.vah), 'up')}
+      ${pp('VAL 5gg', pfn(prof5.val), 'dn')}
+      ${pp('VPOC Naked', vpocNaked ? pfn(vpocNaked) : 'Nessuno', vpocNaked?'pur':'')}
+    </div>
+    <div class="info-panel">
+      <div class="info-title">⚡ Zone Operative</div>
+      ${pp('HVN sopra', nearHVN  ? pfn(nearHVN)  : '—', 'up')}
+      ${pp('HVN sotto', nearHVNb ? pfn(nearHVNb) : '—', 'dn')}
+      ${pp('LVN sopra', nearLVN  ? pfn(nearLVN)  : '—', 'up')}
+      ${pp('LVN sotto', nearLVNb ? pfn(nearLVNb) : '—', 'dn')}
+    </div>
+    <div class="info-panel">
+      <div class="info-title">🔥 HVN / ❄️ LVN (Daily)</div>
+      <div style="margin-bottom:6px">${hvn.slice(0,6).map(h=>`<span class="badge badge-g" style="margin:2px">${pfn(h)}</span>`).join('')||'—'}</div>
+      <div>${lvn.slice(0,6).map(l=>`<span class="badge badge-r" style="margin:2px">${pfn(l)}</span>`).join('')||'—'}</div>
+      <div style="margin-top:12px">
+        ${pp('Trigger 30M', trigger.replace(/[🟢🔴⚡⚪]/g,'').trim())}
+        ${pp('ATR', pfn(atrVal))}
+      </div>
+    </div>`;
+}
+
+// ════════════════════════════════════════════════════════════════
+// INIT — Load default on start
+// ════════════════════════════════════════════════════════════════
+window.addEventListener('load', () => {
+  loadAll();
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>XenosWaves — Daily News Brief</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans+Condensed:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:      #f5f0e8;
+  --ink:     #1a1208;
+  --ink2:    #3d3020;
+  --muted:   #8a7a60;
+  --border:  #c8b898;
+  --border2: #e0d4b8;
+  --red:     #c0392b;
+  --green:   #1a7a3a;
+  --orange:  #d35400;
+  --blue:    #1a4a8a;
+  --yellow:  #f0c040;
+  --mono:    'IBM Plex Mono', monospace;
+  --sans:    'IBM Plex Sans Condensed', sans-serif;
+  --col-w:   720px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--mono);
+  min-height: 100vh;
+  position: relative;
+}
+
+/* ── GRAIN TEXTURE ── */
+body::before {
+  content: '';
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  background-size: 200px;
+}
+
+/* ── NEWSPAPER GRID ── */
+.newspaper {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 24px 60px;
+  position: relative; z-index: 1;
+}
+
+/* ── MASTHEAD ── */
+.masthead {
+  border-bottom: 4px double var(--ink);
+  padding: 28px 0 16px;
+  text-align: center;
+  position: relative;
+  margin-bottom: 0;
+}
+.masthead-top {
+  display: flex; justify-content: space-between; align-items: baseline;
+  font-size: 10px; color: var(--muted); font-family: var(--mono);
+  letter-spacing: 1px; margin-bottom: 8px;
+  border-bottom: 1px solid var(--border); padding-bottom: 6px;
+}
+.masthead-name {
+  font-family: var(--sans); font-weight: 700; font-size: 52px;
+  letter-spacing: -1px; line-height: 1; color: var(--ink);
+  text-transform: uppercase;
+}
+.masthead-name span { color: var(--muted); font-weight: 300; }
+.masthead-sub {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 4px;
+  color: var(--muted); text-transform: uppercase; margin-top: 4px;
+}
+.masthead-edition {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 10px; color: var(--muted); margin-top: 8px;
+  border-top: 1px solid var(--border); padding-top: 6px;
+}
+
+/* ── SECTION DIVIDER ── */
+.section-head {
+  font-family: var(--sans); font-weight: 700; font-size: 10px;
+  letter-spacing: 4px; text-transform: uppercase; color: var(--ink);
+  background: var(--ink); color: var(--bg);
+  padding: 3px 10px; display: inline-block;
+  margin: 20px 0 0;
+}
+.divider { border: none; border-top: 1px solid var(--border); margin: 6px 0 16px; }
+.divider-thick { border: none; border-top: 2px solid var(--ink); margin: 6px 0 16px; }
+
+/* ── TICKER BAR ── */
+.ticker-bar {
+  background: var(--ink); color: var(--bg);
+  padding: 6px 0; overflow: hidden; position: relative;
+  font-size: 11px; font-family: var(--mono);
+  border-top: 2px solid var(--ink); border-bottom: 2px solid var(--ink);
+  margin-bottom: 0;
+}
+.ticker-inner {
+  display: flex; gap: 32px; white-space: nowrap;
+  animation: scroll-ticker 40s linear infinite;
+}
+.ticker-inner:hover { animation-play-state: paused; }
+@keyframes scroll-ticker {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.tick { display: inline-flex; gap: 8px; align-items: center; }
+.tick-sym { color: var(--yellow); font-weight: 600; }
+.tick-up  { color: #5dba72; }
+.tick-dn  { color: #ff6b6b; }
+.tick-sep { color: #555; }
+
+/* ── MAIN GRID ── */
+.main-grid {
+  display: grid;
+  grid-template-columns: 1fr 1px 1fr 1px 1fr;
+  gap: 0;
+  margin-top: 0;
+}
+.col-divider {
+  background: var(--border);
+  margin: 0 20px;
+}
+
+/* ── HEADLINE (FEATURE STORY) ── */
+.headline-story {
+  grid-column: 1 / -1;
+  padding: 20px 0 16px;
+  border-bottom: 2px solid var(--ink);
+  display: grid;
+  grid-template-columns: 1fr 1px 380px;
+  gap: 0;
+}
+.headline-main { padding-right: 24px; }
+.headline-divider { background: var(--border); margin: 0 20px; }
+.headline-sidebar { padding-left: 4px; }
+
+.kicker {
+  font-family: var(--sans); font-size: 10px; font-weight: 700;
+  letter-spacing: 3px; text-transform: uppercase;
+  color: var(--red); margin-bottom: 6px;
+}
+.headline-hl {
+  font-family: var(--sans); font-weight: 700; font-size: 34px;
+  line-height: 1.1; color: var(--ink); margin-bottom: 10px;
+  letter-spacing: -0.5px;
+}
+.headline-deck {
+  font-family: var(--sans); font-size: 14px; font-weight: 400;
+  color: var(--ink2); line-height: 1.5; margin-bottom: 12px;
+  border-left: 3px solid var(--red); padding-left: 12px;
+}
+.byline {
+  font-size: 9px; color: var(--muted); letter-spacing: 2px;
+  text-transform: uppercase; font-family: var(--mono);
+}
+
+/* ── MARKET SNAPSHOT (sidebar) ── */
+.snapshot-title {
+  font-family: var(--sans); font-weight: 700; font-size: 11px;
+  letter-spacing: 3px; text-transform: uppercase; color: var(--muted);
+  border-bottom: 1px solid var(--border); padding-bottom: 4px; margin-bottom: 8px;
+}
+.snapshot-table { width: 100%; font-size: 11px; border-collapse: collapse; }
+.snapshot-table tr { border-bottom: 1px solid var(--border2); }
+.snapshot-table td { padding: 5px 0; }
+.s-sym  { font-weight: 600; color: var(--ink); width: 90px; }
+.s-price { text-align: right; color: var(--ink2); }
+.s-chg  { text-align: right; font-weight: 600; width: 70px; }
+.s-bar  { width: 80px; padding-left: 8px; }
+.mini-bar { height: 4px; border-radius: 2px; }
+.up { color: var(--green); }
+.dn { color: var(--red); }
+
+/* ── COLUMN STORIES ── */
+.col { padding: 16px 0; }
+.col-story { margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid var(--border2); }
+.col-story:last-child { border-bottom: none; }
+.story-kicker {
+  font-size: 9px; font-weight: 700; letter-spacing: 3px;
+  text-transform: uppercase; color: var(--muted); margin-bottom: 4px;
+}
+.story-hl {
+  font-family: var(--sans); font-weight: 700; font-size: 16px;
+  line-height: 1.2; color: var(--ink); margin-bottom: 6px;
+}
+.story-body {
+  font-size: 11px; color: var(--ink2); line-height: 1.7;
+  font-family: var(--sans); font-weight: 400;
+}
+.story-tag {
+  display: inline-block; margin-top: 6px;
+  font-size: 9px; font-family: var(--mono); letter-spacing: 1px;
+  padding: 1px 6px; border: 1px solid currentColor;
+}
+.tag-bull { color: var(--green); border-color: var(--green); }
+.tag-bear { color: var(--red);   border-color: var(--red); }
+.tag-neu  { color: var(--muted); border-color: var(--muted); }
+.tag-warn { color: var(--orange);border-color: var(--orange); }
+
+/* ── IMPACT MATRIX ── */
+.impact-grid {
+  grid-column: 1 / -1;
+  border-top: 2px solid var(--ink);
+  padding: 16px 0 0;
+  margin-top: 8px;
+}
+.impact-title {
+  font-family: var(--sans); font-weight: 700; font-size: 11px;
+  letter-spacing: 4px; text-transform: uppercase; margin-bottom: 12px;
+}
+.impact-row {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 12px;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border2);
+  align-items: center;
+  font-size: 11px;
+}
+.impact-row:last-child { border-bottom: none; }
+.impact-asset { font-weight: 600; font-family: var(--sans); font-size: 13px; }
+.impact-bar-wrap { display: flex; align-items: center; gap: 8px; }
+.impact-bar-bg {
+  flex: 1; height: 6px; background: var(--border2); border-radius: 3px; position: relative;
+}
+.impact-bar-fill { height: 100%; border-radius: 3px; transition: width 1s ease; }
+.impact-label { font-size: 10px; color: var(--muted); white-space: nowrap; min-width: 80px; }
+
+/* ── CALENDARIO MACRO ── */
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  font-size: 10px;
+}
+.cal-cell {
+  background: var(--bg); padding: 8px;
+}
+.cal-day { font-weight: 700; font-family: var(--sans); font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+.cal-event { margin-bottom: 3px; }
+.cal-time { color: var(--muted); display: block; }
+.cal-name { font-weight: 600; }
+.imp-high { color: var(--red); }
+.imp-med  { color: var(--orange); }
+.imp-low  { color: var(--muted); }
+
+/* ── SENTIMENT GAUGE ── */
+.sentiment-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-top: 8px;
+}
+.sentiment-card {
+  border: 1px solid var(--border); padding: 10px;
+  text-align: center;
+}
+.sent-label {
+  font-size: 9px; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 6px; font-family: var(--mono);
+}
+.sent-value {
+  font-family: var(--sans); font-weight: 700; font-size: 22px;
+}
+.sent-sub { font-size: 9px; color: var(--muted); margin-top: 2px; }
+.gauge-bar {
+  height: 3px; background: var(--border2); margin-top: 6px; border-radius: 2px; overflow: hidden;
+}
+.gauge-fill { height: 100%; border-radius: 2px; }
+
+/* ── QUOTE BOX ── */
+.quote-box {
+  border-left: 4px solid var(--ink);
+  padding: 10px 16px;
+  margin: 12px 0;
+  background: rgba(0,0,0,0.03);
+}
+.quote-text {
+  font-family: var(--sans); font-size: 13px; font-style: italic;
+  line-height: 1.5; color: var(--ink2); margin-bottom: 6px;
+}
+.quote-src { font-size: 10px; color: var(--muted); letter-spacing: 1px; }
+
+/* ── FLASH NEWS SIDEBAR ── */
+.flash-item {
+  display: grid; grid-template-columns: 48px 1fr;
+  gap: 8px; padding: 8px 0;
+  border-bottom: 1px solid var(--border2);
+  font-size: 11px;
+}
+.flash-time { color: var(--muted); font-family: var(--mono); font-size: 10px; padding-top: 1px; }
+.flash-text { font-family: var(--sans); line-height: 1.4; }
+.flash-hl   { font-weight: 600; color: var(--ink); }
+.flash-dot  {
+  display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+  margin-right: 4px; vertical-align: middle; margin-top: -1px;
+}
+.dot-r { background: var(--red); }
+.dot-g { background: var(--green); }
+.dot-o { background: var(--orange); }
+.dot-b { background: var(--blue); }
+
+/* ── BOTTOM BAR ── */
+.bottom-bar {
+  border-top: 4px double var(--ink);
+  padding: 10px 0;
+  display: flex; justify-content: space-between;
+  font-size: 10px; color: var(--muted);
+  font-family: var(--mono); margin-top: 24px;
+}
+
+/* ── ANIMATIONS ── */
+@keyframes fadeUp {
+  from { opacity:0; transform: translateY(12px); }
+  to   { opacity:1; transform: translateY(0); }
+}
+.col-story { animation: fadeUp 0.5s ease both; }
+.col-story:nth-child(1) { animation-delay: 0.1s; }
+.col-story:nth-child(2) { animation-delay: 0.2s; }
+.col-story:nth-child(3) { animation-delay: 0.3s; }
+.headline-story { animation: fadeUp 0.4s ease both; }
+
+/* ── LABEL BAND ── */
+.label-band {
+  background: var(--red); color: #fff;
+  font-family: var(--sans); font-weight: 700;
+  font-size: 9px; letter-spacing: 3px; text-transform: uppercase;
+  padding: 2px 8px; display: inline-block; margin-bottom: 4px;
+}
+.label-band.blue   { background: var(--blue); }
+.label-band.green  { background: var(--green); }
+.label-band.orange { background: var(--orange); }
+.label-band.grey   { background: var(--muted); }
+
+/* ── NOTA CONCETTO ── */
+.concept-note {
+  position: fixed; bottom: 20px; right: 20px;
+  background: var(--ink); color: var(--bg);
+  padding: 12px 18px; font-family: var(--mono); font-size: 10px;
+  max-width: 260px; line-height: 1.6; z-index: 100;
+  box-shadow: 4px 4px 0 var(--muted);
+  animation: fadeUp 0.6s ease 1s both;
+}
+.concept-note-title { font-weight: 600; margin-bottom: 6px; letter-spacing: 2px; color: var(--yellow); }
+</style>
+</head>
+<body>
+
+<div class="newspaper">
+
+  <!-- ══════ MASTHEAD ══════ -->
+  <div class="masthead">
+    <div class="masthead-top">
+      <span>VOL. I — N. 001</span>
+      <span id="dateStr">LUNEDÌ, 24 FEBBRAIO 2025</span>
+      <span>EDIZIONE MATTUTINA</span>
+    </div>
+    <div class="masthead-name">XENOS<span>FINANCE</span></div>
+    <div class="masthead-sub">Daily Market Intelligence Brief — Powered by XenosWaves Bot</div>
+    <div class="masthead-edition">
+      <span>📡 Dati: Reuters · Yahoo Finance · Federal Reserve · EIA</span>
+      <span>🤖 Analisi: Claude AI + Elliott Wave + Order Flow + Volume Profile</span>
+      <span>⏰ Pubblicazione: 07:30 CET ogni giorno feriale</span>
+    </div>
+  </div>
+
+  <!-- ══════ TICKER ══════ -->
+  <div class="ticker-bar">
+    <div class="ticker-inner">
+      <span class="tick"><span class="tick-sym">OIL</span><span class="tick-dn">$77.84</span><span class="tick-dn">▼ -1.23%</span></span>
+      <span class="tick-sep">|</span>
+      <span class="tick"><span class="tick-sym">GOLD</span><span class="tick-up">$2,341.50</span><span class="tick-up">▲ +0.48%</span></span>
+      <span class="tick-sep">|</span>
+      <span class="tick"><span class="tick-sym">EUR/USD</span><span class="tick-dn">1.0832</span><span class="tick-dn">▼ -0.31%</span></span>
+      <span class="tick-sep">|</span>
+      <span class="tick"><span class="tick-sym">BTC</span><span class="tick-up">$67,420</span><span class="tick-up">▲ +2.14%</span></span>
+      <span class="tick-sep">|</span>
+      <span class="tick"><span class="tick-sym">S&P 500</span><span class="tick-up">5,321.41</span><span class="tick-up">▲ +0.22%</span></span>
+      <span class="tick-sep">|</span>
+      <span class="tick"><span class="tick-sym">NASDAQ</span><span class="tick-up">16,742</span><span class="tick-up">▲ +0.35%</span></span>
+      <span class="tick-sep">|</span>
+      <span class="tick"><span class="tick-sym">GBP/USD</span><span class="tick-dn">1.2634</span><span class="tick-dn">▼ -0.18%</span></span>
+      <span class="tick-sep">|</span>
+      <span class="tick"><span class="tick-sym">NVDA</span><span class="tick-up">$887.60</span><span class="tick-up">▲ +1.92%</span></span>
+      <span class="tick-sep">|</span>
+      <span class="tick"><span class="tick-sym">NAT GAS</span><span class="tick-dn">$2.08</span><span class="tick-dn">▼ -2.44%</span></span>
+      <span class="tick-sep">|</span>
+      <span class="tick"><span class="tick-sym">USD/JPY</span><span class="tick-up">149.82</span><span class="tick-up">▲ +0.09%</span></span>
+      <!-- duplicate for seamless loop -->
+      <span class="tick-sep">|</span>
+      <span class="tick"><span class="tick-sym">OIL</span><span class="tick-dn">$77.84</span><span class="tick-dn">▼ -1.23%</span></span>
+      <span class="tick-sep">|</span>
+      <span class="tick"><span class="tick-sym">GOLD</span><span class="tick-up">$2,341.50</span><span class="tick-up">▲ +0.48%</span></span>
+      <span class="tick-sep">|</span>
+      <span class="tick"><span class="tick-sym">EUR/USD</span><span class="tick-dn">1.0832</span><span class="tick-dn">▼ -0.31%</span></span>
+      <span class="tick-sep">|</span>
+      <span class="tick"><span class="tick-sym">BTC</span><span class="tick-up">$67,420</span><span class="tick-up">▲ +2.14%</span></span>
+      <span class="tick-sep">|</span>
+      <span class="tick"><span class="tick-sym">S&P 500</span><span class="tick-up">5,321.41</span><span class="tick-up">▲ +0.22%</span></span>
+      <span class="tick-sep">|</span>
+      <span class="tick"><span class="tick-sym">NVDA</span><span class="tick-up">$887.60</span><span class="tick-up">▲ +1.92%</span></span>
+    </div>
+  </div>
+
+  <!-- ══════ HEADLINE STORY ══════ -->
+  <div class="headline-story">
+    <div class="headline-main">
+      <div class="label-band">⚡ BREAKING — MACRO</div>
+      <div class="headline-hl">Fed mantiene tassi fermi: Powell avverte che l'inflazione non è ancora domata</div>
+      <div class="headline-deck">
+        Il presidente della Federal Reserve ha dichiarato che il comitato non ha fretta di tagliare i tassi. I futures sui Fed Funds ora scontano solo 2 tagli nel 2025, contro i 4 previsti a inizio anno. I mercati azionari hanno reagito con volatilità, mentre il dollaro si è rafforzato su tutte le principali valute.
+      </div>
+      <div class="quote-box">
+        <div class="quote-text">"We need greater confidence that inflation is moving sustainably toward our 2% goal before it would be appropriate to reduce rates."</div>
+        <div class="quote-src">— Jerome Powell, Presidente Federal Reserve · 23 Feb 2025</div>
+      </div>
+      <div class="byline">REUTERS · FEDERAL RESERVE · 07:15 CET &nbsp;|&nbsp; Impatto: <span class="dn">BEARISH USD-bond · BULLISH DXY</span></div>
+    </div>
+    <div class="headline-divider"></div>
+    <div class="headline-sidebar">
+      <div class="snapshot-title">📊 Snapshot mercati — apertura</div>
+      <table class="snapshot-table">
+        <tr>
+          <td class="s-sym">OIL WTI</td>
+          <td class="s-price">$77.84</td>
+          <td class="s-chg dn">▼ -1.23%</td>
+          <td class="s-bar"><div class="mini-bar" style="background:#fee;border-radius:2px"><div style="width:38%;height:4px;background:#c0392b;border-radius:2px"></div></div></td>
+        </tr>
+        <tr>
+          <td class="s-sym">GOLD</td>
+          <td class="s-price">$2,341</td>
+          <td class="s-chg up">▲ +0.48%</td>
+          <td class="s-bar"><div class="mini-bar" style="background:#efe;border-radius:2px"><div style="width:65%;height:4px;background:#1a7a3a;border-radius:2px"></div></div></td>
+        </tr>
+        <tr>
+          <td class="s-sym">EUR/USD</td>
+          <td class="s-price">1.0832</td>
+          <td class="s-chg dn">▼ -0.31%</td>
+          <td class="s-bar"><div class="mini-bar" style="background:#fee;border-radius:2px"><div style="width:42%;height:4px;background:#c0392b;border-radius:2px"></div></div></td>
+        </tr>
+        <tr>
+          <td class="s-sym">BTC/USD</td>
+          <td class="s-price">$67,420</td>
+          <td class="s-chg up">▲ +2.14%</td>
+          <td class="s-bar"><div class="mini-bar" style="background:#efe;border-radius:2px"><div style="width:72%;height:4px;background:#1a7a3a;border-radius:2px"></div></div></td>
+        </tr>
+        <tr>
+          <td class="s-sym">S&P 500</td>
+          <td class="s-price">5,321</td>
+          <td class="s-chg up">▲ +0.22%</td>
+          <td class="s-bar"><div class="mini-bar" style="background:#efe;border-radius:2px"><div style="width:58%;height:4px;background:#1a7a3a;border-radius:2px"></div></div></td>
+        </tr>
+        <tr>
+          <td class="s-sym">USD/JPY</td>
+          <td class="s-price">149.82</td>
+          <td class="s-chg up">▲ +0.09%</td>
+          <td class="s-bar"><div class="mini-bar" style="background:#efe;border-radius:2px"><div style="width:51%;height:4px;background:#1a7a3a;border-radius:2px"></div></div></td>
+        </tr>
+        <tr>
+          <td class="s-sym">NVDA</td>
+          <td class="s-price">$887.60</td>
+          <td class="s-chg up">▲ +1.92%</td>
+          <td class="s-bar"><div class="mini-bar" style="background:#efe;border-radius:2px"><div style="width:80%;height:4px;background:#1a7a3a;border-radius:2px"></div></div></td>
+        </tr>
+        <tr>
+          <td class="s-sym">NAT GAS</td>
+          <td class="s-price">$2.08</td>
+          <td class="s-chg dn">▼ -2.44%</td>
+          <td class="s-bar"><div class="mini-bar" style="background:#fee;border-radius:2px"><div style="width:28%;height:4px;background:#c0392b;border-radius:2px"></div></div></td>
+        </tr>
+      </table>
+
+      <div style="margin-top:14px">
+        <div class="snapshot-title">🌡️ Sentiment globale</div>
+        <div class="sentiment-row" style="grid-template-columns:1fr 1fr; gap:8px;">
+          <div class="sentiment-card">
+            <div class="sent-label">Risk</div>
+            <div class="sent-value" style="color:var(--orange)">MISTO</div>
+            <div class="gauge-bar"><div class="gauge-fill" style="width:52%;background:var(--orange)"></div></div>
+          </div>
+          <div class="sentiment-card">
+            <div class="sent-label">VIX</div>
+            <div class="sent-value" style="color:var(--green)">14.2</div>
+            <div class="gauge-bar"><div class="gauge-fill" style="width:28%;background:var(--green)"></div></div>
+          </div>
+          <div class="sentiment-card">
+            <div class="sent-label">DXY</div>
+            <div class="sent-value" style="color:var(--red)">104.8</div>
+            <div class="gauge-bar"><div class="gauge-fill" style="width:68%;background:var(--red)"></div></div>
+          </div>
+          <div class="sentiment-card">
+            <div class="sent-label">Fear&amp;Greed</div>
+            <div class="sent-value" style="color:var(--green)">72</div>
+            <div class="gauge-bar"><div class="gauge-fill" style="width:72%;background:var(--green)"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ 3 COLONNE ══════ -->
+  <div class="section-head">Notizie del giorno</div>
+  <hr class="divider-thick">
+
+  <div class="main-grid">
+
+    <!-- COL 1 — MACRO / BANCHE CENTRALI -->
+    <div class="col">
+      <div class="col-story">
+        <div class="story-kicker">🏛️ Banche Centrali</div>
+        <div class="story-hl">BCE pronta a primo taglio a Giugno — Lagarde conferma la road map</div>
+        <div class="story-body">La presidente Christine Lagarde ha confermato che la Banca Centrale Europea potrebbe procedere al primo taglio dei tassi a giugno 2025, a condizione che i dati sull'inflazione continuino a migliorare. L'inflazione core nell'Eurozona si attesta al 2.7%, in calo dal 3.1% di dicembre.</div>
+        <span class="story-tag tag-bull">▲ BULLISH EUR-BOND</span>
+        <span class="story-tag tag-bear" style="margin-left:4px">▼ BEARISH EUR/USD</span>
+      </div>
+      <div class="col-story">
+        <div class="story-kicker">📊 Dati Macro USA</div>
+        <div class="story-hl">PCE Core a +2.8% — sopra attese, dollaro si rafforza</div>
+        <div class="story-body">L'indice PCE Core, l'inflazione preferita dalla Fed, è uscito al 2.8% annuo contro il 2.6% atteso. Il mercato del lavoro rimane robusto con 275.000 nuovi occupati a gennaio. La probabilità di un taglio a marzo è ora collassata sotto il 10%.</div>
+        <span class="story-tag tag-bear">▼ BEARISH GOLD</span>
+        <span class="story-tag tag-bull" style="margin-left:4px">▲ BULLISH DXY</span>
+      </div>
+      <div class="col-story">
+        <div class="story-kicker">🏦 Sistema Bancario</div>
+        <div class="story-hl">JPMorgan e Goldman Sachs aumentano dividend — buyback record</div>
+        <div class="story-body">Le due principali banche d'investimento USA hanno annunciato programmi di riacquisto di azioni proprie per un totale di $32 miliardi combinati. JPM ha alzato il dividendo trimestrale del 9.5%.</div>
+        <span class="story-tag tag-bull">▲ BULLISH JPM · GS</span>
+      </div>
+    </div>
+
+    <div class="col-divider"></div>
+
+    <!-- COL 2 — COMMODITIES / ENERGIA -->
+    <div class="col">
+      <div class="col-story">
+        <div class="story-kicker">🛢️ Energia &amp; Petrolio</div>
+        <div class="story-hl">OPEC+ mantiene tagli — Arabia Saudita estende riduzione fino a Q2</div>
+        <div class="story-body">Il cartello petrolifero ha confermato l'estensione dei tagli volontari alla produzione di 2.2 milioni di barili/giorno fino al secondo trimestre 2025. Il WTI rimane sotto pressione nonostante i tagli a causa della crescente produzione USA che ha raggiunto i 13.3 mb/g.</div>
+        <span class="story-tag tag-neu">↔ NEUTRO OIL</span>
+      </div>
+      <div class="col-story">
+        <div class="story-kicker">🥇 Metalli Preziosi</div>
+        <div class="story-hl">Gold sfida i massimi storici — acquisti banche centrali ai massimi dal 1967</div>
+        <div class="story-body">Il World Gold Council riporta che le banche centrali hanno acquistato 1,037 tonnellate d'oro nel 2024, il secondo anno più alto mai registrato. Cina, India e Polonia guidano gli acquisti. Il target tecnico si conferma a $2,400/oz.</div>
+        <div class="quote-box" style="margin-top:8px;padding:8px 12px">
+          <div class="quote-text" style="font-size:11px">"L'oro è la valuta di ultima istanza per le banche centrali che diversificano dalle riserve in dollari."</div>
+          <div class="quote-src">— WGC Report Q4 2024</div>
+        </div>
+        <span class="story-tag tag-bull">▲ BULLISH GOLD · SILVER</span>
+      </div>
+      <div class="col-story">
+        <div class="story-kicker">⚡ EIA Report — Mercoledì</div>
+        <div class="story-hl">Atteso draw scorte di -2.3M barili — mercato si prepara</div>
+        <div class="story-body">Gli analisti si aspettano un calo delle scorte di greggio statunitensi di circa 2.3 milioni di barili nel report EIA di mercoledì 16:30 CET. La stagionalità invernale e i freddi record nel Midwest supportano la domanda di distillati.</div>
+        <span class="story-tag tag-bull">▲ BULLISH OIL pre-EIA</span>
+      </div>
+    </div>
+
+    <div class="col-divider"></div>
+
+    <!-- COL 3 — TECH / GEOPOLITICA / FLASH -->
+    <div class="col">
+      <div class="col-story">
+        <div class="story-kicker">🤖 AI &amp; Tech</div>
+        <div class="story-hl">Nvidia supera $2T di capitalizzazione — earnings record Q4</div>
+        <div class="story-body">NVDA ha riportato ricavi di $22.1 miliardi nel Q4, battendo le stime di $20.6 miliardi. Il segmento Data Center cresce del 409% anno su anno. CEO Jensen Huang annuncia la nuova architettura Blackwell Ultra per H2 2025.</div>
+        <span class="story-tag tag-bull">▲ BULLISH NVDA · AMD</span>
+        <span class="story-tag tag-warn" style="margin-left:4px">⚠ VALUTAZIONE ESTREMA</span>
+      </div>
+      <div class="col-story">
+        <div class="story-kicker">🌍 Geopolitica</div>
+        <div class="story-hl">Tensioni Mar Rosso: assicurazioni marittime +340% — shipping in crisi</div>
+        <div class="story-body">Gli attacchi Houthi alle navi commerciali nel Mar Rosso hanno causato una riallocazione massiccia delle rotte verso il Capo di Buona Speranza, con ritardi di 14-21 giorni. L'impatto inflazionistico sui beni europei è stimato in +0.3% CPI entro Q2.</div>
+        <span class="story-tag tag-bear">▼ BEARISH Supply Chain</span>
+        <span class="story-tag tag-bull" style="margin-left:4px">▲ BULLISH OIL · GOLD</span>
+      </div>
+
+      <!-- FLASH NEWS -->
+      <div style="margin-top:4px">
+        <div class="story-kicker" style="margin-bottom:8px">⚡ Flash News — Ultim'ora</div>
+        <div class="flash-item">
+          <div class="flash-time">07:02</div>
+          <div class="flash-text"><span class="flash-dot dot-r"></span><span class="flash-hl">Cina PMI manifatturiero 49.1</span> — quarto mese consecutivo in contrazione</div>
+        </div>
+        <div class="flash-item">
+          <div class="flash-time">06:44</div>
+          <div class="flash-text"><span class="flash-dot dot-g"></span><span class="flash-hl">Apple vince causa antitrust in UE</span> — rimborso $14.4B annullato dalla corte</div>
+        </div>
+        <div class="flash-item">
+          <div class="flash-time">06:31</div>
+          <div class="flash-text"><span class="flash-dot dot-o"></span><span class="flash-hl">Iran aumenta arricchimento uranio</span> — IAEA: livello "senza precedenti"</div>
+        </div>
+        <div class="flash-item">
+          <div class="flash-time">06:18</div>
+          <div class="flash-text"><span class="flash-dot dot-b"></span><span class="flash-hl">Tesla Cybertruck recall</span> — 3,878 unità per problemi acceleratore</div>
+        </div>
+        <div class="flash-item">
+          <div class="flash-time">05:55</div>
+          <div class="flash-text"><span class="flash-dot dot-g"></span><span class="flash-hl">Bitcoin ETF inflow +$620M</span> — BlackRock iShares guida gli acquisti istituzionali</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ IMPATTO SUI MERCATI ══════ -->
+  <div class="impact-grid">
+    <div class="section-head">Matrice Impatto Notizie → Asset</div>
+    <hr class="divider-thick">
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:0 40px;">
+      <div>
+        <div class="impact-row">
+          <div><div class="impact-asset">🥇 GOLD</div><div style="font-size:9px;color:var(--muted)">Fed hawkish · Safe Haven · CB Buying</div></div>
+          <div class="impact-bar-wrap">
+            <div class="impact-bar-bg"><div class="impact-bar-fill" style="width:72%;background:var(--green)"></div></div>
+            <div class="impact-label up">+72 BULLISH</div>
+          </div>
+        </div>
+        <div class="impact-row">
+          <div><div class="impact-asset">₿ BITCOIN</div><div style="font-size:9px;color:var(--muted)">ETF inflow · Risk-on · Halving 2024</div></div>
+          <div class="impact-bar-wrap">
+            <div class="impact-bar-bg"><div class="impact-bar-fill" style="width:78%;background:var(--green)"></div></div>
+            <div class="impact-label up">+78 BULLISH</div>
+          </div>
+        </div>
+        <div class="impact-row">
+          <div><div class="impact-asset">🤖 NVIDIA</div><div style="font-size:9px;color:var(--muted)">Earnings record · AI boom</div></div>
+          <div class="impact-bar-wrap">
+            <div class="impact-bar-bg"><div class="impact-bar-fill" style="width:85%;background:var(--green)"></div></div>
+            <div class="impact-label up">+85 BULLISH</div>
+          </div>
+        </div>
+        <div class="impact-row">
+          <div><div class="impact-asset">📊 S&P 500</div><div style="font-size:9px;color:var(--muted)">Fed hawkish vs earnings forti</div></div>
+          <div class="impact-bar-wrap">
+            <div class="impact-bar-bg"><div class="impact-bar-fill" style="width:52%;background:var(--orange)"></div></div>
+            <div class="impact-label" style="color:var(--orange)">52 NEUTRO</div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="impact-row">
+          <div><div class="impact-asset">🛢️ OIL WTI</div><div style="font-size:9px;color:var(--muted)">OPEC+ cuts vs USA produzione</div></div>
+          <div class="impact-bar-wrap">
+            <div class="impact-bar-bg"><div class="impact-bar-fill" style="width:40%;background:var(--orange)"></div></div>
+            <div class="impact-label" style="color:var(--orange)">40 NEUTRO</div>
+          </div>
+        </div>
+        <div class="impact-row">
+          <div><div class="impact-asset">💶 EUR/USD</div><div style="font-size:9px;color:var(--muted)">Fed hawkish · BCE dovish gap</div></div>
+          <div class="impact-bar-wrap">
+            <div class="impact-bar-bg"><div class="impact-bar-fill" style="width:65%;background:var(--red)"></div></div>
+            <div class="impact-label dn">-65 BEARISH</div>
+          </div>
+        </div>
+        <div class="impact-row">
+          <div><div class="impact-asset">⛽ NAT GAS</div><div style="font-size:9px;color:var(--muted)">Fine stagione invernale · oversupply</div></div>
+          <div class="impact-bar-wrap">
+            <div class="impact-bar-bg"><div class="impact-bar-fill" style="width:70%;background:var(--red)"></div></div>
+            <div class="impact-label dn">-70 BEARISH</div>
+          </div>
+        </div>
+        <div class="impact-row">
+          <div><div class="impact-asset">💴 USD/JPY</div><div style="font-size:9px;color:var(--muted)">Fed divergenza · BoJ hawkish signals</div></div>
+          <div class="impact-bar-wrap">
+            <div class="impact-bar-bg"><div class="impact-bar-fill" style="width:55%;background:var(--orange)"></div></div>
+            <div class="impact-label" style="color:var(--orange)">55 NEUTRO</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ CALENDARIO MACRO SETTIMANA ══════ -->
+  <div style="margin-top:20px">
+    <div class="section-head">📅 Calendario Macro — Settimana</div>
+    <hr class="divider-thick">
+    <div class="calendar-grid">
+      <div class="cal-cell">
+        <div class="cal-day">LUN 24</div>
+        <div class="cal-event"><span class="cal-time">10:00</span><span class="cal-name imp-low">PMI Manifatturiero EUR</span></div>
+        <div class="cal-event"><span class="cal-time">16:00</span><span class="cal-name imp-low">Vendite Case USA</span></div>
+      </div>
+      <div class="cal-cell">
+        <div class="cal-day">MAR 25</div>
+        <div class="cal-event"><span class="cal-time">14:30</span><span class="cal-name imp-med">Conf. Consumer USA</span></div>
+        <div class="cal-event"><span class="cal-time">16:00</span><span class="cal-name imp-high">⚡ NVDA Earnings</span></div>
+      </div>
+      <div class="cal-cell">
+        <div class="cal-day">MER 26</div>
+        <div class="cal-event"><span class="cal-time">14:30</span><span class="cal-name imp-high">⚡ GDP USA Q4 Rev.</span></div>
+        <div class="cal-event"><span class="cal-time">16:30</span><span class="cal-name imp-high">⚡ EIA Scorte Petrolio</span></div>
+        <div class="cal-event"><span class="cal-time">20:00</span><span class="cal-name imp-med">Fed Beige Book</span></div>
+      </div>
+      <div class="cal-cell">
+        <div class="cal-day">GIO 27</div>
+        <div class="cal-event"><span class="cal-time">08:00</span><span class="cal-name imp-med">IFO Germania</span></div>
+        <div class="cal-event"><span class="cal-time">14:30</span><span class="cal-name imp-high">⚡ PCE Core USA</span></div>
+        <div class="cal-event"><span class="cal-time">14:30</span><span class="cal-name imp-med">Jobless Claims</span></div>
+      </div>
+      <div class="cal-cell">
+        <div class="cal-day">VEN 28</div>
+        <div class="cal-event"><span class="cal-time">11:00</span><span class="cal-name imp-med">CPI Flash EUR</span></div>
+        <div class="cal-event"><span class="cal-time">16:00</span><span class="cal-time imp-low">ISM Manifatturiero</span></div>
+      </div>
+    </div>
+    <div style="font-size:9px;color:var(--muted);margin-top:4px;font-family:var(--mono)">
+      ⚡ ALTO IMPATTO &nbsp;|&nbsp; Medio Impatto &nbsp;|&nbsp; <span style="color:var(--muted)">Basso Impatto</span> &nbsp;|&nbsp; Orari in CET
+    </div>
+  </div>
+
+  <!-- ══════ BOTTOM BAR ══════ -->
+  <div class="bottom-bar">
+    <span>XenosFinance Daily Brief — © 2025</span>
+    <span>Fonti: Reuters · Federal Reserve · EIA · WGC · Bloomberg</span>
+    <span>⚠ Non costituisce consulenza finanziaria</span>
+  </div>
+
+</div><!-- /newspaper -->
+
+<!-- NOTA CONCEPT -->
+<div class="concept-note">
+  <div class="concept-note-title">💡 CONCEPT PREVIEW</div>
+  Questo è il mockup del <strong>Daily News Brief</strong> che il bot potrebbe generare e inviare ogni mattina alle 07:30 CET. I dati sarebbero reali (Reuters RSS + Yahoo Finance + EIA). Fammi sapere se lo vuoi integrare.
+</div>
+
+<script>
+// Update date
+const days = ['DOMENICA','LUNEDÌ','MARTEDÌ','MERCOLEDÌ','GIOVEDÌ','VENERDÌ','SABATO'];
+const months = ['GENNAIO','FEBBRAIO','MARZO','APRILE','MAGGIO','GIUGNO','LUGLIO','AGOSTO','SETTEMBRE','OTTOBRE','NOVEMBRE','DICEMBRE'];
+const now = new Date();
+document.getElementById('dateStr').textContent =
+  `${days[now.getDay()]} ${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`;
+</script>
+</body>
+</html>
