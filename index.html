@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="generated" content="20260224051112">
+<meta name="generated" content="20260224052126">
 <title>XenosFinance — MARTEDÌ 24 FEBBRAIO 2026</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans+Condensed:wght@300;400;600;700&display=swap" rel="stylesheet">
 <style>
@@ -74,14 +74,14 @@ a{color:var(--ink);}
   <div class="masthead-top">
     <span>VOL. I — EDIZIONE QUOTIDIANA</span>
     <span id="live-date">MARTEDÌ 24 FEBBRAIO 2026</span>
-    <span id="live-time">AGGIORNATO ALLE 05:11 CET</span>
+    <span id="live-time">AGGIORNATO ALLE 05:21 CET</span>
   </div>
   <div class="masthead-name">XENOS<span>FINANCE</span></div>
   <div class="masthead-sub">Daily Market Intelligence</div>
   <div class="masthead-edition">
     <span>📡 Fonti: BBC · Reuters · Yahoo Finance · EIA</span>
     <span>📊 Analisi: Elliott Wave · Geopolitics · Macro</span>
-    <span id="live-date2">MARTEDÌ 24 FEBBRAIO 2026 — 05:11 CET</span>
+    <span id="live-date2">MARTEDÌ 24 FEBBRAIO 2026 — 05:21 CET</span>
   </div>
   <div class="main-nav">
     <a class="main-nav-btn active" href="https://xenosfinance.com">📰 Daily Brief</a>
@@ -158,19 +158,28 @@ function fmtP(s, p) {
   return s.prefix + p.toFixed(s.dec);
 }
 async function fetchSym(s) {
-  try {
-    const r = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${s.yf}?range=5d&interval=1d`);
-    if (!r.ok) return null;
-    const d = await r.json();
-    const res = d.chart.result[0];
-    const cls = res.indicators.quote[0].close.filter(x=>x!==null);
-    if (cls.length < 2) return null;
-    const price = cls[cls.length-1];
-    const meta  = res.meta || {};
-    const prev  = parseFloat(meta.previousClose || meta.chartPreviousClose || cls[cls.length-2]);
-    const chg   = ((price - prev) / prev) * 100;
-    return {price, chg};
-  } catch(e) { return null; }
+  const yfUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${s.yf}?range=5d&interval=1d`;
+  const proxies = [
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(yfUrl)}`,
+    `https://corsproxy.io/?${encodeURIComponent(yfUrl)}`,
+  ];
+  for (const url of proxies) {
+    try {
+      const r = await fetch(url, {signal: AbortSignal.timeout(8000)});
+      if (!r.ok) continue;
+      const d = await r.json();
+      const res = d.chart?.result?.[0];
+      if (!res) continue;
+      const cls = res.indicators.quote[0].close.filter(x=>x!==null);
+      if (cls.length < 2) continue;
+      const price = cls[cls.length-1];
+      const meta  = res.meta || {};
+      const prev  = parseFloat(meta.previousClose || meta.chartPreviousClose || cls[cls.length-2]);
+      const chg   = ((price - prev) / prev) * 100;
+      return {price, chg};
+    } catch(e) { continue; }
+  }
+  return null;
 }
 function updateDate() {
   const days   = ['DOMENICA','LUNEDÌ','MARTEDÌ','MERCOLEDÌ','GIOVEDÌ','VENERDÌ','SABATO'];
