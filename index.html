@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="generated" content="20260225050052">
+<meta name="generated" content="20260225073008">
 <title>XenosFinance — MERCOLEDÌ 25 FEBBRAIO 2026</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans+Condensed:wght@300;400;600;700&display=swap" rel="stylesheet">
 <style>
@@ -74,14 +74,14 @@ a{color:var(--ink);}
   <div class="masthead-top">
     <span>VOL. I — EDIZIONE QUOTIDIANA</span>
     <span id="live-date">MERCOLEDÌ 25 FEBBRAIO 2026</span>
-    <span id="live-time">AGGIORNATO ALLE 05:00 CET</span>
+    <span id="live-time">AGGIORNATO ALLE 07:30 CET</span>
   </div>
   <div class="masthead-name">XENOS<span>FINANCE</span></div>
   <div class="masthead-sub">Daily Market Intelligence</div>
   <div class="masthead-edition">
     <span>📡 Fonti: BBC · Reuters · Yahoo Finance · EIA</span>
     <span>📊 Analisi: Elliott Wave · Geopolitics · Macro</span>
-    <span id="live-date2">MERCOLEDÌ 25 FEBBRAIO 2026 — 05:00 CET</span>
+    <span id="live-date2">MERCOLEDÌ 25 FEBBRAIO 2026 — 07:30 CET</span>
   </div>
   <div class="main-nav">
     <a class="main-nav-btn active" href="https://xenosfinance.com">📰 Daily Brief</a>
@@ -220,15 +220,99 @@ async function updateAll() {
   if (ss) ss.textContent = '✓ live ' + n.getHours().toString().padStart(2,'0') + ':' + n.getMinutes().toString().padStart(2,'0');
 }
 // ── LIVE NEWS — RSS feed caricati direttamente nel browser ──────────────────
+// ── FEED FOCALIZZATI SU MERCATI/FINANZA ──────────────────────────────────────
 const NEWS_FEEDS = [
-  { url: 'https://feeds.bbci.co.uk/news/business/rss.xml',        source: 'BBC Business',  cat: 'mercati' },
-  { url: 'https://feeds.bbci.co.uk/news/world/rss.xml',           source: 'BBC World',     cat: 'geopolitica' },
-  { url: 'https://feeds.bbci.co.uk/news/technology/rss.xml',      source: 'BBC Tech',      cat: 'tecnologia' },
-  { url: 'https://rss.nytimes.com/services/xml/rss/nyt/Business.xml', source: 'NYT Business', cat: 'mercati' },
-  { url: 'https://rss.nytimes.com/services/xml/rss/nyt/Economy.xml',  source: 'NYT Economy',  cat: 'economia' },
+  { url: 'https://feeds.bbci.co.uk/news/business/rss.xml',           source: 'BBC Business',  cat: 'mercati' },
+  { url: 'https://feeds.bbci.co.uk/news/world/rss.xml',              source: 'BBC World',     cat: 'geopolitica' },
+  { url: 'https://rss.nytimes.com/services/xml/rss/nyt/Economy.xml', source: 'NYT Economy',   cat: 'macro' },
+  { url: 'https://rss.nytimes.com/services/xml/rss/nyt/Business.xml',source: 'NYT Business',  cat: 'mercati' },
 ];
 
-// Parole chiave per identificare impatto sui mercati
+// ── FILTRO RILEVANZA MERCATI ──────────────────────────────────────────────────
+const MARKET_TOPICS = [
+  'gold','oil','crude','opec','fed','federal reserve','interest rate','rate',
+  'inflation','gdp','nasdaq','s&p','dow jones','futures','stock','market',
+  'treasury','yield','bond','dollar','euro','tariff','trade','trump','china',
+  'sanctions','ukraine','russia','middle east','nvidia','apple','microsoft',
+  'amazon','tesla','meta','earnings','ipo','merger','bitcoin','crypto',
+  'recession','bank','ecb','boe','energy','commodity','wall street','hedge',
+  'investment','economy','growth','jobs','payroll','shares','profit','billion',
+  'debt','currency','forex','rally','selloff','correction','acquisition',
+];
+
+function isMarketRelevant(text) {
+  const t = text.toLowerCase();
+  let score = 0;
+  for (const kw of MARKET_TOPICS) {
+    if (t.includes(kw)) { score++; if (score >= 2) return true; }
+  }
+  return score >= 1;
+}
+
+// ── TRADUZIONE TITOLI EN→IT ──────────────────────────────────────────────────
+const TR = [
+  // Verbi di movimento prezzi
+  [/rises?/gi,'sale'],[/falls?/gi,'scende'],[/climbs?/gi,'sale'],
+  [/drops?/gi,'cede'],[/surges?/gi,'balza'],[/plunges?/gi,'crolla'],
+  [/gains?/gi,'guadagna'],[/slips?/gi,'scivola'],[/jumps?/gi,'balza'],
+  [/rebounds?/gi,'rimbalza'],[/sinks?/gi,'affonda'],[/soars?/gi,'vola'],
+  [/hits record/gi,'tocca record'],[/all-time high/gi,'massimo storico'],
+  [/all-time low/gi,'minimo storico'],[/weekly high/gi,'massimo settimanale'],
+  // Mercati e indici
+  [/wall street/gi,'Wall Street'],[/stock market/gi,'mercato azionario'],
+  [/stock markets/gi,'mercati azionari'],[/stocks/gi,'azioni'],
+  [/shares/gi,'azioni'],[/equities/gi,'azionario'],
+  [/futures/gi,'futures'],[/indices/gi,'indici'],[/index/gi,'indice'],
+  [/trading/gi,'trading'],[/rally/gi,'rally'],[/sell.?off/gi,'sell-off'],
+  [/correction/gi,'correzione'],[/rebound/gi,'rimbalzo'],
+  [/volatility/gi,'volatilità'],[/sentiment/gi,'sentiment'],
+  // Macro
+  [/federal reserve/gi,'Federal Reserve'],[/the fed/gi,'la Fed'],
+  [/interest rates?/gi,'tassi di interesse'],[/rate hike/gi,'rialzo tassi'],
+  [/rate cut/gi,'taglio tassi'],[/inflation/gi,'inflazione'],
+  [/gdp/gi,'PIL'],[/recession/gi,'recessione'],[/growth/gi,'crescita'],
+  [/jobs/gi,'occupazione'],[/unemployment/gi,'disoccupazione'],
+  [/payroll/gi,'buste paga'],[/earnings/gi,'utili'],
+  [/revenue/gi,'ricavi'],[/profit/gi,'profitto'],[/loss/gi,'perdita'],
+  [/debt/gi,'debito'],[/yield/gi,'rendimento'],[/bond/gi,'obbligazione'],
+  [/treasury/gi,'Treasury'],[/deficit/gi,'deficit'],
+  // Commodities
+  [/crude oil/gi,'petrolio greggio'],[/crude/gi,'greggio'],
+  [/natural gas/gi,'gas naturale'],[/copper/gi,'rame'],
+  [/wheat/gi,'grano'],[/energy/gi,'energia'],[/commodit(y|ies)/gi,'materie prime'],
+  // Geopolitica
+  [/tariffs?/gi,'dazi'],[/trade war/gi,'guerra commerciale'],
+  [/sanctions/gi,'sanzioni'],[/conflict/gi,'conflitto'],[/war/gi,'guerra'],
+  [/middle east/gi,'Medio Oriente'],[/opec/gi,'OPEC'],
+  // Valute
+  [/the dollar/gi,'il dollaro'],[/dollar/gi,'dollaro'],
+  [/the euro/gi,"l'euro"],[/the yen/gi,'lo yen'],[/currency/gi,'valuta'],
+  // Azioni comuni testo
+  [/announces?/gi,'annuncia'],[/reports?/gi,'riporta'],
+  [/warns?/gi,'avverte'],[/says/gi,'afferma'],[/beats?/gi,'supera'],
+  [/misses?/gi,'manca'],[/expects?/gi,'prevede'],[/raised/gi,'alzato'],
+  [/new/gi,'nuovo'],[/higher/gi,'più alto'],[/lower/gi,'più basso'],
+  [/strong/gi,'forte'],[/weak/gi,'debole'],[/surprise/gi,'sorpresa'],
+  [/concerns?/gi,'preoccupazioni'],[/fears?/gi,'timori'],
+  [/pressure/gi,'pressione'],[/boosted?/gi,'spinto'],
+  [/(\d+(\.\d+)?)\s*billion/gi,'$1 miliardi'],[/(\d+(\.\d+)?)\s*million/gi,'$1 milioni'],
+  [/percent/gi,'percento'],[/quarterly/gi,'trimestrale'],
+  [/annual/gi,'annuale'],[/monthly/gi,'mensile'],[/weekly/gi,'settimanale'],
+  // Aziende (mantieni inglese ma correggi articoli)
+  [/apple'?s?/gi,"Apple"],[/microsoft'?s?/gi,'Microsoft'],
+  [/nvidia'?s?/gi,'Nvidia'],[/amazon'?s?/gi,'Amazon'],
+  [/tesla'?s?/gi,'Tesla'],[/meta'?s?/gi,'Meta'],
+  [/google'?s?/gi,'Google'],[/alphabet'?s?/gi,'Alphabet'],
+];
+
+function translateTitle(text) {
+  let t = text;
+  for (const [re, it] of TR) t = t.replace(re, it);
+  // Capitalizza prima lettera
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+
+// ── PAROLE CHIAVE IMPATTO MERCATI ─────────────────────────────────────────────
 const MARKET_KEYWORDS = {
   bullish_usd:  ['dollar rises','dollar climbs','fed hike','rate rise','strong jobs','gdp beats'],
   bearish_usd:  ['dollar falls','dollar drops','rate cut','fed cut','recession','weak jobs'],
@@ -275,28 +359,60 @@ function storyBlock(item) {
 }
 
 async function fetchFeed(feed) {
-  const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(feed.url)}`;
+  // Proxy multipli in ordine di affidabilità
+  const proxies = [
+    `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feed.url)}&api_key=&count=20`,
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(feed.url)}`,
+    `https://corsproxy.io/?${encodeURIComponent(feed.url)}`,
+    `https://thingproxy.freeboard.io/fetch/${feed.url}`,
+  ];
+
+  // Prova rss2json prima (restituisce JSON già parsato)
   try {
-    const r = await fetch(proxyUrl, {signal: AbortSignal.timeout(10000)});
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    const txt = await r.text();
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(txt, 'text/xml');
-    const items = [];
-    for (const el of doc.querySelectorAll('item')) {
-      const title = el.querySelector('title')?.textContent?.trim() || '';
-      const desc  = (el.querySelector('description')?.textContent || '').replace(/<[^>]+>/g,'').trim();
-      const link  = el.querySelector('link')?.textContent?.trim() || '';
-      if (!title || title.length < 10) continue;
-      const combined = title + ' ' + desc;
-      const impacts = detectImpact(combined);
-      items.push({ title, desc, link, source: feed.source, cat: feed.cat, impacts });
+    const r = await fetch(proxies[0], {signal: AbortSignal.timeout(8000)});
+    if (r.ok) {
+      const d = await r.json();
+      if (d.status === 'ok' && d.items?.length > 0) {
+        return d.items.map(item => {
+          const titleRaw = item.title?.trim() || '';
+          const desc     = (item.description || item.content || '').replace(/<[^>]+>/g,'').trim();
+          const link     = item.link || item.url || '';
+          if (!titleRaw || titleRaw.length < 10) return null;
+          if (!isMarketRelevant(titleRaw + ' ' + desc)) return null;
+          const title = translateTitle(titleRaw);
+          return { title, desc: desc.substring(0,300), link, source: feed.source, cat: feed.cat, impacts: detectImpact(titleRaw+' '+desc) };
+        }).filter(Boolean);
+      }
     }
-    return items;
-  } catch(e) {
-    console.warn('Feed error', feed.source, e.message);
-    return [];
+  } catch(e) { /* fallback */ }
+
+  // Fallback: proxy raw XML
+  for (const proxyUrl of proxies.slice(1)) {
+    try {
+      const r = await fetch(proxyUrl, {signal: AbortSignal.timeout(8000)});
+      if (!r.ok) continue;
+      const txt = await r.text();
+      if (!txt || txt.length < 100) continue;
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(txt, 'text/xml');
+      const parseError = doc.querySelector('parsererror');
+      if (parseError) continue;
+      const items = [];
+      for (const el of doc.querySelectorAll('item')) {
+        const titleRaw = el.querySelector('title')?.textContent?.trim() || '';
+        const desc     = (el.querySelector('description')?.textContent || '').replace(/<[^>]+>/g,'').trim();
+        const link     = el.querySelector('link')?.textContent?.trim() || '';
+        if (!titleRaw || titleRaw.length < 10) continue;
+        if (!isMarketRelevant(titleRaw + ' ' + desc)) continue;
+        const title = translateTitle(titleRaw);
+        const combined = titleRaw + ' ' + desc;
+        items.push({ title, desc: desc.substring(0,300), link, source: feed.source, cat: feed.cat, impacts: detectImpact(combined) });
+      }
+      if (items.length > 0) return items;
+    } catch(e) { continue; }
   }
+  console.warn('Tutti i proxy falliti per:', feed.source);
+  return [];
 }
 
 async function loadLiveNews() {
@@ -375,7 +491,7 @@ async function loadLiveNews() {
         <div class="flash-text">
           <span class="flash-hl">
             ${item.link ? `<a href="${item.link}" target="_blank" style="color:inherit;text-decoration:none">` : ''}
-            ${item.title.substring(0, 90)}
+            ${item.title.substring(0, 100)}
             ${item.link ? '</a>' : ''}
           </span>
           <div style="margin-top:2px">${item.impacts.map(renderTag).join(' ')}</div>
