@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>XenosFinance — AI Блог</title>
+<title>XenosFinance — AI Блог Admin</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=IBM+Plex+Mono:wght@300;400;500&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -19,7 +19,6 @@
   }
   * { margin:0; padding:0; box-sizing:border-box; }
   body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; font-weight:300; }
-
   header { background:var(--bg2); border-bottom:1px solid var(--border); padding:0 5vw; position:sticky; top:0; z-index:100; }
   .header-top { display:flex; align-items:center; justify-content:space-between; padding:14px 0; border-bottom:1px solid var(--border); }
   .logo { font-family:'IBM Plex Mono',monospace; font-size:1.3rem; font-weight:500; color:var(--text-bright); text-decoration:none; }
@@ -31,19 +30,16 @@
   nav { display:flex; gap:28px; padding:10px 0; }
   nav a { font-family:'IBM Plex Mono',monospace; font-size:0.65rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--text-dim); text-decoration:none; transition:color 0.2s; }
   nav a:hover, nav a.active { color:var(--gold); }
-
   .hero { background:var(--bg2); border-bottom:1px solid var(--border); padding:48px 5vw; position:relative; overflow:hidden; }
   .hero::before { content:''; position:absolute; top:-80px; right:-80px; width:500px; height:500px; background:radial-gradient(circle, rgba(201,168,76,0.05) 0%, transparent 70%); pointer-events:none; }
   .hero-eyebrow { font-family:'IBM Plex Mono',monospace; font-size:0.62rem; letter-spacing:0.25em; text-transform:uppercase; color:var(--gold); margin-bottom:16px; }
   .hero-title { font-family:'Playfair Display',serif; font-size:clamp(2rem,4vw,3.2rem); font-weight:900; color:var(--text-bright); line-height:1.1; margin-bottom:14px; }
   .hero-title span { color:var(--gold); }
   .hero-sub { font-size:0.92rem; color:var(--text-dim); max-width:520px; line-height:1.7; }
-
   .section-wrap { padding:48px 5vw; border-bottom:1px solid var(--border); }
   .section-header { display:flex; align-items:center; gap:14px; margin-bottom:28px; padding-bottom:14px; border-bottom:1px solid var(--border); }
   .section-title { font-family:'IBM Plex Mono',monospace; font-size:0.65rem; letter-spacing:0.2em; text-transform:uppercase; color:var(--gold); white-space:nowrap; }
   .section-line { flex:1; height:1px; background:var(--border); }
-
   .gen-grid { display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-bottom:18px; }
   .gen-field { display:flex; flex-direction:column; gap:7px; }
   .gen-label { font-family:'IBM Plex Mono',monospace; font-size:0.6rem; letter-spacing:0.18em; text-transform:uppercase; color:var(--text-dim); }
@@ -51,13 +47,11 @@
   .gen-select:focus, .gen-input:focus { border-color:var(--gold); }
   .gen-select option { background:var(--bg3); }
   .gen-input::placeholder { color:var(--text-dim); }
-
   .gen-actions { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
   .btn-generate { background:var(--gold); color:#0b0e14; border:none; padding:12px 26px; font-family:'IBM Plex Mono',monospace; font-size:0.7rem; font-weight:500; letter-spacing:0.15em; text-transform:uppercase; cursor:pointer; transition:background 0.2s,transform 0.15s; display:flex; align-items:center; gap:8px; }
   .btn-generate:hover:not(:disabled) { background:var(--gold-light); transform:translateY(-1px); }
   .btn-generate:disabled { opacity:0.4; cursor:not-allowed; }
   .gen-status { font-family:'IBM Plex Mono',monospace; font-size:0.68rem; color:var(--gold); }
-
   .article-display { display:none; padding:48px 5vw; border-bottom:1px solid var(--border); animation:fadeUp 0.4s ease forwards; }
   @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
   .article-display.visible { display:block; }
@@ -69,20 +63,20 @@
   .article-body h2 { font-family:'Playfair Display',serif; font-size:1.35rem; font-weight:700; color:var(--text-bright); margin:32px 0 14px; }
   .article-body h3 { font-family:'IBM Plex Mono',monospace; font-size:0.72rem; letter-spacing:0.15em; text-transform:uppercase; color:var(--gold); margin:26px 0 10px; }
   .article-body blockquote { border-left:2px solid var(--gold); padding:12px 0 12px 20px; margin:26px 0; font-family:'Playfair Display',serif; font-size:1.05rem; font-style:italic; color:var(--text-dim); background:var(--bg2); }
-
   .article-actions { margin-top:36px; padding-top:24px; border-top:1px solid var(--border); display:flex; gap:10px; flex-wrap:wrap; }
   .btn-action { background:transparent; border:1px solid var(--border); color:var(--text); padding:10px 18px; font-family:'IBM Plex Mono',monospace; font-size:0.62rem; letter-spacing:0.12em; text-transform:uppercase; cursor:pointer; transition:border-color 0.2s,color 0.2s; }
   .btn-action:hover { border-color:var(--gold); color:var(--gold); }
+  .btn-publish { background:rgba(201,168,76,0.1); border:1px solid rgba(201,168,76,0.4); color:var(--gold); padding:10px 18px; font-family:'IBM Plex Mono',monospace; font-size:0.62rem; letter-spacing:0.12em; text-transform:uppercase; cursor:pointer; transition:background 0.2s; display:flex; align-items:center; gap:7px; }
+  .btn-publish:hover { background:rgba(201,168,76,0.2); }
+  .btn-publish:disabled { opacity:0.4; cursor:not-allowed; }
   .btn-telegram { background:rgba(42,130,200,0.1); border:1px solid rgba(42,130,200,0.3); color:#5aabde; padding:10px 18px; font-family:'IBM Plex Mono',monospace; font-size:0.62rem; letter-spacing:0.12em; text-transform:uppercase; cursor:pointer; transition:background 0.2s; display:flex; align-items:center; gap:7px; }
   .btn-telegram:hover { background:rgba(42,130,200,0.2); }
   .btn-telegram:disabled { opacity:0.4; cursor:not-allowed; }
-
   .tg-config { background:var(--bg2); border:1px solid var(--border); padding:20px 24px; margin-top:16px; display:none; }
   .tg-config.open { display:block; }
   .tg-config-title { font-family:'IBM Plex Mono',monospace; font-size:0.62rem; letter-spacing:0.15em; text-transform:uppercase; color:var(--gold); margin-bottom:14px; }
   .tg-fields { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px; }
   .tg-note { font-family:'IBM Plex Mono',monospace; font-size:0.58rem; color:var(--text-dim); line-height:1.65; margin-top:10px; }
-
   .blog-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--border); border:1px solid var(--border); margin-top:24px; }
   .blog-card { background:var(--bg2); padding:26px 22px; transition:background 0.2s; cursor:pointer; }
   .blog-card:hover { background:var(--bg3); }
@@ -92,15 +86,13 @@
   .card-excerpt { font-size:0.8rem; color:var(--text-dim); line-height:1.65; margin-bottom:16px; }
   .card-footer { display:flex; justify-content:space-between; font-family:'IBM Plex Mono',monospace; font-size:0.58rem; color:var(--text-dim); }
   .card-read { color:var(--gold); }
-
   .spinner { display:inline-block; width:12px; height:12px; border:1.5px solid rgba(11,14,20,0.3); border-top-color:#0b0e14; border-radius:50%; animation:spin 0.7s linear infinite; }
   @keyframes spin { to{transform:rotate(360deg)} }
-
+  .spinner-gold { display:inline-block; width:12px; height:12px; border:1.5px solid rgba(201,168,76,0.2); border-top-color:var(--gold); border-radius:50%; animation:spin 0.7s linear infinite; }
   footer { background:var(--bg2); border-top:1px solid var(--border); padding:28px 5vw; display:flex; justify-content:space-between; align-items:center; }
   .footer-logo { font-family:'IBM Plex Mono',monospace; font-size:1rem; color:var(--text-bright); }
   .footer-logo span { color:var(--gold); }
   .footer-note { font-family:'IBM Plex Mono',monospace; font-size:0.56rem; color:var(--text-dim); text-align:right; line-height:1.7; }
-
   @media(max-width:800px){
     .gen-grid,.tg-fields{grid-template-columns:1fr;}
     .blog-grid{grid-template-columns:1fr;}
@@ -125,7 +117,7 @@
 <section class="hero">
   <div class="hero-eyebrow">// Генератор статей — искусственный интеллект</div>
   <h1 class="hero-title">AI Блог<br><span>XenosFinance</span></h1>
-  <p class="hero-sub">Генерируйте профессиональные аналитические статьи по финансовым рынкам одним кликом. Публикуйте прямо в Telegram-канал.</p>
+  <p class="hero-sub">Генерируйте профессиональные аналитические статьи по финансовым рынкам одним кликом. Публикуйте прямо в Telegram-канал и на сайт.</p>
 </section>
 
 <section class="section-wrap">
@@ -183,9 +175,10 @@
   <div class="article-actions">
     <button class="btn-action" onclick="copyArticle()">📋 Копировать текст</button>
     <button class="btn-action" onclick="generateArticle()">✦ Новая статья</button>
-    <button class="btn-action" onclick="saveToGrid()">+ Сохранить</button>
+    <button class="btn-publish" id="publishBtn" onclick="publishToBlog()"><span id="pubIcon">✦</span> Опубликовать в блог</button>
     <button class="btn-telegram" onclick="toggleTgConfig()">✈ Отправить в Telegram</button>
   </div>
+  <div class="gen-status" id="publishStatus" style="margin-top:10px;display:block"></div>
   <div class="tg-config" id="tgConfig">
     <div class="tg-config-title">// Настройки Telegram</div>
     <div class="tg-fields">
@@ -195,21 +188,20 @@
       </div>
       <div class="gen-field">
         <label class="gen-label">Channel ID</label>
-        <input class="gen-input" id="tgChannel" type="text" placeholder="@xenosfinance или -100123456789">
+        <input class="gen-input" id="tgChannel" type="text" placeholder="@xenosfin или -100123456789">
       </div>
     </div>
     <button class="btn-telegram" id="tgSendBtn" onclick="sendToTelegram()">✈ Отправить сейчас</button>
     <span class="gen-status" id="tgStatus" style="margin-left:14px"></span>
     <div class="tg-note">
-      ⚠ Токен хранится только в браузере. Убедитесь что бот является администратором канала.<br>
-      Как получить токен: @BotFather → /mybots → API Token
+      ⚠ Токен хранится только в браузере. Убедитесь что бот является администратором канала.
     </div>
   </div>
 </div>
 
 <section class="section-wrap">
   <div class="section-header">
-    <span class="section-title">// Сохранённые статьи</span>
+    <span class="section-title">// Опубликованные статьи</span>
     <div class="section-line"></div>
     <span class="section-title">АРХИВ</span>
   </div>
@@ -218,21 +210,21 @@
       <div class="card-num">001</div>
       <div class="card-cat">Волны Эллиотта</div>
       <div class="card-title">S&P 500: анализ волновой структуры Q1 2025</div>
-      <div class="card-excerpt">Детальный разбор текущей импульсной волны и ключевые уровни для коррекции. Что ждёт индекс в ближайшие недели.</div>
+      <div class="card-excerpt">Детальный разбор текущей импульсной волны и ключевые уровни для коррекции.</div>
       <div class="card-footer"><span>6 мин</span><span class="card-read">Читать →</span></div>
     </div>
     <div class="blog-card">
       <div class="card-num">002</div>
       <div class="card-cat">Макро</div>
       <div class="card-title">ФРС и ставки: сценарии для рынков в 2025</div>
-      <div class="card-excerpt">Анализ вероятных решений ФРС и их влияние на акции, облигации, золото и доллар. Исторические параллели.</div>
+      <div class="card-excerpt">Анализ вероятных решений ФРС и их влияние на акции, облигации, золото и доллар.</div>
       <div class="card-footer"><span>7 мин</span><span class="card-read">Читать →</span></div>
     </div>
     <div class="blog-card">
       <div class="card-num">003</div>
       <div class="card-cat">Крипто</div>
       <div class="card-title">Bitcoin как резервный актив: аргументы и риски</div>
-      <div class="card-excerpt">Разбираем институциональный спрос, корреляции с золотом и макроэкономические факторы влияния на BTC.</div>
+      <div class="card-excerpt">Разбираем институциональный спрос, корреляции с золотом и макроэкономические факторы.</div>
       <div class="card-footer"><span>5 мин</span><span class="card-read">Читать →</span></div>
     </div>
   </div>
@@ -247,7 +239,13 @@
 </footer>
 
 <script>
-  const WORKER_URL = "https://xenos-ai-proxy.xenosfinance.workers.dev";
+  // ═══════════════════════════════════════════
+  //  CONFIGURAZIONE GITHUB
+  // ═══════════════════════════════════════════
+  const GITHUB_TOKEN  = "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";
+  const GITHUB_REPO   = "xenosfinance-prog/kenosblog";
+  const GITHUB_BRANCH = "main";
+  const WORKER_URL    = "https://xenos-ai-proxy.xenosfinance.workers.dev";
 
   const months = ['ЯНВАРЯ','ФЕВРАЛЯ','МАРТА','АПРЕЛЯ','МАЯ','ИЮНЯ','ИЮЛЯ','АВГУСТА','СЕНТЯБРЯ','ОКТЯБРЯ','НОЯБРЯ','ДЕКАБРЯ'];
   const now = new Date();
@@ -288,19 +286,14 @@
           messages: [{ role: "user", content: prompt }]
         })
       });
-
-      if (!response.ok) {
-        const errText = await response.text();
-        throw new Error(`HTTP ${response.status}: ${errText}`);
-      }
-
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = await response.json();
       const text = data.content.map(i => i.text || '').join('');
       const jsonMatch = text.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) throw new Error('JSON не найден в ответе AI');
+      if (!jsonMatch) throw new Error('JSON не найден');
       const article = JSON.parse(jsonMatch[0]);
       const catMap = { 'торговля':'ТРЕЙДИНГ','форекс':'ФОРЕКС','крипто':'КРИПТО','акции':'АКЦИИ','сырьё':'СЫРЬЁ','макро':'МАКРО','волны эллиотта':'ВОЛНЫ ЭЛЛИОТТА','геополитика':'ГЕОПОЛИТИКА' };
-      currentArticle = { ...article, categoryLabel: catMap[category] || category.toUpperCase() };
+      currentArticle = { ...article, categoryLabel: catMap[category] || category.toUpperCase(), date: new Date().toISOString() };
       renderArticle(currentArticle);
       status.textContent = '✓ Готово!';
       setTimeout(() => { status.textContent = ''; }, 3000);
@@ -326,6 +319,81 @@
     const display = document.getElementById('articleDisplay');
     display.classList.add('visible');
     display.scrollIntoView({ behavior:'smooth', block:'start' });
+    document.getElementById('publishStatus').textContent = '';
+  }
+
+  // ═══════════════════════════════════════════
+  //  PUBBLICAZIONE SU GITHUB
+  // ═══════════════════════════════════════════
+  async function publishToBlog() {
+    if (!currentArticle) return;
+    const btn = document.getElementById('publishBtn');
+    const icon = document.getElementById('pubIcon');
+    const status = document.getElementById('publishStatus');
+
+    btn.disabled = true;
+    icon.innerHTML = '<div class="spinner-gold"></div>';
+    status.textContent = 'Pubblicazione in corso...';
+    status.style.color = 'var(--gold)';
+
+    try {
+      // 1. Leggi l'indice esistente (o crea uno nuovo)
+      const indexPath = 'articles/index.json';
+      let existingArticles = [];
+      let indexSha = null;
+
+      const indexRes = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/contents/${indexPath}`, {
+        headers: { 'Authorization': `token ${GITHUB_TOKEN}`, 'Accept': 'application/vnd.github.v3+json' }
+      });
+      if (indexRes.ok) {
+        const indexData = await indexRes.json();
+        indexSha = indexData.sha;
+        existingArticles = JSON.parse(atob(indexData.content.replace(/\n/g, '')));
+      }
+
+      // 2. Crea il file dell'articolo
+      const slug = 'article-' + Date.now();
+      const articleData = { ...currentArticle, slug, publishedAt: new Date().toISOString() };
+      const articlePath = `articles/${slug}.json`;
+      const articleContent = btoa(unescape(encodeURIComponent(JSON.stringify(articleData, null, 2))));
+
+      await fetch(`https://api.github.com/repos/${GITHUB_REPO}/contents/${articlePath}`, {
+        method: 'PUT',
+        headers: { 'Authorization': `token ${GITHUB_TOKEN}`, 'Accept': 'application/vnd.github.v3+json', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: `Nuovo articolo: ${currentArticle.title}`, content: articleContent, branch: GITHUB_BRANCH })
+      });
+
+      // 3. Aggiorna l'indice
+      const newEntry = { slug, title: currentArticle.title, excerpt: currentArticle.excerpt || currentArticle.intro.substring(0,120), category: currentArticle.categoryLabel, readTime: currentArticle.readTime, publishedAt: articleData.publishedAt };
+      existingArticles.unshift(newEntry);
+      const newIndexContent = btoa(unescape(encodeURIComponent(JSON.stringify(existingArticles, null, 2))));
+      const indexBody = { message: 'Aggiorna indice blog', content: newIndexContent, branch: GITHUB_BRANCH };
+      if (indexSha) indexBody.sha = indexSha;
+
+      await fetch(`https://api.github.com/repos/${GITHUB_REPO}/contents/${indexPath}`, {
+        method: 'PUT',
+        headers: { 'Authorization': `token ${GITHUB_TOKEN}`, 'Accept': 'application/vnd.github.v3+json', 'Content-Type': 'application/json' },
+        body: JSON.stringify(indexBody)
+      });
+
+      status.textContent = '✓ Опубликовано на сайте!';
+      status.style.color = 'var(--gold)';
+
+      // Aggiorna la griglia
+      cardCount++;
+      const grid = document.getElementById('blogGrid');
+      const card = document.createElement('div');
+      card.className = 'blog-card';
+      card.innerHTML = `<div class="card-num">${String(cardCount).padStart(3,'0')}</div><div class="card-cat">${currentArticle.categoryLabel}</div><div class="card-title">${currentArticle.title}</div><div class="card-excerpt">${newEntry.excerpt}...</div><div class="card-footer"><span>${currentArticle.readTime}</span><span class="card-read">Читать →</span></div>`;
+      grid.insertBefore(card, grid.firstChild);
+
+    } catch(err) {
+      status.textContent = '⚠ Ошибка публикации: ' + err.message;
+      status.style.color = '#e74c3c';
+      console.error(err);
+    }
+    btn.disabled = false;
+    icon.textContent = '✦';
   }
 
   function copyArticle() {
@@ -334,17 +402,6 @@
     currentArticle.sections.forEach(s => { text += `${s.heading}\n${s.content}\n\n`; });
     text += currentArticle.conclusion;
     navigator.clipboard.writeText(text).then(() => alert('Статья скопирована!'));
-  }
-
-  function saveToGrid() {
-    if (!currentArticle) return;
-    cardCount++;
-    const grid = document.getElementById('blogGrid');
-    const card = document.createElement('div');
-    card.className = 'blog-card';
-    card.innerHTML = `<div class="card-num">${String(cardCount).padStart(3,'0')}</div><div class="card-cat">${currentArticle.categoryLabel}</div><div class="card-title">${currentArticle.title}</div><div class="card-excerpt">${currentArticle.excerpt || currentArticle.intro.substring(0,110)+'...'}</div><div class="card-footer"><span>${currentArticle.readTime}</span><span class="card-read">Читать →</span></div>`;
-    grid.appendChild(card);
-    grid.scrollIntoView({ behavior:'smooth' });
   }
 
   function toggleTgConfig() {
@@ -372,9 +429,7 @@
       const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({
-          chat_id: channel,
-          text: msg,
-          parse_mode: 'Markdown',
+          chat_id: channel, text: msg, parse_mode: 'Markdown',
           reply_markup: {
             inline_keyboard: [[
               { text: "✦ AI Блог", url: "https://xenosfinance.com/XenosBlog.html" },
