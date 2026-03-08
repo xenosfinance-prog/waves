@@ -4,197 +4,373 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>XenosFinance — AI Блог</title>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=PT+Serif:wght@400;700&family=PT+Mono&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=IBM+Plex+Mono:wght@300;400;500&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#0a0a0f;--bg2:#111118;--bg3:#1a1a25;--ink:#e8e4d9;--ink2:#b8b4a9;--muted:#6b6760;--border:#2a2a35;--border2:#1e1e28;--red:#c0392b;--red2:#e74c3c;--green2:#27ae60;--gold:#c9a84c;--gold2:#f0c040;--serif:'Playfair Display',Georgia,serif;--body:'PT Serif',Georgia,serif;--mono:'PT Mono',monospace;}
-*{box-sizing:border-box;margin:0;padding:0;}
-body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:100vh;line-height:1.6;}
-.masthead{background:var(--bg);border-bottom:1px solid var(--border);}
-.masthead-top{display:flex;justify-content:space-between;align-items:center;padding:8px 32px;font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:2px;border-bottom:1px solid var(--border2);}
-.masthead-center{text-align:center;padding:28px 32px 20px;border-bottom:3px double var(--gold);}
-.masthead-eyebrow{font-family:var(--mono);font-size:9px;letter-spacing:6px;color:var(--gold);text-transform:uppercase;margin-bottom:10px;}
-.masthead-name{font-family:var(--serif);font-size:64px;font-weight:900;letter-spacing:-2px;line-height:1;color:var(--ink);text-transform:uppercase;}
-.masthead-name span{color:var(--gold);}
-.masthead-sub{font-family:var(--mono);font-size:10px;letter-spacing:5px;color:var(--muted);margin-top:8px;text-transform:uppercase;}
-.masthead-nav{display:flex;justify-content:center;gap:0;border-top:1px solid var(--border);background:var(--bg2);}
-.nav-btn{font-family:var(--mono);font-size:11px;letter-spacing:3px;text-transform:uppercase;padding:12px 36px;color:var(--muted);text-decoration:none;border-bottom:3px solid transparent;transition:all 0.2s;display:inline-block;}
-.nav-btn:hover,.nav-btn.active{color:var(--gold);border-bottom-color:var(--gold);}
-.wrap{max-width:1280px;margin:0 auto;padding:24px 24px 80px;}
-.page-header{text-align:center;padding:36px 0 28px;border-bottom:1px solid var(--border);margin-bottom:36px;}
-.page-eyebrow{font-family:var(--mono);font-size:9px;letter-spacing:6px;color:var(--gold);text-transform:uppercase;margin-bottom:12px;}
-.page-title{font-family:var(--serif);font-size:48px;font-weight:900;color:var(--ink);}
-.page-sub{font-family:var(--mono);font-size:10px;letter-spacing:3px;color:var(--muted);margin-top:10px;text-transform:uppercase;}
+  :root {
+    --bg: #0b0e14;
+    --bg2: #111520;
+    --bg3: #161b27;
+    --border: #1e2535;
+    --gold: #c9a84c;
+    --gold-light: #e8c96a;
+    --text: #c8cdd8;
+    --text-dim: #5a6070;
+    --text-bright: #e8eaf0;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; font-weight:300; }
 
-/* ARTICLE MODAL */
-.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:1000;overflow-y:auto;padding:40px 20px;}
-.modal-overlay.open{display:flex;align-items:flex-start;justify-content:center;}
-.modal{background:var(--bg2);border:1px solid var(--border);max-width:780px;width:100%;padding:48px;position:relative;animation:fadeUp 0.3s ease;}
-@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
-.modal-close{position:absolute;top:20px;right:24px;background:none;border:none;color:var(--muted);font-family:var(--mono);font-size:12px;letter-spacing:2px;cursor:pointer;text-transform:uppercase;}
-.modal-close:hover{color:var(--gold);}
-.modal-cat{font-family:var(--mono);font-size:9px;letter-spacing:3px;color:var(--red2);text-transform:uppercase;margin-bottom:14px;}
-.modal-title{font-family:var(--serif);font-size:2.2rem;font-weight:900;line-height:1.15;color:var(--ink);margin-bottom:20px;}
-.modal-meta{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:2px;border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:12px 0;margin-bottom:32px;display:flex;gap:20px;}
-.modal-body p{font-size:14px;line-height:1.85;color:var(--ink2);margin-bottom:20px;}
-.modal-body h2{font-family:var(--serif);font-size:1.4rem;font-weight:700;color:var(--ink);margin:32px 0 14px;border-left:3px solid var(--gold);padding-left:14px;}
-.modal-body blockquote{border:1px solid var(--border);border-left:3px solid var(--gold);padding:16px 20px;margin:24px 0;font-style:italic;color:var(--muted);background:var(--bg3);}
+  header { background:var(--bg2); border-bottom:1px solid var(--border); padding:0 5vw; position:sticky; top:0; z-index:100; }
+  .header-top { display:flex; align-items:center; justify-content:space-between; padding:14px 0; border-bottom:1px solid var(--border); }
+  .logo { font-family:'IBM Plex Mono',monospace; font-size:1.3rem; font-weight:500; color:var(--text-bright); text-decoration:none; }
+  .logo span { color:var(--gold); }
+  .header-date { font-family:'IBM Plex Mono',monospace; font-size:0.62rem; color:var(--text-dim); letter-spacing:0.12em; text-transform:uppercase; }
+  .ai-badge { display:inline-flex; align-items:center; gap:6px; background:rgba(201,168,76,0.1); border:1px solid rgba(201,168,76,0.25); color:var(--gold); padding:5px 12px; font-family:'IBM Plex Mono',monospace; font-size:0.6rem; letter-spacing:0.15em; text-transform:uppercase; }
+  .pulse { width:6px; height:6px; background:var(--gold); border-radius:50%; animation:pulse 1.5s ease infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.2} }
+  nav { display:flex; gap:28px; padding:10px 0; }
+  nav a { font-family:'IBM Plex Mono',monospace; font-size:0.65rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--text-dim); text-decoration:none; transition:color 0.2s; }
+  nav a:hover, nav a.active { color:var(--gold); }
 
-/* GRID */
-.articles-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);}
-.article-card{background:var(--bg2);padding:28px 24px;cursor:pointer;transition:background 0.2s;}
-.article-card:hover{background:var(--bg3);}
-.card-num{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:2px;margin-bottom:12px;}
-.card-cat{font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--red2);margin-bottom:8px;}
-.card-title{font-family:var(--serif);font-size:1.1rem;font-weight:700;line-height:1.3;color:var(--ink);margin-bottom:12px;}
-.card-excerpt{font-size:12px;color:var(--ink2);line-height:1.65;margin-bottom:16px;}
-.card-footer{display:flex;justify-content:space-between;font-family:var(--mono);font-size:9px;color:var(--muted);border-top:1px solid var(--border2);padding-top:10px;}
-.card-read{color:var(--gold);}
+  .hero { background:var(--bg2); border-bottom:1px solid var(--border); padding:48px 5vw; position:relative; overflow:hidden; }
+  .hero::before { content:''; position:absolute; top:-80px; right:-80px; width:500px; height:500px; background:radial-gradient(circle, rgba(201,168,76,0.05) 0%, transparent 70%); pointer-events:none; }
+  .hero-eyebrow { font-family:'IBM Plex Mono',monospace; font-size:0.62rem; letter-spacing:0.25em; text-transform:uppercase; color:var(--gold); margin-bottom:16px; }
+  .hero-title { font-family:'Playfair Display',serif; font-size:clamp(2rem,4vw,3.2rem); font-weight:900; color:var(--text-bright); line-height:1.1; margin-bottom:14px; }
+  .hero-title span { color:var(--gold); }
+  .hero-sub { font-size:0.92rem; color:var(--text-dim); max-width:520px; line-height:1.7; }
 
-.empty-state{text-align:center;padding:80px 20px;color:var(--muted);font-family:var(--mono);font-size:11px;letter-spacing:2px;}
-.loading-state{text-align:center;padding:60px;color:var(--gold);font-family:var(--mono);font-size:11px;letter-spacing:3px;}
+  .section-wrap { padding:48px 5vw; border-bottom:1px solid var(--border); }
+  .section-header { display:flex; align-items:center; gap:14px; margin-bottom:28px; padding-bottom:14px; border-bottom:1px solid var(--border); }
+  .section-title { font-family:'IBM Plex Mono',monospace; font-size:0.65rem; letter-spacing:0.2em; text-transform:uppercase; color:var(--gold); white-space:nowrap; }
+  .section-line { flex:1; height:1px; background:var(--border); }
 
-.bottom-bar{border-top:1px solid var(--border);margin-top:48px;padding:14px 0;display:flex;justify-content:space-between;font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:1px;}
-@media(max-width:900px){.articles-grid{grid-template-columns:1fr;}.masthead-name{font-size:40px;}.modal{padding:28px;}}
+  .gen-grid { display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-bottom:18px; }
+  .gen-field { display:flex; flex-direction:column; gap:7px; }
+  .gen-label { font-family:'IBM Plex Mono',monospace; font-size:0.6rem; letter-spacing:0.18em; text-transform:uppercase; color:var(--text-dim); }
+  .gen-select, .gen-input { background:var(--bg3); border:1px solid var(--border); color:var(--text); padding:11px 14px; font-family:'Inter',sans-serif; font-size:0.87rem; outline:none; transition:border-color 0.2s; appearance:none; }
+  .gen-select:focus, .gen-input:focus { border-color:var(--gold); }
+  .gen-select option { background:var(--bg3); }
+  .gen-input::placeholder { color:var(--text-dim); }
+
+  .gen-actions { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+  .btn-generate { background:var(--gold); color:#0b0e14; border:none; padding:12px 26px; font-family:'IBM Plex Mono',monospace; font-size:0.7rem; font-weight:500; letter-spacing:0.15em; text-transform:uppercase; cursor:pointer; transition:background 0.2s,transform 0.15s; display:flex; align-items:center; gap:8px; }
+  .btn-generate:hover:not(:disabled) { background:var(--gold-light); transform:translateY(-1px); }
+  .btn-generate:disabled { opacity:0.4; cursor:not-allowed; }
+  .gen-status { font-family:'IBM Plex Mono',monospace; font-size:0.68rem; color:var(--gold); }
+
+  .article-display { display:none; padding:48px 5vw; border-bottom:1px solid var(--border); animation:fadeUp 0.4s ease forwards; }
+  @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+  .article-display.visible { display:block; }
+  .article-cat { font-family:'IBM Plex Mono',monospace; font-size:0.6rem; letter-spacing:0.22em; text-transform:uppercase; color:var(--gold); margin-bottom:14px; }
+  .article-title { font-family:'Playfair Display',serif; font-size:clamp(1.8rem,3.5vw,2.8rem); font-weight:900; color:var(--text-bright); line-height:1.12; margin-bottom:18px; }
+  .article-meta { display:flex; gap:20px; font-family:'IBM Plex Mono',monospace; font-size:0.62rem; color:var(--text-dim); border-top:1px solid var(--border); border-bottom:1px solid var(--border); padding:12px 0; margin-bottom:32px; }
+  .article-body { max-width:740px; }
+  .article-body p { font-size:0.98rem; line-height:1.85; color:var(--text); margin-bottom:20px; }
+  .article-body h2 { font-family:'Playfair Display',serif; font-size:1.35rem; font-weight:700; color:var(--text-bright); margin:32px 0 14px; }
+  .article-body h3 { font-family:'IBM Plex Mono',monospace; font-size:0.72rem; letter-spacing:0.15em; text-transform:uppercase; color:var(--gold); margin:26px 0 10px; }
+  .article-body blockquote { border-left:2px solid var(--gold); padding:12px 0 12px 20px; margin:26px 0; font-family:'Playfair Display',serif; font-size:1.05rem; font-style:italic; color:var(--text-dim); background:var(--bg2); }
+
+  .article-actions { margin-top:36px; padding-top:24px; border-top:1px solid var(--border); display:flex; gap:10px; flex-wrap:wrap; }
+  .btn-action { background:transparent; border:1px solid var(--border); color:var(--text); padding:10px 18px; font-family:'IBM Plex Mono',monospace; font-size:0.62rem; letter-spacing:0.12em; text-transform:uppercase; cursor:pointer; transition:border-color 0.2s,color 0.2s; }
+  .btn-action:hover { border-color:var(--gold); color:var(--gold); }
+  .btn-telegram { background:rgba(42,130,200,0.1); border:1px solid rgba(42,130,200,0.3); color:#5aabde; padding:10px 18px; font-family:'IBM Plex Mono',monospace; font-size:0.62rem; letter-spacing:0.12em; text-transform:uppercase; cursor:pointer; transition:background 0.2s; display:flex; align-items:center; gap:7px; }
+  .btn-telegram:hover { background:rgba(42,130,200,0.2); }
+  .btn-telegram:disabled { opacity:0.4; cursor:not-allowed; }
+
+  .tg-config { background:var(--bg2); border:1px solid var(--border); padding:20px 24px; margin-top:16px; display:none; }
+  .tg-config.open { display:block; }
+  .tg-config-title { font-family:'IBM Plex Mono',monospace; font-size:0.62rem; letter-spacing:0.15em; text-transform:uppercase; color:var(--gold); margin-bottom:14px; }
+  .tg-fields { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px; }
+  .tg-note { font-family:'IBM Plex Mono',monospace; font-size:0.58rem; color:var(--text-dim); line-height:1.65; margin-top:10px; }
+
+  .blog-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--border); border:1px solid var(--border); margin-top:24px; }
+  .blog-card { background:var(--bg2); padding:26px 22px; transition:background 0.2s; cursor:pointer; }
+  .blog-card:hover { background:var(--bg3); }
+  .card-num { font-family:'IBM Plex Mono',monospace; font-size:0.56rem; color:var(--text-dim); margin-bottom:12px; }
+  .card-cat { font-family:'IBM Plex Mono',monospace; font-size:0.58rem; letter-spacing:0.15em; text-transform:uppercase; color:var(--gold); margin-bottom:8px; }
+  .card-title { font-family:'Playfair Display',serif; font-size:1rem; font-weight:700; color:var(--text-bright); line-height:1.35; margin-bottom:10px; }
+  .card-excerpt { font-size:0.8rem; color:var(--text-dim); line-height:1.65; margin-bottom:16px; }
+  .card-footer { display:flex; justify-content:space-between; font-family:'IBM Plex Mono',monospace; font-size:0.58rem; color:var(--text-dim); }
+  .card-read { color:var(--gold); }
+
+  .spinner { display:inline-block; width:12px; height:12px; border:1.5px solid rgba(11,14,20,0.3); border-top-color:#0b0e14; border-radius:50%; animation:spin 0.7s linear infinite; }
+  @keyframes spin { to{transform:rotate(360deg)} }
+
+  footer { background:var(--bg2); border-top:1px solid var(--border); padding:28px 5vw; display:flex; justify-content:space-between; align-items:center; }
+  .footer-logo { font-family:'IBM Plex Mono',monospace; font-size:1rem; color:var(--text-bright); }
+  .footer-logo span { color:var(--gold); }
+  .footer-note { font-family:'IBM Plex Mono',monospace; font-size:0.56rem; color:var(--text-dim); text-align:right; line-height:1.7; }
+
+  @media(max-width:800px){
+    .gen-grid,.tg-fields{grid-template-columns:1fr;}
+    .blog-grid{grid-template-columns:1fr;}
+  }
 </style>
 </head>
 <body>
 
-<div class="masthead">
-  <div class="masthead-top">
-    <span id="live-date">—</span>
-    <span>XENOSFINANCE · ФИНАНСОВАЯ АНАЛИТИКА</span>
-    <span>AI · БЛОГ</span>
+<header>
+  <div class="header-top">
+    <a href="https://xenosfinance.com" class="logo">XENOS<span>FINANCE</span></a>
+    <div class="header-date" id="headerDate">ФИНАНСОВАЯ АНАЛИТИКА</div>
+    <div class="ai-badge"><div class="pulse"></div>AI Блог</div>
   </div>
-  <div class="masthead-center">
-    <div class="masthead-eyebrow">Финансовая разведка · Мировые рынки</div>
-    <div class="masthead-name">XENOS<span>FINANCE</span></div>
-    <div class="masthead-sub">Волны Эллиотта · Геополитика · Макроэкономика</div>
+  <nav>
+    <a href="https://xenosfinance.com">📰 Новости</a>
+    <a href="https://xenosfinance.com/xenoswaves_charts.html">📊 Графики</a>
+    <a href="#" class="active">✦ AI Блог</a>
+  </nav>
+</header>
+
+<section class="hero">
+  <div class="hero-eyebrow">// Генератор статей — искусственный интеллект</div>
+  <h1 class="hero-title">AI Блог<br><span>XenosFinance</span></h1>
+  <p class="hero-sub">Генерируйте профессиональные аналитические статьи по финансовым рынкам одним кликом. Публикуйте прямо в Telegram-канал.</p>
+</section>
+
+<section class="section-wrap">
+  <div class="section-header">
+    <span class="section-title">// Генерация статьи</span>
+    <div class="section-line"></div>
+    <span class="section-title">AI АВТОМАТИЧЕСКИ</span>
   </div>
-  <div class="masthead-nav">
-    <a class="nav-btn" href="https://xenosfinance.com">📰 Новости</a>
-    <a class="nav-btn" href="https://xenosfinance.com/xenoswaves_charts.html">📊 Графики</a>
-    <a class="nav-btn active" href="/XenosBlog.html">✦ AI Блог</a>
+  <div class="gen-grid">
+    <div class="gen-field">
+      <label class="gen-label">Категория</label>
+      <select class="gen-select" id="genCategory">
+        <option value="торговля">Торговля & Трейдинг</option>
+        <option value="форекс">Форекс & Валюты</option>
+        <option value="крипто">Криптовалюты</option>
+        <option value="акции">Акции & Индексы</option>
+        <option value="сырьё">Сырьё & Металлы</option>
+        <option value="макро">Макроэкономика</option>
+        <option value="волны эллиотта">Волны Эллиотта</option>
+        <option value="геополитика">Геополитика & Рынки</option>
+      </select>
+    </div>
+    <div class="gen-field">
+      <label class="gen-label">Стиль</label>
+      <select class="gen-select" id="genTone">
+        <option value="аналитический">Аналитический & Профессиональный</option>
+        <option value="технический анализ">Технический анализ</option>
+        <option value="обзор рынка">Обзор рынка</option>
+        <option value="образовательный">Образовательный</option>
+      </select>
+    </div>
+    <div class="gen-field" style="grid-column:1/-1">
+      <label class="gen-label">Конкретная тема (необязательно)</label>
+      <input class="gen-input" id="genTopic" type="text" placeholder="Напр: Bitcoin и геополитика, анализ золота, EUR/USD прогноз...">
+    </div>
   </div>
-</div>
-
-<div class="wrap">
-  <div class="page-header">
-    <div class="page-eyebrow">// Аналитика · Трейдинг · Макроэкономика</div>
-    <div class="page-title">AI Блог</div>
-    <div class="page-sub">Аналитические материалы · Генерируются с помощью искусственного интеллекта</div>
+  <div class="gen-actions">
+    <button class="btn-generate" id="generateBtn" onclick="generateArticle()">
+      <span id="btnIcon">✦</span>
+      <span id="btnText">Генерировать статью</span>
+    </button>
+    <span class="gen-status" id="genStatus"></span>
   </div>
+</section>
 
-  <div id="loadingState" class="loading-state">⟳ ЗАГРУЗКА СТАТЕЙ...</div>
-  <div class="articles-grid" id="articlesGrid" style="display:none"></div>
-  <div id="emptyState" class="empty-state" style="display:none">
-    // Статьи ещё не опубликованы.<br>Скоро здесь появятся аналитические материалы.
+<div class="article-display" id="articleDisplay">
+  <div class="article-cat" id="artCategory"></div>
+  <h1 class="article-title" id="artTitle"></h1>
+  <div class="article-meta">
+    <span id="artDate"></span>
+    <span id="artReadTime"></span>
+    <span>✦ Сгенерировано AI</span>
   </div>
-
-  <div class="bottom-bar">
-    <span>© XENOSFINANCE 2026</span>
-    <span>✦ Контент генерируется с помощью AI</span>
-    <span>⚠ Не является инвестиционной рекомендацией</span>
+  <div class="article-body" id="artBody"></div>
+  <div class="article-actions">
+    <button class="btn-action" onclick="copyArticle()">📋 Копировать текст</button>
+    <button class="btn-action" onclick="generateArticle()">✦ Новая статья</button>
+    <button class="btn-action" onclick="saveToGrid()">+ Сохранить</button>
+    <button class="btn-telegram" onclick="toggleTgConfig()">✈ Отправить в Telegram</button>
   </div>
-</div>
-
-<!-- ARTICLE MODAL -->
-<div class="modal-overlay" id="modalOverlay" onclick="closeModalOnBg(event)">
-  <div class="modal">
-    <button class="modal-close" onclick="closeModal()">✕ ЗАКРЫТЬ</button>
-    <div class="modal-cat" id="modalCat"></div>
-    <div class="modal-title" id="modalTitle"></div>
-    <div class="modal-meta" id="modalMeta"></div>
-    <div class="modal-body" id="modalBody"></div>
-  </div>
-</div>
-
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getFirestore, collection, getDocs, orderBy, query } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-
-  const firebaseConfig = {
-    apiKey: "AIzaSyDedUD4ETrVIqtZhWlc6i6P_ypf8MuEoMI",
-    authDomain: "xenosfinance-e5de2.firebaseapp.com",
-    projectId: "xenosfinance-e5de2",
-    storageBucket: "xenosfinance-e5de2.firebasestorage.app",
-    messagingSenderId: "679401684369",
-    appId: "1:679401684369:web:de753292ce0a0d858dae30"
-  };
-
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
-
-  const now = new Date();
-  const months = ['ЯНВАРЯ','ФЕВРАЛЯ','МАРТА','АПРЕЛЯ','МАЯ','ИЮНЯ','ИЮЛЯ','АВГУСТА','СЕНТЯБРЯ','ОКТЯБРЯ','НОЯБРЯ','ДЕКАБРЯ'];
-  document.getElementById('live-date').textContent = now.getDate()+' '+months[now.getMonth()]+' '+now.getFullYear()+' Г.';
-
-  let allArticles = [];
-
-  async function loadArticles() {
-    try {
-      const q = query(collection(db, "articles"), orderBy("publishedAt", "desc"));
-      const snap = await getDocs(q);
-      allArticles = snap.docs.map(d => ({id: d.id, ...d.data()}));
-
-      document.getElementById('loadingState').style.display = 'none';
-
-      if (allArticles.length === 0) {
-        document.getElementById('emptyState').style.display = 'block';
-        return;
-      }
-
-      renderGrid(allArticles);
-    } catch(e) {
-      document.getElementById('loadingState').textContent = '⚠ Ошибка загрузки. Попробуйте позже.';
-      console.error(e);
-    }
-  }
-
-  function renderGrid(articles) {
-    const grid = document.getElementById('articlesGrid');
-    grid.style.display = 'grid';
-    grid.innerHTML = articles.map((a, i) => `
-      <div class="article-card" onclick="openArticle('${a.id}')">
-        <div class="card-num">${String(i+1).padStart(3,'0')}</div>
-        <div class="card-cat">${a.category || ''}</div>
-        <div class="card-title">${a.title}</div>
-        <div class="card-excerpt">${(a.excerpt || a.intro || '').substring(0,140)}...</div>
-        <div class="card-footer">
-          <span>${a.readTime || '5 мин'}</span>
-          <span class="card-read">ЧИТАТЬ →</span>
-        </div>
+  <div class="tg-config" id="tgConfig">
+    <div class="tg-config-title">// Настройки Telegram</div>
+    <div class="tg-fields">
+      <div class="gen-field">
+        <label class="gen-label">Bot Token</label>
+        <input class="gen-input" id="tgToken" type="password" placeholder="123456789:AAF...">
       </div>
-    `).join('');
+      <div class="gen-field">
+        <label class="gen-label">Channel ID</label>
+        <input class="gen-input" id="tgChannel" type="text" placeholder="@xenosfinance или -100123456789">
+      </div>
+    </div>
+    <button class="btn-telegram" id="tgSendBtn" onclick="sendToTelegram()">✈ Отправить сейчас</button>
+    <span class="gen-status" id="tgStatus" style="margin-left:14px"></span>
+    <div class="tg-note">
+      ⚠ Токен хранится только в браузере. Убедитесь что бот является администратором канала.<br>
+      Как получить токен: @BotFather → /mybots → API Token
+    </div>
+  </div>
+</div>
+
+<section class="section-wrap">
+  <div class="section-header">
+    <span class="section-title">// Сохранённые статьи</span>
+    <div class="section-line"></div>
+    <span class="section-title">АРХИВ</span>
+  </div>
+  <div class="blog-grid" id="blogGrid">
+    <div class="blog-card">
+      <div class="card-num">001</div>
+      <div class="card-cat">Волны Эллиотта</div>
+      <div class="card-title">S&P 500: анализ волновой структуры Q1 2025</div>
+      <div class="card-excerpt">Детальный разбор текущей импульсной волны и ключевые уровни для коррекции. Что ждёт индекс в ближайшие недели.</div>
+      <div class="card-footer"><span>6 мин</span><span class="card-read">Читать →</span></div>
+    </div>
+    <div class="blog-card">
+      <div class="card-num">002</div>
+      <div class="card-cat">Макро</div>
+      <div class="card-title">ФРС и ставки: сценарии для рынков в 2025</div>
+      <div class="card-excerpt">Анализ вероятных решений ФРС и их влияние на акции, облигации, золото и доллар. Исторические параллели.</div>
+      <div class="card-footer"><span>7 мин</span><span class="card-read">Читать →</span></div>
+    </div>
+    <div class="blog-card">
+      <div class="card-num">003</div>
+      <div class="card-cat">Крипто</div>
+      <div class="card-title">Bitcoin как резервный актив: аргументы и риски</div>
+      <div class="card-excerpt">Разбираем институциональный спрос, корреляции с золотом и макроэкономические факторы влияния на BTC.</div>
+      <div class="card-footer"><span>5 мин</span><span class="card-read">Читать →</span></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-logo">XENOS<span>FINANCE</span></div>
+  <div class="footer-note">
+    © XENOSFINANCE 2026 · AI Блог<br>
+    ⚠ Не является инвестиционной рекомендацией
+  </div>
+</footer>
+
+<script>
+  const months = ['ЯНВАРЯ','ФЕВРАЛЯ','МАРТА','АПРЕЛЯ','МАЯ','ИЮНЯ','ИЮЛЯ','АВГУСТА','СЕНТЯБРЯ','ОКТЯБРЯ','НОЯБРЯ','ДЕКАБРЯ'];
+  const now = new Date();
+  document.getElementById('headerDate').textContent = `${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()} Г.`;
+
+  let currentArticle = null;
+  let cardCount = 3;
+
+  async function generateArticle() {
+    const btn = document.getElementById('generateBtn');
+    const btnText = document.getElementById('btnText');
+    const btnIcon = document.getElementById('btnIcon');
+    const status = document.getElementById('genStatus');
+    const category = document.getElementById('genCategory').value;
+    const tone = document.getElementById('genTone').value;
+    const topic = document.getElementById('genTopic').value;
+
+    btn.disabled = true;
+    btnIcon.innerHTML = '<div class="spinner"></div>';
+    btnText.textContent = 'Генерация...';
+    status.textContent = 'Подключение к AI...';
+
+    const topicText = topic ? `на тему: "${topic}"` : `по категории "${category}"`;
+    const prompt = `Ты профессиональный финансовый аналитик. Напиши статью на русском языке ${topicText}. Стиль: ${tone}.
+
+Ответь ТОЛЬКО валидным JSON без markdown и без текста вне JSON. Все строки в одну строку без переносов.
+
+{"title":"заголовок","readTime":"X мин чтения","intro":"вводный абзац","sections":[{"heading":"Заголовок 1","content":"текст 1"},{"heading":"Заголовок 2","content":"текст 2"},{"heading":"Заголовок 3","content":"текст 3"}],"quote":"цитата или статистика","conclusion":"заключение","excerpt":"краткое описание 15 слов"}`;
+
+    try {
+      status.textContent = 'Написание статьи...';
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 2000,
+          messages: [{ role: "user", content: prompt }]
+        })
+      });
+      const data = await response.json();
+      const text = data.content.map(i => i.text || '').join('');
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) throw new Error('JSON не найден');
+      const article = JSON.parse(jsonMatch[0]);
+      const catMap = { 'торговля':'ТРЕЙДИНГ','форекс':'ФОРЕКС','крипто':'КРИПТО','акции':'АКЦИИ','сырьё':'СЫРЬЁ','макро':'МАКРО','волны эллиотта':'ВОЛНЫ ЭЛЛИОТТА','геополитика':'ГЕОПОЛИТИКА' };
+      currentArticle = { ...article, categoryLabel: catMap[category] || category.toUpperCase() };
+      renderArticle(currentArticle);
+      status.textContent = '✓ Готово!';
+      setTimeout(() => { status.textContent = ''; }, 3000);
+    } catch(err) {
+      status.textContent = '⚠ Ошибка. Попробуйте снова.';
+      console.error(err);
+    }
+    btn.disabled = false;
+    btnIcon.textContent = '✦';
+    btnText.textContent = 'Генерировать статью';
   }
 
-  window.openArticle = function(id) {
-    const a = allArticles.find(x => x.id === id);
-    if (!a) return;
-
-    document.getElementById('modalCat').textContent = a.category || '';
-    document.getElementById('modalTitle').textContent = a.title;
-    document.getElementById('modalMeta').innerHTML = `<span>📅 ${a.publishedAt ? new Date(a.publishedAt).toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'}) : '—'}</span><span>⏱ ${a.readTime || '5 мин'}</span><span>✦ AI</span>`;
-
+  function renderArticle(a) {
+    document.getElementById('artCategory').textContent = a.categoryLabel;
+    document.getElementById('artTitle').textContent = a.title;
+    document.getElementById('artReadTime').textContent = '⏱ ' + a.readTime;
+    const d = new Date();
+    document.getElementById('artDate').textContent = '📅 ' + d.toLocaleDateString('ru-RU', {day:'numeric',month:'long',year:'numeric'});
     let html = `<p>${a.intro}</p>`;
-    if (a.sections) a.sections.forEach(s => { html += `<h2>${s.heading}</h2><p>${s.content}</p>`; });
-    if (a.quote) html += `<blockquote>${a.quote}</blockquote>`;
-    if (a.conclusion) html += `<p><strong style="color:var(--ink)"">Вывод:</strong> ${a.conclusion}</p>`;
+    a.sections.forEach(s => { html += `<h2>${s.heading}</h2><p>${s.content}</p>`; });
+    html += `<blockquote>${a.quote}</blockquote><h3>// Вывод</h3><p>${a.conclusion}</p>`;
+    document.getElementById('artBody').innerHTML = html;
+    const display = document.getElementById('articleDisplay');
+    display.classList.add('visible');
+    display.scrollIntoView({ behavior:'smooth', block:'start' });
+  }
 
-    document.getElementById('modalBody').innerHTML = html;
-    document.getElementById('modalOverlay').classList.add('open');
-    document.body.style.overflow = 'hidden';
-  };
+  function copyArticle() {
+    if (!currentArticle) return;
+    let text = `${currentArticle.title}\n\n${currentArticle.intro}\n\n`;
+    currentArticle.sections.forEach(s => { text += `${s.heading}\n${s.content}\n\n`; });
+    text += currentArticle.conclusion;
+    navigator.clipboard.writeText(text).then(() => alert('Статья скопирована!'));
+  }
 
-  window.closeModal = function() {
-    document.getElementById('modalOverlay').classList.remove('open');
-    document.body.style.overflow = '';
-  };
+  function saveToGrid() {
+    if (!currentArticle) return;
+    cardCount++;
+    const grid = document.getElementById('blogGrid');
+    const card = document.createElement('div');
+    card.className = 'blog-card';
+    card.innerHTML = `<div class="card-num">${String(cardCount).padStart(3,'0')}</div><div class="card-cat">${currentArticle.categoryLabel}</div><div class="card-title">${currentArticle.title}</div><div class="card-excerpt">${currentArticle.excerpt || currentArticle.intro.substring(0,110)+'...'}</div><div class="card-footer"><span>${currentArticle.readTime}</span><span class="card-read">Читать →</span></div>`;
+    grid.appendChild(card);
+    grid.scrollIntoView({ behavior:'smooth' });
+  }
 
-  window.closeModalOnBg = function(e) {
-    if (e.target === document.getElementById('modalOverlay')) closeModal();
-  };
+  function toggleTgConfig() {
+    document.getElementById('tgConfig').classList.toggle('open');
+  }
 
-  loadArticles();
+  async function sendToTelegram() {
+    if (!currentArticle) return;
+    const token = document.getElementById('tgToken').value.trim();
+    const channel = document.getElementById('tgChannel').value.trim();
+    const tgStatus = document.getElementById('tgStatus');
+    const btn = document.getElementById('tgSendBtn');
+    if (!token || !channel) { tgStatus.textContent = '⚠ Введите токен и channel ID'; return; }
+    btn.disabled = true;
+    tgStatus.textContent = 'Отправка...';
+    let msg = `*${currentArticle.title}*\n\n_${currentArticle.categoryLabel} · XenosFinance_\n\n${currentArticle.intro}\n\n`;
+    currentArticle.sections.forEach(s => { msg += `*${s.heading}*\n${s.content}\n\n`; });
+    msg += `_"${currentArticle.quote}"_\n\n✦ ${currentArticle.conclusion}\n\n#XenosFinance #${currentArticle.categoryLabel.replace(/\s/g,'')}`;
+    try {
+      const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ chat_id: channel, text: msg, parse_mode: 'Markdown' })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        tgStatus.textContent = '✓ Опубликовано в канале!';
+        document.getElementById('tgConfig').classList.remove('open');
+      } else {
+        tgStatus.textContent = '⚠ ' + (data.description || 'Проверьте токен');
+      }
+    } catch(e) { tgStatus.textContent = '⚠ Ошибка соединения'; }
+    btn.disabled = false;
+    setTimeout(() => { tgStatus.textContent = ''; }, 5000);
+  }
 </script>
 </body>
 </html>
