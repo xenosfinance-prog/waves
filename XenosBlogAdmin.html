@@ -247,10 +247,6 @@
 </footer>
 
 <script>
-  // ╔══════════════════════════════════════════════════════╗
-  // ║  UNICA RIGA DA MODIFICARE: incolla qui l'URL         ║
-  // ║  del tuo Cloudflare Worker dopo averlo deployato     ║
-  // ╚══════════════════════════════════════════════════════╝
   const WORKER_URL = "https://xenos-ai-proxy.xenosfinance.workers.dev";
 
   const months = ['ЯНВАРЯ','ФЕВРАЛЯ','МАРТА','АПРЕЛЯ','МАЯ','ИЮНЯ','ИЮЛЯ','АВГУСТА','СЕНТЯБРЯ','ОКТЯБРЯ','НОЯБРЯ','ДЕКАБРЯ'];
@@ -283,8 +279,6 @@
 
     try {
       status.textContent = 'Написание статьи...';
-
-      // ← Ora punta al Worker, non direttamente ad Anthropic
       const response = await fetch(WORKER_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -366,13 +360,29 @@
     if (!token || !channel) { tgStatus.textContent = '⚠ Введите токен и channel ID'; return; }
     btn.disabled = true;
     tgStatus.textContent = 'Отправка...';
+
     let msg = `*${currentArticle.title}*\n\n_${currentArticle.categoryLabel} · XenosFinance_\n\n${currentArticle.intro}\n\n`;
     currentArticle.sections.forEach(s => { msg += `*${s.heading}*\n${s.content}\n\n`; });
-    msg += `_"${currentArticle.quote}"_\n\n✦ ${currentArticle.conclusion}\n\n#XenosFinance #${currentArticle.categoryLabel.replace(/\s/g,'')}`;
+    msg += `_"${currentArticle.quote}"_\n\n✦ ${currentArticle.conclusion}\n\n#XenosFinance #${currentArticle.categoryLabel.replace(/\s/g,'')}\n\n`;
+    msg += `━━━━━━━━━━━━━━━\n`;
+    msg += `📡 Присоединяйтесь к [XenosFinance](https://t.me/xenosfin) — волны Эллиотта, аналитика, макро и многое другое.\n`;
+    msg += `🔔 Включите уведомления, чтобы не пропустить обновления.`;
+
     try {
       const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
         method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ chat_id: channel, text: msg, parse_mode: 'Markdown' })
+        body: JSON.stringify({
+          chat_id: channel,
+          text: msg,
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [[
+              { text: "✦ AI Блог", url: "https://xenosfinance.com/XenosBlog.html" },
+              { text: "📊 Графики", url: "https://xenosfinance.com/xenoswaves_charts.html" },
+              { text: "📰 Новости", url: "https://xenosfinance.com" }
+            ]]
+          }
+        })
       });
       const data = await res.json();
       if (data.ok) {
