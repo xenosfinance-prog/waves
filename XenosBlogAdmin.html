@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>XenosFinance — Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=PT+Serif:wght@400;700&family=PT+Mono&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0a0a0f;--bg2:#111118;--bg3:#1a1a25;--ink:#e8e4d9;--ink2:#b8b4a9;--muted:#6b6760;--border:#2a2a35;--border2:#1e1e28;--red2:#e74c3c;--green2:#27ae60;--gold:#c9a84c;--gold2:#f0c040;--serif:'Playfair Display',Georgia,serif;--body:'PT Serif',Georgia,serif;--mono:'PT Mono',monospace;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:100vh;line-height:1.6;}
+
+/* LOGIN */
+.login-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px;}
+.login-box{background:var(--bg2);border:1px solid var(--border);padding:48px;width:100%;max-width:400px;text-align:center;}
+.login-logo{font-family:var(--serif);font-size:2rem;font-weight:900;color:var(--ink);margin-bottom:6px;}
+.login-logo span{color:var(--gold);}
+.login-sub{font-family:var(--mono);font-size:9px;letter-spacing:4px;color:var(--muted);text-transform:uppercase;margin-bottom:32px;}
+.login-label{font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;display:block;text-align:left;margin-bottom:8px;}
+.login-input{width:100%;background:#0d0d0d;border:1px solid var(--border);color:var(--ink);padding:12px 16px;font-family:var(--mono);font-size:13px;outline:none;margin-bottom:16px;transition:border-color 0.2s;}
+.login-input:focus{border-color:var(--gold);}
+.login-btn{width:100%;background:var(--gold);color:#000;border:none;padding:13px;font-family:var(--mono);font-size:11px;font-weight:bold;letter-spacing:3px;text-transform:uppercase;cursor:pointer;transition:background 0.2s;}
+.login-btn:hover{background:var(--gold2);}
+.login-err{font-family:var(--mono);font-size:10px;color:var(--red2);margin-top:12px;letter-spacing:1px;}
+
+/* ADMIN UI */
+.admin-wrap{display:none;}
+.masthead{background:var(--bg);border-bottom:1px solid var(--border);}
+.masthead-top{display:flex;justify-content:space-between;align-items:center;padding:8px 32px;font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:2px;border-bottom:1px solid var(--border2);}
+.masthead-center{text-align:center;padding:20px 32px 16px;border-bottom:3px double var(--gold);}
+.masthead-name{font-family:var(--serif);font-size:48px;font-weight:900;letter-spacing:-2px;color:var(--ink);text-transform:uppercase;}
+.masthead-name span{color:var(--gold);}
+.admin-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(201,168,76,0.1);border:1px solid var(--gold);color:var(--gold);font-family:var(--mono);font-size:9px;letter-spacing:3px;padding:4px 12px;text-transform:uppercase;margin-top:8px;}
+.masthead-nav{display:flex;justify-content:center;gap:0;border-top:1px solid var(--border);background:var(--bg2);}
+.nav-btn{font-family:var(--mono);font-size:11px;letter-spacing:3px;text-transform:uppercase;padding:12px 36px;color:var(--muted);text-decoration:none;border-bottom:3px solid transparent;transition:all 0.2s;display:inline-block;cursor:pointer;background:none;border-left:none;border-right:none;border-top:none;}
+.nav-btn:hover,.nav-btn.active{color:var(--gold);border-bottom-color:var(--gold);}
+
+.wrap{max-width:1100px;margin:0 auto;padding:36px 24px 80px;}
+.section-label{font-family:var(--mono);font-size:9px;letter-spacing:4px;text-transform:uppercase;color:var(--gold);border-bottom:1px solid var(--border);padding-bottom:10px;margin-bottom:24px;}
+
+/* GENERATOR */
+.gen-panel{background:var(--bg2);border:1px solid var(--border);padding:32px;margin-bottom:32px;}
+.gen-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:20px;}
+.gen-field{display:flex;flex-direction:column;gap:6px;}
+.gen-field-full{grid-column:1/-1;}
+.gen-label{font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);}
+.gen-select,.gen-input{background:#0d0d0d;border:1px solid var(--border);color:var(--ink);padding:10px 14px;font-family:var(--mono);font-size:12px;outline:none;transition:border-color 0.2s;appearance:none;width:100%;}
+.gen-select:focus,.gen-input:focus{border-color:var(--gold);}
+.gen-select option{background:#111;}
+.gen-input::placeholder{color:var(--muted);}
+.gen-actions{display:flex;align-items:center;gap:16px;}
+.btn-gold{background:var(--gold);color:#000;border:none;padding:12px 32px;font-family:var(--mono);font-size:11px;font-weight:bold;letter-spacing:3px;text-transform:uppercase;cursor:pointer;transition:background 0.2s;display:inline-flex;align-items:center;gap:8px;}
+.btn-gold:hover:not(:disabled){background:var(--gold2);}
+.btn-gold:disabled{opacity:0.4;cursor:not-allowed;}
+.btn-outline{background:transparent;border:1px solid var(--border);color:var(--ink2);padding:12px 24px;font-family:var(--mono);font-size:11px;letter-spacing:2px;text-transform:uppercase;cursor:pointer;transition:all 0.2s;}
+.btn-outline:hover{border-color:var(--gold);color:var(--gold);}
+.gen-status{font-family:var(--mono);font-size:10px;color:var(--gold);letter-spacing:1px;}
+
+/* ARTICLE PREVIEW */
+.article-preview{display:none;background:var(--bg2);border:1px solid var(--border);padding:32px;margin-bottom:32px;animation:fadeIn 0.3s ease;}
+.article-preview.visible{display:block;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.preview-cat{font-family:var(--mono);font-size:9px;letter-spacing:3px;color:var(--red2);text-transform:uppercase;margin-bottom:12px;}
+.preview-title{font-family:var(--serif);font-size:2rem;font-weight:900;color:var(--ink);margin-bottom:16px;line-height:1.15;}
+.preview-meta{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:2px;border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:10px 0;margin-bottom:28px;display:flex;gap:20px;}
+.preview-body p{font-size:13px;line-height:1.85;color:var(--ink2);margin-bottom:18px;}
+.preview-body h2{font-family:var(--serif);font-size:1.3rem;font-weight:700;color:var(--ink);margin:28px 0 12px;border-left:3px solid var(--gold);padding-left:12px;}
+.preview-body blockquote{border:1px solid var(--border);border-left:3px solid var(--gold);padding:14px 18px;margin:20px 0;font-style:italic;color:var(--muted);background:var(--bg3);}
+.publish-bar{display:flex;align-items:center;gap:16px;padding-top:24px;border-top:1px solid var(--border);margin-top:24px;flex-wrap:wrap;}
+.publish-status{font-family:var(--mono);font-size:10px;letter-spacing:1px;}
+
+/* PUBLISHED LIST */
+.pub-list{background:var(--bg2);border:1px solid var(--border);}
+.pub-item{display:grid;grid-template-columns:1fr auto;gap:16px;align-items:center;padding:18px 24px;border-bottom:1px solid var(--border2);}
+.pub-item:last-child{border-bottom:none;}
+.pub-title{font-family:var(--serif);font-size:1rem;font-weight:700;color:var(--ink);}
+.pub-meta{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:1px;margin-top:4px;}
+.btn-delete{background:transparent;border:1px solid #333;color:var(--muted);padding:6px 14px;font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;cursor:pointer;transition:all 0.2s;}
+.btn-delete:hover{border-color:var(--red2);color:var(--red2);}
+.pub-empty{padding:32px;text-align:center;font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:2px;}
+
+/* TELEGRAM */
+.tg-panel{background:var(--bg2);border:1px solid #1a3a4a;padding:24px;margin-top:16px;}
+.tg-title{font-family:var(--mono);font-size:9px;letter-spacing:3px;color:#2ca5e0;text-transform:uppercase;margin-bottom:16px;}
+.tg-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;}
+.btn-tg{background:#2ca5e0;color:#000;border:none;padding:11px 24px;font-family:var(--mono);font-size:10px;font-weight:bold;letter-spacing:2px;text-transform:uppercase;cursor:pointer;transition:opacity 0.2s;}
+.btn-tg:hover:not(:disabled){opacity:0.85;}
+.btn-tg:disabled{opacity:0.4;cursor:not-allowed;}
+.tg-status{font-family:var(--mono);font-size:10px;margin-top:8px;letter-spacing:1px;}
+
+.spinner{display:inline-block;width:12px;height:12px;border:2px solid rgba(0,0,0,0.2);border-top-color:#000;border-radius:50%;animation:spin 0.7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+@media(max-width:700px){.gen-grid{grid-template-columns:1fr;}.tg-grid{grid-template-columns:1fr;}.masthead-name{font-size:32px;}}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div class="login-wrap" id="loginWrap">
+  <div class="login-box">
+    <div class="login-logo">XENOS<span>FINANCE</span></div>
+    <div class="login-sub">Панель администратора</div>
+    <label class="login-label">Пароль</label>
+    <input class="login-input" type="password" id="pwdInput" placeholder="Введите пароль..." onkeydown="if(event.key==='Enter')checkPwd()">
+    <button class="login-btn" onclick="checkPwd()">ВОЙТИ</button>
+    <div class="login-err" id="loginErr"></div>
+  </div>
+</div>
+
+<!-- ADMIN -->
+<div class="admin-wrap" id="adminWrap">
+  <div class="masthead">
+    <div class="masthead-top">
+      <span id="liveDate">—</span>
+      <span>XENOSFINANCE · ПАНЕЛЬ АДМИНИСТРАТОРА</span>
+      <button class="nav-btn" onclick="logout()" style="padding:8px 16px;font-size:9px;">✕ ВЫЙТИ</button>
+    </div>
+    <div class="masthead-center">
+      <div class="masthead-name">XENOS<span>FINANCE</span></div>
+      <div class="admin-badge">⚙ ADMIN PANEL</div>
+    </div>
+    <div class="masthead-nav">
+      <a class="nav-btn" href="https://xenosfinance.com">📰 Новости</a>
+      <a class="nav-btn" href="https://xenosfinance.com/xenoswaves_charts.html">📊 Графики</a>
+      <a class="nav-btn" href="/XenosBlog.html" target="_blank">✦ Блог (публичный)</a>
+    </div>
+  </div>
+
+  <div class="wrap">
+
+    <!-- GENERATOR -->
+    <div class="section-label">// Генератор статей</div>
+    <div class="gen-panel">
+      <div class="gen-grid">
+        <div class="gen-field">
+          <label class="gen-label">Категория</label>
+          <select class="gen-select" id="genCategory">
+            <option value="технический анализ">Технический анализ</option>
+            <option value="волны Эллиотта">Волны Эллиотта</option>
+            <option value="макроэкономика">Макроэкономика</option>
+            <option value="форекс">Форекс</option>
+            <option value="криптовалюты">Криптовалюты</option>
+            <option value="фондовый рынок">Фондовый рынок</option>
+            <option value="сырьевые товары">Сырьё / Commodities</option>
+            <option value="геополитика и рынки">Геополитика & Рынки</option>
+          </select>
+        </div>
+        <div class="gen-field">
+          <label class="gen-label">Тон</label>
+          <select class="gen-select" id="genTone">
+            <option value="профессиональный аналитический">Аналитический</option>
+            <option value="образовательный доступный">Образовательный</option>
+            <option value="технический углублённый">Технический</option>
+            <option value="редакционный мнение">Редакционный</option>
+          </select>
+        </div>
+        <div class="gen-field">
+          <label class="gen-label">Длина</label>
+          <select class="gen-select" id="genLength">
+            <option value="короткая заметка (300 слов)">Короткая заметка</option>
+            <option value="средняя статья (600 слов)" selected>Средняя статья</option>
+            <option value="подробный анализ (900 слов)">Подробный анализ</option>
+          </select>
+        </div>
+        <div class="gen-field gen-field-full">
+          <label class="gen-label">Конкретная тема (необязательно)</label>
+          <input class="gen-input" id="genTopic" type="text" placeholder="Напр: Биткоин и ETF, ФРС и процентные ставки, EUR/USD волны Эллиотта...">
+        </div>
+      </div>
+      <div class="gen-actions">
+        <button class="btn-gold" id="generateBtn" onclick="generateArticle()">
+          <span id="btnIcon">▶</span>
+          <span id="btnText">ГЕНЕРИРОВАТЬ</span>
+        </button>
+        <span class="gen-status" id="genStatus"></span>
+      </div>
+    </div>
+
+    <!-- PREVIEW -->
+    <div class="article-preview" id="articlePreview">
+      <div class="preview-cat" id="prevCat"></div>
+      <div class="preview-title" id="prevTitle"></div>
+      <div class="preview-meta" id="prevMeta"></div>
+      <div class="preview-body" id="prevBody"></div>
+
+      <div class="publish-bar">
+        <button class="btn-gold" id="publishBtn" onclick="publishArticle()">✦ ОПУБЛИКОВАТЬ В БЛОГ</button>
+        <button class="btn-outline" onclick="generateArticle()">↺ НОВАЯ СТАТЬЯ</button>
+        <span class="publish-status" id="publishStatus"></span>
+      </div>
+
+      <!-- TELEGRAM -->
+      <div class="tg-panel">
+        <div class="tg-title">✈ Отправить в Telegram канал</div>
+        <div class="tg-grid">
+          <div class="gen-field">
+            <label class="gen-label">Bot Token</label>
+            <input class="gen-input" id="tgToken" type="password" placeholder="123456789:AABBcc...">
+          </div>
+          <div class="gen-field">
+            <label class="gen-label">Channel ID</label>
+            <input class="gen-input" id="tgChannel" type="text" placeholder="@xenosfinance или -100123456">
+          </div>
+        </div>
+        <button class="btn-tg" id="sendTgBtn" onclick="sendToTelegram()">✈ ОТПРАВИТЬ В TELEGRAM</button>
+        <div class="tg-status" id="tgStatus"></div>
+      </div>
+    </div>
+
+    <!-- PUBLISHED -->
+    <div class="section-label">// Опубликованные статьи</div>
+    <div class="pub-list" id="pubList">
+      <div class="pub-empty">⟳ Загрузка...</div>
+    </div>
+
+  </div>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getFirestore, collection, getDocs, addDoc, deleteDoc, doc, orderBy, query, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDedUD4ETrVIqtZhWlc6i6P_ypf8MuEoMI",
+    authDomain: "xenosfinance-e5de2.firebaseapp.com",
+    projectId: "xenosfinance-e5de2",
+    storageBucket: "xenosfinance-e5de2.firebasestorage.app",
+    messagingSenderId: "679401684369",
+    appId: "1:679401684369:web:de753292ce0a0d858dae30"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  // PASSWORD — cambia questa password!
+  const ADMIN_PASSWORD = "xenos2026";
+
+  const now = new Date();
+  const months = ['ЯНВАРЯ','ФЕВРАЛЯ','МАРТА','АПРЕЛЯ','МАЯ','ИЮНЯ','ИЮЛЯ','АВГУСТА','СЕНТЯБРЯ','ОКТЯБРЯ','НОЯБРЯ','ДЕКАБРЯ'];
+  const dateStr = now.getDate()+' '+months[now.getMonth()]+' '+now.getFullYear()+' Г.';
+
+  let currentArticle = null;
+
+  // LOGIN
+  window.checkPwd = function() {
+    const pwd = document.getElementById('pwdInput').value;
+    if (pwd === ADMIN_PASSWORD) {
+      document.getElementById('loginWrap').style.display = 'none';
+      document.getElementById('adminWrap').style.display = 'block';
+      document.getElementById('liveDate').textContent = dateStr;
+      loadPublished();
+    } else {
+      document.getElementById('loginErr').textContent = '⚠ Неверный пароль';
+      document.getElementById('pwdInput').value = '';
+    }
+  };
+
+  window.logout = function() {
+    document.getElementById('adminWrap').style.display = 'none';
+    document.getElementById('loginWrap').style.display = 'flex';
+    document.getElementById('pwdInput').value = '';
+  };
+
+  // GENERATE
+  window.generateArticle = async function() {
+    const btn = document.getElementById('generateBtn');
+    const btnText = document.getElementById('btnText');
+    const btnIcon = document.getElementById('btnIcon');
+    const status = document.getElementById('genStatus');
+
+    const category = document.getElementById('genCategory').value;
+    const tone = document.getElementById('genTone').value;
+    const length = document.getElementById('genLength').value;
+    const topic = document.getElementById('genTopic').value;
+    const topicText = topic ? `на тему: "${topic}"` : `по категории: ${category}`;
+
+    btn.disabled = true;
+    btnIcon.innerHTML = '<div class="spinner"></div>';
+    btnText.textContent = 'ГЕНЕРАЦИЯ...';
+    status.textContent = '// подключение к AI...';
+
+    const prompt = `Ты профессиональный финансовый аналитик. Напиши статью на русском языке ${topicText}. Тон: ${tone}. Формат: ${length}.
+
+Ответь ТОЛЬКО валидным JSON без markdown, без backtick, без пояснений.
+Все строки — в одну строку без переносов.
+
+{"title":"заголовок","readTime":"X мин чтения","category":"${category.toUpperCase()}","intro":"вступление","sections":[{"heading":"Заголовок 1","content":"Текст 1."},{"heading":"Заголовок 2","content":"Текст 2."},{"heading":"Заголовок 3","content":"Текст 3."}],"quote":"цитата или статистика","conclusion":"вывод","excerpt":"краткое описание 15 слов"}`;
+
+    try {
+      status.textContent = '// написание статьи...';
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 2000,
+          messages: [{ role: "user", content: prompt }]
+        })
+      });
+      const data = await response.json();
+      const text = data.content.map(i => i.text || '').join('');
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) throw new Error('JSON не найден');
+      currentArticle = JSON.parse(jsonMatch[0]);
+      renderPreview(currentArticle);
+      status.textContent = '// ✓ готово';
+      setTimeout(() => { status.textContent = ''; }, 3000);
+    } catch(err) {
+      status.textContent = '// ⚠ ошибка. Попробуйте снова.';
+      console.error(err);
+    }
+
+    btn.disabled = false;
+    btnIcon.textContent = '▶';
+    btnText.textContent = 'ГЕНЕРИРОВАТЬ';
+  };
+
+  function renderPreview(a) {
+    document.getElementById('prevCat').textContent = a.category;
+    document.getElementById('prevTitle').textContent = a.title;
+    document.getElementById('prevMeta').innerHTML = `<span>📅 ${dateStr}</span><span>⏱ ${a.readTime}</span><span>✦ ПРЕДПРОСМОТР</span>`;
+    let html = `<p>${a.intro}</p>`;
+    a.sections.forEach(s => { html += `<h2>${s.heading}</h2><p>${s.content}</p>`; });
+    html += `<blockquote>${a.quote}</blockquote>`;
+    html += `<p><strong style="color:var(--ink)">Вывод:</strong> ${a.conclusion}</p>`;
+    document.getElementById('prevBody').innerHTML = html;
+    document.getElementById('articlePreview').classList.add('visible');
+    document.getElementById('articlePreview').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    document.getElementById('publishStatus').textContent = '';
+  }
+
+  // PUBLISH
+  window.publishArticle = async function() {
+    if (!currentArticle) return;
+    const btn = document.getElementById('publishBtn');
+    const status = document.getElementById('publishStatus');
+    btn.disabled = true;
+    status.style.color = 'var(--gold)';
+    status.textContent = '// публикация...';
+    try {
+      await addDoc(collection(db, "articles"), {
+        ...currentArticle,
+        publishedAt: Date.now()
+      });
+      status.style.color = 'var(--green2)';
+      status.textContent = '✓ Статья опубликована в блог!';
+      loadPublished();
+    } catch(err) {
+      status.style.color = 'var(--red2)';
+      status.textContent = '⚠ Ошибка публикации: ' + err.message;
+      console.error(err);
+    }
+    btn.disabled = false;
+  };
+
+  // LOAD PUBLISHED
+  async function loadPublished() {
+    const list = document.getElementById('pubList');
+    list.innerHTML = '<div class="pub-empty">⟳ Загрузка...</div>';
+    try {
+      const q = query(collection(db, "articles"), orderBy("publishedAt", "desc"));
+      const snap = await getDocs(q);
+      if (snap.empty) {
+        list.innerHTML = '<div class="pub-empty">// Статей пока нет. Сгенерируйте и опубликуйте первую!</div>';
+        return;
+      }
+      list.innerHTML = snap.docs.map(d => {
+        const a = d.data();
+        const date = a.publishedAt ? new Date(a.publishedAt).toLocaleDateString('ru-RU') : '—';
+        return `<div class="pub-item">
+          <div>
+            <div class="pub-title">${a.title}</div>
+            <div class="pub-meta">${a.category || ''} · ${date} · ${a.readTime || ''}</div>
+          </div>
+          <button class="btn-delete" onclick="deleteArticle('${d.id}')">✕ УДАЛИТЬ</button>
+        </div>`;
+      }).join('');
+    } catch(err) {
+      list.innerHTML = '<div class="pub-empty">⚠ Ошибка загрузки</div>';
+    }
+  }
+
+  // DELETE
+  window.deleteArticle = async function(id) {
+    if (!confirm('Удалить эту статью?')) return;
+    try {
+      await deleteDoc(doc(db, "articles", id));
+      loadPublished();
+    } catch(err) {
+      alert('Ошибка удаления: ' + err.message);
+    }
+  };
+
+  // TELEGRAM
+  window.sendToTelegram = async function() {
+    const token = document.getElementById('tgToken').value.trim();
+    const channel = document.getElementById('tgChannel').value.trim();
+    const status = document.getElementById('tgStatus');
+    const btn = document.getElementById('sendTgBtn');
+    if (!token || !channel) { status.style.color='var(--red2)'; status.textContent='⚠ Введите Bot Token и Channel ID'; return; }
+    if (!currentArticle) return;
+    btn.disabled = true;
+    status.style.color = '#2ca5e0';
+    status.textContent = '// отправка...';
+    const text = `📊 *${currentArticle.title}*\n\n${currentArticle.intro}\n\n` +
+      currentArticle.sections.map(s=>`*${s.heading}*\n${s.content}`).join('\n\n') +
+      `\n\n💬 _${currentArticle.quote}_\n\n✦ ${currentArticle.conclusion}\n\n— [XenosFinance](https://xenosfinance.com) · AI Блог`;
+    try {
+      const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: channel, text, parse_mode: 'Markdown', disable_web_page_preview: true })
+      });
+      const result = await res.json();
+      if (result.ok) { status.style.color='var(--green2)'; status.textContent='✓ Отправлено в канал!'; }
+      else throw new Error(result.description);
+    } catch(err) {
+      status.style.color='var(--red2)';
+      status.textContent='⚠ Ошибка: '+err.message;
+    }
+    btn.disabled = false;
+  };
+</script>
+</body>
+</html>
