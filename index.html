@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<meta name="generated" content="20260308173820">
+<meta name="generated" content="20260308161706">
 <title>XenosFinance — Финансовая аналитика</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=PT+Serif:wght@400;700&family=PT+Mono&display=swap" rel="stylesheet">
 <style>
@@ -74,7 +74,7 @@ body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:10
   <div class="masthead-top">
     <span id="live-date">8 МАРТА 2026 Г.</span>
     <span>XENOSFINANCE · ФИНАНСОВАЯ АНАЛИТИКА</span>
-    <span id="live-time">ОБНОВЛЕНО В 17:38 CET</span>
+    <span id="live-time">ОБНОВЛЕНО В 16:17 CET</span>
   </div>
   <div class="masthead-center">
     <div class="masthead-eyebrow">Финансовая разведка · Мировые рынки</div>
@@ -84,6 +84,7 @@ body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:10
   <div class="masthead-nav">
     <a class="nav-btn active" href="https://xenosfinance.com">📰 Новости</a>
     <a class="nav-btn" href="https://xenosfinance.com/xenoswaves_charts.html">📊 Интерактивные Графики</a>
+    <a class="nav-btn" href="https://xenosfinance.com/XenosBlog.html">✦ AI Блог</a>
   </div>
 </div>
 <div class="ticker-bar">
@@ -181,7 +182,7 @@ const NEWS_FEEDS=[
 ];
 const MKT_KW=['gold','oil','crude','fed','federal reserve','rate','inflation','gdp','nasdaq','s&p','dow','futures','stock','market','treasury','dollar','euro','tariff','trade','trump','china','sanctions','ukraine','russia','opec','energy','bitcoin','crypto','earnings','recession','bank','ecb','wall street','nvidia','apple'];
 function isRel(t){const s=t.toLowerCase();return MKT_KW.some(k=>s.includes(k));}
-const TR=[[/federal reserve/gi,'ФРС'],[/the fed/gi,'ФРС'],[/wall street/gi,'Уолл-стрит'],[/stock market/gi,'фондовый рынок'],[/stocks?/gi,'акции'],[/interest rates?/gi,'процентные ставки'],[/inflation/gi,'инфляция'],[/gdp/gi,'ВВП'],[/recession/gi,'рецессия'],[/crude oil/gi,'сырая нефть'],[/tariffs?/gi,'тарифы'],[/trade war/gi,'торговая война'],[/sanctions/gi,'санкции'],[/dollar/gi,'доллар'],[/earnings/gi,'прибыль'],[/rises?/gi,'растёт'],[/falls?/gi,'падает'],[/surges?/gi,'резко растёт'],[/plunges?/gi,'обрушивается'],[/gains?/gi,'прибавляет'],[/drops?/gi,'снижается'],[/(\d+(\.\d+)?)\s*billion/gi,'$1 млрд'],[/(\d+(\.\d+)?)\s*million/gi,'$1 млн']];
+const TR=[[/federal reserve/gi,'ФРС'],[/the fed/gi,'ФРС'],[/wall street/gi,'Уолл-стрит'],[/stock market/gi,'фондовый рынок'],[/stocks?/gi,'акции'],[/interest rates?/gi,'процентные ставки'],[/inflation/gi,'инфляция'],[/gdp/gi,'ВВП'],[/recession/gi,'рецессия'],[/crude oil/gi,'сырая нефть'],[/tariffs?/gi,'тарифы'],[/trade war/gi,'торговая война'],[/sanctions/gi,'санкции'],[/dollar/gi,'доллар'],[/earnings/gi,'прибыль'],[/rises?/gi,'растёт'],[/falls?/gi,'падает'],[/surges?/gi,'резко растёт'],[/plunges?/gi,'обрушивается'],[/gains?/gi,'прибавляет'],[/drops?/gi,'снижается'],[/(\d+(\.\d+)?)\s*billion/gi,'$1 млрд'],[/(\d+(\.\d+)?)\s*million/gi,'$1 млн']];
 function translate(t){for(const[re,ru]of TR)t=t.replace(re,ru);return t.charAt(0).toUpperCase()+t.slice(1);}
 function detectImpact(t){const s=t.toLowerCase();const tags=[];if(['gold rises','safe haven','inflation','war','sanctions'].some(k=>s.includes(k)))tags.push({asset:'Gold',dir:'bull'});if(['gold falls','dollar strong'].some(k=>s.includes(k)))tags.push({asset:'Gold',dir:'bear'});if(['oil rises','opec cut','iran'].some(k=>s.includes(k)))tags.push({asset:'Oil',dir:'bull'});if(['oil falls','oversupply'].some(k=>s.includes(k)))tags.push({asset:'Oil',dir:'bear'});if(['stocks rise','rally','earnings beat'].some(k=>s.includes(k)))tags.push({asset:'S&P 500',dir:'bull'});if(['stocks fall','selloff','tariff'].some(k=>s.includes(k)))tags.push({asset:'S&P 500',dir:'bear'});return tags.slice(0,2);}
 function tagHtml(t){const cls=t.dir==='bull'?'tag-bull':'tag-bear';const arr=t.dir==='bull'?'▲':'▼';return`<span class="story-tag ${cls}">${arr} ${t.asset}</span>`;}
