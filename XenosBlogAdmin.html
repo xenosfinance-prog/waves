@@ -242,8 +242,8 @@
   // ═══════════════════════════════════════════
   //  CONFIGURAZIONE GITHUB
   // ═══════════════════════════════════════════
-  const GITHUB_TOKEN  = "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";
-  const GITHUB_REPO   = "xenosfinance-prog/kenosblog";
+  // Token gestito dal Cloudflare Worker (sicuro)
+  const GITHUB_REPO   = "xenosfinance-prog/waves";
   const GITHUB_BRANCH = "main";
   const WORKER_URL    = "https://xenos-ai-proxy.xenosfinance.workers.dev";
 
@@ -323,8 +323,17 @@
   }
 
   // ═══════════════════════════════════════════
-  //  PUBBLICAZIONE SU GITHUB
+  //  PUBBLICAZIONE SU GITHUB (via Worker sicuro)
   // ═══════════════════════════════════════════
+  async function githubRequest(url, method, payload) {
+    const res = await fetch(WORKER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'github', url, method, payload })
+    });
+    return await res.json();
+  }
+
   async function publishToBlog() {
     if (!currentArticle) return;
     const btn = document.getElementById('publishBtn');
@@ -333,53 +342,48 @@
 
     btn.disabled = true;
     icon.innerHTML = '<div class="spinner-gold"></div>';
-    status.textContent = 'Pubblicazione in corso...';
+    status.textContent = 'Публикация...';
     status.style.color = 'var(--gold)';
 
     try {
-      // 1. Leggi l'indice esistente (o crea uno nuovo)
       const indexPath = 'articles/index.json';
+      const apiBase = `https://api.github.com/repos/${GITHUB_REPO}/contents`;
       let existingArticles = [];
       let indexSha = null;
 
-      const indexRes = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/contents/${indexPath}`, {
-        headers: { 'Authorization': `token ${GITHUB_TOKEN}`, 'Accept': 'application/vnd.github.v3+json' }
-      });
-      if (indexRes.ok) {
-        const indexData = await indexRes.json();
-        indexSha = indexData.sha;
-        existingArticles = JSON.parse(atob(indexData.content.replace(/\n/g, '')));
+      // 1. Leggi indice esistente
+      const indexResult = await githubRequest(`${apiBase}/${indexPath}`, 'GET');
+      if (indexResult.status === 200) {
+        indexSha = indexResult.data.sha;
+        existingArticles = JSON.parse(atob(indexResult.data.content.replace(/
+/g, '')));
       }
 
-      // 2. Crea il file dell'articolo
+      // 2. Salva articolo
       const slug = 'article-' + Date.now();
       const articleData = { ...currentArticle, slug, publishedAt: new Date().toISOString() };
-      const articlePath = `articles/${slug}.json`;
       const articleContent = btoa(unescape(encodeURIComponent(JSON.stringify(articleData, null, 2))));
 
-      await fetch(`https://api.github.com/repos/${GITHUB_REPO}/contents/${articlePath}`, {
-        method: 'PUT',
-        headers: { 'Authorization': `token ${GITHUB_TOKEN}`, 'Accept': 'application/vnd.github.v3+json', 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: `Nuovo articolo: ${currentArticle.title}`, content: articleContent, branch: GITHUB_BRANCH })
+      const saveResult = await githubRequest(`${apiBase}/articles/${slug}.json`, 'PUT', {
+        message: `Articolo: ${currentArticle.title}`,
+        content: articleContent,
+        branch: GITHUB_BRANCH
       });
+      if (saveResult.status !== 200 && saveResult.status !== 201) throw new Error('Errore salvataggio: ' + saveResult.status);
 
-      // 3. Aggiorna l'indice
+      // 3. Aggiorna indice
       const newEntry = { slug, title: currentArticle.title, excerpt: currentArticle.excerpt || currentArticle.intro.substring(0,120), category: currentArticle.categoryLabel, readTime: currentArticle.readTime, publishedAt: articleData.publishedAt };
       existingArticles.unshift(newEntry);
       const newIndexContent = btoa(unescape(encodeURIComponent(JSON.stringify(existingArticles, null, 2))));
-      const indexBody = { message: 'Aggiorna indice blog', content: newIndexContent, branch: GITHUB_BRANCH };
-      if (indexSha) indexBody.sha = indexSha;
+      const indexPayload = { message: 'Aggiorna indice', content: newIndexContent, branch: GITHUB_BRANCH };
+      if (indexSha) indexPayload.sha = indexSha;
 
-      await fetch(`https://api.github.com/repos/${GITHUB_REPO}/contents/${indexPath}`, {
-        method: 'PUT',
-        headers: { 'Authorization': `token ${GITHUB_TOKEN}`, 'Accept': 'application/vnd.github.v3+json', 'Content-Type': 'application/json' },
-        body: JSON.stringify(indexBody)
-      });
+      const indexResult2 = await githubRequest(`${apiBase}/${indexPath}`, 'PUT', indexPayload);
+      if (indexResult2.status !== 200 && indexResult2.status !== 201) throw new Error('Errore indice: ' + indexResult2.status);
 
       status.textContent = '✓ Опубликовано на сайте!';
       status.style.color = 'var(--gold)';
 
-      // Aggiorna la griglia
       cardCount++;
       const grid = document.getElementById('blogGrid');
       const card = document.createElement('div');
@@ -388,7 +392,7 @@
       grid.insertBefore(card, grid.firstChild);
 
     } catch(err) {
-      status.textContent = '⚠ Ошибка публикации: ' + err.message;
+      status.textContent = '⚠ Ошибка: ' + err.message;
       status.style.color = '#e74c3c';
       console.error(err);
     }
