@@ -1,119 +1,103 @@
 <!DOCTYPE html>
-<html lang="it">
+<html lang="ru">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>XenosFinance — Grafici Interattivi</title>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans+Condensed:wght@300;400;600;700&display=swap" rel="stylesheet">
+<title>XenosFinance — Интерактивные Графики</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=PT+Serif:wght@400;700&family=PT+Mono&display=swap" rel="stylesheet">
 <style>
 :root {
-  --bg: #f5f0e8;
-  --ink: #1a1208;
-  --ink2: #3d3020;
-  --muted: #8a7a60;
-  --border: #c8b898;
-  --border2: #e0d4b8;
-  --red: #c0392b;
-  --green: #1a7a3a;
-  --orange: #d35400;
-  --blue: #1a4a8a;
-  --yellow: #f0c040;
-  --mono: 'IBM Plex Mono', monospace;
-  --sans: 'IBM Plex Sans Condensed', sans-serif;
+  --bg:#0a0a0f;
+  --bg2:#111118;
+  --ink:#e8e4d9;
+  --ink2:#b8b4a9;
+  --muted:#6b6760;
+  --border:#2a2a35;
+  --border2:#1e1e28;
+  --red:#c0392b;
+  --green2:#27ae60;
+  --gold:#c9a84c;
+  --serif:'Playfair Display',Georgia,serif;
+  --mono:'PT Mono',monospace;
 }
-
 * { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--ink); font-family: var(--mono); min-height: 100vh; }
 
-body {
-  background: var(--bg);
-  color: var(--ink);
-  font-family: var(--mono);
-  min-height: 100vh;
-}
-
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  opacity: .03;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
-  background-size: 200px;
-}
-
-.wrap { max-width: 1300px; margin: 0 auto; padding: 0 24px 60px; position: relative; z-index: 1; }
+.wrap { max-width: 1300px; margin: 0 auto; padding: 0 24px 60px; }
 
 /* ── MASTHEAD ── */
-.masthead { border-bottom: 4px double var(--ink); padding: 20px 0 14px; text-align: center; }
+.masthead { border-bottom: 3px double var(--gold); padding: 0; }
 .masthead-top {
-  display: flex; justify-content: space-between; align-items: baseline;
-  font-size: 10px; color: var(--muted); letter-spacing: 1px;
-  margin-bottom: 8px; border-bottom: 1px solid var(--border); padding-bottom: 6px;
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 0; font-size: 10px; color: var(--muted);
+  letter-spacing: 2px; border-bottom: 1px solid var(--border);
 }
-.masthead-name { font-family: var(--sans); font-weight: 700; font-size: 48px; letter-spacing: -1px; line-height: 1; }
-.masthead-name span { color: var(--muted); font-weight: 300; }
-.masthead-sub { font-size: 10px; letter-spacing: 4px; color: var(--muted); text-transform: uppercase; margin-top: 4px; }
+.masthead-center { text-align: center; padding: 24px 0 16px; }
+.masthead-eyebrow { font-size: 9px; letter-spacing: 6px; color: var(--gold); text-transform: uppercase; margin-bottom: 8px; }
+.masthead-name { font-family: var(--serif); font-size: 56px; font-weight: 900; letter-spacing: -2px; line-height: 1; text-transform: uppercase; }
+.masthead-name span { color: var(--gold); }
+.masthead-sub { font-size: 10px; letter-spacing: 5px; color: var(--muted); margin-top: 6px; text-transform: uppercase; }
 .masthead-nav {
-  display: flex; justify-content: center; gap: 32px;
-  font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
-  margin-top: 10px; border-top: 1px solid var(--border); padding-top: 8px;
+  display: flex; justify-content: center; gap: 0;
+  border-top: 1px solid var(--border); background: var(--bg2);
 }
-.masthead-nav a { color: var(--muted); text-decoration: none; }
-.masthead-nav a:hover { color: var(--ink); }
-.masthead-nav a.active { color: var(--ink); font-weight: 600; border-bottom: 2px solid var(--ink); padding-bottom: 2px; }
+.masthead-nav a {
+  font-size: 11px; letter-spacing: 3px; text-transform: uppercase;
+  padding: 11px 36px; color: var(--muted); text-decoration: none;
+  border-bottom: 3px solid transparent; transition: all 0.2s; display: inline-block;
+}
+.masthead-nav a:hover, .masthead-nav a.active { color: var(--gold); border-bottom-color: var(--gold); }
 
 /* ── TICKER ── */
 .ticker-bar {
-  background: var(--ink); color: var(--bg); padding: 6px 0;
-  overflow: hidden; font-size: 11px;
-  border-top: 2px solid var(--ink); border-bottom: 2px solid var(--ink);
+  background: var(--bg2); border-bottom: 1px solid var(--border);
+  padding: 7px 0; overflow: hidden; font-size: 11px;
 }
-.ticker-inner { display: flex; gap: 32px; white-space: nowrap; animation: scroll-ticker 60s linear infinite; }
+.ticker-inner { display: flex; gap: 0; white-space: nowrap; animation: ticker 70s linear infinite; }
 .ticker-inner:hover { animation-play-state: paused; }
-@keyframes scroll-ticker { 0% { transform: translateX(0) } 100% { transform: translateX(-50%) } }
-.tick { display: inline-flex; gap: 8px; align-items: center; }
-.tick-sym { color: #f0c040; font-weight: 600; }
-.tick-up { color: #5dba72; } .tick-dn { color: #ff6b6b; }
+@keyframes ticker { 0% { transform: translateX(0) } 100% { transform: translateX(-50%) } }
+.t-item { display: inline-flex; gap: 10px; padding: 0 20px; border-right: 1px solid var(--border); }
+.t-sym { color: var(--gold); font-weight: bold; }
+.t-up { color: var(--green2); } .t-dn { color: #e74c3c; }
 
 /* ── SECTION HEADER ── */
 .section-label {
-  font-family: var(--sans); font-weight: 700; font-size: 10px;
-  letter-spacing: 4px; text-transform: uppercase;
-  background: var(--ink); color: var(--bg);
+  font-size: 9px; font-weight: bold; letter-spacing: 4px; text-transform: uppercase;
+  background: var(--gold); color: var(--bg);
   padding: 4px 12px; display: inline-block; margin: 28px 0 0;
 }
-.section-divider { border: none; border-top: 2px solid var(--ink); margin: 6px 0 20px; }
+.section-divider { border: none; border-top: 1px solid var(--border); margin: 8px 0 20px; }
 
 /* ── ASSET TABS ── */
 .asset-tabs {
-  display: flex; gap: 0; border-bottom: 2px solid var(--ink);
+  display: flex; gap: 0; border-bottom: 2px solid var(--border);
   margin-bottom: 20px; overflow-x: auto; scrollbar-width: none;
+  margin-top: 24px;
 }
 .asset-tabs::-webkit-scrollbar { display: none; }
 .tab-btn {
   font-family: var(--mono); font-size: 11px; letter-spacing: 1px;
-  text-transform: uppercase; padding: 8px 18px; border: none;
+  text-transform: uppercase; padding: 10px 20px; border: none;
   background: transparent; color: var(--muted); cursor: pointer;
   border-bottom: 3px solid transparent; margin-bottom: -2px;
   white-space: nowrap; transition: all 0.15s;
 }
-.tab-btn:hover { color: var(--ink); background: var(--border2); }
-.tab-btn.active { color: var(--ink); font-weight: 600; border-bottom: 3px solid var(--red); background: var(--bg); }
+.tab-btn:hover { color: var(--ink); background: var(--bg2); }
+.tab-btn.active { color: var(--gold); font-weight: 600; border-bottom: 3px solid var(--gold); background: var(--bg); }
 
 /* ── CHART GRID ── */
 .chart-panel { display: none; }
 .chart-panel.active { display: block; }
-.chart-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-.chart-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
+.chart-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.chart-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
 @media (max-width: 900px) { .chart-grid-2, .chart-grid-3 { grid-template-columns: 1fr; } }
 
-.chart-card { border: 1px solid var(--border); background: var(--bg); }
+.chart-card { border: 1px solid var(--border); background: var(--bg2); }
 .chart-card-header {
   display: flex; justify-content: space-between; align-items: baseline;
-  padding: 8px 12px 6px; border-bottom: 1px solid var(--border); background: #ede8df;
+  padding: 8px 14px 7px; border-bottom: 1px solid var(--border); background: var(--bg);
 }
-.chart-card-title { font-family: var(--sans); font-weight: 700; font-size: 13px; letter-spacing: 1px; text-transform: uppercase; }
+.chart-card-title { font-family: var(--mono); font-weight: bold; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; color: var(--ink); }
 .chart-card-sub { font-size: 9px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; }
 .chart-card-body { padding: 0; height: 380px; overflow: hidden; }
 .chart-card-body.tall { height: 500px; }
@@ -122,13 +106,13 @@ body::before {
 
 /* ── FOOTER ── */
 .page-footer {
-  border-top: 4px double var(--ink); padding: 12px 0;
+  border-top: 1px solid var(--border); padding: 14px 0;
   display: flex; justify-content: space-between;
-  font-size: 10px; color: var(--muted); margin-top: 40px;
+  font-size: 9px; color: var(--muted); margin-top: 40px; letter-spacing: 1px;
 }
 .footer-links { display: flex; gap: 24px; }
 .footer-links a { color: var(--muted); text-decoration: none; }
-.footer-links a:hover { color: var(--ink); }
+.footer-links a:hover { color: var(--gold); }
 </style>
 </head>
 <body>
@@ -137,99 +121,102 @@ body::before {
 <!-- MASTHEAD -->
 <div class="masthead">
   <div class="masthead-top">
-    <span>VOL. I — GRAFICI INTERATTIVI</span>
+    <span>ВЫП. I — ИНТЕРАКТИВНЫЕ ГРАФИКИ</span>
     <span id="live-date">—</span>
-    <span>DATI IN TEMPO REALE</span>
+    <span>ДАННЫЕ В РЕАЛЬНОМ ВРЕМЕНИ</span>
   </div>
-  <div class="masthead-name">XENOS<span>FINANCE</span></div>
-  <div class="masthead-sub">Interactive Charts — TradingView</div>
+  <div class="masthead-center">
+    <div class="masthead-eyebrow">Финансовая аналитика · Мировые рынки</div>
+    <div class="masthead-name">XENOS<span>FINANCE</span></div>
+    <div class="masthead-sub">Интерактивные Графики — TradingView</div>
+  </div>
   <nav class="masthead-nav">
-    <a href="https://xenosfinance.com">📰 Daily Brief</a>
-    <a href="https://xenosfinance.com/xenoswaves_charts.html" class="active">📊 Grafici</a>
+    <a href="https://xenosfinance.com">📰 Новости</a>
+    <a href="https://xenosfinance.com/xenoswaves_charts.html" class="active">📊 Графики</a>
   </nav>
 </div>
 
 <!-- TICKER -->
 <div class="ticker-bar">
   <div class="ticker-inner" id="ticker-content">
-    <span class="tick"><span class="tick-sym">EURUSD</span><span>caricamento...</span></span>
+    <span class="t-item"><span class="t-sym">ЗАГРУЗКА...</span></span>
   </div>
 </div>
 
 <!-- TABS -->
-<div class="asset-tabs" style="margin-top:24px">
-  <button class="tab-btn active" onclick="switchTab('overview',this)">📊 Overview</button>
-  <button class="tab-btn" onclick="switchTab('forex',this)">💱 Forex</button>
-  <button class="tab-btn" onclick="switchTab('commodities',this)">🛢️ Commodities</button>
-  <button class="tab-btn" onclick="switchTab('equity',this)">📈 Equity USA</button>
-  <button class="tab-btn" onclick="switchTab('crypto',this)">₿ Crypto</button>
-  <button class="tab-btn" onclick="switchTab('macro',this)">🌍 Macro &amp; Calendar</button>
+<div class="asset-tabs">
+  <button class="tab-btn active" onclick="switchTab('overview',this)">📊 Обзор</button>
+  <button class="tab-btn" onclick="switchTab('forex',this)">💱 Форекс</button>
+  <button class="tab-btn" onclick="switchTab('commodities',this)">🛢️ Сырьё</button>
+  <button class="tab-btn" onclick="switchTab('equity',this)">📈 Акции США</button>
+  <button class="tab-btn" onclick="switchTab('crypto',this)">₿ Крипто</button>
+  <button class="tab-btn" onclick="switchTab('macro',this)">🌍 Макро &amp; Календарь</button>
 </div>
 
 
 <!-- ═══════════════════ TAB: OVERVIEW ═══════════════════ -->
 <div class="chart-panel active" id="panel-overview">
 
-  <div class="section-label">Market Heatmap</div>
+  <div class="section-label">Тепловая карта рынка</div>
   <hr class="section-divider">
   <div class="chart-card" style="margin-bottom:20px">
     <div class="chart-card-header">
-      <span class="chart-card-title">S&amp;P 500 — Heatmap Settori</span>
-      <span class="chart-card-sub">1 Giorno</span>
+      <span class="chart-card-title">S&amp;P 500 — Секторальная тепловая карта</span>
+      <span class="chart-card-sub">1 День</span>
     </div>
     <div class="chart-card-body" style="height:500px">
       <div class="tradingview-widget-container" style="height:100%;width:100%">
         <div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
         <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-stock-heatmap.js" async>
-        {"exchanges":[],"dataSource":"SPX500","grouping":"sector","blockSize":"market_cap_basic","blockColor":"change","locale":"it","colorTheme":"light","hasTopBar":false,"isZoomEnabled":true,"hasSymbolTooltip":true,"isMonoSize":false,"width":"100%","height":"100%"}
+        {"exchanges":[],"dataSource":"SPX500","grouping":"sector","blockSize":"market_cap_basic","blockColor":"change","locale":"ru","colorTheme":"dark","hasTopBar":false,"isZoomEnabled":true,"hasSymbolTooltip":true,"isMonoSize":false,"width":"100%","height":"100%"}
         </script>
       </div>
     </div>
   </div>
 
-  <div class="section-label">Asset Principali</div>
+  <div class="section-label">Основные активы</div>
   <hr class="section-divider">
   <div class="chart-grid-2">
     <div class="chart-card">
-      <div class="chart-card-header"><span class="chart-card-title">📊 S&amp;P 500</span><span class="chart-card-sub">SPY · Daily</span></div>
+      <div class="chart-card-header"><span class="chart-card-title">📊 S&amp;P 500</span><span class="chart-card-sub">SPY · Дневной</span></div>
       <div class="chart-card-body">
         <div class="tradingview-widget-container" style="height:100%;width:100%">
           <div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
           <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
-          {"autosize":true,"symbol":"AMEX:SPY","interval":"D","timezone":"Europe/Rome","theme":"light","style":"1","locale":"it","allow_symbol_change":true,"studies":["RSI@tv-basicstudies","MACD@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
+          {"autosize":true,"symbol":"AMEX:SPY","interval":"D","timezone":"Europe/Moscow","theme":"dark","style":"1","locale":"ru","allow_symbol_change":true,"studies":["RSI@tv-basicstudies","MACD@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
           </script>
         </div>
       </div>
     </div>
     <div class="chart-card">
-      <div class="chart-card-header"><span class="chart-card-title">🥇 Gold</span><span class="chart-card-sub">XAUUSD · Daily</span></div>
+      <div class="chart-card-header"><span class="chart-card-title">🥇 Золото</span><span class="chart-card-sub">XAUUSD · Дневной</span></div>
       <div class="chart-card-body">
         <div class="tradingview-widget-container" style="height:100%;width:100%">
           <div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
           <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
-          {"autosize":true,"symbol":"TVC:GOLD","interval":"D","timezone":"Europe/Rome","theme":"light","style":"1","locale":"it","allow_symbol_change":true,"studies":["RSI@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
+          {"autosize":true,"symbol":"TVC:GOLD","interval":"D","timezone":"Europe/Moscow","theme":"dark","style":"1","locale":"ru","allow_symbol_change":true,"studies":["RSI@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
           </script>
         </div>
       </div>
     </div>
     <div class="chart-card">
-      <div class="chart-card-header"><span class="chart-card-title">💶 EUR/USD</span><span class="chart-card-sub">Forex · Daily</span></div>
+      <div class="chart-card-header"><span class="chart-card-title">💶 EUR/USD</span><span class="chart-card-sub">Форекс · Дневной</span></div>
       <div class="chart-card-body">
         <div class="tradingview-widget-container" style="height:100%;width:100%">
           <div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
           <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
-          {"autosize":true,"symbol":"FX:EURUSD","interval":"D","timezone":"Europe/Rome","theme":"light","style":"1","locale":"it","allow_symbol_change":true,"studies":["RSI@tv-basicstudies","MACD@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
+          {"autosize":true,"symbol":"FX:EURUSD","interval":"D","timezone":"Europe/Moscow","theme":"dark","style":"1","locale":"ru","allow_symbol_change":true,"studies":["RSI@tv-basicstudies","MACD@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
           </script>
         </div>
       </div>
     </div>
     <div class="chart-card">
-      <div class="chart-card-header"><span class="chart-card-title">₿ Bitcoin</span><span class="chart-card-sub">BTCUSD · Daily</span></div>
+      <div class="chart-card-header"><span class="chart-card-title">₿ Биткоин</span><span class="chart-card-sub">BTCUSD · Дневной</span></div>
       <div class="chart-card-body">
         <div class="tradingview-widget-container" style="height:100%;width:100%">
           <div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
           <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
-          {"autosize":true,"symbol":"BITSTAMP:BTCUSD","interval":"D","timezone":"Europe/Rome","theme":"light","style":"1","locale":"it","allow_symbol_change":true,"studies":["RSI@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
+          {"autosize":true,"symbol":"BITSTAMP:BTCUSD","interval":"D","timezone":"Europe/Moscow","theme":"dark","style":"1","locale":"ru","allow_symbol_change":true,"studies":["RSI@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
           </script>
         </div>
       </div>
@@ -242,15 +229,15 @@ body::before {
 <!-- ═══════════════════ TAB: FOREX ═══════════════════ -->
 <div class="chart-panel" id="panel-forex">
 
-  <div class="section-label">Forex Majors</div>
+  <div class="section-label">Основные валютные пары</div>
   <hr class="section-divider">
   <div class="chart-card" style="margin-bottom:20px">
-    <div class="chart-card-header"><span class="chart-card-title">Cross Rates — Majors</span><span class="chart-card-sub">Tempo Reale</span></div>
+    <div class="chart-card-header"><span class="chart-card-title">Кросс-курсы валют — Основные пары</span><span class="chart-card-sub">В реальном времени</span></div>
     <div class="chart-card-body" style="height:420px">
       <div class="tradingview-widget-container" style="height:100%;width:100%">
         <div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
         <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-forex-cross-rates.js" async>
-        {"width":"100%","height":"100%","currencies":["EUR","USD","GBP","JPY","CHF","AUD","CAD","NZD"],"isTransparent":false,"colorTheme":"light","locale":"it"}
+        {"width":"100%","height":"100%","currencies":["EUR","USD","GBP","JPY","CHF","AUD","CAD","NZD"],"isTransparent":false,"colorTheme":"dark","locale":"ru"}
         </script>
       </div>
     </div>
@@ -258,56 +245,56 @@ body::before {
 
   <div class="chart-grid-3">
     <div class="chart-card">
-      <div class="chart-card-header"><span class="chart-card-title">💶 EUR/USD</span><span class="chart-card-sub">Daily</span></div>
+      <div class="chart-card-header"><span class="chart-card-title">💶 EUR/USD</span><span class="chart-card-sub">Дневной</span></div>
       <div class="chart-card-body">
         <div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
         <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
-        {"autosize":true,"symbol":"FX:EURUSD","interval":"D","timezone":"Europe/Rome","theme":"light","style":"1","locale":"it","allow_symbol_change":false,"studies":["RSI@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
+        {"autosize":true,"symbol":"FX:EURUSD","interval":"D","timezone":"Europe/Moscow","theme":"dark","style":"1","locale":"ru","allow_symbol_change":false,"studies":["RSI@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
         </script></div>
       </div>
     </div>
     <div class="chart-card">
-      <div class="chart-card-header"><span class="chart-card-title">💷 GBP/USD</span><span class="chart-card-sub">Daily</span></div>
+      <div class="chart-card-header"><span class="chart-card-title">💷 GBP/USD</span><span class="chart-card-sub">Дневной</span></div>
       <div class="chart-card-body">
         <div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
         <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
-        {"autosize":true,"symbol":"FX:GBPUSD","interval":"D","timezone":"Europe/Rome","theme":"light","style":"1","locale":"it","allow_symbol_change":false,"studies":["RSI@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
+        {"autosize":true,"symbol":"FX:GBPUSD","interval":"D","timezone":"Europe/Moscow","theme":"dark","style":"1","locale":"ru","allow_symbol_change":false,"studies":["RSI@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
         </script></div>
       </div>
     </div>
     <div class="chart-card">
-      <div class="chart-card-header"><span class="chart-card-title">💴 USD/JPY</span><span class="chart-card-sub">Daily</span></div>
+      <div class="chart-card-header"><span class="chart-card-title">💴 USD/JPY</span><span class="chart-card-sub">Дневной</span></div>
       <div class="chart-card-body">
         <div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
         <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
-        {"autosize":true,"symbol":"FX:USDJPY","interval":"D","timezone":"Europe/Rome","theme":"light","style":"1","locale":"it","allow_symbol_change":false,"studies":["RSI@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
+        {"autosize":true,"symbol":"FX:USDJPY","interval":"D","timezone":"Europe/Moscow","theme":"dark","style":"1","locale":"ru","allow_symbol_change":false,"studies":["RSI@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
         </script></div>
       </div>
     </div>
     <div class="chart-card">
-      <div class="chart-card-header"><span class="chart-card-title">🇦🇺 AUD/USD</span><span class="chart-card-sub">Daily</span></div>
+      <div class="chart-card-header"><span class="chart-card-title">🇦🇺 AUD/USD</span><span class="chart-card-sub">Дневной</span></div>
       <div class="chart-card-body">
         <div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
         <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
-        {"autosize":true,"symbol":"FX:AUDUSD","interval":"D","timezone":"Europe/Rome","theme":"light","style":"1","locale":"it","allow_symbol_change":false,"studies":["RSI@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
+        {"autosize":true,"symbol":"FX:AUDUSD","interval":"D","timezone":"Europe/Moscow","theme":"dark","style":"1","locale":"ru","allow_symbol_change":false,"studies":["RSI@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
         </script></div>
       </div>
     </div>
     <div class="chart-card">
-      <div class="chart-card-header"><span class="chart-card-title">🇨🇭 USD/CHF</span><span class="chart-card-sub">Daily</span></div>
+      <div class="chart-card-header"><span class="chart-card-title">🇨🇭 USD/CHF</span><span class="chart-card-sub">Дневной</span></div>
       <div class="chart-card-body">
         <div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
         <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
-        {"autosize":true,"symbol":"FX:USDCHF","interval":"D","timezone":"Europe/Rome","theme":"light","style":"1","locale":"it","allow_symbol_change":false,"studies":["RSI@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
+        {"autosize":true,"symbol":"FX:USDCHF","interval":"D","timezone":"Europe/Moscow","theme":"dark","style":"1","locale":"ru","allow_symbol_change":false,"studies":["RSI@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
         </script></div>
       </div>
     </div>
     <div class="chart-card">
-      <div class="chart-card-header"><span class="chart-card-title">🇳🇿 NZD/USD</span><span class="chart-card-sub">Daily</span></div>
+      <div class="chart-card-header"><span class="chart-card-title">🇳🇿 NZD/USD</span><span class="chart-card-sub">Дневной</span></div>
       <div class="chart-card-body">
         <div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
         <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
-        {"autosize":true,"symbol":"FX:NZDUSD","interval":"D","timezone":"Europe/Rome","theme":"light","style":"1","locale":"it","allow_symbol_change":false,"studies":["RSI@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
+        {"autosize":true,"symbol":"FX:NZDUSD","interval":"D","timezone":"Europe/Moscow","theme":"dark","style":"1","locale":"ru","allow_symbol_change":false,"studies":["RSI@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
         </script></div>
       </div>
     </div>
@@ -319,42 +306,42 @@ body::before {
 <!-- ═══════════════════ TAB: COMMODITIES ═══════════════════ -->
 <div class="chart-panel" id="panel-commodities">
 
-  <div class="section-label">Commodities — Energia &amp; Metalli</div>
+  <div class="section-label">Сырьё — Энергоносители &amp; Металлы</div>
   <hr class="section-divider">
   <div class="chart-grid-2">
     <div class="chart-card">
-      <div class="chart-card-header"><span class="chart-card-title">🥇 Gold · XAUUSD</span><span class="chart-card-sub">Daily + RSI + MACD</span></div>
+      <div class="chart-card-header"><span class="chart-card-title">🥇 Золото · XAUUSD</span><span class="chart-card-sub">Дневной + RSI + MACD</span></div>
       <div class="chart-card-body tall">
         <div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
         <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
-        {"autosize":true,"symbol":"TVC:GOLD","interval":"D","timezone":"Europe/Rome","theme":"light","style":"1","locale":"it","allow_symbol_change":false,"studies":["RSI@tv-basicstudies","MACD@tv-basicstudies","BB@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
+        {"autosize":true,"symbol":"TVC:GOLD","interval":"D","timezone":"Europe/Moscow","theme":"dark","style":"1","locale":"ru","allow_symbol_change":false,"studies":["RSI@tv-basicstudies","MACD@tv-basicstudies","BB@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
         </script></div>
       </div>
     </div>
     <div class="chart-card">
-      <div class="chart-card-header"><span class="chart-card-title">🛢️ Crude Oil · WTI</span><span class="chart-card-sub">Daily + RSI + MACD</span></div>
+      <div class="chart-card-header"><span class="chart-card-title">🛢️ Нефть WTI</span><span class="chart-card-sub">Дневной + RSI + MACD</span></div>
       <div class="chart-card-body tall">
         <div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
         <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
-        {"autosize":true,"symbol":"TVC:USOIL","interval":"D","timezone":"Europe/Rome","theme":"light","style":"1","locale":"it","allow_symbol_change":false,"studies":["RSI@tv-basicstudies","MACD@tv-basicstudies","BB@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
+        {"autosize":true,"symbol":"TVC:USOIL","interval":"D","timezone":"Europe/Moscow","theme":"dark","style":"1","locale":"ru","allow_symbol_change":false,"studies":["RSI@tv-basicstudies","MACD@tv-basicstudies","BB@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
         </script></div>
       </div>
     </div>
     <div class="chart-card">
-      <div class="chart-card-header"><span class="chart-card-title">🥈 Silver · XAGUSD</span><span class="chart-card-sub">Daily</span></div>
+      <div class="chart-card-header"><span class="chart-card-title">🥈 Серебро · XAGUSD</span><span class="chart-card-sub">Дневной</span></div>
       <div class="chart-card-body">
         <div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
         <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
-        {"autosize":true,"symbol":"TVC:SILVER","interval":"D","timezone":"Europe/Rome","theme":"light","style":"1","locale":"it","allow_symbol_change":false,"studies":["RSI@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
+        {"autosize":true,"symbol":"TVC:SILVER","interval":"D","timezone":"Europe/Moscow","theme":"dark","style":"1","locale":"ru","allow_symbol_change":false,"studies":["RSI@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
         </script></div>
       </div>
     </div>
     <div class="chart-card">
-      <div class="chart-card-header"><span class="chart-card-title">⛽ Natural Gas</span><span class="chart-card-sub">Daily</span></div>
+      <div class="chart-card-header"><span class="chart-card-title">⛽ Природный газ</span><span class="chart-card-sub">Дневной</span></div>
       <div class="chart-card-body">
         <div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
         <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
-        {"autosize":true,"symbol":"TVC:NATURALGAS","interval":"D","timezone":"Europe/Rome","theme":"light","style":"1","locale":"it","allow_symbol_change":false,"studies":["RSI@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
+        {"autosize":true,"symbol":"TVC:NATURALGAS","interval":"D","timezone":"Europe/Moscow","theme":"dark","style":"1","locale":"ru","allow_symbol_change":false,"studies":["RSI@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
         </script></div>
       </div>
     </div>
@@ -366,72 +353,71 @@ body::before {
 <!-- ═══════════════════ TAB: EQUITY USA ═══════════════════ -->
 <div class="chart-panel" id="panel-equity">
 
-  <div class="section-label">Indici &amp; Blue Chip</div>
+  <div class="section-label">Индексы &amp; Голубые фишки</div>
   <hr class="section-divider">
 
   <div class="chart-card" style="margin-bottom:20px">
-    <div class="chart-card-header"><span class="chart-card-title">📋 Stock Screener — S&amp;P 500</span><span class="chart-card-sub">Performance &amp; Momentum</span></div>
+    <div class="chart-card-header"><span class="chart-card-title">📋 Скринер акций — S&amp;P 500</span><span class="chart-card-sub">Доходность &amp; Моментум</span></div>
     <div class="chart-card-body" style="height:500px">
       <div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
       <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-screener.js" async>
-      {"width":"100%","height":"100%","defaultColumn":"overview","defaultScreen":"most_capitalized","market":"america","showToolbar":true,"colorTheme":"light","locale":"it"}
+      {"width":"100%","height":"100%","defaultColumn":"overview","defaultScreen":"most_capitalized","market":"america","showToolbar":true,"colorTheme":"dark","locale":"ru"}
       </script></div>
     </div>
   </div>
 
   <div class="chart-grid-3">
     <div class="chart-card">
-      <div class="chart-card-header"><span class="chart-card-title">📊 S&amp;P 500</span><span class="chart-card-sub">SPY · Weekly</span></div>
+      <div class="chart-card-header"><span class="chart-card-title">📊 S&amp;P 500</span><span class="chart-card-sub">SPY · Недельный</span></div>
       <div class="chart-card-body">
         <div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
         <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
-        {"autosize":true,"symbol":"AMEX:SPY","interval":"W","timezone":"Europe/Rome","theme":"light","style":"1","locale":"it","allow_symbol_change":false,"studies":["RSI@tv-basicstudies","EMA@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
+        {"autosize":true,"symbol":"AMEX:SPY","interval":"W","timezone":"Europe/Moscow","theme":"dark","style":"1","locale":"ru","allow_symbol_change":false,"studies":["RSI@tv-basicstudies","EMA@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
         </script></div>
       </div>
     </div>
     <div class="chart-card">
-      <div class="chart-card-header"><span class="chart-card-title">📈 Nasdaq</span><span class="chart-card-sub">QQQ · Weekly</span></div>
+      <div class="chart-card-header"><span class="chart-card-title">📈 Nasdaq</span><span class="chart-card-sub">QQQ · Недельный</span></div>
       <div class="chart-card-body">
         <div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
         <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
-        {"autosize":true,"symbol":"NASDAQ:QQQ","interval":"W","timezone":"Europe/Rome","theme":"light","style":"1","locale":"it","allow_symbol_change":false,"studies":["RSI@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
-        </script></div>
-      </div>
-    </div>
-    <!-- FIX: DJI → AMEX:DIA (ETF Dow Jones, funziona su free account) -->
-    <div class="chart-card">
-      <div class="chart-card-header"><span class="chart-card-title">🇺🇸 Dow Jones</span><span class="chart-card-sub">DIA ETF · Weekly</span></div>
-      <div class="chart-card-body">
-        <div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
-        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
-        {"autosize":true,"symbol":"AMEX:DIA","interval":"W","timezone":"Europe/Rome","theme":"light","style":"1","locale":"it","allow_symbol_change":false,"studies":["RSI@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
+        {"autosize":true,"symbol":"NASDAQ:QQQ","interval":"W","timezone":"Europe/Moscow","theme":"dark","style":"1","locale":"ru","allow_symbol_change":false,"studies":["RSI@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
         </script></div>
       </div>
     </div>
     <div class="chart-card">
-      <div class="chart-card-header"><span class="chart-card-title">🎮 Nvidia</span><span class="chart-card-sub">NVDA · Daily</span></div>
+      <div class="chart-card-header"><span class="chart-card-title">🇺🇸 Dow Jones</span><span class="chart-card-sub">DIA ETF · Недельный</span></div>
       <div class="chart-card-body">
         <div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
         <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
-        {"autosize":true,"symbol":"NASDAQ:NVDA","interval":"D","timezone":"Europe/Rome","theme":"light","style":"1","locale":"it","allow_symbol_change":true,"studies":["RSI@tv-basicstudies","MACD@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
+        {"autosize":true,"symbol":"AMEX:DIA","interval":"W","timezone":"Europe/Moscow","theme":"dark","style":"1","locale":"ru","allow_symbol_change":false,"studies":["RSI@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
         </script></div>
       </div>
     </div>
     <div class="chart-card">
-      <div class="chart-card-header"><span class="chart-card-title">🍎 Apple</span><span class="chart-card-sub">AAPL · Daily</span></div>
+      <div class="chart-card-header"><span class="chart-card-title">🎮 Nvidia</span><span class="chart-card-sub">NVDA · Дневной</span></div>
       <div class="chart-card-body">
         <div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
         <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
-        {"autosize":true,"symbol":"NASDAQ:AAPL","interval":"D","timezone":"Europe/Rome","theme":"light","style":"1","locale":"it","allow_symbol_change":true,"studies":["RSI@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
+        {"autosize":true,"symbol":"NASDAQ:NVDA","interval":"D","timezone":"Europe/Moscow","theme":"dark","style":"1","locale":"ru","allow_symbol_change":true,"studies":["RSI@tv-basicstudies","MACD@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
         </script></div>
       </div>
     </div>
     <div class="chart-card">
-      <div class="chart-card-header"><span class="chart-card-title">⚡ Tesla</span><span class="chart-card-sub">TSLA · Daily</span></div>
+      <div class="chart-card-header"><span class="chart-card-title">🍎 Apple</span><span class="chart-card-sub">AAPL · Дневной</span></div>
       <div class="chart-card-body">
         <div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
         <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
-        {"autosize":true,"symbol":"NASDAQ:TSLA","interval":"D","timezone":"Europe/Rome","theme":"light","style":"1","locale":"it","allow_symbol_change":true,"studies":["RSI@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
+        {"autosize":true,"symbol":"NASDAQ:AAPL","interval":"D","timezone":"Europe/Moscow","theme":"dark","style":"1","locale":"ru","allow_symbol_change":true,"studies":["RSI@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
+        </script></div>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-card-header"><span class="chart-card-title">⚡ Tesla</span><span class="chart-card-sub">TSLA · Дневной</span></div>
+      <div class="chart-card-body">
+        <div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
+        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
+        {"autosize":true,"symbol":"NASDAQ:TSLA","interval":"D","timezone":"Europe/Moscow","theme":"dark","style":"1","locale":"ru","allow_symbol_change":true,"studies":["RSI@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
         </script></div>
       </div>
     </div>
@@ -443,35 +429,35 @@ body::before {
 <!-- ═══════════════════ TAB: CRYPTO ═══════════════════ -->
 <div class="chart-panel" id="panel-crypto">
 
-  <div class="section-label">Crypto Markets</div>
+  <div class="section-label">Криптовалютные рынки</div>
   <hr class="section-divider">
   <div class="chart-grid-2">
     <div class="chart-card">
-      <div class="chart-card-header"><span class="chart-card-title">₿ Bitcoin · BTCUSD</span><span class="chart-card-sub">Daily + RSI + MACD + BB</span></div>
+      <div class="chart-card-header"><span class="chart-card-title">₿ Биткоин · BTCUSD</span><span class="chart-card-sub">Дневной + RSI + MACD + BB</span></div>
       <div class="chart-card-body tall">
         <div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
         <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
-        {"autosize":true,"symbol":"BITSTAMP:BTCUSD","interval":"D","timezone":"Europe/Rome","theme":"light","style":"1","locale":"it","allow_symbol_change":false,"studies":["RSI@tv-basicstudies","MACD@tv-basicstudies","BB@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
+        {"autosize":true,"symbol":"BITSTAMP:BTCUSD","interval":"D","timezone":"Europe/Moscow","theme":"dark","style":"1","locale":"ru","allow_symbol_change":false,"studies":["RSI@tv-basicstudies","MACD@tv-basicstudies","BB@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
         </script></div>
       </div>
     </div>
     <div class="chart-card">
-      <div class="chart-card-header"><span class="chart-card-title">💎 Ethereum · ETHUSD</span><span class="chart-card-sub">Daily + RSI + MACD</span></div>
+      <div class="chart-card-header"><span class="chart-card-title">💎 Ethereum · ETHUSD</span><span class="chart-card-sub">Дневной + RSI + MACD</span></div>
       <div class="chart-card-body tall">
         <div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
         <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
-        {"autosize":true,"symbol":"BITSTAMP:ETHUSD","interval":"D","timezone":"Europe/Rome","theme":"light","style":"1","locale":"it","allow_symbol_change":false,"studies":["RSI@tv-basicstudies","MACD@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
+        {"autosize":true,"symbol":"BITSTAMP:ETHUSD","interval":"D","timezone":"Europe/Moscow","theme":"dark","style":"1","locale":"ru","allow_symbol_change":false,"studies":["RSI@tv-basicstudies","MACD@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
         </script></div>
       </div>
     </div>
   </div>
 
   <div class="chart-card" style="margin-top:20px">
-    <div class="chart-card-header"><span class="chart-card-title">🏆 Top Crypto — Market Cap</span><span class="chart-card-sub">Classifiche Capitalizzazione</span></div>
+    <div class="chart-card-header"><span class="chart-card-title">🏆 Топ криптовалют — Рыночная капитализация</span><span class="chart-card-sub">Рейтинг капитализации</span></div>
     <div class="chart-card-body" style="height:420px">
       <div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
       <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-screener.js" async>
-      {"width":"100%","height":"100%","defaultColumn":"overview","defaultScreen":"most_capitalized","market":"crypto","showToolbar":true,"colorTheme":"light","locale":"it"}
+      {"width":"100%","height":"100%","defaultColumn":"overview","defaultScreen":"most_capitalized","market":"crypto","showToolbar":true,"colorTheme":"dark","locale":"ru"}
       </script></div>
     </div>
   </div>
@@ -482,63 +468,60 @@ body::before {
 <!-- ═══════════════════ TAB: MACRO & CALENDAR ═══════════════════ -->
 <div class="chart-panel" id="panel-macro">
 
-  <div class="section-label">Calendario Economico</div>
+  <div class="section-label">Экономический календарь</div>
   <hr class="section-divider">
   <div class="chart-card" style="margin-bottom:20px">
-    <div class="chart-card-header"><span class="chart-card-title">📅 Economic Calendar</span><span class="chart-card-sub">Fed · BCE · BOJ · Dati Macro</span></div>
+    <div class="chart-card-header"><span class="chart-card-title">📅 Экономический календарь</span><span class="chart-card-sub">ФРС · ЕЦБ · BOJ · Макро данные</span></div>
     <div class="chart-card-body" style="height:600px">
       <div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
       <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-events.js" async>
-      {"colorTheme":"light","isTransparent":false,"width":"100%","height":"100%","locale":"it","importanceFilter":"0,1","countryFilter":"us,eu,gb,jp,cn,ca,au,ch"}
+      {"colorTheme":"dark","isTransparent":false,"width":"100%","height":"100%","locale":"ru","importanceFilter":"0,1","countryFilter":"us,eu,gb,jp,cn,ca,au,ch"}
       </script></div>
     </div>
   </div>
 
-  <div class="section-label">Bond Yields &amp; Dollar</div>
+  <div class="section-label">Облигации &amp; Доллар</div>
   <hr class="section-divider">
-
   <div class="chart-grid-2">
-    <!-- FIX: TVC:US10Y → NASDAQ:TLT (ETF Treasury 20Y, proxy perfetto e funziona su free) -->
     <div class="chart-card">
       <div class="chart-card-header">
-        <span class="chart-card-title">🏛️ TLT — Treasury Bond 20Y</span>
-        <span class="chart-card-sub">ETF · Daily · Proxy US10Y</span>
+        <span class="chart-card-title">🏛️ TLT — Казначейские облигации 20Y</span>
+        <span class="chart-card-sub">ETF · Дневной · Прокси US10Y</span>
       </div>
       <div class="chart-card-body">
         <div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
         <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
-        {"autosize":true,"symbol":"NASDAQ:TLT","interval":"D","timezone":"Europe/Rome","theme":"light","style":"1","locale":"it","allow_symbol_change":false,"studies":["RSI@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
+        {"autosize":true,"symbol":"NASDAQ:TLT","interval":"D","timezone":"Europe/Moscow","theme":"dark","style":"1","locale":"ru","allow_symbol_change":false,"studies":["RSI@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
         </script></div>
       </div>
     </div>
-    <!-- FIX: TVC:DXY → AMEX:UUP (ETF Dollar Index, proxy DXY funziona su free) -->
     <div class="chart-card">
       <div class="chart-card-header">
-        <span class="chart-card-title">💵 UUP — Dollar Index ETF</span>
-        <span class="chart-card-sub">ETF · Daily · Proxy DXY</span>
+        <span class="chart-card-title">💵 UUP — Индекс доллара ETF</span>
+        <span class="chart-card-sub">ETF · Дневной · Прокси DXY</span>
       </div>
       <div class="chart-card-body">
         <div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
         <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
-        {"autosize":true,"symbol":"AMEX:UUP","interval":"D","timezone":"Europe/Rome","theme":"light","style":"1","locale":"it","allow_symbol_change":false,"studies":["RSI@tv-basicstudies","MACD@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
+        {"autosize":true,"symbol":"AMEX:UUP","interval":"D","timezone":"Europe/Moscow","theme":"dark","style":"1","locale":"ru","allow_symbol_change":false,"studies":["RSI@tv-basicstudies","MACD@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
         </script></div>
       </div>
     </div>
     <div class="chart-card">
-      <div class="chart-card-header"><span class="chart-card-title">😱 VIX — Fear Index</span><span class="chart-card-sub">Daily</span></div>
+      <div class="chart-card-header"><span class="chart-card-title">😱 VIX — Индекс страха</span><span class="chart-card-sub">Дневной</span></div>
       <div class="chart-card-body">
         <div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
         <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
-        {"autosize":true,"symbol":"TVC:VIX","interval":"D","timezone":"Europe/Rome","theme":"light","style":"2","locale":"it","allow_symbol_change":false,"studies":[],"support_host":"https://www.tradingview.com"}
+        {"autosize":true,"symbol":"TVC:VIX","interval":"D","timezone":"Europe/Moscow","theme":"dark","style":"2","locale":"ru","allow_symbol_change":false,"studies":[],"support_host":"https://www.tradingview.com"}
         </script></div>
       </div>
     </div>
     <div class="chart-card">
-      <div class="chart-card-header"><span class="chart-card-title">⚖️ Gold / Oil Ratio</span><span class="chart-card-sub">Indicatore Risk Macro</span></div>
+      <div class="chart-card-header"><span class="chart-card-title">⚖️ Соотношение Золото / Нефть</span><span class="chart-card-sub">Макро-индикатор риска</span></div>
       <div class="chart-card-body">
         <div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
         <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
-        {"autosize":true,"symbol":"TVC:GOLD/TVC:USOIL","interval":"W","timezone":"Europe/Rome","theme":"light","style":"2","locale":"it","allow_symbol_change":false,"studies":[],"support_host":"https://www.tradingview.com"}
+        {"autosize":true,"symbol":"TVC:GOLD/TVC:USOIL","interval":"W","timezone":"Europe/Moscow","theme":"dark","style":"2","locale":"ru","allow_symbol_change":false,"studies":[],"support_host":"https://www.tradingview.com"}
         </script></div>
       </div>
     </div>
@@ -549,30 +532,94 @@ body::before {
 
 <!-- FOOTER -->
 <div class="page-footer">
-  <span>XenosFinance · Grafici Interattivi</span>
+  <span>XenosFinance · Интерактивные Графики</span>
   <div class="footer-links">
-    <a href="https://xenosfinance.com">📰 Daily Brief</a>
+    <a href="https://xenosfinance.com">📰 Новости</a>
     <a href="https://www.tradingview.com" target="_blank">Powered by TradingView</a>
   </div>
-  <span>⚠ Non costituisce consulenza finanziaria</span>
+  <span>⚠ Не является инвестиционной рекомендацией</span>
 </div>
 
 </div><!-- /wrap -->
 
 <script>
-// Live date dinamica
-document.getElementById('live-date').textContent = new Date().toLocaleDateString('it-IT', {
-  weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
-}).toUpperCase();
+// Live date in Russian
+(function() {
+  const months = ['ЯНВАРЯ','ФЕВРАЛЯ','МАРТА','АПРЕЛЯ','МАЯ','ИЮНЯ',
+                  'ИЮЛЯ','АВГУСТА','СЕНТЯБРЯ','ОКТЯБРЯ','НОЯБРЯ','ДЕКАБРЯ'];
+  const days = ['ВОСКРЕСЕНЬЕ','ПОНЕДЕЛЬНИК','ВТОРНИК','СРЕДА','ЧЕТВЕРГ','ПЯТНИЦА','СУББОТА'];
+  const n = new Date();
+  document.getElementById('live-date').textContent =
+    days[n.getDay()] + ' ' + n.getDate() + ' ' + months[n.getMonth()] + ' ' + n.getFullYear();
+})();
 
-// Tab switcher — FIX: usa btn passato come parametro, non event.target (più robusto)
+// Ticker
+const TICKER_SYMS = [
+  {id:'OIL',   yf:'CL%3DF',     label:'OIL WTI', dec:2, prefix:'$'},
+  {id:'GOLD',  yf:'GC%3DF',     label:'GOLD',    dec:2, prefix:'$'},
+  {id:'EURUSD',yf:'EURUSD%3DX', label:'EUR/USD', dec:4, prefix:''},
+  {id:'BTCUSD',yf:'BTC-USD',    label:'BTC/USD', dec:0, prefix:'$', comma:true},
+  {id:'SPY',   yf:'SPY',        label:'S&P 500', dec:2, prefix:'$'},
+  {id:'NASDAQ',yf:'%5EIXIC',    label:'NASDAQ',  dec:0, prefix:'$', comma:true},
+  {id:'USDJPY',yf:'USDJPY%3DX', label:'USD/JPY', dec:4, prefix:''},
+  {id:'SILVER',yf:'SI%3DF',     label:'SILVER',  dec:2, prefix:'$'},
+  {id:'NGAS',  yf:'NG%3DF',     label:'NAT GAS', dec:3, prefix:'$'},
+];
+
+async function fetchTick(s) {
+  const u = `https://query1.finance.yahoo.com/v8/finance/chart/${s.yf}?range=5d&interval=1d`;
+  const px = [
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+    `https://corsproxy.io/?${encodeURIComponent(u)}`
+  ];
+  for (const p of px) {
+    try {
+      const r = await fetch(p, {signal: AbortSignal.timeout(9000)});
+      if (!r.ok) continue;
+      const d = await r.json();
+      const res = d.chart?.result?.[0];
+      if (!res) continue;
+      const cls = res.indicators.quote[0].close.filter(x => x !== null);
+      if (cls.length < 2) continue;
+      const price = cls[cls.length-1];
+      const meta = res.meta || {};
+      const prev = parseFloat(meta.previousClose || meta.chartPreviousClose || cls[cls.length-2]);
+      return {price, chg: ((price-prev)/prev)*100};
+    } catch(e) { continue; }
+  }
+  return null;
+}
+
+async function loadTicker() {
+  let html = '';
+  for (const s of TICKER_SYMS) {
+    const d = await fetchTick(s);
+    if (!d) continue;
+    const up = d.chg >= 0;
+    const ps = s.comma ? s.prefix + Math.round(d.price).toLocaleString('ru-RU') : s.prefix + d.price.toFixed(s.dec);
+    const cs = (up ? '+' : '') + d.chg.toFixed(2) + '%';
+    const arr = up ? '▲' : '▼';
+    html += `<span class="t-item"><span class="t-sym">${s.label}</span><span class="${up?'t-up':'t-dn'}">${ps}</span><span class="${up?'t-up':'t-dn'}">${arr} ${cs}</span></span>`;
+  }
+  if (html) {
+    const tc = document.getElementById('ticker-content');
+    if (tc) tc.innerHTML = html + html;
+  }
+}
+
+// Tab switcher
 function switchTab(name, btn) {
   document.querySelectorAll('.chart-panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('panel-' + name).classList.add('active');
   if (btn) btn.classList.add('active');
-  window.scrollTo({ top: 180, behavior: 'smooth' });
+  window.scrollTo({top: 160, behavior: 'smooth'});
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+  loadTicker();
+  setInterval(loadTicker, 60000);
+});
 </script>
 </body>
 </html>
