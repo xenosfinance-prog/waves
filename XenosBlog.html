@@ -4,122 +4,125 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>XenosFinance — AI Блог</title>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=IBM+Plex+Mono:wght@300;400;500&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=PT+Serif:wght@400;700&family=PT+Mono&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --bg: #0b0e14; --bg2: #111520; --bg3: #161b27;
-    --border: #1e2535; --gold: #c9a84c; --gold-light: #e8c96a;
-    --text: #c8cdd8; --text-dim: #5a6070; --text-bright: #e8eaf0;
-  }
-  * { margin:0; padding:0; box-sizing:border-box; }
-  body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; font-weight:300; }
-  header { background:var(--bg2); border-bottom:1px solid var(--border); padding:0 5vw; position:sticky; top:0; z-index:100; }
-  .header-top { display:flex; align-items:center; justify-content:space-between; padding:14px 0; border-bottom:1px solid var(--border); }
-  .logo { font-family:'IBM Plex Mono',monospace; font-size:1.3rem; font-weight:500; color:var(--text-bright); text-decoration:none; }
-  .logo span { color:var(--gold); }
-  .header-date { font-family:'IBM Plex Mono',monospace; font-size:0.62rem; color:var(--text-dim); letter-spacing:0.12em; text-transform:uppercase; }
-  .ai-badge { display:inline-flex; align-items:center; gap:6px; background:rgba(201,168,76,0.1); border:1px solid rgba(201,168,76,0.25); color:var(--gold); padding:5px 12px; font-family:'IBM Plex Mono',monospace; font-size:0.6rem; letter-spacing:0.15em; text-transform:uppercase; }
-  .pulse { width:6px; height:6px; background:var(--gold); border-radius:50%; animation:pulse 1.5s ease infinite; }
-  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.2} }
-  nav { display:flex; gap:28px; padding:10px 0; }
-  nav a { font-family:'IBM Plex Mono',monospace; font-size:0.65rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--text-dim); text-decoration:none; transition:color 0.2s; }
-  nav a:hover, nav a.active { color:var(--gold); }
-  .hero { background:var(--bg2); border-bottom:1px solid var(--border); padding:48px 5vw; }
-  .hero-eyebrow { font-family:'IBM Plex Mono',monospace; font-size:0.62rem; letter-spacing:0.25em; text-transform:uppercase; color:var(--gold); margin-bottom:16px; }
-  .hero-title { font-family:'Playfair Display',serif; font-size:clamp(2rem,4vw,3.2rem); font-weight:900; color:var(--text-bright); line-height:1.1; margin-bottom:14px; }
-  .hero-title span { color:var(--gold); }
-  .hero-sub { font-size:0.92rem; color:var(--text-dim); max-width:520px; line-height:1.7; }
-  .section-wrap { padding:48px 5vw; }
-  .section-header { display:flex; align-items:center; gap:14px; margin-bottom:28px; padding-bottom:14px; border-bottom:1px solid var(--border); }
-  .section-title { font-family:'IBM Plex Mono',monospace; font-size:0.65rem; letter-spacing:0.2em; text-transform:uppercase; color:var(--gold); white-space:nowrap; }
-  .section-line { flex:1; height:1px; background:var(--border); }
-  .blog-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--border); border:1px solid var(--border); }
-  .blog-card { background:var(--bg2); padding:26px 22px; transition:background 0.2s; cursor:pointer; }
-  .blog-card:hover { background:var(--bg3); }
-  .card-num { font-family:'IBM Plex Mono',monospace; font-size:0.56rem; color:var(--text-dim); margin-bottom:12px; }
-  .card-cat { font-family:'IBM Plex Mono',monospace; font-size:0.58rem; letter-spacing:0.15em; text-transform:uppercase; color:var(--gold); margin-bottom:8px; }
-  .card-title { font-family:'Playfair Display',serif; font-size:1rem; font-weight:700; color:var(--text-bright); line-height:1.35; margin-bottom:10px; }
-  .card-excerpt { font-size:0.8rem; color:var(--text-dim); line-height:1.65; margin-bottom:16px; }
-  .card-date { font-family:'IBM Plex Mono',monospace; font-size:0.56rem; color:var(--text-dim); }
-  .card-footer { display:flex; justify-content:space-between; font-family:'IBM Plex Mono',monospace; font-size:0.58rem; color:var(--text-dim); }
-  .card-read { color:var(--gold); }
-  /* Article full view */
-  .article-view { display:none; padding:48px 5vw; }
-  .article-view.visible { display:block; }
-  .back-btn { font-family:'IBM Plex Mono',monospace; font-size:0.62rem; letter-spacing:0.15em; text-transform:uppercase; color:var(--text-dim); background:transparent; border:1px solid var(--border); padding:8px 16px; cursor:pointer; margin-bottom:32px; transition:color 0.2s,border-color 0.2s; }
-  .back-btn:hover { color:var(--gold); border-color:var(--gold); }
-  .art-cat { font-family:'IBM Plex Mono',monospace; font-size:0.6rem; letter-spacing:0.22em; text-transform:uppercase; color:var(--gold); margin-bottom:14px; }
-  .art-title { font-family:'Playfair Display',serif; font-size:clamp(1.8rem,3.5vw,2.8rem); font-weight:900; color:var(--text-bright); line-height:1.12; margin-bottom:18px; }
-  .art-meta { display:flex; gap:20px; font-family:'IBM Plex Mono',monospace; font-size:0.62rem; color:var(--text-dim); border-top:1px solid var(--border); border-bottom:1px solid var(--border); padding:12px 0; margin-bottom:32px; }
-  .art-body { max-width:740px; }
-  .art-body p { font-size:0.98rem; line-height:1.85; color:var(--text); margin-bottom:20px; }
-  .art-body h2 { font-family:'Playfair Display',serif; font-size:1.35rem; font-weight:700; color:var(--text-bright); margin:32px 0 14px; }
-  .art-body h3 { font-family:'IBM Plex Mono',monospace; font-size:0.72rem; letter-spacing:0.15em; text-transform:uppercase; color:var(--gold); margin:26px 0 10px; }
-  .art-body blockquote { border-left:2px solid var(--gold); padding:12px 0 12px 20px; margin:26px 0; font-family:'Playfair Display',serif; font-size:1.05rem; font-style:italic; color:var(--text-dim); background:var(--bg2); }
-  .empty-state { text-align:center; padding:60px 20px; color:var(--text-dim); font-family:'IBM Plex Mono',monospace; font-size:0.75rem; letter-spacing:0.1em; }
-  .spinner-wrap { text-align:center; padding:60px; }
-  .spinner-large { display:inline-block; width:24px; height:24px; border:2px solid var(--border); border-top-color:var(--gold); border-radius:50%; animation:spin 0.8s linear infinite; }
-  @keyframes spin { to{transform:rotate(360deg)} }
-  footer { background:var(--bg2); border-top:1px solid var(--border); padding:28px 5vw; display:flex; justify-content:space-between; align-items:center; margin-top:40px; }
-  .footer-logo { font-family:'IBM Plex Mono',monospace; font-size:1rem; color:var(--text-bright); }
-  .footer-logo span { color:var(--gold); }
-  .footer-note { font-family:'IBM Plex Mono',monospace; font-size:0.56rem; color:var(--text-dim); text-align:right; line-height:1.7; }
-  @media(max-width:800px){ .blog-grid{grid-template-columns:1fr;} }
+:root{--bg:#0a0a0f;--bg2:#111118;--bg3:#1a1a25;--ink:#e8e4d9;--ink2:#b8b4a9;--muted:#6b6760;--border:#2a2a35;--border2:#1e1e28;--gold:#c9a84c;--gold2:#f0c040;--serif:'Playfair Display',Georgia,serif;--body:'PT Serif',Georgia,serif;--mono:'PT Mono',monospace;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:100vh;line-height:1.6;}
+.masthead{background:var(--bg);border-bottom:1px solid var(--border);}
+.masthead-top{display:flex;justify-content:space-between;align-items:center;padding:8px 32px;font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:2px;border-bottom:1px solid var(--border2);}
+.masthead-center{text-align:center;padding:28px 32px 20px;border-bottom:3px double var(--gold);}
+.masthead-eyebrow{font-family:var(--mono);font-size:9px;letter-spacing:6px;color:var(--gold);text-transform:uppercase;margin-bottom:10px;}
+.masthead-name{font-family:var(--serif);font-size:64px;font-weight:900;letter-spacing:-2px;line-height:1;color:var(--ink);text-transform:uppercase;}
+.masthead-name span{color:var(--gold);}
+.masthead-sub{font-family:var(--mono);font-size:10px;letter-spacing:5px;color:var(--muted);margin-top:8px;text-transform:uppercase;}
+.masthead-nav{display:flex;justify-content:center;gap:0;border-top:1px solid var(--border);background:var(--bg2);}
+.nav-btn{font-family:var(--mono);font-size:11px;letter-spacing:3px;text-transform:uppercase;padding:12px 36px;color:var(--muted);text-decoration:none;border-bottom:3px solid transparent;transition:all 0.2s;display:inline-block;}
+.nav-btn:hover,.nav-btn.active{color:var(--gold);border-bottom-color:var(--gold);}
+/* Hero */
+.hero{background:var(--bg2);border-bottom:1px solid var(--border);padding:48px 32px;}
+.hero-eyebrow{font-family:var(--mono);font-size:9px;letter-spacing:6px;color:var(--gold);text-transform:uppercase;margin-bottom:14px;}
+.hero-title{font-family:var(--serif);font-size:clamp(2rem,4vw,3rem);font-weight:900;color:var(--ink);line-height:1.1;margin-bottom:12px;}
+.hero-title span{color:var(--gold);}
+.hero-sub{font-family:var(--mono);font-size:11px;letter-spacing:2px;color:var(--muted);max-width:520px;line-height:1.7;text-transform:uppercase;}
+/* Content */
+.wrap{max-width:1280px;margin:0 auto;padding:0 32px 80px;}
+.section-head{display:flex;align-items:center;gap:12px;margin:36px 0 20px;}
+.section-head-label{font-family:var(--mono);font-size:9px;letter-spacing:4px;text-transform:uppercase;color:var(--gold);white-space:nowrap;}
+.section-head-line{flex:1;height:1px;background:var(--border);}
+.section-head-count{font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--muted);white-space:nowrap;}
+/* Blog grid */
+.blog-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);border:1px solid var(--border);}
+.blog-card{background:var(--bg2);padding:26px 22px;transition:background 0.2s;cursor:pointer;}
+.blog-card:hover{background:var(--bg3);}
+.card-num{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:2px;margin-bottom:12px;}
+.card-cat{font-family:var(--mono);font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--gold);margin-bottom:8px;}
+.card-title{font-family:var(--serif);font-size:1.05rem;font-weight:700;color:var(--ink);line-height:1.3;margin-bottom:10px;}
+.card-excerpt{font-size:12px;color:var(--ink2);line-height:1.65;margin-bottom:16px;}
+.card-footer{display:flex;justify-content:space-between;font-family:var(--mono);font-size:9px;color:var(--muted);}
+.card-read{color:var(--gold);}
+/* Article view */
+.article-view{display:none;padding:48px 0;}
+.article-view.visible{display:block;}
+.back-btn{font-family:var(--mono);font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--muted);background:transparent;border:1px solid var(--border);padding:8px 16px;cursor:pointer;margin-bottom:32px;transition:color 0.2s,border-color 0.2s;}
+.back-btn:hover{color:var(--gold);border-color:var(--gold);}
+.art-cat{font-family:var(--mono);font-size:9px;letter-spacing:4px;text-transform:uppercase;color:var(--gold);margin-bottom:14px;}
+.art-title{font-family:var(--serif);font-size:clamp(1.8rem,3.5vw,2.8rem);font-weight:900;color:var(--ink);line-height:1.12;margin-bottom:18px;}
+.art-meta{display:flex;gap:20px;font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:1px;border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:12px 0;margin-bottom:32px;}
+.art-body{max-width:740px;}
+.art-body p{font-size:15px;line-height:1.85;color:var(--ink);margin-bottom:20px;}
+.art-body h2{font-family:var(--serif);font-size:1.35rem;font-weight:700;color:var(--ink);margin:32px 0 14px;}
+.art-body h3{font-family:var(--mono);font-size:9px;letter-spacing:4px;text-transform:uppercase;color:var(--gold);margin:26px 0 10px;}
+.art-body blockquote{border-left:2px solid var(--gold);padding:12px 0 12px 20px;margin:26px 0;font-family:var(--serif);font-size:1.05rem;font-style:italic;color:var(--ink2);background:var(--bg2);}
+/* States */
+.empty-state{text-align:center;padding:60px 20px;color:var(--muted);font-family:var(--mono);font-size:11px;letter-spacing:2px;line-height:2;}
+.spinner-wrap{text-align:center;padding:60px;}
+.spinner-large{display:inline-block;width:24px;height:24px;border:2px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:spin 0.8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* Footer */
+.bottom-bar{border-top:1px solid var(--border);margin-top:32px;padding:14px 0;display:flex;justify-content:space-between;font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:1px;}
+@media(max-width:900px){.blog-grid{grid-template-columns:1fr;}.masthead-name{font-size:40px;}.hero{padding:32px 20px;}.wrap{padding:0 20px 60px;}}
 </style>
 </head>
 <body>
 
-<header>
-  <div class="header-top">
-    <a href="https://xenosfinance.com" class="logo">XENOS<span>FINANCE</span></a>
-    <div class="header-date" id="headerDate">ФИНАНСОВАЯ АНАЛИТИКА</div>
-    <div class="ai-badge"><div class="pulse"></div>AI Блог</div>
+<div class="masthead">
+  <div class="masthead-top">
+    <span id="live-date">ФИНАНСОВАЯ АНАЛИТИКА</span>
+    <span>XENOSFINANCE · AI БЛОГ</span>
+    <span id="live-time"></span>
   </div>
-  <nav>
-    <a href="https://xenosfinance.com">📰 Новости</a>
-    <a href="https://xenosfinance.com/xenoswaves_charts.html">📊 Графики</a>
-    <a href="#" class="active">✦ AI Блог</a>
-  </nav>
-</header>
-
-<section class="hero">
-  <div class="hero-eyebrow">// Аналитика — искусственный интеллект</div>
-  <h1 class="hero-title">AI Блог<br><span>XenosFinance</span></h1>
-  <p class="hero-sub">Профессиональные аналитические статьи по финансовым рынкам, сгенерированные AI.</p>
-</section>
-
-<!-- Lista articoli -->
-<section class="section-wrap" id="listSection">
-  <div class="section-header">
-    <span class="section-title">// Статьи</span>
-    <div class="section-line"></div>
-    <span class="section-title" id="articleCount">ЗАГРУЗКА...</span>
+  <div class="masthead-center">
+    <div class="masthead-eyebrow">Финансовая разведка · Мировые рынки</div>
+    <div class="masthead-name">XENOS<span>FINANCE</span></div>
+    <div class="masthead-sub">Волны Эллиотта · Геополитика · Макроэкономика</div>
   </div>
-  <div id="blogGrid">
-    <div class="spinner-wrap"><div class="spinner-large"></div></div>
+  <div class="masthead-nav">
+    <a class="nav-btn" href="https://xenosfinance.com">📰 Новости</a>
+    <a class="nav-btn" href="https://xenosfinance.com/xenoswaves_charts.html">📊 Интерактивные Графики</a>
+    <a class="nav-btn active" href="https://xenosfinance.com/blog.html">✦ AI Блог</a>
   </div>
-</section>
-
-<!-- Articolo singolo -->
-<div class="article-view" id="articleView">
-  <button class="back-btn" onclick="showList()">← Назад к статьям</button>
-  <div class="art-cat" id="viewCat"></div>
-  <h1 class="art-title" id="viewTitle"></h1>
-  <div class="art-meta">
-    <span id="viewDate"></span>
-    <span id="viewRead"></span>
-    <span>✦ Сгенерировано AI</span>
-  </div>
-  <div class="art-body" id="viewBody"></div>
 </div>
 
-<footer>
-  <div class="footer-logo">XENOS<span>FINANCE</span></div>
-  <div class="footer-note">
-    © XENOSFINANCE 2026 · AI Блог<br>
-    ⚠ Не является инвестиционной рекомендацией
+<section class="hero">
+  <div class="hero-eyebrow">// Аналитика — Искусственный Интеллект</div>
+  <h1 class="hero-title">AI Блог<br><span>XenosFinance</span></h1>
+  <p class="hero-sub">Профессиональные аналитические статьи по финансовым рынкам</p>
+</section>
+
+<div class="wrap">
+
+  <!-- Lista articoli -->
+  <div id="listSection">
+    <div class="section-head">
+      <div class="section-head-label">// Статьи</div>
+      <div class="section-head-line"></div>
+      <div class="section-head-count" id="articleCount">ЗАГРУЗКА...</div>
+    </div>
+    <div id="blogGrid">
+      <div class="spinner-wrap"><div class="spinner-large"></div></div>
+    </div>
   </div>
-</footer>
+
+  <!-- Articolo singolo -->
+  <div class="article-view" id="articleView">
+    <button class="back-btn" onclick="showList()">← Назад к статьям</button>
+    <div class="art-cat" id="viewCat"></div>
+    <h1 class="art-title" id="viewTitle"></h1>
+    <div class="art-meta">
+      <span id="viewDate"></span>
+      <span id="viewRead"></span>
+      <span>✦ Сгенерировано AI</span>
+    </div>
+    <div class="art-body" id="viewBody"></div>
+  </div>
+
+  <div class="bottom-bar">
+    <span>© XENOSFINANCE 2026</span>
+    <span>AI Блог · Аналитика рынков</span>
+    <span>⚠ Не является инвестиционной рекомендацией</span>
+  </div>
+</div>
 
 <script>
   const GITHUB_REPO = "xenosfinance-prog/kenosblog";
@@ -127,7 +130,9 @@
 
   const months = ['ЯНВАРЯ','ФЕВРАЛЯ','МАРТА','АПРЕЛЯ','МАЯ','ИЮНЯ','ИЮЛЯ','АВГУСТА','СЕНТЯБРЯ','ОКТЯБРЯ','НОЯБРЯ','ДЕКАБРЯ'];
   const now = new Date();
-  document.getElementById('headerDate').textContent = `${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()} Г.`;
+  const hm = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
+  document.getElementById('live-date').textContent = `${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()} Г.`;
+  document.getElementById('live-time').textContent = `ОБНОВЛЕНО В ${hm} CET`;
 
   let articles = [];
 
@@ -138,16 +143,15 @@
       articles = await res.json();
       renderGrid();
     } catch(e) {
-      document.getElementById('blogGrid').innerHTML = `<div class="empty-state">// Статьи пока не опубликованы<br>Скоро здесь появится контент</div>`;
+      document.getElementById('blogGrid').innerHTML = `<div class="empty-state">// СТАТЬИ ПОКА НЕ ОПУБЛИКОВАНЫ<br>СКОРО ЗДЕСЬ ПОЯВИТСЯ КОНТЕНТ</div>`;
       document.getElementById('articleCount').textContent = '0 СТАТЕЙ';
     }
   }
 
   function renderGrid() {
-    const count = document.getElementById('articleCount');
-    count.textContent = articles.length + ' СТАТЕЙ';
+    document.getElementById('articleCount').textContent = articles.length + ' СТАТЕЙ';
     if (!articles.length) {
-      document.getElementById('blogGrid').innerHTML = `<div class="empty-state">// Статьи пока не опубликованы</div>`;
+      document.getElementById('blogGrid').innerHTML = `<div class="empty-state">// СТАТЬИ ПОКА НЕ ОПУБЛИКОВАНЫ</div>`;
       return;
     }
     const grid = document.createElement('div');
@@ -185,8 +189,7 @@
       html += `<blockquote>${art.quote}</blockquote><h3>// Вывод</h3><p>${art.conclusion}</p>`;
       document.getElementById('viewBody').innerHTML = html;
       document.getElementById('listSection').style.display = 'none';
-      const view = document.getElementById('articleView');
-      view.classList.add('visible');
+      document.getElementById('articleView').classList.add('visible');
       window.scrollTo({top:0});
     } catch(e) {
       alert('Ошибка загрузки статьи');
