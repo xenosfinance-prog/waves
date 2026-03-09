@@ -3,24 +3,36 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<meta name="generated" content="20260309182558">
 <title>XenosFinance — Финансовая аналитика</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=PT+Serif:wght@400;700&family=PT+Mono&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#0a0a0f;--bg2:#111118;--bg3:#1a1a25;--ink:#e8e4d9;--ink2:#b8b4a9;--muted:#6b6760;--border:#2a2a35;--border2:#1e1e28;--red:#c0392b;--red2:#e74c3c;--green:#1a7a3a;--green2:#27ae60;--gold:#c9a84c;--gold2:#f0c040;--blue2:#2e86c1;--serif:'Playfair Display',Georgia,serif;--body:'PT Serif',Georgia,serif;--mono:'PT Mono',monospace;}
+:root{
+  --bg:#0a0a0f;--bg2:#111118;--bg3:#1a1a25;
+  --ink:#e8e4d9;--ink2:#b8b4a9;--muted:#6b6760;
+  --border:#2a2a35;--border2:#1e1e28;
+  --red:#c0392b;--red2:#e74c3c;--green:#1a7a3a;--green2:#27ae60;
+  --gold:#c9a84c;--gold2:#f0c040;
+  --serif:'Playfair Display',Georgia,serif;
+  --body:'PT Serif',Georgia,serif;
+  --mono:'PT Mono',monospace;
+}
 *{box-sizing:border-box;margin:0;padding:0;}
 body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:100vh;line-height:1.6;}
+
+/* ── MASTHEAD ── */
 .masthead{background:var(--bg);border-bottom:1px solid var(--border);}
 .masthead-top{display:flex;justify-content:space-between;align-items:center;padding:8px 32px;font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:2px;border-bottom:1px solid var(--border2);}
-.masthead-center{text-align:center;padding:28px 32px 20px;border-bottom:3px double var(--gold);}
+.masthead-center{text-align:center;padding:28px 32px 20px;border-bottom:3px double var(--gold);cursor:default;user-select:none;}
 .masthead-eyebrow{font-family:var(--mono);font-size:9px;letter-spacing:6px;color:var(--gold);text-transform:uppercase;margin-bottom:10px;}
-.masthead-name{font-family:var(--serif);font-size:64px;font-weight:900;letter-spacing:-2px;line-height:1;color:var(--ink);text-transform:uppercase;}
+.masthead-name{font-family:var(--serif);font-size:64px;font-weight:900;letter-spacing:-2px;line-height:1;color:var(--ink);text-transform:uppercase;transition:color 0.2s;}
 .masthead-name span{color:var(--gold);}
+.masthead-name:hover{color:var(--gold2);}
 .masthead-sub{font-family:var(--mono);font-size:10px;letter-spacing:5px;color:var(--muted);margin-top:8px;text-transform:uppercase;}
 .masthead-nav{display:flex;justify-content:center;gap:0;border-top:1px solid var(--border);background:var(--bg2);}
-.nav-btn{font-family:var(--mono);font-size:11px;letter-spacing:3px;text-transform:uppercase;padding:12px 36px;color:var(--muted);text-decoration:none;border-bottom:3px solid transparent;transition:all 0.2s;display:inline-block;}
+.nav-btn{font-family:var(--mono);font-size:11px;letter-spacing:3px;text-transform:uppercase;padding:12px 36px;color:var(--muted);text-decoration:none;border-bottom:3px solid transparent;transition:all 0.2s;cursor:pointer;background:none;border-top:none;border-left:none;border-right:none;display:inline-block;}
 .nav-btn:hover,.nav-btn.active{color:var(--gold);border-bottom-color:var(--gold);}
+
+/* ── TICKER ── */
 .ticker-bar{background:var(--bg2);border-bottom:1px solid var(--border);padding:7px 0;overflow:hidden;font-family:var(--mono);font-size:11px;}
 .ticker-inner{display:flex;gap:0;white-space:nowrap;animation:ticker 70s linear infinite;}
 .ticker-inner:hover{animation-play-state:paused;}
@@ -28,7 +40,12 @@ body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:10
 .t-item{display:inline-flex;gap:10px;padding:0 20px;border-right:1px solid var(--border);}
 .t-sym{color:var(--gold);font-weight:bold;}
 .t-up{color:var(--green2);}.t-dn{color:var(--red2);}
+
+/* ── TAB PANELS ── */
+.tab-panel{display:none;}.tab-panel.active{display:block;}
 .wrap{max-width:1280px;margin:0 auto;padding:0 24px 80px;}
+
+/* ── NEWS TAB ── */
 .newspaper{padding:24px 0;}
 .hero{display:grid;grid-template-columns:1fr 320px;gap:0;border-bottom:1px solid var(--border);padding-bottom:24px;margin-bottom:24px;}
 .hero-main{padding-right:32px;border-right:1px solid var(--border);}
@@ -65,76 +82,396 @@ body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:10
 .flash-time{font-family:var(--mono);font-size:10px;color:var(--muted);}
 .flash-hl{color:var(--ink);font-family:var(--serif);font-size:13px;line-height:1.3;}
 .flash-hl a{color:inherit;text-decoration:none;}.flash-hl a:hover{color:var(--gold);}
+
+/* ── CHARTS TAB ── */
+.charts-wrap{padding:24px 0;}
+.charts-frame{width:100%;height:calc(100vh - 200px);min-height:600px;border:1px solid var(--border);background:var(--bg2);}
+
+/* ── BLOG TAB ── */
+.blog-wrap{padding:24px 0;}
+.blog-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);border:1px solid var(--border);}
+.blog-card{background:var(--bg2);padding:26px 22px;transition:background 0.2s;cursor:pointer;}
+.blog-card:hover{background:var(--bg3);}
+.card-num{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:2px;margin-bottom:12px;}
+.card-cat{font-family:var(--mono);font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--gold);margin-bottom:8px;}
+.card-title{font-family:var(--serif);font-size:1.05rem;font-weight:700;color:var(--ink);line-height:1.3;margin-bottom:10px;}
+.card-excerpt{font-size:12px;color:var(--ink2);line-height:1.65;margin-bottom:16px;}
+.card-footer{display:flex;justify-content:space-between;font-family:var(--mono);font-size:9px;color:var(--muted);}
+.card-read{color:var(--gold);}
+.article-view{display:none;padding:24px 0;}
+.article-view.visible{display:block;}
+.back-btn{font-family:var(--mono);font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--muted);background:transparent;border:1px solid var(--border);padding:8px 16px;cursor:pointer;margin-bottom:32px;transition:color 0.2s,border-color 0.2s;}
+.back-btn:hover{color:var(--gold);border-color:var(--gold);}
+.art-cat{font-family:var(--mono);font-size:9px;letter-spacing:4px;text-transform:uppercase;color:var(--gold);margin-bottom:14px;}
+.art-title{font-family:var(--serif);font-size:clamp(1.8rem,3.5vw,2.8rem);font-weight:900;color:var(--ink);line-height:1.12;margin-bottom:18px;}
+.art-meta{display:flex;gap:20px;font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:1px;border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:12px 0;margin-bottom:32px;}
+.art-body{max-width:740px;}
+.art-body p{font-size:15px;line-height:1.85;color:var(--ink);margin-bottom:20px;}
+.art-body h2{font-family:var(--serif);font-size:1.35rem;font-weight:700;color:var(--ink);margin:32px 0 14px;}
+.art-body h3{font-family:var(--mono);font-size:9px;letter-spacing:4px;text-transform:uppercase;color:var(--gold);margin:26px 0 10px;}
+.art-body blockquote{border-left:2px solid var(--gold);padding:12px 0 12px 20px;margin:26px 0;font-family:var(--serif);font-size:1.05rem;font-style:italic;color:var(--ink2);background:var(--bg2);}
+.empty-state{text-align:center;padding:60px 20px;color:var(--muted);font-family:var(--mono);font-size:11px;letter-spacing:2px;line-height:2;}
+.spinner-wrap{text-align:center;padding:60px;}
+.spinner{display:inline-block;width:24px;height:24px;border:2px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:spin 0.8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── ADMIN MODAL ── */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:1000;align-items:center;justify-content:center;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--bg2);border:1px solid var(--border);width:100%;max-width:480px;padding:36px;position:relative;}
+.modal-close{position:absolute;top:14px;right:16px;background:none;border:none;color:var(--muted);font-family:var(--mono);font-size:14px;cursor:pointer;}
+.modal-close:hover{color:var(--gold);}
+.modal-title{font-family:var(--mono);font-size:9px;letter-spacing:4px;text-transform:uppercase;color:var(--gold);margin-bottom:24px;}
+.modal-input{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--ink);font-family:var(--mono);font-size:13px;padding:10px 14px;outline:none;letter-spacing:2px;}
+.modal-input:focus{border-color:var(--gold);}
+.modal-btn{width:100%;margin-top:14px;background:var(--gold);color:var(--bg);font-family:var(--mono);font-size:10px;letter-spacing:3px;text-transform:uppercase;padding:11px;border:none;cursor:pointer;transition:background 0.2s;}
+.modal-btn:hover{background:var(--gold2);}
+.modal-err{font-family:var(--mono);font-size:9px;color:var(--red2);letter-spacing:1px;margin-top:8px;min-height:14px;}
+
+/* ── ADMIN PANEL ── */
+.admin-panel{display:none;padding:32px 0;}
+.admin-panel.open{display:block;}
+.admin-header{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);padding-bottom:16px;margin-bottom:28px;}
+.admin-title{font-family:var(--mono);font-size:9px;letter-spacing:4px;text-transform:uppercase;color:var(--gold);}
+.admin-logout{font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--muted);background:none;border:1px solid var(--border);padding:6px 14px;cursor:pointer;}
+.admin-logout:hover{color:var(--red2);border-color:var(--red2);}
+.admin-form{display:grid;gap:16px;max-width:800px;}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.form-group{display:flex;flex-direction:column;gap:6px;}
+.form-label{font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);}
+.form-input,.form-select,.form-textarea{background:var(--bg);border:1px solid var(--border);color:var(--ink);font-family:var(--mono);font-size:12px;padding:9px 12px;outline:none;}
+.form-input:focus,.form-select:focus,.form-textarea:focus{border-color:var(--gold);}
+.form-select option{background:var(--bg2);}
+.form-textarea{resize:vertical;min-height:80px;font-family:var(--body);font-size:13px;}
+.gen-btn{background:var(--gold);color:var(--bg);font-family:var(--mono);font-size:10px;letter-spacing:3px;text-transform:uppercase;padding:12px 28px;border:none;cursor:pointer;transition:background 0.2s;}
+.gen-btn:hover{background:var(--gold2);}
+.gen-btn:disabled{opacity:0.4;cursor:not-allowed;}
+.admin-output{margin-top:28px;border:1px solid var(--border);background:var(--bg);}
+.output-head{font-family:var(--mono);font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--gold);padding:12px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
+.output-body{padding:24px;max-height:500px;overflow-y:auto;}
+.output-body p{font-size:14px;line-height:1.8;color:var(--ink);margin-bottom:14px;}
+.output-body h2{font-family:var(--serif);font-size:1.2rem;color:var(--ink);margin:20px 0 8px;}
+.output-body h3{font-family:var(--mono);font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--gold);margin:16px 0 6px;}
+.output-body blockquote{border-left:2px solid var(--gold);padding:8px 16px;margin:14px 0;font-style:italic;color:var(--ink2);}
+.pub-btn{background:var(--green2);color:#fff;font-family:var(--mono);font-size:10px;letter-spacing:3px;text-transform:uppercase;padding:10px 22px;border:none;cursor:pointer;transition:background 0.2s;}
+.pub-btn:hover{background:#2ecc71;}
+.pub-btn:disabled{opacity:0.4;cursor:not-allowed;}
+.status-msg{font-family:var(--mono);font-size:9px;letter-spacing:1px;padding:8px 16px;margin-top:12px;}
+.status-ok{color:var(--green2);background:rgba(39,174,96,0.1);border:1px solid rgba(39,174,96,0.2);}
+.status-err{color:var(--red2);background:rgba(192,57,43,0.1);border:1px solid rgba(192,57,43,0.2);}
+.status-info{color:var(--gold);background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.2);}
+.admin-articles{margin-top:36px;}
+.admin-art-row{display:grid;grid-template-columns:1fr auto auto;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--border2);font-family:var(--mono);font-size:10px;}
+.admin-art-title{color:var(--ink2);}
+.admin-art-date{color:var(--muted);}
+.del-btn{color:var(--red2);background:none;border:1px solid rgba(192,57,43,0.3);padding:4px 10px;cursor:pointer;font-family:var(--mono);font-size:9px;}
+.del-btn:hover{background:rgba(192,57,43,0.1);}
+
+/* ── FOOTER ── */
 .bottom-bar{border-top:1px solid var(--border);margin-top:32px;padding:14px 0;display:flex;justify-content:space-between;font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:1px;}
-@media(max-width:900px){.hero{grid-template-columns:1fr;}.hero-main{padding-right:0;border-right:none;border-bottom:1px solid var(--border);padding-bottom:20px;margin-bottom:20px;}.snapshot{padding-left:0;}.news-grid{grid-template-columns:1fr;}.masthead-name{font-size:40px;}}
+
+@media(max-width:900px){
+  .hero{grid-template-columns:1fr;}
+  .hero-main{padding-right:0;border-right:none;border-bottom:1px solid var(--border);padding-bottom:20px;margin-bottom:20px;}
+  .snapshot{padding-left:0;}
+  .news-grid{grid-template-columns:1fr;}
+  .blog-grid{grid-template-columns:1fr;}
+  .masthead-name{font-size:40px;}
+  .form-row{grid-template-columns:1fr;}
+  .nav-btn{padding:12px 18px;font-size:10px;}
+}
 </style>
 </head>
 <body>
+
+<!-- ══ MASTHEAD ══ -->
 <div class="masthead">
   <div class="masthead-top">
-    <span id="live-date">9 МАРТА 2026 Г.</span>
-    <span>XENOSFINANCE · ФИНАНСОВАЯ АНАЛИТИКА</span>
-    <span id="live-time">ОБНОВЛЕНО В 18:25 CET</span>
+    <span id="live-date">ФИНАНСОВАЯ АНАЛИТИКА</span>
+    <span>XENOSFINANCE · МИРОВЫЕ РЫНКИ</span>
+    <span id="live-time"></span>
   </div>
-  <div class="masthead-center">
+  <div class="masthead-center" id="logoArea" title="XenosFinance">
     <div class="masthead-eyebrow">Финансовая разведка · Мировые рынки</div>
     <div class="masthead-name">XENOS<span>FINANCE</span></div>
     <div class="masthead-sub">Волны Эллиотта · Геополитика · Макроэкономика</div>
   </div>
   <div class="masthead-nav">
-    <a class="nav-btn active" href="https://xenosfinance.com">📰 Новости</a>
-    <a class="nav-btn" href="https://xenosfinance.com/xenoswaves_charts.html">📊 Интерактивные Графики</a>
+    <button class="nav-btn active" onclick="showTab('news')">📰 Новости</button>
+    <button class="nav-btn" onclick="showTab('charts')">📊 Графики</button>
+    <button class="nav-btn" onclick="showTab('blog')">✦ AI Блог</button>
   </div>
 </div>
+
+<!-- ══ TICKER ══ -->
 <div class="ticker-bar">
   <div class="ticker-inner" id="ticker-inner">
     <span class="t-item"><span class="t-sym">ЗАГРУЗКА...</span></span>
   </div>
 </div>
+
+<!-- ══ TAB: НОВОСТИ ══ -->
+<div class="tab-panel active" id="tab-news">
 <div class="wrap"><div class="newspaper">
-<div class="hero">
-  <div class="hero-main">
-    <div class="hero-label">⚡ Главная новость</div>
-    <div class="hero-hl" id="hero-hl">Загрузка новостей...</div>
-    <div class="hero-deck" id="hero-deck">Подключение к источникам...</div>
-    <div id="hero-tags" style="margin-bottom:10px"></div>
-    <div class="hero-byline" id="hero-byline"></div>
-    <div id="hero-extras" style="margin-top:20px"></div>
+  <div class="hero">
+    <div class="hero-main">
+      <div class="hero-label">⚡ Главная новость</div>
+      <div class="hero-hl" id="hero-hl">Загрузка новостей...</div>
+      <div class="hero-deck" id="hero-deck">Подключение к источникам...</div>
+      <div id="hero-tags" style="margin-bottom:10px"></div>
+      <div class="hero-byline" id="hero-byline"></div>
+      <div id="hero-extras" style="margin-top:20px"></div>
+    </div>
+    <div class="snapshot">
+      <div class="snap-title"><span>📊 Рынки сейчас</span><span id="snap-status" style="color:var(--muted)">⟳</span></div>
+      <table class="snap-table">
+        <tr><td class="s-sym">OIL WTI</td><td class="s-price" id="p-OIL">--</td><td class="s-chg" id="c-OIL">--</td><td class="s-bar"><div class="mini-bar"><div class="mini-bar-fill" id="b-OIL"></div></div></td></tr>
+        <tr><td class="s-sym">GOLD</td><td class="s-price" id="p-GOLD">--</td><td class="s-chg" id="c-GOLD">--</td><td class="s-bar"><div class="mini-bar"><div class="mini-bar-fill" id="b-GOLD"></div></div></td></tr>
+        <tr><td class="s-sym">EUR/USD</td><td class="s-price" id="p-EURUSD">--</td><td class="s-chg" id="c-EURUSD">--</td><td class="s-bar"><div class="mini-bar"><div class="mini-bar-fill" id="b-EURUSD"></div></div></td></tr>
+        <tr><td class="s-sym">BTC/USD</td><td class="s-price" id="p-BTCUSD">--</td><td class="s-chg" id="c-BTCUSD">--</td><td class="s-bar"><div class="mini-bar"><div class="mini-bar-fill" id="b-BTCUSD"></div></div></td></tr>
+        <tr><td class="s-sym">S&amp;P 500</td><td class="s-price" id="p-SPY">--</td><td class="s-chg" id="c-SPY">--</td><td class="s-bar"><div class="mini-bar"><div class="mini-bar-fill" id="b-SPY"></div></div></td></tr>
+        <tr><td class="s-sym">NASDAQ</td><td class="s-price" id="p-NASDAQ">--</td><td class="s-chg" id="c-NASDAQ">--</td><td class="s-bar"><div class="mini-bar"><div class="mini-bar-fill" id="b-NASDAQ"></div></div></td></tr>
+        <tr><td class="s-sym">USD/JPY</td><td class="s-price" id="p-USDJPY">--</td><td class="s-chg" id="c-USDJPY">--</td><td class="s-bar"><div class="mini-bar"><div class="mini-bar-fill" id="b-USDJPY"></div></div></td></tr>
+        <tr><td class="s-sym">SILVER</td><td class="s-price" id="p-SILVER">--</td><td class="s-chg" id="c-SILVER">--</td><td class="s-bar"><div class="mini-bar"><div class="mini-bar-fill" id="b-SILVER"></div></div></td></tr>
+      </table>
+    </div>
   </div>
-  <div class="snapshot">
-    <div class="snap-title"><span>📊 Рынки сейчас</span><span id="snap-status" style="color:var(--muted)">⟳</span></div>
-    <table class="snap-table">
-      <tr><td class="s-sym">OIL WTI</td><td class="s-price" id="p-OIL">--</td><td class="s-chg" id="c-OIL">--</td><td class="s-bar"><div class="mini-bar"><div class="mini-bar-fill" id="b-OIL"></div></div></td></tr>
-      <tr><td class="s-sym">GOLD</td><td class="s-price" id="p-GOLD">--</td><td class="s-chg" id="c-GOLD">--</td><td class="s-bar"><div class="mini-bar"><div class="mini-bar-fill" id="b-GOLD"></div></div></td></tr>
-      <tr><td class="s-sym">EUR/USD</td><td class="s-price" id="p-EURUSD">--</td><td class="s-chg" id="c-EURUSD">--</td><td class="s-bar"><div class="mini-bar"><div class="mini-bar-fill" id="b-EURUSD"></div></div></td></tr>
-      <tr><td class="s-sym">BTC/USD</td><td class="s-price" id="p-BTCUSD">--</td><td class="s-chg" id="c-BTCUSD">--</td><td class="s-bar"><div class="mini-bar"><div class="mini-bar-fill" id="b-BTCUSD"></div></div></td></tr>
-      <tr><td class="s-sym">S&amp;P 500</td><td class="s-price" id="p-SPY">--</td><td class="s-chg" id="c-SPY">--</td><td class="s-bar"><div class="mini-bar"><div class="mini-bar-fill" id="b-SPY"></div></div></td></tr>
-      <tr><td class="s-sym">NASDAQ</td><td class="s-price" id="p-NASDAQ">--</td><td class="s-chg" id="c-NASDAQ">--</td><td class="s-bar"><div class="mini-bar"><div class="mini-bar-fill" id="b-NASDAQ"></div></div></td></tr>
-      <tr><td class="s-sym">USD/JPY</td><td class="s-price" id="p-USDJPY">--</td><td class="s-chg" id="c-USDJPY">--</td><td class="s-bar"><div class="mini-bar"><div class="mini-bar-fill" id="b-USDJPY"></div></div></td></tr>
-      <tr><td class="s-sym">SILVER</td><td class="s-price" id="p-SILVER">--</td><td class="s-chg" id="c-SILVER">--</td><td class="s-bar"><div class="mini-bar"><div class="mini-bar-fill" id="b-SILVER"></div></div></td></tr>
-    </table>
+  <div class="section-head">
+    <div class="section-head-label">Новости рынков</div>
+    <div class="section-head-line"></div>
+    <div id="news-status" style="font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:1px;">⟳</div>
   </div>
-</div>
-<div class="section-head">
-  <div class="section-head-label">Новости рынков</div>
-  <div class="section-head-line"></div>
-  <div id="news-status" style="font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:1px;">⟳</div>
-</div>
-<div class="news-grid" id="news-grid">
-  <div class="news-col" id="col1"><div class="story"><div class="story-src">РЫНКИ</div><div class="story-hl">Загрузка...</div></div></div>
-  <div class="news-col" id="col2"><div class="story"><div class="story-src">ГЕОПОЛИТИКА</div><div class="story-hl">Загрузка...</div></div></div>
-  <div class="news-col" id="col3">
-    <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--gold);text-transform:uppercase;margin-bottom:12px;">⚡ Лента новостей</div>
-    <div id="flash-feed"></div>
+  <div class="news-grid" id="news-grid">
+    <div class="news-col" id="col1"><div class="story"><div class="story-src">РЫНКИ</div><div class="story-hl">Загрузка...</div></div></div>
+    <div class="news-col" id="col2"><div class="story"><div class="story-src">ГЕОПОЛИТИКА</div><div class="story-hl">Загрузка...</div></div></div>
+    <div class="news-col" id="col3">
+      <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--gold);text-transform:uppercase;margin-bottom:12px;">⚡ Лента новостей</div>
+      <div id="flash-feed"></div>
+    </div>
   </div>
-</div>
-<div class="bottom-bar">
-  <span>© XENOSFINANCE 2026</span>
-  <span>Источники: Reuters · CNBC · Yahoo Finance · Al Jazeera · NYT</span>
-  <span>⚠ Не является инвестиционной рекомендацией</span>
-</div>
+  <div class="bottom-bar">
+    <span>© XENOSFINANCE 2026</span>
+    <span>Источники: Reuters · CNBC · Yahoo Finance · Al Jazeera · NYT</span>
+    <span>⚠ Не является инвестиционной рекомендацией</span>
+  </div>
 </div></div>
+</div>
+
+<!-- ══ TAB: ГРАФИКИ ══ -->
+<div class="tab-panel" id="tab-charts">
+<div class="wrap">
+  <div class="charts-wrap">
+    <div class="section-head">
+      <div class="section-head-label">Интерактивные Графики</div>
+      <div class="section-head-line"></div>
+    </div>
+    <iframe class="charts-frame" id="chartsFrame" src="" frameborder="0" allowfullscreen></iframe>
+  </div>
+  <div class="bottom-bar">
+    <span>© XENOSFINANCE 2026</span>
+    <span>TradingView · Elliott Wave Analysis</span>
+    <span>⚠ Не является инвестиционной рекомендацией</span>
+  </div>
+</div>
+</div>
+
+<!-- ══ TAB: AI БЛОГ ══ -->
+<div class="tab-panel" id="tab-blog">
+<div class="wrap">
+  <div class="blog-wrap">
+
+    <!-- Lista articoli -->
+    <div id="blogListSection">
+      <div class="section-head">
+        <div class="section-head-label">// AI Блог</div>
+        <div class="section-head-line"></div>
+        <div id="articleCount" style="font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:2px;">ЗАГРУЗКА...</div>
+      </div>
+      <div id="blogGrid"><div class="spinner-wrap"><div class="spinner"></div></div></div>
+    </div>
+
+    <!-- Articolo singolo -->
+    <div class="article-view" id="articleView">
+      <button class="back-btn" onclick="showBlogList()">← Назад к статьям</button>
+      <div class="art-cat" id="viewCat"></div>
+      <h1 class="art-title" id="viewTitle"></h1>
+      <div class="art-meta">
+        <span id="viewDate"></span>
+        <span id="viewRead"></span>
+        <span>✦ Сгенерировано AI</span>
+      </div>
+      <div class="art-body" id="viewBody"></div>
+    </div>
+
+    <!-- Admin panel (nascosto, appare dopo login) -->
+    <div class="admin-panel" id="adminPanel">
+      <div class="admin-header">
+        <div class="admin-title">⚙ Pannello Admin — Genera Articolo</div>
+        <button class="admin-logout" onclick="adminLogout()">Logout</button>
+      </div>
+      <div class="admin-form">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Categoria</label>
+            <select class="form-select" id="artCategory">
+              <option value="МАКРОЭКОНОМИКА">Макроэкономика</option>
+              <option value="ВОЛНЫ ЭЛЛИОТТА">Волны Эллиотта</option>
+              <option value="ФОРЕКС">Форекс</option>
+              <option value="СЫРЬЁ">Сырьё</option>
+              <option value="КРИПТОВАЛЮТА">Криптовалюта</option>
+              <option value="ГЕОПОЛИТИКА">Геополитика</option>
+              <option value="ЦЕНТРОБАНКИ">Центробанки</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Lingua output</label>
+            <select class="form-select" id="artLang">
+              <option value="russo">Russo</option>
+              <option value="italiano">Italiano</option>
+              <option value="inglese">Inglese</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Titolo / Tema dell'articolo</label>
+          <input class="form-input" id="artTopic" type="text" placeholder="es. Fed e tassi d'interesse nel 2026...">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Contesto aggiuntivo (opzionale)</label>
+          <textarea class="form-textarea" id="artContext" placeholder="Aggiungi dati di mercato, eventi recenti, focus specifico..."></textarea>
+        </div>
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+          <button class="gen-btn" id="genBtn" onclick="generateArticle()">✦ Genera Articolo AI</button>
+          <div id="genStatus"></div>
+        </div>
+      </div>
+
+      <!-- Output generato -->
+      <div class="admin-output" id="adminOutput" style="display:none;">
+        <div class="output-head">
+          <span id="outputTitle">// Articolo generato</span>
+          <div style="display:flex;gap:10px;">
+            <button class="pub-btn" id="pubBtn" onclick="publishArticle()">▲ Pubblica</button>
+          </div>
+        </div>
+        <div class="output-body" id="outputBody"></div>
+        <div id="pubStatus"></div>
+      </div>
+
+      <!-- Lista articoli pubblicati (admin view) -->
+      <div class="admin-articles">
+        <div class="section-head" style="margin-top:36px;">
+          <div class="section-head-label">// Articoli pubblicati</div>
+          <div class="section-head-line"></div>
+          <button style="font-family:var(--mono);font-size:9px;color:var(--muted);background:none;border:none;cursor:pointer;letter-spacing:1px;" onclick="loadAdminArticles()">↻ Refresh</button>
+        </div>
+        <div id="adminArticlesList"><div style="font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:1px;">Carica articoli...</div></div>
+      </div>
+    </div>
+
+  </div>
+  <div class="bottom-bar">
+    <span>© XENOSFINANCE 2026</span>
+    <span>AI Блог · Аналитика рынков</span>
+    <span>⚠ Не является инвестиционной рекомендацией</span>
+  </div>
+</div>
+</div>
+
+<!-- ══ MODAL PASSWORD ══ -->
+<div class="modal-overlay" id="adminModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div class="modal-title">⚙ Accesso Admin</div>
+    <input class="modal-input" id="adminPwd" type="password" placeholder="PASSWORD" onkeydown="if(event.key==='Enter')checkPwd()">
+    <button class="modal-btn" onclick="checkPwd()">Accedi</button>
+    <div class="modal-err" id="modalErr"></div>
+  </div>
+</div>
+
 <script>
+// ══════════════════════════════════════════
+// CONFIG — modifica qui la tua password
+// ══════════════════════════════════════════
+const ADMIN_PASSWORD = "xenos2026";
+const GITHUB_REPO    = "xenosfinance-prog/kenosblog";
+const WORKER_URL     = "https://xenos-ai-proxy.xenosfinance.workers.dev";
+const GITHUB_TOKEN   = ""; // non usato
+const RAW_BASE       = `https://raw.githubusercontent.com/${GITHUB_REPO}/main`;
+
+// ══════════════════════════════════════════
+// TAB NAVIGATION
+// ══════════════════════════════════════════
+function showTab(name) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  event.currentTarget.classList.add('active');
+  if (name === 'charts') {
+    const f = document.getElementById('chartsFrame');
+    if (!f.src || f.src === window.location.href) {
+      f.src = 'https://xenosfinance.com/xenoswaves_charts.html';
+    }
+  }
+  if (name === 'blog') loadArticles();
+}
+
+// ══════════════════════════════════════════
+// CLOCK / DATE
+// ══════════════════════════════════════════
+const MONTHS = ['ЯНВАРЯ','ФЕВРАЛЯ','МАРТА','АПРЕЛЯ','МАЯ','ИЮНЯ','ИЮЛЯ','АВГУСТА','СЕНТЯБРЯ','ОКТЯБРЯ','НОЯБРЯ','ДЕКАБРЯ'];
+function updateClock() {
+  const n = new Date();
+  const hm = n.getHours().toString().padStart(2,'0') + ':' + n.getMinutes().toString().padStart(2,'0');
+  const ld = document.getElementById('live-date');
+  if (ld) ld.textContent = `${n.getDate()} ${MONTHS[n.getMonth()]} ${n.getFullYear()} Г.`;
+  const lt = document.getElementById('live-time');
+  if (lt) lt.textContent = `ОБНОВЛЕНО В ${hm} CET`;
+}
+setInterval(updateClock, 30000);
+updateClock();
+
+// ══════════════════════════════════════════
+// ADMIN — double click sul logo
+// ══════════════════════════════════════════
+let adminLoggedIn = false;
+let clickTimer = null;
+document.getElementById('logoArea').addEventListener('dblclick', function(e) {
+  if (!adminLoggedIn) {
+    document.getElementById('adminModal').classList.add('open');
+    setTimeout(() => document.getElementById('adminPwd').focus(), 100);
+  }
+});
+
+function closeModal() {
+  document.getElementById('adminModal').classList.remove('open');
+  document.getElementById('adminPwd').value = '';
+  document.getElementById('modalErr').textContent = '';
+}
+
+function checkPwd() {
+  const v = document.getElementById('adminPwd').value;
+  if (v === ADMIN_PASSWORD) {
+    closeModal();
+    adminLoggedIn = true;
+    showTab('blog');
+    document.querySelectorAll('.nav-btn').forEach((b,i) => { if(i===2) b.classList.add('active'); else b.classList.remove('active'); });
+    document.getElementById('adminPanel').classList.add('open');
+    loadAdminArticles();
+  } else {
+    document.getElementById('modalErr').textContent = '✕ Password errata';
+    document.getElementById('adminPwd').value = '';
+  }
+}
+
+function adminLogout() {
+  adminLoggedIn = false;
+  document.getElementById('adminPanel').classList.remove('open');
+}
+
+// ══════════════════════════════════════════
+// MARKETS
+// ══════════════════════════════════════════
 const SYMS=[
   {id:'OIL',   yf:'CL%3DF',     label:'OIL WTI', dec:2,prefix:'$'},
   {id:'GOLD',  yf:'GC%3DF',     label:'GOLD',    dec:2,prefix:'$'},
@@ -165,11 +502,12 @@ async function updateMarkets(){
   }
   if(th){const ti=document.getElementById('ticker-inner');if(ti)ti.innerHTML=th+th;}
   const n=new Date(),hm=n.getHours().toString().padStart(2,'0')+':'+n.getMinutes().toString().padStart(2,'0');
-  const months=['ЯНВАРЯ','ФЕВРАЛЯ','МАРТА','АПРЕЛЯ','МАЯ','ИЮНЯ','ИЮЛЯ','АВГУСТА','СЕНТЯБРЯ','ОКТЯБРЯ','НОЯБРЯ','ДЕКАБРЯ'];
-  const ld=document.getElementById('live-date');if(ld)ld.textContent=n.getDate()+' '+months[n.getMonth()]+' '+n.getFullYear()+' Г.';
-  const lt=document.getElementById('live-time');if(lt)lt.textContent='ОБНОВЛЕНО В '+hm+' CET';
   const ss=document.getElementById('snap-status');if(ss)ss.textContent='✓ '+hm;
 }
+
+// ══════════════════════════════════════════
+// NEWS
+// ══════════════════════════════════════════
 const NEWS_FEEDS=[
   {url:'https://finance.yahoo.com/rss/topstories',source:'Yahoo Finance',cat:'markets'},
   {url:'https://finance.yahoo.com/rss/news',source:'Yahoo News',cat:'macro'},
@@ -181,14 +519,14 @@ const NEWS_FEEDS=[
 ];
 const MKT_KW=['gold','oil','crude','fed','federal reserve','rate','inflation','gdp','nasdaq','s&p','dow','futures','stock','market','treasury','dollar','euro','tariff','trade','trump','china','sanctions','ukraine','russia','opec','energy','bitcoin','crypto','earnings','recession','bank','ecb','wall street','nvidia','apple'];
 function isRel(t){const s=t.toLowerCase();return MKT_KW.some(k=>s.includes(k));}
-const TR=[[/federal reserve/gi,'ФРС'],[/the fed/gi,'ФРС'],[/wall street/gi,'Уолл-стрит'],[/stock market/gi,'фондовый рынок'],[/stocks?/gi,'акции'],[/interest rates?/gi,'процентные ставки'],[/inflation/gi,'инфляция'],[/gdp/gi,'ВВП'],[/recession/gi,'рецессия'],[/crude oil/gi,'сырая нефть'],[/tariffs?/gi,'тарифы'],[/trade war/gi,'торговая война'],[/sanctions/gi,'санкции'],[/dollar/gi,'доллар'],[/earnings/gi,'прибыль'],[/rises?/gi,'растёт'],[/falls?/gi,'падает'],[/surges?/gi,'резко растёт'],[/plunges?/gi,'обрушивается'],[/gains?/gi,'прибавляет'],[/drops?/gi,'снижается'],[/(\d+(\.\d+)?)\s*billion/gi,'$1 млрд'],[/(\d+(\.\d+)?)\s*million/gi,'$1 млн']];
+const TR=[[/federal reserve/gi,'ФРС'],[/the fed/gi,'ФРС'],[/wall street/gi,'Уолл-стрит'],[/stock market/gi,'фондовый рынок'],[/stocks?/gi,'акции'],[/interest rates?/gi,'процентные ставки'],[/inflation/gi,'инфляция'],[/gdp/gi,'ВВП'],[/recession/gi,'рецессия'],[/crude oil/gi,'сырая нефть'],[/tariffs?/gi,'тарифы'],[/trade war/gi,'торговая война'],[/sanctions/gi,'санкции'],[/dollar/gi,'доллар'],[/earnings/gi,'прибыль'],[/rises?/gi,'растёт'],[/falls?/gi,'падает'],[/surges?/gi,'резко растёт'],[/plunges?/gi,'обрушивается'],[/gains?/gi,'прибавляет'],[/drops?/gi,'снижается'],[/(\d+(\.\d+)?)\s*billion/gi,'$1 млрд'],[/(\d+(\.\d+)?)\s*million/gi,'$1 млн']];
 function translate(t){for(const[re,ru]of TR)t=t.replace(re,ru);return t.charAt(0).toUpperCase()+t.slice(1);}
 function detectImpact(t){const s=t.toLowerCase();const tags=[];if(['gold rises','safe haven','inflation','war','sanctions'].some(k=>s.includes(k)))tags.push({asset:'Gold',dir:'bull'});if(['gold falls','dollar strong'].some(k=>s.includes(k)))tags.push({asset:'Gold',dir:'bear'});if(['oil rises','opec cut','iran'].some(k=>s.includes(k)))tags.push({asset:'Oil',dir:'bull'});if(['oil falls','oversupply'].some(k=>s.includes(k)))tags.push({asset:'Oil',dir:'bear'});if(['stocks rise','rally','earnings beat'].some(k=>s.includes(k)))tags.push({asset:'S&P 500',dir:'bull'});if(['stocks fall','selloff','tariff'].some(k=>s.includes(k)))tags.push({asset:'S&P 500',dir:'bear'});return tags.slice(0,2);}
 function tagHtml(t){const cls=t.dir==='bull'?'tag-bull':'tag-bear';const arr=t.dir==='bull'?'▲':'▼';return`<span class="story-tag ${cls}">${arr} ${t.asset}</span>`;}
 function storyHtml(it){const lnk=it.link?`href="${it.link}" target="_blank"`:'';const aO=lnk?`<a ${lnk}>`:'';const aC=lnk?'</a>':'';const desc=it.desc?`<div class="story-desc">${it.desc.substring(0,160)}...</div>`:'';const tags=it.impacts.map(tagHtml).join(' ');return`<div class="story"><div class="story-src">📰 ${it.source.toUpperCase()}</div><div class="story-hl">${aO}${it.title}${aC}</div>${desc}<div style="margin-top:6px">${tags}</div></div>`;}
 async function fetchFeed(feed){
   const proxies=[`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feed.url)}&count=20`,`https://api.allorigins.win/raw?url=${encodeURIComponent(feed.url)}`,`https://corsproxy.io/?${encodeURIComponent(feed.url)}`];
-  try{const r=await fetch(proxies[0],{signal:AbortSignal.timeout(8000)});if(r.ok){const d=await r.json();if(d.status==='ok'&&d.items?.length){return d.items.map(it=>{const raw=it.title?.trim()||'';const desc=(it.description||it.content||'').replace(/<[^>]+>/g,'').trim();if(!raw||raw.length<10)return null;if(!isRel(raw+' '+desc))return null;return{title:translate(raw),desc:desc.substring(0,300),link:it.link||'',source:feed.source,cat:feed.cat,impacts:detectImpact(raw+' '+desc)};}). filter(Boolean);}}}catch(e){}
+  try{const r=await fetch(proxies[0],{signal:AbortSignal.timeout(8000)});if(r.ok){const d=await r.json();if(d.status==='ok'&&d.items?.length){return d.items.map(it=>{const raw=it.title?.trim()||'';const desc=(it.description||it.content||'').replace(/<[^>]+>/g,'').trim();if(!raw||raw.length<10)return null;if(!isRel(raw+' '+desc))return null;return{title:translate(raw),desc:desc.substring(0,300),link:it.link||'',source:feed.source,cat:feed.cat,impacts:detectImpact(raw+' '+desc)};}).filter(Boolean);}}}catch(e){}
   for(const p of proxies.slice(1)){try{const r=await fetch(p,{signal:AbortSignal.timeout(8000)});if(!r.ok)continue;const txt=await r.text();if(!txt||txt.length<100)continue;const doc=new DOMParser().parseFromString(txt,'text/xml');if(doc.querySelector('parsererror'))continue;const items=[];for(const el of doc.querySelectorAll('item')){const raw=el.querySelector('title')?.textContent?.trim()||'';const desc=(el.querySelector('description')?.textContent||'').replace(/<[^>]+>/g,'').trim();const link=el.querySelector('link')?.textContent?.trim()||'';if(!raw||raw.length<10)continue;if(!isRel(raw+' '+desc))continue;items.push({title:translate(raw),desc:desc.substring(0,300),link,source:feed.source,cat:feed.cat,impacts:detectImpact(raw+' '+desc)});}if(items.length)return items;}catch(e){continue;}}return[];
 }
 async function loadNews(){
@@ -215,7 +553,282 @@ async function loadNews(){
   const n=new Date(),hm=n.getHours().toString().padStart(2,'0')+':'+n.getMinutes().toString().padStart(2,'0');
   if(st)st.textContent=`✓ ${uniq.length} новостей · ${hm} CET`;
 }
-document.addEventListener('DOMContentLoaded',()=>{updateMarkets();loadNews();setInterval(updateMarkets,60000);setInterval(loadNews,300000);});
+
+// ══════════════════════════════════════════
+// BLOG — lettura pubblica
+// ══════════════════════════════════════════
+let articles = [];
+let blogLoaded = false;
+
+async function loadArticles() {
+  if (blogLoaded && articles.length) return;
+  try {
+    const res = await fetch(`${RAW_BASE}/articles/index.json?t=${Date.now()}`);
+    if (!res.ok) throw new Error();
+    articles = await res.json();
+    blogLoaded = true;
+    renderBlogGrid();
+  } catch(e) {
+    document.getElementById('blogGrid').innerHTML = `<div class="empty-state">// СТАТЬИ ПОКА НЕ ОПУБЛИКОВАНЫ<br>СКОРО ЗДЕСЬ ПОЯВИТСЯ КОНТЕНТ</div>`;
+    document.getElementById('articleCount').textContent = '0 СТАТЕЙ';
+  }
+}
+
+function renderBlogGrid() {
+  document.getElementById('articleCount').textContent = articles.length + ' СТАТЕЙ';
+  if (!articles.length) {
+    document.getElementById('blogGrid').innerHTML = `<div class="empty-state">// СТАТЬИ ПОКА НЕ ОПУБЛИКОВАНЫ</div>`;
+    return;
+  }
+  const grid = document.createElement('div');
+  grid.className = 'blog-grid';
+  articles.forEach((a, i) => {
+    const d = new Date(a.publishedAt);
+    const ds = `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+    const card = document.createElement('div');
+    card.className = 'blog-card';
+    card.innerHTML = `
+      <div class="card-num">${String(i+1).padStart(3,'0')}</div>
+      <div class="card-cat">${a.category}</div>
+      <div class="card-title">${a.title}</div>
+      <div class="card-excerpt">${a.excerpt}...</div>
+      <div class="card-footer"><span class="card-date">${ds}</span><span class="card-read">Читать →</span></div>`;
+    card.onclick = () => openArticle(a.slug);
+    grid.appendChild(card);
+  });
+  document.getElementById('blogGrid').innerHTML = '';
+  document.getElementById('blogGrid').appendChild(grid);
+}
+
+async function openArticle(slug) {
+  try {
+    const res = await fetch(`${RAW_BASE}/articles/${slug}.json?t=${Date.now()}`);
+    if (!res.ok) throw new Error();
+    const art = await res.json();
+    document.getElementById('viewCat').textContent = art.categoryLabel || art.category;
+    document.getElementById('viewTitle').textContent = art.title;
+    document.getElementById('viewRead').textContent = '⏱ ' + (art.readTime || '5 мин');
+    const d = new Date(art.publishedAt);
+    document.getElementById('viewDate').textContent = '📅 ' + d.toLocaleDateString('ru-RU', {day:'numeric',month:'long',year:'numeric'});
+    let html = `<p>${art.intro}</p>`;
+    (art.sections||[]).forEach(s => { html += `<h2>${s.heading}</h2><p>${s.content}</p>`; });
+    if (art.quote) html += `<blockquote>${art.quote}</blockquote>`;
+    if (art.conclusion) html += `<h3>// Вывод</h3><p>${art.conclusion}</p>`;
+    document.getElementById('viewBody').innerHTML = html;
+    document.getElementById('blogListSection').style.display = 'none';
+    document.getElementById('adminPanel').classList.remove('open');
+    document.getElementById('articleView').classList.add('visible');
+    window.scrollTo({top:0});
+  } catch(e) { alert('Ошибка загрузки статьи'); }
+}
+
+function showBlogList() {
+  document.getElementById('articleView').classList.remove('visible');
+  document.getElementById('blogListSection').style.display = 'block';
+  if (adminLoggedIn) document.getElementById('adminPanel').classList.add('open');
+  window.scrollTo({top:0});
+}
+
+// ══════════════════════════════════════════
+// ADMIN — generazione articolo via Claude API
+// ══════════════════════════════════════════
+let generatedArticle = null;
+
+async function generateArticle() {
+  const topic    = document.getElementById('artTopic').value.trim();
+  const category = document.getElementById('artCategory').value;
+  const lang     = document.getElementById('artLang').value;
+  const context  = document.getElementById('artContext').value.trim();
+  if (!topic) { setGenStatus('⚠ Inserisci un titolo/tema', 'info'); return; }
+
+  const btn = document.getElementById('genBtn');
+  btn.disabled = true;
+  setGenStatus('⟳ Generazione in corso...', 'info');
+  document.getElementById('adminOutput').style.display = 'none';
+
+  const prompt = `Sei un analista finanziario senior di XenosFinance. Scrivi un articolo professionale in ${lang} sulla seguente tematica:\n\nCATEGORIA: ${category}\nTEMA: ${topic}\n${context ? 'CONTESTO: ' + context : ''}\n\nRispondi SOLO con JSON valido, senza testo prima o dopo:\n{"title":"titolo","categoryLabel":"${category}","excerpt":"estratto 2 frasi","readTime":"X мин","intro":"paragrafo intro","sections":[{"heading":"Titolo 1","content":"testo"},{"heading":"Titolo 2","content":"testo"},{"heading":"Titolo 3","content":"testo"}],"quote":"citazione chiave","conclusion":"conclusione con outlook"}`;
+
+  try {
+    const res = await fetch(WORKER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 2000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    if (!res.ok) throw new Error('Worker error ' + res.status);
+    const data = await res.json();
+    const raw = data.content?.map(i => i.text || '').join('') || '';
+    const match = raw.match(/\{[\s\S]*\}/);
+    if (!match) throw new Error('JSON non trovato');
+    const art = JSON.parse(match[0]);
+    art.publishedAt = new Date().toISOString();
+    art.slug = slugify(art.title);
+    art.category = category;
+    generatedArticle = art;
+    renderPreview(art);
+    setGenStatus('✓ Articolo generato', 'ok');
+  } catch(e) {
+    setGenStatus('✕ Errore: ' + e.message, 'err');
+  }
+  btn.disabled = false;
+}
+
+function slugify(t) {
+  return t.toLowerCase()
+    .replace(/[а-яёА-ЯЁ]/g, c => ({'а':'a','б':'b','в':'v','г':'g','д':'d','е':'e','ё':'yo','ж':'zh','з':'z','и':'i','й':'y','к':'k','л':'l','м':'m','н':'n','о':'o','п':'p','р':'r','с':'s','т':'t','у':'u','ф':'f','х':'kh','ц':'ts','ч':'ch','ш':'sh','щ':'sch','ъ':'','ы':'y','ь':'','э':'e','ю':'yu','я':'ya'}[c.toLowerCase()]||c))
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+    .substring(0, 60) + '-' + Date.now().toString(36);
+}
+
+function renderPreview(art) {
+  document.getElementById('outputTitle').textContent = art.title;
+  let html = `<p>${art.intro}</p>`;
+  (art.sections||[]).forEach(s => { html += `<h2>${s.heading}</h2><p>${s.content}</p>`; });
+  if (art.quote) html += `<blockquote>${art.quote}</blockquote>`;
+  if (art.conclusion) html += `<h3>// Вывод</h3><p>${art.conclusion}</p>`;
+  document.getElementById('outputBody').innerHTML = html;
+  document.getElementById('adminOutput').style.display = 'block';
+}
+
+function setGenStatus(msg, type) {
+  const el = document.getElementById('genStatus');
+  el.className = 'status-msg status-' + type;
+  el.textContent = msg;
+}
+
+// ══════════════════════════════════════════
+// PUBLISH — scrive su GitHub via API
+// ══════════════════════════════════════════
+async function githubRequest(path, method, payload) {
+  const apiBase = `https://api.github.com/repos/${GITHUB_REPO}/contents`;
+  const res = await fetch(WORKER_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type: 'github', url: apiBase + '/' + path, method, payload })
+  });
+  const d = await res.json();
+  return { status: res.status, data: d };
+}
+
+async function publishArticle() {
+  if (!generatedArticle) return;
+  const btn = document.getElementById('pubBtn');
+  btn.disabled = true;
+  setPubStatus('⟳ Pubblicazione in corso...', 'info');
+
+  try {
+    // 1. Leggi indice esistente
+    let existingArticles = [];
+    let indexSha = null;
+    const idxCheck = await githubRequest('articles/index.json', 'GET');
+    if (idxCheck.status === 200) {
+      indexSha = idxCheck.data.sha;
+      existingArticles = JSON.parse(atob(idxCheck.data.content.replace(/\n/g, '')));
+    }
+
+    // 2. Salva articolo
+    const artContent = btoa(unescape(encodeURIComponent(JSON.stringify(generatedArticle, null, 2))));
+    await githubRequest(`articles/${generatedArticle.slug}.json`, 'PUT', {
+      message: `Add article: ${generatedArticle.title}`,
+      content: artContent,
+      branch: 'main'
+    });
+
+    // 3. Aggiorna indice
+    const entry = { slug: generatedArticle.slug, title: generatedArticle.title, category: generatedArticle.category, excerpt: generatedArticle.excerpt, publishedAt: generatedArticle.publishedAt };
+    existingArticles.unshift(entry);
+    const idxContent = btoa(unescape(encodeURIComponent(JSON.stringify(existingArticles, null, 2))));
+    const idxPayload = { message: 'Update blog index', content: idxContent, branch: 'main' };
+    if (indexSha) idxPayload.sha = indexSha;
+    await githubRequest('articles/index.json', 'PUT', idxPayload);
+
+    setPubStatus('✓ Pubblicato!', 'ok');
+    articles = existingArticles;
+    blogLoaded = false;
+    renderBlogGrid();
+    loadAdminArticles();
+    generatedArticle = null;
+  } catch(e) {
+    setPubStatus('✕ Errore: ' + e.message, 'err');
+  }
+  btn.disabled = false;
+}
+
+function setPubStatus(msg, type) {
+  const el = document.getElementById('pubStatus');
+  el.className = 'status-msg status-' + type;
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+// ══════════════════════════════════════════
+// ADMIN — lista articoli pubblicati
+// ══════════════════════════════════════════
+async function loadAdminArticles() {
+  const el = document.getElementById('adminArticlesList');
+  if (!el) return;
+  try {
+    const res = await fetch(`${RAW_BASE}/articles/index.json?t=${Date.now()}`);
+    if (!res.ok) throw new Error();
+    const idx = await res.json();
+    if (!idx.length) { el.innerHTML = '<div style="font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:1px;">Nessun articolo ancora</div>'; return; }
+    el.innerHTML = idx.map((a,i) => {
+      const d = new Date(a.publishedAt);
+      const ds = d.toLocaleDateString('it-IT');
+      return `<div class="admin-art-row">
+        <div class="admin-art-title">${String(i+1).padStart(2,'0')}. ${a.title}</div>
+        <div class="admin-art-date">${ds}</div>
+        <button class="del-btn" onclick="deleteArticle('${a.slug}')">✕</button>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    el.innerHTML = '<div style="font-family:var(--mono);font-size:10px;color:var(--muted);">Errore caricamento</div>';
+  }
+}
+
+async function deleteArticle(slug) {
+  if (!GITHUB_TOKEN) { alert('GitHub token mancante'); return; }
+  if (!confirm(`Eliminare l'articolo "${slug}"?`)) return;
+  try {
+    // Elimina file articolo
+    const check = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/contents/articles/${slug}.json`, {
+      headers: { 'Authorization': `token ${GITHUB_TOKEN}`, 'Accept': 'application/vnd.github.v3+json' }
+    });
+    if (check.ok) {
+      const d = await check.json();
+      await fetch(`https://api.github.com/repos/${GITHUB_REPO}/contents/articles/${slug}.json`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `token ${GITHUB_TOKEN}`, 'Accept': 'application/vnd.github.v3+json', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: `Delete article: ${slug}`, sha: d.sha })
+      });
+    }
+    // Aggiorna index
+    const ir = await fetch(`${RAW_BASE}/articles/index.json?t=${Date.now()}`);
+    if (ir.ok) {
+      let idx = await ir.json();
+      idx = idx.filter(a => a.slug !== slug);
+      const idxContent = btoa(unescape(encodeURIComponent(JSON.stringify(idx, null, 2))));
+      await githubPut('articles/index.json', idxContent, `Remove article: ${slug}`);
+      articles = idx;
+      blogLoaded = false;
+      renderBlogGrid();
+      loadAdminArticles();
+    }
+  } catch(e) { alert('Errore eliminazione: ' + e.message); }
+}
+
+// ══════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  updateMarkets();
+  loadNews();
+  setInterval(updateMarkets, 60000);
+  setInterval(loadNews, 300000);
+});
 </script>
 </body>
 </html>
