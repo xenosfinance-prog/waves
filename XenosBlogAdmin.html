@@ -130,20 +130,20 @@
     <div class="gen-field">
       <label class="gen-label">Категория</label>
       <select class="gen-select" id="genCategory">
-        <option value="торговля">Торговля & Трейдинг</option>
-        <option value="форекс">Форекс & Валюты</option>
+        <option value="торговля">Торговля &amp; Трейдинг</option>
+        <option value="форекс">Форекс &amp; Валюты</option>
         <option value="крипто">Криптовалюты</option>
-        <option value="акции">Акции & Индексы</option>
-        <option value="сырьё">Сырьё & Металлы</option>
+        <option value="акции">Акции &amp; Индексы</option>
+        <option value="сырьё">Сырьё &amp; Металлы</option>
         <option value="макро">Макроэкономика</option>
         <option value="волны эллиотта">Волны Эллиотта</option>
-        <option value="геополитика">Геополитика & Рынки</option>
+        <option value="геополитика">Геополитика &amp; Рынки</option>
       </select>
     </div>
     <div class="gen-field">
       <label class="gen-label">Стиль</label>
       <select class="gen-select" id="genTone">
-        <option value="аналитический">Аналитический & Профессиональный</option>
+        <option value="аналитический">Аналитический &amp; Профессиональный</option>
         <option value="технический анализ">Технический анализ</option>
         <option value="обзор рынка">Обзор рынка</option>
         <option value="образовательный">Образовательный</option>
@@ -209,7 +209,7 @@
     <div class="blog-card">
       <div class="card-num">001</div>
       <div class="card-cat">Волны Эллиотта</div>
-      <div class="card-title">S&P 500: анализ волновой структуры Q1 2025</div>
+      <div class="card-title">S&amp;P 500: анализ волновой структуры Q1 2025</div>
       <div class="card-excerpt">Детальный разбор текущей импульсной волны и ключевые уровни для коррекции.</div>
       <div class="card-footer"><span>6 мин</span><span class="card-read">Читать →</span></div>
     </div>
@@ -242,14 +242,13 @@
   // ═══════════════════════════════════════════
   //  CONFIGURAZIONE GITHUB
   // ═══════════════════════════════════════════
-  // Token gestito dal Cloudflare Worker (sicuro)
   const GITHUB_REPO   = "xenosfinance-prog/waves";
   const GITHUB_BRANCH = "main";
   const WORKER_URL    = "https://xenos-ai-proxy.xenosfinance.workers.dev";
 
   const months = ['ЯНВАРЯ','ФЕВРАЛЯ','МАРТА','АПРЕЛЯ','МАЯ','ИЮНЯ','ИЮЛЯ','АВГУСТА','СЕНТЯБРЯ','ОКТЯБРЯ','НОЯБРЯ','ДЕКАБРЯ'];
   const now = new Date();
-  document.getElementById('headerDate').textContent = `${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()} Г.`;
+  document.getElementById('headerDate').textContent = now.getDate() + ' ' + months[now.getMonth()] + ' ' + now.getFullYear() + ' Г.';
 
   let currentArticle = null;
   let cardCount = 3;
@@ -268,12 +267,8 @@
     btnText.textContent = 'Генерация...';
     status.textContent = 'Подключение к AI...';
 
-    const topicText = topic ? `на тему: "${topic}"` : `по категории "${category}"`;
-    const prompt = `Ты профессиональный финансовый аналитик. Напиши статью на русском языке ${topicText}. Стиль: ${tone}.
-
-Ответь ТОЛЬКО валидным JSON без markdown и без текста вне JSON. Все строки в одну строку без переносов.
-
-{"title":"заголовок","readTime":"X мин чтения","intro":"вводный абзац","sections":[{"heading":"Заголовок 1","content":"текст 1"},{"heading":"Заголовок 2","content":"текст 2"},{"heading":"Заголовок 3","content":"текст 3"}],"quote":"цитата или статистика","conclusion":"заключение","excerpt":"краткое описание 15 слов"}`;
+    const topicText = topic ? ('на тему: "' + topic + '"') : ('по категории "' + category + '"');
+    const prompt = 'Ты профессиональный финансовый аналитик. Напиши статью на русском языке ' + topicText + '. Стиль: ' + tone + '.\n\nОтветь ТОЛЬКО валидным JSON без markdown и без текста вне JSON. Все строки в одну строку без переносов.\n\n{"title":"заголовок","readTime":"X мин чтения","intro":"вводный абзац","sections":[{"heading":"Заголовок 1","content":"текст 1"},{"heading":"Заголовок 2","content":"текст 2"},{"heading":"Заголовок 3","content":"текст 3"}],"quote":"цитата или статистика","conclusion":"заключение","excerpt":"краткое описание 15 слов"}';
 
     try {
       status.textContent = 'Написание статьи...';
@@ -286,17 +281,24 @@
           messages: [{ role: "user", content: prompt }]
         })
       });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      if (!response.ok) throw new Error('HTTP ' + response.status);
       const data = await response.json();
-      const text = data.content.map(i => i.text || '').join('');
+      const text = data.content.map(function(i){ return i.text || ''; }).join('');
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (!jsonMatch) throw new Error('JSON не найден');
       const article = JSON.parse(jsonMatch[0]);
-      const catMap = { 'торговля':'ТРЕЙДИНГ','форекс':'ФОРЕКС','крипто':'КРИПТО','акции':'АКЦИИ','сырьё':'СЫРЬЁ','макро':'МАКРО','волны эллиотта':'ВОЛНЫ ЭЛЛИОТТА','геополитика':'ГЕОПОЛИТИКА' };
-      currentArticle = { ...article, categoryLabel: catMap[category] || category.toUpperCase(), date: new Date().toISOString() };
+      const catMap = {
+        'торговля':'ТРЕЙДИНГ','форекс':'ФОРЕКС','крипто':'КРИПТО',
+        'акции':'АКЦИИ','сырьё':'СЫРЬЁ','макро':'МАКРО',
+        'волны эллиотта':'ВОЛНЫ ЭЛЛИОТТА','геополитика':'ГЕОПОЛИТИКА'
+      };
+      currentArticle = Object.assign({}, article, {
+        categoryLabel: catMap[category] || category.toUpperCase(),
+        date: new Date().toISOString()
+      });
       renderArticle(currentArticle);
       status.textContent = '✓ Готово!';
-      setTimeout(() => { status.textContent = ''; }, 3000);
+      setTimeout(function(){ status.textContent = ''; }, 3000);
     } catch(err) {
       status.textContent = '⚠ Ошибка: ' + err.message;
       console.error(err);
@@ -312,9 +314,9 @@
     document.getElementById('artReadTime').textContent = '⏱ ' + a.readTime;
     const d = new Date();
     document.getElementById('artDate').textContent = '📅 ' + d.toLocaleDateString('ru-RU', {day:'numeric',month:'long',year:'numeric'});
-    let html = `<p>${a.intro}</p>`;
-    a.sections.forEach(s => { html += `<h2>${s.heading}</h2><p>${s.content}</p>`; });
-    html += `<blockquote>${a.quote}</blockquote><h3>// Вывод</h3><p>${a.conclusion}</p>`;
+    let html = '<p>' + a.intro + '</p>';
+    a.sections.forEach(function(s){ html += '<h2>' + s.heading + '</h2><p>' + s.content + '</p>'; });
+    html += '<blockquote>' + a.quote + '</blockquote><h3>// Вывод</h3><p>' + a.conclusion + '</p>';
     document.getElementById('artBody').innerHTML = html;
     const display = document.getElementById('articleDisplay');
     display.classList.add('visible');
@@ -326,10 +328,11 @@
   //  PUBBLICAZIONE SU GITHUB (via Worker sicuro)
   // ═══════════════════════════════════════════
   async function githubRequest(url, method, payload) {
+    const body = { type: 'github', url: url, method: method, payload: payload };
     const res = await fetch(WORKER_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'github', url, method, payload })
+      body: JSON.stringify(body)
     });
     return await res.json();
   }
@@ -347,39 +350,55 @@
 
     try {
       const indexPath = 'articles/index.json';
-      const apiBase = `https://api.github.com/repos/${GITHUB_REPO}/contents`;
+      const apiBase = 'https://api.github.com/repos/' + GITHUB_REPO + '/contents';
       let existingArticles = [];
       let indexSha = null;
 
       // 1. Leggi indice esistente
-      const indexResult = await githubRequest(`${apiBase}/${indexPath}`, 'GET');
+      const indexResult = await githubRequest(apiBase + '/' + indexPath, 'GET');
       if (indexResult.status === 200) {
         indexSha = indexResult.data.sha;
-        existingArticles = JSON.parse(atob(indexResult.data.content.replace(/
-/g, '')));
+        // FIX: usa replace con stringa normale, non regex con newline letterale
+        const cleaned = indexResult.data.content.split('\n').join('');
+        existingArticles = JSON.parse(atob(cleaned));
       }
 
       // 2. Salva articolo
       const slug = 'article-' + Date.now();
-      const articleData = { ...currentArticle, slug, publishedAt: new Date().toISOString() };
+      const articleData = Object.assign({}, currentArticle, { slug: slug, publishedAt: new Date().toISOString() });
       const articleContent = btoa(unescape(encodeURIComponent(JSON.stringify(articleData, null, 2))));
 
-      const saveResult = await githubRequest(`${apiBase}/articles/${slug}.json`, 'PUT', {
-        message: `Articolo: ${currentArticle.title}`,
+      const saveResult = await githubRequest(apiBase + '/articles/' + slug + '.json', 'PUT', {
+        message: 'Articolo: ' + currentArticle.title,
         content: articleContent,
         branch: GITHUB_BRANCH
       });
-      if (saveResult.status !== 200 && saveResult.status !== 201) throw new Error('Errore salvataggio: ' + saveResult.status);
+      if (saveResult.status !== 200 && saveResult.status !== 201) {
+        throw new Error('Errore salvataggio: ' + saveResult.status);
+      }
 
       // 3. Aggiorna indice
-      const newEntry = { slug, title: currentArticle.title, excerpt: currentArticle.excerpt || currentArticle.intro.substring(0,120), category: currentArticle.categoryLabel, readTime: currentArticle.readTime, publishedAt: articleData.publishedAt };
+      const newEntry = {
+        slug: slug,
+        title: currentArticle.title,
+        excerpt: currentArticle.excerpt || currentArticle.intro.substring(0,120),
+        category: currentArticle.categoryLabel,
+        readTime: currentArticle.readTime,
+        publishedAt: articleData.publishedAt
+      };
       existingArticles.unshift(newEntry);
       const newIndexContent = btoa(unescape(encodeURIComponent(JSON.stringify(existingArticles, null, 2))));
-      const indexPayload = { message: 'Aggiorna indice', content: newIndexContent, branch: GITHUB_BRANCH };
+      const indexPayload = {
+        message: 'Aggiorna indice',
+        content: newIndexContent,
+        branch: GITHUB_BRANCH
+      };
       if (indexSha) indexPayload.sha = indexSha;
 
-      const indexResult2 = await githubRequest(`${apiBase}/${indexPath}`, 'PUT', indexPayload);
-      if (indexResult2.status !== 200 && indexResult2.status !== 201) throw new Error('Errore indice: ' + indexResult2.status);
+      const indexResult2 = await githubRequest(apiBase + '/' + indexPath, 'PUT', indexPayload);
+      if (indexResult2.status !== 200 && indexResult2.status !== 201) {
+        throw new Error('Errore indice: ' + indexResult2.status);
+      }
 
       status.textContent = '✓ Опубликовано на сайте!';
       status.style.color = 'var(--gold)';
@@ -388,7 +407,12 @@
       const grid = document.getElementById('blogGrid');
       const card = document.createElement('div');
       card.className = 'blog-card';
-      card.innerHTML = `<div class="card-num">${String(cardCount).padStart(3,'0')}</div><div class="card-cat">${currentArticle.categoryLabel}</div><div class="card-title">${currentArticle.title}</div><div class="card-excerpt">${newEntry.excerpt}...</div><div class="card-footer"><span>${currentArticle.readTime}</span><span class="card-read">Читать →</span></div>`;
+      card.innerHTML =
+        '<div class="card-num">' + String(cardCount).padStart(3,'0') + '</div>' +
+        '<div class="card-cat">' + currentArticle.categoryLabel + '</div>' +
+        '<div class="card-title">' + currentArticle.title + '</div>' +
+        '<div class="card-excerpt">' + newEntry.excerpt + '...</div>' +
+        '<div class="card-footer"><span>' + currentArticle.readTime + '</span><span class="card-read">Читать →</span></div>';
       grid.insertBefore(card, grid.firstChild);
 
     } catch(err) {
@@ -402,10 +426,10 @@
 
   function copyArticle() {
     if (!currentArticle) return;
-    let text = `${currentArticle.title}\n\n${currentArticle.intro}\n\n`;
-    currentArticle.sections.forEach(s => { text += `${s.heading}\n${s.content}\n\n`; });
+    let text = currentArticle.title + '\n\n' + currentArticle.intro + '\n\n';
+    currentArticle.sections.forEach(function(s){ text += s.heading + '\n' + s.content + '\n\n'; });
     text += currentArticle.conclusion;
-    navigator.clipboard.writeText(text).then(() => alert('Статья скопирована!'));
+    navigator.clipboard.writeText(text).then(function(){ alert('Статья скопирована!'); });
   }
 
   function toggleTgConfig() {
@@ -422,21 +446,28 @@
     btn.disabled = true;
     tgStatus.textContent = 'Отправка...';
 
-    let msg = `*${currentArticle.title}*\n\n_${currentArticle.categoryLabel} · XenosFinance_\n\n${currentArticle.intro}\n\n`;
-    currentArticle.sections.forEach(s => { msg += `*${s.heading}*\n${s.content}\n\n`; });
-    msg += `_"${currentArticle.quote}"_\n\n✦ ${currentArticle.conclusion}\n\n#XenosFinance #${currentArticle.categoryLabel.replace(/\s/g,'')}\n\n`;
-    msg += `━━━━━━━━━━━━━━━\n`;
-    msg += `📡 Присоединяйтесь к [XenosFinance](https://t.me/xenosfin) — волны Эллиотта, аналитика, макро и многое другое.\n`;
-    msg += `🔔 Включите уведомления, чтобы не пропустить обновления.`;
+    let msg = '*' + currentArticle.title + '*\n\n';
+    msg += '_' + currentArticle.categoryLabel + ' · XenosFinance_\n\n';
+    msg += currentArticle.intro + '\n\n';
+    currentArticle.sections.forEach(function(s){ msg += '*' + s.heading + '*\n' + s.content + '\n\n'; });
+    msg += '_"' + currentArticle.quote + '"_\n\n';
+    msg += '✦ ' + currentArticle.conclusion + '\n\n';
+    msg += '#XenosFinance #' + currentArticle.categoryLabel.replace(/\s/g,'') + '\n\n';
+    msg += '━━━━━━━━━━━━━━━\n';
+    msg += '📡 Присоединяйтесь к [XenosFinance](https://t.me/xenosfin) — волны Эллиотта, аналитика, макро и многое другое.\n';
+    msg += '🔔 Включите уведомления, чтобы не пропустить обновления.';
 
     try {
-      const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-        method:'POST', headers:{'Content-Type':'application/json'},
+      const res = await fetch('https://api.telegram.org/bot' + token + '/sendMessage', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
         body: JSON.stringify({
-          chat_id: channel, text: msg, parse_mode: 'Markdown',
+          chat_id: channel,
+          text: msg,
+          parse_mode: 'Markdown',
           reply_markup: {
             inline_keyboard: [[
-              { text: "✦ AI Блог", url: "https://xenosfinance.com/XenosBlog.html" },
+              { text: "✦ AI Блог", url: "https://xenosfinance.com/XenosBlogAdmin.html" },
               { text: "📊 Графики", url: "https://xenosfinance.com/xenoswaves_charts.html" },
               { text: "📰 Новости", url: "https://xenosfinance.com" }
             ]]
@@ -450,9 +481,11 @@
       } else {
         tgStatus.textContent = '⚠ ' + (data.description || 'Проверьте токен');
       }
-    } catch(e) { tgStatus.textContent = '⚠ Ошибка соединения'; }
+    } catch(e) {
+      tgStatus.textContent = '⚠ Ошибка соединения';
+    }
     btn.disabled = false;
-    setTimeout(() => { tgStatus.textContent = ''; }, 5000);
+    setTimeout(function(){ tgStatus.textContent = ''; }, 5000);
   }
 </script>
 </body>
