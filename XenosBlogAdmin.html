@@ -238,7 +238,32 @@
   </div>
 </footer>
 
+<div id="loginScreen" style="display:flex;align-items:center;justify-content:center;position:fixed;inset:0;z-index:9999;background:#0b0e14;">
+  <div style="width:340px;background:#111520;border:1px solid #2a3550;padding:44px 36px;">
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:1.2rem;font-weight:500;color:#e8eaf0;margin-bottom:4px;">XENOS<span style="color:#c9a84c;">FINANCE</span></div>
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:0.6rem;color:#5a6070;letter-spacing:.15em;text-transform:uppercase;margin-bottom:32px;">Admin · Accesso riservato</div>
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:0.6rem;letter-spacing:.12em;text-transform:uppercase;color:#5a6070;margin-bottom:6px;">Password</div>
+    <input id="loginPw" type="password" placeholder="••••••••"
+      style="width:100%;background:#0b0e14;border:1px solid #1e2535;color:#e8eaf0;font-family:IBM Plex Mono,monospace;font-size:13px;padding:11px 13px;outline:none;margin-bottom:14px;"
+      onkeydown="if(event.key==='Enter') doLogin()">
+    <button onclick="doLogin()"
+      style="width:100%;background:#c9a84c;color:#0b0e14;border:none;font-family:IBM Plex Mono,monospace;font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;padding:13px;cursor:pointer;">
+      Accedi
+    </button>
+    <div id="loginErr" style="font-family:IBM Plex Mono,monospace;font-size:11px;color:#e05555;margin-top:10px;min-height:16px;"></div>
+  </div>
+</div>
+
 <script>
+  function doLogin() {
+    if (document.getElementById('loginPw').value === 'xenosfinance2026') {
+      document.getElementById('loginScreen').style.display = 'none';
+    } else {
+      document.getElementById('loginErr').textContent = 'Password errata';
+      document.getElementById('loginPw').value = '';
+    }
+  }
+
   // ═══════════════════════════════════════════
   //  CONFIGURAZIONE GITHUB
   // ═══════════════════════════════════════════
@@ -328,13 +353,21 @@
   //  PUBBLICAZIONE SU GITHUB (via Worker sicuro)
   // ═══════════════════════════════════════════
   async function githubRequest(url, method, payload) {
-    const body = { type: 'github', url: url, method: method, payload: payload };
     const res = await fetch(WORKER_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
+      body: JSON.stringify({
+        type: 'github',
+        url: url,
+        method: method || 'GET',
+        payload: payload || null
+      })
     });
-    return await res.json();
+    const data = await res.json();
+    // Worker returns { status, data } — handle both shapes
+    if (data && typeof data.status === 'number') return data;
+    // fallback: wrap raw response
+    return { status: res.ok ? 200 : res.status, data: data };
   }
 
   async function publishToBlog() {
