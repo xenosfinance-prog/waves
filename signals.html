@@ -472,11 +472,8 @@
       <label>Access Password</label>
       <input type="password" id="pwd-input" placeholder="••••••••" />
     </div>
-    <div class="field">
-      <label>Cloudflare Worker URL</label>
-      <input type="text" id="worker-url" placeholder="https://xenos-ai-proxy.xenosfinance.workers.dev" />
-    </div>
     <button class="btn" onclick="doLogin()">ENTER SIGNAL ENGINE</button>
+    <input type="hidden" id="worker-url" value="https://xenos-ai-proxy.xenosfinance.workers.dev" />
     <div style="font-size:10px;color:var(--text-dim);margin-top:14px;line-height:1.6;">
       Accesso riservato. Le credenziali non vengono trasmesse esternamente.
     </div>
@@ -654,13 +651,10 @@ const PATTERNS = [
 // ── AUTH ──
 function doLogin() {
   const pwd = document.getElementById('pwd-input').value;
-  const wUrl = document.getElementById('worker-url').value.trim();
   if (!pwd) { showToast('Inserisci la password'); return; }
-  if (!wUrl) { showToast('Inserisci il Worker URL'); return; }
-  const stored = 'xenosfinance2026'; // 
+  const stored = 'xenosfinance2026';
   if (pwd !== stored) { showToast('Password errata'); return; }
-  WORKER = wUrl.replace(/\/$/, '');
-  localStorage.setItem('xenos_worker', WORKER);
+  WORKER = 'https://xenos-ai-proxy.xenosfinance.workers.dev';
   document.getElementById('auth-screen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   startClock();
@@ -807,7 +801,7 @@ Output the JSON array directly. Example: [{"pair":"EURUSD",...},{"pair":"GOLD",.
 
 // ── CALL API ──
 async function callClaudeAPI(prompt) {
-  const endpoint = WORKER + '/ai';
+  const endpoint = WORKER + '/proxy';
 
   const res = await fetch(endpoint, {
     method: 'POST',
@@ -972,8 +966,6 @@ function showToast(msg) {
 
 // ── INIT ──
 window.onload = () => {
-  const saved = localStorage.getItem('xenos_worker');
-  if (saved) document.getElementById('worker-url').value = saved;
   document.getElementById('empty-state').classList.add('active');
   document.getElementById('pwd-input').addEventListener('keydown', e => {
     if (e.key === 'Enter') doLogin();
