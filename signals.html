@@ -790,674 +790,749 @@ function renderSignals(list) {
 
 
 // ══════════════════════════════════════════════════════════════
-// CHART ENGINE — Stile Autochartist
-// Sfondo bianco, candele verde/nero, trendlines nere, freccia target
+// XENOS CHART ENGINE — Pattern Geometrico Puro
+// Niente candele false. Solo il pattern, i livelli, la freccia.
 // ══════════════════════════════════════════════════════════════
 
 function drawPatternChart(canvas, sig) {
-  const W = 560, H = 260;
-  const ML = 12, MR = 72, MT = 28, MB = 32;
+  const W = 580, H = 280;
+  const ML = 10, MR = 76, MT = 36, MB = 28;
   const CW = W - ML - MR;
   const CH = H - MT - MB;
 
-  canvas.width  = W;
-  canvas.height = H;
+  canvas.width  = W * 2;  // retina
+  canvas.height = H * 2;
+  canvas.style.width  = W + 'px';
+  canvas.style.height = H + 'px';
+
   const ctx = canvas.getContext('2d');
+  ctx.scale(2, 2);  // retina crisp
 
   const isBull = sig.direction === 'BUY';
   const entry  = parseFloat(sig.entry);
   const sl     = parseFloat(sig.sl);
   const tp     = parseFloat(sig.tp);
+  const pat    = sig.pattern.toLowerCase();
 
-  // Build candles
-  const candles = buildCandles(sig, isBull, entry, sl, tp);
-  const N = candles.length;
+  // Price range — centered around the pattern
+  const spread = Math.abs(tp - sl);
+  const center = (entry + sl + tp) / 3;
+  const pMin = center - spread * 2.2;
+  const pMax = center + spread * 2.2;
 
-  // Price range
-  const allP = candles.flatMap(c => [c.h, c.l]);
-  allP.push(entry, sl, tp);
-  const rawMin = Math.min(...allP);
-  const rawMax = Math.max(...allP);
-  const pad = (rawMax - rawMin) * 0.15;
-  const pMin = rawMin - pad;
-  const pMax = rawMax + pad * 0.6;
-
-  function py(p) { return MT + CH - ((p - pMin) / (pMax - pMin)) * CH; }
-  function candleX(i) {
-    const step = CW / N;
-    return ML + i * step + step * 0.1;
+  function py(p) {
+    return MT + CH - ((p - pMin) / (pMax - pMin)) * CH;
   }
-  const candleW = Math.max(4, Math.floor(CW / N) - 2);
+  function px(t) {  // t = 0..1 along chart width
+    return ML + t * CW;
+  }
 
-  // ── WHITE BACKGROUND ──
+  // ── BACKGROUND ──
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, W, H);
 
-  // Light grey grid
-  ctx.strokeStyle = '#e8ecf0';
+  // Header bar
+  ctx.fillStyle = '#f4f7fb';
+  ctx.fillRect(0, 0, W, MT);
+  // Header border bottom
+  ctx.strokeStyle = '#dde3eb';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(0, MT); ctx.lineTo(W, MT); ctx.stroke();
+
+  // Header text
+  ctx.fillStyle = '#1a2030';
+  ctx.font = 'bold 10px Arial, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText(`${sig.pair}  ·  ${selectedTF}`, ML + 6, MT - 14);
+  ctx.fillStyle = '#5a7a9a';
+  ctx.font = '9px Arial, sans-serif';
+  ctx.fillText(sig.pattern, ML + 6, MT - 4);
+
+  // Direction badge
+  const badgeColor = isBull ? '#1a8c40' : '#c81e32';
+  ctx.fillStyle = badgeColor;
+  ctx.beginPath();
+  ctx.roundRect(W - MR - 110, 6, 58, 20, 3);
+  ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 9px Arial, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(isBull ? '▲  BUY' : '▼  SELL', W - MR - 81, 19);
+
+  // Confidence badge
+  const confColor = sig.confidence >= 80 ? '#1a8c40' : sig.confidence >= 70 ? '#d47e00' : '#1565c0';
+  ctx.fillStyle = confColor;
+  ctx.beginPath();
+  ctx.roundRect(W - MR - 46, 6, 42, 20, 3);
+  ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 9px Arial, sans-serif';
+  ctx.fillText(`${sig.confidence}%`, W - MR - 25, 19);
+
+  // ── GRID ──
+  ctx.strokeStyle = '#edf0f4';
   ctx.lineWidth = 0.8;
   for (let i = 0; i <= 6; i++) {
     const y = MT + (i / 6) * CH;
     ctx.beginPath(); ctx.moveTo(ML, y); ctx.lineTo(W - MR, y); ctx.stroke();
   }
 
-  // ── MA LINE (smooth curve, like autochartist) ──
-  ctx.strokeStyle = '#1a1a2e';
-  ctx.lineWidth = 1.5;
-  ctx.globalAlpha = 0.5;
-  ctx.beginPath();
-  const maPeriod = 6;
-  let maStarted = false;
-  for (let i = maPeriod; i < N; i++) {
-    const avg = candles.slice(i - maPeriod, i).reduce((s, c) => s + c.c, 0) / maPeriod;
-    const x = candleX(i) + candleW / 2;
-    const y = py(avg);
-    if (!maStarted) { ctx.moveTo(x, y); maStarted = true; } else { ctx.lineTo(x, y); }
-  }
-  ctx.stroke();
-  ctx.globalAlpha = 1;
+  // ── DRAW PATTERN ──
+  drawPattern(ctx, pat, isBull, entry, sl, tp, py, px, CW, CH, ML, MR, MT, pMin, pMax, spread, W);
 
-  // ── PATTERN OVERLAY (trendlines, shapes) — drawn BEFORE candles ──
-  drawOverlay(ctx, sig, candles, N, isBull, py, candleX, candleW, CW, CH, ML, MR, MT, entry, sl, tp, pMin, pMax, W);
+  // ── HORIZONTAL LEVELS ──
+  drawLevel(ctx, tp,    isBull ? '#1a8c40' : '#c81e32', isBull ? 'TARGET' : 'TARGET', true,  py, ML, W, MR, sig.pair);
+  drawLevel(ctx, entry, '#1565c0',                       'ENTRY',                      false, py, ML, W, MR, sig.pair);
+  drawLevel(ctx, sl,    isBull ? '#c81e32' : '#1a8c40', 'STOP',                       true,  py, ML, W, MR, sig.pair);
 
-  // ── CANDLES ──
-  candles.forEach((c, i) => {
-    const x   = candleX(i);
-    const isUp = c.c >= c.o;
-    const bodyTop = Math.min(py(c.o), py(c.c));
-    const bodyH   = Math.max(1.5, Math.abs(py(c.o) - py(c.c)));
-    const wickX   = x + candleW / 2;
+  // ── CHART BORDER ──
+  ctx.strokeStyle = '#d0d8e4';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(ML, MT, CW, CH);
 
-    // Wick
-    ctx.strokeStyle = isUp ? '#1a7a3a' : '#1a1a1a';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(wickX, py(c.h));
-    ctx.lineTo(wickX, py(c.l));
-    ctx.stroke();
-
-    // Body
-    ctx.fillStyle = isUp ? '#26a85a' : '#1a1a1a';
-    ctx.fillRect(x, bodyTop, candleW, bodyH);
-  });
-
-  // ── BREAKOUT VERTICAL DASHED LINE ──
-  const brkI = Math.floor(N * 0.72);
-  const brkX = candleX(brkI) + candleW / 2;
-  ctx.strokeStyle = '#333333';
-  ctx.lineWidth = 1.2;
-  ctx.setLineDash([5, 5]);
-  ctx.beginPath();
-  ctx.moveTo(brkX, MT);
-  ctx.lineTo(brkX, MT + CH);
-  ctx.stroke();
-  ctx.setLineDash([]);
-
-  // ── TARGET BOX + ARROW (like autochartist) ──
-  const tpY    = py(tp);
-  const entryY = py(entry);
-  const slY    = py(sl);
-  const arrowStartY = isBull ? entryY - 10 : entryY + 10;
-  const arrowEndY   = isBull ? tpY + 20 : tpY - 20;
-  const arrowX = W - MR - 10;
-
-  // Target candle (projected)
-  const projX = candleX(N - 2);
-  const projTop  = isBull ? tpY : entryY;
-  const projBot  = isBull ? entryY : tpY;
-  ctx.fillStyle = isBull ? 'rgba(38,168,90,0.25)' : 'rgba(200,30,50,0.25)';
-  ctx.fillRect(projX, projTop, candleW * 2, projBot - projTop);
-  ctx.strokeStyle = isBull ? '#26a85a' : '#c81e32';
-  ctx.lineWidth = 1.5;
-  ctx.strokeRect(projX, projTop, candleW * 2, projBot - projTop);
-
-  // Arrow
-  const arrColor = isBull ? '#26a85a' : '#c81e32';
-  ctx.strokeStyle = arrColor;
-  ctx.fillStyle = arrColor;
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(brkX + 18, arrowStartY);
-  ctx.lineTo(arrowX - 4, arrowEndY);
-  ctx.stroke();
-  // Arrowhead
-  const ang = Math.atan2(arrowEndY - arrowStartY, arrowX - 4 - brkX - 18);
-  ctx.beginPath();
-  ctx.moveTo(arrowX - 4, arrowEndY);
-  ctx.lineTo(arrowX - 4 - 10 * Math.cos(ang - 0.4), arrowEndY - 10 * Math.sin(ang - 0.4));
-  ctx.lineTo(arrowX - 4 - 10 * Math.cos(ang + 0.4), arrowEndY - 10 * Math.sin(ang + 0.4));
-  ctx.closePath();
-  ctx.fill();
-
-  // ── RIGHT AXIS — price labels ──
-  const axX = W - MR + 4;
-
-  function rightLabel(price, color, text, filled = true) {
-    const y = py(price);
-    const lw = MR - 6;
-    if (filled) {
-      ctx.fillStyle = color;
-      ctx.fillRect(axX, y - 9, lw, 18);
-      ctx.fillStyle = '#ffffff';
-    } else {
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 1;
-      ctx.strokeRect(axX, y - 9, lw, 18);
-      ctx.fillStyle = color;
-    }
-    ctx.font = 'bold 8.5px Arial, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(fmtPrice(price, sig.pair), axX + lw / 2, y + 3);
-
-    // Dotted line to axis
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 0.8;
-    ctx.setLineDash([3, 3]);
-    ctx.beginPath();
-    ctx.moveTo(ML, y);
-    ctx.lineTo(axX, y);
-    ctx.stroke();
-    ctx.setLineDash([]);
-
-    // Small label above box
-    if (text) {
-      ctx.fillStyle = color;
-      ctx.font = 'bold 7px Arial, sans-serif';
-      ctx.textAlign = 'left';
-      ctx.fillText(text, axX, y - 10);
-    }
-  }
-
-  // Y-axis tick prices (grey)
-  ctx.fillStyle = '#999';
+  // ── Y AXIS PRICE TICKS ──
+  ctx.fillStyle = '#b0bcc8';
   ctx.font = '8px Arial, sans-serif';
   ctx.textAlign = 'right';
   for (let i = 1; i <= 5; i++) {
     const p = pMin + (i / 6) * (pMax - pMin);
     const y = py(p);
-    if (y > MT + 10 && y < MT + CH - 10) {
-      ctx.fillStyle = '#aab';
-      ctx.fillText(fmtPrice(p, sig.pair), W - MR + 2, y + 3);
+    if (y > MT + 8 && y < MT + CH - 8) {
+      ctx.fillText(fmtPrice(p, sig.pair), ML - 2, y + 3);
     }
   }
 
-  rightLabel(tp,    isBull ? '#1a8c40' : '#c81e32', 'TARGET');
-  rightLabel(entry, '#1565c0', 'ENTRY', false);
-  rightLabel(sl,    isBull ? '#c81e32' : '#1a8c40', 'STOP');
-
-  // ── PATTERN LABEL (big text like autochartist) ──
-  const patLabel = sig.pattern.toUpperCase();
-  ctx.font = 'bold 13px Arial, sans-serif';
-  ctx.textAlign = 'left';
-  ctx.fillStyle = 'rgba(20,30,50,0.12)';
-  ctx.fillText(patLabel, ML + 6, MT + CH / 2 + 6);
-  ctx.fillStyle = '#1a2030';
-  ctx.globalAlpha = 0.18;
-  ctx.fillText(patLabel, ML + 5, MT + CH / 2 + 5);
-  ctx.globalAlpha = 1;
-
-  // ── HEADER BAR ──
-  ctx.fillStyle = '#f0f4f8';
-  ctx.fillRect(0, 0, W, MT);
-  ctx.fillStyle = '#1a2030';
-  ctx.font = 'bold 10px Arial, sans-serif';
-  ctx.textAlign = 'left';
-  ctx.fillText(`${sig.pair}  ·  ${selectedTF}  ·  ${sig.pattern}`, ML + 4, MT - 8);
-
-  // Confidence pill top-right
-  const confColor = sig.confidence >= 80 ? '#1a8c40' : sig.confidence >= 70 ? '#e67e00' : '#1565c0';
-  ctx.fillStyle = confColor;
-  ctx.fillRect(W - MR - 60, 4, 54, 18);
-  ctx.fillStyle = '#fff';
-  ctx.font = 'bold 9px Arial, sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText(`CONF: ${sig.confidence}%`, W - MR - 60 + 27, 16);
-
-  // Direction badge
-  ctx.fillStyle = isBull ? '#26a85a' : '#c81e32';
-  ctx.fillRect(W - MR - 120, 4, 52, 18);
-  ctx.fillStyle = '#fff';
-  ctx.fillText(isBull ? '▲ BUY' : '▼ SELL', W - MR - 120 + 26, 16);
-
-  // ── X-AXIS time labels ──
-  ctx.fillStyle = '#888';
+  // ── X AXIS LABELS ──
+  ctx.fillStyle = '#b0bcc8';
   ctx.font = '8px Arial, sans-serif';
   ctx.textAlign = 'center';
-  [0, Math.floor(N/3), Math.floor(2*N/3), N-2].forEach(i => {
-    const x = candleX(i) + candleW / 2;
-    ctx.fillText(`-${N - i}`, x, H - 8);
-  });
-  ctx.fillStyle = '#333';
+  ctx.fillText('◀ HISTORY', px(0.2), MT + CH + 18);
+  ctx.fillStyle = '#1a2030';
   ctx.font = 'bold 8px Arial, sans-serif';
-  ctx.fillText('NOW →', candleX(N-1) + candleW / 2, H - 8);
-
-  // Border
-  ctx.strokeStyle = '#d0d8e0';
-  ctx.lineWidth = 1;
-  ctx.strokeRect(ML, MT, CW, CH);
+  ctx.fillText('NOW', px(0.72), MT + CH + 18);
+  ctx.fillStyle = badgeColor;
+  ctx.fillText('TARGET ▶', px(0.88), MT + CH + 18);
 }
 
-// ── OVERLAY — trendlines stile Autochartist ──
-function drawOverlay(ctx, sig, candles, N, isBull, py, candleX, candleW, CW, CH, ML, MR, MT, entry, sl, tp, pMin, pMax, W) {
-  const pat = sig.pattern.toLowerCase();
-  const col = isBull ? '#26a85a' : '#c81e32';
-  const black = '#1a1a1a';
+// ── LEVEL LINE + RIGHT LABEL ──
+function drawLevel(ctx, price, color, label, filled, py, ML, W, MR, pair) {
+  const y = py(price);
+  const axX = W - MR + 4;
+  const lw = MR - 6;
 
-  function line(x1, y1, x2, y2, color, width, dash = []) {
-    ctx.save();
+  // Dashed line across chart
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1;
+  ctx.setLineDash([5, 4]);
+  ctx.globalAlpha = 0.85;
+  ctx.beginPath();
+  ctx.moveTo(ML, y);
+  ctx.lineTo(axX, y);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+
+  // Label box
+  ctx.save();
+  if (filled) {
+    ctx.fillStyle = color;
+    ctx.fillRect(axX, y - 10, lw, 20);
+    ctx.fillStyle = '#fff';
+  } else {
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(axX, y - 10, lw, 20);
     ctx.strokeStyle = color;
-    ctx.lineWidth = width;
-    ctx.setLineDash(dash);
-    ctx.beginPath();
-    ctx.moveTo(x1, y1);
-    ctx.lineTo(x2, y2);
-    ctx.stroke();
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(axX, y - 10, lw, 20);
+    ctx.fillStyle = color;
+  }
+  ctx.font = 'bold 7px Arial, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText(label, axX + 3, y - 2);
+  ctx.font = 'bold 8px Arial, sans-serif';
+  ctx.fillText(fmtPrice(price, pair), axX + 3, y + 8);
+  ctx.restore();
+}
+
+// ── PATTERN DRAWER ──
+function drawPattern(ctx, pat, isBull, entry, sl, tp, py, px, CW, CH, ML, MR, MT, pMin, pMax, spread, W) {
+
+  const col   = isBull ? '#1a8c40' : '#c81e32';
+  const black = '#1a2030';
+  const orange = '#d47e00';
+
+  // ── Helpers ──
+  function line(x1, y1, x2, y2, color, width, dash = [], alpha = 1) {
+    ctx.save();
+    ctx.strokeStyle = color; ctx.lineWidth = width;
+    ctx.setLineDash(dash); ctx.globalAlpha = alpha;
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
     ctx.restore();
   }
 
-  function lbl(text, x, y, color, size = 10, bold = true) {
+  function fillZone(x1, y1, x2, y2, color, alpha = 0.08) {
+    ctx.save(); ctx.fillStyle = color; ctx.globalAlpha = alpha;
+    ctx.fillRect(x1, Math.min(y1,y2), x2-x1, Math.abs(y2-y1));
+    ctx.restore();
+  }
+
+  function label(text, x, y, color, size = 9, bg = true) {
     ctx.save();
-    ctx.font = `${bold ? 'bold ' : ''}${size}px Arial, sans-serif`;
-    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    ctx.font = `bold ${size}px Arial, sans-serif`;
     const tw = ctx.measureText(text).width;
-    ctx.fillRect(x - tw/2 - 3, y - size, tw + 6, size + 4);
-    ctx.fillStyle = color;
-    ctx.textAlign = 'center';
+    if (bg) {
+      ctx.fillStyle = 'rgba(255,255,255,0.92)';
+      ctx.fillRect(x - tw/2 - 4, y - size - 1, tw + 8, size + 5);
+    }
+    ctx.fillStyle = color; ctx.textAlign = 'center';
     ctx.fillText(text, x, y);
     ctx.restore();
   }
 
-  function cx(i) { return candleX(Math.min(i, N-1)) + candleW / 2; }
-  const range = pMax - pMin;
-  const brkI  = Math.floor(N * 0.72);
+  function dot(x, y, color, r = 4) {
+    ctx.save();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(x, y, r + 1, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = color;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+
+  function arrow(x1, y1, x2, y2, color, width = 2) {
+    ctx.save();
+    ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = width;
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+    const ang = Math.atan2(y2 - y1, x2 - x1);
+    const hs = 9;
+    ctx.beginPath();
+    ctx.moveTo(x2, y2);
+    ctx.lineTo(x2 - hs*Math.cos(ang-0.35), y2 - hs*Math.sin(ang-0.35));
+    ctx.lineTo(x2 - hs*Math.cos(ang+0.35), y2 - hs*Math.sin(ang+0.35));
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+
+  function verticalDash(x, color = '#555') {
+    line(x, MT, x, MT + CH, color, 1, [5, 5], 0.5);
+  }
+
+  // NOW line
+  const nowX = px(0.72);
+  verticalDash(nowX, '#888');
+
+  // ── Target zone (right of NOW line) ──
+  const tpY = py(tp), entryY = py(entry), slY = py(sl);
+  const targetTop = isBull ? tpY : entryY;
+  const targetBot = isBull ? entryY : tpY;
+  fillZone(nowX, targetTop, W - MR, targetBot, col, 0.10);
+  // SL zone
+  const slTop = isBull ? entryY : slY;
+  const slBot = isBull ? slY : entryY;
+  fillZone(nowX, slTop, W - MR, slBot, isBull ? '#c81e32' : '#1a8c40', 0.05);
+
+  // ── Arrow from entry to TP ──
+  const arrowStartX = nowX + 12;
+  const arrowEndX   = W - MR - 18;
+  const arrowStartY = entryY;
+  const arrowEndY   = isBull ? tpY + 14 : tpY - 14;
+  arrow(arrowStartX, arrowStartY, arrowEndX, arrowEndY, col, 2.5);
+
+  // ══════════════════════════════════
+  // PATTERN GEOMETRIES (left of NOW)
+  // ══════════════════════════════════
 
   // ── HEAD & SHOULDERS ──
   if (pat.includes('head') && pat.includes('shoulder')) {
-    const nkPrice = entry + (isBull ? -range*0.05 : range*0.05);
-    const lsP  = entry + (isBull ? range*0.22 : -range*0.22);
-    const hdP  = entry + (isBull ? range*0.36 : -range*0.36);
-    const rsP  = entry + (isBull ? range*0.20 : -range*0.20);
-    const lsI = 4, hdI = 10, rsI = 16;
-    // Neckline
-    line(cx(1), py(nkPrice+range*0.01), cx(N-3), py(nkPrice-range*0.01), black, 2);
-    // Peak connectors
-    line(cx(lsI), py(lsP), cx(hdI), py(hdP), '#444', 1, [4,3]);
-    line(cx(hdI), py(hdP), cx(rsI), py(rsP), '#444', 1, [4,3]);
-    // Dots on peaks
-    [{ i: lsI, p: lsP, l: 'LS' }, { i: hdI, p: hdP, l: 'HEAD' }, { i: rsI, p: rsP, l: 'RS' }].forEach(({ i, p, l }) => {
-      ctx.fillStyle = '#e67e00';
-      ctx.beginPath(); ctx.arc(cx(i), py(p), 4, 0, Math.PI*2); ctx.fill();
-      lbl(l, cx(i), py(p) - 8, '#e67e00', 9);
-    });
-    lbl('NECKLINE', cx(8), py(nkPrice) - 6, black, 9);
+    const nkY  = py(entry + (isBull ? -spread*0.3 : spread*0.3));
+    const lsY  = py(entry + (isBull ?  spread*1.1 : -spread*1.1));
+    const hdY  = py(entry + (isBull ?  spread*1.7 : -spread*1.7));
+    const rsY  = py(entry + (isBull ?  spread*1.0 : -spread*1.0));
+    const x0=px(0.05), lsX=px(0.20), v1X=px(0.30), hdX=px(0.42), v2X=px(0.54), rsX=px(0.63), x1=nowX;
+
+    // Neckline — bold black
+    line(x0, nkY, x1, nkY, black, 2);
+    label('NECKLINE', px(0.35), nkY - 8, black, 8);
+
+    // Shoulders and head shape
+    line(x0,  nkY, lsX, lsY,  black, 1.5);
+    line(lsX, lsY, v1X, nkY,  black, 1.5);
+    line(v1X, nkY, hdX, hdY,  black, 1.5);
+    line(hdX, hdY, v2X, nkY,  black, 1.5);
+    line(v2X, nkY, rsX, rsY,  black, 1.5);
+    line(rsX, rsY, x1,  nkY,  black, 1.5);
+
+    // Fill under pattern
+    ctx.save(); ctx.fillStyle = '#1a2030'; ctx.globalAlpha = 0.04;
+    ctx.beginPath();
+    ctx.moveTo(x0, nkY); ctx.lineTo(lsX, lsY); ctx.lineTo(v1X, nkY);
+    ctx.lineTo(hdX, hdY); ctx.lineTo(v2X, nkY); ctx.lineTo(rsX, rsY);
+    ctx.lineTo(x1, nkY); ctx.closePath(); ctx.fill(); ctx.restore();
+
+    dot(lsX, lsY, orange); label('LS',   lsX, lsY - 10, orange);
+    dot(hdX, hdY, orange); label('HEAD', hdX, hdY - 10, orange);
+    dot(rsX, rsY, orange); label('RS',   rsX, rsY - 10, orange);
+
+    // Breakout arrow down from neckline
+    arrow(x1, nkY, x1 + 14, isBull ? nkY + 28 : nkY - 28, col, 2);
   }
 
-  // ── DOUBLE TOP / BOTTOM ──
+  // ── DOUBLE TOP / DOUBLE BOTTOM ──
   else if (pat.includes('double')) {
-    const peakP = entry + (isBull ? -range*0.26 : range*0.26);
-    const p1I = 5, p2I = 14;
-    line(cx(0), py(entry), cx(N-2), py(entry), black, 2, [5,4]);
-    line(cx(p1I), py(peakP), cx(p2I), py(peakP), '#e67e00', 1.5, [4,3]);
-    [p1I, p2I].forEach(i => {
-      ctx.fillStyle = '#e67e00';
-      ctx.beginPath(); ctx.arc(cx(i), py(peakP), 4, 0, Math.PI*2); ctx.fill();
-    });
-    lbl(isBull ? 'DOUBLE BOTTOM' : 'DOUBLE TOP', cx(9), py(peakP) - 10, '#e67e00', 9);
-    lbl('NECKLINE', cx(9), py(entry) - 6, black, 9);
+    const peakY = py(entry + (isBull ? -spread*1.4 : spread*1.4));
+    const nkY   = py(entry);
+    const p1X=px(0.18), valX=px(0.36), p2X=px(0.54), x0=px(0.05), x1=nowX;
+
+    // Neckline
+    line(x0, nkY, x1, nkY, black, 2, [6,4]);
+    label('NECKLINE', px(0.35), nkY + (isBull ? 12 : -12), black, 8);
+
+    // Pattern shape
+    line(x0,  nkY,  p1X,  peakY, black, 1.8);
+    line(p1X, peakY,valX, nkY,   black, 1.8);
+    line(valX,nkY,  p2X,  peakY, black, 1.8);
+    line(p2X, peakY,x1,   nkY,   black, 1.8);
+
+    // Fill
+    ctx.save(); ctx.fillStyle = orange; ctx.globalAlpha = 0.06;
+    ctx.beginPath();
+    ctx.moveTo(x0, nkY); ctx.lineTo(p1X, peakY); ctx.lineTo(valX, nkY);
+    ctx.lineTo(p2X, peakY); ctx.lineTo(x1, nkY); ctx.closePath();
+    ctx.fill(); ctx.restore();
+
+    dot(p1X, peakY, orange);
+    dot(p2X, peakY, orange);
+    label(isBull ? 'DOUBLE BOTTOM' : 'DOUBLE TOP', px(0.35), peakY - 10, orange);
   }
 
   // ── ASCENDING TRIANGLE ──
   else if (pat.includes('ascending')) {
-    const resP = entry + (isBull ? range*0.20 : -range*0.20);
-    const supP1 = entry - (isBull ? range*0.22 : -range*0.22);
-    const supP2 = entry - (isBull ? range*0.06 : -range*0.06);
-    const x1 = cx(0), x2 = cx(brkI);
-    // Resistance (flat, bold)
-    line(x1, py(resP), x2, py(resP), black, 2);
-    // Rising support
-    line(x1, py(supP1), x2, py(supP2), black, 2);
-    // Fill
-    ctx.save();
-    ctx.globalAlpha = 0.07;
-    ctx.fillStyle = col;
+    const resY  = py(entry + (isBull ? spread*1.0 : -spread*1.0));
+    const sup1Y = py(entry + (isBull ? -spread*1.1 : spread*1.1));
+    const sup2Y = py(entry + (isBull ? -spread*0.1 : spread*0.1));
+    const x0=px(0.06), x1=nowX;
+
+    // Fill triangle
+    ctx.save(); ctx.fillStyle = col; ctx.globalAlpha = 0.07;
     ctx.beginPath();
-    ctx.moveTo(x1, py(supP1));
-    ctx.lineTo(x2, py(supP2));
-    ctx.lineTo(x2, py(resP));
-    ctx.lineTo(x1, py(resP));
-    ctx.closePath(); ctx.fill();
-    ctx.restore();
-    lbl('RESISTANCE', (x1 + x2)/2, py(resP) - 7, black, 8);
-    lbl('SUPPORT ↗', (x1 + x2)/2, (py(supP1)+py(supP2))/2 + 14, black, 8);
+    ctx.moveTo(x0, sup1Y); ctx.lineTo(x1, sup2Y);
+    ctx.lineTo(x1, resY); ctx.lineTo(x0, resY);
+    ctx.closePath(); ctx.fill(); ctx.restore();
+
+    // Resistance flat
+    line(x0, resY, x1, resY, black, 2.5);
+    label('RESISTANCE', px(0.37), resY - 8, black, 8);
+
+    // Rising support
+    line(x0, sup1Y, x1, sup2Y, black, 2.5);
+    label('SUPPORT ↗', px(0.37), (sup1Y+sup2Y)/2 + 14, black, 8);
+
+    // Bounce dots on support
+    [0.15, 0.30, 0.48, 0.62].forEach((t, i) => {
+      const bY = sup1Y + (sup2Y - sup1Y) * (t / 0.72);
+      dot(px(t), bY, col, 3);
+    });
+    // Touch dots on resistance
+    [0.22, 0.45].forEach(t => dot(px(t), resY, col, 3));
+
+    // Breakout
+    arrow(nowX, resY, nowX + 16, isBull ? resY - 30 : resY + 30, col, 2.5);
   }
 
   // ── DESCENDING TRIANGLE ──
   else if (pat.includes('descending')) {
-    const supP  = entry - (isBull ? range*0.20 : -range*0.20);
-    const resP1 = entry + (isBull ? range*0.22 : -range*0.22);
-    const resP2 = entry + (isBull ? range*0.06 : -range*0.06);
-    const x1 = cx(0), x2 = cx(brkI);
-    line(x1, py(supP), x2, py(supP), black, 2);
-    line(x1, py(resP1), x2, py(resP2), black, 2);
-    ctx.save(); ctx.globalAlpha = 0.07; ctx.fillStyle = col;
+    const supY  = py(entry - (isBull ? spread*1.0 : -spread*1.0));
+    const res1Y = py(entry + (isBull ? spread*1.1 : -spread*1.1));
+    const res2Y = py(entry + (isBull ? spread*0.1 : -spread*0.1));
+    const x0=px(0.06), x1=nowX;
+
+    ctx.save(); ctx.fillStyle = col; ctx.globalAlpha = 0.07;
     ctx.beginPath();
-    ctx.moveTo(x1, py(resP1)); ctx.lineTo(x2, py(resP2));
-    ctx.lineTo(x2, py(supP)); ctx.lineTo(x1, py(supP));
+    ctx.moveTo(x0, res1Y); ctx.lineTo(x1, res2Y);
+    ctx.lineTo(x1, supY); ctx.lineTo(x0, supY);
     ctx.closePath(); ctx.fill(); ctx.restore();
-    lbl('SUPPORT', (x1+x2)/2, py(supP) + 14, black, 8);
-    lbl('RESISTANCE ↘', (x1+x2)/2, (py(resP1)+py(resP2))/2 - 8, black, 8);
+
+    line(x0, supY, x1, supY, black, 2.5);
+    label('SUPPORT', px(0.37), supY + 14, black, 8);
+    line(x0, res1Y, x1, res2Y, black, 2.5);
+    label('RESISTANCE ↘', px(0.37), (res1Y+res2Y)/2 - 8, black, 8);
+
+    [0.15, 0.30, 0.48, 0.62].forEach(t => dot(px(t), supY, col, 3));
+    [0.22, 0.45].forEach(t => {
+      const rY = res1Y + (res2Y - res1Y) * (t / 0.72);
+      dot(px(t), rY, col, 3);
+    });
+    arrow(nowX, supY, nowX + 16, isBull ? supY - 30 : supY + 30, col, 2.5);
   }
 
-  // ── SYMMETRICAL TRIANGLE / PENNANT ──
+  // ── SYMMETRICAL TRIANGLE ──
   else if (pat.includes('symmetrical') || pat.includes('pennant')) {
-    const mid  = (pMin + pMax) / 2;
-    const topP1 = mid + range*0.32, topP2 = mid + range*0.04;
-    const botP1 = mid - range*0.32, botP2 = mid - range*0.04;
-    const x1 = cx(0), x2 = cx(brkI);
-    line(x1, py(topP1), x2, py(topP2), black, 2);
-    line(x1, py(botP1), x2, py(botP2), black, 2);
-    ctx.save(); ctx.globalAlpha = 0.06; ctx.fillStyle = '#888';
+    const mid   = py((pMin + pMax) / 2);
+    const top1Y = py(entry + spread*1.3);
+    const top2Y = mid - 5;
+    const bot1Y = py(entry - spread*1.3);
+    const bot2Y = mid + 5;
+    const x0=px(0.06), x1=nowX;
+
+    ctx.save(); ctx.fillStyle = '#888'; ctx.globalAlpha = 0.06;
     ctx.beginPath();
-    ctx.moveTo(x1, py(topP1)); ctx.lineTo(x2, py(topP2));
-    ctx.lineTo(x2, py(botP2)); ctx.lineTo(x1, py(botP1));
+    ctx.moveTo(x0, top1Y); ctx.lineTo(x1, top2Y);
+    ctx.lineTo(x1, bot2Y); ctx.lineTo(x0, bot1Y);
     ctx.closePath(); ctx.fill(); ctx.restore();
-    lbl(pat.includes('pennant') ? 'PENNANT' : 'SYM. TRIANGLE', (x1+x2)/2, py(mid) + 4, '#555', 9);
+
+    line(x0, top1Y, x1, top2Y, black, 2);
+    line(x0, bot1Y, x1, bot2Y, black, 2);
+    label(pat.includes('pennant') ? 'PENNANT' : 'SYM. TRIANGLE', px(0.35), mid + 4, '#555', 9);
+    arrow(nowX, (top2Y+bot2Y)/2, nowX+16, isBull ? top2Y - 20 : bot2Y + 20, col, 2.5);
   }
 
   // ── BULL / BEAR FLAG ──
   else if (pat.includes('flag')) {
-    const poleFrom = entry - (isBull ? range*0.35 : -range*0.35);
-    const poleEnd  = entry + (isBull ? range*0.24 : -range*0.24);
-    const poleEndX = cx(Math.floor(N * 0.40));
-    // Flagpole — thick black
-    line(cx(0), py(poleFrom), poleEndX, py(poleEnd), black, 2.5);
+    const poleFromY = py(entry - (isBull ? spread*2.0 : -spread*2.0));
+    const poleTopY  = py(entry + (isBull ? spread*0.6 : -spread*0.6));
+    const poleX     = px(0.38);
+    const slope     = isBull ? spread*0.4 : -spread*0.4;
+    const fTop1Y    = poleTopY;
+    const fBot1Y    = py(entry + (isBull ? -spread*0.3 : spread*0.3));
+    const fTop2Y    = py(parseFloat(fTop1Y > 0 ? pMin + (pMax-pMin)*(1-(fTop1Y-MT)/CH) : 0) - slope);
+    const fBot2Y    = py(parseFloat(fBot1Y > 0 ? pMin + (pMax-pMin)*(1-(fBot1Y-MT)/CH) : 0) - slope);
+    const fEndX     = nowX;
+
+    // Simpler flag: just use price coords
+    const fT1 = entry + (isBull ? spread*0.6  : -spread*0.6);
+    const fB1 = entry + (isBull ? -spread*0.3 : spread*0.3);
+    const fT2 = fT1  - (isBull ? slope : -slope);
+    const fB2 = fB1  - (isBull ? slope : -slope);
+
+    // Flagpole — thick
+    line(px(0.05), poleFromY, poleX, py(fT1), black, 3);
+
     // Flag channel
-    const fSlope = isBull ? range*0.06 : -range*0.06;
-    const fTop1 = poleEnd + range*0.04, fTop2 = poleEnd + range*0.04 - fSlope;
-    const fBot1 = poleEnd - range*0.08, fBot2 = poleEnd - range*0.08 - fSlope;
-    const fX2 = cx(brkI);
-    line(poleEndX, py(fTop1), fX2, py(fTop2), black, 1.5);
-    line(poleEndX, py(fBot1), fX2, py(fBot2), black, 1.5);
-    ctx.save(); ctx.globalAlpha = 0.07; ctx.fillStyle = col;
+    line(poleX, py(fT1), fEndX, py(fT2), black, 1.8);
+    line(poleX, py(fB1), fEndX, py(fB2), black, 1.8);
+
+    // Flag fill
+    ctx.save(); ctx.fillStyle = col; ctx.globalAlpha = 0.08;
     ctx.beginPath();
-    ctx.moveTo(poleEndX, py(fTop1)); ctx.lineTo(fX2, py(fTop2));
-    ctx.lineTo(fX2, py(fBot2)); ctx.lineTo(poleEndX, py(fBot1));
+    ctx.moveTo(poleX, py(fT1)); ctx.lineTo(fEndX, py(fT2));
+    ctx.lineTo(fEndX, py(fB2)); ctx.lineTo(poleX, py(fB1));
     ctx.closePath(); ctx.fill(); ctx.restore();
-    lbl(isBull ? 'BULL FLAG' : 'BEAR FLAG', (poleEndX + fX2)/2, (py(fTop1)+py(fTop2))/2 - 8, col, 9);
+
+    label(isBull ? 'BULL FLAG' : 'BEAR FLAG', px(0.55), (py(fT1)+py(fT2))/2 - 10, col, 9);
+    label('FLAGPOLE', px(0.20), (poleFromY + py(fT1))/2, black, 8);
+
+    arrow(nowX, py(fB2 > fT2 ? fT2 : fB2), nowX+16, isBull ? py(tp) + 14 : py(sl) - 14, col, 2.5);
   }
 
-  // ── ELLIOTT WAVE ──
-  else if (pat.includes('elliott') || pat.includes('ew')) {
-    const is5 = pat.includes('5');
-    const wPts  = is5 ? [0,4,7,11,14,18] : [0,5,9,14,18];
-    const wPrices = is5
-      ? (isBull
-          ? [entry-range*0.30, entry-range*0.10, entry-range*0.18, entry+range*0.12, entry, entry+range*0.35]
-          : [entry+range*0.30, entry+range*0.10, entry+range*0.18, entry-range*0.12, entry, entry-range*0.35])
-      : (isBull
-          ? [entry-range*0.25, entry, entry-range*0.10, entry+range*0.32, entry+range*0.45]
-          : [entry+range*0.25, entry, entry+range*0.10, entry-range*0.32, entry-range*0.45]);
-    const wColors = is5 ? [col,col,'#e67e00',col,'#e67e00',col] : [col,col,'#e67e00',col,'#e67e00'];
-    const wLabels = is5 ? ['1','2','3','4','5'] : ['1','2','3','C'];
+  // ── ELLIOTT WAVE 3 ──
+  else if (pat.includes('elliott') && (pat.includes('3') || pat.includes('wave 3'))) {
+    const pts = isBull
+      ? [entry-spread*1.6, entry-spread*0.6, entry-spread*1.1, entry+spread*0.3, entry, entry+spread*1.4]
+      : [entry+spread*1.6, entry+spread*0.6, entry+spread*1.1, entry-spread*0.3, entry, entry-spread*1.4];
+    const xs = [px(0.06), px(0.18), px(0.30), px(0.46), px(0.56), nowX];
+    const labels5 = ['0','1','2','3','4','5→'];
+    const wColors = [col, col, orange, col, orange, col];
 
-    for (let i = 0; i < wPts.length - 1; i++) {
-      const xi = cx(Math.min(wPts[i], N-1));
-      const xj = cx(Math.min(wPts[i+1], N-1));
-      line(xi, py(wPrices[i]), xj, py(wPrices[i+1]), wColors[i] || col, 1.8);
+    for (let i = 0; i < xs.length - 1; i++) {
+      line(xs[i], py(pts[i]), xs[i+1], py(pts[i+1]), wColors[i], i===2 ? 3 : 2);
     }
-    wPts.slice(1).forEach((pt, i) => {
-      const x = cx(Math.min(pt, N-1));
-      const y = py(wPrices[i+1]);
-      ctx.fillStyle = '#fff';
-      ctx.beginPath(); ctx.arc(x, y, 7, 0, Math.PI*2); ctx.fill();
-      ctx.fillStyle = '#1a2030';
-      ctx.strokeStyle = '#1a2030';
-      ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.arc(x, y, 7, 0, Math.PI*2); ctx.stroke();
-      ctx.font = 'bold 8px Arial, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(wLabels[i] || '', x, y + 3);
+    xs.forEach((x, i) => {
+      dot(x, py(pts[i]), wColors[i] || col, 5);
+      label(labels5[i], x, py(pts[i]) + (isBull ? (i%2===0?14:-14) : (i%2===0?-14:14)), wColors[i] || col, 9);
     });
+    // Wave 3 highlight
+    ctx.save(); ctx.fillStyle = col; ctx.globalAlpha = 0.07;
+    ctx.fillRect(xs[2], Math.min(py(pts[2]), py(pts[3])), xs[3]-xs[2], Math.abs(py(pts[3])-py(pts[2])));
+    ctx.restore();
+    label('WAVE 3', (xs[2]+xs[3])/2, (py(pts[2])+py(pts[3]))/2, col, 9);
+  }
+
+  // ── ELLIOTT WAVE 5 ──
+  else if (pat.includes('elliott') && pat.includes('5')) {
+    const pts = isBull
+      ? [entry-spread*1.8, entry-spread*0.8, entry-spread*1.3, entry-spread*0.2, entry-spread*0.7, entry+spread*0.5]
+      : [entry+spread*1.8, entry+spread*0.8, entry+spread*1.3, entry+spread*0.2, entry+spread*0.7, entry-spread*0.5];
+    const xs = [px(0.05), px(0.16), px(0.27), px(0.40), px(0.52), nowX];
+    const wLabels = ['0','1','2','3','4','5→'];
+    const wColors = [col, col, orange, col, orange, col];
+
+    for (let i = 0; i < xs.length - 1; i++) {
+      line(xs[i], py(pts[i]), xs[i+1], py(pts[i+1]), wColors[i], 2);
+    }
+    xs.forEach((x, i) => {
+      dot(x, py(pts[i]), wColors[i] || col, 4);
+      const off = isBull ? (i%2===0 ? 14 : -12) : (i%2===0 ? -12 : 14);
+      label(wLabels[i], x, py(pts[i]) + off, wColors[i] || col, 9);
+    });
+  }
+
+  // ── ELLIOTT WAVE C ──
+  else if (pat.includes('elliott') && pat.includes('c')) {
+    const pts = isBull
+      ? [entry+spread*1.2, entry+spread*0.3, entry+spread*0.9, entry-spread*0.5]
+      : [entry-spread*1.2, entry-spread*0.3, entry-spread*0.9, entry+spread*0.5];
+    const xs = [px(0.08), px(0.25), px(0.45), nowX];
+    const wLabels = ['A','B','C→',''];
+    for (let i = 0; i < xs.length - 1; i++) {
+      line(xs[i], py(pts[i]), xs[i+1], py(pts[i+1]), i===2?col:orange, 2);
+    }
+    xs.slice(0,3).forEach((x, i) => {
+      dot(x, py(pts[i]), i===2?col:orange, 4);
+      label(wLabels[i], x, py(pts[i]) - 12, i===2?col:orange, 10);
+    });
+    label('ABC CORRECTION', px(0.35), py((pts[0]+pts[3])/2), '#555', 8);
+  }
+
+  // ── RISING WEDGE (bearish) ──
+  else if (pat.includes('rising wedge')) {
+    // Rising wedge = both lines go UP but converge → bearish breakdown
+    const top1Y = py(entry + spread*0.4);
+    const top2Y = py(entry + spread*1.2);
+    const bot1Y = py(entry - spread*0.6);
+    const bot2Y = py(entry + spread*0.3);
+    const x0=px(0.06), x1=nowX;
+
+    ctx.save(); ctx.fillStyle = '#c81e32'; ctx.globalAlpha = 0.06;
+    ctx.beginPath();
+    ctx.moveTo(x0, top1Y); ctx.lineTo(x1, top2Y);
+    ctx.lineTo(x1, bot2Y); ctx.lineTo(x0, bot1Y);
+    ctx.closePath(); ctx.fill(); ctx.restore();
+
+    line(x0, top1Y, x1, top2Y, black, 2);
+    line(x0, bot1Y, x1, bot2Y, black, 2);
+
+    [0.2, 0.38, 0.55].forEach(t => {
+      const ty = top1Y + (top2Y-top1Y)*(t/0.72);
+      const by = bot1Y + (bot2Y-bot1Y)*(t/0.72);
+      dot(px(t), ty, '#c81e32', 3);
+      dot(px(t), by, '#c81e32', 3);
+    });
+
+    label('RISING WEDGE', px(0.35), (top1Y+top2Y+bot1Y+bot2Y)/4, '#c81e32', 9);
+    label('↗ BEARISH REVERSAL', px(0.35), (top1Y+top2Y+bot1Y+bot2Y)/4 + 14, '#555', 8);
+    // Breakdown arrow — goes DOWN (bearish)
+    arrow(nowX, bot2Y, nowX + 16, py(sl) - 14, '#c81e32', 2.5);
+  }
+
+  // ── FALLING WEDGE (bullish) ──
+  else if (pat.includes('falling wedge')) {
+    // Falling wedge = both lines go DOWN but converge → bullish breakout
+    const top1Y = py(entry + spread*1.2);
+    const top2Y = py(entry + spread*0.4);
+    const bot1Y = py(entry - spread*0.3);
+    const bot2Y = py(entry - spread*1.0);
+    const x0=px(0.06), x1=nowX;
+
+    ctx.save(); ctx.fillStyle = '#1a8c40'; ctx.globalAlpha = 0.06;
+    ctx.beginPath();
+    ctx.moveTo(x0, top1Y); ctx.lineTo(x1, top2Y);
+    ctx.lineTo(x1, bot2Y); ctx.lineTo(x0, bot1Y);
+    ctx.closePath(); ctx.fill(); ctx.restore();
+
+    line(x0, top1Y, x1, top2Y, black, 2);
+    line(x0, bot1Y, x1, bot2Y, black, 2);
+
+    [0.2, 0.38, 0.55].forEach(t => {
+      const ty = top1Y + (top2Y-top1Y)*(t/0.72);
+      const by = bot1Y + (bot2Y-bot1Y)*(t/0.72);
+      dot(px(t), ty, '#1a8c40', 3);
+      dot(px(t), by, '#1a8c40', 3);
+    });
+
+    label('FALLING WEDGE', px(0.35), (top1Y+top2Y+bot1Y+bot2Y)/4, '#1a8c40', 9);
+    label('↘ BULLISH REVERSAL', px(0.35), (top1Y+top2Y+bot1Y+bot2Y)/4 + 14, '#555', 8);
+    // Breakout arrow — goes UP (bullish)
+    arrow(nowX, top2Y, nowX + 16, py(tp) + 14, '#1a8c40', 2.5);
   }
 
   // ── FIB RETRACEMENT ──
   else if (pat.includes('fib')) {
-    const fibs = [[0.236,'#aaa',0.8], [0.382,'#e67e00',1], [0.500,'#888',0.8], [0.618,'#c81e32',1.5]];
-    const impulseHigh = entry + (isBull ? range*0.42 : -range*0.42);
-    const impulseLow  = entry - (isBull ? range*0.28 : -range*0.28);
-    fibs.forEach(([f, color, lw]) => {
-      const level = impulseHigh - (impulseHigh - impulseLow) * f;
+    const impulseFrom = entry + (isBull ? -spread*1.8 : spread*1.8);
+    const impulseTo   = entry + (isBull ?  spread*0.8 : -spread*0.8);
+    const iFromX = px(0.06), iToX = px(0.38);
+
+    // Impulse move
+    line(iFromX, py(impulseFrom), iToX, py(impulseTo), col, 2.5);
+    dot(iFromX, py(impulseFrom), col, 4);
+    dot(iToX,   py(impulseTo),   col, 4);
+
+    // Fib levels
+    const fibData = [
+      [0.236, '#b0bcc8', 0.8],
+      [0.382, orange, 1.2],
+      [0.500, '#888', 1.0],
+      [0.618, '#c81e32', 2.0],
+    ];
+    fibData.forEach(([f, color, lw]) => {
+      const level = impulseTo + (impulseFrom - impulseTo) * f;
       const y = py(level);
-      line(ML, y, W - MR, y, color, lw, f === 0.5 ? [4,4] : []);
+      line(iToX, y, nowX, y, color, lw, f===0.5?[4,4]:[]);
       ctx.fillStyle = color;
-      ctx.font = `${lw > 1 ? 'bold ' : ''}8px Arial, sans-serif`;
+      ctx.font = `bold 8px Arial, sans-serif`;
       ctx.textAlign = 'left';
-      ctx.fillText(`${(f*100).toFixed(1)}%`, ML + 4, y - 2);
+      ctx.fillText(`${(f*100).toFixed(1)}%`, iToX + 4, y - 3);
     });
+
     // Highlight 61.8 zone
-    const f618Y = py(impulseHigh - (impulseHigh - impulseLow) * 0.618);
-    const f500Y = py(impulseHigh - (impulseHigh - impulseLow) * 0.500);
-    ctx.save(); ctx.globalAlpha = 0.07; ctx.fillStyle = '#c81e32';
-    ctx.fillRect(ML, Math.min(f618Y, f500Y), CW, Math.abs(f618Y - f500Y));
-    ctx.restore();
+    const f618 = impulseTo + (impulseFrom - impulseTo) * 0.618;
+    const f500 = impulseTo + (impulseFrom - impulseTo) * 0.500;
+    fillZone(iToX, py(f618), nowX, py(f500), '#c81e32', 0.07);
+
+    // Retracement path
+    const retraceTo = f618;
+    line(iToX, py(impulseTo), px(0.58), py(retraceTo), orange, 1.5, [4,3]);
+    dot(px(0.58), py(retraceTo), orange, 4);
+    label(isBull ? '61.8% BOUNCE' : '61.8% REJECTION', px(0.52), py(retraceTo) - 10, '#c81e32', 8);
   }
 
   // ── CUP & HANDLE ──
   else if (pat.includes('cup')) {
-    const rim  = entry + (isBull ? range*0.18 : -range*0.18);
-    const bot  = entry - (isBull ? range*0.28 : -range*0.28);
-    ctx.save(); ctx.strokeStyle = black; ctx.lineWidth = 2; ctx.globalAlpha = 0.6;
+    const rimP = entry + (isBull ? spread*0.5 : -spread*0.5);
+    const botP = entry - (isBull ? spread*1.4 : -spread*1.4);
+    const rimY = py(rimP), botY = py(botP);
+
+    // Cup arc
+    ctx.save(); ctx.strokeStyle = black; ctx.lineWidth = 2.5; ctx.globalAlpha = 0.8;
     ctx.beginPath();
-    for (let i = 0; i <= 20; i++) {
-      const t = i / 20;
-      const x = ML + t * CW * 0.62;
-      const y = py(rim + (bot - rim) * Math.sin(t * Math.PI));
+    for (let i = 0; i <= 30; i++) {
+      const t = i / 30;
+      const x = px(0.06 + t * 0.52);
+      const y = rimY + (botY - rimY) * Math.sin(t * Math.PI);
       i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
     }
     ctx.stroke(); ctx.restore();
-    // Handle
-    const hX1 = ML + CW * 0.62, hX2 = ML + CW * 0.78;
-    const hSlope = isBull ? range*0.04 : -range*0.04;
-    line(hX1, py(rim), hX2, py(rim - hSlope), black, 1.5);
-    line(hX1, py(rim - range*0.08), hX2, py(rim - range*0.08 - hSlope), black, 1.5);
-    lbl('CUP', ML + CW * 0.31, py(bot) + 16, black, 9);
-    lbl('HANDLE', ML + CW * 0.70, py(rim - range*0.04) - 10, black, 9);
-  }
 
-  // ── WEDGE ──
-  else if (pat.includes('wedge')) {
-    const rising = pat.includes('rising');
-    const x1 = cx(0), x2 = cx(brkI);
-    const topP1 = entry + (isBull ? range*(rising?0.28:0.38) : -range*(rising?0.28:0.38));
-    const topP2 = entry + (isBull ? range*(rising?0.42:0.18) : -range*(rising?0.42:0.18));
-    const botP1 = entry - (isBull ? range*(rising?0.24:0.14) : -range*(rising?0.24:0.14));
-    const botP2 = entry - (isBull ? range*(rising?0.10:0.28) : -range*(rising?0.10:0.28));
-    line(x1, py(topP1), x2, py(topP2), black, 2);
-    line(x1, py(botP1), x2, py(botP2), black, 2);
-    ctx.save(); ctx.globalAlpha = 0.07; ctx.fillStyle = col;
+    // Handle — small down slope
+    const hX1=px(0.58), hX2=nowX;
+    const hTop1Y = rimY, hTop2Y = rimY + (isBull ? 12 : -12);
+    const hBot1Y = rimY + (isBull ? 18 : -18), hBot2Y = rimY + (isBull ? 28 : -28);
+    line(hX1, hTop1Y, hX2, hTop2Y, black, 1.5);
+    line(hX1, hBot1Y, hX2, hBot2Y, black, 1.5);
+    ctx.save(); ctx.fillStyle = col; ctx.globalAlpha = 0.07;
     ctx.beginPath();
-    ctx.moveTo(x1, py(topP1)); ctx.lineTo(x2, py(topP2));
-    ctx.lineTo(x2, py(botP2)); ctx.lineTo(x1, py(botP1));
+    ctx.moveTo(hX1,hTop1Y); ctx.lineTo(hX2,hTop2Y); ctx.lineTo(hX2,hBot2Y); ctx.lineTo(hX1,hBot1Y);
     ctx.closePath(); ctx.fill(); ctx.restore();
-    lbl(rising ? 'RISING WEDGE' : 'FALLING WEDGE', (x1+x2)/2, (py(topP1)+py(topP2)+py(botP1)+py(botP2))/4, col, 9);
+
+    // Rim level line
+    line(px(0.06), rimY, nowX, rimY, black, 1, [5,4], 0.4);
+
+    dot(px(0.06), rimY, col, 4); dot(px(0.58), rimY, col, 4);
+    label('CUP', px(0.32), botY + 16, black, 9);
+    label('HANDLE', px(0.68), (hTop1Y+hBot1Y)/2, black, 8);
+    label('RESISTANCE', px(0.35), rimY - 8, black, 8);
+    arrow(nowX, hTop2Y, nowX + 16, isBull ? rimY - 30 : rimY + 30, col, 2.5);
   }
 
   // ── BREAKOUT KEY LEVEL ──
   else if (pat.includes('breakout')) {
-    line(ML, py(entry), cx(brkI), py(entry), black, 2);
-    ctx.save(); ctx.globalAlpha = 0.08; ctx.fillStyle = '#e67e00';
-    ctx.fillRect(ML, py(entry) - 5, CW * 0.72, 10);
-    ctx.restore();
-    lbl('KEY LEVEL / RESISTANCE', cx(brkI * 0.45), py(entry) - 9, '#e67e00', 8);
+    const levelY = py(entry);
+    const zoneH = spread * 0.3;
+    // Resistance zone
+    fillZone(px(0.06), py(entry + zoneH), nowX, py(entry - zoneH*0.3), orange, 0.10);
+    line(px(0.06), levelY, nowX, levelY, black, 2.5);
+    label('KEY RESISTANCE / SUPPORT', px(0.37), levelY - 10, orange, 8);
+
+    // Multiple touches
+    [0.15, 0.30, 0.48, 0.62].forEach(t => {
+      dot(px(t), levelY + (Math.random()-0.5)*8, orange, 3);
+    });
+    arrow(nowX, levelY, nowX + 16, isBull ? levelY - 36 : levelY + 36, col, 2.5);
   }
 
-  // ── ENGULFING / DOJI ──
-  else if (pat.includes('engulf') || pat.includes('doji')) {
-    const revI = Math.floor(N * 0.60);
-    ctx.save(); ctx.strokeStyle = '#e67e00'; ctx.lineWidth = 2; ctx.globalAlpha = 0.8;
-    ctx.beginPath(); ctx.arc(cx(revI), py(entry), 16, 0, Math.PI*2); ctx.stroke();
-    ctx.restore();
-    lbl(pat.includes('engulf') ? 'ENGULFING' : 'DOJI', cx(revI), py(entry) + 26, '#e67e00', 9);
+  // ── ENGULFING ──
+  else if (pat.includes('engulf')) {
+    const prevClose = entry + (isBull ? -spread*0.8 : spread*0.8);
+    const bX = px(0.55), bW = 22;
+
+    // Small previous candle
+    const sc = { o: prevClose + (isBull?spread*0.3:-spread*0.3), c: prevClose };
+    ctx.fillStyle = isBull ? '#c81e32' : '#1a8c40';
+    ctx.fillRect(bX - bW - 8, py(Math.max(sc.o,sc.c)), bW*0.6, Math.max(2, Math.abs(py(sc.o)-py(sc.c))));
+
+    // Big engulfing candle
+    const ec = { o: entry + (isBull ? -spread*0.6 : spread*0.6), c: entry + (isBull ? spread*0.6 : -spread*0.6) };
+    ctx.fillStyle = isBull ? '#1a8c40' : '#c81e32';
+    ctx.fillRect(bX, py(Math.max(ec.o,ec.c)), bW, Math.max(2, Math.abs(py(ec.o)-py(ec.c))));
+    ctx.strokeStyle = isBull ? '#0a5c28' : '#8b0000';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(bX, py(Math.max(ec.o,ec.c)), bW, Math.max(2, Math.abs(py(ec.o)-py(ec.c))));
+
+    // Circle around engulfing
+    ctx.save(); ctx.strokeStyle = orange; ctx.lineWidth = 2; ctx.setLineDash([3,2]);
+    ctx.beginPath(); ctx.arc(bX + bW/2, (py(ec.o)+py(ec.c))/2, bW, 0, Math.PI*2); ctx.stroke();
+    ctx.setLineDash([]); ctx.restore();
+    label('ENGULFING', bX + bW/2, py(ec.c) - 22, orange, 9);
+
+    // Trend before (price path)
+    const trendFrom = px(0.06);
+    line(trendFrom, py(entry + (isBull?spread*1.4:-spread*1.4)), bX, py(ec.o), '#888', 1.5, [3,3], 0.6);
+    arrow(nowX, entry, nowX + 16, isBull ? py(tp)+14 : py(sl)-14, col, 2.5);
   }
 
-  // ── ROUNDING BOTTOM ──
+  // ── DOJI / RSI DIVERGENCE / MACD ──
+  else if (pat.includes('doji') || pat.includes('divergence') || pat.includes('rsi') || pat.includes('macd')) {
+    // Price path showing divergence
+    const p1 = entry + (isBull ? -spread*1.2 : spread*1.2);
+    const p2 = entry + (isBull ? -spread*1.5 : spread*1.5); // lower low / higher high
+    const x1=px(0.18), x2=px(0.52);
+
+    // Price lows/highs
+    line(px(0.06), py(p1), x1, py(p1), black, 1.5);
+    line(px(0.33), py(p2), x2, py(p2), black, 1.5);
+
+    // Divergence line
+    line(x1, py(p1), x2, py(p2), orange, 2, [5,3]);
+    dot(x1, py(p1), orange, 4);
+    dot(x2, py(p2), orange, 4);
+    label(isBull ? 'LOWER LOW (price)' : 'HIGHER HIGH (price)', (x1+x2)/2, py((p1+p2)/2) - 12, orange, 8);
+
+    // Oscillator hint at bottom
+    const oscH = 28;
+    const oscY = MT + CH - oscH;
+    ctx.save(); ctx.fillStyle = '#f0f4f8'; ctx.fillRect(ML, oscY, CW*0.72, oscH); ctx.restore();
+    ctx.fillStyle = '#b0bcc8'; ctx.font = '7px Arial,sans-serif'; ctx.textAlign = 'left';
+    ctx.fillText(pat.includes('macd') ? 'MACD' : 'RSI', ML+4, oscY + 10);
+    // Mini oscillator line — shows opposite divergence
+    line(x1, oscY + 20, x2, oscY + 10, col, 1.5); // higher low on oscillator (bull div)
+    dot(x1, oscY+20, col, 2); dot(x2, oscY+10, col, 2);
+    label(isBull ? 'HIGHER LOW (osc) → BULLISH DIV' : 'LOWER HIGH (osc) → BEARISH DIV',
+      (x1+x2)/2, oscY + 8, col, 7, false);
+
+    arrow(nowX, py(entry), nowX+16, isBull ? py(tp)+14 : py(sl)-14, col, 2.5);
+  }
+
+  // ── ROUNDING BOTTOM / CUP ──
   else if (pat.includes('rounding')) {
-    ctx.save(); ctx.strokeStyle = black; ctx.lineWidth = 2; ctx.globalAlpha = 0.55;
+    const rimP = entry + (isBull ? spread*0.6 : -spread*0.6);
+    const botP = entry - (isBull ? spread*1.6 : -spread*1.6);
+    ctx.save(); ctx.strokeStyle = black; ctx.lineWidth = 2.5; ctx.globalAlpha = 0.8;
     ctx.beginPath();
-    for (let i = 0; i <= 18; i++) {
-      const t = i / 18;
-      const rim = entry + (isBull ? range*0.20 : -range*0.20);
-      const bot = entry - (isBull ? range*0.26 : -range*0.26);
-      const x = ML + t * CW * 0.78;
-      const y = py(rim + (bot - rim) * Math.sin(t * Math.PI));
-      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    for (let i = 0; i <= 30; i++) {
+      const t = i/30;
+      const x = px(0.06 + t * 0.66);
+      const y = py(rimP) + (py(botP) - py(rimP)) * Math.sin(t * Math.PI);
+      i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
     }
     ctx.stroke(); ctx.restore();
+    label('ROUNDING ' + (isBull?'BOTTOM':'TOP'), px(0.38), py(botP) + 16, black, 9);
+    arrow(nowX, py(rimP), nowX+16, isBull ? py(tp)+14 : py(sl)-14, col, 2.5);
   }
 
-  // ── RSI/MACD DIVERGENCE ──
-  else if (pat.includes('divergence') || pat.includes('macd') || pat.includes('rsi')) {
-    const p1I = Math.floor(N*0.25), p2I = Math.floor(N*0.55);
-    const divP = entry + (isBull ? -range*0.22 : range*0.22);
-    const divP2 = entry + (isBull ? -range*0.18 : range*0.18);
-    line(cx(p1I), py(divP), cx(p2I), py(divP2), '#e67e00', 2);
-    ctx.fillStyle = '#e67e00';
-    [{ i: p1I, p: divP }, { i: p2I, p: divP2 }].forEach(({ i, p }) => {
-      ctx.beginPath(); ctx.arc(cx(i), py(p), 4, 0, Math.PI*2); ctx.fill();
-    });
-    lbl('DIVERGENCE', cx((p1I+p2I)/2), py((divP+divP2)/2) + (isBull ? 16 : -12), '#e67e00', 9);
+  // ── GENERIC FALLBACK ──
+  else {
+    const levelY = py(entry);
+    line(px(0.06), levelY, nowX, levelY, black, 2, [6,4]);
+    fillZone(px(0.06), py(entry+spread*0.5), nowX, py(entry-spread*0.5), orange, 0.07);
+    label('KEY LEVEL', px(0.37), levelY - 10, orange, 9);
+    arrow(nowX, levelY, nowX+16, isBull ? levelY-36 : levelY+36, col, 2.5);
   }
-}
-
-// ── CANDLE BUILDER ──
-function buildCandles(sig, isBull, entry, sl, tp) {
-  const pat   = sig.pattern.toLowerCase();
-  const range = Math.abs(tp - sl) * 4.2;
-  const v     = range * 0.032;
-  const N     = 30;
-
-  function rnd(s) { return (Math.random() - 0.5) * s; }
-  function C(o, c, eH = 0, eL = 0) {
-    return {
-      o, c,
-      h: Math.max(o, c) + Math.abs(rnd(v*0.5)) + eH,
-      l: Math.min(o, c) - Math.abs(rnd(v*0.5)) - eL
-    };
-  }
-  function seg(from, to, n, vol) {
-    const arr = [];
-    for (let i = 0; i < n; i++) {
-      const t = i / Math.max(n-1, 1);
-      const m = from + (to-from)*t;
-      const b = (to-from)/n * 0.25;
-      arr.push(C(m + rnd(vol), m + b + rnd(vol)));
-    }
-    return arr;
-  }
-
-  let candles = [];
-
-  if (pat.includes('head') && pat.includes('shoulder')) {
-    const nk = entry + (isBull ? -range*0.05 : range*0.05);
-    const ls = entry + (isBull ?  range*0.22 : -range*0.22);
-    const hd = entry + (isBull ?  range*0.36 : -range*0.36);
-    const rs = entry + (isBull ?  range*0.20 : -range*0.20);
-    candles = [...seg(entry-range*(isBull?0.1:-0.1), ls, 4, v), ...seg(ls, nk, 3, v),
-               ...seg(nk, hd, 4, v), ...seg(hd, nk, 4, v), ...seg(nk, rs, 3, v),
-               ...seg(rs, entry, 3, v), ...seg(entry, isBull?sl:tp, 5, v*1.2), ...seg(isBull?sl:tp, isBull?sl*0.998:tp*1.002, 4, v)];
-  } else if (pat.includes('double')) {
-    const peak = entry + (isBull ? -range*0.22 : range*0.22);
-    const val  = entry + (isBull ? -range*0.04 : range*0.04);
-    candles = [...seg(entry - (isBull?range*0.3:-range*0.3), peak, 5, v), ...seg(peak, val, 5, v),
-               ...seg(val, peak, 5, v), ...seg(peak, entry, 4, v), ...seg(entry, isBull?tp:sl, 8, v*1.2)];
-  } else if (pat.includes('ascending')) {
-    const res = entry + (isBull?range*0.20:-range*0.20);
-    const s0  = entry - (isBull?range*0.22:-range*0.22);
-    for (let i = 0; i < 5; i++) {
-      const sup = s0 + (isBull?i*range*0.04:-i*range*0.04);
-      candles.push(...seg(sup, res, 3, v*0.7), ...seg(res, sup+(isBull?range*0.02:-range*0.02), 2, v*0.5));
-    }
-    candles.push(...seg(res, isBull?tp:sl, 5, v*1.3));
-  } else if (pat.includes('descending')) {
-    const sup = entry - (isBull?range*0.20:-range*0.20);
-    const r0  = entry + (isBull?range*0.22:-range*0.22);
-    for (let i = 0; i < 5; i++) {
-      const res = r0 - (isBull?i*range*0.04:-i*range*0.04);
-      candles.push(...seg(res, sup, 3, v*0.7), ...seg(sup, res-(isBull?range*0.02:-range*0.02), 2, v*0.5));
-    }
-    candles.push(...seg(sup, isBull?tp:sl, 5, v*1.3));
-  } else if (pat.includes('symmetrical') || pat.includes('pennant')) {
-    const spread = range * 0.28;
-    for (let i = 0; i < 7; i++) {
-      const s = spread * (1 - i*0.13);
-      candles.push(C(entry+s*(isBull?1:-1), entry-s*0.5*(isBull?1:-1)));
-      candles.push(C(entry-s*(isBull?1:-1), entry+s*0.5*(isBull?1:-1)));
-    }
-    candles.push(...seg(entry, isBull?tp:sl, 9, v*1.2));
-  } else if (pat.includes('flag')) {
-    const poleFrom = entry - (isBull?range*0.35:-range*0.35);
-    const poleEnd  = entry + (isBull?range*0.24:-range*0.24);
-    candles.push(...seg(poleFrom, poleEnd, 7, v*1.1));
-    const flagEnd = poleEnd - (isBull?range*0.10:-range*0.10);
-    candles.push(...seg(poleEnd, flagEnd, 7, v*0.4), ...seg(flagEnd, entry, 3, v));
-    candles.push(...seg(entry, isBull?tp:sl, 8, v*1.2));
-  } else if (pat.includes('elliott') || pat.includes('ew')) {
-    const is5 = pat.includes('5');
-    const pts = is5
-      ? (isBull ? [entry-range*0.3, entry-range*0.08, entry-range*0.18, entry+range*0.14, entry, entry+range*0.36]
-                : [entry+range*0.3, entry+range*0.08, entry+range*0.18, entry-range*0.14, entry, entry-range*0.36])
-      : (isBull ? [entry-range*0.25, entry-range*0.02, entry-range*0.12, entry+range*0.32, tp]
-                : [entry+range*0.25, entry+range*0.02, entry+range*0.12, entry-range*0.32, sl]);
-    let prev = pts[0];
-    for (let i = 1; i < pts.length; i++) {
-      candles.push(...seg(prev, pts[i], is5 ? 4 : 5, v * (i%2===0 ? 0.8 : 1.3)));
-      prev = pts[i];
-    }
-  } else if (pat.includes('fib')) {
-    const iEnd = entry + (isBull?range*0.40:-range*0.40);
-    const fib  = iEnd - (iEnd - (entry-(isBull?range*0.22:-range*0.22))) * 0.618;
-    candles.push(...seg(entry-(isBull?range*0.22:-range*0.22), iEnd, 8, v),
-                 ...seg(iEnd, fib, 7, v*0.7), ...seg(fib, entry, 4, v),
-                 ...seg(entry, isBull?tp:sl, 8, v*1.2));
-  } else if (pat.includes('cup')) {
-    const rim = entry + (isBull?range*0.18:-range*0.18);
-    const bot = entry - (isBull?range*0.28:-range*0.28);
-    for (let i = 0; i <= 12; i++) {
-      const t = i/12;
-      const p = rim + (bot-rim)*Math.sin(t*Math.PI);
-      candles.push(C(p+rnd(v), p+rnd(v)));
-    }
-    candles.push(...seg(rim, rim-(isBull?range*0.08:-range*0.08), 4, v*0.4),
-                 ...seg(rim-(isBull?range*0.08:-range*0.08), entry, 3, v),
-                 ...seg(entry, isBull?tp:sl, 7, v*1.2));
-  } else if (pat.includes('engulf') || pat.includes('doji')) {
-    const td = isBull ? -1 : 1;
-    candles.push(...seg(entry-td*range*0.3, entry-td*range*0.04, 16, v));
-    candles.push(C(entry-td*range*0.08, entry+td*range*0.07, range*0.01, range*0.01));
-    candles.push(...seg(entry, isBull?tp:sl, 10, v*1.1));
-  } else if (pat.includes('wedge')) {
-    const rising = pat.includes('rising');
-    const d = rising ? 1 : -1;
-    for (let i = 0; i < 8; i++) {
-      const t = i/7;
-      const top = (entry+range*0.2*d) + t*range*0.10*d;
-      const bot = (entry-range*0.14*d) + t*range*0.16*d;
-      candles.push(...seg(bot, top, 2, v*0.5), ...seg(top, bot+range*0.02*d, 1, v*0.5));
-    }
-    candles.push(...seg(entry, isBull?tp:sl, 7, v*1.3));
-  } else {
-    candles.push(...seg(entry-(isBull?range*0.28:-range*0.28), entry, 14, v));
-    candles.push(...seg(entry, isBull?tp:sl, 14, v*1.1));
-  }
-
-  return candles.slice(0, N);
 }
 
 function fmtPrice(v, pair) {
   const n = parseFloat(v);
   if (!pair) return n.toFixed(2);
   if (pair.includes('JPY') || pair.includes('225') || pair.includes('JPN')) return n.toFixed(2);
-  if (['US30','US500','NAS100','UK100','GER40','FRA40','AUS200','JPN225','HK50'].some(x => pair.includes(x.slice(0,4)))) return n.toFixed(1);
+  if (['US30','US500','NAS1','UK10','GER4','FRA4','AUS2','HK50'].some(x => pair.startsWith(x))) return n.toFixed(1);
   if (pair.includes('BTC') || pair.includes('ETH')) return n.toFixed(0);
   if (n > 500) return n.toFixed(1);
   return n.toFixed(4);
