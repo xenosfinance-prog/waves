@@ -1043,18 +1043,26 @@ function drawPattern(ctx, pat, isBull, entry, sl, tp, py, px, CW, CH, ML, MR, MT
   // ══════════════════════════════════
 
   // ── HEAD & SHOULDERS ──
+  // H&S normale (3 picchi in ALTO) = SELL (breakdown sotto neckline)
+  // Inverse H&S (3 valli in BASSO) = BUY (breakout sopra neckline)
   if (pat.includes('head') && pat.includes('shoulder')) {
-    const nkY  = py(entry + (isBull ? -spread*0.3 : spread*0.3));
-    const lsY  = py(entry + (isBull ?  spread*1.1 : -spread*1.1));
-    const hdY  = py(entry + (isBull ?  spread*1.7 : -spread*1.7));
-    const rsY  = py(entry + (isBull ?  spread*1.0 : -spread*1.0));
+    const isInverse = isBull; // inverse H&S → BUY; normal H&S → SELL
+
+    // Neckline: se normale sta SOTTO i picchi, se inversa sta SOPRA le valli
+    const nkY  = py(entry + (isInverse ? spread*0.3 : -spread*0.3));
+
+    // Shoulders e head: se inversa vanno GIÙ, se normale vanno SU
+    const lsY  = py(entry + (isInverse ? -spread*1.1 :  spread*1.1));
+    const hdY  = py(entry + (isInverse ? -spread*1.7 :  spread*1.7));
+    const rsY  = py(entry + (isInverse ? -spread*1.0 :  spread*1.0));
+
     const x0=px(0.05), lsX=px(0.20), v1X=px(0.30), hdX=px(0.42), v2X=px(0.54), rsX=px(0.63), x1=nowX;
 
     // Neckline — bold black
     line(x0, nkY, x1, nkY, black, 2);
-    label('NECKLINE', px(0.35), nkY - 8, black, 8);
+    label('NECKLINE', px(0.35), nkY + (isInverse ? 12 : -10), black, 8);
 
-    // Shoulders and head shape
+    // Pattern shape
     line(x0,  nkY, lsX, lsY,  black, 1.5);
     line(lsX, lsY, v1X, nkY,  black, 1.5);
     line(v1X, nkY, hdX, hdY,  black, 1.5);
@@ -1062,19 +1070,23 @@ function drawPattern(ctx, pat, isBull, entry, sl, tp, py, px, CW, CH, ML, MR, MT
     line(v2X, nkY, rsX, rsY,  black, 1.5);
     line(rsX, rsY, x1,  nkY,  black, 1.5);
 
-    // Fill under pattern
+    // Fill
     ctx.save(); ctx.fillStyle = '#1a2030'; ctx.globalAlpha = 0.04;
     ctx.beginPath();
     ctx.moveTo(x0, nkY); ctx.lineTo(lsX, lsY); ctx.lineTo(v1X, nkY);
     ctx.lineTo(hdX, hdY); ctx.lineTo(v2X, nkY); ctx.lineTo(rsX, rsY);
     ctx.lineTo(x1, nkY); ctx.closePath(); ctx.fill(); ctx.restore();
 
-    dot(lsX, lsY, orange); label('LS',   lsX, lsY - 10, orange);
-    dot(hdX, hdY, orange); label('HEAD', hdX, hdY - 10, orange);
-    dot(rsX, rsY, orange); label('RS',   rsX, rsY - 10, orange);
+    dot(lsX, lsY, orange); label('LS',   lsX, lsY + (isInverse ? 12 : -10), orange);
+    dot(hdX, hdY, orange); label('HEAD', hdX, hdY + (isInverse ? 12 : -10), orange);
+    dot(rsX, rsY, orange); label('RS',   rsX, rsY + (isInverse ? 12 : -10), orange);
 
-    // Breakout arrow down from neckline
-    arrow(x1, nkY, x1 + 14, isBull ? nkY + 28 : nkY - 28, col, 2);
+    // Pattern title
+    label(isInverse ? 'INVERSE H&S — BUY' : 'HEAD & SHOULDERS — SELL',
+          px(0.35), isInverse ? hdY + 24 : hdY - 22, col, 9);
+
+    // Breakout arrow: inverse→UP, normal→DOWN
+    arrow(x1, nkY, x1 + 14, isInverse ? nkY - 32 : nkY + 32, col, 2);
   }
 
   // ── DOUBLE TOP / DOUBLE BOTTOM ──
