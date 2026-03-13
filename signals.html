@@ -326,6 +326,52 @@
   .tag-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
   .tag { font-size: 9px; padding: 3px 8px; border: 1px solid var(--border-bright); color: var(--text-dim); letter-spacing: 0.08em; }
 
+  /* TELEGRAM SEND BUTTON */
+  .tg-send-btn {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-top: 14px;
+    padding: 9px 16px;
+    background: #0088cc;
+    border: none;
+    color: #fff;
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    transition: background 0.2s;
+    width: fit-content;
+  }
+  .tg-send-btn:hover { background: #0077bb; }
+  .tg-send-btn:disabled { background: #2a3f58; color: var(--text-dim); cursor: not-allowed; }
+  .tg-send-btn svg { flex-shrink: 0; }
+
+  /* TG CONFIG PANEL */
+  #tg-config {
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--bg2);
+    border: 1px solid var(--border-bright);
+    border-top: 2px solid #0088cc;
+    padding: 28px;
+    width: 360px;
+    z-index: 1000;
+    display: none;
+  }
+  #tg-config.open { display: block; }
+  #tg-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 999;
+    display: none;
+  }
+  #tg-overlay.open { display: block; }
+  .tg-config-title { font-family: var(--sans); font-size: 16px; font-weight: 700; color: var(--text-bright); margin-bottom: 4px; }
+  .tg-config-sub { font-size: 10px; color: var(--text-dim); margin-bottom: 20px; }
+
   /* LOADER */
   .loader-wrap { text-align: center; padding: 60px 0; display: none; }
   .loader-wrap.active { display: block; }
@@ -492,6 +538,23 @@
 
     <div id="signals-list"></div>
   </div>
+</div>
+
+<!-- TELEGRAM CONFIG MODAL -->
+<div id="tg-overlay" onclick="closeTgConfig()"></div>
+<div id="tg-config">
+  <div class="tg-config-title">📨 Telegram Config</div>
+  <div class="tg-config-sub">Inserisci le credenziali per inviare segnali al tuo canale</div>
+  <div class="field">
+    <label>Bot Token</label>
+    <input type="text" id="tg-bot-token" placeholder="123456:ABCdef..." />
+  </div>
+  <div class="field">
+    <label>Chat ID (canale o gruppo)</label>
+    <input type="text" id="tg-chat-id" placeholder="-1001234567890" />
+  </div>
+  <button class="btn" style="margin-top:4px" onclick="saveTgConfig()">SALVA E INVIA</button>
+  <button onclick="closeTgConfig()" style="width:100%;padding:8px;background:transparent;border:1px solid var(--border);color:var(--text-dim);font-family:var(--mono);font-size:11px;cursor:pointer;margin-top:8px">ANNULLA</button>
 </div>
 
 <div id="toast"></div>
@@ -763,6 +826,10 @@ function renderSignals(list) {
             <div class="detail-text">${sig.market_context || '—'}</div>
           </div>
           <div class="tag-list">${(sig.tags||[]).map(t=>`<span class="tag">${t}</span>`).join('')}</div>
+          <button class="tg-send-btn" onclick="sendToTelegram(event, ${idx})">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.248l-2.05 9.667c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L8.31 14.617l-2.967-.924c-.645-.204-.658-.645.136-.953l11.57-4.461c.537-.194 1.006.131.513.969z"/></svg>
+            SEND TO TELEGRAM
+          </button>
         </div>
       </div>
     `;
@@ -1575,6 +1642,120 @@ function updateStats(list) {
   document.getElementById('s-avgconf').textContent = avgConf + '%';
   document.getElementById('s-avgrr').textContent = '1:' + avgRR;
   document.getElementById('s-time').textContent = new Date().toUTCString().split(' ').slice(4,5)[0] + ' UTC';
+}
+
+// ── TELEGRAM SEND ──────────────────────────────────────────
+
+let pendingTgSignalIdx = null;
+
+function sendToTelegram(event, idx) {
+  event.stopPropagation();
+  pendingTgSignalIdx = idx;
+
+  // Check if credentials are already saved
+  const token = localStorage.getItem('tg_token');
+  const chatId = localStorage.getItem('tg_chat_id');
+
+  if (token && chatId) {
+    doSendToTelegram(idx, token, chatId);
+  } else {
+    // Show config modal
+    document.getElementById('tg-bot-token').value = token || '';
+    document.getElementById('tg-chat-id').value = chatId || '';
+    document.getElementById('tg-config').classList.add('open');
+    document.getElementById('tg-overlay').classList.add('open');
+  }
+}
+
+function closeTgConfig() {
+  document.getElementById('tg-config').classList.remove('open');
+  document.getElementById('tg-overlay').classList.remove('open');
+}
+
+function saveTgConfig() {
+  const token = document.getElementById('tg-bot-token').value.trim();
+  const chatId = document.getElementById('tg-chat-id').value.trim();
+  if (!token || !chatId) { showToast('Inserisci Bot Token e Chat ID'); return; }
+  localStorage.setItem('tg_token', token);
+  localStorage.setItem('tg_chat_id', chatId);
+  closeTgConfig();
+  if (pendingTgSignalIdx !== null) doSendToTelegram(pendingTgSignalIdx, token, chatId);
+}
+
+async function doSendToTelegram(idx, token, chatId) {
+  const sig = signals[idx];
+  if (!sig) return;
+
+  // Find button and set loading
+  const btn = document.querySelector(`[onclick="sendToTelegram(event, ${idx})"]`);
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ SENDING...'; }
+
+  try {
+    // 1. Get canvas PNG
+    const canvas = document.getElementById('chart-' + idx);
+    let imageData = null;
+
+    if (canvas && canvas.dataset.drawn) {
+      imageData = canvas.toDataURL('image/png').split(',')[1]; // base64
+    } else {
+      // Draw chart on a temp canvas if not yet drawn
+      const tempCanvas = document.createElement('canvas');
+      drawPatternChart(tempCanvas, sig);
+      imageData = tempCanvas.toDataURL('image/png').split(',')[1];
+    }
+
+    // 2. Build caption
+    const dir = sig.direction === 'BUY' ? '🟢' : '🔴';
+    const rr  = sig.rr || '—';
+    const caption = [
+      `${dir} *${sig.pair}* — ${sig.direction}`,
+      `📐 *Pattern:* ${sig.pattern}`,
+      `⏱ *Timeframe:* ${selectedTF}`,
+      ``,
+      `📍 *Entry:* \`${fmt(sig.entry, sig.pair)}\``,
+      `🛑 *Stop Loss:* \`${fmt(sig.sl, sig.pair)}\``,
+      `🎯 *Take Profit:* \`${fmt(sig.tp, sig.pair)}\``,
+      `📊 *R:R:* ${rr}  |  *Conf:* ${sig.confidence}%`,
+      ``,
+      `🌊 *EW Context:* ${sig.ew_context || '—'}`,
+      ``,
+      `⚠️ *Invalidation:* ${sig.invalidation || '—'}`,
+      ``,
+      `🏷 ${(sig.tags || []).map(t => '#' + t.replace(/\s+/g,'_')).join(' ')}`,
+      ``,
+      `_Generated by XenosFinance Signal Engine_`,
+    ].join('\n');
+
+    // 3. Send photo via Worker → Telegram sendPhoto
+    const res = await fetch(WORKER + '/proxy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'telegram_photo',
+        token,
+        chat_id: chatId,
+        image_base64: imageData,
+        caption,
+        parse_mode: 'Markdown'
+      })
+    });
+
+    const data = await res.json();
+
+    if (data.ok) {
+      showToast('✅ Segnale inviato su Telegram!');
+      if (btn) { btn.disabled = false; btn.innerHTML = '✅ SENT'; }
+      setTimeout(() => {
+        if (btn) { btn.disabled = false; btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.248l-2.05 9.667c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L8.31 14.617l-2.967-.924c-.645-.204-.658-.645.136-.953l11.57-4.461c.537-.194 1.006.131.513.969z"/></svg> SEND TO TELEGRAM'; }
+      }, 3000);
+    } else {
+      throw new Error(data.description || 'Telegram error');
+    }
+
+  } catch(e) {
+    showToast('❌ Errore: ' + e.message);
+    if (btn) { btn.disabled = false; btn.innerHTML = '⚠️ RETRY'; }
+  }
 }
 
 function showToast(msg) {
