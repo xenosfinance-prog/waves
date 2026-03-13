@@ -273,7 +273,7 @@
   @keyframes slideDown { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
   .signal-detail.open { display: block; }
 
-  .detail-top { display: grid; grid-template-columns: 340px 1fr; gap: 24px; }
+  .detail-top { display: grid; grid-template-columns: 520px 1fr; gap: 24px; }
 
   /* PATTERN CHART */
   .chart-container {
@@ -299,7 +299,7 @@
     padding: 1px 6px;
     letter-spacing: 0.08em;
   }
-  .chart-container svg { display: block; width: 100%; }
+  .chart-container canvas { display: block; width: 100%; border-radius: 2px; }
 
   /* TEXT DETAILS */
   .detail-info { display: flex; flex-direction: column; gap: 14px; }
@@ -725,9 +725,6 @@ function renderSignals(list) {
     const detail = document.createElement('div');
     detail.className = 'signal-detail';
 
-    // Build chart SVG
-    const chartSVG = drawPatternChart(sig);
-
     detail.innerHTML = `
       <div class="detail-top">
         <div>
@@ -736,7 +733,7 @@ function renderSignals(list) {
               <span>PATTERN CHART · ${sig.pair} · ${selectedTF}</span>
               <span class="chart-pattern-badge">${sig.pattern}</span>
             </div>
-            ${chartSVG}
+            <canvas id="chart-${idx}" width="520" height="240"></canvas>
           </div>
           <div class="levels-grid" style="margin-top:10px">
             <div class="level-box"><div class="level-label">ENTRY</div><div class="level-val entry">${fmt(sig.entry, sig.pair)}</div></div>
@@ -773,7 +770,17 @@ function renderSignals(list) {
     row.addEventListener('click', () => {
       const isOpen = detail.classList.contains('open');
       document.querySelectorAll('.signal-detail').forEach(d => d.classList.remove('open'));
-      if (!isOpen) detail.classList.add('open');
+      if (!isOpen) {
+        detail.classList.add('open');
+        // Draw canvas chart after element is visible
+        requestAnimationFrame(() => {
+          const canvas = document.getElementById('chart-' + idx);
+          if (canvas && !canvas.dataset.drawn) {
+            drawPatternChart(canvas, sig);
+            canvas.dataset.drawn = '1';
+          }
+        });
+      }
     });
 
     container.appendChild(row);
@@ -781,360 +788,839 @@ function renderSignals(list) {
   });
 }
 
-// ══════════════════════════════════════════════
-// PATTERN CHART ENGINE — SVG GENERATOR
-// ══════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════
+// PROFESSIONAL PATTERN CHART ENGINE — Canvas 2D
+// Stile Autochartist: candele reali, pattern overlay, zone S/R
+// ══════════════════════════════════════════════════════════════
 
-function drawPatternChart(sig) {
-  const W = 320, H = 160;
+function drawPatternChart(canvas, sig) {
+  const W = 520, H = 240;
+  const MARGIN = { top: 18, right: 80, bottom: 28, left: 14 };
+  const CW = W - MARGIN.left - MARGIN.right;  // chart area width
+  const CH = H - MARGIN.top - MARGIN.bottom;  // chart area height
+
+  const ctx = canvas.getContext('2d');
+  canvas.width = W;
+  canvas.height = H;
+
   const isBull = sig.direction === 'BUY';
-  const entry = parseFloat(sig.entry);
-  const sl = parseFloat(sig.sl);
-  const tp = parseFloat(sig.tp);
+  const entry  = parseFloat(sig.entry);
+  const sl     = parseFloat(sig.sl);
+  const tp     = parseFloat(sig.tp);
+  const tp2    = parseFloat(sig.tp2) || tp * (isBull ? 1.003 : 0.997);
 
-  // Price range with padding
-  const allPrices = [entry, sl, tp];
-  const pMin = Math.min(...allPrices) * (isBull ? 0.9985 : 0.9970);
-  const pMax = Math.max(...allPrices) * (isBull ? 1.0030 : 1.0015);
-  const pRange = pMax - pMin;
+  // ── Generate candle data ──
+  const candles = buildCandles(sig, isBull, entry, sl, tp);
+  const N = candles.length;
 
-  function py(price) {
-    return H - 20 - ((price - pMin) / pRange) * (H - 40);
+  // Price range — tight around SL/TP with padding
+  const allP = candles.flatMap(c => [c.h, c.l]);
+  allP.push(entry, sl, tp, tp2);
+  const rawMin = Math.min(...allP);
+  const rawMax = Math.max(...allP);
+  const pad = (rawMax - rawMin) * 0.12;
+  const pMin = rawMin - pad;
+  const pMax = rawMax + pad;
+
+  function py(p) { return MARGIN.top + CH - ((p - pMin) / (pMax - pMin)) * CH; }
+  function cx(i) { return MARGIN.left + (i / (N - 1)) * CW; }
+
+  // ── Background ──
+  ctx.fillStyle = '#050912';
+  ctx.fillRect(0, 0, W, H);
+
+  // Subtle grid
+  ctx.strokeStyle = 'rgba(30,42,58,0.9)';
+  ctx.lineWidth = 0.5;
+  for (let i = 0; i <= 5; i++) {
+    const y = MARGIN.top + (i / 5) * CH;
+    ctx.beginPath();
+    ctx.moveTo(MARGIN.left, y);
+    ctx.lineTo(W - MARGIN.right, y);
+    ctx.stroke();
+  }
+  // Vertical grid lines
+  ctx.strokeStyle = 'rgba(30,42,58,0.5)';
+  for (let i = 0; i <= 6; i++) {
+    const x = MARGIN.left + (i / 6) * CW;
+    ctx.beginPath();
+    ctx.moveTo(x, MARGIN.top);
+    ctx.lineTo(x, MARGIN.top + CH);
+    ctx.stroke();
   }
 
-  // Generate candles based on pattern
-  const candles = generatePatternCandles(sig, pMin, pMax, isBull);
+  // ── Zone TP (green fill between entry and TP) ──
+  const entryY = py(entry);
+  const tpY    = py(tp);
+  const slY    = py(sl);
+  const breakX = MARGIN.left + CW * 0.72; // where breakout happens visually
 
-  let svg = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="height:160px">`;
-
-  // Background grid
-  svg += `<rect width="${W}" height="${H}" fill="#050810"/>`;
-  for (let i = 0; i <= 4; i++) {
-    const y = 10 + i * (H - 20) / 4;
-    svg += `<line x1="30" y1="${y}" x2="${W-5}" y2="${y}" stroke="#1e2a3a" stroke-width="0.5"/>`;
+  if (isBull) {
+    const grad = ctx.createLinearGradient(0, tpY, 0, entryY);
+    grad.addColorStop(0, 'rgba(0,230,118,0.10)');
+    grad.addColorStop(1, 'rgba(0,230,118,0.02)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(breakX, tpY, W - MARGIN.right - breakX, entryY - tpY);
+    // SL zone
+    const gradSL = ctx.createLinearGradient(0, entryY, 0, slY);
+    gradSL.addColorStop(0, 'rgba(255,61,90,0.02)');
+    gradSL.addColorStop(1, 'rgba(255,61,90,0.08)');
+    ctx.fillStyle = gradSL;
+    ctx.fillRect(breakX, entryY, W - MARGIN.right - breakX, slY - entryY);
+  } else {
+    const grad = ctx.createLinearGradient(0, entryY, 0, tpY);
+    grad.addColorStop(0, 'rgba(255,61,90,0.02)');
+    grad.addColorStop(1, 'rgba(255,61,90,0.10)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(breakX, entryY, W - MARGIN.right - breakX, tpY - entryY);
+    const gradSL = ctx.createLinearGradient(0, slY, 0, entryY);
+    gradSL.addColorStop(0, 'rgba(0,230,118,0.10)');
+    gradSL.addColorStop(1, 'rgba(0,230,118,0.02)');
+    ctx.fillStyle = gradSL;
+    ctx.fillRect(breakX, slY, W - MARGIN.right - breakX, entryY - slY);
   }
 
-  // Pattern overlay (trendlines, shapes)
-  svg += drawPatternOverlay(sig, candles, W, H, py, isBull);
+  // ── Pattern overlay BEFORE candles ──
+  drawOverlay(ctx, sig, candles, N, isBull, py, cx, CW, CH, MARGIN, entry, sl, tp, pMin, pMax);
 
-  // Candles
-  const cw = 6, gap = 2;
-  const startX = 35;
+  // ── Candles ──
+  const candleW = Math.max(3, Math.floor(CW / N) - 2);
+  const candleGap = Math.floor(CW / N);
+
   candles.forEach((c, i) => {
-    const x = startX + i * (cw + gap);
-    if (x > W - 30) return;
-    const color = c.close >= c.open ? '#00e676' : '#ff3d5a';
-    const bodyTop = Math.min(py(c.open), py(c.close));
-    const bodyH = Math.abs(py(c.open) - py(c.close)) || 1;
+    const x = MARGIN.left + i * candleGap + (candleGap - candleW) / 2;
+    const isUp = c.c >= c.o;
+    const bodyTop  = Math.min(py(c.o), py(c.c));
+    const bodyBot  = Math.max(py(c.o), py(c.c));
+    const bodyH    = Math.max(1, bodyBot - bodyTop);
+    const wickX    = x + candleW / 2;
+
     // Wick
-    svg += `<line x1="${x + cw/2}" y1="${py(c.high)}" x2="${x + cw/2}" y2="${py(c.low)}" stroke="${color}" stroke-width="1" opacity="0.8"/>`;
+    ctx.strokeStyle = isUp ? 'rgba(0,230,118,0.7)' : 'rgba(255,61,90,0.7)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(wickX, py(c.h));
+    ctx.lineTo(wickX, py(c.l));
+    ctx.stroke();
+
     // Body
-    svg += `<rect x="${x}" y="${bodyTop}" width="${cw}" height="${bodyH}" fill="${color}" opacity="0.85"/>`;
+    if (isUp) {
+      ctx.fillStyle = bodyH < 2 ? 'rgba(0,230,118,0.9)' : '#00e676';
+      ctx.fillRect(x, bodyTop, candleW, bodyH);
+      // Hollow style: border
+      ctx.strokeStyle = '#00e676';
+      ctx.lineWidth = 0.5;
+      ctx.strokeRect(x, bodyTop, candleW, bodyH);
+    } else {
+      ctx.fillStyle = '#ff3d5a';
+      ctx.fillRect(x, bodyTop, candleW, bodyH);
+      ctx.strokeStyle = '#ff2244';
+      ctx.lineWidth = 0.5;
+      ctx.strokeRect(x, bodyTop, candleW, bodyH);
+    }
   });
 
-  // Entry line
-  const entryY = py(entry);
-  svg += `<line x1="30" y1="${entryY}" x2="${W}" y2="${entryY}" stroke="#00d4ff" stroke-width="1" stroke-dasharray="4,3" opacity="0.8"/>`;
-  svg += `<text x="32" y="${entryY - 3}" font-family="Space Mono,monospace" font-size="7" fill="#00d4ff">ENTRY</text>`;
+  // ── Horizontal price lines ──
+  function drawHLine(price, color, label, dashed = true) {
+    const y = py(price);
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1;
+    if (dashed) ctx.setLineDash([5, 4]);
+    ctx.globalAlpha = 0.9;
+    ctx.beginPath();
+    ctx.moveTo(MARGIN.left, y);
+    ctx.lineTo(W - MARGIN.right + 2, y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
 
-  // SL line
-  const slY = py(sl);
-  svg += `<line x1="30" y1="${slY}" x2="${W}" y2="${slY}" stroke="#ff3d5a" stroke-width="1" stroke-dasharray="4,3" opacity="0.7"/>`;
-  svg += `<text x="32" y="${slY - 3}" font-family="Space Mono,monospace" font-size="7" fill="#ff3d5a">SL</text>`;
-
-  // TP line
-  const tpY = py(tp);
-  svg += `<line x1="30" y1="${tpY}" x2="${W}" y2="${tpY}" stroke="#00e676" stroke-width="1" stroke-dasharray="4,3" opacity="0.7"/>`;
-  svg += `<text x="32" y="${tpY - 3}" font-family="Space Mono,monospace" font-size="7" fill="#00e676">TP</text>`;
-
-  // Direction arrow at right
-  const arrowX = W - 14;
-  if (isBull) {
-    svg += `<polygon points="${arrowX},${entryY-2} ${arrowX+8},${tpY+4} ${arrowX-8},${tpY+4}" fill="#00e676" opacity="0.4"/>`;
-  } else {
-    svg += `<polygon points="${arrowX},${entryY+2} ${arrowX+8},${tpY-4} ${arrowX-8},${tpY-4}" fill="#ff3d5a" opacity="0.4"/>`;
+    // Right-side label box
+    const lblX = W - MARGIN.right + 4;
+    const price_str = fmtPrice(price, sig.pair);
+    ctx.fillStyle = color;
+    ctx.globalAlpha = 0.18;
+    ctx.fillRect(lblX, y - 8, MARGIN.right - 4, 16);
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = color;
+    ctx.font = 'bold 9px Space Mono, monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText(label, lblX + 2, y - 1);
+    ctx.font = '8px Space Mono, monospace';
+    ctx.fillText(price_str, lblX + 2, y + 8);
   }
 
-  // Y axis price labels
-  const midPrice = (pMin + pMax) / 2;
-  svg += `<text x="2" y="${py(pMax)+8}" font-family="Space Mono,monospace" font-size="6" fill="#3a5a7a">${fmtShort(pMax)}</text>`;
-  svg += `<text x="2" y="${py(midPrice)+3}" font-family="Space Mono,monospace" font-size="6" fill="#3a5a7a">${fmtShort(midPrice)}</text>`;
-  svg += `<text x="2" y="${py(pMin)-2}" font-family="Space Mono,monospace" font-size="6" fill="#3a5a7a">${fmtShort(pMin)}</text>`;
+  drawHLine(tp,    '#00e676', 'TP');
+  if (tp2 !== tp) drawHLine(tp2, 'rgba(0,230,118,0.5)', 'TP2');
+  drawHLine(entry, '#00d4ff', 'ENTRY');
+  drawHLine(sl,    '#ff3d5a', 'SL');
 
-  svg += `</svg>`;
-  return svg;
-}
+  // ── Chart border ──
+  ctx.strokeStyle = 'rgba(30,42,58,1)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(MARGIN.left, MARGIN.top, CW, CH);
 
-function fmtShort(v) {
-  const n = parseFloat(v);
-  if (n > 10000) return n.toFixed(0);
-  if (n > 100) return n.toFixed(1);
-  return n.toFixed(4);
-}
-
-// ── CANDLE GENERATOR PER PATTERN ──
-function generatePatternCandles(sig, pMin, pMax, isBull) {
-  const entry = parseFloat(sig.entry);
-  const sl = parseFloat(sig.sl);
-  const tp = parseFloat(sig.tp);
-  const mid = (pMin + pMax) / 2;
-  const range = pMax - pMin;
-  const pattern = sig.pattern.toLowerCase();
-  const N = 24; // number of candles
-  const candles = [];
-
-  // Helper: make candle
-  function candle(o, c, h, l) {
-    return { open: o, close: c, high: Math.max(o,c,h), low: Math.min(o,c,l) };
+  // ── Y-axis price labels ──
+  ctx.fillStyle = '#3a5a7a';
+  ctx.font = '8px Space Mono, monospace';
+  ctx.textAlign = 'right';
+  for (let i = 0; i <= 4; i++) {
+    const p = pMin + (i / 4) * (pMax - pMin);
+    const y = py(p);
+    if (y > MARGIN.top + 8 && y < MARGIN.top + CH - 4) {
+      ctx.fillText(fmtPrice(p, sig.pair), MARGIN.left - 2, y + 3);
+    }
   }
 
-  function noise(scale) { return (Math.random() - 0.5) * scale; }
+  // ── Bottom time axis ──
+  ctx.fillStyle = '#2a4a6a';
+  ctx.font = '7px Space Mono, monospace';
+  ctx.textAlign = 'center';
+  const timeLabels = Math.min(7, N);
+  for (let i = 0; i < timeLabels; i++) {
+    const idx = Math.floor(i * (N - 1) / (timeLabels - 1));
+    const x = MARGIN.left + idx * candleGap + candleW / 2;
+    ctx.fillText(String(N - idx).padStart(2, '0'), x, H - 10);
+  }
 
-  function trend(from, to, n, volatility) {
+  // ── Confidence arc (top-right mini indicator) ──
+  const arcX = W - 28, arcY = MARGIN.top + 12, arcR = 10;
+  ctx.strokeStyle = '#1e2a3a';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(arcX, arcY, arcR, 0, Math.PI * 2);
+  ctx.stroke();
+  const confAngle = (sig.confidence / 100) * Math.PI * 2;
+  ctx.strokeStyle = sig.confidence >= 80 ? '#00e676' : sig.confidence >= 70 ? '#ffd600' : '#00d4ff';
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.arc(arcX, arcY, arcR, -Math.PI / 2, -Math.PI / 2 + confAngle);
+  ctx.stroke();
+  ctx.fillStyle = '#eaf4ff';
+  ctx.font = 'bold 7px Space Mono, monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(sig.confidence + '%', arcX, arcY + 2.5);
+}
+
+// ── OVERLAY: trendlines, pattern shapes, labels ──
+function drawOverlay(ctx, sig, candles, N, isBull, py, cx, CW, CH, MARGIN, entry, sl, tp, pMin, pMax) {
+  const pat = sig.pattern.toLowerCase();
+  const col = isBull ? '#00e676' : '#ff3d5a';
+  const yellow = '#ffd600';
+  const blue = '#00d4ff';
+
+  function line(x1, y1, x2, y2, color, width, dash = []) {
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    ctx.setLineDash(dash);
+    ctx.globalAlpha = 0.75;
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function label(text, x, y, color, size = 9) {
+    ctx.save();
+    ctx.fillStyle = color;
+    ctx.font = `bold ${size}px Space Mono, monospace`;
+    ctx.textAlign = 'center';
+    ctx.globalAlpha = 0.85;
+    // shadow bg
+    ctx.fillStyle = 'rgba(5,9,18,0.7)';
+    ctx.fillRect(x - 14, y - size, 28, size + 4);
+    ctx.fillStyle = color;
+    ctx.fillText(text, x, y);
+    ctx.restore();
+  }
+
+  function circle(x, y, r, color) {
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.5;
+    ctx.globalAlpha = 0.8;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  const cStep = CW / (N - 1);
+  function cx2(i) { return MARGIN.left + i * cStep; }
+  function highY(i) { return py(candles[Math.min(i, candles.length-1)]?.h || entry); }
+  function lowY(i)  { return py(candles[Math.min(i, candles.length-1)]?.l || entry); }
+  function closeY(i){ return py(candles[Math.min(i, candles.length-1)]?.c || entry); }
+
+  // ── HEAD & SHOULDERS ──
+  if (pat.includes('head') && pat.includes('shoulder')) {
+    const range = pMax - pMin;
+    // Neckline: horizontal through entry area
+    const nkY = py(entry + (isBull ? -range*0.04 : range*0.04));
+    line(cx2(2), nkY + 4, cx2(N-3), nkY - 4, yellow, 1.5, [6,3]);
+    // Shoulder/head positions
+    const ls = 4, head = 10, rs = 16;
+    const lsH = isBull ? py(pMin + range*0.72) : py(pMax - range*0.72);
+    const hdH = isBull ? py(pMin + range*0.85) : py(pMax - range*0.85);
+    const rsH = isBull ? py(pMin + range*0.70) : py(pMax - range*0.70);
+    // Connect peaks
+    line(cx2(ls), lsH, cx2(head), hdH, yellow, 1, [3,3]);
+    line(cx2(head), hdH, cx2(rs), rsH, yellow, 1, [3,3]);
+    circle(cx2(ls), lsH, 3, yellow);
+    circle(cx2(head), hdH, 4, yellow);
+    circle(cx2(rs), rsH, 3, yellow);
+    label('LS', cx2(ls), lsH - 6, yellow);
+    label('HEAD', cx2(head), hdH - 8, yellow, 8);
+    label('RS', cx2(rs), rsH - 6, yellow);
+    // Breakout arrow
+    const brkX = cx2(N - 2);
+    const brkY = py(entry);
+    ctx.save();
+    ctx.fillStyle = col;
+    ctx.globalAlpha = 0.8;
+    ctx.beginPath();
+    if (isBull) {
+      ctx.moveTo(brkX, brkY); ctx.lineTo(brkX-6, brkY+12); ctx.lineTo(brkX+6, brkY+12);
+    } else {
+      ctx.moveTo(brkX, brkY); ctx.lineTo(brkX-6, brkY-12); ctx.lineTo(brkX+6, brkY-12);
+    }
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // ── DOUBLE TOP / DOUBLE BOTTOM ──
+  else if (pat.includes('double')) {
+    const range = pMax - pMin;
+    const peak1 = 5, peak2 = 13, nkLine = 8;
+    const peakY = isBull ? py(pMin + range*0.78) : py(pMax - range*0.78);
+    const nkY   = py(entry);
+    // Two peaks
+    circle(cx2(peak1), peakY, 4, yellow);
+    circle(cx2(peak2), peakY, 4, yellow);
+    // Connect peaks
+    line(cx2(peak1), peakY, cx2(peak2), peakY, yellow, 1, [4,3]);
+    // Neckline
+    line(cx2(0), nkY, cx2(N-1), nkY, yellow, 1.5, [6,3]);
+    label(isBull ? 'BOTTOM 1' : 'TOP 1', cx2(peak1), peakY - 10, yellow, 7);
+    label(isBull ? 'BOTTOM 2' : 'TOP 2', cx2(peak2), peakY - 10, yellow, 7);
+    label('NECKLINE', cx2(nkLine), nkY - 6, yellow, 7);
+  }
+
+  // ── ASCENDING TRIANGLE ──
+  else if (pat.includes('ascending triangle')) {
+    const range = pMax - pMin;
+    const resY = py(isBull ? pMin + range*0.80 : pMax - range*0.80);
+    const supY1 = py(isBull ? pMin + range*0.25 : pMax - range*0.25);
+    const supY2 = py(isBull ? pMin + range*0.60 : pMax - range*0.60);
+    // Flat resistance
+    line(cx2(0), resY, cx2(N * 0.75), resY, col, 1.5);
+    // Rising support
+    line(cx2(0), supY1, cx2(N * 0.72), supY2, col, 1.5);
+    // Fill triangle
+    ctx.save();
+    ctx.fillStyle = `${col}14`;
+    ctx.beginPath();
+    ctx.moveTo(cx2(0), supY1);
+    ctx.lineTo(cx2(N * 0.72), resY);
+    ctx.lineTo(cx2(0), resY);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+    label('RESISTANCE', cx2(N * 0.35), resY - 7, col, 8);
+    label('SUPPORT ↗', cx2(N * 0.35), (supY1 + supY2) / 2 + 14, col, 8);
+    // Breakout arrow
+    const brkX = cx2(N * 0.8);
+    ctx.save(); ctx.fillStyle = col; ctx.globalAlpha = 0.85;
+    ctx.beginPath();
+    if (isBull) { ctx.moveTo(brkX, resY-2); ctx.lineTo(brkX-7,resY+14); ctx.lineTo(brkX+7,resY+14); }
+    else { ctx.moveTo(brkX, resY+2); ctx.lineTo(brkX-7,resY-14); ctx.lineTo(brkX+7,resY-14); }
+    ctx.fill(); ctx.restore();
+  }
+
+  // ── DESCENDING TRIANGLE ──
+  else if (pat.includes('descending triangle')) {
+    const range = pMax - pMin;
+    const supY  = py(isBull ? pMin + range*0.22 : pMax - range*0.22);
+    const resY1 = py(isBull ? pMin + range*0.75 : pMax - range*0.75);
+    const resY2 = py(isBull ? pMin + range*0.40 : pMax - range*0.40);
+    line(cx2(0), supY, cx2(N * 0.75), supY, col, 1.5);
+    line(cx2(0), resY1, cx2(N * 0.72), resY2, col, 1.5);
+    ctx.save(); ctx.fillStyle = `${col}14`;
+    ctx.beginPath();
+    ctx.moveTo(cx2(0), resY1); ctx.lineTo(cx2(N*0.72), supY); ctx.lineTo(cx2(0), supY);
+    ctx.closePath(); ctx.fill(); ctx.restore();
+    label('SUPPORT', cx2(N * 0.35), supY + 14, col, 8);
+    label('RESISTANCE ↘', cx2(N * 0.3), (resY1+resY2)/2 - 8, col, 8);
+  }
+
+  // ── SYMMETRICAL TRIANGLE / PENNANT ──
+  else if (pat.includes('symmetrical') || pat.includes('pennant')) {
+    const range = pMax - pMin;
+    const mid = (pMin + pMax) / 2;
+    const topY1 = py(mid + range*0.36);
+    const topY2 = py(mid + range*0.05);
+    const botY1 = py(mid - range*0.36);
+    const botY2 = py(mid - range*0.05);
+    const x1 = cx2(0), x2 = cx2(N * 0.68);
+    line(x1, topY1, x2, topY2, col, 1.5);
+    line(x1, botY1, x2, botY2, col, 1.5);
+    ctx.save(); ctx.fillStyle = `${col}10`;
+    ctx.beginPath();
+    ctx.moveTo(x1, topY1); ctx.lineTo(x2, topY2); ctx.lineTo(x2, botY2); ctx.lineTo(x1, botY1);
+    ctx.closePath(); ctx.fill(); ctx.restore();
+    // Breakout
+    const brkX = cx2(N * 0.72), brkY = py(entry);
+    ctx.save(); ctx.fillStyle = col; ctx.globalAlpha = 0.85;
+    ctx.beginPath();
+    if (isBull) { ctx.moveTo(brkX,brkY-2); ctx.lineTo(brkX-7,brkY+14); ctx.lineTo(brkX+7,brkY+14); }
+    else { ctx.moveTo(brkX,brkY+2); ctx.lineTo(brkX-7,brkY-14); ctx.lineTo(brkX+7,brkY-14); }
+    ctx.fill(); ctx.restore();
+    label(pat.includes('pennant') ? 'PENNANT' : 'SYM. TRIANGLE', cx2(N*0.3), py(mid) + 4, col, 8);
+  }
+
+  // ── BULL / BEAR FLAG ──
+  else if (pat.includes('flag')) {
+    const range = pMax - pMin;
+    const poleEnd = isBull ? cx2(N * 0.45) : cx2(N * 0.45);
+    const poleTopY  = isBull ? py(pMin + range*0.82) : py(pMax - range*0.82);
+    const poleBotY  = isBull ? py(pMin + range*0.18) : py(pMax - range*0.18);
+    // Flagpole
+    line(cx2(0), isBull ? poleBotY : poleTopY, poleEnd, isBull ? poleTopY : poleBotY, col, 2);
+    // Flag box
+    const flagH = range * 0.15;
+    const fTop = isBull ? py(pMin + range*0.82 + flagH*0.2) : py(pMax - range*0.82 - flagH*0.2);
+    const fBot = isBull ? py(pMin + range*0.82 - flagH) : py(pMax - range*0.82 + flagH);
+    const fX1 = poleEnd, fX2 = cx2(N * 0.72);
+    const slope = (isBull ? 4 : -4);
+    line(fX1, fTop, fX2, fTop + slope, col, 1, [4,3]);
+    line(fX1, fBot, fX2, fBot + slope, col, 1, [4,3]);
+    ctx.save(); ctx.fillStyle = `${col}10`;
+    ctx.beginPath();
+    ctx.moveTo(fX1,fTop); ctx.lineTo(fX2,fTop+slope); ctx.lineTo(fX2,fBot+slope); ctx.lineTo(fX1,fBot);
+    ctx.closePath(); ctx.fill(); ctx.restore();
+    label(isBull ? 'BULL FLAG' : 'BEAR FLAG', cx2(N * 0.57), (fTop + fBot) / 2, col, 8);
+  }
+
+  // ── ELLIOTT WAVE (3 or 5) ──
+  else if (pat.includes('elliott wave') || pat.includes('ew')) {
+    const range = pMax - pMin;
+    const is5 = pat.includes('5') || pat.includes('five');
+    const pts = is5 ? [0, 4, 7, 11, 14, 18, 22] : [0, 5, 9, 14, 18, 22];
+    const priceSeq = is5
+      ? (isBull
+          ? [pMin+range*0.1, pMin+range*0.32, pMin+range*0.22, pMin+range*0.52, pMin+range*0.40, pMin+range*0.72, pMin+range*0.88]
+          : [pMax-range*0.1, pMax-range*0.32, pMax-range*0.22, pMax-range*0.52, pMax-range*0.40, pMax-range*0.72, pMax-range*0.88])
+      : (isBull
+          ? [pMin+range*0.1, pMin+range*0.35, pMin+range*0.22, pMin+range*0.62, pMin+range*0.78]
+          : [pMax-range*0.1, pMax-range*0.35, pMax-range*0.22, pMax-range*0.62, pMax-range*0.78]);
+
+    const waveLabels = is5 ? ['0','1','2','3','4','5'] : ['0','1','2','3','C'];
+    const waveColors = is5 ? [blue,blue,yellow,blue,yellow,blue] : [blue,blue,yellow,blue,yellow];
+
+    for (let i = 0; i < pts.length - 1; i++) {
+      const x1 = cx2(Math.min(pts[i], N-1));
+      const x2 = cx2(Math.min(pts[i+1], N-1));
+      const y1 = py(priceSeq[i]);
+      const y2 = py(priceSeq[i+1]);
+      line(x1, y1, x2, y2, waveColors[i] || blue, 1.5);
+      circle(x1, y1, 3, waveColors[i] || blue);
+    }
+    // Last point
+    const lastX = cx2(Math.min(pts[pts.length-1], N-1));
+    const lastY = py(priceSeq[priceSeq.length-1]);
+    circle(lastX, lastY, 3, blue);
+
+    // Wave labels
+    waveLabels.forEach((lbl, i) => {
+      if (i >= pts.length) return;
+      const x = cx2(Math.min(pts[i], N-1));
+      const y = py(priceSeq[i]);
+      // Alternate above/below
+      const offset = (isBull ? (i % 2 === 0 ? -14 : 10) : (i % 2 === 0 ? 10 : -14));
+      ctx.save();
+      ctx.fillStyle = 'rgba(5,9,18,0.8)';
+      ctx.fillRect(x - 8, y + offset - 9, 16, 13);
+      ctx.fillStyle = waveColors[i] || blue;
+      ctx.font = 'bold 9px Space Mono, monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(lbl, x, y + offset);
+      ctx.restore();
+    });
+  }
+
+  // ── FIB RETRACEMENT ──
+  else if (pat.includes('fib')) {
+    const range = pMax - pMin;
+    const impulseBase = isBull ? pMin + range*0.05 : pMax - range*0.05;
+    const impulseEnd  = isBull ? pMin + range*0.75 : pMax - range*0.75;
+    const fibs = [0.236, 0.382, 0.500, 0.618];
+    fibs.forEach(f => {
+      const level = impulseEnd + (impulseBase - impulseEnd) * f;
+      const y = py(level);
+      const alpha = f === 0.618 ? 0.9 : f === 0.382 ? 0.7 : 0.4;
+      ctx.save();
+      ctx.strokeStyle = yellow;
+      ctx.lineWidth = f === 0.618 ? 1.5 : 0.8;
+      ctx.setLineDash([4, 4]);
+      ctx.globalAlpha = alpha;
+      ctx.beginPath();
+      ctx.moveTo(MARGIN.left, y);
+      ctx.lineTo(MARGIN.left + CW * 0.85, y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = yellow;
+      ctx.font = `${f === 0.618 ? 'bold ' : ''}8px Space Mono, monospace`;
+      ctx.textAlign = 'left';
+      ctx.fillText(`${(f*100).toFixed(1)}%`, MARGIN.left + CW * 0.86, y + 3);
+      ctx.restore();
+    });
+    // Highlight 61.8
+    const fib618Y = py(impulseEnd + (impulseBase - impulseEnd) * 0.618);
+    ctx.save();
+    ctx.fillStyle = 'rgba(255,214,0,0.06)';
+    ctx.fillRect(MARGIN.left, fib618Y - 3, CW * 0.85, 6);
+    ctx.restore();
+  }
+
+  // ── CUP & HANDLE ──
+  else if (pat.includes('cup')) {
+    const range = pMax - pMin;
+    const rimLevel = pMin + range * (isBull ? 0.76 : 0.24);
+    const cupBot   = pMin + range * (isBull ? 0.18 : 0.82);
+    const numPts   = 24;
+    ctx.save();
+    ctx.strokeStyle = col;
+    ctx.lineWidth = 1.5;
+    ctx.globalAlpha = 0.7;
+    ctx.setLineDash([4, 2]);
+    ctx.beginPath();
+    for (let i = 0; i <= numPts; i++) {
+      const t = i / numPts;
+      const angle = Math.PI * t;
+      const x = MARGIN.left + t * CW * 0.65;
+      const y = py(rimLevel + (cupBot - rimLevel) * Math.sin(angle));
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+    // Handle: small consolidation
+    const handleX = MARGIN.left + CW * 0.65;
+    const handleEndX = MARGIN.left + CW * 0.82;
+    const handleTopY = py(rimLevel);
+    const handleBotY = py(rimLevel - range * 0.1);
+    line(handleX, handleTopY, handleEndX, handleTopY + 6, col, 1, [3,2]);
+    line(handleX, handleBotY, handleEndX, handleBotY + 6, col, 1, [3,2]);
+    label('CUP', MARGIN.left + CW * 0.32, py(cupBot) + 14, col, 9);
+    label('HANDLE', MARGIN.left + CW * 0.74, handleBotY + 14, col, 8);
+  }
+
+  // ── RISING / FALLING WEDGE ──
+  else if (pat.includes('wedge')) {
+    const rising = pat.includes('rising');
+    const range = pMax - pMin;
+    const x1 = cx2(0), x2 = cx2(N * 0.75);
+    let topY1, topY2, botY1, botY2;
+    if (rising) {
+      topY1 = py(pMin + range*0.55); topY2 = py(pMin + range*0.78);
+      botY1 = py(pMin + range*0.20); botY2 = py(pMin + range*0.58);
+    } else {
+      topY1 = py(pMin + range*0.80); topY2 = py(pMin + range*0.42);
+      botY1 = py(pMin + range*0.45); botY2 = py(pMin + range*0.22);
+    }
+    line(x1, topY1, x2, topY2, col, 1.5);
+    line(x1, botY1, x2, botY2, col, 1.5);
+    ctx.save(); ctx.fillStyle = `${col}0d`;
+    ctx.beginPath();
+    ctx.moveTo(x1,topY1); ctx.lineTo(x2,topY2); ctx.lineTo(x2,botY2); ctx.lineTo(x1,botY1);
+    ctx.closePath(); ctx.fill(); ctx.restore();
+    label(rising ? 'RISING WEDGE' : 'FALLING WEDGE', cx2(N*0.35), (topY1+topY2+botY1+botY2)/4, col, 8);
+    // Breakout
+    const brkX = cx2(N * 0.8), brkY = py(entry);
+    ctx.save(); ctx.fillStyle = col; ctx.globalAlpha = 0.85;
+    ctx.beginPath();
+    if (isBull) { ctx.moveTo(brkX,brkY-2); ctx.lineTo(brkX-7,brkY+14); ctx.lineTo(brkX+7,brkY+14); }
+    else { ctx.moveTo(brkX,brkY+2); ctx.lineTo(brkX-7,brkY-14); ctx.lineTo(brkX+7,brkY-14); }
+    ctx.fill(); ctx.restore();
+  }
+
+  // ── ENGULFING / DOJI ──
+  else if (pat.includes('engulf') || pat.includes('doji')) {
+    const revIdx = Math.floor(N * 0.62);
+    const revX = cx2(revIdx);
+    const revY = py(entry);
+    // Circle around reversal candle
+    ctx.save();
+    ctx.strokeStyle = yellow;
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([3,2]);
+    ctx.globalAlpha = 0.7;
+    ctx.beginPath();
+    ctx.arc(revX, revY, 14, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+    label(pat.includes('engulf') ? 'ENGULFING' : 'DOJI', revX, revY + 22, yellow, 8);
+    // Arrow after
+    const brkX = cx2(N * 0.82);
+    ctx.save(); ctx.fillStyle = col; ctx.globalAlpha = 0.85;
+    ctx.beginPath();
+    if (isBull) { ctx.moveTo(brkX,revY-4); ctx.lineTo(brkX-6,revY+12); ctx.lineTo(brkX+6,revY+12); }
+    else { ctx.moveTo(brkX,revY+4); ctx.lineTo(brkX-6,revY-12); ctx.lineTo(brkX+6,revY-12); }
+    ctx.fill(); ctx.restore();
+  }
+
+  // ── BREAKOUT ──
+  else if (pat.includes('breakout')) {
+    const range = pMax - pMin;
+    const level = entry;
+    const levelY = py(level);
+    // Key level line
+    line(cx2(0), levelY, cx2(N * 0.72), levelY, yellow, 1.5, [5, 3]);
+    ctx.save(); ctx.fillStyle = 'rgba(255,214,0,0.06)';
+    ctx.fillRect(MARGIN.left, levelY - 4, CW * 0.72, 8);
+    ctx.restore();
+    label('KEY LEVEL', cx2(N*0.35), levelY - 8, yellow, 8);
+    // Breakout candle
+    const brkX = cx2(N * 0.74);
+    ctx.save(); ctx.fillStyle = col; ctx.globalAlpha = 0.85;
+    const bh = 18;
+    if (isBull) { ctx.moveTo(brkX,levelY-2); ctx.lineTo(brkX-7,levelY+bh); ctx.lineTo(brkX+7,levelY+bh); }
+    else { ctx.moveTo(brkX,levelY+2); ctx.lineTo(brkX-7,levelY-bh); ctx.lineTo(brkX+7,levelY-bh); }
+    ctx.beginPath();
+    if (isBull) { ctx.moveTo(brkX,levelY-2); ctx.lineTo(brkX-7,levelY+bh); ctx.lineTo(brkX+7,levelY+bh); }
+    else { ctx.moveTo(brkX,levelY+2); ctx.lineTo(brkX-7,levelY-bh); ctx.lineTo(brkX+7,levelY-bh); }
+    ctx.closePath(); ctx.fill(); ctx.restore();
+  }
+
+  // ── RSI DIVERGENCE / MACD ──
+  else if (pat.includes('divergence') || pat.includes('macd')) {
+    const range = pMax - pMin;
+    // Price: making lower lows (bear div) or higher highs (bull div)
+    const p1x = cx2(N * 0.25), p2x = cx2(N * 0.55);
+    const p1y = isBull ? py(pMin + range*0.22) : py(pMax - range*0.22);
+    const p2y = isBull ? py(pMin + range*0.18) : py(pMax - range*0.18);
+    line(p1x, p1y, p2x, p2y, yellow, 1, [4,3]);
+    circle(p1x, p1y, 3, yellow);
+    circle(p2x, p2y, 3, yellow);
+    // Divergence label
+    label('DIVERGENCE', (p1x+p2x)/2, (p1y+p2y)/2 + (isBull ? 14 : -10), yellow, 8);
+    // Mini "oscillator" hint at bottom
+    const oscY = MARGIN.top + CH - 6;
+    ctx.save();
+    ctx.strokeStyle = blue;
+    ctx.lineWidth = 1;
+    ctx.globalAlpha = 0.4;
+    ctx.setLineDash([2,2]);
+    ctx.beginPath();
+    ctx.moveTo(MARGIN.left, oscY);
+    ctx.lineTo(MARGIN.left + CW, oscY);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // ── ROUNDING BOTTOM ──
+  else if (pat.includes('rounding')) {
+    const range = pMax - pMin;
+    const numPts = 20;
+    ctx.save();
+    ctx.strokeStyle = col;
+    ctx.lineWidth = 1.5;
+    ctx.globalAlpha = 0.65;
+    ctx.setLineDash([4, 2]);
+    ctx.beginPath();
+    for (let i = 0; i <= numPts; i++) {
+      const t = i / numPts;
+      const angle = Math.PI * t;
+      const x = MARGIN.left + t * CW * 0.80;
+      const base = isBull ? pMin + range*0.12 : pMax - range*0.12;
+      const rim  = isBull ? pMin + range*0.72 : pMax - range*0.72;
+      const y = py(rim + (base - rim) * Math.sin(angle));
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+}
+
+// ── CANDLE DATA BUILDER ──
+function buildCandles(sig, isBull, entry, sl, tp) {
+  const pat = sig.pattern.toLowerCase();
+  const range = Math.abs(tp - sl) * 4.5;
+  const base  = entry;
+  const v     = range * 0.035;
+  const N     = 32;
+
+  function rnd(scale) { return (Math.random() - 0.5) * scale; }
+  function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+
+  function makeCandle(o, c, extraH = 0, extraL = 0) {
+    const h = Math.max(o, c) + Math.abs(rnd(v * 0.6)) + extraH;
+    const l = Math.min(o, c) - Math.abs(rnd(v * 0.6)) - extraL;
+    return { o, c, h, l };
+  }
+
+  function trendSegment(from, to, n, vol) {
     const arr = [];
     for (let i = 0; i < n; i++) {
-      const t = i / (n-1);
-      const base = from + (to-from)*t;
-      const o = base + noise(volatility);
-      const c = base + noise(volatility) + (to > from ? 0.0001 : -0.0001) * range * 10;
-      const h = Math.max(o,c) + Math.abs(noise(volatility*0.5));
-      const l = Math.min(o,c) - Math.abs(noise(volatility*0.5));
-      arr.push(candle(o, c, h, l));
+      const t = i / Math.max(n - 1, 1);
+      const mid = from + (to - from) * t;
+      const bias = (to - from) / n * 0.3;
+      const o = mid + rnd(vol);
+      const c = mid + bias + rnd(vol);
+      arr.push(makeCandle(o, c));
     }
     return arr;
   }
 
-  const v = range * 0.04;
+  let candles = [];
 
-  if (pattern.includes('head') && pattern.includes('shoulder')) {
-    // H&S: left shoulder → head → right shoulder → breakout
-    const nk = mid - range*0.05; // neckline
-    const lsh = mid + range*0.18;
-    const head = mid + range*0.32;
-    const rsh = mid + range*0.16;
-    candles.push(...trend(mid, lsh, 4, v));
-    candles.push(...trend(lsh, nk, 3, v));
-    candles.push(...trend(nk, head, 4, v));
-    candles.push(...trend(head, nk, 4, v));
-    candles.push(...trend(nk, rsh, 3, v));
-    candles.push(...trend(rsh, entry, 3, v));
-    candles.push(...trend(entry, isBull ? tp : sl, 3, v));
-  } else if (pattern.includes('double top') || pattern.includes('double bottom')) {
-    const peak = isBull ? pMin + range*0.25 : pMax - range*0.25;
-    const valley = isBull ? pMin + range*0.55 : pMax - range*0.55;
-    candles.push(...trend(mid, peak, 5, v));
-    candles.push(...trend(peak, valley, 5, v));
-    candles.push(...trend(valley, peak + noise(range*0.02), 5, v));
-    candles.push(...trend(peak, entry, 5, v));
-    candles.push(...trend(entry, isBull ? tp : sl, 4, v));
-  } else if (pattern.includes('ascending triangle')) {
-    const resistance = pMax - range*0.08;
-    const baseStart = pMin + range*0.15;
+  if (pat.includes('head') && pat.includes('shoulder')) {
+    const nk = base + (isBull ? -range*0.06 : range*0.06);
+    const ls  = base + (isBull ?  range*0.20 : -range*0.20);
+    const hd  = base + (isBull ?  range*0.34 : -range*0.34);
+    const rs  = base + (isBull ?  range*0.18 : -range*0.18);
+    candles = [
+      ...trendSegment(base - (isBull?range*0.1:-range*0.1), ls, 4, v),
+      ...trendSegment(ls, nk, 3, v),
+      ...trendSegment(nk, hd, 4, v),
+      ...trendSegment(hd, nk, 4, v),
+      ...trendSegment(nk, rs, 3, v),
+      ...trendSegment(rs, base, 3, v),
+      ...trendSegment(base, isBull ? sl : tp, 4, v * 1.3),
+      ...trendSegment(isBull ? sl : tp, isBull ? sl*0.998 : tp*1.002, 5, v),
+    ];
+  } else if (pat.includes('double')) {
+    const peak   = base + (isBull ? -range*0.22 : range*0.22);
+    const valley = base + (isBull ? -range*0.05 : range*0.05);
+    candles = [
+      ...trendSegment(base - (isBull?range*0.3:-range*0.3), peak, 5, v),
+      ...trendSegment(peak, valley, 5, v),
+      ...trendSegment(valley, peak * (1 + rnd(0.002)), 5, v),
+      ...trendSegment(peak, base, 4, v),
+      ...trendSegment(base, isBull ? tp : sl, 8, v * 1.2),
+    ];
+  } else if (pat.includes('ascending triangle')) {
+    const res = base + (isBull ? range*0.18 : -range*0.18);
+    const s0  = base - (isBull ? range*0.22 : -range*0.22);
     for (let i = 0; i < 5; i++) {
-      const baseNow = baseStart + i*(resistance-baseStart)*0.18;
-      candles.push(...trend(baseNow, resistance, 2, v));
-      candles.push(...trend(resistance, baseNow + range*0.04, 2, v));
+      const sup = s0 + (isBull ? i * range*0.04 : -i * range*0.04);
+      candles.push(...trendSegment(sup, res, 3, v * 0.7));
+      candles.push(...trendSegment(res, sup + (isBull?range*0.02:-range*0.02), 2, v * 0.5));
     }
-    candles.push(...trend(resistance - range*0.02, tp, 4, v));
-  } else if (pattern.includes('descending triangle')) {
-    const support = pMin + range*0.08;
-    const topStart = pMax - range*0.15;
+    candles.push(...trendSegment(res, isBull ? tp : sl, 5, v * 1.3));
+  } else if (pat.includes('descending triangle')) {
+    const sup = base - (isBull ? range*0.18 : -range*0.18);
+    const r0  = base + (isBull ? range*0.22 : -range*0.22);
     for (let i = 0; i < 5; i++) {
-      const topNow = topStart - i*(topStart-support)*0.18;
-      candles.push(...trend(topNow, support, 2, v));
-      candles.push(...trend(support, topNow - range*0.04, 2, v));
+      const res = r0 - (isBull ? i*range*0.04 : -i*range*0.04);
+      candles.push(...trendSegment(res, sup, 3, v * 0.7));
+      candles.push(...trendSegment(sup, res - (isBull?range*0.02:-range*0.02), 2, v * 0.5));
     }
-    candles.push(...trend(support + range*0.02, sl, 4, v));
-  } else if (pattern.includes('symmetrical triangle') || pattern.includes('pennant')) {
-    const apex = mid;
-    const spread = range * 0.3;
-    for (let i = 0; i < 5; i++) {
-      const s = spread * (1 - i*0.17);
-      candles.push(candle(apex+s, apex-s*0.5, apex+s+v, apex-s-v));
-      candles.push(candle(apex-s, apex+s*0.5, apex+s*0.8, apex-s-v));
-    }
-    candles.push(...trend(apex, entry, 3, v));
-    candles.push(...trend(entry, isBull ? tp : sl, 4, v));
-  } else if (pattern.includes('bull flag') || pattern.includes('bear flag')) {
-    const flagpoleEnd = isBull ? pMax - range*0.12 : pMin + range*0.12;
-    const flagStart = isBull ? pMin + range*0.15 : pMax - range*0.15;
-    candles.push(...trend(flagStart, flagpoleEnd, 6, v));
-    // Flag: small counter-trend
-    const flagBase = isBull ? flagpoleEnd - range*0.12 : flagpoleEnd + range*0.12;
-    candles.push(...trend(flagpoleEnd, flagBase, 6, v*0.5));
-    candles.push(...trend(flagBase, entry, 4, v));
-    candles.push(...trend(entry, isBull ? tp : sl, 4, v));
-  } else if (pattern.includes('elliott wave 3') || pattern.includes('ew3')) {
-    // 1-2-3 wave with strong wave 3
-    const w1end = isBull ? mid + range*0.1 : mid - range*0.1;
-    const w2end = isBull ? mid + range*0.04 : mid - range*0.04;
-    const w3end = isBull ? mid + range*0.28 : mid - range*0.28;
-    candles.push(...trend(mid - range*0.05, w1end, 5, v));
-    candles.push(...trend(w1end, w2end, 4, v));
-    candles.push(...trend(w2end, entry, 3, v));
-    candles.push(...trend(entry, w3end, 7, v*0.8)); // strong wave 3
-    candles.push(...trend(w3end, tp, 5, v));
-  } else if (pattern.includes('elliott wave 5')) {
-    const base = isBull ? pMin + range*0.05 : pMax - range*0.05;
-    const pts = isBull
-      ? [base, base+range*0.2, base+range*0.12, base+range*0.3, base+range*0.22, base+range*0.38, entry, tp]
-      : [base, base-range*0.2, base-range*0.12, base-range*0.3, base-range*0.22, base-range*0.38, entry, sl];
-    let prev = pts[0];
-    for (let i = 1; i < pts.length; i++) {
-      candles.push(...trend(prev, pts[i], 3, v));
-      prev = pts[i];
-    }
-  } else if (pattern.includes('cup') || pattern.includes('rounding')) {
-    // Cup shape
-    const rimL = pMax - range*0.1;
-    const bottom = pMin + range*0.08;
-    const rimR = pMax - range*0.08;
-    for (let i = 0; i < 8; i++) {
-      const t = i/7;
-      const price = rimL + (bottom - rimL) * Math.sin(t * Math.PI) * -1 + (rimL*(1-t)+rimR*t - rimL);
-      candles.push(candle(price + noise(v), price + noise(v), price + v*1.5, price - v*1.5));
-    }
-    candles.push(...trend(rimR - range*0.05, rimR, 4, v*0.4)); // handle
-    candles.push(...trend(rimR, tp, 6, v));
-  } else if (pattern.includes('rising wedge')) {
-    const lo = pMin + range*0.1, hi = pMax - range*0.1;
+    candles.push(...trendSegment(sup, isBull ? tp : sl, 5, v * 1.3));
+  } else if (pat.includes('symmetrical') || pat.includes('pennant')) {
+    const spread = range * 0.28;
     for (let i = 0; i < 6; i++) {
-      const t = i/5;
-      const top = hi - range*0.05*t;
-      const bot = lo + range*0.12*t;
-      candles.push(...trend(bot, top, 2, v*0.5));
-      candles.push(...trend(top, bot + range*0.02, 2, v*0.5));
+      const s = spread * (1 - i * 0.15);
+      candles.push(makeCandle(base + s * (isBull?1:-1), base - s * 0.5 * (isBull?1:-1)));
+      candles.push(makeCandle(base - s * (isBull?1:-1), base + s * 0.5 * (isBull?1:-1)));
     }
-    candles.push(...trend(entry + range*0.04, sl, 6, v));
-  } else if (pattern.includes('falling wedge')) {
-    const lo = pMin + range*0.1, hi = pMax - range*0.1;
-    for (let i = 0; i < 6; i++) {
-      const t = i/5;
-      const top = hi - range*0.12*t;
-      const bot = lo - range*0.05*t;
-      candles.push(...trend(top, bot, 2, v*0.5));
-      candles.push(...trend(bot, top - range*0.02, 2, v*0.5));
+    candles.push(...trendSegment(base, base + (isBull?range*0.05:-range*0.05), 3, v));
+    candles.push(...trendSegment(base, isBull ? tp : sl, 8, v * 1.2));
+  } else if (pat.includes('flag')) {
+    const poleFrom = base - (isBull ? range*0.32 : -range*0.32);
+    const poleEnd  = base + (isBull ? range*0.22 : -range*0.22);
+    candles.push(...trendSegment(poleFrom, poleEnd, 7, v * 1.1));
+    const flagEnd = poleEnd - (isBull ? range*0.10 : -range*0.10);
+    candles.push(...trendSegment(poleEnd, flagEnd, 7, v * 0.4));
+    candles.push(...trendSegment(flagEnd, base, 3, v));
+    candles.push(...trendSegment(base, isBull ? tp : sl, 8, v * 1.2));
+  } else if (pat.includes('elliott wave')) {
+    const is5 = pat.includes('5');
+    if (is5) {
+      const pts = isBull
+        ? [base-range*0.3, base-range*0.1, base-range*0.18, base+range*0.1, base, base+range*0.32, base+range*0.22, base+range*0.45]
+        : [base+range*0.3, base+range*0.1, base+range*0.18, base-range*0.1, base, base-range*0.32, base-range*0.22, base-range*0.45];
+      let prev = pts[0];
+      for (let i = 1; i < pts.length; i++) {
+        candles.push(...trendSegment(prev, pts[i], 3, v * (i === 3 ? 1.4 : 0.8)));
+        prev = pts[i];
+      }
+    } else {
+      const pts = isBull
+        ? [base-range*0.25, base, base-range*0.1, base+range*0.3, tp]
+        : [base+range*0.25, base, base+range*0.1, base-range*0.3, sl];
+      let prev = pts[0];
+      for (let i = 1; i < pts.length; i++) {
+        candles.push(...trendSegment(prev, pts[i], 5, v * (i === 3 ? 1.5 : 0.8)));
+        prev = pts[i];
+      }
     }
-    candles.push(...trend(entry - range*0.04, tp, 6, v));
-  } else if (pattern.includes('fib')) {
-    // Fib bounce: impulse → retracement to fib → continuation
-    const impulseEnd = isBull ? pMax - range*0.1 : pMin + range*0.1;
-    const fibLevel = isBull
-      ? impulseEnd - (impulseEnd - pMin)*0.618
-      : impulseEnd + (pMax - impulseEnd)*0.618;
-    candles.push(...trend(mid, impulseEnd, 6, v));
-    candles.push(...trend(impulseEnd, fibLevel, 6, v));
-    candles.push(...trend(fibLevel, entry, 4, v));
-    candles.push(...trend(entry, isBull ? tp : sl, 8, v));
-  } else if (pattern.includes('engulfing') || pattern.includes('doji')) {
-    // Mostly trend then reversal candle
-    const trendFrom = isBull ? pMax - range*0.15 : pMin + range*0.15;
-    candles.push(...trend(trendFrom, isBull ? pMin + range*0.2 : pMax - range*0.2, 14, v));
-    // Big engulfing candle
-    const ec_o = isBull ? entry - range*0.06 : entry + range*0.06;
-    const ec_c = isBull ? entry + range*0.04 : entry - range*0.04;
-    candles.push(candle(ec_o, ec_c, Math.max(ec_o,ec_c)+range*0.01, Math.min(ec_o,ec_c)-range*0.01));
-    candles.push(...trend(ec_c, isBull ? tp : sl, 8, v));
+  } else if (pat.includes('fib')) {
+    const impulseEnd = base + (isBull ? range*0.38 : -range*0.38);
+    const fib618 = impulseEnd - (impulseEnd - (base - (isBull?range*0.2:-range*0.2))) * 0.618;
+    candles.push(...trendSegment(base - (isBull?range*0.2:-range*0.2), impulseEnd, 8, v));
+    candles.push(...trendSegment(impulseEnd, fib618, 7, v * 0.7));
+    candles.push(...trendSegment(fib618, base, 4, v));
+    candles.push(...trendSegment(base, isBull ? tp : sl, 8, v * 1.2));
+  } else if (pat.includes('cup')) {
+    const rim = base + (isBull ? range*0.15 : -range*0.15);
+    const bot = base - (isBull ? range*0.28 : -range*0.28);
+    for (let i = 0; i <= 12; i++) {
+      const t = i / 12;
+      const price = rim + (bot - rim) * Math.sin(t * Math.PI);
+      candles.push(makeCandle(price + rnd(v), price + rnd(v)));
+    }
+    candles.push(...trendSegment(rim, rim - (isBull?range*0.08:-range*0.08), 4, v * 0.4));
+    candles.push(...trendSegment(rim - (isBull?range*0.08:-range*0.08), base, 3, v));
+    candles.push(...trendSegment(base, isBull ? tp : sl, 7, v * 1.2));
+  } else if (pat.includes('engulf') || pat.includes('doji')) {
+    const trendDir = isBull ? -1 : 1;
+    candles.push(...trendSegment(base - trendDir*range*0.3, base - trendDir*range*0.05, 16, v));
+    // Big reversal candle
+    candles.push(makeCandle(
+      base - trendDir * range * 0.08,
+      base + trendDir * range * 0.06,
+      range * 0.01, range * 0.01
+    ));
+    candles.push(...trendSegment(base, isBull ? tp : sl, 10, v * 1.1));
+  } else if (pat.includes('wedge')) {
+    const rising = pat.includes('rising');
+    const dir = rising ? 1 : -1;
+    for (let i = 0; i < 7; i++) {
+      const t = i / 6;
+      const top = (base + range * 0.2 * dir) + t * range * 0.08 * dir;
+      const bot = (base - range * 0.15 * dir) + t * range * 0.18 * dir;
+      candles.push(...trendSegment(bot, top, 2, v * 0.5));
+      candles.push(...trendSegment(top, bot + range * 0.02 * dir, 1, v * 0.5));
+    }
+    candles.push(...trendSegment(base, isBull ? tp : sl, 7, v * 1.3));
+  } else if (pat.includes('breakout')) {
+    candles.push(...trendSegment(base - (isBull?range*0.1:-range*0.1), base, 14, v * 0.6));
+    candles.push(makeCandle(base, base + (isBull?range*0.08:-range*0.08), range*0.02, 0));
+    candles.push(...trendSegment(base + (isBull?range*0.08:-range*0.08), isBull ? tp : sl, 12, v * 1.1));
   } else {
-    // Generic: trend to entry then continuation
-    const from = isBull ? pMin + range*0.1 : pMax - range*0.1;
-    candles.push(...trend(from, isBull ? mid - range*0.05 : mid + range*0.05, 8, v));
-    candles.push(...trend(isBull ? mid - range*0.05 : mid + range*0.05, entry, 6, v));
-    candles.push(...trend(entry, isBull ? tp : sl, 10, v));
+    // Generic
+    candles.push(...trendSegment(base - (isBull?range*0.25:-range*0.25), base, 14, v));
+    candles.push(...trendSegment(base, isBull ? tp : sl, 14, v * 1.1));
   }
 
   return candles.slice(0, N);
 }
 
-// ── PATTERN OVERLAY (trendlines, shapes) ──
-function drawPatternOverlay(sig, candles, W, H, py, isBull) {
-  const pattern = sig.pattern.toLowerCase();
-  const startX = 35, cw = 6, gap = 2;
-  let out = '';
-
-  function cx(i) { return startX + i*(cw+gap) + cw/2; }
-
-  const green = '#00e676', red = '#ff3d5a', blue = '#00d4ff', yellow = '#ffd600';
-  const col = isBull ? green : red;
-
-  if (pattern.includes('head') && pattern.includes('shoulder')) {
-    // Neckline
-    const nk1y = py(parseFloat(sig.entry) * 1.003);
-    const nk2y = py(parseFloat(sig.entry) * 0.997);
-    out += `<line x1="${cx(3)}" y1="${nk1y}" x2="${cx(18)}" y2="${nk2y}" stroke="${yellow}" stroke-width="1.2" stroke-dasharray="5,3" opacity="0.7"/>`;
-    // Peaks labels
-    const headI = 7;
-    out += `<text x="${cx(headI)}" y="${py(Math.max(...candles.slice(0,N).map(c=>c.high)))-4}" font-family="Space Mono,monospace" font-size="7" fill="${yellow}" text-anchor="middle">HEAD</text>`;
-    out += `<text x="${cx(2)}" y="${py(candles[2]?.high||0)-4}" font-family="Space Mono,monospace" font-size="7" fill="${yellow}" text-anchor="middle">LS</text>`;
-    out += `<text x="${cx(14)}" y="${py(candles[14]?.high||0)-4}" font-family="Space Mono,monospace" font-size="7" fill="${yellow}" text-anchor="middle">RS</text>`;
-  } else if (pattern.includes('ascending triangle')) {
-    // Horizontal resistance + rising support
-    const resY = py(parseFloat(sig.tp) * (isBull ? 0.998 : 1.002));
-    out += `<line x1="${cx(0)}" y1="${resY}" x2="${cx(20)}" y2="${resY}" stroke="${col}" stroke-width="1" opacity="0.5"/>`;
-    // rising support line
-    const y1 = py(parseFloat(sig.sl));
-    const y2 = py(parseFloat(sig.entry) * 0.999);
-    out += `<line x1="${cx(0)}" y1="${y1}" x2="${cx(18)}" y2="${y2}" stroke="${col}" stroke-width="1" opacity="0.5"/>`;
-  } else if (pattern.includes('descending triangle')) {
-    const supY = py(parseFloat(sig.tp) * (isBull ? 1.002 : 0.998));
-    out += `<line x1="${cx(0)}" y1="${supY}" x2="${cx(20)}" y2="${supY}" stroke="${col}" stroke-width="1" opacity="0.5"/>`;
-    const y1 = py(parseFloat(sig.sl));
-    const y2 = py(parseFloat(sig.entry));
-    out += `<line x1="${cx(0)}" y1="${y1}" x2="${cx(18)}" y2="${y2}" stroke="${col}" stroke-width="1" opacity="0.5"/>`;
-  } else if (pattern.includes('symmetrical') || pattern.includes('pennant')) {
-    const mid = (parseFloat(sig.sl) + parseFloat(sig.tp)) / 2;
-    const spread = Math.abs(parseFloat(sig.tp) - parseFloat(sig.sl)) * 0.4;
-    out += `<line x1="${cx(0)}" y1="${py(mid+spread)}" x2="${cx(14)}" y2="${py(mid)}" stroke="${col}" stroke-width="1" opacity="0.5"/>`;
-    out += `<line x1="${cx(0)}" y1="${py(mid-spread)}" x2="${cx(14)}" y2="${py(mid)}" stroke="${col}" stroke-width="1" opacity="0.5"/>`;
-  } else if (pattern.includes('flag')) {
-    // Flag box
-    const fp = parseFloat(sig.entry);
-    const fTop = fp * 1.003, fBot = fp * 0.997;
-    out += `<rect x="${cx(6)}" y="${py(fTop)}" width="${cx(13)-cx(6)}" height="${py(fBot)-py(fTop)}" fill="${col}" opacity="0.05" stroke="${col}" stroke-width="0.8" stroke-dasharray="3,2"/>`;
-  } else if (pattern.includes('double')) {
-    // Two peaks/troughs markers
-    const p = isBull ? parseFloat(sig.sl)*1.02 : parseFloat(sig.sl)*0.98;
-    out += `<circle cx="${cx(4)}" cy="${py(p)}" r="3" fill="none" stroke="${yellow}" stroke-width="1" opacity="0.7"/>`;
-    out += `<circle cx="${cx(13)}" cy="${py(p * (1 + (Math.random()-0.5)*0.002))}" r="3" fill="none" stroke="${yellow}" stroke-width="1" opacity="0.7"/>`;
-    // Neckline
-    out += `<line x1="${cx(0)}" y1="${py(parseFloat(sig.entry))}" x2="${cx(20)}" y2="${py(parseFloat(sig.entry))}" stroke="${yellow}" stroke-width="0.8" stroke-dasharray="4,3" opacity="0.6"/>`;
-  } else if (pattern.includes('elliott wave')) {
-    // Label waves 1-5
-    const labels = ['1','2','3','4','5'];
-    const positions = [2, 5, 8, 13, 17];
-    labels.forEach((l, i) => {
-      const ci = positions[i];
-      if (ci < candles.length) {
-        out += `<circle cx="${cx(ci)}" cy="${py(candles[ci]?.close||0)-8}" r="5" fill="${blue}" opacity="0.15"/>`;
-        out += `<text x="${cx(ci)}" y="${py(candles[ci]?.close||0)-5}" font-family="Space Mono,monospace" font-size="7" fill="${blue}" text-anchor="middle">${l}</text>`;
-      }
-    });
-  } else if (pattern.includes('fib')) {
-    // Fib level lines
-    const entry = parseFloat(sig.entry), sl = parseFloat(sig.sl), tp = parseFloat(sig.tp);
-    const fib618 = entry + (tp-entry)*0.618;
-    const fib382 = entry + (tp-entry)*0.382;
-    out += `<line x1="${cx(0)}" y1="${py(fib618)}" x2="${cx(W)}" y2="${py(fib618)}" stroke="${yellow}" stroke-width="0.7" stroke-dasharray="3,3" opacity="0.4"/>`;
-    out += `<line x1="${cx(0)}" y1="${py(fib382)}" x2="${cx(W)}" y2="${py(fib382)}" stroke="${yellow}" stroke-width="0.7" stroke-dasharray="3,3" opacity="0.4"/>`;
-    out += `<text x="35" y="${py(fib618)-2}" font-size="7" font-family="Space Mono,monospace" fill="${yellow}" opacity="0.7">61.8%</text>`;
-    out += `<text x="35" y="${py(fib382)-2}" font-size="7" font-family="Space Mono,monospace" fill="${yellow}" opacity="0.7">38.2%</text>`;
-  } else if (pattern.includes('cup')) {
-    // Arc for cup
-    const cupMid = 12, cupW = 10;
-    const rimY = py(parseFloat(sig.tp) * 0.994);
-    const botY = py(parseFloat(sig.sl) * (isBull ? 1.005 : 0.995));
-    out += `<path d="M ${cx(2)} ${rimY} Q ${cx(cupMid)} ${botY+20} ${cx(cupMid*2-2)} ${rimY}" fill="none" stroke="${col}" stroke-width="1" opacity="0.5"/>`;
-  } else if (pattern.includes('wedge')) {
-    const e = parseFloat(sig.entry), sl2 = parseFloat(sig.sl), tp2 = parseFloat(sig.tp);
-    const rising = pattern.includes('rising');
-    out += `<line x1="${cx(0)}" y1="${py(rising ? sl2*1.01 : tp2*0.99)}" x2="${cx(16)}" y2="${py(e)}" stroke="${col}" stroke-width="1" opacity="0.5"/>`;
-    out += `<line x1="${cx(0)}" y1="${py(rising ? tp2*0.995 : sl2*1.005)}" x2="${cx(16)}" y2="${py(rising ? e*1.003 : e*0.997)}" stroke="${col}" stroke-width="1" opacity="0.5"/>`;
-  }
-
-  return out;
+function fmtPrice(v, pair) {
+  const n = parseFloat(v);
+  if (!pair) return n.toFixed(2);
+  if (pair.includes('JPY') || pair.includes('225') || pair.includes('JPN')) return n.toFixed(2);
+  if (pair.includes('US30') || pair.includes('US500') || pair.includes('NAS') ||
+      pair.includes('UK100') || pair.includes('GER') || pair.includes('FRA') || pair.includes('AUS')) return n.toFixed(1);
+  if (pair.includes('BTC') || pair.includes('ETH')) return n.toFixed(0);
+  if (n > 500) return n.toFixed(1);
+  return n.toFixed(4);
 }
 
-const N = 24;
+
 
 // ── FORMAT ──
 function fmt(val, pair) {
