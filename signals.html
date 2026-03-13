@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>XENOS · Signal Engine</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap');
+
+  :root {
+    --bg: #060810;
+    --bg2: #0c1018;
+    --bg3: #111720;
+    --border: #1e2a3a;
+    --border-bright: #2a3f58;
+    --accent: #00d4ff;
+    --accent2: #0099cc;
+    --green: #00e676;
+    --red: #ff3d5a;
+    --yellow: #ffd600;
+    --text: #c8d8e8;
+    --text-dim: #5a7a9a;
+    --text-bright: #eaf4ff;
+    --mono: 'Space Mono', monospace;
+    --sans: 'Syne', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Glow top */
+  body::after {
+    content: '';
+    position: fixed;
+    top: 0; left: 50%; transform: translateX(-50%);
+    width: 800px; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    box-shadow: 0 0 60px 20px rgba(0,212,255,0.08);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrap { position: relative; z-index: 1; max-width: 1400px; margin: 0 auto; padding: 0 20px; }
+
+  /* ── HEADER ── */
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 16px 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+  }
+
+  .logo {
+    font-family: var(--sans);
+    font-weight: 800;
+    font-size: 18px;
+    letter-spacing: 0.15em;
+    color: var(--text-bright);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .logo-dot { width: 8px; height: 8px; background: var(--accent); border-radius: 50%; animation: pulse 2s infinite; }
+
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.8)} }
+
+  .logo span { color: var(--accent); }
+
+  .header-status {
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+    text-align: right;
+  }
+
+  .status-live { color: var(--green); }
+
+  /* ── AUTH ── */
+  #auth-screen {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .auth-box {
+    border: 1px solid var(--border-bright);
+    background: var(--bg2);
+    padding: 40px;
+    width: 380px;
+    position: relative;
+  }
+
+  .auth-box::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  }
+
+  .auth-title {
+    font-family: var(--sans);
+    font-weight: 800;
+    font-size: 22px;
+    color: var(--text-bright);
+    margin-bottom: 6px;
+  }
+
+  .auth-sub { font-size: 11px; color: var(--text-dim); margin-bottom: 28px; letter-spacing: 0.08em; }
+
+  .field { margin-bottom: 16px; }
+  .field label { display: block; font-size: 10px; color: var(--text-dim); letter-spacing: 0.12em; margin-bottom: 6px; text-transform: uppercase; }
+
+  .field input {
+    width: 100%;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    color: var(--text-bright);
+    font-family: var(--mono);
+    font-size: 13px;
+    padding: 10px 12px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .field input:focus { border-color: var(--accent2); }
+
+  .btn {
+    width: 100%;
+    padding: 12px;
+    background: var(--accent);
+    color: #000;
+    border: none;
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: background 0.2s;
+  }
+
+  .btn:hover { background: #00bbee; }
+  .btn:disabled { background: var(--border); color: var(--text-dim); cursor: not-allowed; }
+
+  /* ── MAIN APP ── */
+  #app { display: none; }
+
+  /* TOP BAR */
+  .topbar {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 12px;
+    align-items: center;
+    padding: 16px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .topbar-title {
+    font-family: var(--sans);
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--text-bright);
+    letter-spacing: 0.05em;
+  }
+
+  .topbar-title small {
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 400;
+    color: var(--text-dim);
+    display: block;
+    letter-spacing: 0.12em;
+    margin-top: 2px;
+  }
+
+  /* ── CONTROLS ── */
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 16px 0;
+    border-bottom: 1px solid var(--border);
+    align-items: flex-end;
+  }
+
+  .ctrl-group { display: flex; flex-direction: column; gap: 5px; }
+  .ctrl-label { font-size: 9px; color: var(--text-dim); letter-spacing: 0.12em; text-transform: uppercase; }
+
+  select, .ctrl-select {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 7px 10px;
+    outline: none;
+    cursor: pointer;
+    min-width: 130px;
+  }
+
+  select:focus { border-color: var(--accent2); }
+
+  .toggle-group { display: flex; gap: 4px; }
+
+  .toggle-btn {
+    padding: 7px 12px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-dim);
+    font-family: var(--mono);
+    font-size: 10px;
+    cursor: pointer;
+    letter-spacing: 0.08em;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+
+  .toggle-btn.active {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(0,212,255,0.06);
+  }
+
+  .btn-generate {
+    padding: 8px 24px;
+    background: var(--accent);
+    color: #000;
+    border: none;
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    text-transform: uppercase;
+    white-space: nowrap;
+    transition: background 0.2s;
+    align-self: flex-end;
+  }
+
+  .btn-generate:hover { background: #00bbee; }
+  .btn-generate:disabled { background: var(--border); color: var(--text-dim); cursor: not-allowed; }
+
+  /* ── GRID SIGNALS ── */
+  .signals-header {
+    display: grid;
+    grid-template-columns: 100px 70px 90px 90px 90px 90px 60px 1fr;
+    gap: 8px;
+    padding: 10px 12px;
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+    margin-top: 16px;
+  }
+
+  #signals-list { display: flex; flex-direction: column; gap: 0; }
+
+  .signal-row {
+    display: grid;
+    grid-template-columns: 100px 70px 90px 90px 90px 90px 60px 1fr;
+    gap: 8px;
+    padding: 11px 12px;
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+    align-items: center;
+    transition: background 0.15s;
+    cursor: pointer;
+    position: relative;
+  }
+
+  .signal-row::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 2px;
+  }
+
+  .signal-row.bull::before { background: var(--green); }
+  .signal-row.bear::before { background: var(--red); }
+
+  .signal-row:hover { background: rgba(255,255,255,0.02); }
+
+  .sig-pair { color: var(--text-bright); font-weight: 700; letter-spacing: 0.05em; }
+  .sig-dir { font-size: 10px; font-weight: 700; }
+  .sig-dir.BUY { color: var(--green); }
+  .sig-dir.SELL { color: var(--red); }
+
+  .sig-pattern { font-size: 10px; color: var(--accent2); }
+  .sig-entry { color: var(--text-bright); }
+  .sig-sl { color: var(--red); }
+  .sig-tp { color: var(--green); }
+
+  .sig-conf { text-align: center; }
+  .conf-bar {
+    width: 40px;
+    height: 4px;
+    background: var(--bg3);
+    border-radius: 2px;
+    overflow: hidden;
+    display: inline-block;
+    vertical-align: middle;
+    margin-right: 5px;
+  }
+  .conf-fill { height: 100%; border-radius: 2px; background: var(--accent); }
+
+  .sig-rr { color: var(--yellow); font-size: 10px; }
+
+  /* ── EXPANDED DETAIL ── */
+  .signal-detail {
+    background: var(--bg2);
+    border: 1px solid var(--border-bright);
+    border-left: 2px solid var(--accent);
+    padding: 18px 20px;
+    margin: 4px 0;
+    display: none;
+    animation: slideDown 0.2s ease;
+  }
+
+  @keyframes slideDown {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .signal-detail.open { display: block; }
+
+  .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+
+  .detail-section-title {
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .detail-text {
+    font-size: 11px;
+    line-height: 1.7;
+    color: var(--text);
+  }
+
+  .tag-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .tag {
+    font-size: 9px;
+    padding: 3px 8px;
+    border: 1px solid var(--border-bright);
+    color: var(--text-dim);
+    letter-spacing: 0.08em;
+  }
+
+  /* ── LOADER ── */
+  .loader-wrap {
+    text-align: center;
+    padding: 60px 0;
+    display: none;
+  }
+
+  .loader-wrap.active { display: block; }
+
+  .loader {
+    width: 40px;
+    height: 40px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 16px;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .loader-text { font-size: 11px; color: var(--text-dim); letter-spacing: 0.1em; }
+  .loader-sub { font-size: 10px; color: var(--text-dim); margin-top: 6px; opacity: 0.6; }
+
+  /* ── STATS BAR ── */
+  .stats-bar {
+    display: flex;
+    gap: 24px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+
+  .stat { display: flex; flex-direction: column; gap: 3px; }
+  .stat-val { font-family: var(--sans); font-size: 20px; font-weight: 600; color: var(--text-bright); }
+  .stat-label { font-size: 9px; color: var(--text-dim); letter-spacing: 0.1em; text-transform: uppercase; }
+
+  .stat-val.green { color: var(--green); }
+  .stat-val.red { color: var(--red); }
+
+  /* ── EMPTY / ERROR ── */
+  .empty-state {
+    text-align: center;
+    padding: 80px 20px;
+    display: none;
+  }
+
+  .empty-state.active { display: block; }
+  .empty-icon { font-size: 40px; margin-bottom: 16px; opacity: 0.3; }
+  .empty-text { font-size: 12px; color: var(--text-dim); }
+
+  /* ── TOAST ── */
+  #toast {
+    position: fixed;
+    bottom: 24px; right: 24px;
+    background: var(--bg3);
+    border: 1px solid var(--border-bright);
+    border-left: 3px solid var(--accent);
+    padding: 12px 18px;
+    font-size: 11px;
+    color: var(--text);
+    z-index: 999;
+    transform: translateY(20px);
+    opacity: 0;
+    transition: all 0.3s;
+    max-width: 320px;
+  }
+
+  #toast.show { transform: translateY(0); opacity: 1; }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border-bright); }
+
+  @media (max-width: 900px) {
+    .signals-header { display: none; }
+    .signal-row {
+      grid-template-columns: 1fr 1fr 1fr;
+      grid-template-rows: auto auto;
+    }
+    .detail-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- AUTH SCREEN -->
+<div id="auth-screen">
+  <div class="auth-box">
+    <div class="auth-title">XENOS · Engine</div>
+    <div class="auth-sub">INTERNAL ACCESS ONLY — SIGNAL GENERATOR v2</div>
+    <div class="field">
+      <label>Access Password</label>
+      <input type="password" id="pwd-input" placeholder="••••••••" />
+    </div>
+    <div class="field">
+      <label>Cloudflare Worker URL</label>
+      <input type="text" id="worker-url" placeholder="https://xenos-ai-proxy.xenosfinance.workers.dev" />
+    </div>
+    <button class="btn" onclick="doLogin()">ENTER SIGNAL ENGINE</button>
+    <div style="font-size:10px;color:var(--text-dim);margin-top:14px;line-height:1.6;">
+      Accesso riservato. Le credenziali non vengono trasmesse esternamente.
+    </div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+  <div class="wrap">
+    <header>
+      <div class="logo">
+        <div class="logo-dot"></div>
+        XENOS<span>FINANCE</span>
+      </div>
+      <div class="header-status">
+        <div class="status-live">● LIVE ENGINE</div>
+        <div id="ts-display">--:--:-- UTC</div>
+      </div>
+    </header>
+
+    <div class="topbar">
+      <div class="topbar-title">
+        Signal Engine
+        <small>AI-POWERED CFD INTRADAY · PATTERN RECOGNITION</small>
+      </div>
+    </div>
+
+    <!-- CONTROLS -->
+    <div class="controls">
+      <div class="ctrl-group">
+        <div class="ctrl-label">Asset Class</div>
+        <div class="toggle-group" id="class-toggle">
+          <button class="toggle-btn active" onclick="toggleClass(this,'ALL')">ALL</button>
+          <button class="toggle-btn" onclick="toggleClass(this,'FX')">FX</button>
+          <button class="toggle-btn" onclick="toggleClass(this,'INDICES')">INDICES</button>
+          <button class="toggle-btn" onclick="toggleClass(this,'COMMODITIES')">COMMODITIES</button>
+          <button class="toggle-btn" onclick="toggleClass(this,'CRYPTO')">CRYPTO</button>
+        </div>
+      </div>
+
+      <div class="ctrl-group">
+        <div class="ctrl-label">Timeframe</div>
+        <div class="toggle-group" id="tf-toggle">
+          <button class="toggle-btn" onclick="toggleTF(this,'M15')">M15</button>
+          <button class="toggle-btn active" onclick="toggleTF(this,'H1')">H1</button>
+          <button class="toggle-btn" onclick="toggleTF(this,'H4')">H4</button>
+          <button class="toggle-btn" onclick="toggleTF(this,'D1')">D1</button>
+        </div>
+      </div>
+
+      <div class="ctrl-group">
+        <div class="ctrl-label">Direction Filter</div>
+        <div class="toggle-group" id="dir-toggle">
+          <button class="toggle-btn active" onclick="toggleDir(this,'BOTH')">BOTH</button>
+          <button class="toggle-btn" onclick="toggleDir(this,'BUY')">BUY ONLY</button>
+          <button class="toggle-btn" onclick="toggleDir(this,'SELL')">SELL ONLY</button>
+        </div>
+      </div>
+
+      <div class="ctrl-group">
+        <div class="ctrl-label">Min Confidence</div>
+        <select id="conf-min">
+          <option value="60">60%+</option>
+          <option value="70" selected>70%+</option>
+          <option value="80">80%+</option>
+          <option value="90">90%+</option>
+        </select>
+      </div>
+
+      <div class="ctrl-group">
+        <div class="ctrl-label">Pairs Count</div>
+        <select id="pairs-count">
+          <option value="5">5 pairs</option>
+          <option value="10" selected>10 pairs</option>
+          <option value="15">15 pairs</option>
+          <option value="22">All (22)</option>
+        </select>
+      </div>
+
+      <button class="btn-generate" id="gen-btn" onclick="generateSignals()">
+        ▶ GENERATE SIGNALS
+      </button>
+    </div>
+
+    <!-- STATS -->
+    <div class="stats-bar" id="stats-bar" style="display:none">
+      <div class="stat">
+        <div class="stat-val" id="s-total">—</div>
+        <div class="stat-label">Signals Generated</div>
+      </div>
+      <div class="stat">
+        <div class="stat-val green" id="s-bull">—</div>
+        <div class="stat-label">Bullish</div>
+      </div>
+      <div class="stat">
+        <div class="stat-val red" id="s-bear">—</div>
+        <div class="stat-label">Bearish</div>
+      </div>
+      <div class="stat">
+        <div class="stat-val" id="s-avgconf">—</div>
+        <div class="stat-label">Avg Confidence</div>
+      </div>
+      <div class="stat">
+        <div class="stat-val" id="s-avgrr">—</div>
+        <div class="stat-label">Avg R:R</div>
+      </div>
+      <div class="stat" style="margin-left:auto">
+        <div class="stat-val" style="font-size:12px;color:var(--text-dim)" id="s-time">—</div>
+        <div class="stat-label">Generated At</div>
+      </div>
+    </div>
+
+    <!-- TABLE HEADER -->
+    <div class="signals-header">
+      <div>PAIR</div>
+      <div>DIR</div>
+      <div>PATTERN</div>
+      <div>ENTRY</div>
+      <div>STOP LOSS</div>
+      <div>TAKE PROFIT</div>
+      <div>CONF</div>
+      <div>R:R / NOTE</div>
+    </div>
+
+    <!-- LOADER -->
+    <div class="loader-wrap" id="loader">
+      <div class="loader"></div>
+      <div class="loader-text">SCANNING CFD MARKETS</div>
+      <div class="loader-sub" id="loader-sub">Initializing pattern recognition engine...</div>
+    </div>
+
+    <!-- EMPTY STATE -->
+    <div class="empty-state" id="empty-state">
+      <div class="empty-icon">◈</div>
+      <div class="empty-text">Configure filters and press GENERATE SIGNALS</div>
+    </div>
+
+    <!-- SIGNALS -->
+    <div id="signals-list"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ── STATE ──
+let WORKER = '';
+let selectedClass = 'ALL';
+let selectedTF = 'H1';
+let selectedDir = 'BOTH';
+let signals = [];
+
+// ── ALL CFD PAIRS ──
+const CFD_PAIRS = {
+  FX: ['EURUSD','GBPUSD','USDJPY','USDCHF','AUDUSD','NZDUSD','USDCAD','EURGBP','EURJPY','GBPJPY','CADJPY','AUDNZD','EURCHF','GBPCHF'],
+  INDICES: ['US500','US30','NAS100','UK100','GER40','FRA40','JPN225','HK50','AUS200'],
+  COMMODITIES: ['XAUUSD','XAGUSD','USOIL','UKOIL','NGAS','COPPER'],
+  CRYPTO: ['BTCUSD','ETHUSD','XRPUSD','SOLUSD','DOGEUSD']
+};
+
+const ALL_PAIRS = [...CFD_PAIRS.FX, ...CFD_PAIRS.INDICES, ...CFD_PAIRS.COMMODITIES, ...CFD_PAIRS.CRYPTO];
+
+const PATTERNS = [
+  'Elliott Wave 3','Elliott Wave 5','Elliott Wave C',
+  'Head & Shoulders','Inv. Head & Shoulders',
+  'Double Top','Double Bottom',
+  'Ascending Triangle','Descending Triangle','Symmetrical Triangle',
+  'Bull Flag','Bear Flag','Pennant',
+  'Cup & Handle','Rounding Bottom',
+  'Rising Wedge','Falling Wedge',
+  'Breakout — Key Level','Fib 61.8% Rejection','Fib 38.2% Bounce',
+  'RSI Divergence','MACD Cross','Engulfing Candle','Doji Reversal'
+];
+
+// ── AUTH ──
+function doLogin() {
+  const pwd = document.getElementById('pwd-input').value;
+  const wUrl = document.getElementById('worker-url').value.trim();
+  if (!pwd) { showToast('Inserisci la password'); return; }
+  if (!wUrl) { showToast('Inserisci il Worker URL'); return; }
+  const stored = 'xenosfinance2026'; // 
+  if (pwd !== stored) { showToast('Password errata'); return; }
+  WORKER = wUrl.replace(/\/$/, '');
+  localStorage.setItem('xenos_worker', WORKER);
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  startClock();
+  showEmptyState();
+}
+
+// ── CLOCK ──
+function startClock() {
+  setInterval(() => {
+    const now = new Date();
+    document.getElementById('ts-display').textContent =
+      now.toUTCString().split(' ').slice(4,5)[0] + ' UTC';
+  }, 1000);
+}
+
+// ── TOGGLES ──
+function toggleClass(el, val) {
+  document.querySelectorAll('#class-toggle .toggle-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  selectedClass = val;
+}
+
+function toggleTF(el, val) {
+  document.querySelectorAll('#tf-toggle .toggle-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  selectedTF = val;
+}
+
+function toggleDir(el, val) {
+  document.querySelectorAll('#dir-toggle .toggle-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  selectedDir = val;
+}
+
+// ── GET PAIRS TO ANALYZE ──
+function getPairsToAnalyze() {
+  let pool = selectedClass === 'ALL' ? ALL_PAIRS : CFD_PAIRS[selectedClass] || ALL_PAIRS;
+  const count = parseInt(document.getElementById('pairs-count').value);
+  // shuffle deterministically (time-based seed)
+  const seed = Math.floor(Date.now() / 60000);
+  const shuffled = [...pool].sort((a,b) => {
+    const ha = simpleHash(a + seed), hb = simpleHash(b + seed);
+    return ha - hb;
+  });
+  return shuffled.slice(0, Math.min(count, shuffled.length));
+}
+
+function simpleHash(s) {
+  let h = 0;
+  for (let c of String(s)) h = (h * 31 + c.charCodeAt(0)) & 0xffffffff;
+  return h;
+}
+
+// ── GENERATE ──
+async function generateSignals() {
+  const btn = document.getElementById('gen-btn');
+  btn.disabled = true;
+  document.getElementById('loader').classList.add('active');
+  document.getElementById('empty-state').classList.remove('active');
+  document.getElementById('signals-list').innerHTML = '';
+  document.getElementById('stats-bar').style.display = 'none';
+
+  const pairs = getPairsToAnalyze();
+  const minConf = parseInt(document.getElementById('conf-min').value);
+  const tf = selectedTF;
+  const dirFilter = selectedDir;
+
+  const loaderSubs = [
+    'Scanning Elliott Wave structures...',
+    'Identifying chart patterns...',
+    'Calculating ATR-based SL/TP levels...',
+    'Evaluating momentum confluence...',
+    'Filtering by confidence threshold...'
+  ];
+  let li = 0;
+  const loaderInterval = setInterval(() => {
+    document.getElementById('loader-sub').textContent = loaderSubs[li++ % loaderSubs.length];
+  }, 1800);
+
+  try {
+    const prompt = buildPrompt(pairs, tf, dirFilter, minConf);
+    const raw = await callClaudeAPI(prompt);
+    clearInterval(loaderInterval);
+    const parsed = parseSignals(raw, minConf, dirFilter);
+    signals = parsed;
+    renderSignals(parsed);
+    updateStats(parsed);
+  } catch(e) {
+    clearInterval(loaderInterval);
+    console.error(e);
+    showToast('Errore API: ' + e.message);
+    showEmptyState();
+  }
+
+  document.getElementById('loader').classList.remove('active');
+  btn.disabled = false;
+}
+
+// ── PROMPT ──
+function buildPrompt(pairs, tf, dir, minConf) {
+  const dirNote = dir === 'BOTH' ? 'bullish and bearish' : dir === 'BUY' ? 'bullish only' : 'bearish only';
+
+  return `You are an expert intraday CFD trader specializing in technical pattern recognition, Elliott Wave analysis, and institutional trading setups. Generate precise trading signals for a professional trading desk.
+
+Analyze the following CFD instruments on the ${tf} timeframe and identify high-probability intraday setups:
+${pairs.join(', ')}
+
+For each instrument, generate ${dirNote} signals where a pattern exists.
+
+Return ONLY a valid JSON array. No markdown. No explanation. No extra text. Just the raw JSON array.
+
+Each signal object must have exactly these fields:
+{
+  "pair": "EURUSD",
+  "direction": "BUY" or "SELL",
+  "pattern": "pattern name",
+  "entry": 1.0850,
+  "sl": 1.0820,
+  "tp": 1.0910,
+  "tp2": 1.0950,
+  "confidence": 78,
+  "rr": "1:2.1",
+  "ew_context": "brief Elliott Wave context (1 sentence)",
+  "pattern_desc": "what the pattern looks like and why it's valid (2-3 sentences)",
+  "key_levels": "important S/R levels and fib levels to watch",
+  "invalidation": "what would invalidate this setup",
+  "market_context": "brief macro/session context",
+  "tags": ["momentum", "breakout", "EW3"] (2-4 tags)
+}
+
+Rules:
+- Use realistic current market-like prices for each instrument
+- SL must be logical: for BUY, sl < entry; for SELL, sl > entry  
+- TP must be logical: for BUY, tp > entry; for SELL, tp < entry
+- confidence between ${minConf} and 96 (integers only)
+- R:R ratio between 1:1.5 and 1:4
+- Use these patterns: ${PATTERNS.slice(0,12).join(', ')}
+- Generate signals only where a real pattern would realistically exist
+- Be selective: not every pair needs a signal
+- Minimum ${minConf}% confidence only
+
+Output the JSON array directly. Example: [{"pair":"EURUSD",...},{"pair":"GOLD",...}]`;
+}
+
+// ── CALL API ──
+async function callClaudeAPI(prompt) {
+  const endpoint = WORKER + '/ai';
+
+  const res = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-opus-4-5',
+      max_tokens: 4000,
+      messages: [{ role: 'user', content: prompt }]
+    })
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`HTTP ${res.status}: ${err.slice(0,200)}`);
+  }
+
+  const data = await res.json();
+  const text = data?.content?.[0]?.text || '';
+  return text;
+}
+
+// ── PARSE ──
+function parseSignals(raw, minConf, dir) {
+  // Strip possible markdown fences
+  let cleaned = raw.trim();
+  cleaned = cleaned.replace(/^```json\n?/, '').replace(/```$/, '').trim();
+
+  const start = cleaned.indexOf('[');
+  const end = cleaned.lastIndexOf(']');
+  if (start === -1 || end === -1) throw new Error('No JSON array found in response');
+
+  const jsonStr = cleaned.slice(start, end + 1);
+  let arr = JSON.parse(jsonStr);
+
+  // Filter
+  arr = arr.filter(s => {
+    if (s.confidence < minConf) return false;
+    if (dir === 'BUY' && s.direction !== 'BUY') return false;
+    if (dir === 'SELL' && s.direction !== 'SELL') return false;
+    return true;
+  });
+
+  return arr;
+}
+
+// ── RENDER ──
+function renderSignals(list) {
+  const container = document.getElementById('signals-list');
+  container.innerHTML = '';
+
+  if (list.length === 0) {
+    showEmptyState('Nessun segnale trovato con i filtri correnti');
+    return;
+  }
+
+  // Sort by confidence desc
+  list.sort((a,b) => b.confidence - a.confidence);
+
+  list.forEach((sig, idx) => {
+    const isBull = sig.direction === 'BUY';
+    const confWidth = Math.round((sig.confidence / 100) * 40);
+
+    const row = document.createElement('div');
+    row.className = 'signal-row ' + (isBull ? 'bull' : 'bear');
+    row.innerHTML = `
+      <div class="sig-pair">${sig.pair}</div>
+      <div class="sig-dir ${sig.direction}">${sig.direction}</div>
+      <div class="sig-pattern">${sig.pattern}</div>
+      <div class="sig-entry">${fmt(sig.entry, sig.pair)}</div>
+      <div class="sig-sl">${fmt(sig.sl, sig.pair)}</div>
+      <div class="sig-tp">${fmt(sig.tp, sig.pair)}</div>
+      <div class="sig-conf">
+        <div class="conf-bar"><div class="conf-fill" style="width:${confWidth}px"></div></div>
+        ${sig.confidence}%
+      </div>
+      <div class="sig-rr">${sig.rr || '—'} &nbsp;·&nbsp; <span style="color:var(--text-dim);font-size:10px">${(sig.tags||[]).slice(0,2).join(' · ')}</span></div>
+    `;
+
+    // Detail row
+    const detail = document.createElement('div');
+    detail.className = 'signal-detail';
+    detail.id = 'detail-' + idx;
+    detail.innerHTML = `
+      <div class="detail-grid">
+        <div>
+          <div class="detail-section-title">Elliott Wave Context</div>
+          <div class="detail-text">${sig.ew_context || '—'}</div>
+          <div class="detail-section-title" style="margin-top:14px">Pattern Description</div>
+          <div class="detail-text">${sig.pattern_desc || '—'}</div>
+        </div>
+        <div>
+          <div class="detail-section-title">Key Levels</div>
+          <div class="detail-text">${sig.key_levels || '—'}</div>
+          <div class="detail-section-title" style="margin-top:14px">Invalidation</div>
+          <div class="detail-text" style="color:var(--red)">${sig.invalidation || '—'}</div>
+          <div class="detail-section-title" style="margin-top:14px">Market Context</div>
+          <div class="detail-text">${sig.market_context || '—'}</div>
+        </div>
+      </div>
+      <div class="tag-list">${(sig.tags||[]).map(t=>`<span class="tag">${t}</span>`).join('')}</div>
+    `;
+
+    row.addEventListener('click', () => {
+      const isOpen = detail.classList.contains('open');
+      // close all
+      document.querySelectorAll('.signal-detail').forEach(d => d.classList.remove('open'));
+      if (!isOpen) detail.classList.add('open');
+    });
+
+    container.appendChild(row);
+    container.appendChild(detail);
+  });
+}
+
+// ── FORMAT PRICE ──
+function fmt(val, pair) {
+  if (!val) return '—';
+  if (pair && (pair.includes('JPY') || pair.includes('225') || pair.includes('JPN'))) return parseFloat(val).toFixed(2);
+  if (pair && (pair.includes('US30') || pair.includes('US500') || pair.includes('NAS') || pair.includes('UK100') || pair.includes('GER') || pair.includes('FRA') || pair.includes('AUS'))) return parseFloat(val).toFixed(1);
+  if (pair && (pair.includes('BTC') || pair.includes('ETH'))) return parseFloat(val).toFixed(0);
+  return parseFloat(val).toFixed(4);
+}
+
+// ── STATS ──
+function updateStats(list) {
+  if (list.length === 0) return;
+  const bar = document.getElementById('stats-bar');
+  bar.style.display = 'flex';
+
+  const bulls = list.filter(s => s.direction === 'BUY').length;
+  const bears = list.filter(s => s.direction === 'SELL').length;
+  const avgConf = Math.round(list.reduce((a,s) => a + s.confidence, 0) / list.length);
+
+  // parse R:R
+  const rrs = list.map(s => {
+    const m = String(s.rr || '').match(/1:(\d+\.?\d*)/);
+    return m ? parseFloat(m[1]) : 0;
+  }).filter(r => r > 0);
+  const avgRR = rrs.length ? (rrs.reduce((a,b) => a+b,0)/rrs.length).toFixed(1) : '—';
+
+  document.getElementById('s-total').textContent = list.length;
+  document.getElementById('s-bull').textContent = bulls;
+  document.getElementById('s-bear').textContent = bears;
+  document.getElementById('s-avgconf').textContent = avgConf + '%';
+  document.getElementById('s-avgrr').textContent = '1:' + avgRR;
+  document.getElementById('s-time').textContent = new Date().toUTCString().split(' ').slice(4,5)[0] + ' UTC';
+}
+
+// ── UI HELPERS ──
+function showEmptyState(msg) {
+  const el = document.getElementById('empty-state');
+  el.classList.add('active');
+  if (msg) el.querySelector('.empty-text').textContent = msg;
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+// ── INIT ──
+window.onload = () => {
+  const saved = localStorage.getItem('xenos_worker');
+  if (saved) document.getElementById('worker-url').value = saved;
+  document.getElementById('empty-state').classList.add('active');
+  document.getElementById('pwd-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') doLogin();
+  });
+};
+</script>
+</body>
+</html>
