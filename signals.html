@@ -19,7 +19,1514 @@
     --red: #ff3d5a;
     --yellow: #ffd600;
     --text: #c8d8e8;
+    --text-dim: #5a7a9a;<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>XENOS · Signal Engine</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap');
+
+  :root {
+    --bg: #060810;
+    --bg2: #0c1018;
+    --bg3: #111720;
+    --border: #1e2a3a;
+    --border-bright: #2a3f58;
+    --accent: #00d4ff;
+    --accent2: #0099cc;
+    --green: #00e676;
+    --red: #ff3d5a;
+    --yellow: #ffd600;
+    --text: #c8d8e8;
     --text-dim: #5a7a9a;
+    --text-bright: #eaf4ff;
+    --mono: 'Space Mono', monospace;
+    --sans: 'Syne', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  body::after {
+    content: '';
+    position: fixed;
+    top: 0; left: 50%; transform: translateX(-50%);
+    width: 800px; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    box-shadow: 0 0 60px 20px rgba(0,212,255,0.08);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrap { position: relative; z-index: 1; max-width: 1400px; margin: 0 auto; padding: 0 20px; }
+
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 16px 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+  }
+
+  .logo {
+    font-family: var(--sans);
+    font-weight: 800;
+    font-size: 18px;
+    letter-spacing: 0.15em;
+    color: var(--text-bright);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .logo-dot { width: 8px; height: 8px; background: var(--accent); border-radius: 50%; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.8)} }
+  .logo span { color: var(--accent); }
+
+  .header-status { font-size: 10px; color: var(--text-dim); letter-spacing: 0.1em; text-align: right; }
+  .status-live { color: var(--green); }
+
+  /* AUTH */
+  #auth-screen { min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+
+  .auth-box {
+    border: 1px solid var(--border-bright);
+    background: var(--bg2);
+    padding: 40px;
+    width: 380px;
+    position: relative;
+  }
+
+  .auth-box::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  }
+
+  .auth-title { font-family: var(--sans); font-weight: 800; font-size: 22px; color: var(--text-bright); margin-bottom: 6px; }
+  .auth-sub { font-size: 11px; color: var(--text-dim); margin-bottom: 28px; letter-spacing: 0.08em; }
+
+  .field { margin-bottom: 16px; }
+  .field label { display: block; font-size: 10px; color: var(--text-dim); letter-spacing: 0.12em; margin-bottom: 6px; text-transform: uppercase; }
+  .field input {
+    width: 100%;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    color: var(--text-bright);
+    font-family: var(--mono);
+    font-size: 13px;
+    padding: 10px 12px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .field input:focus { border-color: var(--accent2); }
+
+  .btn {
+    width: 100%;
+    padding: 12px;
+    background: var(--accent);
+    color: #000;
+    border: none;
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: background 0.2s;
+  }
+  .btn:hover { background: #00bbee; }
+
+  /* MAIN APP */
+  #app { display: none; }
+
+  .topbar {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 12px;
+    align-items: center;
+    padding: 16px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .topbar-title { font-family: var(--sans); font-size: 20px; font-weight: 800; color: var(--text-bright); letter-spacing: 0.05em; }
+  .topbar-title small { font-family: var(--mono); font-size: 10px; font-weight: 400; color: var(--text-dim); display: block; letter-spacing: 0.12em; margin-top: 2px; }
+
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 16px 0;
+    border-bottom: 1px solid var(--border);
+    align-items: flex-end;
+  }
+
+  .ctrl-group { display: flex; flex-direction: column; gap: 5px; }
+  .ctrl-label { font-size: 9px; color: var(--text-dim); letter-spacing: 0.12em; text-transform: uppercase; }
+
+  select {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 7px 10px;
+    outline: none;
+    cursor: pointer;
+    min-width: 130px;
+  }
+  select:focus { border-color: var(--accent2); }
+
+  .toggle-group { display: flex; gap: 4px; }
+
+  .toggle-btn {
+    padding: 7px 12px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-dim);
+    font-family: var(--mono);
+    font-size: 10px;
+    cursor: pointer;
+    letter-spacing: 0.08em;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .toggle-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(0,212,255,0.06); }
+
+  .btn-generate {
+    padding: 8px 24px;
+    background: var(--accent);
+    color: #000;
+    border: none;
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    text-transform: uppercase;
+    white-space: nowrap;
+    transition: background 0.2s;
+    align-self: flex-end;
+  }
+  .btn-generate:hover { background: #00bbee; }
+  .btn-generate:disabled { background: var(--border); color: var(--text-dim); cursor: not-allowed; }
+
+  /* SIGNAL TABLE */
+  .signals-header {
+    display: grid;
+    grid-template-columns: 100px 70px 160px 90px 90px 90px 60px 1fr;
+    gap: 8px;
+    padding: 10px 12px;
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+    margin-top: 16px;
+  }
+
+  #signals-list { display: flex; flex-direction: column; }
+
+  .signal-row {
+    display: grid;
+    grid-template-columns: 100px 70px 160px 90px 90px 90px 60px 1fr;
+    gap: 8px;
+    padding: 11px 12px;
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+    align-items: center;
+    transition: background 0.15s;
+    cursor: pointer;
+    position: relative;
+  }
+  .signal-row::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; }
+  .signal-row.bull::before { background: var(--green); }
+  .signal-row.bear::before { background: var(--red); }
+  .signal-row:hover { background: rgba(255,255,255,0.02); }
+
+  .sig-pair { color: var(--text-bright); font-weight: 700; letter-spacing: 0.05em; }
+  .sig-dir { font-size: 10px; font-weight: 700; }
+  .sig-dir.BUY { color: var(--green); }
+  .sig-dir.SELL { color: var(--red); }
+  .sig-pattern { font-size: 10px; color: var(--accent2); }
+  .sig-entry { color: var(--text-bright); }
+  .sig-sl { color: var(--red); }
+  .sig-tp { color: var(--green); }
+
+  .sig-conf { text-align: center; }
+  .conf-bar { width: 40px; height: 4px; background: var(--bg3); border-radius: 2px; overflow: hidden; display: inline-block; vertical-align: middle; margin-right: 5px; }
+  .conf-fill { height: 100%; border-radius: 2px; background: var(--accent); }
+  .sig-rr { color: var(--yellow); font-size: 10px; }
+
+  /* EXPANDED DETAIL */
+  .signal-detail {
+    background: var(--bg2);
+    border: 1px solid var(--border-bright);
+    border-left: 2px solid var(--accent);
+    padding: 20px;
+    display: none;
+    animation: slideDown 0.2s ease;
+  }
+  @keyframes slideDown { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+  .signal-detail.open { display: block; }
+
+  .detail-top { display: grid; grid-template-columns: 520px 1fr; gap: 24px; }
+
+  /* PATTERN CHART */
+  .chart-container {
+    background: #050810;
+    border: 1px solid var(--border);
+    padding: 10px;
+    position: relative;
+  }
+  .chart-header {
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .chart-pattern-badge {
+    font-size: 9px;
+    color: var(--accent);
+    border: 1px solid rgba(0,212,255,0.3);
+    padding: 1px 6px;
+    letter-spacing: 0.08em;
+  }
+  .chart-container canvas { display: block; width: 100%; border-radius: 2px; }
+
+  /* TEXT DETAILS */
+  .detail-info { display: flex; flex-direction: column; gap: 14px; }
+
+  .detail-section-title {
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid var(--border);
+  }
+  .detail-text { font-size: 11px; line-height: 1.7; color: var(--text); }
+
+  .levels-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 6px; }
+  .level-box { background: var(--bg3); border: 1px solid var(--border); padding: 8px 10px; }
+  .level-label { font-size: 9px; color: var(--text-dim); letter-spacing: 0.1em; margin-bottom: 3px; }
+  .level-val { font-size: 13px; font-weight: 700; }
+  .level-val.entry { color: var(--accent); }
+  .level-val.sl { color: var(--red); }
+  .level-val.tp { color: var(--green); }
+
+  .tag-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+  .tag { font-size: 9px; padding: 3px 8px; border: 1px solid var(--border-bright); color: var(--text-dim); letter-spacing: 0.08em; }
+
+  /* LOADER */
+  .loader-wrap { text-align: center; padding: 60px 0; display: none; }
+  .loader-wrap.active { display: block; }
+  .loader { width: 40px; height: 40px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 16px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loader-text { font-size: 11px; color: var(--text-dim); letter-spacing: 0.1em; }
+  .loader-sub { font-size: 10px; color: var(--text-dim); margin-top: 6px; opacity: 0.6; }
+
+  /* STATS */
+  .stats-bar { display: flex; gap: 24px; padding: 12px 0; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+  .stat { display: flex; flex-direction: column; gap: 3px; }
+  .stat-val { font-family: var(--sans); font-size: 20px; font-weight: 600; color: var(--text-bright); }
+  .stat-label { font-size: 9px; color: var(--text-dim); letter-spacing: 0.1em; text-transform: uppercase; }
+  .stat-val.green { color: var(--green); }
+  .stat-val.red { color: var(--red); }
+
+  .empty-state { text-align: center; padding: 80px 20px; display: none; }
+  .empty-state.active { display: block; }
+  .empty-icon { font-size: 40px; margin-bottom: 16px; opacity: 0.3; }
+  .empty-text { font-size: 12px; color: var(--text-dim); }
+
+  #toast {
+    position: fixed;
+    bottom: 24px; right: 24px;
+    background: var(--bg3);
+    border: 1px solid var(--border-bright);
+    border-left: 3px solid var(--accent);
+    padding: 12px 18px;
+    font-size: 11px;
+    color: var(--text);
+    z-index: 999;
+    transform: translateY(20px);
+    opacity: 0;
+    transition: all 0.3s;
+    max-width: 320px;
+  }
+  #toast.show { transform: translateY(0); opacity: 1; }
+
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border-bright); }
+
+  @media (max-width: 1000px) {
+    .signals-header { display: none; }
+    .signal-row { grid-template-columns: 1fr 1fr 1fr; grid-template-rows: auto auto; }
+    .detail-top { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div id="auth-screen">
+  <div class="auth-box">
+    <div class="auth-title">XENOS · Engine</div>
+    <div class="auth-sub">INTERNAL ACCESS ONLY — SIGNAL GENERATOR v2</div>
+    <div class="field">
+      <label>Access Password</label>
+      <input type="password" id="pwd-input" placeholder="••••••••" />
+    </div>
+    <button class="btn" onclick="doLogin()">ENTER SIGNAL ENGINE</button>
+    <div style="font-size:10px;color:var(--text-dim);margin-top:14px;line-height:1.6;">
+      Accesso riservato. Credenziali non trasmesse esternamente.
+    </div>
+  </div>
+</div>
+
+<div id="app">
+  <div class="wrap">
+    <header>
+      <div class="logo">
+        <div class="logo-dot"></div>
+        XENOS<span>FINANCE</span>
+      </div>
+      <div class="header-status">
+        <div class="status-live">● LIVE ENGINE</div>
+        <div id="ts-display">--:--:-- UTC</div>
+      </div>
+    </header>
+
+    <div class="topbar">
+      <div class="topbar-title">
+        Signal Engine
+        <small>AI-POWERED CFD INTRADAY · PATTERN RECOGNITION</small>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="ctrl-group">
+        <div class="ctrl-label">Asset Class</div>
+        <div class="toggle-group" id="class-toggle">
+          <button class="toggle-btn active" onclick="toggleClass(this,'ALL')">ALL</button>
+          <button class="toggle-btn" onclick="toggleClass(this,'FX')">FX</button>
+          <button class="toggle-btn" onclick="toggleClass(this,'INDICES')">INDICES</button>
+          <button class="toggle-btn" onclick="toggleClass(this,'COMMODITIES')">COMMODITIES</button>
+          <button class="toggle-btn" onclick="toggleClass(this,'CRYPTO')">CRYPTO</button>
+        </div>
+      </div>
+
+      <div class="ctrl-group">
+        <div class="ctrl-label">Timeframe</div>
+        <div class="toggle-group" id="tf-toggle">
+          <button class="toggle-btn" onclick="toggleTF(this,'M15')">M15</button>
+          <button class="toggle-btn active" onclick="toggleTF(this,'H1')">H1</button>
+          <button class="toggle-btn" onclick="toggleTF(this,'H4')">H4</button>
+          <button class="toggle-btn" onclick="toggleTF(this,'D1')">D1</button>
+        </div>
+      </div>
+
+      <div class="ctrl-group">
+        <div class="ctrl-label">Direction Filter</div>
+        <div class="toggle-group" id="dir-toggle">
+          <button class="toggle-btn active" onclick="toggleDir(this,'BOTH')">BOTH</button>
+          <button class="toggle-btn" onclick="toggleDir(this,'BUY')">BUY ONLY</button>
+          <button class="toggle-btn" onclick="toggleDir(this,'SELL')">SELL ONLY</button>
+        </div>
+      </div>
+
+      <div class="ctrl-group">
+        <div class="ctrl-label">Min Confidence</div>
+        <select id="conf-min">
+          <option value="60">60%+</option>
+          <option value="70" selected>70%+</option>
+          <option value="80">80%+</option>
+          <option value="90">90%+</option>
+        </select>
+      </div>
+
+      <div class="ctrl-group">
+        <div class="ctrl-label">Pairs Count</div>
+        <select id="pairs-count">
+          <option value="5">5 pairs</option>
+          <option value="10" selected>10 pairs</option>
+          <option value="15">15 pairs</option>
+          <option value="22">All (22)</option>
+        </select>
+      </div>
+
+      <button class="btn-generate" id="gen-btn" onclick="generateSignals()">▶ GENERATE SIGNALS</button>
+    </div>
+
+    <div class="stats-bar" id="stats-bar" style="display:none">
+      <div class="stat"><div class="stat-val" id="s-total">—</div><div class="stat-label">Signals</div></div>
+      <div class="stat"><div class="stat-val green" id="s-bull">—</div><div class="stat-label">Bullish</div></div>
+      <div class="stat"><div class="stat-val red" id="s-bear">—</div><div class="stat-label">Bearish</div></div>
+      <div class="stat"><div class="stat-val" id="s-avgconf">—</div><div class="stat-label">Avg Confidence</div></div>
+      <div class="stat"><div class="stat-val" id="s-avgrr">—</div><div class="stat-label">Avg R:R</div></div>
+      <div class="stat" style="margin-left:auto"><div class="stat-val" style="font-size:12px;color:var(--text-dim)" id="s-time">—</div><div class="stat-label">Generated At</div></div>
+    </div>
+
+    <div class="signals-header">
+      <div>PAIR</div><div>DIR</div><div>PATTERN</div><div>ENTRY</div><div>STOP LOSS</div><div>TAKE PROFIT</div><div>CONF</div><div>R:R</div>
+    </div>
+
+    <div class="loader-wrap" id="loader">
+      <div class="loader"></div>
+      <div class="loader-text">SCANNING CFD MARKETS</div>
+      <div class="loader-sub" id="loader-sub">Initializing pattern recognition engine...</div>
+    </div>
+
+    <div class="empty-state" id="empty-state">
+      <div class="empty-icon">◈</div>
+      <div class="empty-text">Configure filters and press GENERATE SIGNALS</div>
+    </div>
+
+    <div id="signals-list"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ── STATE ──
+let WORKER = '';
+let selectedClass = 'ALL';
+let selectedTF = 'H1';
+let selectedDir = 'BOTH';
+let signals = [];
+
+const CFD_PAIRS = {
+  FX: ['EURUSD','GBPUSD','USDJPY','USDCHF','AUDUSD','NZDUSD','USDCAD','EURGBP','EURJPY','GBPJPY','CADJPY','AUDNZD','EURCHF','GBPCHF'],
+  INDICES: ['US500','US30','NAS100','UK100','GER40','FRA40','JPN225','HK50','AUS200'],
+  COMMODITIES: ['XAUUSD','XAGUSD','USOIL','UKOIL','NGAS','COPPER'],
+  CRYPTO: ['BTCUSD','ETHUSD','XRPUSD','SOLUSD','DOGEUSD']
+};
+const ALL_PAIRS = [...CFD_PAIRS.FX, ...CFD_PAIRS.INDICES, ...CFD_PAIRS.COMMODITIES, ...CFD_PAIRS.CRYPTO];
+const PATTERNS = ['Elliott Wave 3','Elliott Wave 5','Elliott Wave C','Head & Shoulders','Inv. Head & Shoulders','Double Top','Double Bottom','Ascending Triangle','Descending Triangle','Symmetrical Triangle','Bull Flag','Bear Flag','Pennant','Cup & Handle','Rounding Bottom','Rising Wedge','Falling Wedge','Breakout — Key Level','Fib 61.8% Rejection','Fib 38.2% Bounce','RSI Divergence','MACD Cross','Engulfing Candle','Doji Reversal'];
+
+// ── AUTH ──
+function doLogin() {
+  const pwd = document.getElementById('pwd-input').value;
+  if (!pwd) { showToast('Inserisci la password'); return; }
+  if (pwd !== 'xenosfinance2026') { showToast('Password errata'); return; }
+  WORKER = 'https://xenos-ai-proxy.xenosfinance.workers.dev';
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  startClock();
+  document.getElementById('empty-state').classList.add('active');
+}
+
+function startClock() {
+  setInterval(() => {
+    document.getElementById('ts-display').textContent =
+      new Date().toUTCString().split(' ').slice(4,5)[0] + ' UTC';
+  }, 1000);
+}
+
+function toggleClass(el, val) {
+  document.querySelectorAll('#class-toggle .toggle-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active'); selectedClass = val;
+}
+function toggleTF(el, val) {
+  document.querySelectorAll('#tf-toggle .toggle-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active'); selectedTF = val;
+}
+function toggleDir(el, val) {
+  document.querySelectorAll('#dir-toggle .toggle-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active'); selectedDir = val;
+}
+
+function getPairsToAnalyze() {
+  let pool = selectedClass === 'ALL' ? ALL_PAIRS : CFD_PAIRS[selectedClass] || ALL_PAIRS;
+  const count = parseInt(document.getElementById('pairs-count').value);
+  const seed = Math.floor(Date.now() / 60000);
+  const shuffled = [...pool].sort((a,b) => simpleHash(a+seed) - simpleHash(b+seed));
+  return shuffled.slice(0, Math.min(count, shuffled.length));
+}
+
+function simpleHash(s) {
+  let h = 0; for (let c of String(s)) h = (h*31 + c.charCodeAt(0)) & 0xffffffff; return h;
+}
+
+async function fetchLivePrices(pairs) {
+  try {
+    document.getElementById('loader-sub').textContent = 'Fetching live prices from Yahoo Finance...';
+    const res = await fetch(WORKER + '/proxy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'prices', pairs })
+    });
+    if (!res.ok) return {};
+    const data = await res.json();
+    return data.prices || {};
+  } catch(e) {
+    console.warn('Price fetch failed, using AI estimates:', e.message);
+    return {};
+  }
+}
+
+async function generateSignals() {
+  const btn = document.getElementById('gen-btn');
+  btn.disabled = true;
+  document.getElementById('loader').classList.add('active');
+  document.getElementById('empty-state').classList.remove('active');
+  document.getElementById('signals-list').innerHTML = '';
+  document.getElementById('stats-bar').style.display = 'none';
+
+  const pairs = getPairsToAnalyze();
+  const minConf = parseInt(document.getElementById('conf-min').value);
+  const loaderMsgs = ['Fetching live prices...','Scanning Elliott Wave structures...','Identifying chart patterns...','Calculating ATR-based SL/TP...','Filtering by confidence threshold...'];
+  let li = 0;
+  const loaderInterval = setInterval(() => {
+    document.getElementById('loader-sub').textContent = loaderMsgs[li++ % loaderMsgs.length];
+  }, 1800);
+
+  try {
+    // Step 1: fetch prezzi reali
+    const livePrices = await fetchLivePrices(pairs);
+    const priceCount = Object.keys(livePrices).length;
+    if (priceCount > 0) {
+      showToast(`Prezzi live: ${priceCount}/${pairs.length} strumenti`);
+    }
+
+    // Step 2: genera segnali con prezzi reali nel prompt
+    const raw = await callClaudeAPI(buildPrompt(pairs, selectedTF, selectedDir, minConf, livePrices));
+    clearInterval(loaderInterval);
+    const parsed = parseSignals(raw, minConf, selectedDir);
+    signals = parsed;
+    renderSignals(parsed);
+    updateStats(parsed);
+  } catch(e) {
+    clearInterval(loaderInterval);
+    console.error(e);
+    showToast('Errore API: ' + e.message);
+    document.getElementById('empty-state').classList.add('active');
+  }
+  document.getElementById('loader').classList.remove('active');
+  btn.disabled = false;
+}
+
+function buildPrompt(pairs, tf, dir, minConf, livePrices = {}) {
+  const dirNote = dir === 'BOTH' ? 'bullish and bearish' : dir === 'BUY' ? 'bullish only' : 'bearish only';
+
+  // Costruisci lista prezzi reali
+  const priceLines = pairs.map(p => {
+    const price = livePrices[p];
+    return price != null
+      ? `  ${p}: CURRENT PRICE = ${price} (USE THIS EXACT PRICE as base for entry/sl/tp)`
+      : `  ${p}: price unavailable — use realistic estimate`;
+  }).join('\n');
+
+  return `You are an expert intraday CFD trader specializing in technical pattern recognition, Elliott Wave analysis, and institutional trading setups. Generate precise trading signals.
+
+LIVE MARKET PRICES (real-time from Yahoo Finance):
+${priceLines}
+
+Analyze these CFD instruments on ${tf} timeframe: ${pairs.join(', ')}
+
+Generate ${dirNote} signals where a real pattern exists. Return ONLY a raw JSON array, no markdown, no text outside the array.
+
+CRITICAL: For instruments where a CURRENT PRICE is provided above, you MUST use that price as the base. Entry must be within 0.1%-0.5% of current price. SL and TP must be realistic ATR-based distances from that entry.
+
+Each signal object:
+{
+  "pair": "EURUSD",
+  "direction": "BUY",
+  "pattern": "Head & Shoulders",
+  "entry": 1.0850,
+  "sl": 1.0820,
+  "tp": 1.0910,
+  "tp2": 1.0950,
+  "confidence": 78,
+  "rr": "1:2.1",
+  "ew_context": "1 sentence EW context",
+  "pattern_desc": "2-3 sentence pattern description",
+  "key_levels": "S/R and fib levels",
+  "invalidation": "what invalidates this setup",
+  "market_context": "brief macro/session context",
+  "tags": ["tag1","tag2","tag3"]
+}
+
+Rules:
+- BUY: sl < entry < tp. SELL: tp < entry < sl
+- confidence: ${minConf}–96 (integer)
+- R:R between 1:1.5 and 1:4
+- Be selective, not every pair needs a signal
+- Minimum confidence: ${minConf}%
+
+Output only the JSON array.`;
+}
+
+async function callClaudeAPI(prompt) {
+  const res = await fetch(WORKER + '/proxy', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-opus-4-5',
+      max_tokens: 4000,
+      messages: [{ role: 'user', content: prompt }]
+    })
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}: ${(await res.text()).slice(0,200)}`);
+  const data = await res.json();
+  return data?.content?.[0]?.text || '';
+}
+
+
+function parseSignals(raw, minConf, dir) {
+  let cleaned = raw.trim().replace(/^```json\n?/, '').replace(/```$/, '').trim();
+  const start = cleaned.indexOf('['), end = cleaned.lastIndexOf(']');
+  if (start === -1 || end === -1) throw new Error('No JSON array in response');
+  let arr = JSON.parse(cleaned.slice(start, end+1));
+  return arr.filter(s =>
+    s.confidence >= minConf &&
+    (dir === 'BOTH' || s.direction === dir)
+  );
+}
+
+function renderSignals(list) {
+  const container = document.getElementById('signals-list');
+  container.innerHTML = '';
+  if (!list.length) {
+    document.getElementById('empty-state').classList.add('active');
+    document.getElementById('empty-state').querySelector('.empty-text').textContent = 'Nessun segnale trovato con i filtri correnti';
+    return;
+  }
+  list.sort((a,b) => b.confidence - a.confidence);
+  list.forEach((sig, idx) => {
+    const isBull = sig.direction === 'BUY';
+    const confWidth = Math.round((sig.confidence/100)*40);
+
+    const row = document.createElement('div');
+    row.className = 'signal-row ' + (isBull ? 'bull' : 'bear');
+    row.innerHTML = `
+      <div class="sig-pair">${sig.pair}</div>
+      <div class="sig-dir ${sig.direction}">${sig.direction}</div>
+      <div class="sig-pattern">${sig.pattern}</div>
+      <div class="sig-entry">${fmt(sig.entry, sig.pair)}</div>
+      <div class="sig-sl">${fmt(sig.sl, sig.pair)}</div>
+      <div class="sig-tp">${fmt(sig.tp, sig.pair)}</div>
+      <div class="sig-conf">
+        <div class="conf-bar"><div class="conf-fill" style="width:${confWidth}px"></div></div>
+        ${sig.confidence}%
+      </div>
+      <div class="sig-rr">${sig.rr || '—'}</div>
+    `;
+
+    const detail = document.createElement('div');
+    detail.className = 'signal-detail';
+
+    detail.innerHTML = `
+      <div class="detail-top">
+        <div>
+          <div class="chart-container">
+            <div class="chart-header">
+              <span>PATTERN CHART · ${sig.pair} · ${selectedTF}</span>
+              <span class="chart-pattern-badge">${sig.pattern}</span>
+            </div>
+            <canvas id="chart-${idx}" width="520" height="240"></canvas>
+          </div>
+          <div class="levels-grid" style="margin-top:10px">
+            <div class="level-box"><div class="level-label">ENTRY</div><div class="level-val entry">${fmt(sig.entry, sig.pair)}</div></div>
+            <div class="level-box"><div class="level-label">STOP LOSS</div><div class="level-val sl">${fmt(sig.sl, sig.pair)}</div></div>
+            <div class="level-box"><div class="level-label">TAKE PROFIT</div><div class="level-val tp">${fmt(sig.tp, sig.pair)}</div></div>
+          </div>
+        </div>
+        <div class="detail-info">
+          <div>
+            <div class="detail-section-title">Elliott Wave Context</div>
+            <div class="detail-text">${sig.ew_context || '—'}</div>
+          </div>
+          <div>
+            <div class="detail-section-title">Pattern Description</div>
+            <div class="detail-text">${sig.pattern_desc || '—'}</div>
+          </div>
+          <div>
+            <div class="detail-section-title">Key Levels</div>
+            <div class="detail-text">${sig.key_levels || '—'}</div>
+          </div>
+          <div>
+            <div class="detail-section-title">Invalidation</div>
+            <div class="detail-text" style="color:#ff3d5a">${sig.invalidation || '—'}</div>
+          </div>
+          <div>
+            <div class="detail-section-title">Market Context</div>
+            <div class="detail-text">${sig.market_context || '—'}</div>
+          </div>
+          <div class="tag-list">${(sig.tags||[]).map(t=>`<span class="tag">${t}</span>`).join('')}</div>
+        </div>
+      </div>
+    `;
+
+    row.addEventListener('click', () => {
+      const isOpen = detail.classList.contains('open');
+      document.querySelectorAll('.signal-detail').forEach(d => d.classList.remove('open'));
+      if (!isOpen) {
+        detail.classList.add('open');
+        // Draw canvas chart after element is visible
+        requestAnimationFrame(() => {
+          const canvas = document.getElementById('chart-' + idx);
+          if (canvas && !canvas.dataset.drawn) {
+            drawPatternChart(canvas, sig);
+            canvas.dataset.drawn = '1';
+          }
+        });
+      }
+    });
+
+    container.appendChild(row);
+    container.appendChild(detail);
+  });
+}
+
+
+// ══════════════════════════════════════════════════════════════
+// CHART ENGINE — Stile Autochartist
+// Sfondo bianco, candele verde/nero, trendlines nere, freccia target
+// ══════════════════════════════════════════════════════════════
+
+function drawPatternChart(canvas, sig) {
+  const W = 560, H = 260;
+  const ML = 12, MR = 72, MT = 28, MB = 32;
+  const CW = W - ML - MR;
+  const CH = H - MT - MB;
+
+  canvas.width  = W;
+  canvas.height = H;
+  const ctx = canvas.getContext('2d');
+
+  const isBull = sig.direction === 'BUY';
+  const entry  = parseFloat(sig.entry);
+  const sl     = parseFloat(sig.sl);
+  const tp     = parseFloat(sig.tp);
+
+  // Build candles
+  const candles = buildCandles(sig, isBull, entry, sl, tp);
+  const N = candles.length;
+
+  // Price range
+  const allP = candles.flatMap(c => [c.h, c.l]);
+  allP.push(entry, sl, tp);
+  const rawMin = Math.min(...allP);
+  const rawMax = Math.max(...allP);
+  const pad = (rawMax - rawMin) * 0.15;
+  const pMin = rawMin - pad;
+  const pMax = rawMax + pad * 0.6;
+
+  function py(p) { return MT + CH - ((p - pMin) / (pMax - pMin)) * CH; }
+  function candleX(i) {
+    const step = CW / N;
+    return ML + i * step + step * 0.1;
+  }
+  const candleW = Math.max(4, Math.floor(CW / N) - 2);
+
+  // ── WHITE BACKGROUND ──
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, W, H);
+
+  // Light grey grid
+  ctx.strokeStyle = '#e8ecf0';
+  ctx.lineWidth = 0.8;
+  for (let i = 0; i <= 6; i++) {
+    const y = MT + (i / 6) * CH;
+    ctx.beginPath(); ctx.moveTo(ML, y); ctx.lineTo(W - MR, y); ctx.stroke();
+  }
+
+  // ── MA LINE (smooth curve, like autochartist) ──
+  ctx.strokeStyle = '#1a1a2e';
+  ctx.lineWidth = 1.5;
+  ctx.globalAlpha = 0.5;
+  ctx.beginPath();
+  const maPeriod = 6;
+  let maStarted = false;
+  for (let i = maPeriod; i < N; i++) {
+    const avg = candles.slice(i - maPeriod, i).reduce((s, c) => s + c.c, 0) / maPeriod;
+    const x = candleX(i) + candleW / 2;
+    const y = py(avg);
+    if (!maStarted) { ctx.moveTo(x, y); maStarted = true; } else { ctx.lineTo(x, y); }
+  }
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+
+  // ── PATTERN OVERLAY (trendlines, shapes) — drawn BEFORE candles ──
+  drawOverlay(ctx, sig, candles, N, isBull, py, candleX, candleW, CW, CH, ML, MR, MT, entry, sl, tp, pMin, pMax, W);
+
+  // ── CANDLES ──
+  candles.forEach((c, i) => {
+    const x   = candleX(i);
+    const isUp = c.c >= c.o;
+    const bodyTop = Math.min(py(c.o), py(c.c));
+    const bodyH   = Math.max(1.5, Math.abs(py(c.o) - py(c.c)));
+    const wickX   = x + candleW / 2;
+
+    // Wick
+    ctx.strokeStyle = isUp ? '#1a7a3a' : '#1a1a1a';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(wickX, py(c.h));
+    ctx.lineTo(wickX, py(c.l));
+    ctx.stroke();
+
+    // Body
+    ctx.fillStyle = isUp ? '#26a85a' : '#1a1a1a';
+    ctx.fillRect(x, bodyTop, candleW, bodyH);
+  });
+
+  // ── BREAKOUT VERTICAL DASHED LINE ──
+  const brkI = Math.floor(N * 0.72);
+  const brkX = candleX(brkI) + candleW / 2;
+  ctx.strokeStyle = '#333333';
+  ctx.lineWidth = 1.2;
+  ctx.setLineDash([5, 5]);
+  ctx.beginPath();
+  ctx.moveTo(brkX, MT);
+  ctx.lineTo(brkX, MT + CH);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // ── TARGET BOX + ARROW (like autochartist) ──
+  const tpY    = py(tp);
+  const entryY = py(entry);
+  const slY    = py(sl);
+  const arrowStartY = isBull ? entryY - 10 : entryY + 10;
+  const arrowEndY   = isBull ? tpY + 20 : tpY - 20;
+  const arrowX = W - MR - 10;
+
+  // Target candle (projected)
+  const projX = candleX(N - 2);
+  const projTop  = isBull ? tpY : entryY;
+  const projBot  = isBull ? entryY : tpY;
+  ctx.fillStyle = isBull ? 'rgba(38,168,90,0.25)' : 'rgba(200,30,50,0.25)';
+  ctx.fillRect(projX, projTop, candleW * 2, projBot - projTop);
+  ctx.strokeStyle = isBull ? '#26a85a' : '#c81e32';
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(projX, projTop, candleW * 2, projBot - projTop);
+
+  // Arrow
+  const arrColor = isBull ? '#26a85a' : '#c81e32';
+  ctx.strokeStyle = arrColor;
+  ctx.fillStyle = arrColor;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(brkX + 18, arrowStartY);
+  ctx.lineTo(arrowX - 4, arrowEndY);
+  ctx.stroke();
+  // Arrowhead
+  const ang = Math.atan2(arrowEndY - arrowStartY, arrowX - 4 - brkX - 18);
+  ctx.beginPath();
+  ctx.moveTo(arrowX - 4, arrowEndY);
+  ctx.lineTo(arrowX - 4 - 10 * Math.cos(ang - 0.4), arrowEndY - 10 * Math.sin(ang - 0.4));
+  ctx.lineTo(arrowX - 4 - 10 * Math.cos(ang + 0.4), arrowEndY - 10 * Math.sin(ang + 0.4));
+  ctx.closePath();
+  ctx.fill();
+
+  // ── RIGHT AXIS — price labels ──
+  const axX = W - MR + 4;
+
+  function rightLabel(price, color, text, filled = true) {
+    const y = py(price);
+    const lw = MR - 6;
+    if (filled) {
+      ctx.fillStyle = color;
+      ctx.fillRect(axX, y - 9, lw, 18);
+      ctx.fillStyle = '#ffffff';
+    } else {
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(axX, y - 9, lw, 18);
+      ctx.fillStyle = color;
+    }
+    ctx.font = 'bold 8.5px Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(fmtPrice(price, sig.pair), axX + lw / 2, y + 3);
+
+    // Dotted line to axis
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 0.8;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.moveTo(ML, y);
+    ctx.lineTo(axX, y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Small label above box
+    if (text) {
+      ctx.fillStyle = color;
+      ctx.font = 'bold 7px Arial, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText(text, axX, y - 10);
+    }
+  }
+
+  // Y-axis tick prices (grey)
+  ctx.fillStyle = '#999';
+  ctx.font = '8px Arial, sans-serif';
+  ctx.textAlign = 'right';
+  for (let i = 1; i <= 5; i++) {
+    const p = pMin + (i / 6) * (pMax - pMin);
+    const y = py(p);
+    if (y > MT + 10 && y < MT + CH - 10) {
+      ctx.fillStyle = '#aab';
+      ctx.fillText(fmtPrice(p, sig.pair), W - MR + 2, y + 3);
+    }
+  }
+
+  rightLabel(tp,    isBull ? '#1a8c40' : '#c81e32', 'TARGET');
+  rightLabel(entry, '#1565c0', 'ENTRY', false);
+  rightLabel(sl,    isBull ? '#c81e32' : '#1a8c40', 'STOP');
+
+  // ── PATTERN LABEL (big text like autochartist) ──
+  const patLabel = sig.pattern.toUpperCase();
+  ctx.font = 'bold 13px Arial, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillStyle = 'rgba(20,30,50,0.12)';
+  ctx.fillText(patLabel, ML + 6, MT + CH / 2 + 6);
+  ctx.fillStyle = '#1a2030';
+  ctx.globalAlpha = 0.18;
+  ctx.fillText(patLabel, ML + 5, MT + CH / 2 + 5);
+  ctx.globalAlpha = 1;
+
+  // ── HEADER BAR ──
+  ctx.fillStyle = '#f0f4f8';
+  ctx.fillRect(0, 0, W, MT);
+  ctx.fillStyle = '#1a2030';
+  ctx.font = 'bold 10px Arial, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText(`${sig.pair}  ·  ${selectedTF}  ·  ${sig.pattern}`, ML + 4, MT - 8);
+
+  // Confidence pill top-right
+  const confColor = sig.confidence >= 80 ? '#1a8c40' : sig.confidence >= 70 ? '#e67e00' : '#1565c0';
+  ctx.fillStyle = confColor;
+  ctx.fillRect(W - MR - 60, 4, 54, 18);
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 9px Arial, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(`CONF: ${sig.confidence}%`, W - MR - 60 + 27, 16);
+
+  // Direction badge
+  ctx.fillStyle = isBull ? '#26a85a' : '#c81e32';
+  ctx.fillRect(W - MR - 120, 4, 52, 18);
+  ctx.fillStyle = '#fff';
+  ctx.fillText(isBull ? '▲ BUY' : '▼ SELL', W - MR - 120 + 26, 16);
+
+  // ── X-AXIS time labels ──
+  ctx.fillStyle = '#888';
+  ctx.font = '8px Arial, sans-serif';
+  ctx.textAlign = 'center';
+  [0, Math.floor(N/3), Math.floor(2*N/3), N-2].forEach(i => {
+    const x = candleX(i) + candleW / 2;
+    ctx.fillText(`-${N - i}`, x, H - 8);
+  });
+  ctx.fillStyle = '#333';
+  ctx.font = 'bold 8px Arial, sans-serif';
+  ctx.fillText('NOW →', candleX(N-1) + candleW / 2, H - 8);
+
+  // Border
+  ctx.strokeStyle = '#d0d8e0';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(ML, MT, CW, CH);
+}
+
+// ── OVERLAY — trendlines stile Autochartist ──
+function drawOverlay(ctx, sig, candles, N, isBull, py, candleX, candleW, CW, CH, ML, MR, MT, entry, sl, tp, pMin, pMax, W) {
+  const pat = sig.pattern.toLowerCase();
+  const col = isBull ? '#26a85a' : '#c81e32';
+  const black = '#1a1a1a';
+
+  function line(x1, y1, x2, y2, color, width, dash = []) {
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    ctx.setLineDash(dash);
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function lbl(text, x, y, color, size = 10, bold = true) {
+    ctx.save();
+    ctx.font = `${bold ? 'bold ' : ''}${size}px Arial, sans-serif`;
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    const tw = ctx.measureText(text).width;
+    ctx.fillRect(x - tw/2 - 3, y - size, tw + 6, size + 4);
+    ctx.fillStyle = color;
+    ctx.textAlign = 'center';
+    ctx.fillText(text, x, y);
+    ctx.restore();
+  }
+
+  function cx(i) { return candleX(Math.min(i, N-1)) + candleW / 2; }
+  const range = pMax - pMin;
+  const brkI  = Math.floor(N * 0.72);
+
+  // ── HEAD & SHOULDERS ──
+  if (pat.includes('head') && pat.includes('shoulder')) {
+    const nkPrice = entry + (isBull ? -range*0.05 : range*0.05);
+    const lsP  = entry + (isBull ? range*0.22 : -range*0.22);
+    const hdP  = entry + (isBull ? range*0.36 : -range*0.36);
+    const rsP  = entry + (isBull ? range*0.20 : -range*0.20);
+    const lsI = 4, hdI = 10, rsI = 16;
+    // Neckline
+    line(cx(1), py(nkPrice+range*0.01), cx(N-3), py(nkPrice-range*0.01), black, 2);
+    // Peak connectors
+    line(cx(lsI), py(lsP), cx(hdI), py(hdP), '#444', 1, [4,3]);
+    line(cx(hdI), py(hdP), cx(rsI), py(rsP), '#444', 1, [4,3]);
+    // Dots on peaks
+    [{ i: lsI, p: lsP, l: 'LS' }, { i: hdI, p: hdP, l: 'HEAD' }, { i: rsI, p: rsP, l: 'RS' }].forEach(({ i, p, l }) => {
+      ctx.fillStyle = '#e67e00';
+      ctx.beginPath(); ctx.arc(cx(i), py(p), 4, 0, Math.PI*2); ctx.fill();
+      lbl(l, cx(i), py(p) - 8, '#e67e00', 9);
+    });
+    lbl('NECKLINE', cx(8), py(nkPrice) - 6, black, 9);
+  }
+
+  // ── DOUBLE TOP / BOTTOM ──
+  else if (pat.includes('double')) {
+    const peakP = entry + (isBull ? -range*0.26 : range*0.26);
+    const p1I = 5, p2I = 14;
+    line(cx(0), py(entry), cx(N-2), py(entry), black, 2, [5,4]);
+    line(cx(p1I), py(peakP), cx(p2I), py(peakP), '#e67e00', 1.5, [4,3]);
+    [p1I, p2I].forEach(i => {
+      ctx.fillStyle = '#e67e00';
+      ctx.beginPath(); ctx.arc(cx(i), py(peakP), 4, 0, Math.PI*2); ctx.fill();
+    });
+    lbl(isBull ? 'DOUBLE BOTTOM' : 'DOUBLE TOP', cx(9), py(peakP) - 10, '#e67e00', 9);
+    lbl('NECKLINE', cx(9), py(entry) - 6, black, 9);
+  }
+
+  // ── ASCENDING TRIANGLE ──
+  else if (pat.includes('ascending')) {
+    const resP = entry + (isBull ? range*0.20 : -range*0.20);
+    const supP1 = entry - (isBull ? range*0.22 : -range*0.22);
+    const supP2 = entry - (isBull ? range*0.06 : -range*0.06);
+    const x1 = cx(0), x2 = cx(brkI);
+    // Resistance (flat, bold)
+    line(x1, py(resP), x2, py(resP), black, 2);
+    // Rising support
+    line(x1, py(supP1), x2, py(supP2), black, 2);
+    // Fill
+    ctx.save();
+    ctx.globalAlpha = 0.07;
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    ctx.moveTo(x1, py(supP1));
+    ctx.lineTo(x2, py(supP2));
+    ctx.lineTo(x2, py(resP));
+    ctx.lineTo(x1, py(resP));
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+    lbl('RESISTANCE', (x1 + x2)/2, py(resP) - 7, black, 8);
+    lbl('SUPPORT ↗', (x1 + x2)/2, (py(supP1)+py(supP2))/2 + 14, black, 8);
+  }
+
+  // ── DESCENDING TRIANGLE ──
+  else if (pat.includes('descending')) {
+    const supP  = entry - (isBull ? range*0.20 : -range*0.20);
+    const resP1 = entry + (isBull ? range*0.22 : -range*0.22);
+    const resP2 = entry + (isBull ? range*0.06 : -range*0.06);
+    const x1 = cx(0), x2 = cx(brkI);
+    line(x1, py(supP), x2, py(supP), black, 2);
+    line(x1, py(resP1), x2, py(resP2), black, 2);
+    ctx.save(); ctx.globalAlpha = 0.07; ctx.fillStyle = col;
+    ctx.beginPath();
+    ctx.moveTo(x1, py(resP1)); ctx.lineTo(x2, py(resP2));
+    ctx.lineTo(x2, py(supP)); ctx.lineTo(x1, py(supP));
+    ctx.closePath(); ctx.fill(); ctx.restore();
+    lbl('SUPPORT', (x1+x2)/2, py(supP) + 14, black, 8);
+    lbl('RESISTANCE ↘', (x1+x2)/2, (py(resP1)+py(resP2))/2 - 8, black, 8);
+  }
+
+  // ── SYMMETRICAL TRIANGLE / PENNANT ──
+  else if (pat.includes('symmetrical') || pat.includes('pennant')) {
+    const mid  = (pMin + pMax) / 2;
+    const topP1 = mid + range*0.32, topP2 = mid + range*0.04;
+    const botP1 = mid - range*0.32, botP2 = mid - range*0.04;
+    const x1 = cx(0), x2 = cx(brkI);
+    line(x1, py(topP1), x2, py(topP2), black, 2);
+    line(x1, py(botP1), x2, py(botP2), black, 2);
+    ctx.save(); ctx.globalAlpha = 0.06; ctx.fillStyle = '#888';
+    ctx.beginPath();
+    ctx.moveTo(x1, py(topP1)); ctx.lineTo(x2, py(topP2));
+    ctx.lineTo(x2, py(botP2)); ctx.lineTo(x1, py(botP1));
+    ctx.closePath(); ctx.fill(); ctx.restore();
+    lbl(pat.includes('pennant') ? 'PENNANT' : 'SYM. TRIANGLE', (x1+x2)/2, py(mid) + 4, '#555', 9);
+  }
+
+  // ── BULL / BEAR FLAG ──
+  else if (pat.includes('flag')) {
+    const poleFrom = entry - (isBull ? range*0.35 : -range*0.35);
+    const poleEnd  = entry + (isBull ? range*0.24 : -range*0.24);
+    const poleEndX = cx(Math.floor(N * 0.40));
+    // Flagpole — thick black
+    line(cx(0), py(poleFrom), poleEndX, py(poleEnd), black, 2.5);
+    // Flag channel
+    const fSlope = isBull ? range*0.06 : -range*0.06;
+    const fTop1 = poleEnd + range*0.04, fTop2 = poleEnd + range*0.04 - fSlope;
+    const fBot1 = poleEnd - range*0.08, fBot2 = poleEnd - range*0.08 - fSlope;
+    const fX2 = cx(brkI);
+    line(poleEndX, py(fTop1), fX2, py(fTop2), black, 1.5);
+    line(poleEndX, py(fBot1), fX2, py(fBot2), black, 1.5);
+    ctx.save(); ctx.globalAlpha = 0.07; ctx.fillStyle = col;
+    ctx.beginPath();
+    ctx.moveTo(poleEndX, py(fTop1)); ctx.lineTo(fX2, py(fTop2));
+    ctx.lineTo(fX2, py(fBot2)); ctx.lineTo(poleEndX, py(fBot1));
+    ctx.closePath(); ctx.fill(); ctx.restore();
+    lbl(isBull ? 'BULL FLAG' : 'BEAR FLAG', (poleEndX + fX2)/2, (py(fTop1)+py(fTop2))/2 - 8, col, 9);
+  }
+
+  // ── ELLIOTT WAVE ──
+  else if (pat.includes('elliott') || pat.includes('ew')) {
+    const is5 = pat.includes('5');
+    const wPts  = is5 ? [0,4,7,11,14,18] : [0,5,9,14,18];
+    const wPrices = is5
+      ? (isBull
+          ? [entry-range*0.30, entry-range*0.10, entry-range*0.18, entry+range*0.12, entry, entry+range*0.35]
+          : [entry+range*0.30, entry+range*0.10, entry+range*0.18, entry-range*0.12, entry, entry-range*0.35])
+      : (isBull
+          ? [entry-range*0.25, entry, entry-range*0.10, entry+range*0.32, entry+range*0.45]
+          : [entry+range*0.25, entry, entry+range*0.10, entry-range*0.32, entry-range*0.45]);
+    const wColors = is5 ? [col,col,'#e67e00',col,'#e67e00',col] : [col,col,'#e67e00',col,'#e67e00'];
+    const wLabels = is5 ? ['1','2','3','4','5'] : ['1','2','3','C'];
+
+    for (let i = 0; i < wPts.length - 1; i++) {
+      const xi = cx(Math.min(wPts[i], N-1));
+      const xj = cx(Math.min(wPts[i+1], N-1));
+      line(xi, py(wPrices[i]), xj, py(wPrices[i+1]), wColors[i] || col, 1.8);
+    }
+    wPts.slice(1).forEach((pt, i) => {
+      const x = cx(Math.min(pt, N-1));
+      const y = py(wPrices[i+1]);
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.arc(x, y, 7, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#1a2030';
+      ctx.strokeStyle = '#1a2030';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(x, y, 7, 0, Math.PI*2); ctx.stroke();
+      ctx.font = 'bold 8px Arial, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(wLabels[i] || '', x, y + 3);
+    });
+  }
+
+  // ── FIB RETRACEMENT ──
+  else if (pat.includes('fib')) {
+    const fibs = [[0.236,'#aaa',0.8], [0.382,'#e67e00',1], [0.500,'#888',0.8], [0.618,'#c81e32',1.5]];
+    const impulseHigh = entry + (isBull ? range*0.42 : -range*0.42);
+    const impulseLow  = entry - (isBull ? range*0.28 : -range*0.28);
+    fibs.forEach(([f, color, lw]) => {
+      const level = impulseHigh - (impulseHigh - impulseLow) * f;
+      const y = py(level);
+      line(ML, y, W - MR, y, color, lw, f === 0.5 ? [4,4] : []);
+      ctx.fillStyle = color;
+      ctx.font = `${lw > 1 ? 'bold ' : ''}8px Arial, sans-serif`;
+      ctx.textAlign = 'left';
+      ctx.fillText(`${(f*100).toFixed(1)}%`, ML + 4, y - 2);
+    });
+    // Highlight 61.8 zone
+    const f618Y = py(impulseHigh - (impulseHigh - impulseLow) * 0.618);
+    const f500Y = py(impulseHigh - (impulseHigh - impulseLow) * 0.500);
+    ctx.save(); ctx.globalAlpha = 0.07; ctx.fillStyle = '#c81e32';
+    ctx.fillRect(ML, Math.min(f618Y, f500Y), CW, Math.abs(f618Y - f500Y));
+    ctx.restore();
+  }
+
+  // ── CUP & HANDLE ──
+  else if (pat.includes('cup')) {
+    const rim  = entry + (isBull ? range*0.18 : -range*0.18);
+    const bot  = entry - (isBull ? range*0.28 : -range*0.28);
+    ctx.save(); ctx.strokeStyle = black; ctx.lineWidth = 2; ctx.globalAlpha = 0.6;
+    ctx.beginPath();
+    for (let i = 0; i <= 20; i++) {
+      const t = i / 20;
+      const x = ML + t * CW * 0.62;
+      const y = py(rim + (bot - rim) * Math.sin(t * Math.PI));
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.stroke(); ctx.restore();
+    // Handle
+    const hX1 = ML + CW * 0.62, hX2 = ML + CW * 0.78;
+    const hSlope = isBull ? range*0.04 : -range*0.04;
+    line(hX1, py(rim), hX2, py(rim - hSlope), black, 1.5);
+    line(hX1, py(rim - range*0.08), hX2, py(rim - range*0.08 - hSlope), black, 1.5);
+    lbl('CUP', ML + CW * 0.31, py(bot) + 16, black, 9);
+    lbl('HANDLE', ML + CW * 0.70, py(rim - range*0.04) - 10, black, 9);
+  }
+
+  // ── WEDGE ──
+  else if (pat.includes('wedge')) {
+    const rising = pat.includes('rising');
+    const x1 = cx(0), x2 = cx(brkI);
+    const topP1 = entry + (isBull ? range*(rising?0.28:0.38) : -range*(rising?0.28:0.38));
+    const topP2 = entry + (isBull ? range*(rising?0.42:0.18) : -range*(rising?0.42:0.18));
+    const botP1 = entry - (isBull ? range*(rising?0.24:0.14) : -range*(rising?0.24:0.14));
+    const botP2 = entry - (isBull ? range*(rising?0.10:0.28) : -range*(rising?0.10:0.28));
+    line(x1, py(topP1), x2, py(topP2), black, 2);
+    line(x1, py(botP1), x2, py(botP2), black, 2);
+    ctx.save(); ctx.globalAlpha = 0.07; ctx.fillStyle = col;
+    ctx.beginPath();
+    ctx.moveTo(x1, py(topP1)); ctx.lineTo(x2, py(topP2));
+    ctx.lineTo(x2, py(botP2)); ctx.lineTo(x1, py(botP1));
+    ctx.closePath(); ctx.fill(); ctx.restore();
+    lbl(rising ? 'RISING WEDGE' : 'FALLING WEDGE', (x1+x2)/2, (py(topP1)+py(topP2)+py(botP1)+py(botP2))/4, col, 9);
+  }
+
+  // ── BREAKOUT KEY LEVEL ──
+  else if (pat.includes('breakout')) {
+    line(ML, py(entry), cx(brkI), py(entry), black, 2);
+    ctx.save(); ctx.globalAlpha = 0.08; ctx.fillStyle = '#e67e00';
+    ctx.fillRect(ML, py(entry) - 5, CW * 0.72, 10);
+    ctx.restore();
+    lbl('KEY LEVEL / RESISTANCE', cx(brkI * 0.45), py(entry) - 9, '#e67e00', 8);
+  }
+
+  // ── ENGULFING / DOJI ──
+  else if (pat.includes('engulf') || pat.includes('doji')) {
+    const revI = Math.floor(N * 0.60);
+    ctx.save(); ctx.strokeStyle = '#e67e00'; ctx.lineWidth = 2; ctx.globalAlpha = 0.8;
+    ctx.beginPath(); ctx.arc(cx(revI), py(entry), 16, 0, Math.PI*2); ctx.stroke();
+    ctx.restore();
+    lbl(pat.includes('engulf') ? 'ENGULFING' : 'DOJI', cx(revI), py(entry) + 26, '#e67e00', 9);
+  }
+
+  // ── ROUNDING BOTTOM ──
+  else if (pat.includes('rounding')) {
+    ctx.save(); ctx.strokeStyle = black; ctx.lineWidth = 2; ctx.globalAlpha = 0.55;
+    ctx.beginPath();
+    for (let i = 0; i <= 18; i++) {
+      const t = i / 18;
+      const rim = entry + (isBull ? range*0.20 : -range*0.20);
+      const bot = entry - (isBull ? range*0.26 : -range*0.26);
+      const x = ML + t * CW * 0.78;
+      const y = py(rim + (bot - rim) * Math.sin(t * Math.PI));
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.stroke(); ctx.restore();
+  }
+
+  // ── RSI/MACD DIVERGENCE ──
+  else if (pat.includes('divergence') || pat.includes('macd') || pat.includes('rsi')) {
+    const p1I = Math.floor(N*0.25), p2I = Math.floor(N*0.55);
+    const divP = entry + (isBull ? -range*0.22 : range*0.22);
+    const divP2 = entry + (isBull ? -range*0.18 : range*0.18);
+    line(cx(p1I), py(divP), cx(p2I), py(divP2), '#e67e00', 2);
+    ctx.fillStyle = '#e67e00';
+    [{ i: p1I, p: divP }, { i: p2I, p: divP2 }].forEach(({ i, p }) => {
+      ctx.beginPath(); ctx.arc(cx(i), py(p), 4, 0, Math.PI*2); ctx.fill();
+    });
+    lbl('DIVERGENCE', cx((p1I+p2I)/2), py((divP+divP2)/2) + (isBull ? 16 : -12), '#e67e00', 9);
+  }
+}
+
+// ── CANDLE BUILDER ──
+function buildCandles(sig, isBull, entry, sl, tp) {
+  const pat   = sig.pattern.toLowerCase();
+  const range = Math.abs(tp - sl) * 4.2;
+  const v     = range * 0.032;
+  const N     = 30;
+
+  function rnd(s) { return (Math.random() - 0.5) * s; }
+  function C(o, c, eH = 0, eL = 0) {
+    return {
+      o, c,
+      h: Math.max(o, c) + Math.abs(rnd(v*0.5)) + eH,
+      l: Math.min(o, c) - Math.abs(rnd(v*0.5)) - eL
+    };
+  }
+  function seg(from, to, n, vol) {
+    const arr = [];
+    for (let i = 0; i < n; i++) {
+      const t = i / Math.max(n-1, 1);
+      const m = from + (to-from)*t;
+      const b = (to-from)/n * 0.25;
+      arr.push(C(m + rnd(vol), m + b + rnd(vol)));
+    }
+    return arr;
+  }
+
+  let candles = [];
+
+  if (pat.includes('head') && pat.includes('shoulder')) {
+    const nk = entry + (isBull ? -range*0.05 : range*0.05);
+    const ls = entry + (isBull ?  range*0.22 : -range*0.22);
+    const hd = entry + (isBull ?  range*0.36 : -range*0.36);
+    const rs = entry + (isBull ?  range*0.20 : -range*0.20);
+    candles = [...seg(entry-range*(isBull?0.1:-0.1), ls, 4, v), ...seg(ls, nk, 3, v),
+               ...seg(nk, hd, 4, v), ...seg(hd, nk, 4, v), ...seg(nk, rs, 3, v),
+               ...seg(rs, entry, 3, v), ...seg(entry, isBull?sl:tp, 5, v*1.2), ...seg(isBull?sl:tp, isBull?sl*0.998:tp*1.002, 4, v)];
+  } else if (pat.includes('double')) {
+    const peak = entry + (isBull ? -range*0.22 : range*0.22);
+    const val  = entry + (isBull ? -range*0.04 : range*0.04);
+    candles = [...seg(entry - (isBull?range*0.3:-range*0.3), peak, 5, v), ...seg(peak, val, 5, v),
+               ...seg(val, peak, 5, v), ...seg(peak, entry, 4, v), ...seg(entry, isBull?tp:sl, 8, v*1.2)];
+  } else if (pat.includes('ascending')) {
+    const res = entry + (isBull?range*0.20:-range*0.20);
+    const s0  = entry - (isBull?range*0.22:-range*0.22);
+    for (let i = 0; i < 5; i++) {
+      const sup = s0 + (isBull?i*range*0.04:-i*range*0.04);
+      candles.push(...seg(sup, res, 3, v*0.7), ...seg(res, sup+(isBull?range*0.02:-range*0.02), 2, v*0.5));
+    }
+    candles.push(...seg(res, isBull?tp:sl, 5, v*1.3));
+  } else if (pat.includes('descending')) {
+    const sup = entry - (isBull?range*0.20:-range*0.20);
+    const r0  = entry + (isBull?range*0.22:-range*0.22);
+    for (let i = 0; i < 5; i++) {
+      const res = r0 - (isBull?i*range*0.04:-i*range*0.04);
+      candles.push(...seg(res, sup, 3, v*0.7), ...seg(sup, res-(isBull?range*0.02:-range*0.02), 2, v*0.5));
+    }
+    candles.push(...seg(sup, isBull?tp:sl, 5, v*1.3));
+  } else if (pat.includes('symmetrical') || pat.includes('pennant')) {
+    const spread = range * 0.28;
+    for (let i = 0; i < 7; i++) {
+      const s = spread * (1 - i*0.13);
+      candles.push(C(entry+s*(isBull?1:-1), entry-s*0.5*(isBull?1:-1)));
+      candles.push(C(entry-s*(isBull?1:-1), entry+s*0.5*(isBull?1:-1)));
+    }
+    candles.push(...seg(entry, isBull?tp:sl, 9, v*1.2));
+  } else if (pat.includes('flag')) {
+    const poleFrom = entry - (isBull?range*0.35:-range*0.35);
+    const poleEnd  = entry + (isBull?range*0.24:-range*0.24);
+    candles.push(...seg(poleFrom, poleEnd, 7, v*1.1));
+    const flagEnd = poleEnd - (isBull?range*0.10:-range*0.10);
+    candles.push(...seg(poleEnd, flagEnd, 7, v*0.4), ...seg(flagEnd, entry, 3, v));
+    candles.push(...seg(entry, isBull?tp:sl, 8, v*1.2));
+  } else if (pat.includes('elliott') || pat.includes('ew')) {
+    const is5 = pat.includes('5');
+    const pts = is5
+      ? (isBull ? [entry-range*0.3, entry-range*0.08, entry-range*0.18, entry+range*0.14, entry, entry+range*0.36]
+                : [entry+range*0.3, entry+range*0.08, entry+range*0.18, entry-range*0.14, entry, entry-range*0.36])
+      : (isBull ? [entry-range*0.25, entry-range*0.02, entry-range*0.12, entry+range*0.32, tp]
+                : [entry+range*0.25, entry+range*0.02, entry+range*0.12, entry-range*0.32, sl]);
+    let prev = pts[0];
+    for (let i = 1; i < pts.length; i++) {
+      candles.push(...seg(prev, pts[i], is5 ? 4 : 5, v * (i%2===0 ? 0.8 : 1.3)));
+      prev = pts[i];
+    }
+  } else if (pat.includes('fib')) {
+    const iEnd = entry + (isBull?range*0.40:-range*0.40);
+    const fib  = iEnd - (iEnd - (entry-(isBull?range*0.22:-range*0.22))) * 0.618;
+    candles.push(...seg(entry-(isBull?range*0.22:-range*0.22), iEnd, 8, v),
+                 ...seg(iEnd, fib, 7, v*0.7), ...seg(fib, entry, 4, v),
+                 ...seg(entry, isBull?tp:sl, 8, v*1.2));
+  } else if (pat.includes('cup')) {
+    const rim = entry + (isBull?range*0.18:-range*0.18);
+    const bot = entry - (isBull?range*0.28:-range*0.28);
+    for (let i = 0; i <= 12; i++) {
+      const t = i/12;
+      const p = rim + (bot-rim)*Math.sin(t*Math.PI);
+      candles.push(C(p+rnd(v), p+rnd(v)));
+    }
+    candles.push(...seg(rim, rim-(isBull?range*0.08:-range*0.08), 4, v*0.4),
+                 ...seg(rim-(isBull?range*0.08:-range*0.08), entry, 3, v),
+                 ...seg(entry, isBull?tp:sl, 7, v*1.2));
+  } else if (pat.includes('engulf') || pat.includes('doji')) {
+    const td = isBull ? -1 : 1;
+    candles.push(...seg(entry-td*range*0.3, entry-td*range*0.04, 16, v));
+    candles.push(C(entry-td*range*0.08, entry+td*range*0.07, range*0.01, range*0.01));
+    candles.push(...seg(entry, isBull?tp:sl, 10, v*1.1));
+  } else if (pat.includes('wedge')) {
+    const rising = pat.includes('rising');
+    const d = rising ? 1 : -1;
+    for (let i = 0; i < 8; i++) {
+      const t = i/7;
+      const top = (entry+range*0.2*d) + t*range*0.10*d;
+      const bot = (entry-range*0.14*d) + t*range*0.16*d;
+      candles.push(...seg(bot, top, 2, v*0.5), ...seg(top, bot+range*0.02*d, 1, v*0.5));
+    }
+    candles.push(...seg(entry, isBull?tp:sl, 7, v*1.3));
+  } else {
+    candles.push(...seg(entry-(isBull?range*0.28:-range*0.28), entry, 14, v));
+    candles.push(...seg(entry, isBull?tp:sl, 14, v*1.1));
+  }
+
+  return candles.slice(0, N);
+}
+
+function fmtPrice(v, pair) {
+  const n = parseFloat(v);
+  if (!pair) return n.toFixed(2);
+  if (pair.includes('JPY') || pair.includes('225') || pair.includes('JPN')) return n.toFixed(2);
+  if (['US30','US500','NAS100','UK100','GER40','FRA40','AUS200','JPN225','HK50'].some(x => pair.includes(x.slice(0,4)))) return n.toFixed(1);
+  if (pair.includes('BTC') || pair.includes('ETH')) return n.toFixed(0);
+  if (n > 500) return n.toFixed(1);
+  return n.toFixed(4);
+}
+
+
+// ── FORMAT ──
+function fmt(val, pair) {
+  if (!val) return '—';
+  if (pair && (pair.includes('JPY') || pair.includes('225') || pair.includes('JPN'))) return parseFloat(val).toFixed(2);
+  if (pair && (pair.includes('US30') || pair.includes('US500') || pair.includes('NAS') || pair.includes('UK100') || pair.includes('GER') || pair.includes('FRA') || pair.includes('AUS'))) return parseFloat(val).toFixed(1);
+  if (pair && (pair.includes('BTC') || pair.includes('ETH'))) return parseFloat(val).toFixed(0);
+  return parseFloat(val).toFixed(4);
+}
+
+// ── STATS ──
+function updateStats(list) {
+  if (!list.length) return;
+  document.getElementById('stats-bar').style.display = 'flex';
+  const bulls = list.filter(s => s.direction === 'BUY').length;
+  const bears = list.filter(s => s.direction === 'SELL').length;
+  const avgConf = Math.round(list.reduce((a,s) => a+s.confidence, 0) / list.length);
+  const rrs = list.map(s => { const m = String(s.rr||'').match(/1:(\d+\.?\d*)/); return m ? parseFloat(m[1]) : 0; }).filter(r => r > 0);
+  const avgRR = rrs.length ? (rrs.reduce((a,b)=>a+b,0)/rrs.length).toFixed(1) : '—';
+  document.getElementById('s-total').textContent = list.length;
+  document.getElementById('s-bull').textContent = bulls;
+  document.getElementById('s-bear').textContent = bears;
+  document.getElementById('s-avgconf').textContent = avgConf + '%';
+  document.getElementById('s-avgrr').textContent = '1:' + avgRR;
+  document.getElementById('s-time').textContent = new Date().toUTCString().split(' ').slice(4,5)[0] + ' UTC';
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+window.onload = () => {
+  document.getElementById('empty-state').classList.add('active');
+  document.getElementById('pwd-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') doLogin();
+  });
+};
+</script>
+</body>
+</html>
     --text-bright: #eaf4ff;
     --mono: 'Space Mono', monospace;
     --sans: 'Syne', sans-serif;
