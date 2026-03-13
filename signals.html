@@ -857,8 +857,9 @@ function renderSignals(list) {
 
 
 // ══════════════════════════════════════════════════════════════
-// XENOS CHART ENGINE — Pattern Geometrico Puro
-// Niente candele false. Solo il pattern, i livelli, la freccia.
+// XENOS CHART ENGINE — Pattern Geometrico Preciso
+// Frecce tecnicamente corrette per ogni pattern
+// Label posizionata correttamente sopra/sotto in base a bull/bear
 // ══════════════════════════════════════════════════════════════
 
 function drawPatternChart(canvas, sig) {
@@ -867,13 +868,13 @@ function drawPatternChart(canvas, sig) {
   const CW = W - ML - MR;
   const CH = H - MT - MB;
 
-  canvas.width  = W * 2;  // retina
+  canvas.width  = W * 2;
   canvas.height = H * 2;
   canvas.style.width  = W + 'px';
   canvas.style.height = H + 'px';
 
   const ctx = canvas.getContext('2d');
-  ctx.scale(2, 2);  // retina crisp
+  ctx.scale(2, 2);
 
   const isBull = sig.direction === 'BUY';
   const entry  = parseFloat(sig.entry);
@@ -881,46 +882,37 @@ function drawPatternChart(canvas, sig) {
   const tp     = parseFloat(sig.tp);
   const pat    = sig.pattern.toLowerCase();
 
-  // Price range — centered around the pattern
   const spread = Math.abs(tp - sl);
   const center = (entry + sl + tp) / 3;
   const pMin = center - spread * 2.2;
   const pMax = center + spread * 2.2;
 
-  function py(p) {
-    return MT + CH - ((p - pMin) / (pMax - pMin)) * CH;
-  }
-  function px(t) {  // t = 0..1 along chart width
-    return ML + t * CW;
-  }
+  function py(p) { return MT + CH - ((p - pMin) / (pMax - pMin)) * CH; }
+  function px(t) { return ML + t * CW; }
 
   // ── BACKGROUND ──
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, W, H);
 
-  // Header bar
+  // Header
   ctx.fillStyle = '#f4f7fb';
   ctx.fillRect(0, 0, W, MT);
-  // Header border bottom
   ctx.strokeStyle = '#dde3eb';
   ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(0, MT); ctx.lineTo(W, MT); ctx.stroke();
 
-  // Header text
   ctx.fillStyle = '#1a2030';
   ctx.font = 'bold 10px Arial, sans-serif';
   ctx.textAlign = 'left';
   ctx.fillText(`${sig.pair}  ·  ${selectedTF}`, ML + 6, MT - 14);
   ctx.fillStyle = '#5a7a9a';
   ctx.font = '9px Arial, sans-serif';
-  ctx.fillText(sig.pattern, ML + 6, MT - 4);
+  ctx.fillText(sig.pattern, ML + 6, MT - 3);
 
   // Direction badge
   const badgeColor = isBull ? '#1a8c40' : '#c81e32';
   ctx.fillStyle = badgeColor;
-  ctx.beginPath();
-  ctx.roundRect(W - MR - 110, 6, 58, 20, 3);
-  ctx.fill();
+  ctx.beginPath(); ctx.roundRect(W - MR - 110, 6, 58, 20, 3); ctx.fill();
   ctx.fillStyle = '#fff';
   ctx.font = 'bold 9px Arial, sans-serif';
   ctx.textAlign = 'center';
@@ -929,14 +921,11 @@ function drawPatternChart(canvas, sig) {
   // Confidence badge
   const confColor = sig.confidence >= 80 ? '#1a8c40' : sig.confidence >= 70 ? '#d47e00' : '#1565c0';
   ctx.fillStyle = confColor;
-  ctx.beginPath();
-  ctx.roundRect(W - MR - 46, 6, 42, 20, 3);
-  ctx.fill();
+  ctx.beginPath(); ctx.roundRect(W - MR - 46, 6, 42, 20, 3); ctx.fill();
   ctx.fillStyle = '#fff';
-  ctx.font = 'bold 9px Arial, sans-serif';
   ctx.fillText(`${sig.confidence}%`, W - MR - 25, 19);
 
-  // ── GRID ──
+  // Grid
   ctx.strokeStyle = '#edf0f4';
   ctx.lineWidth = 0.8;
   for (let i = 0; i <= 6; i++) {
@@ -944,63 +933,53 @@ function drawPatternChart(canvas, sig) {
     ctx.beginPath(); ctx.moveTo(ML, y); ctx.lineTo(W - MR, y); ctx.stroke();
   }
 
-  // ── DRAW PATTERN ──
+  // Draw pattern
   drawPattern(ctx, pat, isBull, entry, sl, tp, py, px, CW, CH, ML, MR, MT, pMin, pMax, spread, W);
 
-  // ── HORIZONTAL LEVELS ──
-  drawLevel(ctx, tp,    isBull ? '#1a8c40' : '#c81e32', isBull ? 'TARGET' : 'TARGET', true,  py, ML, W, MR, sig.pair);
-  drawLevel(ctx, entry, '#1565c0',                       'ENTRY',                      false, py, ML, W, MR, sig.pair);
-  drawLevel(ctx, sl,    isBull ? '#c81e32' : '#1a8c40', 'STOP',                       true,  py, ML, W, MR, sig.pair);
+  // Price levels
+  drawLevel(ctx, tp,    isBull ? '#1a8c40' : '#c81e32', 'TARGET', true,  py, ML, W, MR, sig.pair);
+  drawLevel(ctx, entry, '#1565c0',                       'ENTRY',  false, py, ML, W, MR, sig.pair);
+  drawLevel(ctx, sl,    isBull ? '#c81e32' : '#1a8c40', 'STOP',   true,  py, ML, W, MR, sig.pair);
 
-  // ── CHART BORDER ──
+  // Chart border
   ctx.strokeStyle = '#d0d8e4';
   ctx.lineWidth = 1;
   ctx.strokeRect(ML, MT, CW, CH);
 
-  // ── Y AXIS PRICE TICKS ──
+  // Y axis ticks
   ctx.fillStyle = '#b0bcc8';
   ctx.font = '8px Arial, sans-serif';
   ctx.textAlign = 'right';
   for (let i = 1; i <= 5; i++) {
     const p = pMin + (i / 6) * (pMax - pMin);
     const y = py(p);
-    if (y > MT + 8 && y < MT + CH - 8) {
-      ctx.fillText(fmtPrice(p, sig.pair), ML - 2, y + 3);
-    }
+    if (y > MT + 8 && y < MT + CH - 8) ctx.fillText(fmtPrice(p, sig.pair), ML - 2, y + 3);
   }
 
-  // ── X AXIS LABELS ──
+  // X axis
   ctx.fillStyle = '#b0bcc8';
   ctx.font = '8px Arial, sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText('◀ HISTORY', px(0.2), MT + CH + 18);
-  ctx.fillStyle = '#1a2030';
+  ctx.fillText('◀ HISTORY', px(0.22), MT + CH + 18);
+  ctx.fillStyle = '#555';
   ctx.font = 'bold 8px Arial, sans-serif';
   ctx.fillText('NOW', px(0.72), MT + CH + 18);
   ctx.fillStyle = badgeColor;
   ctx.fillText('TARGET ▶', px(0.88), MT + CH + 18);
 }
 
-// ── LEVEL LINE + RIGHT LABEL ──
+// ── LEVEL LINE ──
 function drawLevel(ctx, price, color, label, filled, py, ML, W, MR, pair) {
   const y = py(price);
   const axX = W - MR + 4;
   const lw = MR - 6;
 
-  // Dashed line across chart
   ctx.save();
-  ctx.strokeStyle = color;
-  ctx.lineWidth = 1;
-  ctx.setLineDash([5, 4]);
-  ctx.globalAlpha = 0.85;
-  ctx.beginPath();
-  ctx.moveTo(ML, y);
-  ctx.lineTo(axX, y);
-  ctx.stroke();
-  ctx.setLineDash([]);
-  ctx.restore();
+  ctx.strokeStyle = color; ctx.lineWidth = 1;
+  ctx.setLineDash([5, 4]); ctx.globalAlpha = 0.85;
+  ctx.beginPath(); ctx.moveTo(ML, y); ctx.lineTo(axX, y); ctx.stroke();
+  ctx.setLineDash([]); ctx.restore();
 
-  // Label box
   ctx.save();
   if (filled) {
     ctx.fillStyle = color;
@@ -1009,8 +988,7 @@ function drawLevel(ctx, price, color, label, filled, py, ML, W, MR, pair) {
   } else {
     ctx.fillStyle = '#fff';
     ctx.fillRect(axX, y - 10, lw, 20);
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = color; ctx.lineWidth = 1.5;
     ctx.strokeRect(axX, y - 10, lw, 20);
     ctx.fillStyle = color;
   }
@@ -1022,12 +1000,14 @@ function drawLevel(ctx, price, color, label, filled, py, ML, W, MR, pair) {
   ctx.restore();
 }
 
-// ── PATTERN DRAWER ──
+// ══════════════════════════════════════════════
+// PATTERN DRAWER
+// ══════════════════════════════════════════════
 function drawPattern(ctx, pat, isBull, entry, sl, tp, py, px, CW, CH, ML, MR, MT, pMin, pMax, spread, W) {
-
   const col   = isBull ? '#1a8c40' : '#c81e32';
   const black = '#1a2030';
   const orange = '#d47e00';
+  const nowX = px(0.72);
 
   // ── Helpers ──
   function line(x1, y1, x2, y2, color, width, dash = [], alpha = 1) {
@@ -1038,572 +1018,719 @@ function drawPattern(ctx, pat, isBull, entry, sl, tp, py, px, CW, CH, ML, MR, MT
     ctx.restore();
   }
 
-  function fillZone(x1, y1, x2, y2, color, alpha = 0.08) {
+  function fillPoly(pts, color, alpha = 0.07) {
     ctx.save(); ctx.fillStyle = color; ctx.globalAlpha = alpha;
-    ctx.fillRect(x1, Math.min(y1,y2), x2-x1, Math.abs(y2-y1));
-    ctx.restore();
+    ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
+    pts.slice(1).forEach(p => ctx.lineTo(p[0], p[1]));
+    ctx.closePath(); ctx.fill(); ctx.restore();
   }
 
-  function label(text, x, y, color, size = 9, bg = true) {
+  // Arrow: technically precise, from x1/y1 to x2/y2
+  function arrow(x1, y1, x2, y2, color, width = 2.5) {
     ctx.save();
-    ctx.font = `bold ${size}px Arial, sans-serif`;
-    const tw = ctx.measureText(text).width;
-    if (bg) {
-      ctx.fillStyle = 'rgba(255,255,255,0.92)';
-      ctx.fillRect(x - tw/2 - 4, y - size - 1, tw + 8, size + 5);
-    }
-    ctx.fillStyle = color; ctx.textAlign = 'center';
-    ctx.fillText(text, x, y);
+    ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = width;
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+    const ang = Math.atan2(y2 - y1, x2 - x1);
+    const hs = 10;
+    ctx.beginPath();
+    ctx.moveTo(x2, y2);
+    ctx.lineTo(x2 - hs*Math.cos(ang - 0.38), y2 - hs*Math.sin(ang - 0.38));
+    ctx.lineTo(x2 - hs*Math.cos(ang + 0.38), y2 - hs*Math.sin(ang + 0.38));
+    ctx.closePath(); ctx.fill();
     ctx.restore();
   }
 
   function dot(x, y, color, r = 4) {
     ctx.save();
     ctx.fillStyle = '#fff';
-    ctx.beginPath(); ctx.arc(x, y, r + 1, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x, y, r + 1.5, 0, Math.PI*2); ctx.fill();
     ctx.fillStyle = color;
     ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2); ctx.fill();
     ctx.restore();
   }
 
-  function arrow(x1, y1, x2, y2, color, width = 2) {
+  // Pattern name label — above if bearish pattern high point, below if bullish pattern low point
+  function patLabel(text, x, y, color, above = true) {
     ctx.save();
-    ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = width;
-    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
-    const ang = Math.atan2(y2 - y1, x2 - x1);
-    const hs = 9;
-    ctx.beginPath();
-    ctx.moveTo(x2, y2);
-    ctx.lineTo(x2 - hs*Math.cos(ang-0.35), y2 - hs*Math.sin(ang-0.35));
-    ctx.lineTo(x2 - hs*Math.cos(ang+0.35), y2 - hs*Math.sin(ang+0.35));
-    ctx.closePath(); ctx.fill();
+    ctx.font = 'bold 9px Arial, sans-serif';
+    const tw = ctx.measureText(text).width;
+    ctx.fillStyle = 'rgba(255,255,255,0.94)';
+    ctx.fillRect(x - tw/2 - 5, above ? y - 14 : y + 2, tw + 10, 13);
+    ctx.fillStyle = color;
+    ctx.textAlign = 'center';
+    ctx.fillText(text, x, above ? y - 3 : y + 12);
     ctx.restore();
   }
 
-  function verticalDash(x, color = '#555') {
-    line(x, MT, x, MT + CH, color, 1, [5, 5], 0.5);
-  }
+  function vDash(x) { line(x, MT, x, MT + CH, '#aaa', 1, [4, 4], 0.4); }
 
-  // NOW line
-  const nowX = px(0.72);
-  verticalDash(nowX, '#888');
+  // ── NOW vertical line ──
+  vDash(nowX);
 
-  // ── Target zone (right of NOW line) ──
+  // ── Target/SL zones right of NOW ──
   const tpY = py(tp), entryY = py(entry), slY = py(sl);
-  const targetTop = isBull ? tpY : entryY;
-  const targetBot = isBull ? entryY : tpY;
-  fillZone(nowX, targetTop, W - MR, targetBot, col, 0.10);
-  // SL zone
-  const slTop = isBull ? entryY : slY;
-  const slBot = isBull ? slY : entryY;
-  fillZone(nowX, slTop, W - MR, slBot, isBull ? '#c81e32' : '#1a8c40', 0.05);
+  fillPoly([[nowX, isBull?tpY:entryY],[W-MR,isBull?tpY:entryY],[W-MR,isBull?entryY:tpY],[nowX,isBull?entryY:tpY]], col, 0.09);
+  fillPoly([[nowX, isBull?entryY:slY],[W-MR,isBull?entryY:slY],[W-MR,isBull?slY:entryY],[nowX,isBull?slY:entryY]], isBull?'#c81e32':'#1a8c40', 0.04);
 
-  // ── Arrow from entry to TP ──
-  const arrowStartX = nowX + 12;
-  const arrowEndX   = W - MR - 18;
-  const arrowStartY = entryY;
-  const arrowEndY   = isBull ? tpY + 14 : tpY - 14;
-  arrow(arrowStartX, arrowStartY, arrowEndX, arrowEndY, col, 2.5);
-
-  // ══════════════════════════════════
-  // PATTERN GEOMETRIES (left of NOW)
-  // ══════════════════════════════════
-
-  // ── HEAD & SHOULDERS ──
-  // H&S normale (3 picchi in ALTO) = SELL (breakdown sotto neckline)
-  // Inverse H&S (3 valli in BASSO) = BUY (breakout sopra neckline)
+  // ════════════════════════════════════
+  // HEAD & SHOULDERS
+  // Normal H&S = peaks UP = SELL → arrow from neckline breakdown pointing to SL
+  // Inverse H&S = valleys DOWN = BUY → arrow from neckline breakout pointing to TP
+  // ════════════════════════════════════
   if (pat.includes('head') && pat.includes('shoulder')) {
-    const isInverse = isBull; // inverse H&S → BUY; normal H&S → SELL
+    const isInv = isBull;
 
-    // Neckline: se normale sta SOTTO i picchi, se inversa sta SOPRA le valli
-    const nkY  = py(entry + (isInverse ? spread*0.3 : -spread*0.3));
+    // Key price levels
+    const nkP  = entry + (isInv ?  spread*0.3 : -spread*0.3);  // neckline
+    const lsP  = entry + (isInv ? -spread*1.1 :  spread*1.1);  // left shoulder
+    const hdP  = entry + (isInv ? -spread*1.8 :  spread*1.8);  // head
+    const rsP  = entry + (isInv ? -spread*1.0 :  spread*1.0);  // right shoulder
 
-    // Shoulders e head: se inversa vanno GIÙ, se normale vanno SU
-    const lsY  = py(entry + (isInverse ? -spread*1.1 :  spread*1.1));
-    const hdY  = py(entry + (isInverse ? -spread*1.7 :  spread*1.7));
-    const rsY  = py(entry + (isInverse ? -spread*1.0 :  spread*1.0));
+    const nkY = py(nkP), lsY=py(lsP), hdY=py(hdP), rsY=py(rsP);
+    const x0=px(0.04), lsX=px(0.18), v1X=px(0.29), hdX=px(0.42), v2X=px(0.55), rsX=px(0.64), x1=nowX;
 
-    const x0=px(0.05), lsX=px(0.20), v1X=px(0.30), hdX=px(0.42), v2X=px(0.54), rsX=px(0.63), x1=nowX;
-
-    // Neckline — bold black
+    // Neckline — solid bold
     line(x0, nkY, x1, nkY, black, 2);
-    label('NECKLINE', px(0.35), nkY + (isInverse ? 12 : -10), black, 8);
 
-    // Pattern shape
-    line(x0,  nkY, lsX, lsY,  black, 1.5);
-    line(lsX, lsY, v1X, nkY,  black, 1.5);
-    line(v1X, nkY, hdX, hdY,  black, 1.5);
-    line(hdX, hdY, v2X, nkY,  black, 1.5);
-    line(v2X, nkY, rsX, rsY,  black, 1.5);
-    line(rsX, rsY, x1,  nkY,  black, 1.5);
+    // Pattern outline
+    line(x0, nkY, lsX, lsY, black, 1.8);
+    line(lsX, lsY, v1X, nkY, black, 1.8);
+    line(v1X, nkY, hdX, hdY, black, 1.8);
+    line(hdX, hdY, v2X, nkY, black, 1.8);
+    line(v2X, nkY, rsX, rsY, black, 1.8);
+    line(rsX, rsY, x1, nkY, black, 1.8);
 
-    // Fill
-    ctx.save(); ctx.fillStyle = '#1a2030'; ctx.globalAlpha = 0.04;
-    ctx.beginPath();
-    ctx.moveTo(x0, nkY); ctx.lineTo(lsX, lsY); ctx.lineTo(v1X, nkY);
-    ctx.lineTo(hdX, hdY); ctx.lineTo(v2X, nkY); ctx.lineTo(rsX, rsY);
-    ctx.lineTo(x1, nkY); ctx.closePath(); ctx.fill(); ctx.restore();
+    // Fill pattern area
+    fillPoly([[x0,nkY],[lsX,lsY],[v1X,nkY],[hdX,hdY],[v2X,nkY],[rsX,rsY],[x1,nkY]], black, 0.04);
 
-    dot(lsX, lsY, orange); label('LS',   lsX, lsY + (isInverse ? 12 : -10), orange);
-    dot(hdX, hdY, orange); label('HEAD', hdX, hdY + (isInverse ? 12 : -10), orange);
-    dot(rsX, rsY, orange); label('RS',   rsX, rsY + (isInverse ? 12 : -10), orange);
+    dot(lsX, lsY, orange); dot(hdX, hdY, orange); dot(rsX, rsY, orange);
 
-    // Pattern title
-    label(isInverse ? 'INVERSE H&S — BUY' : 'HEAD & SHOULDERS — SELL',
-          px(0.35), isInverse ? hdY + 24 : hdY - 22, col, 9);
+    // Labels: for normal H&S (peaks up) → labels ABOVE peaks
+    //         for inverse H&S (valleys down) → labels BELOW valleys
+    const lOff = isInv ? 12 : -12;
+    ctx.fillStyle = orange; ctx.font = 'bold 8px Arial, sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('LS',   lsX, lsY + lOff);
+    ctx.fillText('HEAD', hdX, hdY + lOff);
+    ctx.fillText('RS',   rsX, rsY + lOff);
 
-    // Breakout arrow: inverse→UP, normal→DOWN
-    arrow(x1, nkY, x1 + 14, isInverse ? nkY - 32 : nkY + 32, col, 2);
+    // Neckline label
+    ctx.fillStyle = black; ctx.font = '8px Arial, sans-serif';
+    ctx.fillText('NECKLINE', px(0.35), nkY + (isInv ? 11 : -7));
+
+    // Pattern name: ABOVE for normal (sell), BELOW for inverse (buy)
+    patLabel(isInv ? 'INVERSE HEAD & SHOULDERS' : 'HEAD & SHOULDERS',
+             px(0.38), isInv ? hdY : hdY, isInv ? col : col, !isInv);
+
+    // ARROW: starts from where price breaks the neckline (right shoulder meets neckline)
+    // For normal H&S (SELL): price breaks DOWN from neckline → arrow goes DOWN toward SL
+    // For inverse H&S (BUY): price breaks UP from neckline → arrow goes UP toward TP
+    const breakX = nowX;
+    const breakY = nkY;
+    arrow(breakX, breakY, W - MR - 8, isInv ? tpY + 8 : slY - 8, col, 2.5);
   }
 
-  // ── DOUBLE TOP / DOUBLE BOTTOM ──
+  // ════════════════════════════════════
+  // DOUBLE TOP / DOUBLE BOTTOM
+  // Double Top = 2 peaks UP = SELL → arrow from neckline break DOWN to SL
+  // Double Bottom = 2 valleys DOWN = BUY → arrow from neckline break UP to TP
+  // ════════════════════════════════════
   else if (pat.includes('double')) {
-    const peakY = py(entry + (isBull ? -spread*1.4 : spread*1.4));
-    const nkY   = py(entry);
-    const p1X=px(0.18), valX=px(0.36), p2X=px(0.54), x0=px(0.05), x1=nowX;
+    const peakP = entry + (isBull ? -spread*1.5 :  spread*1.5);
+    const nkP   = entry + (isBull ?  spread*0.1 : -spread*0.1);
+    const valP  = entry + (isBull ? -spread*0.3 :  spread*0.3);
+
+    const peakY=py(peakP), nkY=py(nkP), valY=py(valP);
+    const x0=px(0.04), p1X=px(0.22), valX=px(0.42), p2X=px(0.60), x1=nowX;
 
     // Neckline
-    line(x0, nkY, x1, nkY, black, 2, [6,4]);
-    label('NECKLINE', px(0.35), nkY + (isBull ? 12 : -12), black, 8);
+    line(x0, nkY, x1, nkY, black, 2);
 
-    // Pattern shape
-    line(x0,  nkY,  p1X,  peakY, black, 1.8);
-    line(p1X, peakY,valX, nkY,   black, 1.8);
-    line(valX,nkY,  p2X,  peakY, black, 1.8);
-    line(p2X, peakY,x1,   nkY,   black, 1.8);
+    // Double pattern
+    line(x0,   nkY,   p1X,  peakY, black, 1.8);
+    line(p1X,  peakY, valX, valY,  black, 1.8);
+    line(valX, valY,  p2X,  peakY, black, 1.8);
+    line(p2X,  peakY, x1,   nkY,   black, 1.8);
 
-    // Fill
-    ctx.save(); ctx.fillStyle = orange; ctx.globalAlpha = 0.06;
-    ctx.beginPath();
-    ctx.moveTo(x0, nkY); ctx.lineTo(p1X, peakY); ctx.lineTo(valX, nkY);
-    ctx.lineTo(p2X, peakY); ctx.lineTo(x1, nkY); ctx.closePath();
-    ctx.fill(); ctx.restore();
+    fillPoly([[x0,nkY],[p1X,peakY],[valX,valY],[p2X,peakY],[x1,nkY]], orange, 0.06);
 
-    dot(p1X, peakY, orange);
-    dot(p2X, peakY, orange);
-    label(isBull ? 'DOUBLE BOTTOM' : 'DOUBLE TOP', px(0.35), peakY - 10, orange);
+    dot(p1X, peakY, orange); dot(p2X, peakY, orange); dot(valX, valY, orange);
+
+    // Labels on peaks: ABOVE for double top, BELOW for double bottom
+    const pOff = isBull ? 12 : -12;
+    ctx.fillStyle = orange; ctx.font = 'bold 8px Arial, sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('①', p1X, peakY + pOff);
+    ctx.fillText('②', p2X, peakY + pOff);
+
+    ctx.fillStyle = black; ctx.font = '8px Arial, sans-serif';
+    ctx.fillText('NECKLINE', px(0.35), nkY + (isBull ? 11 : -7));
+
+    // Pattern name: above for double top (bear), below for double bottom (bull)
+    patLabel(isBull ? 'DOUBLE BOTTOM' : 'DOUBLE TOP', px(0.40), isBull ? peakY : peakY, col, !isBull);
+
+    // ARROW: from neckline break → toward TP (bull) or SL (bear)
+    // The neckline is where the breakout happens
+    arrow(nowX, nkY, W - MR - 8, isBull ? tpY + 8 : slY - 8, col, 2.5);
   }
 
-  // ── ASCENDING TRIANGLE ──
+  // ════════════════════════════════════
+  // ASCENDING TRIANGLE
+  // Flat resistance top + rising support → BUY breakout UP through resistance
+  // Arrow starts FROM resistance breakout point → goes UP to TP
+  // ════════════════════════════════════
   else if (pat.includes('ascending')) {
-    const resY  = py(entry + (isBull ? spread*1.0 : -spread*1.0));
-    const sup1Y = py(entry + (isBull ? -spread*1.1 : spread*1.1));
-    const sup2Y = py(entry + (isBull ? -spread*0.1 : spread*0.1));
-    const x0=px(0.06), x1=nowX;
+    const resP  = entry + (isBull ?  spread*1.0 : -spread*1.0);
+    const sup1P = entry + (isBull ? -spread*1.2 :  spread*1.2);
+    const sup2P = entry + (isBull ? -spread*0.1 :  spread*0.1);
 
-    // Fill triangle
-    ctx.save(); ctx.fillStyle = col; ctx.globalAlpha = 0.07;
-    ctx.beginPath();
-    ctx.moveTo(x0, sup1Y); ctx.lineTo(x1, sup2Y);
-    ctx.lineTo(x1, resY); ctx.lineTo(x0, resY);
-    ctx.closePath(); ctx.fill(); ctx.restore();
+    const resY=py(resP), sup1Y=py(sup1P), sup2Y=py(sup2P);
+    const x0=px(0.05), x1=nowX;
 
-    // Resistance flat
-    line(x0, resY, x1, resY, black, 2.5);
-    label('RESISTANCE', px(0.37), resY - 8, black, 8);
+    fillPoly([[x0,resY],[x1,resY],[x1,sup2Y],[x0,sup1Y]], col, 0.07);
+    line(x0, resY,  x1, resY,  black, 2.5);  // flat resistance
+    line(x0, sup1Y, x1, sup2Y, black, 2.5);  // rising support
 
-    // Rising support
-    line(x0, sup1Y, x1, sup2Y, black, 2.5);
-    label('SUPPORT ↗', px(0.37), (sup1Y+sup2Y)/2 + 14, black, 8);
-
-    // Bounce dots on support
-    [0.15, 0.30, 0.48, 0.62].forEach((t, i) => {
-      const bY = sup1Y + (sup2Y - sup1Y) * (t / 0.72);
+    // Touch dots on resistance
+    [0.20, 0.44].forEach(t => dot(px(t), resY, col, 3));
+    // Bounce dots on rising support
+    [0.15, 0.30, 0.50, 0.64].forEach((t, i) => {
+      const bY = sup1Y + (sup2Y - sup1Y) * (t / 0.70);
       dot(px(t), bY, col, 3);
     });
-    // Touch dots on resistance
-    [0.22, 0.45].forEach(t => dot(px(t), resY, col, 3));
 
-    // Breakout
-    arrow(nowX, resY, nowX + 16, isBull ? resY - 30 : resY + 30, col, 2.5);
+    // Pattern name BELOW the triangle (inside, above rising support)
+    patLabel('ASCENDING TRIANGLE', px(0.35), sup2Y, col, false);
+    ctx.fillStyle = black; ctx.font = '8px Arial, sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('RESISTANCE', px(0.35), resY - 7);
+
+    // ARROW: starts from resistance level (breakout point) → goes UP to TP
+    arrow(nowX, resY, W - MR - 8, tpY + 8, col, 2.5);
   }
 
-  // ── DESCENDING TRIANGLE ──
+  // ════════════════════════════════════
+  // DESCENDING TRIANGLE
+  // Flat support bottom + declining resistance → SELL breakdown DOWN through support
+  // Arrow starts FROM support breakdown → goes DOWN to TP (which is below)
+  // ════════════════════════════════════
   else if (pat.includes('descending')) {
-    const supY  = py(entry - (isBull ? spread*1.0 : -spread*1.0));
-    const res1Y = py(entry + (isBull ? spread*1.1 : -spread*1.1));
-    const res2Y = py(entry + (isBull ? spread*0.1 : -spread*0.1));
-    const x0=px(0.06), x1=nowX;
+    const supP  = entry - (isBull ?  spread*1.0 : -spread*1.0);
+    const res1P = entry + (isBull ?  spread*1.2 : -spread*1.2);
+    const res2P = entry + (isBull ?  spread*0.1 : -spread*0.1);
 
-    ctx.save(); ctx.fillStyle = col; ctx.globalAlpha = 0.07;
-    ctx.beginPath();
-    ctx.moveTo(x0, res1Y); ctx.lineTo(x1, res2Y);
-    ctx.lineTo(x1, supY); ctx.lineTo(x0, supY);
-    ctx.closePath(); ctx.fill(); ctx.restore();
+    const supY=py(supP), res1Y=py(res1P), res2Y=py(res2P);
+    const x0=px(0.05), x1=nowX;
 
-    line(x0, supY, x1, supY, black, 2.5);
-    label('SUPPORT', px(0.37), supY + 14, black, 8);
-    line(x0, res1Y, x1, res2Y, black, 2.5);
-    label('RESISTANCE ↘', px(0.37), (res1Y+res2Y)/2 - 8, black, 8);
+    fillPoly([[x0,res1Y],[x1,res2Y],[x1,supY],[x0,supY]], col, 0.07);
+    line(x0, supY,  x1, supY,  black, 2.5);  // flat support
+    line(x0, res1Y, x1, res2Y, black, 2.5);  // declining resistance
 
-    [0.15, 0.30, 0.48, 0.62].forEach(t => dot(px(t), supY, col, 3));
-    [0.22, 0.45].forEach(t => {
-      const rY = res1Y + (res2Y - res1Y) * (t / 0.72);
+    [0.20, 0.44].forEach(t => dot(px(t), supY, col, 3));
+    [0.15, 0.30, 0.50, 0.64].forEach(t => {
+      const rY = res1Y + (res2Y - res1Y) * (t / 0.70);
       dot(px(t), rY, col, 3);
     });
-    arrow(nowX, supY, nowX + 16, isBull ? supY - 30 : supY + 30, col, 2.5);
+
+    patLabel('DESCENDING TRIANGLE', px(0.35), supY, col, true);
+    ctx.fillStyle = black; ctx.font = '8px Arial, sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('SUPPORT', px(0.35), supY + 11);
+
+    // ARROW: from support breakdown → DOWN to TP
+    arrow(nowX, supY, W - MR - 8, tpY - 8, col, 2.5);
   }
 
-  // ── SYMMETRICAL TRIANGLE ──
+  // ════════════════════════════════════
+  // SYMMETRICAL TRIANGLE / PENNANT
+  // Converging lines → breakout in signal direction
+  // Arrow from apex → toward TP or SL
+  // ════════════════════════════════════
   else if (pat.includes('symmetrical') || pat.includes('pennant')) {
-    const mid   = py((pMin + pMax) / 2);
-    const top1Y = py(entry + spread*1.3);
-    const top2Y = mid - 5;
-    const bot1Y = py(entry - spread*1.3);
-    const bot2Y = mid + 5;
-    const x0=px(0.06), x1=nowX;
+    const midP  = (pMin + pMax) / 2;
+    const top1P = midP + spread * 1.4;
+    const top2P = midP + spread * 0.06;
+    const bot1P = midP - spread * 1.4;
+    const bot2P = midP - spread * 0.06;
 
-    ctx.save(); ctx.fillStyle = '#888'; ctx.globalAlpha = 0.06;
-    ctx.beginPath();
-    ctx.moveTo(x0, top1Y); ctx.lineTo(x1, top2Y);
-    ctx.lineTo(x1, bot2Y); ctx.lineTo(x0, bot1Y);
-    ctx.closePath(); ctx.fill(); ctx.restore();
+    const midY=py(midP), top1Y=py(top1P), top2Y=py(top2P), bot1Y=py(bot1P), bot2Y=py(bot2P);
+    const x0=px(0.04), x1=nowX;
 
+    fillPoly([[x0,top1Y],[x1,top2Y],[x1,bot2Y],[x0,bot1Y]], '#888', 0.06);
     line(x0, top1Y, x1, top2Y, black, 2);
     line(x0, bot1Y, x1, bot2Y, black, 2);
-    label(pat.includes('pennant') ? 'PENNANT' : 'SYM. TRIANGLE', px(0.35), mid + 4, '#555', 9);
-    arrow(nowX, (top2Y+bot2Y)/2, nowX+16, isBull ? top2Y - 20 : bot2Y + 20, col, 2.5);
-  }
 
-  // ── BULL / BEAR FLAG ──
-  else if (pat.includes('flag')) {
-    const poleFromY = py(entry - (isBull ? spread*2.0 : -spread*2.0));
-    const poleTopY  = py(entry + (isBull ? spread*0.6 : -spread*0.6));
-    const poleX     = px(0.38);
-    const slope     = isBull ? spread*0.4 : -spread*0.4;
-    const fTop1Y    = poleTopY;
-    const fBot1Y    = py(entry + (isBull ? -spread*0.3 : spread*0.3));
-    const fTop2Y    = py(parseFloat(fTop1Y > 0 ? pMin + (pMax-pMin)*(1-(fTop1Y-MT)/CH) : 0) - slope);
-    const fBot2Y    = py(parseFloat(fBot1Y > 0 ? pMin + (pMax-pMin)*(1-(fBot1Y-MT)/CH) : 0) - slope);
-    const fEndX     = nowX;
-
-    // Simpler flag: just use price coords
-    const fT1 = entry + (isBull ? spread*0.6  : -spread*0.6);
-    const fB1 = entry + (isBull ? -spread*0.3 : spread*0.3);
-    const fT2 = fT1  - (isBull ? slope : -slope);
-    const fB2 = fB1  - (isBull ? slope : -slope);
-
-    // Flagpole — thick
-    line(px(0.05), poleFromY, poleX, py(fT1), black, 3);
-
-    // Flag channel
-    line(poleX, py(fT1), fEndX, py(fT2), black, 1.8);
-    line(poleX, py(fB1), fEndX, py(fB2), black, 1.8);
-
-    // Flag fill
-    ctx.save(); ctx.fillStyle = col; ctx.globalAlpha = 0.08;
-    ctx.beginPath();
-    ctx.moveTo(poleX, py(fT1)); ctx.lineTo(fEndX, py(fT2));
-    ctx.lineTo(fEndX, py(fB2)); ctx.lineTo(poleX, py(fB1));
-    ctx.closePath(); ctx.fill(); ctx.restore();
-
-    label(isBull ? 'BULL FLAG' : 'BEAR FLAG', px(0.55), (py(fT1)+py(fT2))/2 - 10, col, 9);
-    label('FLAGPOLE', px(0.20), (poleFromY + py(fT1))/2, black, 8);
-
-    arrow(nowX, py(fB2 > fT2 ? fT2 : fB2), nowX+16, isBull ? py(tp) + 14 : py(sl) - 14, col, 2.5);
-  }
-
-  // ── ELLIOTT WAVE 3 ──
-  else if (pat.includes('elliott') && (pat.includes('3') || pat.includes('wave 3'))) {
-    const pts = isBull
-      ? [entry-spread*1.6, entry-spread*0.6, entry-spread*1.1, entry+spread*0.3, entry, entry+spread*1.4]
-      : [entry+spread*1.6, entry+spread*0.6, entry+spread*1.1, entry-spread*0.3, entry, entry-spread*1.4];
-    const xs = [px(0.06), px(0.18), px(0.30), px(0.46), px(0.56), nowX];
-    const labels5 = ['0','1','2','3','4','5→'];
-    const wColors = [col, col, orange, col, orange, col];
-
-    for (let i = 0; i < xs.length - 1; i++) {
-      line(xs[i], py(pts[i]), xs[i+1], py(pts[i+1]), wColors[i], i===2 ? 3 : 2);
-    }
-    xs.forEach((x, i) => {
-      dot(x, py(pts[i]), wColors[i] || col, 5);
-      label(labels5[i], x, py(pts[i]) + (isBull ? (i%2===0?14:-14) : (i%2===0?-14:14)), wColors[i] || col, 9);
+    // Touch points alternating top/bottom
+    [0.15, 0.35, 0.55].forEach(t => {
+      const ty = top1Y + (top2Y - top1Y) * (t / 0.72);
+      const by = bot1Y + (bot2Y - bot1Y) * (t / 0.72);
+      dot(px(t), ty, col, 3);
+      dot(px(t + 0.10), by, col, 3);
     });
-    // Wave 3 highlight
-    ctx.save(); ctx.fillStyle = col; ctx.globalAlpha = 0.07;
-    ctx.fillRect(xs[2], Math.min(py(pts[2]), py(pts[3])), xs[3]-xs[2], Math.abs(py(pts[3])-py(pts[2])));
-    ctx.restore();
-    label('WAVE 3', (xs[2]+xs[3])/2, (py(pts[2])+py(pts[3]))/2, col, 9);
+
+    // Name in center of triangle
+    const nameLabel = pat.includes('pennant') ? 'PENNANT' : 'SYM. TRIANGLE';
+    patLabel(nameLabel, px(0.35), midY + 4, '#555', isBull);
+
+    // ARROW: from apex (where lines converge at nowX) → toward TP or SL
+    const apexY = (top2Y + bot2Y) / 2;
+    arrow(nowX, apexY, W - MR - 8, isBull ? tpY + 8 : tpY - 8, col, 2.5);
   }
 
-  // ── ELLIOTT WAVE 5 ──
-  else if (pat.includes('elliott') && pat.includes('5')) {
-    const pts = isBull
-      ? [entry-spread*1.8, entry-spread*0.8, entry-spread*1.3, entry-spread*0.2, entry-spread*0.7, entry+spread*0.5]
-      : [entry+spread*1.8, entry+spread*0.8, entry+spread*1.3, entry+spread*0.2, entry+spread*0.7, entry-spread*0.5];
-    const xs = [px(0.05), px(0.16), px(0.27), px(0.40), px(0.52), nowX];
-    const wLabels = ['0','1','2','3','4','5→'];
-    const wColors = [col, col, orange, col, orange, col];
+  // ════════════════════════════════════
+  // BULL FLAG / BEAR FLAG
+  // Flagpole (strong move) + flag (consolidation channel, slight counter-trend)
+  // Arrow: starts from TOP of flag channel breakout → continues in pole direction
+  // Bull flag: pole goes UP, flag consolidates slightly DOWN, breakout UP
+  // Bear flag: pole goes DOWN, flag consolidates slightly UP, breakout DOWN
+  // ════════════════════════════════════
+  else if (pat.includes('flag')) {
+    // Pole: strong initial move
+    const poleFromP = entry - (isBull ?  spread*2.2 : -spread*2.2);
+    const poleTopP  = entry + (isBull ?  spread*0.8 : -spread*0.8);
+    const poleFromY = py(poleFromP), poleTopY = py(poleTopP);
+    const poleX0 = px(0.04), poleX1 = px(0.35);
+
+    // Flag channel: slight counter-trend slope
+    // Bull flag: slopes DOWN slightly after pole top
+    // Bear flag: slopes UP slightly after pole bottom
+    const fSlope = isBull ? spread * 0.5 : -spread * 0.5;
+    const fTopP1 = poleTopP;
+    const fTopP2 = poleTopP - fSlope;
+    const fBotP1 = poleTopP - (isBull ? spread*0.7 : -spread*0.7);
+    const fBotP2 = fBotP1 - fSlope;
+
+    const fTopY1=py(fTopP1), fTopY2=py(fTopP2), fBotY1=py(fBotP1), fBotY2=py(fBotP2);
+    const fX1=poleX1, fX2=nowX;
+
+    // Draw flagpole — thick
+    line(poleX0, poleFromY, poleX1, poleTopY, black, 3);
+
+    // Draw flag channel
+    line(fX1, fTopY1, fX2, fTopY2, black, 2);
+    line(fX1, fBotY1, fX2, fBotY2, black, 2);
+    // Vertical closes at ends
+    line(fX1, fTopY1, fX1, fBotY1, black, 1, [3,2], 0.4);
+    line(fX2, fTopY2, fX2, fBotY2, black, 1, [3,2], 0.4);
+
+    fillPoly([[fX1,fTopY1],[fX2,fTopY2],[fX2,fBotY2],[fX1,fBotY1]], col, 0.08);
+
+    // Pattern name: BELOW flag for bull flag, ABOVE for bear flag
+    const nameMidY = (fTopY1 + fTopY2 + fBotY1 + fBotY2) / 4;
+    patLabel(isBull ? 'BULL FLAG' : 'BEAR FLAG', (fX1+fX2)/2, nameMidY, col, !isBull);
+
+    ctx.fillStyle = black; ctx.font = 'bold 8px Arial, sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('FLAGPOLE', (poleX0+poleX1)/2 + 6, (poleFromY+poleTopY)/2);
+
+    // ARROW: starts from flag channel TOP breakout (bull) or BOTTOM breakout (bear)
+    // → continues in direction of the original pole
+    const brkY = isBull ? fTopY2 : fBotY2;  // breakout from top/bottom of flag
+    arrow(nowX, brkY, W - MR - 8, isBull ? tpY + 8 : tpY - 8, col, 2.5);
+  }
+
+  // ════════════════════════════════════
+  // ELLIOTT WAVE 3
+  // Shows waves 1-2-3 with wave 3 being the longest
+  // Arrow starts from END of wave 2 (where wave 3 begins) → toward wave 3 target
+  // ════════════════════════════════════
+  else if (pat.includes('elliott') && (pat.includes('3') || pat.includes('wave 3') || (!pat.includes('5') && !pat.includes('c')))) {
+    const w = isBull;
+    const pts = [
+      entry + (w ? -spread*1.6 : spread*1.6),   // 0
+      entry + (w ? -spread*0.6 : spread*0.6),   // 1
+      entry + (w ? -spread*1.1 : spread*1.1),   // 2
+      entry + (w ?  spread*0.8 : -spread*0.8),  // 3 target (wave 3 end)
+    ];
+    const xs = [px(0.06), px(0.22), px(0.38), nowX];
+    const wColors = [col, orange, col, col];
+    const wLabels = ['①','②','③'];
 
     for (let i = 0; i < xs.length - 1; i++) {
-      line(xs[i], py(pts[i]), xs[i+1], py(pts[i+1]), wColors[i], 2);
+      line(xs[i], py(pts[i]), xs[i+1], py(pts[i+1]), wColors[i], i===1 ? 1.5 : 2.5);
     }
     xs.forEach((x, i) => {
       dot(x, py(pts[i]), wColors[i] || col, 4);
-      const off = isBull ? (i%2===0 ? 14 : -12) : (i%2===0 ? -12 : 14);
-      label(wLabels[i], x, py(pts[i]) + off, wColors[i] || col, 9);
+      const off = w ? (i%2===0 ? 14 : -12) : (i%2===0 ? -12 : 14);
+      ctx.fillStyle = wColors[i] || col;
+      ctx.font = 'bold 10px Arial, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(wLabels[i] || '', x, py(pts[i]) + off);
     });
+
+    // Wave 3 label inside wave 3 move
+    ctx.save(); ctx.fillStyle = col; ctx.globalAlpha = 0.07;
+    ctx.fillRect(xs[2], Math.min(py(pts[2]),py(pts[3])), xs[3]-xs[2], Math.abs(py(pts[3])-py(pts[2])));
+    ctx.restore();
+    patLabel('ELLIOTT WAVE 3', px(0.53), w ? py(pts[3]) : py(pts[3]), col, !w);
+
+    // ARROW: from end of wave 2 (retracement low/high) → continues as wave 3 toward TP
+    arrow(xs[2], py(pts[2]), W - MR - 8, isBull ? tpY + 8 : tpY - 8, col, 2.5);
   }
 
-  // ── ELLIOTT WAVE C ──
-  else if (pat.includes('elliott') && pat.includes('c')) {
-    const pts = isBull
-      ? [entry+spread*1.2, entry+spread*0.3, entry+spread*0.9, entry-spread*0.5]
-      : [entry-spread*1.2, entry-spread*0.3, entry-spread*0.9, entry+spread*0.5];
-    const xs = [px(0.08), px(0.25), px(0.45), nowX];
-    const wLabels = ['A','B','C→',''];
+  // ════════════════════════════════════
+  // ELLIOTT WAVE 5
+  // Shows full 5-wave structure
+  // Arrow from end of wave 4 → toward wave 5 TP
+  // ════════════════════════════════════
+  else if (pat.includes('elliott') && pat.includes('5')) {
+    const w = isBull;
+    const pts = [
+      entry + (w ? -spread*1.8 : spread*1.8),
+      entry + (w ? -spread*0.8 : spread*0.8),
+      entry + (w ? -spread*1.3 : spread*1.3),
+      entry + (w ? -spread*0.2 : spread*0.2),
+      entry + (w ? -spread*0.7 : spread*0.7),
+      entry + (w ?  spread*0.6 : -spread*0.6),
+    ];
+    const xs = [px(0.04), px(0.16), px(0.28), px(0.42), px(0.56), nowX];
+    const wCols = [col, orange, col, orange, col];
+    const wLabels = ['①','②','③','④','⑤'];
+
     for (let i = 0; i < xs.length - 1; i++) {
-      line(xs[i], py(pts[i]), xs[i+1], py(pts[i+1]), i===2?col:orange, 2);
+      line(xs[i], py(pts[i]), xs[i+1], py(pts[i+1]), wCols[i], i%2===0 ? 2.5 : 1.5);
     }
-    xs.slice(0,3).forEach((x, i) => {
-      dot(x, py(pts[i]), i===2?col:orange, 4);
-      label(wLabels[i], x, py(pts[i]) - 12, i===2?col:orange, 10);
+    xs.forEach((x, i) => {
+      if (i < 5) dot(x, py(pts[i]), wCols[i] || col, 4);
+      const off = w ? (i%2===0 ? 14 : -12) : (i%2===0 ? -12 : 14);
+      ctx.fillStyle = wCols[i] || col;
+      ctx.font = 'bold 9px Arial, sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText(wLabels[i] || '', x, py(pts[i]) + off);
     });
-    label('ABC CORRECTION', px(0.35), py((pts[0]+pts[3])/2), '#555', 8);
+
+    patLabel('ELLIOTT WAVE 5', px(0.38), w ? py(pts[5]) : py(pts[5]), col, !w);
+
+    // ARROW: from wave 4 end → toward wave 5 TP
+    arrow(xs[4], py(pts[4]), W - MR - 8, isBull ? tpY + 8 : tpY - 8, col, 2.5);
   }
 
-  // ── RISING WEDGE (bearish) ──
+  // ════════════════════════════════════
+  // ELLIOTT WAVE C
+  // ABC correction: A down, B up, C down (bear) or A up, B down, C up (bull)
+  // Arrow from end of B wave → toward C wave target
+  // ════════════════════════════════════
+  else if (pat.includes('elliott') && pat.includes('c')) {
+    const w = isBull;
+    const aP = entry + (w ?  spread*1.2 : -spread*1.2);
+    const bP = entry + (w ?  spread*0.4 : -spread*0.4);
+    const cP = entry + (w ? -spread*0.8 : spread*0.8);
+
+    const aX=px(0.15), bX=px(0.38), cX=nowX;
+
+    line(px(0.04), py(entry), aX, py(aP), orange, 2);
+    line(aX, py(aP), bX, py(bP), orange, 1.5);
+    line(bX, py(bP), cX, py(cP), col, 2.5);
+
+    dot(px(0.04), py(entry), '#888', 3);
+    dot(aX, py(aP), orange, 4); dot(bX, py(bP), orange, 4); dot(cX, py(cP), col, 4);
+
+    const aOff = w ? -12 : 12, bOff = w ? 14 : -12;
+    ctx.font = 'bold 11px Arial, sans-serif'; ctx.textAlign = 'center';
+    ctx.fillStyle = orange; ctx.fillText('A', aX, py(aP) + aOff);
+    ctx.fillStyle = orange; ctx.fillText('B', bX, py(bP) + bOff);
+    ctx.fillStyle = col;    ctx.fillText('C', cX + 8, py(cP) + aOff);
+
+    patLabel('ELLIOTT WAVE C', px(0.40), w ? py(cP) : py(aP), col, !w);
+
+    // ARROW: from end of B wave → toward C wave completion (TP)
+    arrow(bX, py(bP), W - MR - 8, isBull ? tpY + 8 : tpY - 8, col, 2.5);
+  }
+
+  // ════════════════════════════════════
+  // RISING WEDGE (BEARISH)
+  // Both lines rise but converge → breakdown below lower trendline
+  // Arrow: from lower trendline breakdown → DOWN toward SL/TP
+  // ════════════════════════════════════
   else if (pat.includes('rising wedge')) {
-    // Rising wedge = both lines go UP but converge → bearish breakdown
-    const top1Y = py(entry + spread*0.4);
-    const top2Y = py(entry + spread*1.2);
-    const bot1Y = py(entry - spread*0.6);
-    const bot2Y = py(entry + spread*0.3);
-    const x0=px(0.06), x1=nowX;
+    const top1P = entry + spread*0.3,  top2P = entry + spread*1.2;
+    const bot1P = entry - spread*0.7,  bot2P = entry + spread*0.2;
+    const top1Y=py(top1P), top2Y=py(top2P), bot1Y=py(bot1P), bot2Y=py(bot2P);
+    const x0=px(0.04), x1=nowX;
 
-    ctx.save(); ctx.fillStyle = '#c81e32'; ctx.globalAlpha = 0.06;
-    ctx.beginPath();
-    ctx.moveTo(x0, top1Y); ctx.lineTo(x1, top2Y);
-    ctx.lineTo(x1, bot2Y); ctx.lineTo(x0, bot1Y);
-    ctx.closePath(); ctx.fill(); ctx.restore();
-
+    fillPoly([[x0,top1Y],[x1,top2Y],[x1,bot2Y],[x0,bot1Y]], '#c81e32', 0.06);
     line(x0, top1Y, x1, top2Y, black, 2);
     line(x0, bot1Y, x1, bot2Y, black, 2);
 
-    [0.2, 0.38, 0.55].forEach(t => {
+    [0.18,0.36,0.54].forEach(t => {
       const ty = top1Y + (top2Y-top1Y)*(t/0.72);
       const by = bot1Y + (bot2Y-bot1Y)*(t/0.72);
-      dot(px(t), ty, '#c81e32', 3);
-      dot(px(t), by, '#c81e32', 3);
+      dot(px(t), ty, '#c81e32', 3); dot(px(t), by, '#c81e32', 3);
     });
 
-    label('RISING WEDGE', px(0.35), (top1Y+top2Y+bot1Y+bot2Y)/4, '#c81e32', 9);
-    label('↗ BEARISH REVERSAL', px(0.35), (top1Y+top2Y+bot1Y+bot2Y)/4 + 14, '#555', 8);
-    // Breakdown arrow — goes DOWN (bearish)
-    arrow(nowX, bot2Y, nowX + 16, py(sl) - 14, '#c81e32', 2.5);
+    // Name ABOVE the wedge (bearish pattern)
+    patLabel('RISING WEDGE', px(0.37), top2Y, '#c81e32', true);
+    ctx.fillStyle = '#888'; ctx.font = '8px Arial, sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('bearish reversal', px(0.37), top2Y - 16);
+
+    // ARROW: from lower trendline at NOW → DOWN toward TP (which is below for SELL)
+    arrow(nowX, bot2Y, W - MR - 8, tpY - 8, '#c81e32', 2.5);
   }
 
-  // ── FALLING WEDGE (bullish) ──
+  // ════════════════════════════════════
+  // FALLING WEDGE (BULLISH)
+  // Both lines fall but converge → breakout above upper trendline
+  // Arrow: from upper trendline breakout → UP toward TP
+  // ════════════════════════════════════
   else if (pat.includes('falling wedge')) {
-    // Falling wedge = both lines go DOWN but converge → bullish breakout
-    const top1Y = py(entry + spread*1.2);
-    const top2Y = py(entry + spread*0.4);
-    const bot1Y = py(entry - spread*0.3);
-    const bot2Y = py(entry - spread*1.0);
-    const x0=px(0.06), x1=nowX;
+    const top1P = entry + spread*1.2,  top2P = entry + spread*0.2;
+    const bot1P = entry + spread*0.2,  bot2P = entry - spread*0.7;
+    const top1Y=py(top1P), top2Y=py(top2P), bot1Y=py(bot1P), bot2Y=py(bot2P);
+    const x0=px(0.04), x1=nowX;
 
-    ctx.save(); ctx.fillStyle = '#1a8c40'; ctx.globalAlpha = 0.06;
-    ctx.beginPath();
-    ctx.moveTo(x0, top1Y); ctx.lineTo(x1, top2Y);
-    ctx.lineTo(x1, bot2Y); ctx.lineTo(x0, bot1Y);
-    ctx.closePath(); ctx.fill(); ctx.restore();
-
+    fillPoly([[x0,top1Y],[x1,top2Y],[x1,bot2Y],[x0,bot1Y]], '#1a8c40', 0.06);
     line(x0, top1Y, x1, top2Y, black, 2);
     line(x0, bot1Y, x1, bot2Y, black, 2);
 
-    [0.2, 0.38, 0.55].forEach(t => {
+    [0.18,0.36,0.54].forEach(t => {
       const ty = top1Y + (top2Y-top1Y)*(t/0.72);
       const by = bot1Y + (bot2Y-bot1Y)*(t/0.72);
-      dot(px(t), ty, '#1a8c40', 3);
-      dot(px(t), by, '#1a8c40', 3);
+      dot(px(t), ty, '#1a8c40', 3); dot(px(t), by, '#1a8c40', 3);
     });
 
-    label('FALLING WEDGE', px(0.35), (top1Y+top2Y+bot1Y+bot2Y)/4, '#1a8c40', 9);
-    label('↘ BULLISH REVERSAL', px(0.35), (top1Y+top2Y+bot1Y+bot2Y)/4 + 14, '#555', 8);
-    // Breakout arrow — goes UP (bullish)
-    arrow(nowX, top2Y, nowX + 16, py(tp) + 14, '#1a8c40', 2.5);
+    // Name BELOW the wedge (bullish pattern)
+    patLabel('FALLING WEDGE', px(0.37), bot2Y, '#1a8c40', false);
+    ctx.fillStyle = '#888'; ctx.font = '8px Arial, sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('bullish reversal', px(0.37), bot2Y + 18);
+
+    // ARROW: from upper trendline at NOW → UP toward TP
+    arrow(nowX, top2Y, W - MR - 8, tpY + 8, '#1a8c40', 2.5);
   }
 
-  // ── FIB RETRACEMENT ──
+  // ════════════════════════════════════
+  // FIB RETRACEMENT
+  // Arrow: from 61.8% level → toward TP (continuation after bounce/rejection)
+  // ════════════════════════════════════
   else if (pat.includes('fib')) {
-    const impulseFrom = entry + (isBull ? -spread*1.8 : spread*1.8);
-    const impulseTo   = entry + (isBull ?  spread*0.8 : -spread*0.8);
-    const iFromX = px(0.06), iToX = px(0.38);
+    const impFromP = entry + (isBull ? -spread*1.8 :  spread*1.8);
+    const impToP   = entry + (isBull ?  spread*0.8 : -spread*0.8);
+    const iFromX=px(0.04), iToX=px(0.35);
 
-    // Impulse move
-    line(iFromX, py(impulseFrom), iToX, py(impulseTo), col, 2.5);
-    dot(iFromX, py(impulseFrom), col, 4);
-    dot(iToX,   py(impulseTo),   col, 4);
+    line(iFromX, py(impFromP), iToX, py(impToP), col, 2.5);
+    dot(iFromX, py(impFromP), col, 3); dot(iToX, py(impToP), col, 3);
 
     // Fib levels
-    const fibData = [
-      [0.236, '#b0bcc8', 0.8],
-      [0.382, orange, 1.2],
-      [0.500, '#888', 1.0],
-      [0.618, '#c81e32', 2.0],
-    ];
-    fibData.forEach(([f, color, lw]) => {
-      const level = impulseTo + (impulseFrom - impulseTo) * f;
-      const y = py(level);
+    const fibs = [[0.236,'#b0bcc8',0.8],[0.382,orange,1.2],[0.500,'#888',1.0],[0.618,'#c81e32',2.0]];
+    fibs.forEach(([f, color, lw]) => {
+      const lP = impToP + (impFromP - impToP) * f;
+      const y = py(lP);
       line(iToX, y, nowX, y, color, lw, f===0.5?[4,4]:[]);
-      ctx.fillStyle = color;
-      ctx.font = `bold 8px Arial, sans-serif`;
-      ctx.textAlign = 'left';
-      ctx.fillText(`${(f*100).toFixed(1)}%`, iToX + 4, y - 3);
+      ctx.fillStyle = color; ctx.font = `${lw>1?'bold ':''}8px Arial,sans-serif`;
+      ctx.textAlign = 'left'; ctx.fillText(`${(f*100).toFixed(1)}%`, iToX+3, y-3);
     });
 
-    // Highlight 61.8 zone
-    const f618 = impulseTo + (impulseFrom - impulseTo) * 0.618;
-    const f500 = impulseTo + (impulseFrom - impulseTo) * 0.500;
-    fillZone(iToX, py(f618), nowX, py(f500), '#c81e32', 0.07);
+    const f618P = impToP + (impFromP - impToP) * 0.618;
+    const f500P = impToP + (impFromP - impToP) * 0.500;
+    fillPoly([[iToX,py(f618P)],[nowX,py(f618P)],[nowX,py(f500P)],[iToX,py(f500P)]], '#c81e32', 0.07);
 
-    // Retracement path
-    const retraceTo = f618;
-    line(iToX, py(impulseTo), px(0.58), py(retraceTo), orange, 1.5, [4,3]);
-    dot(px(0.58), py(retraceTo), orange, 4);
-    label(isBull ? '61.8% BOUNCE' : '61.8% REJECTION', px(0.52), py(retraceTo) - 10, '#c81e32', 8);
+    // Retracement line to fib level
+    line(iToX, py(impToP), px(0.60), py(f618P), orange, 1.5, [4,3]);
+    dot(px(0.60), py(f618P), orange, 4);
+
+    patLabel(isBull ? 'FIB BOUNCE 61.8%' : 'FIB REJECTION 61.8%', px(0.50), py(f618P), '#c81e32', !isBull);
+
+    // ARROW: from 61.8% fib level → toward TP (continuation)
+    arrow(px(0.60), py(f618P), W - MR - 8, isBull ? tpY + 8 : tpY - 8, col, 2.5);
   }
 
-  // ── CUP & HANDLE ──
+  // ════════════════════════════════════
+  // CUP & HANDLE
+  // Arrow: from handle breakout (top of handle) → UP toward TP
+  // ════════════════════════════════════
   else if (pat.includes('cup')) {
-    const rimP = entry + (isBull ? spread*0.5 : -spread*0.5);
-    const botP = entry - (isBull ? spread*1.4 : -spread*1.4);
-    const rimY = py(rimP), botY = py(botP);
+    const rimP = entry + (isBull ?  spread*0.5 : -spread*0.5);
+    const botP = entry - (isBull ?  spread*1.4 : -spread*1.4);
+    const rimY=py(rimP), botY=py(botP);
 
-    // Cup arc
-    ctx.save(); ctx.strokeStyle = black; ctx.lineWidth = 2.5; ctx.globalAlpha = 0.8;
+    ctx.save(); ctx.strokeStyle=black; ctx.lineWidth=2.5; ctx.globalAlpha=0.8;
     ctx.beginPath();
-    for (let i = 0; i <= 30; i++) {
-      const t = i / 30;
-      const x = px(0.06 + t * 0.52);
-      const y = rimY + (botY - rimY) * Math.sin(t * Math.PI);
-      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    for (let i=0;i<=30;i++) {
+      const t=i/30, x=px(0.04+t*0.52), y=rimY+(botY-rimY)*Math.sin(t*Math.PI);
+      i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
     }
     ctx.stroke(); ctx.restore();
 
-    // Handle — small down slope
-    const hX1=px(0.58), hX2=nowX;
-    const hTop1Y = rimY, hTop2Y = rimY + (isBull ? 12 : -12);
-    const hBot1Y = rimY + (isBull ? 18 : -18), hBot2Y = rimY + (isBull ? 28 : -28);
-    line(hX1, hTop1Y, hX2, hTop2Y, black, 1.5);
-    line(hX1, hBot1Y, hX2, hBot2Y, black, 1.5);
-    ctx.save(); ctx.fillStyle = col; ctx.globalAlpha = 0.07;
-    ctx.beginPath();
-    ctx.moveTo(hX1,hTop1Y); ctx.lineTo(hX2,hTop2Y); ctx.lineTo(hX2,hBot2Y); ctx.lineTo(hX1,hBot1Y);
-    ctx.closePath(); ctx.fill(); ctx.restore();
+    // Handle — slight down channel
+    const hX1=px(0.56), hX2=nowX;
+    const hT1=rimY, hT2=rimY+(isBull?10:-10);
+    const hB1=rimY+(isBull?18:-18), hB2=rimY+(isBull?26:-26);
+    line(hX1,hT1,hX2,hT2,black,1.8); line(hX1,hB1,hX2,hB2,black,1.8);
+    fillPoly([[hX1,hT1],[hX2,hT2],[hX2,hB2],[hX1,hB1]], col, 0.07);
 
-    // Rim level line
-    line(px(0.06), rimY, nowX, rimY, black, 1, [5,4], 0.4);
+    // Rim level
+    line(px(0.04), rimY, nowX, rimY, black, 1, [5,4], 0.3);
+    dot(px(0.04), rimY, col, 3); dot(px(0.56), rimY, col, 3);
 
-    dot(px(0.06), rimY, col, 4); dot(px(0.58), rimY, col, 4);
-    label('CUP', px(0.32), botY + 16, black, 9);
-    label('HANDLE', px(0.68), (hTop1Y+hBot1Y)/2, black, 8);
-    label('RESISTANCE', px(0.35), rimY - 8, black, 8);
-    arrow(nowX, hTop2Y, nowX + 16, isBull ? rimY - 30 : rimY + 30, col, 2.5);
+    // Name BELOW cup bottom
+    patLabel('CUP & HANDLE', px(0.30), botY, col, false);
+    ctx.fillStyle = black; ctx.font='8px Arial,sans-serif'; ctx.textAlign='center';
+    ctx.fillText('RESISTANCE / RIM', px(0.30), rimY - 7);
+
+    // ARROW: from handle TOP breakout (resistance rim) → UP to TP
+    arrow(nowX, hT2, W - MR - 8, isBull ? tpY + 8 : tpY - 8, col, 2.5);
   }
 
-  // ── BREAKOUT KEY LEVEL ──
+  // ════════════════════════════════════
+  // BREAKOUT KEY LEVEL
+  // Arrow: from key level breakout → in breakout direction toward TP
+  // ════════════════════════════════════
   else if (pat.includes('breakout')) {
-    const levelY = py(entry);
-    const zoneH = spread * 0.3;
-    // Resistance zone
-    fillZone(px(0.06), py(entry + zoneH), nowX, py(entry - zoneH*0.3), orange, 0.10);
-    line(px(0.06), levelY, nowX, levelY, black, 2.5);
-    label('KEY RESISTANCE / SUPPORT', px(0.37), levelY - 10, orange, 8);
+    const zoneTopP = entry + spread*0.25;
+    const zoneBotP = entry - spread*0.10;
+
+    // Key level zone
+    ctx.save(); ctx.fillStyle=orange; ctx.globalAlpha=0.09;
+    ctx.fillRect(px(0.04), py(zoneTopP), CW*0.68, py(zoneBotP)-py(zoneTopP)); ctx.restore();
+    line(px(0.04), py(entry), nowX, py(entry), black, 2.5);
 
     // Multiple touches
-    [0.15, 0.30, 0.48, 0.62].forEach(t => {
-      dot(px(t), levelY + (Math.random()-0.5)*8, orange, 3);
+    [0.15,0.28,0.44,0.60].forEach((t,i) => {
+      dot(px(t), py(entry) + (i%2===0?-3:3), orange, 3);
     });
-    arrow(nowX, levelY, nowX + 16, isBull ? levelY - 36 : levelY + 36, col, 2.5);
+
+    ctx.fillStyle=black; ctx.font='8px Arial,sans-serif'; ctx.textAlign='center';
+    ctx.fillText('KEY LEVEL', px(0.35), py(entry) - 8);
+    patLabel(isBull ? 'BULLISH BREAKOUT' : 'BEARISH BREAKOUT', px(0.35), py(entry), col, !isBull);
+
+    // ARROW: from key level → in direction of breakout toward TP
+    arrow(nowX, py(entry), W - MR - 8, isBull ? tpY + 8 : tpY - 8, col, 2.5);
   }
 
-  // ── ENGULFING ──
+  // ════════════════════════════════════
+  // ENGULFING CANDLE
+  // Arrow: from top of bullish engulfing body → UP, or from bottom of bearish → DOWN
+  // ════════════════════════════════════
   else if (pat.includes('engulf')) {
-    const prevClose = entry + (isBull ? -spread*0.8 : spread*0.8);
-    const bX = px(0.55), bW = 22;
+    const prevO = entry + (isBull ?  spread*0.5 : -spread*0.5);
+    const prevC = entry + (isBull ?  spread*0.2 : -spread*0.2);
+    const engO  = entry + (isBull ? -spread*0.5 :  spread*0.5);
+    const engC  = entry + (isBull ?  spread*0.6 : -spread*0.6);
 
-    // Small previous candle
-    const sc = { o: prevClose + (isBull?spread*0.3:-spread*0.3), c: prevClose };
+    const bW = 18;
+    const prevX = px(0.44), engX = px(0.58);
+
+    // Prev candle (small, opposite color)
     ctx.fillStyle = isBull ? '#c81e32' : '#1a8c40';
-    ctx.fillRect(bX - bW - 8, py(Math.max(sc.o,sc.c)), bW*0.6, Math.max(2, Math.abs(py(sc.o)-py(sc.c))));
+    ctx.fillRect(prevX, Math.min(py(prevO),py(prevC)), bW, Math.max(2,Math.abs(py(prevO)-py(prevC))));
 
-    // Big engulfing candle
-    const ec = { o: entry + (isBull ? -spread*0.6 : spread*0.6), c: entry + (isBull ? spread*0.6 : -spread*0.6) };
+    // Engulfing candle (big, signal color)
     ctx.fillStyle = isBull ? '#1a8c40' : '#c81e32';
-    ctx.fillRect(bX, py(Math.max(ec.o,ec.c)), bW, Math.max(2, Math.abs(py(ec.o)-py(ec.c))));
-    ctx.strokeStyle = isBull ? '#0a5c28' : '#8b0000';
-    ctx.lineWidth = 1.5;
-    ctx.strokeRect(bX, py(Math.max(ec.o,ec.c)), bW, Math.max(2, Math.abs(py(ec.o)-py(ec.c))));
+    ctx.fillRect(engX, Math.min(py(engO),py(engC)), bW, Math.max(2,Math.abs(py(engO)-py(engC))));
+    ctx.strokeStyle = isBull ? '#0a5c28' : '#8b0000'; ctx.lineWidth=1.5;
+    ctx.strokeRect(engX, Math.min(py(engO),py(engC)), bW, Math.max(2,Math.abs(py(engO)-py(engC))));
 
-    // Circle around engulfing
-    ctx.save(); ctx.strokeStyle = orange; ctx.lineWidth = 2; ctx.setLineDash([3,2]);
-    ctx.beginPath(); ctx.arc(bX + bW/2, (py(ec.o)+py(ec.c))/2, bW, 0, Math.PI*2); ctx.stroke();
+    // Circle
+    ctx.save(); ctx.strokeStyle=orange; ctx.lineWidth=2; ctx.setLineDash([3,2]);
+    ctx.beginPath(); ctx.arc(engX+bW/2, (py(engO)+py(engC))/2, bW+2, 0, Math.PI*2); ctx.stroke();
     ctx.setLineDash([]); ctx.restore();
-    label('ENGULFING', bX + bW/2, py(ec.c) - 22, orange, 9);
 
-    // Trend before (price path)
-    const trendFrom = px(0.06);
-    line(trendFrom, py(entry + (isBull?spread*1.4:-spread*1.4)), bX, py(ec.o), '#888', 1.5, [3,3], 0.6);
-    arrow(nowX, entry, nowX + 16, isBull ? py(tp)+14 : py(sl)-14, col, 2.5);
+    // Trend before
+    line(px(0.04), py(entry+(isBull?spread*1.2:-spread*1.2)), prevX, py(prevO), '#888', 1.5, [3,3], 0.5);
+
+    // Name: BELOW for bull engulfing, ABOVE for bear engulfing
+    patLabel(isBull?'BULLISH ENGULFING':'BEARISH ENGULFING', engX+bW/2, isBull?py(engC):py(engC), col, !isBull);
+
+    // ARROW: from engulfing candle CLOSE (the decisive close) → toward TP
+    // Bull: from top of green body (close) → UP
+    // Bear: from bottom of red body (close) → DOWN
+    const arrowStartY = isBull ? py(engC) : py(engC);
+    arrow(engX + bW/2, arrowStartY, W - MR - 8, isBull ? tpY + 8 : tpY - 8, col, 2.5);
   }
 
-  // ── DOJI / RSI DIVERGENCE / MACD ──
-  else if (pat.includes('doji') || pat.includes('divergence') || pat.includes('rsi') || pat.includes('macd')) {
-    // Price path showing divergence
-    const p1 = entry + (isBull ? -spread*1.2 : spread*1.2);
-    const p2 = entry + (isBull ? -spread*1.5 : spread*1.5); // lower low / higher high
-    const x1=px(0.18), x2=px(0.52);
+  // ════════════════════════════════════
+  // DOJI REVERSAL
+  // Arrow: from doji → in reversal direction
+  // ════════════════════════════════════
+  else if (pat.includes('doji')) {
+    // Trend before doji
+    const trendFrom = entry + (isBull ? spread*1.5 : -spread*1.5);
+    line(px(0.04), py(trendFrom), px(0.58), py(entry), '#888', 2, [3,3], 0.6);
 
-    // Price lows/highs
-    line(px(0.06), py(p1), x1, py(p1), black, 1.5);
-    line(px(0.33), py(p2), x2, py(p2), black, 1.5);
+    // Doji candle
+    const dX = px(0.60), dW = 16;
+    const dHigh = entry + spread*0.3, dLow = entry - spread*0.3;
+    line(dX+dW/2, py(dHigh), dX+dW/2, py(dLow), black, 1.5); // wick
+    ctx.fillStyle = '#fff'; ctx.strokeStyle = black; ctx.lineWidth = 1.5;
+    ctx.strokeRect(dX, py(entry)+1, dW, 4); // tiny body
 
-    // Divergence line
-    line(x1, py(p1), x2, py(p2), orange, 2, [5,3]);
-    dot(x1, py(p1), orange, 4);
-    dot(x2, py(p2), orange, 4);
-    label(isBull ? 'LOWER LOW (price)' : 'HIGHER HIGH (price)', (x1+x2)/2, py((p1+p2)/2) - 12, orange, 8);
+    // Circle around doji
+    ctx.save(); ctx.strokeStyle=orange; ctx.lineWidth=2; ctx.setLineDash([3,2]);
+    ctx.beginPath(); ctx.arc(dX+dW/2, py(entry), dW, 0, Math.PI*2); ctx.stroke();
+    ctx.setLineDash([]); ctx.restore();
 
-    // Oscillator hint at bottom
-    const oscH = 28;
-    const oscY = MT + CH - oscH;
-    ctx.save(); ctx.fillStyle = '#f0f4f8'; ctx.fillRect(ML, oscY, CW*0.72, oscH); ctx.restore();
-    ctx.fillStyle = '#b0bcc8'; ctx.font = '7px Arial,sans-serif'; ctx.textAlign = 'left';
-    ctx.fillText(pat.includes('macd') ? 'MACD' : 'RSI', ML+4, oscY + 10);
-    // Mini oscillator line — shows opposite divergence
-    line(x1, oscY + 20, x2, oscY + 10, col, 1.5); // higher low on oscillator (bull div)
-    dot(x1, oscY+20, col, 2); dot(x2, oscY+10, col, 2);
-    label(isBull ? 'HIGHER LOW (osc) → BULLISH DIV' : 'LOWER HIGH (osc) → BEARISH DIV',
-      (x1+x2)/2, oscY + 8, col, 7, false);
+    patLabel('DOJI REVERSAL', dX+dW/2, py(entry), col, !isBull);
 
-    arrow(nowX, py(entry), nowX+16, isBull ? py(tp)+14 : py(sl)-14, col, 2.5);
+    arrow(dX+dW/2, py(entry), W - MR - 8, isBull ? tpY + 8 : tpY - 8, col, 2.5);
   }
 
-  // ── ROUNDING BOTTOM / CUP ──
+  // ════════════════════════════════════
+  // RSI / MACD DIVERGENCE
+  // Price makes lower low (bull div) or higher high (bear div)
+  // while oscillator makes higher low (bull) or lower high (bear)
+  // Arrow: from second swing point → toward TP
+  // ════════════════════════════════════
+  else if (pat.includes('divergence') || pat.includes('rsi') || pat.includes('macd')) {
+    const p1P = entry + (isBull ? -spread*1.2 : spread*1.2);
+    const p2P = entry + (isBull ? -spread*1.5 : spread*1.5); // price: lower low (bull) / higher high (bear)
+
+    const p1X=px(0.18), p2X=px(0.52);
+
+    // Price path
+    line(px(0.04), py(p1P), p1X, py(p1P), black, 1.5);
+    line(px(0.30), py(p2P), p2X, py(p2P), black, 1.5);
+    // Divergence line on price
+    line(p1X, py(p1P), p2X, py(p2P), orange, 2, [5,3]);
+    dot(p1X, py(p1P), orange, 4); dot(p2X, py(p2P), orange, 4);
+
+    // Oscillator panel at bottom
+    const oscH=30, oscY=MT+CH-oscH;
+    ctx.save(); ctx.fillStyle='#f0f4f8'; ctx.fillRect(ML, oscY, CW*0.72, oscH); ctx.restore();
+    ctx.strokeStyle='#dde3eb'; ctx.lineWidth=0.8;
+    ctx.strokeRect(ML, oscY, CW*0.72, oscH);
+    ctx.fillStyle='#999'; ctx.font='7px Arial,sans-serif'; ctx.textAlign='left';
+    ctx.fillText(pat.includes('macd')?'MACD':'RSI', ML+3, oscY+10);
+
+    // Oscillator divergence (opposite direction)
+    const osc1Y = oscY+oscH-8, osc2Y = oscY+8; // osc: higher low for bull div
+    line(p1X, isBull?osc1Y:osc2Y, p2X, isBull?osc2Y:osc1Y, col, 1.8);
+    dot(p1X, isBull?osc1Y:osc2Y, col, 2); dot(p2X, isBull?osc2Y:osc1Y, col, 2);
+
+    const divType = isBull ? 'BULLISH DIVERGENCE' : 'BEARISH DIVERGENCE';
+    patLabel(divType, (p1X+p2X)/2, isBull ? py(p2P) : py(p2P), col, !isBull);
+
+    // ARROW: from second swing point → toward TP
+    arrow(p2X, py(p2P), W - MR - 8, isBull ? tpY + 8 : tpY - 8, col, 2.5);
+  }
+
+  // ════════════════════════════════════
+  // ROUNDING BOTTOM / TOP
+  // Arrow: from right rim (breakout) → toward TP
+  // ════════════════════════════════════
   else if (pat.includes('rounding')) {
-    const rimP = entry + (isBull ? spread*0.6 : -spread*0.6);
-    const botP = entry - (isBull ? spread*1.6 : -spread*1.6);
-    ctx.save(); ctx.strokeStyle = black; ctx.lineWidth = 2.5; ctx.globalAlpha = 0.8;
+    const rimP = entry + (isBull ?  spread*0.5 : -spread*0.5);
+    const botP = entry - (isBull ?  spread*1.5 : -spread*1.5);
+    const rimY=py(rimP), botY=py(botP);
+
+    ctx.save(); ctx.strokeStyle=black; ctx.lineWidth=2.5; ctx.globalAlpha=0.8;
     ctx.beginPath();
-    for (let i = 0; i <= 30; i++) {
-      const t = i/30;
-      const x = px(0.06 + t * 0.66);
-      const y = py(rimP) + (py(botP) - py(rimP)) * Math.sin(t * Math.PI);
-      i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+    for (let i=0;i<=30;i++) {
+      const t=i/30, x=px(0.04+t*0.68), y=rimY+(botY-rimY)*Math.sin(t*Math.PI);
+      i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
     }
     ctx.stroke(); ctx.restore();
-    label('ROUNDING ' + (isBull?'BOTTOM':'TOP'), px(0.38), py(botP) + 16, black, 9);
-    arrow(nowX, py(rimP), nowX+16, isBull ? py(tp)+14 : py(sl)-14, col, 2.5);
+
+    // Rim line
+    line(px(0.04), rimY, nowX, rimY, black, 1, [5,4], 0.3);
+
+    patLabel(isBull?'ROUNDING BOTTOM':'ROUNDING TOP', px(0.36), botY, col, false);
+    ctx.fillStyle=black; ctx.font='8px Arial,sans-serif'; ctx.textAlign='center';
+    ctx.fillText('RESISTANCE RIM', px(0.36), rimY-7);
+
+    // ARROW: from right rim (where price re-reaches resistance) → UP/DOWN toward TP
+    arrow(nowX, rimY, W - MR - 8, isBull ? tpY + 8 : tpY - 8, col, 2.5);
   }
 
-  // ── GENERIC FALLBACK ──
+  // ── GENERIC ──
   else {
-    const levelY = py(entry);
-    line(px(0.06), levelY, nowX, levelY, black, 2, [6,4]);
-    fillZone(px(0.06), py(entry+spread*0.5), nowX, py(entry-spread*0.5), orange, 0.07);
-    label('KEY LEVEL', px(0.37), levelY - 10, orange, 9);
-    arrow(nowX, levelY, nowX+16, isBull ? levelY-36 : levelY+36, col, 2.5);
+    line(px(0.04), py(entry), nowX, py(entry), black, 2, [6,4]);
+    fillPoly([[px(0.04),py(entry+spread*0.4)],[nowX,py(entry+spread*0.4)],[nowX,py(entry-spread*0.15)],[px(0.04),py(entry-spread*0.15)]], orange, 0.08);
+    ctx.fillStyle=black; ctx.font='8px Arial,sans-serif'; ctx.textAlign='center';
+    ctx.fillText('KEY LEVEL', px(0.35), py(entry)-8);
+    arrow(nowX, py(entry), W - MR - 8, isBull ? tpY + 8 : tpY - 8, col, 2.5);
   }
 }
 
@@ -1611,11 +1738,12 @@ function fmtPrice(v, pair) {
   const n = parseFloat(v);
   if (!pair) return n.toFixed(2);
   if (pair.includes('JPY') || pair.includes('225') || pair.includes('JPN')) return n.toFixed(2);
-  if (['US30','US500','NAS1','UK10','GER4','FRA4','AUS2','HK50'].some(x => pair.startsWith(x))) return n.toFixed(1);
+  if (['US30','US50','NAS1','UK10','GER4','FRA4','AUS2','HK50'].some(x => pair.startsWith(x))) return n.toFixed(1);
   if (pair.includes('BTC') || pair.includes('ETH')) return n.toFixed(0);
   if (n > 500) return n.toFixed(1);
   return n.toFixed(4);
 }
+
 
 
 // ── FORMAT ──
