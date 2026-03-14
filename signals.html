@@ -974,7 +974,7 @@ function drawPatternChart(canvas, sig) {
   ctx.fillText(sig.pattern.toUpperCase(), ML+8, 40);
 
   // BUY/SELL badge
-  const bdgW = 72, bdgH = 24, bdgX = W - 170, bdgY = 14;
+  const bdgW = 72, bdgH = 24, bdgX = W - 230, bdgY = 14;
   ctx.fillStyle = col;
   ctx.beginPath(); ctx.roundRect(bdgX, bdgY, bdgW, bdgH, 3); ctx.fill();
   ctx.fillStyle = '#000'; ctx.font = 'bold 11px "Space Mono",monospace'; ctx.textAlign = 'center';
@@ -983,15 +983,15 @@ function drawPatternChart(canvas, sig) {
   // Confidence badge
   const confCol = sig.confidence >= 80 ? '#00e676' : sig.confidence >= 70 ? '#ffd600' : '#00d4ff';
   ctx.fillStyle = BG2; ctx.strokeStyle = confCol; ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.roundRect(bdgX+bdgW+8, bdgY, 72, bdgH, 3); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.roundRect(bdgX+bdgW+8, bdgY, 66, bdgH, 3); ctx.fill(); ctx.stroke();
   ctx.fillStyle = confCol; ctx.font = 'bold 11px "Space Mono",monospace';
-  ctx.fillText(sig.confidence + '%', bdgX+bdgW+8+36, bdgY+16);
+  ctx.fillText(sig.confidence + '%', bdgX+bdgW+8+33, bdgY+16);
 
   // R:R badge
   ctx.fillStyle = BG2; ctx.strokeStyle = ORANGE; ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.roundRect(bdgX+bdgW+8+80, bdgY, 88, bdgH, 3); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.roundRect(bdgX+bdgW+8+74, bdgY, 80, bdgH, 3); ctx.fill(); ctx.stroke();
   ctx.fillStyle = ORANGE; ctx.font = '10px "Space Mono",monospace';
-  ctx.fillText('R:R ' + (sig.rr || '—'), bdgX+bdgW+8+80+44, bdgY+16);
+  ctx.fillText('R:R ' + (sig.rr || '—'), bdgX+bdgW+8+74+40, bdgY+16);
 
   // ── Zone target / stop ──
   function zone(pts, c, a=0.07) {
@@ -1171,29 +1171,24 @@ function drawPattern(ctx, pat, isBull, entry, sl, tp, py, px, CW, CH, ML, MR, MT
   }
 
   // ══ DESCENDING TRIANGLE ══
-  // Struttura corretta: resistenza discendente (upper trendline scende) + supporto orizzontale in basso
-  // SELL: breakout verso il basso dal supporto orizzontale
-  // BUY: breakout verso l'alto dalla resistenza discendente (raro)
+  // Struttura CORRETTA:
+  //   - Resistenza discendente IN ALTO: parte alta sinistra, scende verso destra
+  //   - Supporto orizzontale FLAT IN BASSO: linea piatta bassa
+  //   - Breakout verso il BASSO attraverso il supporto flat
   else if (pat.includes('descending triangle') || pat==='descending triangle') {
-    // Supporto orizzontale (flat in basso)
-    const supY = py(entry - spread * 1.1);
-    // Resistenza discendente: parte in alto a sinistra, scende verso il supporto
-    const resStartY = py(entry + spread * 1.3); // alto a sinistra
-    const resEndY   = py(entry - spread * 0.4); // più basso a destra (scende verso sup)
-    zone([[px(0.05),resStartY],[nowX,resEndY],[nowX,supY],[px(0.05),supY]],col,0.08);
-    // Supporto orizzontale — flat
-    L(px(0.05),supY,nowX,supY,col,3.5);
-    // Resistenza discendente — scende
-    L(px(0.05),resStartY,nowX,resEndY,ORANGE,3);
-    // Dot sul supporto (touch points)
-    [0.18,0.40,0.60].forEach(t=>DOT(px(t),supY,col,5));
-    // Dot sulla resistenza discendente
-    [0.12,0.28,0.48,0.64].forEach(t=>DOT(px(t),resStartY+(resEndY-resStartY)*(t/0.68),ORANGE,5));
+    const supY      = py(entry - spread * 1.1);   // supporto flat IN BASSO
+    const resLeftY  = py(entry + spread * 1.4);   // resistenza alta a sinistra
+    const resRightY = py(entry - spread * 0.3);   // resistenza scende verso destra
+    zone([[px(0.05),resLeftY],[nowX,resRightY],[nowX,supY],[px(0.05),supY]],col,0.08);
+    L(px(0.05),supY,nowX,supY,col,3.5);                          // supporto flat basso
+    L(px(0.05),resLeftY,nowX,resRightY,ORANGE,3);                 // resistenza discendente alta
+    [0.16,0.36,0.56,0.68].forEach(t=>DOT(px(t),supY,col,5));
+    [0.10,0.26,0.44,0.60].forEach(t=>DOT(px(t),resLeftY+(resRightY-resLeftY)*(t/0.66),ORANGE,5));
     ctx.fillStyle=col; ctx.font='bold 11px "Space Mono",monospace'; ctx.textAlign='center';
-    ctx.fillText('SUPPORT (flat)',px(0.37),supY+16);
+    ctx.fillText('SUPPORT (flat)',px(0.38),supY+16);
     ctx.fillStyle=ORANGE; ctx.font='10px "Space Mono",monospace';
-    ctx.fillText('DESCENDING RESISTANCE',px(0.28),resStartY+(resEndY-resStartY)*0.25-12);
-    LBL('DESCENDING TRIANGLE',px(0.35),resEndY,col,true,13);
+    ctx.fillText('DESCENDING RESISTANCE',px(0.30),resLeftY+(resRightY-resLeftY)*0.2-12);
+    LBL('DESCENDING TRIANGLE',px(0.37),(resRightY+supY)/2,col,true,13);
     targetArrow(nowX,supY);
   }
 
