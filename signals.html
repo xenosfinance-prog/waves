@@ -1144,32 +1144,56 @@ function drawPattern(ctx, pat, isBull, entry, sl, tp, py, px, CW, CH, ML, MR, MT
   }
 
   // ══ ASCENDING TRIANGLE ══
+  // Struttura corretta: supporto ascendente (lower trendline sale) + resistenza orizzontale in alto
+  // BUY: breakout verso l'alto dalla resistenza orizzontale
+  // SELL: breakout verso il basso dalla resistenza orizzontale (raro ma possibile)
   else if (pat.includes('ascending triangle') || pat==='ascending triangle') {
-    const resY=py(entry+(isBull?spread*1.1:-spread*1.1));
-    const s1Y=py(entry+(isBull?-spread*1.3:spread*1.3)),s2Y=py(entry+(isBull?-spread*0.1:spread*0.1));
-    zone([[px(0.05),resY],[nowX,resY],[nowX,s2Y],[px(0.05),s1Y]],col,0.08);
+    // Resistenza orizzontale (flat in alto)
+    const resY = py(entry + spread * 1.1);
+    // Supporto ascendente: parte in basso a sinistra, sale verso la resistenza
+    const supStartY = py(entry - spread * 1.3); // basso a sinistra
+    const supEndY   = py(entry + spread * 0.4);  // più alto a destra (sale verso res)
+    zone([[px(0.05),resY],[nowX,resY],[nowX,supEndY],[px(0.05),supStartY]],col,0.08);
+    // Resistenza orizzontale — flat
     L(px(0.05),resY,nowX,resY,col,3.5);
-    L(px(0.05),s1Y,nowX,s2Y,ORANGE,3);
-    [0.18,0.42].forEach(t=>DOT(px(t),resY,col,5));
-    [0.12,0.28,0.48,0.62].forEach((t,i)=>DOT(px(t),s1Y+(s2Y-s1Y)*(t/0.68),ORANGE,5));
+    // Supporto ascendente — sale
+    L(px(0.05),supStartY,nowX,supEndY,ORANGE,3);
+    // Dot sulla resistenza (touch points)
+    [0.18,0.40,0.60].forEach(t=>DOT(px(t),resY,col,5));
+    // Dot sul supporto ascendente (rimbalzi che salgono)
+    [0.12,0.28,0.48,0.64].forEach(t=>DOT(px(t),supStartY+(supEndY-supStartY)*(t/0.68),ORANGE,5));
     ctx.fillStyle=col; ctx.font='bold 11px "Space Mono",monospace'; ctx.textAlign='center';
-    ctx.fillText('RESISTANCE',px(0.37),resY-12);
-    LBL('ASCENDING TRIANGLE',px(0.35),s2Y,col,false,13);
+    ctx.fillText('RESISTANCE (flat)',px(0.37),resY-12);
+    ctx.fillStyle=ORANGE; ctx.font='10px "Space Mono",monospace';
+    ctx.fillText('ASCENDING SUPPORT',px(0.25),supStartY+(supEndY-supStartY)*0.3+16);
+    LBL('ASCENDING TRIANGLE',px(0.35),supEndY,col,false,13);
     targetArrow(nowX,resY);
   }
 
   // ══ DESCENDING TRIANGLE ══
+  // Struttura corretta: resistenza discendente (upper trendline scende) + supporto orizzontale in basso
+  // SELL: breakout verso il basso dal supporto orizzontale
+  // BUY: breakout verso l'alto dalla resistenza discendente (raro)
   else if (pat.includes('descending triangle') || pat==='descending triangle') {
-    const supY=py(entry-(isBull?spread*1.1:-spread*1.1));
-    const r1Y=py(entry+(isBull?spread*1.3:-spread*1.3)),r2Y=py(entry+(isBull?spread*0.1:-spread*0.1));
-    zone([[px(0.05),r1Y],[nowX,r2Y],[nowX,supY],[px(0.05),supY]],col,0.08);
+    // Supporto orizzontale (flat in basso)
+    const supY = py(entry - spread * 1.1);
+    // Resistenza discendente: parte in alto a sinistra, scende verso il supporto
+    const resStartY = py(entry + spread * 1.3); // alto a sinistra
+    const resEndY   = py(entry - spread * 0.4); // più basso a destra (scende verso sup)
+    zone([[px(0.05),resStartY],[nowX,resEndY],[nowX,supY],[px(0.05),supY]],col,0.08);
+    // Supporto orizzontale — flat
     L(px(0.05),supY,nowX,supY,col,3.5);
-    L(px(0.05),r1Y,nowX,r2Y,ORANGE,3);
-    [0.18,0.42].forEach(t=>DOT(px(t),supY,col,5));
-    [0.12,0.28,0.48,0.62].forEach(t=>DOT(px(t),r1Y+(r2Y-r1Y)*(t/0.68),ORANGE,5));
+    // Resistenza discendente — scende
+    L(px(0.05),resStartY,nowX,resEndY,ORANGE,3);
+    // Dot sul supporto (touch points)
+    [0.18,0.40,0.60].forEach(t=>DOT(px(t),supY,col,5));
+    // Dot sulla resistenza discendente
+    [0.12,0.28,0.48,0.64].forEach(t=>DOT(px(t),resStartY+(resEndY-resStartY)*(t/0.68),ORANGE,5));
     ctx.fillStyle=col; ctx.font='bold 11px "Space Mono",monospace'; ctx.textAlign='center';
-    ctx.fillText('SUPPORT',px(0.37),supY+16);
-    LBL('DESCENDING TRIANGLE',px(0.35),r2Y,col,true,13);
+    ctx.fillText('SUPPORT (flat)',px(0.37),supY+16);
+    ctx.fillStyle=ORANGE; ctx.font='10px "Space Mono",monospace';
+    ctx.fillText('DESCENDING RESISTANCE',px(0.28),resStartY+(resEndY-resStartY)*0.25-12);
+    LBL('DESCENDING TRIANGLE',px(0.35),resEndY,col,true,13);
     targetArrow(nowX,supY);
   }
 
@@ -1217,9 +1241,11 @@ function drawPattern(ctx, pat, isBull, entry, sl, tp, py, px, CW, CH, ML, MR, MT
     zone([[pX1,fTop1],[nowX,fTop2],[nowX,fBot2],[pX1,fBot1]],col,0.12);
     L(pX1,fTop1,nowX,fTop2,col,2.5); L(pX1,fBot1,nowX,fBot2,col,2.5);
     L(pX1,fTop1,pX1,fBot1,DIMTEXT,1,[4,3],0.5);
-    ctx.save(); ctx.fillStyle=WHITE; ctx.font='bold 11px "Space Mono",monospace'; ctx.textAlign='center';
-    ctx.translate((pX0+pX1)/2-12,(pfY+ptY)/2); ctx.rotate(Math.atan2(ptY-pfY,pX1-pX0));
-    ctx.fillText('POLE',0,-7); ctx.restore();
+    // POLE label — posizionato a sinistra del polo, non sovrapposto
+    ctx.fillStyle=WHITE; ctx.font='bold 11px "Space Mono",monospace'; ctx.textAlign='right';
+    ctx.globalAlpha=0.8;
+    ctx.fillText('POLE', pX0-8, (pfY+ptY)/2+4);
+    ctx.globalAlpha=1;
     LBL(isBull?'BULL FLAG':'BEAR FLAG',(pX1+nowX)/2,(fTop1+fTop2+fBot1+fBot2)/4,col,!isBull,13);
     trajArrow(nowX,isBull?fTop2:fBot2,col,isBull);
   }
