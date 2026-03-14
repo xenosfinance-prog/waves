@@ -620,17 +620,70 @@ function simpleHash(s) {
   let h = 0; for (let c of String(s)) h = (h*31 + c.charCodeAt(0)) & 0xffffffff; return h;
 }
 
+// ── FETCH LIVE PRICES ──
+// Step 1: Frankfurter (FX) + CoinGecko (Crypto) via Worker esistente
+// Step 2: Twelve Data override per Commodities + Indices (prima erano stime hardcoded)
 async function fetchLivePrices(pairs) {
   try {
-    document.getElementById('loader-sub').textContent = 'Fetching live prices from Yahoo Finance...';
-    const res = await fetch(WORKER + '/proxy', {
+    // ── STEP 1: prezzi base (Frankfurter FX + CoinGecko crypto) ──
+    document.getElementById('loader-sub').textContent = 'Fetching live prices (FX + Crypto)...';
+    const res = await fetch(WORKER, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ type: 'prices', pairs })
     });
-    if (!res.ok) return {};
-    const data = await res.json();
-    return data.prices || {};
+    const basePrices = res.ok ? ((await res.json()).prices || {}) : {};
+
+    // ── STEP 2: Twelve Data — prezzi reali per Commodities + Indices ──
+    // Questi simboli nel Worker usano stime hardcoded: TD li sostituisce con prezzi live
+    const TD_SYMBOLS = [
+      'XAUUSD','XAGUSD','USOIL','UKOIL','NGAS','COPPER',
+      'US500','US30','NAS100','UK100','GER40','FRA40','JPN225','HK50','AUS200'
+    ];
+    const tdPairs = pairs.filter(p => TD_SYMBOLS.includes(p));
+
+    if (tdPairs.length > 0) {
+      document.getElementById('loader-sub').textContent = 'Fetching Commodities + Indices (Twelve Data)...';
+      try {
+        const tdRes = await fetch(WORKER, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'twelvedata',
+            action: 'quote',
+            symbols: tdPairs
+          })
+        });
+        if (tdRes.ok) {
+          const tdData = await tdRes.json();
+          const quotes = tdData.quotes || {};
+          let tdCount = 0;
+          for (const sym of tdPairs) {
+            const q = quotes[sym];
+            if (q && !q.error && q.price && q.price > 0) {
+              basePrices[sym] = q.price;
+              tdCount++;
+            }
+          }
+          if (tdCount > 0) {
+            showToast(`Prezzi live: ${Object.keys(basePrices).length}/${pairs.length} strumenti (TD: ${tdCount})`);
+          } else {
+            const c = Object.keys(basePrices).length;
+            if (c > 0) showToast(`Prezzi live: ${c}/${pairs.length} strumenti`);
+          }
+        }
+      } catch(e) {
+        console.warn('Twelve Data fallback to estimates:', e.message);
+        const c = Object.keys(basePrices).length;
+        if (c > 0) showToast(`Prezzi live: ${c}/${pairs.length} strumenti`);
+      }
+    } else {
+      const c = Object.keys(basePrices).length;
+      if (c > 0) showToast(`Prezzi live: ${c}/${pairs.length} strumenti`);
+    }
+
+    return basePrices;
+
   } catch(e) {
     console.warn('Price fetch failed, using AI estimates:', e.message);
     return {};
@@ -656,10 +709,6 @@ async function generateSignals() {
   try {
     // Step 1: fetch prezzi reali
     const livePrices = await fetchLivePrices(pairs);
-    const priceCount = Object.keys(livePrices).length;
-    if (priceCount > 0) {
-      showToast(`Prezzi live: ${priceCount}/${pairs.length} strumenti`);
-    }
 
     // Step 2: genera segnali con prezzi reali nel prompt
     const raw = await callClaudeAPI(buildPrompt(pairs, selectedTF, selectedDir, minConf, livePrices));
@@ -746,7 +795,7 @@ Island Reversal, Diamond Pattern, Wolfe Wave`;
 }
 
 async function callClaudeAPI(prompt) {
-  const res = await fetch(WORKER + '/proxy', {
+  const res = await fetch(WORKER, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -972,7 +1021,6 @@ function drawPattern(ctx, pat, isBull, entry, sl, tp, py, px, CW, CH, ML, MR, MT
     pts.slice(1).forEach(p=>ctx.lineTo(p[0],p[1]));
     ctx.closePath(); ctx.fill(); ctx.restore();
   }
-  // Arrow showing TRAJECTORY (direction of breakout, not target level)
   function ARR(x1,y1,x2,y2,c,w=2.5) {
     ctx.save(); ctx.strokeStyle=c; ctx.fillStyle=c; ctx.lineWidth=w;
     ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
@@ -982,11 +1030,9 @@ function drawPattern(ctx, pat, isBull, entry, sl, tp, py, px, CW, CH, ML, MR, MT
     ctx.lineTo(x2-s*Math.cos(a+0.38),y2-s*Math.sin(a+0.38));
     ctx.closePath(); ctx.fill(); ctx.restore();
   }
-  // Trajectory arrow: shows breakout direction at 45° angle, short and clear
-  // isBull=true → arrow goes UP-RIGHT; isBull=false → arrow goes DOWN-RIGHT
   function trajArrow(fromX, fromY, c, isBullDir) {
     const len = 45;
-    const angle = isBullDir ? -Math.PI/4 : Math.PI/4; // 45° up or down
+    const angle = isBullDir ? -Math.PI/4 : Math.PI/4;
     const toX = fromX + len * Math.cos(angle);
     const toY = fromY + len * Math.sin(angle);
     ARR(fromX, fromY, toX, toY, c, 2.8);
@@ -995,16 +1041,12 @@ function drawPattern(ctx, pat, isBull, entry, sl, tp, py, px, CW, CH, ML, MR, MT
     ctx.save(); ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(x,y,r+1.5,0,Math.PI*2); ctx.fill();
     ctx.fillStyle=c; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill(); ctx.restore();
   }
-  // Pattern name label - always clearly visible
-  // above=true: label sits ABOVE the given y (use for bearish patterns - label above peaks)
-  // above=false: label sits BELOW the given y (use for bullish patterns - label below valleys)
   function LBL(text,x,y,c,above=true,size=9) {
     ctx.save();
     ctx.font='bold '+size+'px Arial,sans-serif';
     const tw=ctx.measureText(text).width;
     const pad=6, h=14;
     const bx=x-tw/2-pad, by=above?y-h-6:y+6;
-    // Strong white background box
     ctx.fillStyle='rgba(255,255,255,0.97)';
     ctx.strokeStyle=c;
     ctx.lineWidth=1.5;
@@ -1016,12 +1058,10 @@ function drawPattern(ctx, pat, isBull, entry, sl, tp, py, px, CW, CH, ML, MR, MT
   function vDash(x) { L(x,MT,x,MT+CH,'#aaa',1,[4,4],0.35); }
 
   vDash(nowX);
-  // Target/SL zones
   zone([[nowX,isBull?tpY:entryY],[W-MR,isBull?tpY:entryY],[W-MR,isBull?entryY:tpY],[nowX,isBull?entryY:tpY]], col, 0.09);
   zone([[nowX,isBull?entryY:slY],[W-MR,isBull?entryY:slY],[W-MR,isBull?slY:entryY],[nowX,isBull?slY:entryY]], isBull?'#c81e32':'#1a8c40', 0.04);
 
-  const AX = W-MR-8; // arrow end X
-  // trajectoryArrow: shows direction of breakout as diagonal arrow
+  const AX = W-MR-8;
   function targetArrow(fromX, fromY) {
     trajArrow(fromX, fromY, col, isBull);
   }
@@ -1059,9 +1099,7 @@ function drawPattern(ctx, pat, isBull, entry, sl, tp, py, px, CW, CH, ML, MR, MT
     const valY=py(entry+(isBull?-spread*0.3:spread*0.3));
     const peaks = isTriple ? [px(0.14),px(0.36),px(0.58)] : [px(0.20),px(0.52)];
     const vals  = isTriple ? [px(0.25),px(0.47)] : [px(0.36)];
-
     L(px(0.04),nkY,nowX,nkY,black,2,[6,4]);
-    // Connect all peaks
     let prev=[px(0.04),nkY];
     peaks.forEach((x,i)=>{
       L(prev[0],prev[1],x,peakY,black,1.8); prev=[x,peakY];
@@ -1136,51 +1174,28 @@ function drawPattern(ctx, pat, isBull, entry, sl, tp, py, px, CW, CH, ML, MR, MT
 
   // ══ BULL / BEAR FLAG ══
   else if (pat.includes('flag') && !pat.includes('pennant')) {
-    // Pole: strong vertical move before flag
-    const pfY = py(entry - (isBull ? spread*2.2 : -spread*2.2));  // pole start
-    const ptY = py(entry + (isBull ? spread*0.8 : -spread*0.8));  // pole top (= flag top)
+    const pfY = py(entry - (isBull ? spread*2.2 : -spread*2.2));
+    const ptY = py(entry + (isBull ? spread*0.8 : -spread*0.8));
     const pX0 = px(0.04), pX1 = px(0.38);
-
-    // Flagpole — thick black line
     L(pX0, pfY, pX1, ptY, black, 3);
-
-    // Flag channel: counter-trend consolidation
-    // Bull flag: channel slopes DOWN slightly
-    // Bear flag: channel slopes UP slightly
     const fTop1 = py(entry + (isBull ?  spread*0.8  : -spread*0.8));
     const fTop2 = py(entry + (isBull ?  spread*0.35 : -spread*0.35));
     const fBot1 = py(entry + (isBull ?  spread*0.15 : -spread*0.15));
     const fBot2 = py(entry + (isBull ? -spread*0.30 :  spread*0.30));
-
-    // Fill flag zone
     zone([[pX1,fTop1],[nowX,fTop2],[nowX,fBot2],[pX1,fBot1]], col, 0.10);
-
-    // Channel lines — clearly visible
     L(pX1, fTop1, nowX, fTop2, black, 2.2);
     L(pX1, fBot1, nowX, fBot2, black, 2.2);
-
-    // Vertical bar at flag start
     L(pX1, fTop1, pX1, fBot1, black, 1, [3,2], 0.4);
-
-    // POLE label midway on pole
     ctx.save();
-    ctx.fillStyle = black;
-    ctx.font = 'bold 8px Arial,sans-serif';
-    ctx.textAlign = 'center';
+    ctx.fillStyle = black; ctx.font = 'bold 8px Arial,sans-serif'; ctx.textAlign = 'center';
     const poleAngle = Math.atan2(ptY - pfY, pX1 - pX0);
     const midPX = (pX0+pX1)/2 - 10;
     const midPY = (pfY+ptY)/2;
-    ctx.translate(midPX, midPY);
-    ctx.rotate(poleAngle);
-    ctx.fillText('POLE', 0, -5);
-    ctx.restore();
-
-    // Pattern name: BELOW flag for bull, ABOVE for bear
+    ctx.translate(midPX, midPY); ctx.rotate(poleAngle);
+    ctx.fillText('POLE', 0, -5); ctx.restore();
     const flagMidX = (pX1 + nowX) / 2;
     const flagMidY = (fTop1+fTop2+fBot1+fBot2) / 4;
     LBL(isBull ? 'BULL FLAG' : 'BEAR FLAG', flagMidX, flagMidY, col, !isBull);
-
-    // Trajectory arrow: from top of flag (breakout point) going UP-RIGHT (bull) or DOWN-RIGHT (bear)
     trajArrow(nowX, isBull ? fTop2 : fBot2, col, isBull);
   }
 
@@ -1196,7 +1211,6 @@ function drawPattern(ctx, pat, isBull, entry, sl, tp, py, px, CW, CH, ML, MR, MT
     const top1Y=py(t1),top2Y=py(t2),bot1Y=py(b1),bot2Y=py(b2);
     zone([[px(0.04),top1Y],[nowX,top2Y],[nowX,bot2Y],[px(0.04),bot1Y]],col,0.07);
     L(px(0.04),top1Y,nowX,top2Y,black,2); L(px(0.04),bot1Y,nowX,bot2Y,black,2);
-    // Bounce dots — for bull: bouncing off lower channel, for bear: rejecting upper
     const bounceLine = isBull ? [bot1Y,bot2Y] : [top1Y,top2Y];
     [0.18,0.38,0.58].forEach(t=>{
       const by=bounceLine[0]+(bounceLine[1]-bounceLine[0])*(t/0.72);
@@ -1204,7 +1218,6 @@ function drawPattern(ctx, pat, isBull, entry, sl, tp, py, px, CW, CH, ML, MR, MT
     });
     const chName = isRising?'RISING CHANNEL':isFalling?'FALLING CHANNEL':'HORIZONTAL CHANNEL';
     LBL(chName,px(0.37),(top1Y+top2Y+bot1Y+bot2Y)/4,col,!isBull);
-    // Arrow from channel support/resistance bounce
     const brkY = isBull ? bot2Y : top2Y;
     targetArrow(nowX, brkY);
   }
@@ -1257,7 +1270,7 @@ function drawPattern(ctx, pat, isBull, entry, sl, tp, py, px, CW, CH, ML, MR, MT
     LBL('RISING WEDGE',px(0.37),t2,'#c81e32',true);
     ctx.fillStyle='#888'; ctx.font='8px Arial,sans-serif'; ctx.textAlign='center';
     ctx.fillText('bearish reversal',px(0.37),t2-16);
-    trajArrow(nowX, b2, '#c81e32', false); // breakdown DOWN
+    trajArrow(nowX, b2, '#c81e32', false);
   }
 
   // ══ FALLING WEDGE (BULLISH) ══
@@ -1273,7 +1286,7 @@ function drawPattern(ctx, pat, isBull, entry, sl, tp, py, px, CW, CH, ML, MR, MT
     LBL('FALLING WEDGE',px(0.37),b2,'#1a8c40',false);
     ctx.fillStyle='#888'; ctx.font='8px Arial,sans-serif'; ctx.textAlign='center';
     ctx.fillText('bullish reversal',px(0.37),b2+18);
-    trajArrow(nowX, t2, '#1a8c40', true); // breakout UP
+    trajArrow(nowX, t2, '#1a8c40', true);
   }
 
   // ══ ELLIOTT WAVE 3 ══
@@ -1387,19 +1400,16 @@ function drawPattern(ctx, pat, isBull, entry, sl, tp, py, px, CW, CH, ML, MR, MT
   // ══ HAMMER / SHOOTING STAR ══
   else if (pat.includes('hammer') || pat.includes('shooting star')) {
     const isHammer = pat.includes('hammer');
-    // Trend before
     L(px(0.04),py(entry+(isHammer?spread*1.4:-spread*1.4)),px(0.56),py(entry+(isHammer?spread*0.2:-spread*0.2)),'#888',1.5,[3,3],0.6);
     const cX=px(0.60), cW=16;
     const bodyH=12, longWick=35;
     const bodyTop=py(entry)+(isHammer?-bodyH/2:bodyH/2-longWick);
     const bodyBot=py(entry)+(isHammer?-bodyH/2+bodyH:bodyH/2);
-    // Wick
     ctx.strokeStyle=black; ctx.lineWidth=1.5;
     ctx.beginPath();
     if(isHammer){ctx.moveTo(cX+cW/2,bodyTop);ctx.lineTo(cX+cW/2,bodyTop-longWick);}
     else{ctx.moveTo(cX+cW/2,bodyBot);ctx.lineTo(cX+cW/2,bodyBot+longWick);}
     ctx.stroke();
-    // Body
     ctx.fillStyle=isBull?'#1a8c40':'#c81e32';
     ctx.fillRect(cX,bodyTop,cW,bodyH);
     ctx.save(); ctx.strokeStyle=orange; ctx.lineWidth=2; ctx.setLineDash([3,2]);
@@ -1417,7 +1427,6 @@ function drawPattern(ctx, pat, isBull, entry, sl, tp, py, px, CW, CH, ML, MR, MT
     const c3O=entry+(isMorning?-spread*0.3:spread*0.3), c3C=entry+(isMorning?spread*0.5:-spread*0.5);
     const cW=14;
     const candles=[[px(0.38),c1O,c1C,!isMorning],[px(0.54),c2O,c2C,true],[px(0.70),c3O,c3C,isMorning]];
-    // Trend
     L(px(0.04),py(entry+(isMorning?spread*1.2:-spread*1.2)),px(0.38),py(c1O),'#888',1.5,[3,3],0.5);
     candles.forEach(([x,o,c,isUp])=>{
       ctx.fillStyle=isUp?'#1a8c40':'#c81e32';
@@ -1482,9 +1491,8 @@ function drawPattern(ctx, pat, isBull, entry, sl, tp, py, px, CW, CH, ML, MR, MT
     trajArrow(p2X, py(p2P), col, isBull);
   }
 
-  // ══ HARMONIC PATTERNS (Gartley, Butterfly, Bat, Crab, Cypher, ABCD) ══
+  // ══ HARMONIC PATTERNS ══
   else if (pat.includes('gartley')||pat.includes('butterfly')||pat.includes('bat')||pat.includes('crab')||pat.includes('cypher')||pat.includes('abcd')) {
-    // Generic harmonic: XABCD or ABCD structure
     const isABCD = pat.includes('abcd');
     let pts, xs, labels;
     if(isABCD){
@@ -1504,7 +1512,6 @@ function drawPattern(ctx, pat, isBull, entry, sl, tp, py, px, CW, CH, ML, MR, MT
       ctx.fillStyle=colors[i]||col; ctx.font='bold 10px Arial,sans-serif'; ctx.textAlign='center';
       ctx.fillText(labels[i],x,py(pts[i])+o);
     });
-    // PRZ zone at D
     ctx.save(); ctx.fillStyle=col; ctx.globalAlpha=0.10;
     ctx.fillRect(xs[xs.length-2],Math.min(py(pts[pts.length-1]),entryY)-4,nowX-xs[xs.length-2],Math.abs(py(pts[pts.length-1])-entryY)+8);
     ctx.restore();
@@ -1517,16 +1524,13 @@ function drawPattern(ctx, pat, isBull, entry, sl, tp, py, px, CW, CH, ML, MR, MT
 
   // ══ ISLAND REVERSAL ══
   else if (pat.includes('island')) {
-    // Gap up/down, consolidation, gap back
     const gap1 = isBull ? -spread*1.2 : spread*1.2;
     const islandLevel = entry + (isBull ? -spread*0.8 : spread*0.8);
     L(px(0.04),py(entry+gap1*1.5),px(0.25),py(entry+gap1),'#888',1.5,[3,3],0.5);
-    // Gap down (bear gap that creates bullish island)
     ctx.save(); ctx.fillStyle=orange; ctx.globalAlpha=0.15;
     ctx.fillRect(px(0.25),py(islandLevel+spread*0.3),px(0.46)-px(0.25),py(islandLevel-spread*0.3)-py(islandLevel+spread*0.3));
     ctx.restore();
     L(px(0.25),py(islandLevel),px(0.45),py(islandLevel),black,1,[4,3],0.5);
-    // Gaps
     ctx.save(); ctx.fillStyle='#c81e32'; ctx.globalAlpha=0.12;
     ctx.fillRect(px(0.22),py(entry+gap1),px(0.25)-px(0.22),py(islandLevel)-py(entry+gap1)); ctx.restore();
     ctx.save(); ctx.fillStyle='#1a8c40'; ctx.globalAlpha=0.12;
@@ -1545,10 +1549,8 @@ function drawPattern(ctx, pat, isBull, entry, sl, tp, py, px, CW, CH, ML, MR, MT
     const left=px(0.10),mid=px(0.40),right=nowX;
     const topWide=py(entry+(isBull?-spread*1.4:spread*1.4));
     const botWide=py(entry+(isBull?spread*1.4:-spread*1.4));
-    // Broadening left half
     L(left,py(entry),px(0.25),topWide,black,1.8);
     L(left,py(entry),px(0.25),botWide,black,1.8);
-    // Contracting right half
     L(px(0.25),topWide,right,top,black,1.8);
     L(px(0.25),botWide,right,bot,black,1.8);
     zone([[left,py(entry)],[px(0.25),topWide],[right,top],[right,bot],[px(0.25),botWide]],orange,0.06);
@@ -1563,20 +1565,16 @@ function drawPattern(ctx, pat, isBull, entry, sl, tp, py, px, CW, CH, ML, MR, MT
       ? [entry-spread*1.6,entry-spread*0.4,entry-spread*1.2,entry+spread*0.2,entry-spread*0.8]
       : [entry+spread*1.6,entry+spread*0.4,entry+spread*1.2,entry-spread*0.2,entry+spread*0.8];
     const xs=[px(0.06),px(0.18),px(0.32),px(0.46),px(0.60)];
-    // Draw zigzag
     for(let i=0;i<4;i++) L(xs[i],py(pts[i]),xs[i+1],py(pts[i+1]),black,1.8);
     xs.forEach((x,i)=>DOT(x,py(pts[i]),i%2===0?col:orange,4));
-    // 1-3 trendline extended
     const sl13=(py(pts[2])-py(pts[0]))/(xs[2]-xs[0]);
     const targetX=nowX, targetY=py(pts[0])+sl13*(targetX-xs[0]);
     L(xs[0],py(pts[0]),targetX,targetY,col,1.5,[5,3],0.5);
     ctx.fillStyle=col; ctx.font='bold 7px Arial,sans-serif'; ctx.textAlign='left';
     ctx.fillText('1-3 LINE',xs[2]+4,py(pts[2])-6);
-    // 2-4 trendline
     const sl24=(py(pts[3])-py(pts[1]))/(xs[3]-xs[1]);
     const t24Y=py(pts[1])+sl24*(targetX-xs[1]);
     L(xs[1],py(pts[1]),targetX,t24Y,'#888',1,[5,3],0.4);
-    // Labels
     [1,2,3,4,5].forEach((n,i)=>{
       if(i<5){
         const o=isBull?(i%2===0?14:-12):(i%2===0?-12:14);
@@ -1611,8 +1609,6 @@ function fmtPrice(v, pair) {
   return n.toFixed(4);
 }
 
-
-
 // ── FORMAT ──
 function fmt(val, pair) {
   if (!val) return '—';
@@ -1646,15 +1642,11 @@ let pendingTgSignalIdx = null;
 function sendToTelegram(event, idx) {
   event.stopPropagation();
   pendingTgSignalIdx = idx;
-
-  // Check if credentials are already saved
   const token = localStorage.getItem('tg_token');
   const chatId = localStorage.getItem('tg_chat_id');
-
   if (token && chatId) {
     doSendToTelegram(idx, token, chatId);
   } else {
-    // Show config modal
     document.getElementById('tg-bot-token').value = token || '';
     document.getElementById('tg-chat-id').value = chatId || '';
     document.getElementById('tg-config').classList.add('open');
@@ -1680,26 +1672,18 @@ function saveTgConfig() {
 async function doSendToTelegram(idx, token, chatId) {
   const sig = signals[idx];
   if (!sig) return;
-
-  // Find button and set loading
   const btn = document.querySelector(`[onclick="sendToTelegram(event, ${idx})"]`);
   if (btn) { btn.disabled = true; btn.textContent = '⏳ SENDING...'; }
-
   try {
-    // 1. Get canvas PNG
     const canvas = document.getElementById('chart-' + idx);
     let imageData = null;
-
     if (canvas && canvas.dataset.drawn) {
-      imageData = canvas.toDataURL('image/png').split(',')[1]; // base64
+      imageData = canvas.toDataURL('image/png').split(',')[1];
     } else {
-      // Draw chart on a temp canvas if not yet drawn
       const tempCanvas = document.createElement('canvas');
       drawPatternChart(tempCanvas, sig);
       imageData = tempCanvas.toDataURL('image/png').split(',')[1];
     }
-
-    // 2. Build caption
     const dir = sig.direction === 'BUY' ? '🟢' : '🔴';
     const rr  = sig.rr || '—';
     const caption = [
@@ -1720,9 +1704,7 @@ async function doSendToTelegram(idx, token, chatId) {
       ``,
       `_Generated by XenosFinance Signal Engine_`,
     ].join('\n');
-
-    // 3. Send photo via Worker → Telegram sendPhoto
-    const res = await fetch(WORKER + '/proxy', {
+    const res = await fetch(WORKER, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -1734,9 +1716,7 @@ async function doSendToTelegram(idx, token, chatId) {
         parse_mode: 'Markdown'
       })
     });
-
     const data = await res.json();
-
     if (data.ok) {
       showToast('✅ Segnale inviato su Telegram!');
       if (btn) { btn.disabled = false; btn.innerHTML = '✅ SENT'; }
@@ -1746,7 +1726,6 @@ async function doSendToTelegram(idx, token, chatId) {
     } else {
       throw new Error(data.description || 'Telegram error');
     }
-
   } catch(e) {
     showToast('❌ Errore: ' + e.message);
     if (btn) { btn.disabled = false; btn.innerHTML = '⚠️ RETRY'; }
