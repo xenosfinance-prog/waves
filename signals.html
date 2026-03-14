@@ -87,7 +87,6 @@
   .header-status { font-size: 10px; color: var(--text-dim); letter-spacing: 0.1em; text-align: right; }
   .status-live { color: var(--green); }
 
-  /* AUTH */
   #auth-screen { min-height: 100vh; display: flex; align-items: center; justify-content: center; }
 
   .auth-box {
@@ -140,7 +139,6 @@
   }
   .btn:hover { background: #00bbee; }
 
-  /* MAIN APP */
   #app { display: none; }
 
   .topbar {
@@ -214,7 +212,6 @@
   .btn-generate:hover { background: #00bbee; }
   .btn-generate:disabled { background: var(--border); color: var(--text-dim); cursor: not-allowed; }
 
-  /* SIGNAL TABLE */
   .signals-header {
     display: grid;
     grid-template-columns: 100px 70px 160px 90px 90px 90px 60px 1fr;
@@ -261,7 +258,6 @@
   .conf-fill { height: 100%; border-radius: 2px; background: var(--accent); }
   .sig-rr { color: var(--yellow); font-size: 10px; }
 
-  /* EXPANDED DETAIL */
   .signal-detail {
     background: var(--bg2);
     border: 1px solid var(--border-bright);
@@ -273,24 +269,27 @@
   @keyframes slideDown { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
   .signal-detail.open { display: block; }
 
-  .detail-top { display: grid; grid-template-columns: 420px 1fr; gap: 20px; }
+  .detail-top { display: grid; grid-template-columns: 1fr 380px; gap: 20px; }
 
-  /* PATTERN CHART */
   .chart-container {
-    background: #050810;
-    border: 1px solid var(--border);
-    padding: 10px;
+    background: #060810;
+    border: 1px solid var(--border-bright);
+    border-top: 2px solid var(--accent);
+    padding: 0;
     position: relative;
+    overflow: hidden;
   }
   .chart-header {
     font-size: 9px;
     color: var(--text-dim);
     letter-spacing: 0.15em;
     text-transform: uppercase;
-    margin-bottom: 6px;
+    padding: 8px 12px;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    border-bottom: 1px solid var(--border);
+    background: #0a0f1a;
   }
   .chart-pattern-badge {
     font-size: 9px;
@@ -299,9 +298,8 @@
     padding: 1px 6px;
     letter-spacing: 0.08em;
   }
-  .chart-container canvas { display: block; width: 100%; border-radius: 2px; }
+  .chart-container canvas { display: block; width: 100%; }
 
-  /* TEXT DETAILS */
   .detail-info { display: flex; flex-direction: column; gap: 14px; }
 
   .detail-section-title {
@@ -326,7 +324,6 @@
   .tag-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
   .tag { font-size: 9px; padding: 3px 8px; border: 1px solid var(--border-bright); color: var(--text-dim); letter-spacing: 0.08em; }
 
-  /* TELEGRAM SEND BUTTON */
   .tg-send-btn {
     display: flex;
     align-items: center;
@@ -348,7 +345,6 @@
   .tg-send-btn:disabled { background: #2a3f58; color: var(--text-dim); cursor: not-allowed; }
   .tg-send-btn svg { flex-shrink: 0; }
 
-  /* TG CONFIG PANEL */
   #tg-config {
     position: fixed;
     top: 50%; left: 50%;
@@ -372,7 +368,6 @@
   .tg-config-title { font-family: var(--sans); font-size: 16px; font-weight: 700; color: var(--text-bright); margin-bottom: 4px; }
   .tg-config-sub { font-size: 10px; color: var(--text-dim); margin-bottom: 20px; }
 
-  /* LOADER */
   .loader-wrap { text-align: center; padding: 60px 0; display: none; }
   .loader-wrap.active { display: block; }
   .loader { width: 40px; height: 40px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 16px; }
@@ -380,7 +375,6 @@
   .loader-text { font-size: 11px; color: var(--text-dim); letter-spacing: 0.1em; }
   .loader-sub { font-size: 10px; color: var(--text-dim); margin-top: 6px; opacity: 0.6; }
 
-  /* STATS */
   .stats-bar { display: flex; gap: 24px; padding: 12px 0; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
   .stat { display: flex; flex-direction: column; gap: 3px; }
   .stat-val { font-family: var(--sans); font-size: 20px; font-weight: 600; color: var(--text-bright); }
@@ -469,7 +463,6 @@
           <button class="toggle-btn" onclick="toggleClass(this,'CRYPTO')">CRYPTO</button>
         </div>
       </div>
-
       <div class="ctrl-group">
         <div class="ctrl-label">Timeframe</div>
         <div class="toggle-group" id="tf-toggle">
@@ -479,7 +472,6 @@
           <button class="toggle-btn" onclick="toggleTF(this,'D1')">D1</button>
         </div>
       </div>
-
       <div class="ctrl-group">
         <div class="ctrl-label">Direction Filter</div>
         <div class="toggle-group" id="dir-toggle">
@@ -488,7 +480,6 @@
           <button class="toggle-btn" onclick="toggleDir(this,'SELL')">SELL ONLY</button>
         </div>
       </div>
-
       <div class="ctrl-group">
         <div class="ctrl-label">Min Confidence</div>
         <select id="conf-min">
@@ -498,7 +489,6 @@
           <option value="90">90%+</option>
         </select>
       </div>
-
       <div class="ctrl-group">
         <div class="ctrl-label">Pairs Count</div>
         <select id="pairs-count">
@@ -508,7 +498,6 @@
           <option value="22">All (22)</option>
         </select>
       </div>
-
       <button class="btn-generate" id="gen-btn" onclick="generateSignals()">▶ GENERATE SIGNALS</button>
     </div>
 
@@ -540,7 +529,6 @@
   </div>
 </div>
 
-<!-- TELEGRAM CONFIG MODAL -->
 <div id="tg-overlay" onclick="closeTgConfig()"></div>
 <div id="tg-config">
   <div class="tg-config-title">📨 Telegram Config</div>
@@ -560,7 +548,6 @@
 <div id="toast"></div>
 
 <script>
-// ── STATE ──
 let WORKER = '';
 let selectedClass = 'ALL';
 let selectedTF = 'H1';
@@ -576,7 +563,6 @@ const CFD_PAIRS = {
 const ALL_PAIRS = [...CFD_PAIRS.FX, ...CFD_PAIRS.INDICES, ...CFD_PAIRS.COMMODITIES, ...CFD_PAIRS.CRYPTO];
 const PATTERNS = ['Elliott Wave 3','Elliott Wave 5','Elliott Wave C','Head & Shoulders','Inverse Head & Shoulders','Double Top','Double Bottom','Triple Top','Triple Bottom','Ascending Triangle','Descending Triangle','Symmetrical Triangle','Broadening Triangle','Bull Flag','Bear Flag','Bull Pennant','Bear Pennant','Rising Channel','Falling Channel','Horizontal Channel','Cup & Handle','Rounding Bottom','Rounding Top','Rising Wedge','Falling Wedge','Breakout Key Level','Fib 61.8% Bounce','Fib 38.2% Bounce','Fib 50% Bounce','Gartley Pattern','Butterfly Pattern','Bat Pattern','Crab Pattern','ABCD Pattern','Cypher Pattern','Bullish Engulfing','Bearish Engulfing','Doji Reversal','Hammer','Shooting Star','Morning Star','Evening Star','Bullish Harami','Bearish Harami','RSI Divergence','MACD Divergence','Island Reversal','Diamond Pattern','Wolfe Wave'];
 
-// ── AUTH ──
 function doLogin() {
   const pwd = document.getElementById('pwd-input').value;
   if (!pwd) { showToast('Inserisci la password'); return; }
@@ -620,12 +606,8 @@ function simpleHash(s) {
   let h = 0; for (let c of String(s)) h = (h*31 + c.charCodeAt(0)) & 0xffffffff; return h;
 }
 
-// ── FETCH LIVE PRICES ──
-// Step 1: Frankfurter (FX) + CoinGecko (Crypto) via Worker esistente
-// Step 2: Twelve Data override per Commodities + Indices (prima erano stime hardcoded)
 async function fetchLivePrices(pairs) {
   try {
-    // ── STEP 1: prezzi base (Frankfurter FX + CoinGecko crypto) ──
     document.getElementById('loader-sub').textContent = 'Fetching live prices (FX + Crypto)...';
     const res = await fetch(WORKER, {
       method: 'POST',
@@ -634,8 +616,6 @@ async function fetchLivePrices(pairs) {
     });
     const basePrices = res.ok ? ((await res.json()).prices || {}) : {};
 
-    // ── STEP 2: Twelve Data — prezzi reali per Commodities + Indices ──
-    // Questi simboli nel Worker usano stime hardcoded: TD li sostituisce con prezzi live
     const TD_SYMBOLS = [
       'XAUUSD','XAGUSD','USOIL','UKOIL','NGAS','COPPER',
       'US500','US30','NAS100','UK100','GER40','FRA40','JPN225','HK50','AUS200'
@@ -648,11 +628,7 @@ async function fetchLivePrices(pairs) {
         const tdRes = await fetch(WORKER, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            type: 'twelvedata',
-            action: 'quote',
-            symbols: tdPairs
-          })
+          body: JSON.stringify({ type: 'twelvedata', action: 'quote', symbols: tdPairs })
         });
         if (tdRes.ok) {
           const tdData = await tdRes.json();
@@ -660,20 +636,13 @@ async function fetchLivePrices(pairs) {
           let tdCount = 0;
           for (const sym of tdPairs) {
             const q = quotes[sym];
-            if (q && !q.error && q.price && q.price > 0) {
-              basePrices[sym] = q.price;
-              tdCount++;
-            }
+            if (q && !q.error && q.price && q.price > 0) { basePrices[sym] = q.price; tdCount++; }
           }
-          if (tdCount > 0) {
-            showToast(`Prezzi live: ${Object.keys(basePrices).length}/${pairs.length} strumenti (TD: ${tdCount})`);
-          } else {
-            const c = Object.keys(basePrices).length;
-            if (c > 0) showToast(`Prezzi live: ${c}/${pairs.length} strumenti`);
-          }
+          if (tdCount > 0) showToast(`Prezzi live: ${Object.keys(basePrices).length}/${pairs.length} strumenti (TD: ${tdCount})`);
+          else { const c = Object.keys(basePrices).length; if (c > 0) showToast(`Prezzi live: ${c}/${pairs.length} strumenti`); }
         }
       } catch(e) {
-        console.warn('Twelve Data fallback to estimates:', e.message);
+        console.warn('Twelve Data fallback:', e.message);
         const c = Object.keys(basePrices).length;
         if (c > 0) showToast(`Prezzi live: ${c}/${pairs.length} strumenti`);
       }
@@ -681,11 +650,9 @@ async function fetchLivePrices(pairs) {
       const c = Object.keys(basePrices).length;
       if (c > 0) showToast(`Prezzi live: ${c}/${pairs.length} strumenti`);
     }
-
     return basePrices;
-
   } catch(e) {
-    console.warn('Price fetch failed, using AI estimates:', e.message);
+    console.warn('Price fetch failed:', e.message);
     return {};
   }
 }
@@ -707,10 +674,7 @@ async function generateSignals() {
   }, 1800);
 
   try {
-    // Step 1: fetch prezzi reali
     const livePrices = await fetchLivePrices(pairs);
-
-    // Step 2: genera segnali con prezzi reali nel prompt
     const raw = await callClaudeAPI(buildPrompt(pairs, selectedTF, selectedDir, minConf, livePrices));
     clearInterval(loaderInterval);
     const parsed = parseSignals(raw, minConf, selectedDir);
@@ -729,8 +693,6 @@ async function generateSignals() {
 
 function buildPrompt(pairs, tf, dir, minConf, livePrices = {}) {
   const dirNote = dir === 'BOTH' ? 'bullish and bearish' : dir === 'BUY' ? 'bullish only' : 'bearish only';
-
-  // Costruisci lista prezzi reali
   const priceLines = pairs.map(p => {
     const price = livePrices[p];
     return price != null
@@ -809,16 +771,12 @@ async function callClaudeAPI(prompt) {
   return data?.content?.[0]?.text || '';
 }
 
-
 function parseSignals(raw, minConf, dir) {
   let cleaned = raw.trim().replace(/^```json\n?/, '').replace(/```$/, '').trim();
   const start = cleaned.indexOf('['), end = cleaned.lastIndexOf(']');
   if (start === -1 || end === -1) throw new Error('No JSON array in response');
   let arr = JSON.parse(cleaned.slice(start, end+1));
-  return arr.filter(s =>
-    s.confidence >= minConf &&
-    (dir === 'BOTH' || s.direction === dir)
-  );
+  return arr.filter(s => s.confidence >= minConf && (dir === 'BOTH' || s.direction === dir));
 }
 
 function renderSignals(list) {
@@ -852,7 +810,6 @@ function renderSignals(list) {
 
     const detail = document.createElement('div');
     detail.className = 'signal-detail';
-
     detail.innerHTML = `
       <div class="detail-top">
         <div>
@@ -861,15 +818,15 @@ function renderSignals(list) {
               <span>PATTERN CHART · ${sig.pair} · ${selectedTF}</span>
               <span class="chart-pattern-badge">${sig.pattern}</span>
             </div>
-            <canvas id="chart-${idx}" width="420" height="240"></canvas>
+            <canvas id="chart-${idx}"></canvas>
           </div>
-          <div class="levels-grid" style="margin-top:10px">
+        </div>
+        <div class="detail-info">
+          <div class="levels-grid">
             <div class="level-box"><div class="level-label">ENTRY</div><div class="level-val entry">${fmt(sig.entry, sig.pair)}</div></div>
             <div class="level-box"><div class="level-label">STOP LOSS</div><div class="level-val sl">${fmt(sig.sl, sig.pair)}</div></div>
             <div class="level-box"><div class="level-label">TAKE PROFIT</div><div class="level-val tp">${fmt(sig.tp, sig.pair)}</div></div>
           </div>
-        </div>
-        <div class="detail-info">
           <div>
             <div class="detail-section-title">Elliott Wave Context</div>
             <div class="detail-text">${sig.ew_context || '—'}</div>
@@ -904,7 +861,6 @@ function renderSignals(list) {
       document.querySelectorAll('.signal-detail').forEach(d => d.classList.remove('open'));
       if (!isOpen) {
         detail.classList.add('open');
-        // Draw canvas chart after element is visible
         requestAnimationFrame(() => {
           const canvas = document.getElementById('chart-' + idx);
           if (canvas && !canvas.dataset.drawn) {
@@ -920,682 +876,766 @@ function renderSignals(list) {
   });
 }
 
-
 // ══════════════════════════════════════════════════════════════
-// XENOS CHART ENGINE — All Patterns Professional
+// XENOS CHART ENGINE HD — Dark Theme · Alta Risoluzione
+// Canvas 900x500 @ 2x = 1800x1000px effettivi
 // ══════════════════════════════════════════════════════════════
 
 function drawPatternChart(canvas, sig) {
-  const W = 420, H = 240;
-  const ML = 10, MR = 76, MT = 36, MB = 28;
+  // ── Dimensioni HD ──
+  const W = 900, H = 500;
+  const ML = 14, MR = 0, MT = 52, MB = 36;
   const CW = W - ML - MR, CH = H - MT - MB;
 
-  canvas.width = W * 2; canvas.height = H * 2;
-  canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+  // Canvas 2x per retina
+  canvas.width  = W * 2;
+  canvas.height = H * 2;
+  canvas.style.width  = W + 'px';
+  canvas.style.height = H + 'px';
   const ctx = canvas.getContext('2d');
   ctx.scale(2, 2);
 
-  const isBull = sig.direction === 'BUY';
-  const entry = parseFloat(sig.entry);
-  const sl = parseFloat(sig.sl);
-  const tp = parseFloat(sig.tp);
-  const pat = sig.pattern.toLowerCase();
-  const spread = Math.abs(tp - sl);
-  const center = (entry + sl + tp) / 3;
-  const pMin = center - spread * 2.2;
-  const pMax = center + spread * 2.2;
+  const isBull  = sig.direction === 'BUY';
+  const entry   = parseFloat(sig.entry);
+  const sl      = parseFloat(sig.sl);
+  const tp      = parseFloat(sig.tp);
+  const pat     = sig.pattern.toLowerCase();
+  const spread  = Math.abs(tp - sl);
+  const center  = (entry + sl + tp) / 3;
+  const pMin    = center - spread * 2.4;
+  const pMax    = center + spread * 2.4;
 
   function py(p) { return MT + CH - ((p - pMin) / (pMax - pMin)) * CH; }
   function px(t) { return ML + t * CW; }
 
-  // Background & header
-  ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, W, H);
-  ctx.fillStyle = '#f4f7fb'; ctx.fillRect(0, 0, W, MT);
-  ctx.strokeStyle = '#dde3eb'; ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(0, MT); ctx.lineTo(W, MT); ctx.stroke();
-  ctx.fillStyle = '#1a2030'; ctx.font = 'bold 10px Arial,sans-serif'; ctx.textAlign = 'left';
-  ctx.fillText(sig.pair + '  ·  ' + selectedTF, ML + 6, MT - 14);
-  ctx.fillStyle = '#5a7a9a'; ctx.font = '9px Arial,sans-serif';
-  ctx.fillText(sig.pattern, ML + 6, MT - 3);
+  // ── Palette dark ──
+  const BG       = '#060810';
+  const BG2      = '#0c1018';
+  const GRID     = '#1a2535';
+  const GRIDHI   = '#1e2d40';
+  const ACCENT   = '#00d4ff';
+  const col      = isBull ? '#00e676' : '#ff3d5a';
+  const colDim   = isBull ? '#00a854' : '#cc2040';
+  const ORANGE   = '#ffd600';
+  const WHITE    = '#eaf4ff';
+  const DIMTEXT  = '#4a6a8a';
+  const nowX     = px(0.70);
+  const tpY      = py(tp);
+  const entryY   = py(entry);
+  const slY      = py(sl);
 
-  const bc = isBull ? '#1a8c40' : '#c81e32';
-  const cc = sig.confidence >= 80 ? '#1a8c40' : sig.confidence >= 70 ? '#d47e00' : '#1565c0';
-  ctx.fillStyle = bc; ctx.beginPath(); ctx.roundRect(W-MR-110,6,58,20,3); ctx.fill();
-  ctx.fillStyle = '#fff'; ctx.font = 'bold 9px Arial,sans-serif'; ctx.textAlign = 'center';
-  ctx.fillText(isBull ? '▲  BUY' : '▼  SELL', W-MR-81, 19);
-  ctx.fillStyle = cc; ctx.beginPath(); ctx.roundRect(W-MR-46,6,42,20,3); ctx.fill();
-  ctx.fillStyle = '#fff'; ctx.fillText(sig.confidence + '%', W-MR-25, 19);
+  // ── Background ──
+  ctx.fillStyle = BG;
+  ctx.fillRect(0, 0, W, H);
 
-  ctx.strokeStyle = '#edf0f4'; ctx.lineWidth = 0.8;
-  for (let i = 0; i <= 6; i++) {
-    const y = MT + (i/6)*CH;
-    ctx.beginPath(); ctx.moveTo(ML,y); ctx.lineTo(W-MR,y); ctx.stroke();
+  // Subtle gradient overlay
+  const grad = ctx.createLinearGradient(0, MT, 0, MT+CH);
+  grad.addColorStop(0,   'rgba(0,212,255,0.02)');
+  grad.addColorStop(0.5, 'rgba(0,0,0,0)');
+  grad.addColorStop(1,   'rgba(0,212,255,0.015)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(ML, MT, CW, CH);
+
+  // ── Grid lines ──
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 8; i++) {
+    const y = MT + (i/8)*CH;
+    ctx.strokeStyle = i % 2 === 0 ? GRIDHI : GRID;
+    ctx.globalAlpha = 0.7;
+    ctx.beginPath(); ctx.moveTo(ML, y); ctx.lineTo(ML+CW, y); ctx.stroke();
   }
-
-  drawPattern(ctx, pat, isBull, entry, sl, tp, py, px, CW, CH, ML, MR, MT, pMin, pMax, spread, W);
-
-  drawLevel(ctx, tp,    isBull?'#1a8c40':'#c81e32', 'TARGET', true,  py, ML, W, MR, sig.pair);
-  drawLevel(ctx, entry, '#1565c0',                   'ENTRY',  false, py, ML, W, MR, sig.pair);
-  drawLevel(ctx, sl,    isBull?'#c81e32':'#1a8c40', 'STOP',   true,  py, ML, W, MR, sig.pair);
-
-  ctx.strokeStyle = '#d0d8e4'; ctx.lineWidth = 1;
-  ctx.strokeRect(ML, MT, CW, CH);
-
-  ctx.fillStyle = '#b0bcc8'; ctx.font = '8px Arial,sans-serif'; ctx.textAlign = 'right';
-  for (let i = 1; i <= 5; i++) {
-    const p = pMin + (i/6)*(pMax-pMin), y = py(p);
-    if (y > MT+8 && y < MT+CH-8) ctx.fillText(fmtPrice(p, sig.pair), ML-2, y+3);
+  // Vertical grid
+  for (let i = 1; i <= 9; i++) {
+    const x = ML + (i/10)*CW;
+    ctx.strokeStyle = GRID; ctx.globalAlpha = 0.4;
+    ctx.beginPath(); ctx.moveTo(x, MT); ctx.lineTo(x, MT+CH); ctx.stroke();
   }
+  ctx.globalAlpha = 1;
 
-  ctx.fillStyle = '#b0bcc8'; ctx.font = '8px Arial,sans-serif'; ctx.textAlign = 'center';
-  ctx.fillText('◀ HISTORY', px(0.22), MT+CH+18);
-  ctx.fillStyle = '#555'; ctx.font = 'bold 8px Arial,sans-serif';
-  ctx.fillText('NOW', px(0.72), MT+CH+18);
-  ctx.fillStyle = bc; ctx.fillText('TARGET ▶', px(0.88), MT+CH+18);
-}
+  // ── Header ──
+  ctx.fillStyle = BG2;
+  ctx.fillRect(0, 0, W, MT);
+  // Header accent line top
+  const hGrad = ctx.createLinearGradient(0,0,W,0);
+  hGrad.addColorStop(0,'transparent'); hGrad.addColorStop(0.5,ACCENT); hGrad.addColorStop(1,'transparent');
+  ctx.fillStyle = hGrad; ctx.fillRect(0,0,W,1.5);
+  // Separator
+  ctx.strokeStyle = '#1e2a3a'; ctx.lineWidth = 1; ctx.globalAlpha = 1;
+  ctx.beginPath(); ctx.moveTo(0,MT); ctx.lineTo(W,MT); ctx.stroke();
 
-function drawLevel(ctx, price, color, label, filled, py, ML, W, MR, pair) {
-  const y = py(price), axX = W-MR+4, lw = MR-6;
-  ctx.save(); ctx.strokeStyle=color; ctx.lineWidth=1; ctx.setLineDash([5,4]); ctx.globalAlpha=0.85;
-  ctx.beginPath(); ctx.moveTo(ML,y); ctx.lineTo(axX,y); ctx.stroke();
-  ctx.setLineDash([]); ctx.restore(); ctx.save();
-  if (filled) { ctx.fillStyle=color; ctx.fillRect(axX,y-10,lw,20); ctx.fillStyle='#fff'; }
-  else { ctx.fillStyle='#fff'; ctx.fillRect(axX,y-10,lw,20); ctx.strokeStyle=color; ctx.lineWidth=1.5; ctx.strokeRect(axX,y-10,lw,20); ctx.fillStyle=color; }
-  ctx.font='bold 7px Arial,sans-serif'; ctx.textAlign='left'; ctx.fillText(label, axX+3, y-2);
-  ctx.font='bold 8px Arial,sans-serif'; ctx.fillText(fmtPrice(price,pair), axX+3, y+8);
-  ctx.restore();
-}
+  // Pair + TF
+  ctx.fillStyle = WHITE; ctx.font = 'bold 16px "Space Mono",monospace'; ctx.textAlign = 'left';
+  ctx.fillText(sig.pair, ML+8, 22);
+  ctx.fillStyle = DIMTEXT; ctx.font = '11px "Space Mono",monospace';
+  ctx.fillText('· ' + selectedTF, ML+8+ctx.measureText(sig.pair).width+12, 22);
 
-function drawPattern(ctx, pat, isBull, entry, sl, tp, py, px, CW, CH, ML, MR, MT, pMin, pMax, spread, W) {
-  const col = isBull ? '#1a8c40' : '#c81e32';
-  const black = '#1a2030', orange = '#d47e00', nowX = px(0.72);
-  const tpY = py(tp), entryY = py(entry), slY = py(sl);
+  // Pattern name
+  ctx.fillStyle = ACCENT; ctx.font = '11px "Space Mono",monospace';
+  ctx.fillText(sig.pattern.toUpperCase(), ML+8, 40);
 
-  function L(x1,y1,x2,y2,c,w,dash=[],a=1) {
-    ctx.save(); ctx.strokeStyle=c; ctx.lineWidth=w; ctx.setLineDash(dash); ctx.globalAlpha=a;
-    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); ctx.restore();
-  }
+  // BUY/SELL badge
+  const bdgW = 72, bdgH = 24, bdgX = W - 170, bdgY = 14;
+  ctx.fillStyle = col;
+  ctx.beginPath(); ctx.roundRect(bdgX, bdgY, bdgW, bdgH, 3); ctx.fill();
+  ctx.fillStyle = '#000'; ctx.font = 'bold 11px "Space Mono",monospace'; ctx.textAlign = 'center';
+  ctx.fillText(isBull ? '▲  BUY' : '▼  SELL', bdgX + bdgW/2, bdgY+16);
+
+  // Confidence badge
+  const confCol = sig.confidence >= 80 ? '#00e676' : sig.confidence >= 70 ? '#ffd600' : '#00d4ff';
+  ctx.fillStyle = BG2; ctx.strokeStyle = confCol; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.roundRect(bdgX+bdgW+8, bdgY, 72, bdgH, 3); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = confCol; ctx.font = 'bold 11px "Space Mono",monospace';
+  ctx.fillText(sig.confidence + '%', bdgX+bdgW+8+36, bdgY+16);
+
+  // R:R badge
+  ctx.fillStyle = BG2; ctx.strokeStyle = ORANGE; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.roundRect(bdgX+bdgW+8+80, bdgY, 88, bdgH, 3); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = ORANGE; ctx.font = '10px "Space Mono",monospace';
+  ctx.fillText('R:R ' + (sig.rr || '—'), bdgX+bdgW+8+80+44, bdgY+16);
+
+  // ── Zone target / stop ──
   function zone(pts, c, a=0.07) {
     ctx.save(); ctx.fillStyle=c; ctx.globalAlpha=a;
     ctx.beginPath(); ctx.moveTo(pts[0][0],pts[0][1]);
     pts.slice(1).forEach(p=>ctx.lineTo(p[0],p[1]));
     ctx.closePath(); ctx.fill(); ctx.restore();
   }
-  function ARR(x1,y1,x2,y2,c,w=2.5) {
+
+  // Target zone (verde/rosso trasparente)
+  zone([[nowX,isBull?tpY:entryY],[ML+CW,isBull?tpY:entryY],[ML+CW,isBull?entryY:tpY],[nowX,isBull?entryY:tpY]], col, 0.08);
+  // Stop zone
+  zone([[nowX,isBull?entryY:slY],[ML+CW,isBull?entryY:slY],[ML+CW,isBull?slY:entryY],[nowX,isBull?slY:entryY]], isBull?'#ff3d5a':'#00e676', 0.04);
+
+  // ── NOW vertical line ──
+  ctx.save(); ctx.strokeStyle=ACCENT; ctx.lineWidth=1.5; ctx.globalAlpha=0.5;
+  ctx.setLineDash([6,4]);
+  ctx.beginPath(); ctx.moveTo(nowX,MT); ctx.lineTo(nowX,MT+CH); ctx.stroke();
+  ctx.setLineDash([]); ctx.restore();
+
+  // NOW label
+  ctx.fillStyle = ACCENT; ctx.font = 'bold 10px "Space Mono",monospace'; ctx.textAlign = 'center';
+  ctx.globalAlpha = 0.8;
+  ctx.fillText('NOW', nowX, MT+CH+24);
+  ctx.globalAlpha = 1;
+
+  // HISTORY / TARGET labels
+  ctx.fillStyle = DIMTEXT; ctx.font = '10px "Space Mono",monospace';
+  ctx.fillText('◀ HISTORY', px(0.30), MT+CH+24);
+  ctx.fillStyle = col;
+  ctx.fillText('TARGET ▶', px(0.88), MT+CH+24);
+
+  // ── Helper functions per i pattern ──
+  function L(x1,y1,x2,y2,c,w,dash=[],a=1) {
+    ctx.save(); ctx.strokeStyle=c; ctx.lineWidth=w; ctx.setLineDash(dash); ctx.globalAlpha=a;
+    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); ctx.restore();
+  }
+  function ARR(x1,y1,x2,y2,c,w=3.5) {
     ctx.save(); ctx.strokeStyle=c; ctx.fillStyle=c; ctx.lineWidth=w;
     ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
-    const a=Math.atan2(y2-y1,x2-x1), s=11;
+    const a=Math.atan2(y2-y1,x2-x1), s=16;
     ctx.beginPath(); ctx.moveTo(x2,y2);
     ctx.lineTo(x2-s*Math.cos(a-0.38),y2-s*Math.sin(a-0.38));
     ctx.lineTo(x2-s*Math.cos(a+0.38),y2-s*Math.sin(a+0.38));
     ctx.closePath(); ctx.fill(); ctx.restore();
   }
   function trajArrow(fromX, fromY, c, isBullDir) {
-    const len = 45;
+    const len = 60;
     const angle = isBullDir ? -Math.PI/4 : Math.PI/4;
-    const toX = fromX + len * Math.cos(angle);
-    const toY = fromY + len * Math.sin(angle);
-    ARR(fromX, fromY, toX, toY, c, 2.8);
+    ARR(fromX, fromY, fromX+len*Math.cos(angle), fromY+len*Math.sin(angle), c, 3.5);
   }
-  function DOT(x,y,c,r=4) {
-    ctx.save(); ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(x,y,r+1.5,0,Math.PI*2); ctx.fill();
-    ctx.fillStyle=c; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill(); ctx.restore();
-  }
-  function LBL(text,x,y,c,above=true,size=9) {
+  function DOT(x,y,c,r=7) {
     ctx.save();
-    ctx.font='bold '+size+'px Arial,sans-serif';
-    const tw=ctx.measureText(text).width;
-    const pad=6, h=14;
-    const bx=x-tw/2-pad, by=above?y-h-6:y+6;
-    ctx.fillStyle='rgba(255,255,255,0.97)';
-    ctx.strokeStyle=c;
-    ctx.lineWidth=1.5;
-    ctx.beginPath(); ctx.roundRect(bx,by,tw+pad*2,h,3); ctx.fill(); ctx.stroke();
-    ctx.fillStyle=c; ctx.textAlign='center';
-    ctx.fillText(text, x, by+h-3);
+    // Glow
+    const g = ctx.createRadialGradient(x,y,0,x,y,r*2.5);
+    g.addColorStop(0, c+'88'); g.addColorStop(1, 'transparent');
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,r*2.5,0,Math.PI*2); ctx.fill();
+    // White ring
+    ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(x,y,r+2,0,Math.PI*2); ctx.fill();
+    // Colored dot
+    ctx.fillStyle=c; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
     ctx.restore();
   }
-  function vDash(x) { L(x,MT,x,MT+CH,'#aaa',1,[4,4],0.35); }
+  function LBL(text,x,y,c,above=true,size=12) {
+    ctx.save();
+    ctx.font='bold '+size+'px "Space Mono",monospace';
+    const tw=ctx.measureText(text).width;
+    const pad=10, h=22;
+    const bx=x-tw/2-pad, by=above?y-h-10:y+10;
+    // Shadow glow
+    ctx.shadowColor=c; ctx.shadowBlur=12;
+    // Background
+    ctx.fillStyle='rgba(6,8,16,0.92)';
+    ctx.strokeStyle=c; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.roundRect(bx,by,tw+pad*2,h,4); ctx.fill(); ctx.stroke();
+    ctx.shadowBlur=0;
+    ctx.fillStyle=c; ctx.textAlign='center';
+    ctx.fillText(text,x,by+h-5);
+    ctx.restore();
+  }
+  function vDash(x) { L(x,MT,x,MT+CH,'#2a3f58',1,[5,4],0.5); }
+  function targetArrow(fromX, fromY) { trajArrow(fromX, fromY, col, isBull); }
 
   vDash(nowX);
-  zone([[nowX,isBull?tpY:entryY],[W-MR,isBull?tpY:entryY],[W-MR,isBull?entryY:tpY],[nowX,isBull?entryY:tpY]], col, 0.09);
-  zone([[nowX,isBull?entryY:slY],[W-MR,isBull?entryY:slY],[W-MR,isBull?slY:entryY],[nowX,isBull?slY:entryY]], isBull?'#c81e32':'#1a8c40', 0.04);
+  drawPattern(ctx, pat, isBull, entry, sl, tp, py, px, CW, CH, ML, MR, MT, pMin, pMax, spread, W,
+    L, ARR, trajArrow, DOT, LBL, zone, targetArrow, vDash,
+    col, colDim, ORANGE, WHITE, DIMTEXT, ACCENT, BG, nowX, tpY, entryY, slY);
 
-  const AX = W-MR-8;
-  function targetArrow(fromX, fromY) {
-    trajArrow(fromX, fromY, col, isBull);
-  }
+  // ── Border finale ──
+  ctx.strokeStyle = '#1e2a3a'; ctx.lineWidth = 1; ctx.globalAlpha = 1;
+  ctx.strokeRect(ML, MT, CW, CH);
+}
+
+// ── PATTERN ENGINE (tutte le geometrie separate per leggibilità) ──
+function drawPattern(ctx, pat, isBull, entry, sl, tp, py, px, CW, CH, ML, MR, MT, pMin, pMax, spread, W,
+  L, ARR, trajArrow, DOT, LBL, zone, targetArrow, vDash,
+  col, colDim, ORANGE, WHITE, DIMTEXT, ACCENT, BG, nowX, tpY, entryY, slY) {
+
+  const black = '#0c1422';
 
   // ══ HEAD & SHOULDERS ══
   if (pat.includes('head') && pat.includes('shoulder')) {
-    const inv = isBull;
+    const inv=isBull;
     const nkY=py(entry+(inv?spread*0.3:-spread*0.3));
     const lsY=py(entry+(inv?-spread*1.1:spread*1.1));
-    const hdY=py(entry+(inv?-spread*1.8:spread*1.8));
+    const hdY=py(entry+(inv?-spread*1.9:spread*1.9));
     const rsY=py(entry+(inv?-spread*1.0:spread*1.0));
-    const lsX=px(0.18),v1=px(0.29),hdX=px(0.42),v2=px(0.55),rsX=px(0.64);
-    L(px(0.04),nkY,nowX,nkY,black,2);
+    const lsX=px(0.16),v1=px(0.28),hdX=px(0.42),v2=px(0.56),rsX=px(0.66);
+    // Neckline
+    L(px(0.04),nkY,nowX,nkY,ORANGE,2.5,[8,5],0.8);
+    // Shape
     [px(0.04),lsX,v1,hdX,v2,rsX,nowX].reduce((prev,x,i,arr)=>{
       const ys=[nkY,lsY,nkY,hdY,nkY,rsY,nkY];
-      if(i>0) L(arr[i-1],ys[i-1],x,ys[i],black,1.8);
+      if(i>0) L(arr[i-1],ys[i-1],x,ys[i],col,3);
       return x;
     });
-    zone([[px(0.04),nkY],[lsX,lsY],[v1,nkY],[hdX,hdY],[v2,nkY],[rsX,rsY],[nowX,nkY]],black,0.04);
-    DOT(lsX,lsY,orange); DOT(hdX,hdY,orange); DOT(rsX,rsY,orange);
-    const lo=inv?12:-12;
-    ctx.fillStyle=orange; ctx.font='bold 8px Arial,sans-serif'; ctx.textAlign='center';
+    zone([[px(0.04),nkY],[lsX,lsY],[v1,nkY],[hdX,hdY],[v2,nkY],[rsX,rsY],[nowX,nkY]],col,0.06);
+    DOT(lsX,lsY,ORANGE); DOT(hdX,hdY,col); DOT(rsX,rsY,ORANGE);
+    const lo=inv?18:-18;
+    ctx.fillStyle=ORANGE; ctx.font='bold 12px "Space Mono",monospace'; ctx.textAlign='center';
     ctx.fillText('LS',lsX,lsY+lo); ctx.fillText('HEAD',hdX,hdY+lo); ctx.fillText('RS',rsX,rsY+lo);
-    ctx.fillStyle=black; ctx.font='8px Arial,sans-serif';
-    ctx.fillText('NECKLINE',px(0.35),nkY+(inv?11:-7));
-    LBL(inv?'INVERSE HEAD & SHOULDERS':'HEAD & SHOULDERS', px(0.38), inv?hdY:hdY, col, !inv);
-    targetArrow(nowX, nkY);
+    ctx.fillStyle=DIMTEXT; ctx.font='10px "Space Mono",monospace';
+    ctx.fillText('NECKLINE',px(0.35),nkY+(inv?16:-10));
+    LBL(inv?'INVERSE H&S':'HEAD & SHOULDERS',px(0.38),inv?hdY:hdY,col,!inv,13);
+    targetArrow(nowX,nkY);
   }
 
   // ══ DOUBLE / TRIPLE TOP / BOTTOM ══
   else if (pat.includes('double') || pat.includes('triple')) {
-    const isTriple = pat.includes('triple');
-    const peakY=py(entry+(isBull?-spread*1.5:spread*1.5));
+    const isTriple=pat.includes('triple');
+    const peakY=py(entry+(isBull?-spread*1.6:spread*1.6));
     const nkY=py(entry+(isBull?spread*0.1:-spread*0.1));
     const valY=py(entry+(isBull?-spread*0.3:spread*0.3));
-    const peaks = isTriple ? [px(0.14),px(0.36),px(0.58)] : [px(0.20),px(0.52)];
-    const vals  = isTriple ? [px(0.25),px(0.47)] : [px(0.36)];
-    L(px(0.04),nkY,nowX,nkY,black,2,[6,4]);
+    const peaks=isTriple?[px(0.14),px(0.36),px(0.58)]:[px(0.18),px(0.52)];
+    const vals=isTriple?[px(0.25),px(0.47)]:[px(0.35)];
+    L(px(0.04),nkY,nowX,nkY,ORANGE,2.5,[8,5],0.8);
     let prev=[px(0.04),nkY];
     peaks.forEach((x,i)=>{
-      L(prev[0],prev[1],x,peakY,black,1.8); prev=[x,peakY];
-      if(vals[i]!==undefined){ L(x,peakY,vals[i],valY,black,1.8); prev=[vals[i],valY]; }
+      L(prev[0],prev[1],x,peakY,col,3); prev=[x,peakY];
+      if(vals[i]!==undefined){L(x,peakY,vals[i],valY,col,3);prev=[vals[i],valY];}
     });
-    L(prev[0],prev[1],nowX,nkY,black,1.8);
-    zone([[px(0.04),nkY],[...peaks.map(x=>[x,peakY])].flat(),[nowX,nkY]],orange,0.05);
-    peaks.forEach((x,i)=>{ DOT(x,peakY,orange); });
-    vals.forEach(x=>{ DOT(x,valY,col,3); });
-    ctx.fillStyle=black; ctx.font='8px Arial,sans-serif'; ctx.textAlign='center';
-    ctx.fillText('NECKLINE',px(0.40),nkY+(isBull?11:-7));
-    LBL((isTriple?(isBull?'TRIPLE BOTTOM':'TRIPLE TOP'):(isBull?'DOUBLE BOTTOM':'DOUBLE TOP')), px(0.40), isBull?peakY:peakY, col, !isBull);
-    targetArrow(nowX, nkY);
+    L(prev[0],prev[1],nowX,nkY,col,3);
+    zone([[px(0.04),nkY],[...peaks.map(x=>[x,peakY])].flat(),[nowX,nkY]],ORANGE,0.06);
+    peaks.forEach(x=>DOT(x,peakY,col));
+    vals.forEach(x=>DOT(x,valY,ORANGE,5));
+    ctx.fillStyle=DIMTEXT; ctx.font='10px "Space Mono",monospace'; ctx.textAlign='center';
+    ctx.fillText('NECKLINE',px(0.40),nkY+(isBull?16:-10));
+    LBL(isTriple?(isBull?'TRIPLE BOTTOM':'TRIPLE TOP'):(isBull?'DOUBLE BOTTOM':'DOUBLE TOP'),px(0.38),isBull?peakY:peakY,col,!isBull,13);
+    targetArrow(nowX,nkY);
   }
 
   // ══ ASCENDING TRIANGLE ══
-  else if (pat.includes('ascending triangle') || pat === 'ascending triangle') {
-    const resY=py(entry+(isBull?spread*1.0:-spread*1.0));
-    const s1Y=py(entry+(isBull?-spread*1.2:spread*1.2)), s2Y=py(entry+(isBull?-spread*0.1:spread*0.1));
-    zone([[px(0.05),resY],[nowX,resY],[nowX,s2Y],[px(0.05),s1Y]],col,0.07);
-    L(px(0.05),resY,nowX,resY,black,2.5); L(px(0.05),s1Y,nowX,s2Y,black,2.5);
-    [0.20,0.44].forEach(t=>DOT(px(t),resY,col,3));
-    [0.14,0.30,0.50,0.64].forEach((t,i)=>DOT(px(t),s1Y+(s2Y-s1Y)*(t/0.70),col,3));
-    ctx.fillStyle=black; ctx.font='8px Arial,sans-serif'; ctx.textAlign='center';
-    ctx.fillText('RESISTANCE',px(0.37),resY-7);
-    LBL('ASCENDING TRIANGLE',px(0.35),s2Y,col,false);
-    targetArrow(nowX, resY);
+  else if (pat.includes('ascending triangle') || pat==='ascending triangle') {
+    const resY=py(entry+(isBull?spread*1.1:-spread*1.1));
+    const s1Y=py(entry+(isBull?-spread*1.3:spread*1.3)),s2Y=py(entry+(isBull?-spread*0.1:spread*0.1));
+    zone([[px(0.05),resY],[nowX,resY],[nowX,s2Y],[px(0.05),s1Y]],col,0.08);
+    L(px(0.05),resY,nowX,resY,col,3.5);
+    L(px(0.05),s1Y,nowX,s2Y,ORANGE,3);
+    [0.18,0.42].forEach(t=>DOT(px(t),resY,col,5));
+    [0.12,0.28,0.48,0.62].forEach((t,i)=>DOT(px(t),s1Y+(s2Y-s1Y)*(t/0.68),ORANGE,5));
+    ctx.fillStyle=col; ctx.font='bold 11px "Space Mono",monospace'; ctx.textAlign='center';
+    ctx.fillText('RESISTANCE',px(0.37),resY-12);
+    LBL('ASCENDING TRIANGLE',px(0.35),s2Y,col,false,13);
+    targetArrow(nowX,resY);
   }
 
   // ══ DESCENDING TRIANGLE ══
-  else if (pat.includes('descending triangle') || pat === 'descending triangle') {
-    const supY=py(entry-(isBull?spread*1.0:-spread*1.0));
-    const r1Y=py(entry+(isBull?spread*1.2:-spread*1.2)), r2Y=py(entry+(isBull?spread*0.1:-spread*0.1));
-    zone([[px(0.05),r1Y],[nowX,r2Y],[nowX,supY],[px(0.05),supY]],col,0.07);
-    L(px(0.05),supY,nowX,supY,black,2.5); L(px(0.05),r1Y,nowX,r2Y,black,2.5);
-    [0.20,0.44].forEach(t=>DOT(px(t),supY,col,3));
-    [0.14,0.30,0.50,0.64].forEach(t=>DOT(px(t),r1Y+(r2Y-r1Y)*(t/0.70),col,3));
-    ctx.fillStyle=black; ctx.font='8px Arial,sans-serif'; ctx.textAlign='center';
-    ctx.fillText('SUPPORT',px(0.37),supY+11);
-    LBL('DESCENDING TRIANGLE',px(0.35),r2Y,col,true);
-    targetArrow(nowX, supY);
+  else if (pat.includes('descending triangle') || pat==='descending triangle') {
+    const supY=py(entry-(isBull?spread*1.1:-spread*1.1));
+    const r1Y=py(entry+(isBull?spread*1.3:-spread*1.3)),r2Y=py(entry+(isBull?spread*0.1:-spread*0.1));
+    zone([[px(0.05),r1Y],[nowX,r2Y],[nowX,supY],[px(0.05),supY]],col,0.08);
+    L(px(0.05),supY,nowX,supY,col,3.5);
+    L(px(0.05),r1Y,nowX,r2Y,ORANGE,3);
+    [0.18,0.42].forEach(t=>DOT(px(t),supY,col,5));
+    [0.12,0.28,0.48,0.62].forEach(t=>DOT(px(t),r1Y+(r2Y-r1Y)*(t/0.68),ORANGE,5));
+    ctx.fillStyle=col; ctx.font='bold 11px "Space Mono",monospace'; ctx.textAlign='center';
+    ctx.fillText('SUPPORT',px(0.37),supY+16);
+    LBL('DESCENDING TRIANGLE',px(0.35),r2Y,col,true,13);
+    targetArrow(nowX,supY);
   }
 
   // ══ SYMMETRICAL TRIANGLE / PENNANT ══
-  else if (pat.includes('symmetrical') || pat.includes('pennant')) {
+  else if (pat.includes('symmetrical')||pat.includes('pennant')) {
     const mid=(pMin+pMax)/2;
-    const t1Y=py(mid+spread*1.4),t2Y=py(mid+spread*0.06);
-    const b1Y=py(mid-spread*1.4),b2Y=py(mid-spread*0.06);
-    zone([[px(0.04),t1Y],[nowX,t2Y],[nowX,b2Y],[px(0.04),b1Y]],'#888',0.06);
-    L(px(0.04),t1Y,nowX,t2Y,black,2); L(px(0.04),b1Y,nowX,b2Y,black,2);
-    [0.15,0.35,0.55].forEach(t=>{
-      DOT(px(t),t1Y+(t2Y-t1Y)*(t/0.72),col,3);
-      DOT(px(t+0.10),b1Y+(b2Y-b1Y)*((t+0.10)/0.72),col,3);
+    const t1Y=py(mid+spread*1.5),t2Y=py(mid+spread*0.08);
+    const b1Y=py(mid-spread*1.5),b2Y=py(mid-spread*0.08);
+    zone([[px(0.04),t1Y],[nowX,t2Y],[nowX,b2Y],[px(0.04),b1Y]],'#4a6a8a',0.08);
+    L(px(0.04),t1Y,nowX,t2Y,col,3); L(px(0.04),b1Y,nowX,b2Y,col,3);
+    [0.14,0.32,0.52].forEach(t=>{
+      DOT(px(t),t1Y+(t2Y-t1Y)*(t/0.70),col,5);
+      DOT(px(t+0.10),b1Y+(b2Y-b1Y)*((t+0.10)/0.70),col,5);
     });
-    LBL(pat.includes('pennant')?(isBull?'BULL PENNANT':'BEAR PENNANT'):'SYM. TRIANGLE', px(0.35),py(mid)+4,'#555',isBull);
-    targetArrow(nowX, (t2Y+b2Y)/2);
+    LBL(pat.includes('pennant')?(isBull?'BULL PENNANT':'BEAR PENNANT'):'SYM. TRIANGLE',px(0.35),py(mid),ACCENT,isBull,13);
+    targetArrow(nowX,(t2Y+b2Y)/2);
   }
 
   // ══ BROADENING TRIANGLE ══
   else if (pat.includes('broadening')) {
-    const t1Y=py(entry+spread*0.3),t2Y=py(entry+spread*1.3);
-    const b1Y=py(entry-spread*0.3),b2Y=py(entry-spread*1.3);
-    zone([[px(0.05),t1Y],[nowX,t2Y],[nowX,b2Y],[px(0.05),b1Y]],orange,0.06);
-    L(px(0.05),t1Y,nowX,t2Y,black,2); L(px(0.05),b1Y,nowX,b2Y,black,2);
-    [0.18,0.38,0.58].forEach(t=>{
-      DOT(px(t),t1Y+(t2Y-t1Y)*(t/0.72),orange,3);
-      DOT(px(t+0.10),b1Y+(b2Y-b1Y)*((t+0.10)/0.72),orange,3);
+    const t1Y=py(entry+spread*0.3),t2Y=py(entry+spread*1.4);
+    const b1Y=py(entry-spread*0.3),b2Y=py(entry-spread*1.4);
+    zone([[px(0.05),t1Y],[nowX,t2Y],[nowX,b2Y],[px(0.05),b1Y]],ORANGE,0.07);
+    L(px(0.05),t1Y,nowX,t2Y,ORANGE,3); L(px(0.05),b1Y,nowX,b2Y,ORANGE,3);
+    [0.16,0.36,0.56].forEach(t=>{
+      DOT(px(t),t1Y+(t2Y-t1Y)*(t/0.70),ORANGE,5);
+      DOT(px(t+0.10),b1Y+(b2Y-b1Y)*((t+0.10)/0.70),ORANGE,5);
     });
-    LBL('BROADENING TRIANGLE',px(0.37),isBull?b2Y:t2Y,col,!isBull);
-    targetArrow(nowX, isBull?b2Y:t2Y);
+    LBL('BROADENING TRIANGLE',px(0.37),isBull?b2Y:t2Y,col,!isBull,13);
+    targetArrow(nowX,isBull?b2Y:t2Y);
   }
 
   // ══ BULL / BEAR FLAG ══
-  else if (pat.includes('flag') && !pat.includes('pennant')) {
-    const pfY = py(entry - (isBull ? spread*2.2 : -spread*2.2));
-    const ptY = py(entry + (isBull ? spread*0.8 : -spread*0.8));
-    const pX0 = px(0.04), pX1 = px(0.38);
-    L(pX0, pfY, pX1, ptY, black, 3);
-    const fTop1 = py(entry + (isBull ?  spread*0.8  : -spread*0.8));
-    const fTop2 = py(entry + (isBull ?  spread*0.35 : -spread*0.35));
-    const fBot1 = py(entry + (isBull ?  spread*0.15 : -spread*0.15));
-    const fBot2 = py(entry + (isBull ? -spread*0.30 :  spread*0.30));
-    zone([[pX1,fTop1],[nowX,fTop2],[nowX,fBot2],[pX1,fBot1]], col, 0.10);
-    L(pX1, fTop1, nowX, fTop2, black, 2.2);
-    L(pX1, fBot1, nowX, fBot2, black, 2.2);
-    L(pX1, fTop1, pX1, fBot1, black, 1, [3,2], 0.4);
-    ctx.save();
-    ctx.fillStyle = black; ctx.font = 'bold 8px Arial,sans-serif'; ctx.textAlign = 'center';
-    const poleAngle = Math.atan2(ptY - pfY, pX1 - pX0);
-    const midPX = (pX0+pX1)/2 - 10;
-    const midPY = (pfY+ptY)/2;
-    ctx.translate(midPX, midPY); ctx.rotate(poleAngle);
-    ctx.fillText('POLE', 0, -5); ctx.restore();
-    const flagMidX = (pX1 + nowX) / 2;
-    const flagMidY = (fTop1+fTop2+fBot1+fBot2) / 4;
-    LBL(isBull ? 'BULL FLAG' : 'BEAR FLAG', flagMidX, flagMidY, col, !isBull);
-    trajArrow(nowX, isBull ? fTop2 : fBot2, col, isBull);
+  else if (pat.includes('flag')&&!pat.includes('pennant')) {
+    const pfY=py(entry-(isBull?spread*2.4:-spread*2.4));
+    const ptY=py(entry+(isBull?spread*0.9:-spread*0.9));
+    const pX0=px(0.04),pX1=px(0.36);
+    // Pole — thick bright line
+    L(pX0,pfY,pX1,ptY,col,5);
+    // Flag
+    const fTop1=py(entry+(isBull?spread*0.9:-spread*0.9));
+    const fTop2=py(entry+(isBull?spread*0.4:-spread*0.4));
+    const fBot1=py(entry+(isBull?spread*0.15:-spread*0.15));
+    const fBot2=py(entry+(isBull?-spread*0.35:spread*0.35));
+    zone([[pX1,fTop1],[nowX,fTop2],[nowX,fBot2],[pX1,fBot1]],col,0.12);
+    L(pX1,fTop1,nowX,fTop2,col,2.5); L(pX1,fBot1,nowX,fBot2,col,2.5);
+    L(pX1,fTop1,pX1,fBot1,DIMTEXT,1,[4,3],0.5);
+    ctx.save(); ctx.fillStyle=WHITE; ctx.font='bold 11px "Space Mono",monospace'; ctx.textAlign='center';
+    ctx.translate((pX0+pX1)/2-12,(pfY+ptY)/2); ctx.rotate(Math.atan2(ptY-pfY,pX1-pX0));
+    ctx.fillText('POLE',0,-7); ctx.restore();
+    LBL(isBull?'BULL FLAG':'BEAR FLAG',(pX1+nowX)/2,(fTop1+fTop2+fBot1+fBot2)/4,col,!isBull,13);
+    trajArrow(nowX,isBull?fTop2:fBot2,col,isBull);
   }
 
-  // ══ RISING / FALLING CHANNEL ══
-  else if (pat.includes('rising channel') || pat.includes('falling channel') || pat.includes('horizontal channel')) {
-    const isRising = pat.includes('rising');
-    const isFalling = pat.includes('falling');
-    const isHoriz = pat.includes('horizontal');
+  // ══ CHANNEL ══
+  else if (pat.includes('rising channel')||pat.includes('falling channel')||pat.includes('horizontal channel')) {
+    const isRising=pat.includes('rising'),isFalling=pat.includes('falling');
     let t1,t2,b1,b2;
-    if(isRising){t1=entry+spread*0.3;t2=entry+spread*1.3;b1=entry-spread*0.5;b2=entry+spread*0.5;}
-    else if(isFalling){t1=entry+spread*1.3;t2=entry+spread*0.3;b1=entry+spread*0.5;b2=entry-spread*0.5;}
-    else{t1=entry+spread*0.8;t2=entry+spread*0.8;b1=entry-spread*0.8;b2=entry-spread*0.8;}
+    if(isRising){t1=entry+spread*0.3;t2=entry+spread*1.4;b1=entry-spread*0.5;b2=entry+spread*0.6;}
+    else if(isFalling){t1=entry+spread*1.4;t2=entry+spread*0.3;b1=entry+spread*0.6;b2=entry-spread*0.5;}
+    else{t1=entry+spread*0.9;t2=entry+spread*0.9;b1=entry-spread*0.9;b2=entry-spread*0.9;}
     const top1Y=py(t1),top2Y=py(t2),bot1Y=py(b1),bot2Y=py(b2);
-    zone([[px(0.04),top1Y],[nowX,top2Y],[nowX,bot2Y],[px(0.04),bot1Y]],col,0.07);
-    L(px(0.04),top1Y,nowX,top2Y,black,2); L(px(0.04),bot1Y,nowX,bot2Y,black,2);
-    const bounceLine = isBull ? [bot1Y,bot2Y] : [top1Y,top2Y];
-    [0.18,0.38,0.58].forEach(t=>{
-      const by=bounceLine[0]+(bounceLine[1]-bounceLine[0])*(t/0.72);
-      DOT(px(t),by,col,3);
+    zone([[px(0.04),top1Y],[nowX,top2Y],[nowX,bot2Y],[px(0.04),bot1Y]],col,0.08);
+    L(px(0.04),top1Y,nowX,top2Y,col,3); L(px(0.04),bot1Y,nowX,bot2Y,ORANGE,3);
+    const bounceLine=isBull?[bot1Y,bot2Y]:[top1Y,top2Y];
+    [0.16,0.36,0.56].forEach(t=>{
+      DOT(px(t),bounceLine[0]+(bounceLine[1]-bounceLine[0])*(t/0.70),col,5);
     });
-    const chName = isRising?'RISING CHANNEL':isFalling?'FALLING CHANNEL':'HORIZONTAL CHANNEL';
-    LBL(chName,px(0.37),(top1Y+top2Y+bot1Y+bot2Y)/4,col,!isBull);
-    const brkY = isBull ? bot2Y : top2Y;
-    targetArrow(nowX, brkY);
+    LBL(isRising?'RISING CHANNEL':isFalling?'FALLING CHANNEL':'HORIZ. CHANNEL',px(0.37),(top1Y+top2Y+bot1Y+bot2Y)/4,col,!isBull,13);
+    targetArrow(nowX,isBull?bot2Y:top2Y);
   }
 
   // ══ CUP & HANDLE ══
   else if (pat.includes('cup')) {
-    const rimY=py(entry+(isBull?spread*0.5:-spread*0.5));
-    const botY=py(entry-(isBull?spread*1.4:-spread*1.4));
-    ctx.save(); ctx.strokeStyle=black; ctx.lineWidth=2.5; ctx.globalAlpha=0.8;
+    const rimY=py(entry+(isBull?spread*0.6:-spread*0.6));
+    const botY=py(entry-(isBull?spread*1.5:-spread*1.5));
+    ctx.save(); ctx.strokeStyle=col; ctx.lineWidth=3.5; ctx.globalAlpha=0.9;
+    ctx.shadowColor=col; ctx.shadowBlur=10;
     ctx.beginPath();
-    for(let i=0;i<=30;i++){const t=i/30,x=px(0.04+t*0.52),y=rimY+(botY-rimY)*Math.sin(t*Math.PI);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);}
+    for(let i=0;i<=40;i++){const t=i/40,x=px(0.04+t*0.50),y=rimY+(botY-rimY)*Math.sin(t*Math.PI);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);}
     ctx.stroke(); ctx.restore();
     const hX1=px(0.56);
-    const hT1=rimY,hT2=rimY+(isBull?10:-10),hB1=rimY+(isBull?18:-18),hB2=rimY+(isBull?28:-28);
-    L(hX1,hT1,nowX,hT2,black,1.8); L(hX1,hB1,nowX,hB2,black,1.8);
-    zone([[hX1,hT1],[nowX,hT2],[nowX,hB2],[hX1,hB1]],col,0.07);
-    L(px(0.04),rimY,nowX,rimY,black,1,[5,4],0.3);
-    DOT(px(0.04),rimY,col,3); DOT(px(0.56),rimY,col,3);
-    LBL('CUP & HANDLE',px(0.30),botY,col,false);
-    ctx.fillStyle=black; ctx.font='8px Arial,sans-serif'; ctx.textAlign='center';
-    ctx.fillText('RESISTANCE RIM',px(0.30),rimY-7);
-    targetArrow(nowX, hT2);
+    const hT1=rimY,hT2=rimY+(isBull?12:-12),hB1=rimY+(isBull?22:-22),hB2=rimY+(isBull?34:-34);
+    L(hX1,hT1,nowX,hT2,col,2.5); L(hX1,hB1,nowX,hB2,col,2.5);
+    zone([[hX1,hT1],[nowX,hT2],[nowX,hB2],[hX1,hB1]],col,0.08);
+    L(px(0.04),rimY,nowX,rimY,ORANGE,2,[8,5],0.6);
+    DOT(px(0.04),rimY,col,6); DOT(px(0.55),rimY,col,6);
+    LBL('CUP & HANDLE',px(0.28),botY,col,false,13);
+    ctx.fillStyle=ORANGE; ctx.font='10px "Space Mono",monospace'; ctx.textAlign='center';
+    ctx.fillText('RESISTANCE RIM',px(0.28),rimY-12);
+    targetArrow(nowX,hT2);
   }
 
-  // ══ ROUNDING BOTTOM / TOP ══
+  // ══ ROUNDING ══
   else if (pat.includes('rounding')) {
-    const rimY=py(entry+(isBull?spread*0.5:-spread*0.5));
-    const botY=py(entry-(isBull?spread*1.5:-spread*1.5));
-    ctx.save(); ctx.strokeStyle=black; ctx.lineWidth=2.5; ctx.globalAlpha=0.8;
+    const rimY=py(entry+(isBull?spread*0.6:-spread*0.6));
+    const botY=py(entry-(isBull?spread*1.6:-spread*1.6));
+    ctx.save(); ctx.strokeStyle=col; ctx.lineWidth=3.5; ctx.globalAlpha=0.9;
+    ctx.shadowColor=col; ctx.shadowBlur=10;
     ctx.beginPath();
-    for(let i=0;i<=30;i++){const t=i/30,x=px(0.04+t*0.68),y=rimY+(botY-rimY)*Math.sin(t*Math.PI);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);}
+    for(let i=0;i<=40;i++){const t=i/40,x=px(0.04+t*0.66),y=rimY+(botY-rimY)*Math.sin(t*Math.PI);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);}
     ctx.stroke(); ctx.restore();
-    L(px(0.04),rimY,nowX,rimY,black,1,[5,4],0.3);
-    LBL(isBull?'ROUNDING BOTTOM':'ROUNDING TOP',px(0.36),botY,col,false);
-    ctx.fillStyle=black; ctx.font='8px Arial,sans-serif'; ctx.textAlign='center';
-    ctx.fillText('RESISTANCE RIM',px(0.36),rimY-7);
-    targetArrow(nowX, rimY);
+    L(px(0.04),rimY,nowX,rimY,ORANGE,2,[8,5],0.6);
+    LBL(isBull?'ROUNDING BOTTOM':'ROUNDING TOP',px(0.36),botY,col,false,13);
+    ctx.fillStyle=ORANGE; ctx.font='10px "Space Mono",monospace'; ctx.textAlign='center';
+    ctx.fillText('RESISTANCE RIM',px(0.36),rimY-12);
+    targetArrow(nowX,rimY);
   }
 
-  // ══ RISING WEDGE (BEARISH) ══
+  // ══ RISING WEDGE ══
   else if (pat.includes('rising wedge')) {
-    const t1=py(entry+spread*0.3),t2=py(entry+spread*1.2);
-    const b1=py(entry-spread*0.7),b2=py(entry+spread*0.2);
-    zone([[px(0.04),t1],[nowX,t2],[nowX,b2],[px(0.04),b1]],'#c81e32',0.06);
-    L(px(0.04),t1,nowX,t2,black,2); L(px(0.04),b1,nowX,b2,black,2);
-    [0.18,0.36,0.54].forEach(t=>{
-      DOT(px(t),t1+(t2-t1)*(t/0.72),'#c81e32',3);
-      DOT(px(t),b1+(b2-b1)*(t/0.72),'#c81e32',3);
+    const t1=py(entry+spread*0.3),t2=py(entry+spread*1.3);
+    const b1=py(entry-spread*0.7),b2=py(entry+spread*0.25);
+    zone([[px(0.04),t1],[nowX,t2],[nowX,b2],[px(0.04),b1]],'#ff3d5a',0.07);
+    L(px(0.04),t1,nowX,t2,'#ff3d5a',3); L(px(0.04),b1,nowX,b2,'#ff3d5a',3);
+    [0.16,0.34,0.52].forEach(t=>{
+      DOT(px(t),t1+(t2-t1)*(t/0.70),'#ff3d5a',5);
+      DOT(px(t),b1+(b2-b1)*(t/0.70),'#ff3d5a',5);
     });
-    LBL('RISING WEDGE',px(0.37),t2,'#c81e32',true);
-    ctx.fillStyle='#888'; ctx.font='8px Arial,sans-serif'; ctx.textAlign='center';
-    ctx.fillText('bearish reversal',px(0.37),t2-16);
-    trajArrow(nowX, b2, '#c81e32', false);
+    LBL('RISING WEDGE',px(0.37),t2,'#ff3d5a',true,13);
+    ctx.fillStyle=DIMTEXT; ctx.font='10px "Space Mono",monospace'; ctx.textAlign='center';
+    ctx.fillText('bearish reversal',px(0.37),t2-18);
+    trajArrow(nowX,b2,'#ff3d5a',false);
   }
 
-  // ══ FALLING WEDGE (BULLISH) ══
+  // ══ FALLING WEDGE ══
   else if (pat.includes('falling wedge')) {
-    const t1=py(entry+spread*1.2),t2=py(entry+spread*0.2);
-    const b1=py(entry+spread*0.2),b2=py(entry-spread*0.7);
-    zone([[px(0.04),t1],[nowX,t2],[nowX,b2],[px(0.04),b1]],'#1a8c40',0.06);
-    L(px(0.04),t1,nowX,t2,black,2); L(px(0.04),b1,nowX,b2,black,2);
-    [0.18,0.36,0.54].forEach(t=>{
-      DOT(px(t),t1+(t2-t1)*(t/0.72),'#1a8c40',3);
-      DOT(px(t),b1+(b2-b1)*(t/0.72),'#1a8c40',3);
+    const t1=py(entry+spread*1.3),t2=py(entry+spread*0.25);
+    const b1=py(entry+spread*0.25),b2=py(entry-spread*0.7);
+    zone([[px(0.04),t1],[nowX,t2],[nowX,b2],[px(0.04),b1]],'#00e676',0.07);
+    L(px(0.04),t1,nowX,t2,'#00e676',3); L(px(0.04),b1,nowX,b2,'#00e676',3);
+    [0.16,0.34,0.52].forEach(t=>{
+      DOT(px(t),t1+(t2-t1)*(t/0.70),'#00e676',5);
+      DOT(px(t),b1+(b2-b1)*(t/0.70),'#00e676',5);
     });
-    LBL('FALLING WEDGE',px(0.37),b2,'#1a8c40',false);
-    ctx.fillStyle='#888'; ctx.font='8px Arial,sans-serif'; ctx.textAlign='center';
-    ctx.fillText('bullish reversal',px(0.37),b2+18);
-    trajArrow(nowX, t2, '#1a8c40', true);
+    LBL('FALLING WEDGE',px(0.37),b2,'#00e676',false,13);
+    ctx.fillStyle=DIMTEXT; ctx.font='10px "Space Mono",monospace'; ctx.textAlign='center';
+    ctx.fillText('bullish reversal',px(0.37),b2+20);
+    trajArrow(nowX,t2,'#00e676',true);
   }
 
   // ══ ELLIOTT WAVE 3 ══
-  else if (pat.includes('elliott') && pat.includes('3') && !pat.includes('5')) {
-    const pts=[entry+(isBull?-spread*1.6:spread*1.6),entry+(isBull?-spread*0.6:spread*0.6),entry+(isBull?-spread*1.1:spread*1.1),entry+(isBull?spread*0.8:-spread*0.8)];
-    const xs=[px(0.06),px(0.22),px(0.38),nowX];
-    const wc=[col,orange,col];
-    for(let i=0;i<3;i++) L(xs[i],py(pts[i]),xs[i+1],py(pts[i+1]),wc[i],i===1?1.5:2.5);
-    xs.forEach((x,i)=>{
-      DOT(x,py(pts[i]),wc[i]||col,4);
-      const o=isBull?(i%2===0?14:-12):(i%2===0?-12:14);
-      ctx.fillStyle=wc[i]||col; ctx.font='bold 10px Arial,sans-serif'; ctx.textAlign='center';
+  else if (pat.includes('elliott')&&pat.includes('3')&&!pat.includes('5')) {
+    const pts=[entry+(isBull?-spread*1.7:spread*1.7),entry+(isBull?-spread*0.6:spread*0.6),entry+(isBull?-spread*1.2:spread*1.2),entry+(isBull?spread*0.9:-spread*0.9)];
+    const xs=[px(0.06),px(0.22),px(0.40),nowX];
+    const wc=[col,ORANGE,col];
+    for(let i=0;i<3;i++){
+      ctx.save(); ctx.strokeStyle=wc[i]; ctx.lineWidth=i===1?2.5:4;
+      ctx.shadowColor=wc[i]; ctx.shadowBlur=i===1?0:8;
+      ctx.beginPath(); ctx.moveTo(xs[i],py(pts[i])); ctx.lineTo(xs[i+1],py(pts[i+1])); ctx.stroke(); ctx.restore();
+    }
+    xs.slice(0,4).forEach((x,i)=>{
+      DOT(x,py(pts[i]),wc[i]||col,8);
+      const o=isBull?(i%2===0?20:-16):(i%2===0?-16:20);
+      ctx.fillStyle=wc[i]||col; ctx.font='bold 16px "Space Mono",monospace'; ctx.textAlign='center';
       ctx.fillText(['①','②','③'][i]||'',x,py(pts[i])+o);
     });
-    ctx.save(); ctx.fillStyle=col; ctx.globalAlpha=0.07;
+    ctx.save(); ctx.fillStyle=col; ctx.globalAlpha=0.08;
     ctx.fillRect(xs[2],Math.min(py(pts[2]),py(pts[3])),xs[3]-xs[2],Math.abs(py(pts[3])-py(pts[2]))); ctx.restore();
-    LBL('ELLIOTT WAVE 3',px(0.53),isBull?py(pts[3]):py(pts[3]),col,!isBull);
-    trajArrow(xs[2], py(pts[2]), col, isBull);
+    LBL('ELLIOTT WAVE 3',px(0.53),isBull?py(pts[3]):py(pts[3]),col,!isBull,13);
+    trajArrow(xs[2],py(pts[2]),col,isBull);
   }
 
   // ══ ELLIOTT WAVE 5 ══
-  else if (pat.includes('elliott') && pat.includes('5')) {
-    const pts=[entry+(isBull?-spread*1.8:spread*1.8),entry+(isBull?-spread*0.8:spread*0.8),entry+(isBull?-spread*1.3:spread*1.3),entry+(isBull?-spread*0.2:spread*0.2),entry+(isBull?-spread*0.7:spread*0.7),entry+(isBull?spread*0.6:-spread*0.6)];
+  else if (pat.includes('elliott')&&pat.includes('5')) {
+    const pts=[entry+(isBull?-spread*1.9:spread*1.9),entry+(isBull?-spread*0.9:spread*0.9),entry+(isBull?-spread*1.4:spread*1.4),entry+(isBull?-spread*0.3:spread*0.3),entry+(isBull?-spread*0.8:spread*0.8),entry+(isBull?spread*0.7:-spread*0.7)];
     const xs=[px(0.04),px(0.16),px(0.28),px(0.42),px(0.56),nowX];
-    const wc=[col,orange,col,orange,col];
+    const wc=[col,ORANGE,col,ORANGE,col];
     const wl=['①','②','③','④','⑤'];
-    for(let i=0;i<5;i++) L(xs[i],py(pts[i]),xs[i+1],py(pts[i+1]),wc[i],i%2===0?2.5:1.5);
+    for(let i=0;i<5;i++){
+      ctx.save(); ctx.strokeStyle=wc[i]; ctx.lineWidth=i%2===0?4:2.5;
+      ctx.shadowColor=wc[i]; ctx.shadowBlur=i%2===0?8:0;
+      ctx.beginPath(); ctx.moveTo(xs[i],py(pts[i])); ctx.lineTo(xs[i+1],py(pts[i+1])); ctx.stroke(); ctx.restore();
+    }
     xs.slice(0,5).forEach((x,i)=>{
-      DOT(x,py(pts[i]),wc[i],4);
-      const o=isBull?(i%2===0?14:-12):(i%2===0?-12:14);
-      ctx.fillStyle=wc[i]; ctx.font='bold 9px Arial,sans-serif'; ctx.textAlign='center';
+      DOT(x,py(pts[i]),wc[i],8);
+      const o=isBull?(i%2===0?20:-16):(i%2===0?-16:20);
+      ctx.fillStyle=wc[i]; ctx.font='bold 14px "Space Mono",monospace'; ctx.textAlign='center';
       ctx.fillText(wl[i],x,py(pts[i])+o);
     });
-    LBL('ELLIOTT WAVE 5',px(0.38),isBull?py(pts[5]):py(pts[5]),col,!isBull);
-    trajArrow(xs[4], py(pts[4]), col, isBull);
+    LBL('ELLIOTT WAVE 5',px(0.38),isBull?py(pts[5]):py(pts[5]),col,!isBull,13);
+    trajArrow(xs[4],py(pts[4]),col,isBull);
   }
 
   // ══ ELLIOTT WAVE C ══
-  else if (pat.includes('elliott') && pat.includes('c')) {
-    const aP=entry+(isBull?spread*1.2:-spread*1.2);
-    const bP=entry+(isBull?spread*0.4:-spread*0.4);
-    const cP=entry+(isBull?-spread*0.8:spread*0.8);
+  else if (pat.includes('elliott')&&pat.includes('c')) {
+    const aP=entry+(isBull?spread*1.3:-spread*1.3);
+    const bP=entry+(isBull?spread*0.5:-spread*0.5);
+    const cP=entry+(isBull?-spread*0.9:spread*0.9);
     const aX=px(0.15),bX=px(0.38);
-    L(px(0.04),py(entry),aX,py(aP),orange,2);
-    L(aX,py(aP),bX,py(bP),orange,1.5);
-    L(bX,py(bP),nowX,py(cP),col,2.5);
-    DOT(aX,py(aP),orange,4); DOT(bX,py(bP),orange,4);
-    const ao=isBull?-12:12,bo=isBull?14:-12;
-    ctx.font='bold 11px Arial,sans-serif'; ctx.textAlign='center';
-    ctx.fillStyle=orange; ctx.fillText('A',aX,py(aP)+ao); ctx.fillText('B',bX,py(bP)+bo);
-    ctx.fillStyle=col; ctx.fillText('C',nowX+8,py(cP)+ao);
-    LBL('ELLIOTT WAVE C',px(0.40),isBull?py(cP):py(aP),col,!isBull);
-    trajArrow(bX, py(bP), col, isBull);
+    L(px(0.04),py(entry),aX,py(aP),ORANGE,3);
+    L(aX,py(aP),bX,py(bP),ORANGE,2);
+    ctx.save(); ctx.strokeStyle=col; ctx.lineWidth=4; ctx.shadowColor=col; ctx.shadowBlur=10;
+    ctx.beginPath(); ctx.moveTo(bX,py(bP)); ctx.lineTo(nowX,py(cP)); ctx.stroke(); ctx.restore();
+    DOT(aX,py(aP),ORANGE,8); DOT(bX,py(bP),ORANGE,8);
+    const ao=isBull?-18:18,bo=isBull?20:-16;
+    ctx.font='bold 16px "Space Mono",monospace'; ctx.textAlign='center';
+    ctx.fillStyle=ORANGE; ctx.fillText('A',aX,py(aP)+ao); ctx.fillText('B',bX,py(bP)+bo);
+    ctx.fillStyle=col; ctx.fillText('C',nowX+10,py(cP)+ao);
+    LBL('ELLIOTT WAVE C',px(0.40),isBull?py(cP):py(aP),col,!isBull,13);
+    trajArrow(bX,py(bP),col,isBull);
   }
 
   // ══ FIB PATTERNS ══
   else if (pat.includes('fib')) {
-    const impF=entry+(isBull?-spread*1.8:spread*1.8);
-    const impT=entry+(isBull?spread*0.8:-spread*0.8);
-    L(px(0.04),py(impF),px(0.35),py(impT),col,2.5);
-    DOT(px(0.04),py(impF),col,3); DOT(px(0.35),py(impT),col,3);
-    const fibs=[[0.236,'#b0bcc8',0.8],[0.382,orange,1.2],[0.500,'#888',1.0],[0.618,'#c81e32',2.0]];
+    const impF=entry+(isBull?-spread*1.9:spread*1.9);
+    const impT=entry+(isBull?spread*0.9:-spread*0.9);
+    ctx.save(); ctx.strokeStyle=col; ctx.lineWidth=3.5; ctx.shadowColor=col; ctx.shadowBlur=8;
+    ctx.beginPath(); ctx.moveTo(px(0.04),py(impF)); ctx.lineTo(px(0.35),py(impT)); ctx.stroke(); ctx.restore();
+    DOT(px(0.04),py(impF),col,6); DOT(px(0.35),py(impT),col,6);
+    const fibs=[[0.236,'#4a6a8a',1.5],[0.382,ORANGE,2],[0.500,'#6a8aaa',1.5],[0.618,'#ff3d5a',3]];
     fibs.forEach(([f,c,w])=>{
-      const lP=impT+(impF-impT)*f, y=py(lP);
-      L(px(0.35),y,nowX,y,c,w,f===0.5?[4,4]:[]);
-      ctx.fillStyle=c; ctx.font=(w>1?'bold ':'')+'8px Arial,sans-serif';
-      ctx.textAlign='left'; ctx.fillText((f*100).toFixed(1)+'%',px(0.35)+3,y-3);
+      const lP=impT+(impF-impT)*f,y=py(lP);
+      L(px(0.35),y,nowX,y,c,w,f===0.5?[6,4]:[]);
+      ctx.fillStyle=c; ctx.font=w>2?'bold 11px "Space Mono",monospace':'10px "Space Mono",monospace';
+      ctx.textAlign='left'; ctx.fillText((f*100).toFixed(1)+'%',px(0.35)+6,y-5);
     });
-    const f618P=impT+(impF-impT)*0.618, f500P=impT+(impF-impT)*0.500;
-    zone([[px(0.35),py(f618P)],[nowX,py(f618P)],[nowX,py(f500P)],[px(0.35),py(f500P)]],'#c81e32',0.07);
-    L(px(0.35),py(impT),px(0.60),py(f618P),orange,1.5,[4,3]);
-    DOT(px(0.60),py(f618P),orange,4);
-    LBL(isBull?'FIB BOUNCE':'FIB REJECTION',px(0.50),py(f618P),'#c81e32',!isBull);
-    trajArrow(px(0.60), py(f618P), col, isBull);
+    const f618P=impT+(impF-impT)*0.618,f500P=impT+(impF-impT)*0.500;
+    zone([[px(0.35),py(f618P)],[nowX,py(f618P)],[nowX,py(f500P)],[px(0.35),py(f500P)]],'#ff3d5a',0.08);
+    L(px(0.35),py(impT),px(0.58),py(f618P),ORANGE,2,[6,4]);
+    DOT(px(0.58),py(f618P),ORANGE,7);
+    LBL(isBull?'FIB BOUNCE':'FIB REJECTION',px(0.50),py(f618P),'#ff3d5a',!isBull,13);
+    trajArrow(px(0.58),py(f618P),col,isBull);
   }
 
   // ══ BREAKOUT KEY LEVEL ══
   else if (pat.includes('breakout')) {
-    ctx.save(); ctx.fillStyle=orange; ctx.globalAlpha=0.09;
-    ctx.fillRect(px(0.04),py(entry+spread*0.25),CW*0.68,py(entry-spread*0.10)-py(entry+spread*0.25)); ctx.restore();
-    L(px(0.04),py(entry),nowX,py(entry),black,2.5);
-    [0.15,0.28,0.44,0.60].forEach((t,i)=>DOT(px(t),py(entry)+(i%2===0?-3:3),orange,3));
-    ctx.fillStyle=black; ctx.font='8px Arial,sans-serif'; ctx.textAlign='center';
-    ctx.fillText('KEY LEVEL',px(0.35),py(entry)-8);
-    LBL(isBull?'BULLISH BREAKOUT':'BEARISH BREAKOUT',px(0.35),py(entry),col,!isBull);
-    targetArrow(nowX, py(entry));
+    ctx.save(); ctx.fillStyle=ORANGE; ctx.globalAlpha=0.10;
+    ctx.fillRect(px(0.04),py(entry+spread*0.28),CW*0.66,py(entry-spread*0.12)-py(entry+spread*0.28)); ctx.restore();
+    ctx.save(); ctx.strokeStyle=ORANGE; ctx.lineWidth=3; ctx.shadowColor=ORANGE; ctx.shadowBlur=12;
+    ctx.beginPath(); ctx.moveTo(px(0.04),py(entry)); ctx.lineTo(nowX,py(entry)); ctx.stroke(); ctx.restore();
+    [0.14,0.26,0.42,0.58].forEach((t,i)=>DOT(px(t),py(entry)+(i%2===0?-4:4),ORANGE,5));
+    ctx.fillStyle=ORANGE; ctx.font='bold 11px "Space Mono",monospace'; ctx.textAlign='center';
+    ctx.fillText('KEY LEVEL / RESISTANCE',px(0.35),py(entry)-14);
+    LBL(isBull?'BULLISH BREAKOUT':'BEARISH BREAKOUT',px(0.35),py(entry),col,!isBull,13);
+    targetArrow(nowX,py(entry));
   }
 
-  // ══ BULLISH / BEARISH ENGULFING ══
+  // ══ ENGULFING ══
   else if (pat.includes('engulf')) {
     const prevO=entry+(isBull?spread*0.5:-spread*0.5);
     const prevC=entry+(isBull?spread*0.2:-spread*0.2);
     const engO=entry+(isBull?-spread*0.5:spread*0.5);
     const engC=entry+(isBull?spread*0.6:-spread*0.6);
-    const bW=18,pX=px(0.44),eX=px(0.58);
-    L(pX+bW/2,py(prevO+(isBull?spread*0.3:-spread*0.3)),pX+bW/2,py(prevO-(isBull?0.1:-0.1)),black,1);
-    ctx.fillStyle=isBull?'#c81e32':'#1a8c40';
-    ctx.fillRect(pX,Math.min(py(prevO),py(prevC)),bW,Math.max(2,Math.abs(py(prevO)-py(prevC))));
-    ctx.fillStyle=isBull?'#1a8c40':'#c81e32';
-    ctx.fillRect(eX,Math.min(py(engO),py(engC)),bW,Math.max(2,Math.abs(py(engO)-py(engC))));
-    ctx.strokeStyle=isBull?'#0a5c28':'#8b0000'; ctx.lineWidth=1.5;
-    ctx.strokeRect(eX,Math.min(py(engO),py(engC)),bW,Math.max(2,Math.abs(py(engO)-py(engC))));
-    ctx.save(); ctx.strokeStyle=orange; ctx.lineWidth=2; ctx.setLineDash([3,2]);
-    ctx.beginPath(); ctx.arc(eX+bW/2,(py(engO)+py(engC))/2,bW+2,0,Math.PI*2); ctx.stroke();
+    const bW=26,pX=px(0.42),eX=px(0.58);
+    L(px(0.04),py(entry+(isBull?spread*1.3:-spread*1.3)),pX,py(prevO),'#4a6a8a',2,[4,3],0.6);
+    ctx.fillStyle=isBull?'#ff3d5a':'#00e676';
+    ctx.fillRect(pX,Math.min(py(prevO),py(prevC)),bW,Math.max(3,Math.abs(py(prevO)-py(prevC))));
+    ctx.fillStyle=isBull?'#00e676':'#ff3d5a';
+    ctx.fillRect(eX,Math.min(py(engO),py(engC)),bW,Math.max(3,Math.abs(py(engO)-py(engC))));
+    ctx.strokeStyle=isBull?'#00a854':'#cc2040'; ctx.lineWidth=2;
+    ctx.strokeRect(eX,Math.min(py(engO),py(engC)),bW,Math.max(3,Math.abs(py(engO)-py(engC))));
+    ctx.save(); ctx.strokeStyle=ORANGE; ctx.lineWidth=2.5; ctx.setLineDash([4,3]);
+    ctx.beginPath(); ctx.arc(eX+bW/2,(py(engO)+py(engC))/2,bW+6,0,Math.PI*2); ctx.stroke();
     ctx.setLineDash([]); ctx.restore();
-    L(px(0.04),py(entry+(isBull?spread*1.2:-spread*1.2)),pX,py(prevO),'#888',1.5,[3,3],0.5);
-    LBL(isBull?'BULLISH ENGULFING':'BEARISH ENGULFING',eX+bW/2,isBull?py(engC):py(engC),col,!isBull);
-    trajArrow(eX+bW/2, isBull?py(engC):py(engC), col, isBull);
+    LBL(isBull?'BULLISH ENGULFING':'BEARISH ENGULFING',eX+bW/2,isBull?py(engC):py(engC),col,!isBull,13);
+    trajArrow(eX+bW/2,isBull?py(engC):py(engC),col,isBull);
   }
 
   // ══ HAMMER / SHOOTING STAR ══
-  else if (pat.includes('hammer') || pat.includes('shooting star')) {
-    const isHammer = pat.includes('hammer');
-    L(px(0.04),py(entry+(isHammer?spread*1.4:-spread*1.4)),px(0.56),py(entry+(isHammer?spread*0.2:-spread*0.2)),'#888',1.5,[3,3],0.6);
-    const cX=px(0.60), cW=16;
-    const bodyH=12, longWick=35;
+  else if (pat.includes('hammer')||pat.includes('shooting star')) {
+    const isHammer=pat.includes('hammer');
+    L(px(0.04),py(entry+(isHammer?spread*1.5:-spread*1.5)),px(0.54),py(entry+(isHammer?spread*0.2:-spread*0.2)),'#4a6a8a',2,[4,3],0.6);
+    const cX=px(0.60),cW=22;
+    const bodyH=18,longWick=50;
     const bodyTop=py(entry)+(isHammer?-bodyH/2:bodyH/2-longWick);
     const bodyBot=py(entry)+(isHammer?-bodyH/2+bodyH:bodyH/2);
-    ctx.strokeStyle=black; ctx.lineWidth=1.5;
+    ctx.strokeStyle=WHITE; ctx.lineWidth=2;
     ctx.beginPath();
     if(isHammer){ctx.moveTo(cX+cW/2,bodyTop);ctx.lineTo(cX+cW/2,bodyTop-longWick);}
     else{ctx.moveTo(cX+cW/2,bodyBot);ctx.lineTo(cX+cW/2,bodyBot+longWick);}
     ctx.stroke();
-    ctx.fillStyle=isBull?'#1a8c40':'#c81e32';
-    ctx.fillRect(cX,bodyTop,cW,bodyH);
-    ctx.save(); ctx.strokeStyle=orange; ctx.lineWidth=2; ctx.setLineDash([3,2]);
-    ctx.beginPath(); ctx.arc(cX+cW/2,py(entry),cW+4,0,Math.PI*2); ctx.stroke();
+    ctx.fillStyle=col; ctx.fillRect(cX,bodyTop,cW,bodyH);
+    ctx.save(); ctx.strokeStyle=ORANGE; ctx.lineWidth=2.5; ctx.setLineDash([4,3]);
+    ctx.beginPath(); ctx.arc(cX+cW/2,py(entry),cW+8,0,Math.PI*2); ctx.stroke();
     ctx.setLineDash([]); ctx.restore();
-    LBL(isHammer?'HAMMER':'SHOOTING STAR',cX+cW/2,py(entry),col,!isBull);
-    trajArrow(cX+cW/2, py(entry), col, isBull);
+    LBL(isHammer?'HAMMER':'SHOOTING STAR',cX+cW/2,py(entry),col,!isBull,13);
+    trajArrow(cX+cW/2,py(entry),col,isBull);
   }
 
-  // ══ MORNING STAR / EVENING STAR ══
-  else if (pat.includes('morning star') || pat.includes('evening star')) {
-    const isMorning = pat.includes('morning');
-    const c1O=entry+(isMorning?spread*0.8:-spread*0.2), c1C=entry+(isMorning?spread*0.2:-spread*0.8);
-    const c2O=entry+(isMorning?spread*0.1:-spread*0.1), c2C=entry+(isMorning?-spread*0.1:spread*0.1);
-    const c3O=entry+(isMorning?-spread*0.3:spread*0.3), c3C=entry+(isMorning?spread*0.5:-spread*0.5);
-    const cW=14;
-    const candles=[[px(0.38),c1O,c1C,!isMorning],[px(0.54),c2O,c2C,true],[px(0.70),c3O,c3C,isMorning]];
-    L(px(0.04),py(entry+(isMorning?spread*1.2:-spread*1.2)),px(0.38),py(c1O),'#888',1.5,[3,3],0.5);
-    candles.forEach(([x,o,c,isUp])=>{
-      ctx.fillStyle=isUp?'#1a8c40':'#c81e32';
-      ctx.fillRect(x,Math.min(py(o),py(c)),cW,Math.max(2,Math.abs(py(o)-py(c))));
+  // ══ MORNING / EVENING STAR ══
+  else if (pat.includes('morning star')||pat.includes('evening star')) {
+    const isMorning=pat.includes('morning');
+    const c1O=entry+(isMorning?spread*0.9:-spread*0.2),c1C=entry+(isMorning?spread*0.2:-spread*0.9);
+    const c2O=entry+(isMorning?spread*0.1:-spread*0.1),c2C=entry+(isMorning?-spread*0.1:spread*0.1);
+    const c3O=entry+(isMorning?-spread*0.3:spread*0.3),c3C=entry+(isMorning?spread*0.6:-spread*0.6);
+    const cW=20;
+    L(px(0.04),py(entry+(isMorning?spread*1.3:-spread*1.3)),px(0.36),py(c1O),'#4a6a8a',2,[4,3],0.6);
+    [[px(0.38),c1O,c1C,!isMorning],[px(0.54),c2O,c2C,true],[px(0.70),c3O,c3C,isMorning]].forEach(([x,o,c,isUp])=>{
+      ctx.fillStyle=isUp?'#00e676':'#ff3d5a';
+      ctx.fillRect(x,Math.min(py(o),py(c)),cW,Math.max(3,Math.abs(py(o)-py(c))));
     });
-    ctx.save(); ctx.strokeStyle=orange; ctx.lineWidth=2; ctx.setLineDash([3,2]);
-    ctx.beginPath(); ctx.arc(px(0.54)+cW/2,py(entry),cW+8,0,Math.PI*2); ctx.stroke();
+    ctx.save(); ctx.strokeStyle=ORANGE; ctx.lineWidth=2.5; ctx.setLineDash([4,3]);
+    ctx.beginPath(); ctx.arc(px(0.54)+cW/2,py(entry),cW+10,0,Math.PI*2); ctx.stroke();
     ctx.setLineDash([]); ctx.restore();
-    LBL(isMorning?'MORNING STAR':'EVENING STAR',px(0.54)+cW/2,py(entry),col,!isMorning);
-    trajArrow(px(0.70)+cW/2, py(c3C), col, isBull);
+    LBL(isMorning?'MORNING STAR':'EVENING STAR',px(0.54)+cW/2,py(entry),col,!isMorning,13);
+    trajArrow(px(0.70)+cW/2,py(c3C),col,isBull);
   }
 
   // ══ HARAMI ══
   else if (pat.includes('harami')) {
     const isBullH=pat.includes('bullish');
-    const bigO=entry+(isBullH?spread*0.8:-spread*0.2), bigC=entry+(isBullH?spread*0.0:-spread*0.8);
-    const smO=entry+(isBullH?spread*0.25:-spread*0.45), smC=entry+(isBullH?spread*0.45:-spread*0.25);
-    L(px(0.04),py(entry+(isBullH?spread*1.2:-spread*1.2)),px(0.44),py(bigO),'#888',1.5,[3,3],0.5);
-    ctx.fillStyle=isBullH?'#c81e32':'#1a8c40';
-    ctx.fillRect(px(0.46),Math.min(py(bigO),py(bigC)),18,Math.max(2,Math.abs(py(bigO)-py(bigC))));
-    ctx.fillStyle=isBullH?'#1a8c40':'#c81e32';
-    ctx.fillRect(px(0.58),Math.min(py(smO),py(smC)),14,Math.max(2,Math.abs(py(smO)-py(smC))));
-    ctx.save(); ctx.strokeStyle=orange; ctx.lineWidth=1.5; ctx.setLineDash([3,2]);
-    const midX=px(0.58)+7;
-    ctx.beginPath(); ctx.arc(midX,(py(smO)+py(smC))/2,16,0,Math.PI*2); ctx.stroke();
+    const bigO=entry+(isBullH?spread*0.8:-spread*0.2),bigC=entry+(isBullH?0:-spread*0.8);
+    const smO=entry+(isBullH?spread*0.25:-spread*0.45),smC=entry+(isBullH?spread*0.45:-spread*0.25);
+    L(px(0.04),py(entry+(isBullH?spread*1.3:-spread*1.3)),px(0.44),py(bigO),'#4a6a8a',2,[4,3],0.6);
+    ctx.fillStyle=isBullH?'#ff3d5a':'#00e676';
+    ctx.fillRect(px(0.46),Math.min(py(bigO),py(bigC)),22,Math.max(3,Math.abs(py(bigO)-py(bigC))));
+    ctx.fillStyle=isBullH?'#00e676':'#ff3d5a';
+    ctx.fillRect(px(0.58),Math.min(py(smO),py(smC)),16,Math.max(3,Math.abs(py(smO)-py(smC))));
+    ctx.save(); ctx.strokeStyle=ORANGE; ctx.lineWidth=2; ctx.setLineDash([4,3]);
+    const midX=px(0.58)+8;
+    ctx.beginPath(); ctx.arc(midX,(py(smO)+py(smC))/2,20,0,Math.PI*2); ctx.stroke();
     ctx.setLineDash([]); ctx.restore();
-    LBL(isBullH?'BULLISH HARAMI':'BEARISH HARAMI',midX,py(entry),col,!isBullH);
-    trajArrow(midX, py(smC), col, isBull);
+    LBL(isBullH?'BULLISH HARAMI':'BEARISH HARAMI',midX,py(entry),col,!isBullH,13);
+    trajArrow(midX,py(smC),col,isBull);
   }
 
   // ══ DOJI ══
   else if (pat.includes('doji')) {
-    L(px(0.04),py(entry+(isBull?spread*1.5:-spread*1.5)),px(0.58),py(entry),'#888',2,[3,3],0.6);
-    const dX=px(0.60),dW=16;
-    L(dX+dW/2,py(entry+spread*0.35),dX+dW/2,py(entry-spread*0.35),black,1.5);
-    ctx.fillStyle='#fff'; ctx.strokeStyle=black; ctx.lineWidth=1.5;
-    ctx.strokeRect(dX,py(entry)+1,dW,4);
-    ctx.save(); ctx.strokeStyle=orange; ctx.lineWidth=2; ctx.setLineDash([3,2]);
-    ctx.beginPath(); ctx.arc(dX+dW/2,py(entry),dW,0,Math.PI*2); ctx.stroke();
+    L(px(0.04),py(entry+(isBull?spread*1.6:-spread*1.6)),px(0.56),py(entry),'#4a6a8a',2,[4,3],0.6);
+    const dX=px(0.60),dW=22;
+    ctx.strokeStyle=WHITE; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(dX+dW/2,py(entry+spread*0.4)); ctx.lineTo(dX+dW/2,py(entry-spread*0.4)); ctx.stroke();
+    ctx.fillStyle='#0c1422'; ctx.strokeStyle=WHITE; ctx.lineWidth=2;
+    ctx.fillRect(dX,py(entry)+1,dW,5); ctx.strokeRect(dX,py(entry)+1,dW,5);
+    ctx.save(); ctx.strokeStyle=ORANGE; ctx.lineWidth=2.5; ctx.setLineDash([4,3]);
+    ctx.beginPath(); ctx.arc(dX+dW/2,py(entry),dW+8,0,Math.PI*2); ctx.stroke();
     ctx.setLineDash([]); ctx.restore();
-    LBL('DOJI REVERSAL',dX+dW/2,py(entry),col,!isBull);
-    trajArrow(dX+dW/2, py(entry), col, isBull);
+    LBL('DOJI REVERSAL',dX+dW/2,py(entry),col,!isBull,13);
+    trajArrow(dX+dW/2,py(entry),col,isBull);
   }
 
   // ══ RSI / MACD DIVERGENCE ══
-  else if (pat.includes('divergence') || pat.includes('rsi') || pat.includes('macd')) {
-    const p1P=entry+(isBull?-spread*1.2:spread*1.2);
-    const p2P=entry+(isBull?-spread*1.5:spread*1.5);
-    const p1X=px(0.18),p2X=px(0.52);
-    L(px(0.04),py(p1P),p1X,py(p1P),black,1.5); L(px(0.30),py(p2P),p2X,py(p2P),black,1.5);
-    L(p1X,py(p1P),p2X,py(p2P),orange,2,[5,3]);
-    DOT(p1X,py(p1P),orange,4); DOT(p2X,py(p2P),orange,4);
-    const oscH=28,oscY=MT+CH-oscH;
-    ctx.save(); ctx.fillStyle='#f0f4f8'; ctx.fillRect(ML,oscY,CW*0.72,oscH); ctx.restore();
-    ctx.strokeStyle='#dde3eb'; ctx.lineWidth=0.8; ctx.strokeRect(ML,oscY,CW*0.72,oscH);
-    ctx.fillStyle='#999'; ctx.font='7px Arial,sans-serif'; ctx.textAlign='left';
-    ctx.fillText(pat.includes('macd')?'MACD':'RSI',ML+3,oscY+10);
-    const o1Y=oscY+oscH-8,o2Y=oscY+8;
-    L(p1X,isBull?o1Y:o2Y,p2X,isBull?o2Y:o1Y,col,1.8);
-    DOT(p1X,isBull?o1Y:o2Y,col,2); DOT(p2X,isBull?o2Y:o1Y,col,2);
-    LBL(isBull?'BULLISH DIVERGENCE':'BEARISH DIVERGENCE',(p1X+p2X)/2,isBull?py(p2P):py(p2P),col,!isBull);
-    trajArrow(p2X, py(p2P), col, isBull);
+  else if (pat.includes('divergence')||pat.includes('rsi')||pat.includes('macd')) {
+    const p1P=entry+(isBull?-spread*1.3:spread*1.3);
+    const p2P=entry+(isBull?-spread*1.6:spread*1.6);
+    const p1X=px(0.16),p2X=px(0.50);
+    L(px(0.04),py(p1P),p1X,py(p1P),col,2.5); L(px(0.28),py(p2P),p2X,py(p2P),col,2.5);
+    ctx.save(); ctx.strokeStyle=ORANGE; ctx.lineWidth=3; ctx.setLineDash([8,5]);
+    ctx.beginPath(); ctx.moveTo(p1X,py(p1P)); ctx.lineTo(p2X,py(p2P)); ctx.stroke();
+    ctx.setLineDash([]); ctx.restore();
+    DOT(p1X,py(p1P),ORANGE,7); DOT(p2X,py(p2P),ORANGE,7);
+    // Oscillatore mini
+    const oscH=40,oscY=MT+CH-oscH-5;
+    ctx.save(); ctx.fillStyle='#0c1422'; ctx.globalAlpha=0.8;
+    ctx.fillRect(ML,oscY,CW*0.68,oscH); ctx.restore();
+    ctx.strokeStyle='#1e2a3a'; ctx.lineWidth=1; ctx.strokeRect(ML,oscY,CW*0.68,oscH);
+    ctx.fillStyle=DIMTEXT; ctx.font='10px "Space Mono",monospace'; ctx.textAlign='left';
+    ctx.fillText(pat.includes('macd')?'MACD':'RSI',ML+6,oscY+14);
+    const o1Y=oscY+oscH-10,o2Y=oscY+10;
+    L(p1X,isBull?o1Y:o2Y,p2X,isBull?o2Y:o1Y,col,2.5);
+    DOT(p1X,isBull?o1Y:o2Y,col,5); DOT(p2X,isBull?o2Y:o1Y,col,5);
+    LBL(isBull?'BULLISH DIVERGENCE':'BEARISH DIVERGENCE',(p1X+p2X)/2,isBull?py(p2P):py(p2P),col,!isBull,13);
+    trajArrow(p2X,py(p2P),col,isBull);
   }
 
-  // ══ HARMONIC PATTERNS ══
+  // ══ HARMONICI (Gartley, Butterfly, Bat, Crab, Cypher, ABCD) ══
   else if (pat.includes('gartley')||pat.includes('butterfly')||pat.includes('bat')||pat.includes('crab')||pat.includes('cypher')||pat.includes('abcd')) {
-    const isABCD = pat.includes('abcd');
-    let pts, xs, labels;
+    const isABCD=pat.includes('abcd');
+    let pts,xs,labels;
     if(isABCD){
-      pts=[entry+(isBull?-spread*1.4:spread*1.4),entry+(isBull?-spread*0.4:spread*0.4),entry+(isBull?-spread*1.0:spread*1.0),entry+(isBull?spread*0.2:-spread*0.2)];
-      xs=[px(0.08),px(0.28),px(0.48),nowX];
-      labels=['A','B','C','D'];
+      pts=[entry+(isBull?-spread*1.5:spread*1.5),entry+(isBull?-spread*0.4:spread*0.4),entry+(isBull?-spread*1.1:spread*1.1),entry+(isBull?spread*0.2:-spread*0.2)];
+      xs=[px(0.08),px(0.28),px(0.48),nowX]; labels=['A','B','C','D'];
     } else {
-      pts=[entry+(isBull?-spread*0.5:spread*0.5),entry+(isBull?-spread*1.5:spread*1.5),entry+(isBull?-spread*0.7:spread*0.7),entry+(isBull?-spread*1.2:spread*1.2),entry+(isBull?spread*0.2:-spread*0.2)];
-      xs=[px(0.04),px(0.18),px(0.35),px(0.52),nowX];
-      labels=['X','A','B','C','D'];
+      pts=[entry+(isBull?-spread*0.5:spread*0.5),entry+(isBull?-spread*1.6:spread*1.6),entry+(isBull?-spread*0.8:spread*0.8),entry+(isBull?-spread*1.3:spread*1.3),entry+(isBull?spread*0.2:-spread*0.2)];
+      xs=[px(0.04),px(0.18),px(0.34),px(0.50),nowX]; labels=['X','A','B','C','D'];
     }
-    const colors=[orange,col,orange,col,col];
-    for(let i=0;i<xs.length-1;i++) L(xs[i],py(pts[i]),xs[i+1],py(pts[i+1]),colors[i],2);
+    const colors=[ORANGE,col,ORANGE,col,col];
+    for(let i=0;i<xs.length-1;i++){
+      ctx.save(); ctx.strokeStyle=colors[i]; ctx.lineWidth=3;
+      ctx.shadowColor=colors[i]; ctx.shadowBlur=6;
+      ctx.beginPath(); ctx.moveTo(xs[i],py(pts[i])); ctx.lineTo(xs[i+1],py(pts[i+1])); ctx.stroke(); ctx.restore();
+    }
     xs.forEach((x,i)=>{
-      DOT(x,py(pts[i]),colors[i]||col,4);
-      const o=(i%2===0)?(isBull?-14:14):(isBull?14:-14);
-      ctx.fillStyle=colors[i]||col; ctx.font='bold 10px Arial,sans-serif'; ctx.textAlign='center';
+      DOT(x,py(pts[i]),colors[i]||col,8);
+      const o=(i%2===0)?(isBull?-20:18):(isBull?18:-18);
+      ctx.fillStyle=colors[i]||col; ctx.font='bold 14px "Space Mono",monospace'; ctx.textAlign='center';
       ctx.fillText(labels[i],x,py(pts[i])+o);
     });
     ctx.save(); ctx.fillStyle=col; ctx.globalAlpha=0.10;
-    ctx.fillRect(xs[xs.length-2],Math.min(py(pts[pts.length-1]),entryY)-4,nowX-xs[xs.length-2],Math.abs(py(pts[pts.length-1])-entryY)+8);
+    ctx.fillRect(xs[xs.length-2],Math.min(py(pts[pts.length-1]),entryY)-6,nowX-xs[xs.length-2],Math.abs(py(pts[pts.length-1])-entryY)+12);
     ctx.restore();
-    ctx.fillStyle=col; ctx.font='bold 7px Arial,sans-serif'; ctx.textAlign='center';
-    ctx.fillText('PRZ',(xs[xs.length-2]+nowX)/2,Math.min(py(pts[pts.length-1]),entryY)-6);
+    ctx.fillStyle=col; ctx.font='bold 11px "Space Mono",monospace'; ctx.textAlign='center';
+    ctx.fillText('PRZ',(xs[xs.length-2]+nowX)/2,Math.min(py(pts[pts.length-1]),entryY)-10);
     const patName=pat.includes('gartley')?'GARTLEY':pat.includes('butterfly')?'BUTTERFLY':pat.includes('bat')?'BAT':pat.includes('crab')?'CRAB':pat.includes('cypher')?'CYPHER':'ABCD';
-    LBL(patName+' PATTERN',px(0.35),isBull?py(pts[isABCD?0:1]):py(pts[isABCD?0:1]),col,!isBull);
-    targetArrow(nowX, py(pts[pts.length-1]));
+    LBL(patName+' PATTERN',px(0.33),isBull?py(pts[isABCD?0:1]):py(pts[isABCD?0:1]),col,!isBull,13);
+    targetArrow(nowX,py(pts[pts.length-1]));
   }
 
   // ══ ISLAND REVERSAL ══
   else if (pat.includes('island')) {
-    const gap1 = isBull ? -spread*1.2 : spread*1.2;
-    const islandLevel = entry + (isBull ? -spread*0.8 : spread*0.8);
-    L(px(0.04),py(entry+gap1*1.5),px(0.25),py(entry+gap1),'#888',1.5,[3,3],0.5);
-    ctx.save(); ctx.fillStyle=orange; ctx.globalAlpha=0.15;
-    ctx.fillRect(px(0.25),py(islandLevel+spread*0.3),px(0.46)-px(0.25),py(islandLevel-spread*0.3)-py(islandLevel+spread*0.3));
+    const gap1=isBull?-spread*1.3:spread*1.3;
+    const islandLevel=entry+(isBull?-spread*0.9:spread*0.9);
+    L(px(0.04),py(entry+gap1*1.5),px(0.24),py(entry+gap1),'#4a6a8a',2,[4,3],0.6);
+    ctx.save(); ctx.fillStyle=ORANGE; ctx.globalAlpha=0.18;
+    ctx.fillRect(px(0.24),py(islandLevel+spread*0.35),px(0.44)-px(0.24),py(islandLevel-spread*0.35)-py(islandLevel+spread*0.35));
     ctx.restore();
-    L(px(0.25),py(islandLevel),px(0.45),py(islandLevel),black,1,[4,3],0.5);
-    ctx.save(); ctx.fillStyle='#c81e32'; ctx.globalAlpha=0.12;
-    ctx.fillRect(px(0.22),py(entry+gap1),px(0.25)-px(0.22),py(islandLevel)-py(entry+gap1)); ctx.restore();
-    ctx.save(); ctx.fillStyle='#1a8c40'; ctx.globalAlpha=0.12;
-    ctx.fillRect(px(0.45),py(islandLevel),px(0.48)-px(0.45),py(entry)-py(islandLevel)); ctx.restore();
-    ctx.fillStyle=orange; ctx.font='bold 8px Arial,sans-serif'; ctx.textAlign='center';
-    ctx.fillText('GAP',px(0.235),(py(entry+gap1)+py(islandLevel))/2);
-    ctx.fillText('GAP',px(0.465),(py(islandLevel)+py(entry))/2);
-    LBL('ISLAND REVERSAL',px(0.35),py(islandLevel),col,!isBull);
-    targetArrow(nowX, py(entry));
+    L(px(0.24),py(islandLevel),px(0.44),py(islandLevel),WHITE,2,[5,3],0.6);
+    ctx.save(); ctx.fillStyle='#ff3d5a'; ctx.globalAlpha=0.15;
+    ctx.fillRect(px(0.21),py(entry+gap1),px(0.24)-px(0.21),py(islandLevel)-py(entry+gap1)); ctx.restore();
+    ctx.save(); ctx.fillStyle='#00e676'; ctx.globalAlpha=0.15;
+    ctx.fillRect(px(0.44),py(islandLevel),px(0.47)-px(0.44),py(entry)-py(islandLevel)); ctx.restore();
+    ctx.fillStyle=ORANGE; ctx.font='bold 11px "Space Mono",monospace'; ctx.textAlign='center';
+    ctx.fillText('GAP',px(0.225),(py(entry+gap1)+py(islandLevel))/2);
+    ctx.fillText('GAP',px(0.455),(py(islandLevel)+py(entry))/2);
+    LBL('ISLAND REVERSAL',px(0.34),py(islandLevel),col,!isBull,13);
+    targetArrow(nowX,py(entry));
   }
 
   // ══ DIAMOND PATTERN ══
   else if (pat.includes('diamond')) {
     const top=py(entry+(isBull?-spread*0.3:spread*0.3));
     const bot=py(entry+(isBull?spread*0.3:-spread*0.3));
-    const left=px(0.10),mid=px(0.40),right=nowX;
-    const topWide=py(entry+(isBull?-spread*1.4:spread*1.4));
-    const botWide=py(entry+(isBull?spread*1.4:-spread*1.4));
-    L(left,py(entry),px(0.25),topWide,black,1.8);
-    L(left,py(entry),px(0.25),botWide,black,1.8);
-    L(px(0.25),topWide,right,top,black,1.8);
-    L(px(0.25),botWide,right,bot,black,1.8);
-    zone([[left,py(entry)],[px(0.25),topWide],[right,top],[right,bot],[px(0.25),botWide]],orange,0.06);
-    DOT(left,py(entry),orange,4); DOT(px(0.25),topWide,orange,3); DOT(px(0.25),botWide,orange,3);
-    LBL('DIAMOND PATTERN',px(0.35),isBull?botWide:topWide,col,!isBull);
-    targetArrow(nowX, isBull?bot:top);
+    const left=px(0.10),right=nowX;
+    const topWide=py(entry+(isBull?-spread*1.5:spread*1.5));
+    const botWide=py(entry+(isBull?spread*1.5:-spread*1.5));
+    L(left,py(entry),px(0.25),topWide,ORANGE,2.5);
+    L(left,py(entry),px(0.25),botWide,ORANGE,2.5);
+    L(px(0.25),topWide,right,top,col,2.5);
+    L(px(0.25),botWide,right,bot,col,2.5);
+    zone([[left,py(entry)],[px(0.25),topWide],[right,top],[right,bot],[px(0.25),botWide]],ORANGE,0.07);
+    DOT(left,py(entry),ORANGE,7); DOT(px(0.25),topWide,ORANGE,5); DOT(px(0.25),botWide,ORANGE,5);
+    LBL('DIAMOND PATTERN',px(0.34),isBull?botWide:topWide,col,!isBull,13);
+    targetArrow(nowX,isBull?bot:top);
   }
 
   // ══ WOLFE WAVE ══
   else if (pat.includes('wolfe')) {
-    const pts = isBull
-      ? [entry-spread*1.6,entry-spread*0.4,entry-spread*1.2,entry+spread*0.2,entry-spread*0.8]
-      : [entry+spread*1.6,entry+spread*0.4,entry+spread*1.2,entry-spread*0.2,entry+spread*0.8];
+    const pts=isBull
+      ?[entry-spread*1.7,entry-spread*0.5,entry-spread*1.3,entry+spread*0.2,entry-spread*0.8]
+      :[entry+spread*1.7,entry+spread*0.5,entry+spread*1.3,entry-spread*0.2,entry+spread*0.8];
     const xs=[px(0.06),px(0.18),px(0.32),px(0.46),px(0.60)];
-    for(let i=0;i<4;i++) L(xs[i],py(pts[i]),xs[i+1],py(pts[i+1]),black,1.8);
-    xs.forEach((x,i)=>DOT(x,py(pts[i]),i%2===0?col:orange,4));
+    for(let i=0;i<4;i++){
+      ctx.save(); ctx.strokeStyle=i%2===0?col:ORANGE; ctx.lineWidth=3;
+      ctx.shadowColor=i%2===0?col:ORANGE; ctx.shadowBlur=6;
+      ctx.beginPath(); ctx.moveTo(xs[i],py(pts[i])); ctx.lineTo(xs[i+1],py(pts[i+1])); ctx.stroke(); ctx.restore();
+    }
+    xs.forEach((x,i)=>DOT(x,py(pts[i]),i%2===0?col:ORANGE,7));
     const sl13=(py(pts[2])-py(pts[0]))/(xs[2]-xs[0]);
-    const targetX=nowX, targetY=py(pts[0])+sl13*(targetX-xs[0]);
-    L(xs[0],py(pts[0]),targetX,targetY,col,1.5,[5,3],0.5);
-    ctx.fillStyle=col; ctx.font='bold 7px Arial,sans-serif'; ctx.textAlign='left';
-    ctx.fillText('1-3 LINE',xs[2]+4,py(pts[2])-6);
+    L(xs[0],py(pts[0]),nowX,py(pts[0])+sl13*(nowX-xs[0]),col,2,[6,4],0.6);
+    ctx.fillStyle=col; ctx.font='bold 10px "Space Mono",monospace'; ctx.textAlign='left';
+    ctx.fillText('1-3 LINE',xs[2]+6,py(pts[2])-8);
     const sl24=(py(pts[3])-py(pts[1]))/(xs[3]-xs[1]);
-    const t24Y=py(pts[1])+sl24*(targetX-xs[1]);
-    L(xs[1],py(pts[1]),targetX,t24Y,'#888',1,[5,3],0.4);
+    L(xs[1],py(pts[1]),nowX,py(pts[1])+sl24*(nowX-xs[1]),'#4a6a8a',1.5,[6,4],0.5);
     [1,2,3,4,5].forEach((n,i)=>{
       if(i<5){
-        const o=isBull?(i%2===0?14:-12):(i%2===0?-12:14);
-        ctx.fillStyle=i%2===0?col:orange; ctx.font='bold 9px Arial,sans-serif'; ctx.textAlign='center';
+        const o=isBull?(i%2===0?20:-16):(i%2===0?-16:20);
+        ctx.fillStyle=i%2===0?col:ORANGE; ctx.font='bold 13px "Space Mono",monospace'; ctx.textAlign='center';
         ctx.fillText(n,xs[i],py(pts[i])+o);
       }
     });
-    LBL('WOLFE WAVE',px(0.30),isBull?py(pts[2]):py(pts[2]),col,!isBull);
-    trajArrow(xs[4], py(pts[4]), col, isBull);
+    LBL('WOLFE WAVE',px(0.30),isBull?py(pts[2]):py(pts[2]),col,!isBull,13);
+    trajArrow(xs[4],py(pts[4]),col,isBull);
   }
 
   // ══ GENERIC FALLBACK ══
   else {
-    ctx.save(); ctx.fillStyle=orange; ctx.globalAlpha=0.09;
-    ctx.fillRect(px(0.04),py(entry+spread*0.25),CW*0.68,py(entry-spread*0.10)-py(entry+spread*0.25)); ctx.restore();
-    L(px(0.04),py(entry),nowX,py(entry),black,2.5);
-    [0.15,0.28,0.44,0.60].forEach((t,i)=>DOT(px(t),py(entry)+(i%2===0?-3:3),orange,3));
-    ctx.fillStyle=black; ctx.font='8px Arial,sans-serif'; ctx.textAlign='center';
-    ctx.fillText('KEY LEVEL',px(0.35),py(entry)-8);
-    LBL(sig.pattern.toUpperCase(),px(0.35),py(entry),col,!isBull);
-    targetArrow(nowX, py(entry));
+    ctx.save(); ctx.fillStyle=ORANGE; ctx.globalAlpha=0.10;
+    ctx.fillRect(px(0.04),py(entry+spread*0.28),CW*0.66,py(entry-spread*0.12)-py(entry+spread*0.28)); ctx.restore();
+    ctx.save(); ctx.strokeStyle=ORANGE; ctx.lineWidth=3; ctx.shadowColor=ORANGE; ctx.shadowBlur=10;
+    ctx.beginPath(); ctx.moveTo(px(0.04),py(entry)); ctx.lineTo(nowX,py(entry)); ctx.stroke(); ctx.restore();
+    [0.14,0.26,0.42,0.58].forEach((t,i)=>DOT(px(t),py(entry)+(i%2===0?-5:5),ORANGE,5));
+    ctx.fillStyle=ORANGE; ctx.font='bold 11px "Space Mono",monospace'; ctx.textAlign='center';
+    ctx.fillText('KEY LEVEL',px(0.35),py(entry)-16);
+    LBL(sig.pattern.toUpperCase(),px(0.35),py(entry),col,!isBull,13);
+    targetArrow(nowX,py(entry));
   }
 }
 
@@ -1609,7 +1649,6 @@ function fmtPrice(v, pair) {
   return n.toFixed(4);
 }
 
-// ── FORMAT ──
 function fmt(val, pair) {
   if (!val) return '—';
   if (pair && (pair.includes('JPY') || pair.includes('225') || pair.includes('JPN'))) return parseFloat(val).toFixed(2);
@@ -1618,7 +1657,6 @@ function fmt(val, pair) {
   return parseFloat(val).toFixed(4);
 }
 
-// ── STATS ──
 function updateStats(list) {
   if (!list.length) return;
   document.getElementById('stats-bar').style.display = 'flex';
@@ -1635,8 +1673,6 @@ function updateStats(list) {
   document.getElementById('s-time').textContent = new Date().toUTCString().split(' ').slice(4,5)[0] + ' UTC';
 }
 
-// ── TELEGRAM SEND ──────────────────────────────────────────
-
 let pendingTgSignalIdx = null;
 
 function sendToTelegram(event, idx) {
@@ -1644,9 +1680,8 @@ function sendToTelegram(event, idx) {
   pendingTgSignalIdx = idx;
   const token = localStorage.getItem('tg_token');
   const chatId = localStorage.getItem('tg_chat_id');
-  if (token && chatId) {
-    doSendToTelegram(idx, token, chatId);
-  } else {
+  if (token && chatId) { doSendToTelegram(idx, token, chatId); }
+  else {
     document.getElementById('tg-bot-token').value = token || '';
     document.getElementById('tg-chat-id').value = chatId || '';
     document.getElementById('tg-config').classList.add('open');
@@ -1707,14 +1742,7 @@ async function doSendToTelegram(idx, token, chatId) {
     const res = await fetch(WORKER, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        type: 'telegram_photo',
-        token,
-        chat_id: chatId,
-        image_base64: imageData,
-        caption,
-        parse_mode: 'Markdown'
-      })
+      body: JSON.stringify({ type: 'telegram_photo', token, chat_id: chatId, image_base64: imageData, caption, parse_mode: 'Markdown' })
     });
     const data = await res.json();
     if (data.ok) {
@@ -1741,9 +1769,7 @@ function showToast(msg) {
 
 window.onload = () => {
   document.getElementById('empty-state').classList.add('active');
-  document.getElementById('pwd-input').addEventListener('keydown', e => {
-    if (e.key === 'Enter') doLogin();
-  });
+  document.getElementById('pwd-input').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
 };
 </script>
 </body>
