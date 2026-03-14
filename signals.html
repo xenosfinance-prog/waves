@@ -757,6 +757,64 @@ async function fetchLivePrices(pairs) {
   }
 }
 
+// ── FETCH MARKET NEWS + SENTIMENT ──────────────────────────
+// Chiama Finnhub news_sentiment_batch: general + forex + crypto news + sentiment
+// Eseguita in parallelo con fetchLivePrices per non aggiungere latenza
+async function fetchMarketNews() {
+  try {
+    // Simboli per sentiment: ETF proxy degli asset principali
+    const sentimentSymbols = ['SPY','GLD','USO','QQQ','UNG'];
+
+    // 3 chiamate in parallelo: general, forex, crypto news
+    const [generalRes, forexRes, cryptoRes] = await Promise.all([
+      fetch(WORKER, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'finnhub', action: 'news_sentiment_batch',
+          symbols: sentimentSymbols, category: 'general' })
+      }),
+      fetch(WORKER, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'finnhub', action: 'market_news', category: 'forex' })
+      }),
+      fetch(WORKER, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'finnhub', action: 'market_news', category: 'crypto' })
+      }),
+    ]);
+
+    const generalData = generalRes.ok ? await generalRes.json() : {};
+    const forexData   = forexRes.ok   ? await forexRes.json()   : {};
+    const cryptoData  = cryptoRes.ok  ? await cryptoRes.json()  : {};
+
+    // Estrai news (max 5 per categoria, solo headline + source)
+    const fmt = (arr) => (arr || []).slice(0,5).map(n =>
+      `  · [${n.source}] ${n.headline}`
+    ).join('\n');
+
+    const generalNews = fmt(generalData.news);
+    const forexNews   = fmt(forexData.news);
+    const cryptoNews  = fmt(cryptoData.news);
+
+    // Estrai sentiment
+    const sentiments = generalData.sentiments || {};
+    const sentLines = Object.entries(sentiments)
+      .filter(([, v]) => v && v.sentiment)
+      .map(([sym, v]) => {
+        const bull = v.sentiment.bullishPercent != null
+          ? Math.round(v.sentiment.bullishPercent * 100) + '% bull'
+          : null;
+        return bull ? `  ${sym}: ${bull}` : null;
+      })
+      .filter(Boolean)
+      .join(' | ');
+
+    return { generalNews, forexNews, cryptoNews, sentLines };
+  } catch(e) {
+    console.warn('Market news fetch failed:', e.message);
+    return { generalNews: '', forexNews: '', cryptoNews: '', sentLines: '' };
+  }
+}
+
 async function generateSignals() {
   const btn = document.getElementById('gen-btn');
   btn.disabled = true;
@@ -767,15 +825,22 @@ async function generateSignals() {
 
   const pairs = getPairsToAnalyze();
   const minConf = parseInt(document.getElementById('conf-min').value);
-  const loaderMsgs = ['Fetching live prices...','Scanning Elliott Wave structures...','Identifying chart patterns...','Calculating ATR-based SL/TP...','Filtering by confidence threshold...'];
+  const loaderMsgs = ['Fetching live prices + news...','Scanning Elliott Wave structures...','Identifying chart patterns...','Calculating ATR-based SL/TP...','Filtering by confidence threshold...'];
   let li = 0;
   const loaderInterval = setInterval(() => {
     document.getElementById('loader-sub').textContent = loaderMsgs[li++ % loaderMsgs.length];
   }, 1800);
 
   try {
-    const livePrices = await fetchLivePrices(pairs);
-    const raw = await callClaudeAPI(buildPrompt(pairs, selectedTF, selectedDir, minConf, livePrices));
+    // Fetch prezzi e news in PARALLELO — nessuna latenza aggiuntiva
+    document.getElementById('loader-sub').textContent = 'Fetching live prices + market news...';
+    const [livePrices, marketNews] = await Promise.all([
+      fetchLivePrices(pairs),
+      fetchMarketNews()
+    ]);
+
+    document.getElementById('loader-sub').textContent = 'Generating AI signals with live context...';
+    const raw = await callClaudeAPI(buildPrompt(pairs, selectedTF, selectedDir, minConf, livePrices, marketNews));
     clearInterval(loaderInterval);
     const parsed = parseSignals(raw, minConf, selectedDir);
     signals = parsed;
@@ -791,7 +856,7 @@ async function generateSignals() {
   btn.disabled = false;
 }
 
-function buildPrompt(pairs, tf, dir, minConf, livePrices = {}) {
+function buildPrompt(pairs, tf, dir, minConf, livePrices = {}, marketNews = {}) {
   const dirNote = dir === 'BOTH' ? 'bullish and bearish' : dir === 'BUY' ? 'bullish only' : 'bearish only';
   const priceLines = pairs.map(p => {
     const price = livePrices[p];
@@ -800,16 +865,31 @@ function buildPrompt(pairs, tf, dir, minConf, livePrices = {}) {
       : `  ${p}: price unavailable — use realistic estimate`;
   }).join('\n');
 
+  // Sezione news — inclusa solo se disponibile
+  const { generalNews, forexNews, cryptoNews, sentLines } = marketNews;
+  const hasNews = generalNews || forexNews || cryptoNews;
+  const newsSection = hasNews ? `
+LIVE MARKET CONTEXT (Finnhub — use to calibrate signal confidence and market_context field):
+${generalNews ? `Macro/General News:\n${generalNews}` : ''}
+${forexNews   ? `\nForex News:\n${forexNews}`         : ''}
+${cryptoNews  ? `\nCrypto News:\n${cryptoNews}`       : ''}
+${sentLines   ? `\nMarket Sentiment: ${sentLines}`    : ''}
+` : '';
+
   return `You are an expert intraday CFD trader specializing in technical pattern recognition, Elliott Wave analysis, and institutional trading setups. Generate precise trading signals.
 
-LIVE MARKET PRICES (real-time from Yahoo Finance):
+LIVE MARKET PRICES (real-time):
 ${priceLines}
-
+${newsSection}
 Analyze these CFD instruments on ${tf} timeframe: ${pairs.join(', ')}
 
 Generate ${dirNote} signals where a real pattern exists. Return ONLY a raw JSON array, no markdown, no text outside the array.
 
 CRITICAL: For instruments where a CURRENT PRICE is provided above, you MUST use that price as the base. Entry must be within 0.1%-0.5% of current price. SL and TP must be realistic ATR-based distances from that entry.
+If LIVE MARKET CONTEXT is provided, use it to:
+- Adjust confidence based on macro alignment
+- Enrich the market_context field with relevant news
+- Avoid signals that directly contradict major macro events
 
 Each signal object:
 {
@@ -826,7 +906,7 @@ Each signal object:
   "pattern_desc": "2-3 sentence pattern description",
   "key_levels": "S/R and fib levels",
   "invalidation": "what invalidates this setup",
-  "market_context": "brief macro/session context",
+  "market_context": "brief macro/session context — reference live news if relevant",
   "tags": ["tag1","tag2","tag3"]
 }
 
