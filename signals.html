@@ -1003,19 +1003,51 @@ const TF_MAP = { 'M15': '15min', 'H1': '1h', 'H4': '4h', 'D1': '1day' };
 // Mappa timeframe UI → risoluzione Finnhub (in minuti, o 'D'/'W')
 const FH_RES_MAP = { 'M15': '15', 'H1': '60', 'H4': '240', 'D1': 'D' };
 
-// Mappa simboli XenosFinance → Finnhub per OHLCV (candles endpoint)
+// Mappa simboli XenosFinance → Finnhub per OHLCV
+// FX + metalli: OANDA forex/candle
+// Crypto: BINANCE crypto/candle  
+// Indices + energie: ETF stock/candle (più dati disponibili sul free tier)
 const FH_CANDLE_MAP = {
-  'EURUSD':'OANDA:EUR_USD','GBPUSD':'OANDA:GBP_USD','USDJPY':'OANDA:USD_JPY',
-  'USDCHF':'OANDA:USD_CHF','AUDUSD':'OANDA:AUD_USD','NZDUSD':'OANDA:NZD_USD',
-  'USDCAD':'OANDA:USD_CAD','EURGBP':'OANDA:EUR_GBP','EURJPY':'OANDA:EUR_JPY',
-  'GBPJPY':'OANDA:GBP_JPY','CADJPY':'OANDA:CAD_JPY','AUDNZD':'OANDA:AUD_NZD',
-  'EURCHF':'OANDA:EUR_CHF','GBPCHF':'OANDA:GBP_CHF',
-  'BTCUSD':'BINANCE:BTCUSDT','ETHUSD':'BINANCE:ETHUSDT','XRPUSD':'BINANCE:XRPUSDT',
-  'SOLUSD':'BINANCE:SOLUSDT','DOGEUSD':'BINANCE:DOGEUSDT','ZECUSD':'BINANCE:ZECUSDT',
-  'XAUUSD':'OANDA:XAU_USD','XAGUSD':'OANDA:XAG_USD',
-  'US500':'OANDA:SPX500_USD','US30':'OANDA:US30_USD','NAS100':'OANDA:NAS100_USD',
-  'UK100':'OANDA:UK100_GBP','GER40':'OANDA:DE30_EUR','FRA40':'OANDA:FR40_EUR',
-  'JPN225':'OANDA:JP225_USD','AUS200':'OANDA:AUS200_AUD',
+  // FX → forex/candle
+  'EURUSD':  { sym:'OANDA:EUR_USD',  type:'forex' },
+  'GBPUSD':  { sym:'OANDA:GBP_USD',  type:'forex' },
+  'USDJPY':  { sym:'OANDA:USD_JPY',  type:'forex' },
+  'USDCHF':  { sym:'OANDA:USD_CHF',  type:'forex' },
+  'AUDUSD':  { sym:'OANDA:AUD_USD',  type:'forex' },
+  'NZDUSD':  { sym:'OANDA:NZD_USD',  type:'forex' },
+  'USDCAD':  { sym:'OANDA:USD_CAD',  type:'forex' },
+  'EURGBP':  { sym:'OANDA:EUR_GBP',  type:'forex' },
+  'EURJPY':  { sym:'OANDA:EUR_JPY',  type:'forex' },
+  'GBPJPY':  { sym:'OANDA:GBP_JPY',  type:'forex' },
+  'CADJPY':  { sym:'OANDA:CAD_JPY',  type:'forex' },
+  'AUDNZD':  { sym:'OANDA:AUD_NZD',  type:'forex' },
+  'EURCHF':  { sym:'OANDA:EUR_CHF',  type:'forex' },
+  'GBPCHF':  { sym:'OANDA:GBP_CHF',  type:'forex' },
+  // Metalli → forex/candle
+  'XAUUSD':  { sym:'OANDA:XAU_USD',  type:'forex' },
+  'XAGUSD':  { sym:'OANDA:XAG_USD',  type:'forex' },
+  // Crypto → crypto/candle
+  'BTCUSD':  { sym:'BINANCE:BTCUSDT', type:'crypto' },
+  'ETHUSD':  { sym:'BINANCE:ETHUSDT', type:'crypto' },
+  'XRPUSD':  { sym:'BINANCE:XRPUSDT', type:'crypto' },
+  'SOLUSD':  { sym:'BINANCE:SOLUSDT', type:'crypto' },
+  'DOGEUSD': { sym:'BINANCE:DOGEUSDT',type:'crypto' },
+  'ZECUSD':  { sym:'BINANCE:ZECUSDT', type:'crypto' },
+  // Indices → ETF stock/candle
+  'US500':   { sym:'SPY',   type:'stock' },
+  'US30':    { sym:'DIA',   type:'stock' },
+  'NAS100':  { sym:'QQQ',   type:'stock' },
+  'UK100':   { sym:'EWU',   type:'stock' },
+  'GER40':   { sym:'EWG',   type:'stock' },
+  'FRA40':   { sym:'EWQ',   type:'stock' },
+  'JPN225':  { sym:'EWJ',   type:'stock' },
+  'HK50':    { sym:'EWH',   type:'stock' },
+  'AUS200':  { sym:'EWA',   type:'stock' },
+  // Commodities energetiche → ETF stock/candle
+  'USOIL':   { sym:'USO',   type:'stock' },
+  'UKOIL':   { sym:'BNO',   type:'stock' },
+  'NGAS':    { sym:'UNG',   type:'stock' },
+  'COPPER':  { sym:'CPER',  type:'stock' },
 };
 
 async function loadLiveChart(container, sig, idx) {
@@ -1056,21 +1088,23 @@ async function loadLiveChart(container, sig, idx) {
 
       // ── Tentativo 2: Finnhub candles (fallback) ──
       if (!candles) {
-        const fhSym = FH_CANDLE_MAP[sig.pair];
-        const fhRes = FH_RES_MAP[selectedTF] || '60';
-        if (fhSym) {
+        const fhEntry = FH_CANDLE_MAP[sig.pair];
+        const fhRes   = FH_RES_MAP[selectedTF] || '60';
+        if (fhEntry) {
           try {
             const now  = Math.floor(Date.now() / 1000);
-            const from = now - (80 * parseInt(fhRes === 'D' ? 86400 : fhRes) * 60);
-            const res = await fetch(WORKER, {
+            const secs = fhRes === 'D' ? 86400 : parseInt(fhRes) * 60;
+            const from = now - (80 * secs);
+            const res  = await fetch(WORKER, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                type: 'finnhub',
-                action: 'candles',
-                symbol: fhSym,
+                type:       'finnhub',
+                action:     'candles',
+                symbol:     fhEntry.sym,
+                assetType:  fhEntry.type,
                 resolution: fhRes,
-                from, to: now
+                from, to:   now
               })
             });
             if (res.ok) {
