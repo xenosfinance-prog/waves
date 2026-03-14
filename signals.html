@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>XENOS · Signal Engine</title>
-<script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
+<script src="https://unpkg.com/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap');
 
@@ -1000,6 +1000,24 @@ const ohlcvCache = {};
 // Mappa timeframe UI → intervallo Twelve Data
 const TF_MAP = { 'M15': '15min', 'H1': '1h', 'H4': '4h', 'D1': '1day' };
 
+// Mappa timeframe UI → risoluzione Finnhub (in minuti, o 'D'/'W')
+const FH_RES_MAP = { 'M15': '15', 'H1': '60', 'H4': '240', 'D1': 'D' };
+
+// Mappa simboli XenosFinance → Finnhub per OHLCV (candles endpoint)
+const FH_CANDLE_MAP = {
+  'EURUSD':'OANDA:EUR_USD','GBPUSD':'OANDA:GBP_USD','USDJPY':'OANDA:USD_JPY',
+  'USDCHF':'OANDA:USD_CHF','AUDUSD':'OANDA:AUD_USD','NZDUSD':'OANDA:NZD_USD',
+  'USDCAD':'OANDA:USD_CAD','EURGBP':'OANDA:EUR_GBP','EURJPY':'OANDA:EUR_JPY',
+  'GBPJPY':'OANDA:GBP_JPY','CADJPY':'OANDA:CAD_JPY','AUDNZD':'OANDA:AUD_NZD',
+  'EURCHF':'OANDA:EUR_CHF','GBPCHF':'OANDA:GBP_CHF',
+  'BTCUSD':'BINANCE:BTCUSDT','ETHUSD':'BINANCE:ETHUSDT','XRPUSD':'BINANCE:XRPUSDT',
+  'SOLUSD':'BINANCE:SOLUSDT','DOGEUSD':'BINANCE:DOGEUSDT','ZECUSD':'BINANCE:ZECUSDT',
+  'XAUUSD':'OANDA:XAU_USD','XAGUSD':'OANDA:XAG_USD',
+  'US500':'OANDA:SPX500_USD','US30':'OANDA:US30_USD','NAS100':'OANDA:NAS100_USD',
+  'UK100':'OANDA:UK100_GBP','GER40':'OANDA:DE30_EUR','FRA40':'OANDA:FR40_EUR',
+  'JPN225':'OANDA:JP225_USD','AUS200':'OANDA:AUS200_AUD',
+};
+
 async function loadLiveChart(container, sig, idx) {
   container.classList.remove('error');
   container.classList.add('loading');
@@ -1018,21 +1036,54 @@ async function loadLiveChart(container, sig, idx) {
 
     let candles = ohlcvCache[cacheKey];
     if (!candles) {
-      const res = await fetch(WORKER, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'twelvedata',
-          action: 'ohlcv',
-          symbol: sig.pair,
-          interval: tf,
-          outputsize: 80
-        })
-      });
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      const data = await res.json();
-      if (!data.candles || data.candles.length === 0) throw new Error('No candles');
-      candles = data.candles.reverse();
+      // ── Tentativo 1: Twelve Data ──
+      try {
+        const res = await fetch(WORKER, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'twelvedata', action: 'ohlcv',
+            symbol: sig.pair, interval: tf, outputsize: 80
+          })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.candles && data.candles.length > 0) {
+            candles = data.candles.reverse();
+          }
+        }
+      } catch(e) { console.warn('TD candles failed:', e.message); }
+
+      // ── Tentativo 2: Finnhub candles (fallback) ──
+      if (!candles) {
+        const fhSym = FH_CANDLE_MAP[sig.pair];
+        const fhRes = FH_RES_MAP[selectedTF] || '60';
+        if (fhSym) {
+          try {
+            const now  = Math.floor(Date.now() / 1000);
+            const from = now - (80 * parseInt(fhRes === 'D' ? 86400 : fhRes) * 60);
+            const res = await fetch(WORKER, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                type: 'finnhub',
+                action: 'candles',
+                symbol: fhSym,
+                resolution: fhRes,
+                from, to: now
+              })
+            });
+            if (res.ok) {
+              const data = await res.json();
+              if (data.candles && data.candles.length > 0) {
+                candles = data.candles;
+              }
+            }
+          } catch(e) { console.warn('Finnhub candles failed:', e.message); }
+        }
+      }
+
+      if (!candles || candles.length === 0) throw new Error('No candles available');
       ohlcvCache[cacheKey] = candles;
     }
 
