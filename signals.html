@@ -561,7 +561,7 @@ const CFD_PAIRS = {
   CRYPTO: ['BTCUSD','ETHUSD','XRPUSD','SOLUSD','DOGEUSD']
 };
 const ALL_PAIRS = [...CFD_PAIRS.FX, ...CFD_PAIRS.INDICES, ...CFD_PAIRS.COMMODITIES, ...CFD_PAIRS.CRYPTO];
-const PATTERNS = ['Elliott Wave 3','Elliott Wave 5','Elliott Wave C','Head & Shoulders','Inverse Head & Shoulders','Double Top','Double Bottom','Triple Top','Triple Bottom','Ascending Triangle','Descending Triangle','Symmetrical Triangle','Broadening Triangle','Bull Flag','Bear Flag','Bull Pennant','Bear Pennant','Rising Channel','Falling Channel','Horizontal Channel','Cup & Handle','Rounding Bottom','Rounding Top','Rising Wedge','Falling Wedge','Breakout Key Level','Fib 61.8% Bounce','Fib 38.2% Bounce','Fib 50% Bounce','Gartley Pattern','Butterfly Pattern','Bat Pattern','Crab Pattern','ABCD Pattern','Cypher Pattern','Bullish Engulfing','Bearish Engulfing','Doji Reversal','Hammer','Shooting Star','Morning Star','Evening Star','Bullish Harami','Bearish Harami','RSI Divergence','MACD Divergence','Island Reversal','Diamond Pattern','Wolfe Wave'];
+const PATTERNS = ['Elliott Wave 3','Elliott Wave 5','Elliott Wave C','Head & Shoulders','Inverse Head & Shoulders','Double Top','Double Bottom','Triple Top','Triple Bottom','Ascending Triangle','Descending Triangle','Symmetrical Triangle','Broadening Triangle','Bull Flag','Bear Flag','Bull Pennant','Bear Pennant','Rising Channel','Falling Channel','Horizontal Channel','Cup & Handle','Rounding Bottom','Rounding Top','Rising Wedge','Falling Wedge','Breakout Key Level','Fib 61.8% Bounce','Fib 38.2% Bounce','Fib 50% Bounce','Gartley Pattern','Butterfly Pattern','Bat Pattern','Crab Pattern','ABCD Pattern','Cypher Pattern','Bullish Engulfing','Bearish Engulfing','Doji Reversal','Hammer','Shooting Star','Morning Star','Evening Star','Bullish Harami','Bearish Harami','Island Reversal','Diamond Pattern','Wolfe Wave'];
 
 function doLogin() {
   const pwd = document.getElementById('pwd-input').value;
@@ -752,7 +752,6 @@ Breakout Key Level, Fib 61.8% Bounce, Fib 38.2% Bounce, Fib 50% Bounce,
 Gartley Pattern, Butterfly Pattern, Bat Pattern, Crab Pattern, ABCD Pattern, Cypher Pattern,
 Bullish Engulfing, Bearish Engulfing, Doji Reversal,
 Hammer, Shooting Star, Morning Star, Evening Star, Bullish Harami, Bearish Harami,
-RSI Divergence, MACD Divergence,
 Island Reversal, Diamond Pattern, Wolfe Wave`;
 }
 
@@ -1364,28 +1363,44 @@ function drawPattern(ctx, pat, isBull, entry, sl, tp, py, px, CW, CH, ML, MR, MT
   }
 
   // ══ FALLING WEDGE (bullish) ══
-  // Cuneo CONVERGENTE che scende: entrambe le linee scendono MA si avvicinano verso destra
-  // Upper line scende più velocemente, lower line scende meno → convergono
+  // Cuneo CONVERGENTE che scende: upper scende PIÙ RIPIDA, lower scende MENO RIPIDA
+  // Le due linee partono distanti e si incontrano verso un apex a destra
   else if (pat.includes('falling wedge')) {
     const wCol = '#00e676';
-    // Upper trendline: scende velocemente
-    const uL = py(entry + spread * 1.2);   // sinistra alta
-    const uR = py(entry - spread * 0.6);   // destra — scende molto
-    // Lower trendline: scende lentamente → converge con upper
-    const lL = py(entry + spread * 0.1);   // sinistra meno alta
-    const lR = py(entry - spread * 0.9);   // destra — scende poco → converge
-    zone([[px(0.05),uL],[nowX,uR],[nowX,lR],[px(0.05),lL]], wCol, 0.07);
-    L(px(0.05),uL, nowX,uR, wCol, 3);  // upper
-    L(px(0.05),lL, nowX,lR, wCol, 3);  // lower
-    [0.15,0.32,0.50].forEach(t => {
-      const yU = uL + (uR-uL)*(t/0.68);
-      const yL = lL + (lR-lL)*(t/0.68);
-      DOT(px(t), yU, wCol, 4);
-      DOT(px(t+0.08), yL, wCol, 4);
+    // Upper trendline: parte molto in alto a sinistra, scende ripidamente
+    const uL = py(entry + spread * 1.6);   // alto a sinistra
+    const uR = py(entry - spread * 0.2);   // scende molto verso destra
+    // Lower trendline: parte più bassa, scende poco (pendenza molto più lieve)
+    const lL = py(entry + spread * 0.2);   // meno alta a sinistra
+    const lR = py(entry - spread * 0.8);   // scende appena → quasi piatta rispetto a upper
+    // Risultato: upper molto inclinata, lower quasi piatta → convergono verso apex a destra
+    zone([[px(0.05),uL],[nowX,uR],[nowX,lR],[px(0.05),lL]], wCol, 0.08);
+    L(px(0.05),uL, nowX,uR, wCol, 3.5);  // upper — ripida
+    L(px(0.05),lL, nowX,lR, wCol, 3.5);  // lower — meno ripida
+    // Rimbalzi interni: zigzag che tocca alternativamente upper e lower
+    [0.14, 0.30, 0.48, 0.62].forEach((t, i) => {
+      const isUpper = i % 2 === 0;
+      const lineL = isUpper ? uL : lL;
+      const lineR = isUpper ? uR : lR;
+      const y = lineL + (lineR - lineL) * (t / 0.68);
+      DOT(px(t), y, wCol, 5);
     });
+    // Zigzag interno visibile
+    const zigPts = [0.14, 0.30, 0.48, 0.62].map((t, i) => {
+      const isUpper = i % 2 === 0;
+      const lineL = isUpper ? uL : lL;
+      const lineR = isUpper ? uR : lR;
+      return [px(t), lineL + (lineR - lineL) * (t / 0.68)];
+    });
+    ctx.save(); ctx.strokeStyle = wCol; ctx.lineWidth = 1.5; ctx.globalAlpha = 0.4;
+    ctx.setLineDash([3,3]);
+    ctx.beginPath(); ctx.moveTo(zigPts[0][0], zigPts[0][1]);
+    zigPts.slice(1).forEach(p => ctx.lineTo(p[0], p[1]));
+    ctx.stroke(); ctx.setLineDash([]); ctx.restore();
+    // Label
     ctx.fillStyle = DIMTEXT; ctx.font = '10px "Space Mono",monospace'; ctx.textAlign = 'center';
-    ctx.fillText('converging lines → bullish', px(0.35), lR + 18);
-    LBL('FALLING WEDGE', px(0.37), lR, wCol, false, 13);
+    ctx.fillText('upper steeper · lower flatter → converge', px(0.37), lR + 18);
+    LBL('FALLING WEDGE', px(0.37), uL, wCol, true, 13);
     trajArrow(nowX, uR, wCol, true); // breakout verso l'alto
   }
 
@@ -1627,29 +1642,7 @@ function drawPattern(ctx, pat, isBull, entry, sl, tp, py, px, CW, CH, ML, MR, MT
     trajArrow(dX+dW/2,py(entry),col,isBull);
   }
 
-  // ══ RSI / MACD DIVERGENCE ══
-  else if (pat.includes('divergence')||pat.includes('rsi')||pat.includes('macd')) {
-    const p1P=entry+(isBull?-spread*1.3:spread*1.3);
-    const p2P=entry+(isBull?-spread*1.6:spread*1.6);
-    const p1X=px(0.16),p2X=px(0.50);
-    L(px(0.04),py(p1P),p1X,py(p1P),col,2.5); L(px(0.28),py(p2P),p2X,py(p2P),col,2.5);
-    ctx.save(); ctx.strokeStyle=ORANGE; ctx.lineWidth=3; ctx.setLineDash([8,5]);
-    ctx.beginPath(); ctx.moveTo(p1X,py(p1P)); ctx.lineTo(p2X,py(p2P)); ctx.stroke();
-    ctx.setLineDash([]); ctx.restore();
-    DOT(p1X,py(p1P),ORANGE,7); DOT(p2X,py(p2P),ORANGE,7);
-    // Oscillatore mini
-    const oscH=40,oscY=MT+CH-oscH-5;
-    ctx.save(); ctx.fillStyle='#0c1422'; ctx.globalAlpha=0.8;
-    ctx.fillRect(ML,oscY,CW*0.68,oscH); ctx.restore();
-    ctx.strokeStyle='#1e2a3a'; ctx.lineWidth=1; ctx.strokeRect(ML,oscY,CW*0.68,oscH);
-    ctx.fillStyle=DIMTEXT; ctx.font='10px "Space Mono",monospace'; ctx.textAlign='left';
-    ctx.fillText(pat.includes('macd')?'MACD':'RSI',ML+6,oscY+14);
-    const o1Y=oscY+oscH-10,o2Y=oscY+10;
-    L(p1X,isBull?o1Y:o2Y,p2X,isBull?o2Y:o1Y,col,2.5);
-    DOT(p1X,isBull?o1Y:o2Y,col,5); DOT(p2X,isBull?o2Y:o1Y,col,5);
-    LBL(isBull?'BULLISH DIVERGENCE':'BEARISH DIVERGENCE',(p1X+p2X)/2,isBull?py(p2P):py(p2P),col,!isBull,13);
-    trajArrow(p2X,py(p2P),col,isBull);
-  }
+  // ══ RSI / MACD DIVERGENCE — rimosso, cade nel fallback generico ══
 
   // ══ HARMONICI (Gartley, Butterfly, Bat, Crab, Cypher, ABCD) ══
   else if (pat.includes('gartley')||pat.includes('butterfly')||pat.includes('bat')||pat.includes('crab')||pat.includes('cypher')||pat.includes('abcd')) {
