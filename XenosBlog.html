@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>XenosFinance — AI Блог</title>
+<title>XenosFinance — AI Blog</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=IBM+Plex+Mono:wght@300;400;500&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
   :root { --bg:#0b0e14; --bg2:#111520; --bg3:#161b27; --border:#1e2535; --gold:#c9a84c; --gold-light:#e8c96a; --text:#c8cdd8; --text-dim:#5a6070; --text-bright:#e8eaf0; }
@@ -26,8 +26,6 @@
   .hero-title { font-family:'Playfair Display',serif; font-size:clamp(2rem,4vw,3.2rem); font-weight:900; color:var(--text-bright); line-height:1.1; margin-bottom:14px; }
   .hero-title span { color:var(--gold); }
   .hero-sub { font-size:0.92rem; color:var(--text-dim); max-width:520px; line-height:1.7; }
-
-  /* GRID */
   #gridView { padding:48px 5vw; }
   .section-header { display:flex; align-items:center; gap:14px; margin-bottom:28px; padding-bottom:14px; border-bottom:1px solid var(--border); }
   .section-title { font-family:'IBM Plex Mono',monospace; font-size:0.65rem; letter-spacing:0.2em; text-transform:uppercase; color:var(--gold); white-space:nowrap; }
@@ -43,8 +41,6 @@
   .card-read { color:var(--gold); }
   .empty-state { text-align:center; padding:64px; color:var(--text-dim); font-family:'IBM Plex Mono',monospace; font-size:0.75rem; line-height:2; }
   .loading { text-align:center; padding:48px; color:var(--gold); font-family:'IBM Plex Mono',monospace; font-size:0.7rem; letter-spacing:0.1em; }
-
-  /* ARTICLE VIEW */
   #articleView { display:none; padding:48px 5vw; }
   .back-btn { display:inline-flex; align-items:center; gap:8px; font-family:'IBM Plex Mono',monospace; font-size:0.62rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--text-dim); cursor:pointer; border:1px solid var(--border); padding:8px 16px; margin-bottom:36px; transition:all 0.2s; background:none; }
   .back-btn:hover { border-color:var(--gold); color:var(--gold); }
@@ -61,7 +57,6 @@
   .btn-tg { background:rgba(42,130,200,0.1); border:1px solid rgba(42,130,200,0.3); color:#5aabde; padding:8px 16px; font-family:'IBM Plex Mono',monospace; font-size:0.6rem; letter-spacing:0.12em; text-transform:uppercase; cursor:pointer; text-decoration:none; display:inline-block; }
   .btn-tg:hover { background:rgba(42,130,200,0.2); }
   .disclaimer { font-family:'IBM Plex Mono',monospace; font-size:0.58rem; color:var(--text-dim); margin-top:32px; padding:16px; border:1px solid var(--border); line-height:1.7; }
-
   footer { background:var(--bg2); border-top:1px solid var(--border); padding:28px 5vw; display:flex; justify-content:space-between; align-items:center; margin-top:64px; }
   .footer-logo { font-family:'IBM Plex Mono',monospace; font-size:1rem; color:var(--text-bright); }
   .footer-logo span { color:var(--gold); }
@@ -78,56 +73,55 @@
   <div class="header-top">
     <a href="https://xenosfinance.com" class="logo">XENOS<span>FINANCE</span></a>
     <div class="header-date" id="headerDate"></div>
-    <div class="ai-badge"><div class="pulse"></div>AI Блог</div>
+    <div class="ai-badge"><div class="pulse"></div>AI Blog</div>
   </div>
   <nav>
-    <a href="https://xenosfinance.com">📰 Новости</a>
-    <a href="https://xenosfinance.com/xenoswaves_charts.html">📊 Графики</a>
-    <a href="XenosBlog.html" class="active">✦ AI Блог</a>
+    <a href="https://xenosfinance.com">📰 News</a>
+    <a href="https://xenosfinance.com/xenoswaves_charts.html">📊 Charts</a>
+    <a href="XenosBlog.html" class="active">✦ AI Blog</a>
   </nav>
 </header>
 
 <section class="hero">
-  <div class="hero-eyebrow">// Analisi AI — XenosFinance</div>
-  <h1 class="hero-title">AI Блог<br><span>XenosFinance</span></h1>
-  <p class="hero-sub">Analisi professionali sui mercati finanziari — Elliott Wave, Forex, Commodities, Macro. Generati con intelligenza artificiale.</p>
+  <div class="hero-eyebrow">// AI Analysis — XenosFinance</div>
+  <h1 class="hero-title">AI Blog<br><span>XenosFinance</span></h1>
+  <p class="hero-sub">Professional financial market analysis — Elliott Wave, Forex, Commodities, Macro. Generated with artificial intelligence.</p>
 </section>
 
-<!-- GRID ARTICOLI -->
+<!-- ARTICLE GRID -->
 <div id="gridView">
   <div class="section-header">
-    <span class="section-title">// Articoli pubblicati</span>
+    <span class="section-title">// Published Articles</span>
     <div class="section-line"></div>
-    <span class="section-title" id="articleCount">ARCHIVIO</span>
+    <span class="section-title" id="articleCount">ARCHIVE</span>
   </div>
   <div id="blogGrid" class="blog-grid">
-    <div class="loading"><span class="spinner"></span>Caricamento articoli...</div>
+    <div class="loading"><span class="spinner"></span>Loading articles...</div>
   </div>
 </div>
 
-<!-- ARTICOLO SINGOLO -->
+<!-- SINGLE ARTICLE -->
 <div id="articleView">
-  <button class="back-btn" onclick="showGrid()">← Torna agli articoli</button>
+  <button class="back-btn" onclick="showGrid()">← Back to articles</button>
   <div class="article-cat" id="artCat"></div>
   <h1 class="article-title" id="artTitle"></h1>
   <div class="article-meta" id="artMeta"></div>
   <div class="article-body" id="artBody"></div>
   <div class="article-share">
-    <span class="share-label">Seguici:</span>
+    <span class="share-label">Follow us:</span>
     <a class="btn-tg" href="https://t.me/xenosfin" target="_blank">✈ Telegram @xenosfin</a>
   </div>
-  <div class="disclaimer">⚠ Questo articolo è generato da intelligenza artificiale a scopo informativo. Non costituisce consulenza finanziaria. Fai sempre le tue ricerche prima di prendere decisioni di investimento.</div>
+  <div class="disclaimer">⚠ This article is generated by artificial intelligence for informational purposes only. It does not constitute financial advice. Always do your own research before making investment decisions.</div>
 </div>
 
 <footer>
   <div class="footer-logo">XENOS<span>FINANCE</span></div>
-  <div class="footer-note">© XENOSFINANCE 2026 · AI Blog<br>⚠ Non costituisce consulenza finanziaria</div>
+  <div class="footer-note">© XENOSFINANCE 2026 · AI Blog<br>⚠ Not investment advice</div>
 </footer>
 
 <script>
 const GITHUB_RAW = "https://raw.githubusercontent.com/xenosfinance-prog/waves/main/";
-const monthsIT = ['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'];
-const monthsRU = ['ЯНВАРЯ','ФЕВРАЛЯ','МАРТА','АПРЕЛЯ','МАЯ','ИЮНЯ','ИЮЛЯ','АВГУСТА','СЕНТЯБРЯ','ОКТЯБРЯ','НОЯБРЯ','ДЕКАБРЯ'];
+const monthsEN = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
 function fromBase64(b64) {
   var bin = atob(b64.replace(/\n/g,''));
@@ -137,22 +131,21 @@ function fromBase64(b64) {
 }
 
 var d0 = new Date();
-document.getElementById('headerDate').textContent = d0.getDate() + ' ' + monthsRU[d0.getMonth()] + ' ' + d0.getFullYear() + ' Г.';
+document.getElementById('headerDate').textContent = monthsEN[d0.getMonth()].toUpperCase() + ' ' + d0.getDate() + ', ' + d0.getFullYear();
 
-// Check URL param
 var urlSlug = new URLSearchParams(window.location.search).get('slug');
 
 async function loadGrid() {
   try {
     var res = await fetch(GITHUB_RAW + 'articles/index.json?t=' + Date.now());
-    if (!res.ok) throw new Error('index non trovato');
+    if (!res.ok) throw new Error('Index not found');
     var articles = await res.json();
     var grid = document.getElementById('blogGrid');
     if (!articles || articles.length === 0) {
-      grid.innerHTML = '<div class="empty-state">Nessun articolo pubblicato ancora.<br>Torna presto.</div>';
+      grid.innerHTML = '<div class="empty-state">No articles published yet.<br>Check back soon.</div>';
       return;
     }
-    document.getElementById('articleCount').textContent = articles.length + ' ARTICOLI';
+    document.getElementById('articleCount').textContent = articles.length + ' ARTICLES';
     grid.innerHTML = '';
     articles.forEach(function(a, i) {
       var card = document.createElement('div');
@@ -160,62 +153,53 @@ async function loadGrid() {
       var dateStr = '';
       if (a.publishedAt) {
         var d = new Date(a.publishedAt);
-        dateStr = d.getDate() + ' ' + monthsIT[d.getMonth()] + ' ' + d.getFullYear();
+        dateStr = monthsEN[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear();
       }
       card.innerHTML =
         '<div class="card-num">' + String(i+1).padStart(3,'0') + '</div>' +
         '<div class="card-cat">' + (a.category||'') + '</div>' +
         '<div class="card-title">' + a.title + '</div>' +
         '<div class="card-excerpt">' + (a.excerpt||'').substring(0,120) + '...</div>' +
-        '<div class="card-footer"><span>' + (a.readTime||'') + '</span><span class="card-read">Leggi →</span></div>';
+        '<div class="card-footer"><span>' + (a.readTime||'') + '</span><span class="card-read">Read →</span></div>';
       card.onclick = function(){ loadArticle(a.slug); };
       grid.appendChild(card);
     });
   } catch(err) {
-    document.getElementById('blogGrid').innerHTML = '<div class="empty-state">Errore caricamento articoli.<br>' + err.message + '</div>';
+    document.getElementById('blogGrid').innerHTML = '<div class="empty-state">Error loading articles.<br>' + err.message + '</div>';
   }
 }
 
 async function loadArticle(slug) {
   document.getElementById('gridView').style.display = 'none';
   document.getElementById('articleView').style.display = 'block';
-  document.getElementById('artBody').innerHTML = '<div class="loading"><span class="spinner"></span>Caricamento articolo...</div>';
+  document.getElementById('artBody').innerHTML = '<div class="loading"><span class="spinner"></span>Loading article...</div>';
   window.scrollTo(0,0);
-
-  // Update URL
   history.pushState({slug:slug}, '', '?slug=' + slug);
-
   try {
     var res = await fetch(GITHUB_RAW + 'articles/' + slug + '.json?t=' + Date.now());
-    if (!res.ok) throw new Error('Articolo non trovato');
+    if (!res.ok) throw new Error('Article not found');
     var a = await res.json();
-
     document.getElementById('artCat').textContent = a.categoryLabel || a.category || '';
     document.getElementById('artTitle').textContent = a.title;
-
     var dateStr = '';
     if (a.publishedAt) {
       var d = new Date(a.publishedAt);
-      dateStr = d.getDate() + ' ' + monthsIT[d.getMonth()] + ' ' + d.getFullYear();
+      dateStr = monthsEN[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear();
     }
     document.getElementById('artMeta').innerHTML =
       '<span>📅 ' + dateStr + '</span>' +
       '<span>⏱ ' + (a.readTime||'') + '</span>' +
-      '<span>✦ Generato da AI — XenosFinance</span>';
-
+      '<span>✦ Generated by AI — XenosFinance</span>';
     var html = '<p>' + (a.intro||'') + '</p>';
     if (a.sections) {
       a.sections.forEach(function(s){ html += '<h2>' + s.heading + '</h2><p>' + s.content + '</p>'; });
     }
     if (a.quote) html += '<blockquote>' + a.quote + '</blockquote>';
-    if (a.conclusion) html += '<h3>// Conclusione</h3><p>' + a.conclusion + '</p>';
+    if (a.conclusion) html += '<h3>// Conclusion</h3><p>' + a.conclusion + '</p>';
     document.getElementById('artBody').innerHTML = html;
-
-    // Update page title
     document.title = a.title + ' — XenosFinance AI Blog';
-
   } catch(err) {
-    document.getElementById('artBody').innerHTML = '<p style="color:#e74c3c">Errore: ' + err.message + '</p>';
+    document.getElementById('artBody').innerHTML = '<p style="color:#e74c3c">Error: ' + err.message + '</p>';
   }
 }
 
@@ -223,11 +207,10 @@ function showGrid() {
   document.getElementById('articleView').style.display = 'none';
   document.getElementById('gridView').style.display = 'block';
   history.pushState({}, '', window.location.pathname);
-  document.title = 'XenosFinance — AI Блог';
+  document.title = 'XenosFinance — AI Blog';
   window.scrollTo(0,0);
 }
 
-// Handle browser back button
 window.onpopstate = function(e) {
   if (e.state && e.state.slug) {
     loadArticle(e.state.slug);
@@ -236,7 +219,6 @@ window.onpopstate = function(e) {
   }
 };
 
-// Init
 if (urlSlug) {
   loadArticle(urlSlug);
 } else {
