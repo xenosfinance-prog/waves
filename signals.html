@@ -2275,15 +2275,32 @@ async function doSendToTelegram(idx, token, chatId) {
   const btn = document.querySelector(`[onclick="sendToTelegram(event, ${idx})"]`);
   if (btn) { btn.disabled = true; btn.textContent = '⏳ SENDING...'; }
   try {
-    const canvas = document.getElementById('chart-' + idx);
-    let imageData = null;
-    if (canvas && canvas.dataset.drawn) {
-      imageData = canvas.toDataURL('image/png').split(',')[1];
-    } else {
-      const tempCanvas = document.createElement('canvas');
-      drawPatternChart(tempCanvas, sig);
-      imageData = tempCanvas.toDataURL('image/png').split(',')[1];
-    }
+    // Pattern canvas
+    const patternCanvas = document.getElementById('chart-' + idx);
+    let patternC = patternCanvas && patternCanvas.dataset.drawn ? patternCanvas : (() => {
+      const tmp = document.createElement('canvas');
+      drawPatternChart(tmp, sig);
+      return tmp;
+    })();
+
+    // Live chart canvas (interno al div lc-idx)
+    const liveDiv = document.getElementById('lc-' + idx);
+    const liveC = liveDiv ? liveDiv.querySelector('canvas') : null;
+
+    // Combina i due canvas verticalmente
+    const combined = document.createElement('canvas');
+    const pW = patternC.width, pH = patternC.height;
+    const lW = liveC ? liveC.width : 0, lH = liveC ? liveC.height : 0;
+    const gap = 4;
+    combined.width  = Math.max(pW, lW);
+    combined.height = pH + (liveC ? lH + gap : 0);
+    const cctx = combined.getContext('2d');
+    cctx.fillStyle = '#060810';
+    cctx.fillRect(0, 0, combined.width, combined.height);
+    cctx.drawImage(patternC, 0, 0);
+    if (liveC) cctx.drawImage(liveC, 0, pH + gap);
+
+    let imageData = combined.toDataURL('image/png').split(',')[1];
     const dir = sig.direction === 'BUY' ? '🟢' : '🔴';
     const rr  = sig.rr || '—';
     const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
