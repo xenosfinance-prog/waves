@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>XenosFinance — Economic Calendar</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=IBM+Plex+Mono:wght@300;400;500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:     #0b0e14;
+  --bg2:    #111520;
+  --bg3:    #161b27;
+  --bg4:    #1c2235;
+  --border: #1e2535;
+  --border2:#252d40;
+  --gold:   #c9a84c;
+  --gold2:  #e8c96a;
+  --text:   #c8cdd8;
+  --dim:    #5a6070;
+  --bright: #e8eaf0;
+  --red:    #e05252;
+  --yellow: #e8b84b;
+  --green:  #4caf82;
+  --blue:   #4a90d9;
+  --mono:   'IBM Plex Mono', monospace;
+  --serif:  'Playfair Display', serif;
+  --sans:   'Inter', sans-serif;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:var(--bg); color:var(--text); font-family:var(--sans); font-weight:300; min-height:100vh; overflow-x:hidden; }
+
+/* ── HEADER ── */
+header { background:var(--bg2); border-bottom:1px solid var(--border); padding:0 5vw; position:sticky; top:0; z-index:200; }
+.header-top { display:flex; align-items:center; justify-content:space-between; padding:14px 0; border-bottom:1px solid var(--border); }
+.logo { font-family:var(--mono); font-size:1.2rem; font-weight:500; color:var(--bright); text-decoration:none; }
+.logo span { color:var(--gold); }
+.header-date { font-family:var(--mono); font-size:0.6rem; color:var(--dim); letter-spacing:0.12em; text-transform:uppercase; }
+.ai-badge { display:inline-flex; align-items:center; gap:6px; background:rgba(201,168,76,0.08); border:1px solid rgba(201,168,76,0.2); color:var(--gold); padding:5px 12px; font-family:var(--mono); font-size:0.58rem; letter-spacing:0.15em; text-transform:uppercase; }
+.pulse { width:6px; height:6px; background:var(--gold); border-radius:50%; animation:pulse 1.5s ease infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.2} }
+nav { display:flex; gap:28px; padding:10px 0; }
+nav a { font-family:var(--mono); font-size:0.62rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--dim); text-decoration:none; transition:color 0.2s; }
+nav a:hover, nav a.active { color:var(--gold); }
+
+/* ── HERO ── */
+.hero { background:var(--bg2); border-bottom:1px solid var(--border); padding:40px 5vw 36px; position:relative; overflow:hidden; }
+.hero::before { content:''; position:absolute; top:-100px; right:-100px; width:600px; height:600px; background:radial-gradient(circle, rgba(201,168,76,0.04) 0%, transparent 65%); pointer-events:none; }
+.hero-eyebrow { font-family:var(--mono); font-size:0.6rem; letter-spacing:0.25em; text-transform:uppercase; color:var(--gold); margin-bottom:12px; }
+.hero-title { font-family:var(--serif); font-size:clamp(1.8rem,3vw,2.6rem); font-weight:900; color:var(--bright); line-height:1.1; margin-bottom:10px; }
+.hero-title span { color:var(--gold); }
+.hero-sub { font-size:0.88rem; color:var(--dim); max-width:560px; line-height:1.7; }
+
+/* ── WEEK NAV ── */
+.week-nav { background:var(--bg2); border-bottom:1px solid var(--border); padding:0 5vw; display:flex; align-items:center; justify-content:space-between; gap:16px; }
+.week-nav-inner { display:flex; align-items:center; gap:0; }
+.week-btn { font-family:var(--mono); font-size:0.6rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--dim); padding:14px 18px; cursor:pointer; border:none; background:none; transition:color 0.2s; }
+.week-btn:hover { color:var(--gold); }
+.week-label { font-family:var(--mono); font-size:0.65rem; letter-spacing:0.15em; color:var(--bright); padding:0 16px; border-left:1px solid var(--border); border-right:1px solid var(--border); }
+.impact-legend { display:flex; gap:16px; align-items:center; padding:14px 0; }
+.legend-item { display:flex; align-items:center; gap:6px; font-family:var(--mono); font-size:0.55rem; letter-spacing:0.1em; color:var(--dim); text-transform:uppercase; }
+.legend-dot { width:8px; height:8px; border-radius:50%; }
+.dot-high { background:var(--red); }
+.dot-med  { background:var(--yellow); }
+.dot-low  { background:var(--dim); }
+
+/* ── DAY TABS ── */
+.day-tabs { background:var(--bg2); border-bottom:1px solid var(--border); padding:0 5vw; display:flex; gap:0; overflow-x:auto; }
+.day-tab { font-family:var(--mono); font-size:0.58rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--dim); padding:12px 20px; cursor:pointer; border:none; background:none; border-bottom:2px solid transparent; white-space:nowrap; transition:all 0.2s; }
+.day-tab:hover { color:var(--text); }
+.day-tab.active { color:var(--gold); border-bottom-color:var(--gold); }
+.day-tab .tab-date { display:block; font-size:0.7rem; color:var(--bright); margin-bottom:2px; }
+.day-tab .tab-count { display:inline-block; background:rgba(201,168,76,0.15); color:var(--gold); padding:1px 5px; font-size:0.5rem; border-radius:2px; margin-left:4px; }
+
+/* ── MAIN LAYOUT ── */
+.main { display:grid; grid-template-columns:1fr 380px; gap:0; min-height:calc(100vh - 300px); padding:0 5vw; }
+.events-col { border-right:1px solid var(--border); padding:24px 28px 40px 0; }
+.detail-col { padding:24px 0 40px 28px; position:sticky; top:160px; max-height:calc(100vh - 180px); overflow-y:auto; }
+
+/* ── EVENTS LIST ── */
+.events-section { margin-bottom:8px; }
+.events-time-group { margin-bottom:24px; }
+.time-label { font-family:var(--mono); font-size:0.56rem; letter-spacing:0.18em; color:var(--dim); text-transform:uppercase; padding:8px 0 8px 12px; border-left:1px solid var(--border); margin-bottom:8px; }
+
+.event-row {
+  display:grid;
+  grid-template-columns:56px 28px 1fr 90px 90px 90px;
+  gap:0;
+  align-items:center;
+  padding:13px 14px;
+  border:1px solid transparent;
+  border-bottom:1px solid var(--border);
+  cursor:pointer;
+  transition:all 0.15s;
+  position:relative;
+}
+.event-row:hover { background:var(--bg3); border-color:var(--border2); }
+.event-row.active { background:var(--bg3); border-color:var(--gold); border-left:2px solid var(--gold); }
+.event-row.released { opacity:0.7; }
+
+.ev-time { font-family:var(--mono); font-size:0.62rem; color:var(--dim); }
+.ev-impact { display:flex; align-items:center; justify-content:center; }
+.impact-dot { width:7px; height:7px; border-radius:50%; }
+.ev-name { padding:0 12px; }
+.ev-name-main { font-size:0.82rem; color:var(--bright); font-weight:500; line-height:1.3; }
+.ev-name-sub { font-family:var(--mono); font-size:0.56rem; color:var(--dim); margin-top:2px; }
+.ev-flag { font-size:0.85rem; margin-right:6px; }
+.ev-num { font-family:var(--mono); font-size:0.7rem; text-align:right; padding:0 6px; }
+.ev-actual { color:var(--bright); }
+.ev-forecast { color:var(--dim); }
+.ev-previous { color:var(--dim); }
+.ev-num.beat { color:var(--green); }
+.ev-num.miss { color:var(--red); }
+
+.ev-header { display:grid; grid-template-columns:56px 28px 1fr 90px 90px 90px; gap:0; padding:8px 14px; border-bottom:1px solid var(--border2); margin-bottom:4px; }
+.ev-header span { font-family:var(--mono); font-size:0.52rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--dim); text-align:right; }
+.ev-header span:nth-child(3) { text-align:left; padding:0 12px; }
+
+.no-events { font-family:var(--mono); font-size:0.7rem; color:var(--dim); padding:40px 0; text-align:center; }
+
+/* ── DETAIL PANEL ── */
+.detail-empty { display:flex; flex-direction:column; align-items:center; justify-content:center; height:300px; color:var(--dim); font-family:var(--mono); font-size:0.65rem; letter-spacing:0.1em; text-align:center; border:1px dashed var(--border); }
+.detail-empty .detail-icon { font-size:2rem; margin-bottom:16px; opacity:0.3; }
+
+.detail-panel { display:none; }
+.detail-panel.active { display:block; }
+
+.detail-flag-title { display:flex; align-items:flex-start; gap:12px; margin-bottom:20px; }
+.detail-flag { font-size:2rem; line-height:1; }
+.detail-impact-badge { display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:2px; font-family:var(--mono); font-size:0.56rem; letter-spacing:0.1em; text-transform:uppercase; margin-bottom:8px; }
+.badge-high { background:rgba(224,82,82,0.12); border:1px solid rgba(224,82,82,0.3); color:var(--red); }
+.badge-med  { background:rgba(232,184,75,0.12); border:1px solid rgba(232,184,75,0.3); color:var(--yellow); }
+.badge-low  { background:rgba(90,96,112,0.12); border:1px solid rgba(90,96,112,0.2); color:var(--dim); }
+.detail-title { font-family:var(--serif); font-size:1.3rem; font-weight:700; color:var(--bright); line-height:1.2; }
+.detail-meta { font-family:var(--mono); font-size:0.6rem; color:var(--dim); margin-top:6px; }
+
+.detail-numbers { display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--border); border:1px solid var(--border); margin:20px 0; }
+.detail-num-box { background:var(--bg3); padding:14px 12px; text-align:center; }
+.detail-num-label { font-family:var(--mono); font-size:0.52rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--dim); margin-bottom:6px; }
+.detail-num-val { font-family:var(--mono); font-size:1rem; font-weight:500; color:var(--bright); }
+.detail-num-val.beat { color:var(--green); }
+.detail-num-val.miss { color:var(--red); }
+.detail-num-val.pending { color:var(--dim); }
+
+.detail-section { margin-bottom:20px; }
+.detail-section-title { font-family:var(--mono); font-size:0.58rem; letter-spacing:0.18em; text-transform:uppercase; color:var(--gold); margin-bottom:10px; padding-bottom:6px; border-bottom:1px solid var(--border); }
+.detail-text { font-size:0.82rem; line-height:1.75; color:var(--text); }
+
+.scenario-box { border:1px solid var(--border); padding:14px; margin-bottom:8px; }
+.scenario-box.bull { border-left:2px solid var(--green); }
+.scenario-box.bear { border-left:2px solid var(--red); }
+.scenario-box.neut { border-left:2px solid var(--dim); }
+.scenario-label { font-family:var(--mono); font-size:0.56rem; letter-spacing:0.15em; text-transform:uppercase; margin-bottom:6px; }
+.scenario-box.bull .scenario-label { color:var(--green); }
+.scenario-box.bear .scenario-label { color:var(--red); }
+.scenario-box.neut .scenario-label { color:var(--dim); }
+.scenario-text { font-size:0.78rem; line-height:1.65; color:var(--text); }
+
+.history-row { display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:8px; padding:8px 0; border-bottom:1px solid var(--border); font-family:var(--mono); font-size:0.62rem; align-items:center; }
+.history-row:last-child { border-bottom:none; }
+.history-date { color:var(--dim); }
+.history-val { text-align:right; }
+.history-val.beat { color:var(--green); }
+.history-val.miss { color:var(--red); }
+
+.ai-analysis-btn { width:100%; padding:12px; background:rgba(201,168,76,0.08); border:1px solid rgba(201,168,76,0.25); color:var(--gold); font-family:var(--mono); font-size:0.62rem; letter-spacing:0.12em; text-transform:uppercase; cursor:pointer; transition:all 0.2s; margin-top:16px; display:flex; align-items:center; justify-content:center; gap:8px; }
+.ai-analysis-btn:hover { background:rgba(201,168,76,0.14); border-color:rgba(201,168,76,0.5); }
+.ai-analysis-btn:disabled { opacity:0.5; cursor:not-allowed; }
+.ai-result { margin-top:16px; padding:16px; background:var(--bg3); border:1px solid var(--border); border-left:2px solid var(--gold); font-size:0.8rem; line-height:1.75; color:var(--text); display:none; }
+.ai-result.active { display:block; }
+
+/* ── LOADER ── */
+.spinner { display:inline-block; width:12px; height:12px; border:1.5px solid rgba(201,168,76,0.2); border-top-color:var(--gold); border-radius:50%; animation:spin 0.7s linear infinite; }
+@keyframes spin { to{transform:rotate(360deg)} }
+
+/* ── FOOTER ── */
+footer { background:var(--bg2); border-top:1px solid var(--border); padding:24px 5vw; display:flex; justify-content:space-between; align-items:center; margin-top:0; }
+.footer-logo { font-family:var(--mono); font-size:0.95rem; color:var(--bright); }
+.footer-logo span { color:var(--gold); }
+.footer-note { font-family:var(--mono); font-size:0.54rem; color:var(--dim); text-align:right; line-height:1.7; }
+
+@media(max-width:900px) {
+  .main { grid-template-columns:1fr; }
+  .events-col { border-right:none; padding-right:0; }
+  .detail-col { padding-left:0; border-top:1px solid var(--border); position:static; max-height:none; }
+  .event-row { grid-template-columns:50px 24px 1fr 70px 70px; }
+  .ev-header { grid-template-columns:50px 24px 1fr 70px 70px; }
+  .event-row .ev-previous,
+  .ev-header span:last-child { display:none; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-top">
+    <a href="https://xenosfinance.com" class="logo">XENOS<span>FINANCE</span></a>
+    <div class="header-date" id="headerDate"></div>
+    <div class="ai-badge"><div class="pulse"></div>Economic Calendar</div>
+  </div>
+  <nav>
+    <a href="https://xenosfinance.com">📰 News</a>
+    <a href="https://xenosfinance.com/xenoswaves_charts.html">📊 Charts</a>
+    <a href="https://xenosfinance.com/XenosBlog.html">✦ AI Blog</a>
+    <a href="https://xenosfinance.com/signals.html">📡 Signals</a>
+    <a href="calendar.html" class="active">🗓 Calendar</a>
+  </nav>
+</header>
+
+<section class="hero">
+  <div class="hero-eyebrow">// Macro Intelligence — XenosFinance</div>
+  <h1 class="hero-title">Economic <span>Calendar</span></h1>
+  <p class="hero-sub">Key macro events with AI-powered scenario analysis. Click any event for market impact, historical context and trade implications.</p>
+</section>
+
+<div class="week-nav">
+  <div class="week-nav-inner">
+    <button class="week-btn" onclick="shiftWeek(-1)">← Prev</button>
+    <span class="week-label" id="weekLabel">Loading...</span>
+    <button class="week-btn" onclick="shiftWeek(1)">Next →</button>
+  </div>
+  <div class="impact-legend">
+    <div class="legend-item"><div class="legend-dot dot-high"></div>High impact</div>
+    <div class="legend-item"><div class="legend-dot dot-med"></div>Medium</div>
+    <div class="legend-item"><div class="legend-dot dot-low"></div>Low</div>
+  </div>
+</div>
+
+<div class="day-tabs" id="dayTabs"></div>
+
+<div class="main">
+  <div class="events-col">
+    <div class="ev-header">
+      <span>Time</span>
+      <span></span>
+      <span>Event</span>
+      <span>Actual</span>
+      <span>Forecast</span>
+      <span>Previous</span>
+    </div>
+    <div id="eventsList">
+      <div style="text-align:center;padding:60px 0;font-family:var(--mono);font-size:0.7rem;color:var(--dim);">
+        <div class="spinner" style="margin:0 auto 16px;width:20px;height:20px;border-width:2px;display:block;"></div>
+        Loading calendar...
+      </div>
+    </div>
+  </div>
+  <div class="detail-col">
+    <div class="detail-empty" id="detailEmpty">
+      <div class="detail-icon">🗓</div>
+      Select an event<br>to view analysis
+    </div>
+    <div class="detail-panel" id="detailPanel"></div>
+  </div>
+</div>
+
+<footer>
+  <div class="footer-logo">XENOS<span>FINANCE</span></div>
+  <div class="footer-note">© XENOSFINANCE 2026 · Economic Calendar<br>⚠ Not investment advice</div>
+</footer>
+
+<script>
+const WORKER = 'https://xenos-ai-proxy.xenosfinance.workers.dev';
+
+// ── Date helpers ──────────────────────────────────────────────
+const MONTHS = ['January','February','March','April','May','June',
+                'July','August','September','October','November','December'];
+const DAYS   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+let weekOffset = 0;
+let allEvents  = [];
+let activeDay  = null;
+let activeEvent = null;
+
+function getWeekRange(offset = 0) {
+  const now  = new Date();
+  const dow  = now.getDay(); // 0=Sun
+  const mon  = new Date(now);
+  mon.setDate(now.getDate() - (dow === 0 ? 6 : dow - 1) + offset * 7);
+  mon.setHours(0,0,0,0);
+  const fri  = new Date(mon);
+  fri.setDate(mon.getDate() + 4);
+  return { mon, fri };
+}
+
+function fmtDate(d) {
+  return MONTHS[d.getMonth()].substring(0,3) + ' ' + d.getDate();
+}
+function fmtDateFull(d) {
+  return MONTHS[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear();
+}
+function isoDate(d) {
+  return d.toISOString().split('T')[0];
+}
+
+function updateWeekLabel() {
+  const { mon, fri } = getWeekRange(weekOffset);
+  const label = weekOffset === 0 ? 'This Week — ' : weekOffset === -1 ? 'Last Week — ' : weekOffset === 1 ? 'Next Week — ' : '';
+  document.getElementById('weekLabel').textContent =
+    label + fmtDate(mon) + ' – ' + fmtDate(fri) + ', ' + fri.getFullYear();
+}
+
+function shiftWeek(dir) {
+  weekOffset += dir;
+  loadCalendar();
+}
+
+// ── Fetch calendar from Finnhub ───────────────────────────────
+async function loadCalendar() {
+  updateWeekLabel();
+  document.getElementById('eventsList').innerHTML = `
+    <div style="text-align:center;padding:60px 0;font-family:var(--mono);font-size:0.7rem;color:var(--dim);">
+      <div class="spinner" style="margin:0 auto 16px;width:20px;height:20px;border-width:2px;display:block;"></div>
+      Fetching macro events...
+    </div>`;
+  document.getElementById('dayTabs').innerHTML = '';
+
+  const { mon, fri } = getWeekRange(weekOffset);
+  const from = isoDate(mon);
+  const to   = isoDate(fri);
+
+  let events = [];
+  try {
+    const res = await fetch(WORKER, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'finnhub', action: 'economic_calendar', from, to })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      events = (data.economicCalendar || data.events || []);
+    }
+  } catch(e) {
+    console.warn('Finnhub calendar failed, using fallback:', e.message);
+  }
+
+  // Fallback: hardcoded major events for current week
+  if (!events || events.length === 0) {
+    events = generateFallbackEvents(mon, fri);
+  }
+
+  // Normalize and sort
+  allEvents = normalizeEvents(events, mon, fri);
+  allEvents.sort((a,b) => new Date(a.datetime) - new Date(b.datetime));
+
+  buildDayTabs();
+}
+
+function normalizeEvents(raw, mon, fri) {
+  const normalized = [];
+  for (const e of raw) {
+    const dateStr = e.time || e.date || e.datetime || '';
+    if (!dateStr) continue;
+    const dt = new Date(dateStr);
+    if (isNaN(dt)) continue;
+    if (dt < mon || dt > fri) continue;
+
+    const impact = mapImpact(e.impact || e.importance || '');
+    normalized.push({
+      id:       e.id || Math.random().toString(36).slice(2),
+      datetime: dt,
+      country:  e.country || 'US',
+      flag:     countryFlag(e.country || 'US'),
+      name:     e.event || e.name || e.description || 'Economic Event',
+      impact,
+      actual:   e.actual   != null ? String(e.actual)   : null,
+      forecast: e.estimate != null ? String(e.estimate) : (e.forecast != null ? String(e.forecast) : null),
+      previous: e.prev     != null ? String(e.prev)     : (e.previous != null ? String(e.previous) : null),
+      unit:     e.unit || '',
+      _raw:     e,
+    });
+  }
+  return normalized;
+}
+
+function mapImpact(raw) {
+  const r = String(raw).toLowerCase();
+  if (r === 'high' || r === '3' || r === 'high impact')    return 'high';
+  if (r === 'medium' || r === '2' || r === 'med')           return 'med';
+  return 'low';
+}
+
+function countryFlag(cc) {
+  const flags = { US:'🇺🇸', EU:'🇪🇺', GB:'🇬🇧', DE:'🇩🇪', JP:'🇯🇵', CN:'🇨🇳',
+                  CA:'🇨🇦', AU:'🇦🇺', CH:'🇨🇭', NZ:'🇳🇿', FR:'🇫🇷', IT:'🇮🇹',
+                  ES:'🇪🇸', ZA:'🇿🇦', MX:'🇲🇽', BR:'🇧🇷', KR:'🇰🇷', IN:'🇮🇳',
+                  EMU:'🇪🇺', G20:'🌐', WLD:'🌐' };
+  return flags[cc.toUpperCase()] || '🌐';
+}
+
+// ── Fallback static events ─────────────────────────────────────
+function generateFallbackEvents(mon, fri) {
+  const fallback = [
+    { country:'US', impact:'high',   name:'Federal Reserve Interest Rate Decision', time:'Wed 18:00 UTC' },
+    { country:'US', impact:'high',   name:'Non-Farm Payrolls',                      time:'Fri 12:30 UTC' },
+    { country:'US', impact:'high',   name:'CPI m/m (Consumer Price Index)',          time:'Wed 12:30 UTC' },
+    { country:'US', impact:'high',   name:'Initial Jobless Claims',                  time:'Thu 12:30 UTC' },
+    { country:'US', impact:'med',    name:'ADP Non-Farm Employment Change',          time:'Wed 12:15 UTC' },
+    { country:'EU', impact:'high',   name:'ECB Interest Rate Decision',              time:'Thu 12:15 UTC' },
+    { country:'EU', impact:'med',    name:'Flash GDP q/q',                          time:'Tue 09:00 UTC' },
+    { country:'GB', impact:'med',    name:'BOE Interest Rate Decision',              time:'Thu 12:00 UTC' },
+    { country:'US', impact:'med',    name:'ISM Manufacturing PMI',                   time:'Mon 14:00 UTC' },
+    { country:'US', impact:'med',    name:'Retail Sales m/m',                       time:'Wed 12:30 UTC' },
+    { country:'US', impact:'med',    name:'PPI m/m (Producer Price Index)',           time:'Thu 12:30 UTC' },
+    { country:'JP', impact:'med',    name:'BOJ Monetary Policy Statement',           time:'Fri 03:00 UTC' },
+    { country:'US', impact:'low',    name:'CB Consumer Confidence',                  time:'Tue 14:00 UTC' },
+    { country:'DE', impact:'med',    name:'German Ifo Business Climate',             time:'Mon 08:00 UTC' },
+    { country:'US', impact:'med',    name:'PCE Price Index m/m',                    time:'Fri 12:30 UTC' },
+    { country:'CA', impact:'med',    name:'BOC Rate Statement',                      time:'Wed 14:00 UTC' },
+    { country:'AU', impact:'med',    name:'RBA Rate Decision',                       time:'Tue 03:30 UTC' },
+    { country:'US', impact:'low',    name:'EIA Crude Oil Inventories',               time:'Wed 14:30 UTC' },
+    { country:'US', impact:'med',    name:'FOMC Meeting Minutes',                    time:'Wed 18:00 UTC' },
+    { country:'EU', impact:'med',    name:'Flash CPI y/y',                          time:'Fri 09:00 UTC' },
+  ];
+  const events = [];
+  const days = [];
+  for (let i = 0; i < 5; i++) {
+    const d = new Date(mon);
+    d.setDate(mon.getDate() + i);
+    days.push(d);
+  }
+  fallback.forEach((ev, idx) => {
+    const dayIdx = idx % 5;
+    const d = new Date(days[dayIdx]);
+    const hourStr = ev.time.split(' ')[1] || '12:00 UTC';
+    const [h, m] = hourStr.replace(' UTC','').split(':').map(Number);
+    d.setUTCHours(h, m, 0, 0);
+    events.push({
+      id: 'fb_' + idx,
+      time: d.toISOString(),
+      country: ev.country,
+      event: ev.name,
+      impact: ev.impact,
+      actual: null, forecast: null, prev: null
+    });
+  });
+  return events;
+}
+
+// ── Build day tabs ────────────────────────────────────────────
+function buildDayTabs() {
+  const { mon } = getWeekRange(weekOffset);
+  const tabsEl  = document.getElementById('dayTabs');
+  tabsEl.innerHTML = '';
+
+  const byDay = {};
+  allEvents.forEach(ev => {
+    const key = isoDate(ev.datetime);
+    if (!byDay[key]) byDay[key] = [];
+    byDay[key].push(ev);
+  });
+
+  // All tab
+  const allTab = document.createElement('button');
+  allTab.className = 'day-tab' + (activeDay === 'all' ? ' active' : '');
+  allTab.innerHTML = `<span class="tab-date">All</span>`;
+  allTab.onclick = () => selectDay('all');
+  tabsEl.appendChild(allTab);
+
+  for (let i = 0; i < 5; i++) {
+    const d = new Date(mon);
+    d.setDate(mon.getDate() + i);
+    const key   = isoDate(d);
+    const count = (byDay[key] || []).length;
+    const tab   = document.createElement('button');
+    const isToday = isoDate(new Date()) === key;
+    tab.className = 'day-tab' + (activeDay === key ? ' active' : '');
+    tab.innerHTML = `<span class="tab-date">${DAYS[d.getDay()].substring(0,3)} ${d.getDate()}</span>${isToday ? '<span class="tab-count">TODAY</span>' : (count > 0 ? `<span class="tab-count">${count}</span>` : '')}`;
+    tab.onclick = () => selectDay(key);
+    tabsEl.appendChild(tab);
+  }
+
+  // Default: today or first day with events
+  const todayKey = isoDate(new Date());
+  if (byDay[todayKey]) {
+    selectDay(todayKey);
+  } else {
+    selectDay('all');
+  }
+}
+
+function selectDay(key) {
+  activeDay = key;
+  document.querySelectorAll('.day-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.day-tab').forEach(t => {
+    if (t.querySelector('.tab-date').textContent.trim() === 'All' && key === 'all') t.classList.add('active');
+    if (key !== 'all') {
+      const { mon } = getWeekRange(weekOffset);
+      for (let i = 0; i < 5; i++) {
+        const d = new Date(mon);
+        d.setDate(mon.getDate() + i);
+        if (isoDate(d) === key) {
+          const dayText = DAYS[d.getDay()].substring(0,3) + ' ' + d.getDate();
+          if (t.querySelector('.tab-date')?.textContent.trim() === dayText) t.classList.add('active');
+        }
+      }
+    }
+  });
+  renderEvents();
+}
+
+// ── Render events list ────────────────────────────────────────
+function renderEvents() {
+  const el = document.getElementById('eventsList');
+  // Use activeDay
+  let filtered = activeDay === 'all'
+    ? allEvents
+    : allEvents.filter(ev => isoDate(ev.datetime) === activeDay);
+
+  if (!filtered.length) {
+    el.innerHTML = '<div class="no-events">No events for this day.</div>';
+    return;
+  }
+
+  // Group by time bucket
+  const now = new Date();
+  let html = '';
+  let lastHour = null;
+
+  filtered.forEach(ev => {
+    const h = ev.datetime.getHours();
+    const bucket = h < 9 ? 'Pre-Market (before 09:00 CET)' :
+                   h < 13 ? 'Morning Session (09:00–13:00 CET)' :
+                   h < 17 ? 'Afternoon Session (13:00–17:00 CET)' :
+                   h < 22 ? 'US Session (17:00–22:00 CET)' : 'After Hours';
+    if (bucket !== lastHour) {
+      html += `<div class="time-label">${bucket}</div>`;
+      lastHour = bucket;
+    }
+
+    const timeStr = ev.datetime.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:'Europe/Berlin'}) + ' CET';
+    const impactCol = ev.impact === 'high' ? 'var(--red)' : ev.impact === 'med' ? 'var(--yellow)' : 'var(--dim)';
+    const isReleased = ev.actual !== null;
+    const isPast = ev.datetime < now;
+
+    let actualClass = '';
+    if (ev.actual !== null && ev.forecast !== null) {
+      const a = parseFloat(ev.actual), f = parseFloat(ev.forecast);
+      if (!isNaN(a) && !isNaN(f)) actualClass = a >= f ? ' beat' : ' miss';
+    }
+
+    const isActive = activeEvent && activeEvent.id === ev.id ? ' active' : '';
+
+    html += `<div class="event-row${isReleased ? ' released' : ''}${isActive}" onclick="selectEvent('${ev.id}', this)">
+      <div class="ev-time">${timeStr}</div>
+      <div class="ev-impact"><div class="impact-dot" style="background:${impactCol}"></div></div>
+      <div class="ev-name">
+        <div class="ev-name-main"><span class="ev-flag">${ev.flag}</span>${ev.name}</div>
+        <div class="ev-name-sub">${ev.country} · ${ev.impact.toUpperCase()} IMPACT</div>
+      </div>
+      <div class="ev-num ev-actual${actualClass}">${ev.actual !== null ? ev.actual + (ev.unit||'') : (isPast ? '—' : '⏳')}</div>
+      <div class="ev-num ev-forecast">${ev.forecast !== null ? ev.forecast + (ev.unit||'') : '—'}</div>
+      <div class="ev-num ev-previous">${ev.previous !== null ? ev.previous + (ev.unit||'') : '—'}</div>
+    </div>`;
+  });
+
+  el.innerHTML = html;
+}
+
+// ── Select event → show detail ────────────────────────────────
+function selectEvent(id, el) {
+  activeEvent = allEvents.find(e => e.id === id);
+  if (!activeEvent) return;
+
+  // Update active class
+  document.querySelectorAll('.event-row').forEach(r => r.classList.remove('active'));
+  if (el) el.classList.add('active');
+
+  renderEventDetail(activeEvent);
+}
+
+function renderEventDetail(ev) {
+  document.getElementById('detailEmpty').style.display = 'none';
+  const panel = document.getElementById('detailPanel');
+  panel.classList.add('active');
+
+  const impactBadgeClass = ev.impact === 'high' ? 'badge-high' : ev.impact === 'med' ? 'badge-med' : 'badge-low';
+  const impactLabel = ev.impact === 'high' ? '🔴 High Impact' : ev.impact === 'med' ? '🟡 Medium Impact' : '⚪ Low Impact';
+  const timeStr = ev.datetime.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:'Europe/Berlin'}) + ' CET';
+  const dateStr = fmtDateFull(ev.datetime);
+
+  let actualClass = 'pending', foreClass = '', prevClass = '';
+  if (ev.actual !== null && ev.forecast !== null) {
+    const a = parseFloat(ev.actual), f = parseFloat(ev.forecast);
+    if (!isNaN(a) && !isNaN(f)) { actualClass = a >= f ? 'beat' : 'miss'; }
+  }
+
+  // Get description and scenarios from knowledge base
+  const info = getEventInfo(ev.name, ev.country);
+
+  panel.innerHTML = `
+    <div class="detail-flag-title">
+      <div class="detail-flag">${ev.flag}</div>
+      <div>
+        <div class="detail-impact-badge ${impactBadgeClass}">${impactLabel}</div>
+        <div class="detail-title">${ev.name}</div>
+        <div class="detail-meta">${ev.country} · ${dateStr} · ${timeStr}</div>
+      </div>
+    </div>
+
+    <div class="detail-numbers">
+      <div class="detail-num-box">
+        <div class="detail-num-label">Actual</div>
+        <div class="detail-num-val ${actualClass}">${ev.actual !== null ? ev.actual + (ev.unit||'') : '—'}</div>
+      </div>
+      <div class="detail-num-box">
+        <div class="detail-num-label">Forecast</div>
+        <div class="detail-num-val">${ev.forecast !== null ? ev.forecast + (ev.unit||'') : '—'}</div>
+      </div>
+      <div class="detail-num-box">
+        <div class="detail-num-label">Previous</div>
+        <div class="detail-num-val">${ev.previous !== null ? ev.previous + (ev.unit||'') : '—'}</div>
+      </div>
+    </div>
+
+    <div class="detail-section">
+      <div class="detail-section-title">// What is this indicator</div>
+      <div class="detail-text">${info.description}</div>
+    </div>
+
+    <div class="detail-section">
+      <div class="detail-section-title">// Market scenarios</div>
+      <div class="scenario-box bull">
+        <div class="scenario-label">📈 Beat / Hawkish / Strong</div>
+        <div class="scenario-text">${info.bullScenario}</div>
+      </div>
+      <div class="scenario-box bear">
+        <div class="scenario-label">📉 Miss / Dovish / Weak</div>
+        <div class="scenario-text">${info.bearScenario}</div>
+      </div>
+      <div class="scenario-box neut">
+        <div class="scenario-label">↔ In-line / Neutral</div>
+        <div class="scenario-text">${info.neutScenario}</div>
+      </div>
+    </div>
+
+    <div class="detail-section">
+      <div class="detail-section-title">// Key assets to watch</div>
+      <div class="detail-text">${info.assets}</div>
+    </div>
+
+    <button class="ai-analysis-btn" id="aiBtn" onclick="generateAIAnalysis('${ev.id}')">
+      <span class="spinner" id="aiSpinner" style="display:none"></span>
+      ✦ Generate AI Deep Analysis
+    </button>
+    <div class="ai-result" id="aiResult"></div>
+  `;
+}
+
+// ── Event knowledge base ──────────────────────────────────────
+function getEventInfo(name, country) {
+  const n = name.toLowerCase();
+
+  if (n.includes('non-farm') || n.includes('nfp')) return {
+    description: 'The Non-Farm Payrolls report measures monthly change in employment in the US, excluding the farming sector. Released on the first Friday of each month, it is the single most market-moving data point in global finance.',
+    bullScenario: 'Beat (+200K+): USD strengthens across the board. DXY rallies, EUR/USD and GBP/USD sell off. Gold under pressure as rate-hike expectations rise. Equities mixed — strong jobs = Fed less likely to cut.',
+    bearScenario: 'Miss (<100K): USD weakens, safe-haven flows into Gold and JPY. EUR/USD and GBP/USD rally. Fed cut expectations increase — equities may rally on dovish pivot hopes.',
+    neutScenario: 'In-line (150–180K): Limited reaction. Markets focus on wage growth component. Steady Fed = current trend continues.',
+    assets: '🇺🇸 USD (direct) · 🥇 Gold (inverse) · 💴 USD/JPY · 💶 EUR/USD · 📊 S&P 500'
+  };
+
+  if (n.includes('cpi') || n.includes('consumer price')) return {
+    description: 'The Consumer Price Index measures the change in the price of goods and services from the consumer\'s perspective. It is the primary inflation gauge used by the Federal Reserve and other central banks to calibrate monetary policy.',
+    bullScenario: 'Hot CPI (above forecast): USD rallies sharply. Rate hike bets increase. Gold and bonds sell off. EUR/USD drops. Equities under pressure as higher rates compress valuations.',
+    bearScenario: 'Cool CPI (below forecast): USD weakens. Gold and bonds rally. Rate cut bets increase — equities may spike. EUR/USD and GBP/USD gain.',
+    neutScenario: 'In-line: Initial volatility fades quickly. Current positioning maintained. Focus shifts to next Fed speaker.',
+    assets: '🇺🇸 USD · 🥇 Gold · 🏛️ US Treasuries · 📊 S&P 500 · 💶 EUR/USD'
+  };
+
+  if (n.includes('fed') || n.includes('federal reserve') || n.includes('fomc') || n.includes('interest rate')) return {
+    description: 'Federal Reserve rate decisions are the most impactful monetary policy events in global markets. The FOMC sets the federal funds rate, affecting borrowing costs, equity valuations, and currency flows worldwide.',
+    bullScenario: 'Hawkish hike or hawkish hold: USD surges across all pairs. Gold falls. Emerging market currencies under pressure. Short-term yields spike. Equities may sell off on valuation concerns.',
+    bearScenario: 'Dovish cut or dovish signal: USD falls sharply. Gold rallies. EUR/USD and risk currencies gain. Equities typically surge on rate cut optimism.',
+    neutScenario: 'Hold with balanced statement: Initial volatility, then return to trend. Focus on press conference nuances and dot plot revisions.',
+    assets: '🇺🇸 USD (all pairs) · 🥇 Gold · 📊 S&P 500 · 🏛️ Treasuries · 💶 EUR/USD · 💴 USD/JPY'
+  };
+
+  if (n.includes('ecb') || n.includes('european central')) return {
+    description: 'The European Central Bank sets monetary policy for the 20 eurozone countries. Rate decisions and forward guidance from ECB President directly move EUR pairs and European equity markets.',
+    bullScenario: 'Hawkish hike/signal: EUR/USD rallies strongly. EUR/JPY and EUR/GBP gain. Eurozone bonds sell off. German DAX may drop on higher borrowing costs.',
+    bearScenario: 'Dovish cut/signal: EUR/USD drops. EUR crosses weaken. Eurozone bonds rally (yields fall). DAX may rise on cheaper credit.',
+    neutScenario: 'Hold with neutral guidance: Limited EUR reaction. Market watches for hints in press conference about future path.',
+    assets: '💶 EUR/USD · 💶 EUR/JPY · 💶 EUR/GBP · 🇩🇪 DAX · 🇫🇷 CAC 40'
+  };
+
+  if (n.includes('pmi') || n.includes('purchasing managers')) return {
+    description: 'Purchasing Managers\' Index surveys manufacturing and services sector managers on business conditions. Above 50 = expansion, below 50 = contraction. Flash estimates move markets significantly.',
+    bullScenario: 'PMI above 52: Expansion signal. Local currency strengthens. Equities rally on growth optimism. Risk-on: sell safe havens (gold, JPY, CHF).',
+    bearScenario: 'PMI below 48: Contraction signal. Currency of that country weakens. Safe-haven flows. Rate cut expectations increase.',
+    neutScenario: 'PMI 49–51: Near stagnation, market muted. Watch the employment and price sub-indices for deeper signals.',
+    assets: 'Local currency · Local equity index · 🥇 Gold (inverse)'
+  };
+
+  if (n.includes('gdp')) return {
+    description: 'Gross Domestic Product measures the total economic output of a country. Quarterly GDP figures confirm whether an economy is growing or contracting, directly influencing central bank policy decisions.',
+    bullScenario: 'GDP beat: Currency strengthens, equities rally. Reduces recession fears. Central bank less likely to cut rates aggressively.',
+    bearScenario: 'GDP miss or negative: Currency weakens, bonds rally. Recession concerns increase. Increases probability of rate cuts.',
+    neutScenario: 'In-line GDP: Limited reaction. Focus shifts to composition — consumer spending and investment components matter most.',
+    assets: 'Local currency · Local equity index · 🏛️ Local bonds'
+  };
+
+  if (n.includes('eia') || n.includes('crude oil inventories') || n.includes('oil inventories')) return {
+    description: 'The EIA Weekly Petroleum Status Report tracks changes in US crude oil stockpiles. A draw (decrease) in inventories is bullish for oil prices, while a build (increase) is bearish. Released every Wednesday at 10:30 ET.',
+    bullScenario: 'Large draw (-3M+ barrels): WTI and Brent rally. Energy stocks gain. CAD strengthens. Inflationary pressure on CPI.',
+    bearScenario: 'Large build (+3M+ barrels): WTI and Brent sell off. Energy stocks weaken. CAD weakens.',
+    neutScenario: 'Small change (±1M barrels): Limited oil reaction. Focus on gasoline and distillate components.',
+    assets: '🛢️ WTI Crude · 🛢️ Brent · 🇨🇦 CAD/USD · ⛽ Natural Gas · Energy ETFs'
+  };
+
+  if (n.includes('jobless') || n.includes('unemployment claims')) return {
+    description: 'Weekly Initial Jobless Claims measures the number of Americans filing for unemployment benefits for the first time. A leading indicator of labor market health — lower is better for the economy.',
+    bullScenario: 'Low claims (<200K): Strong labor market confirmed. USD firms. Gold under pressure. Equities positive.',
+    bearScenario: 'High claims (>250K): Labor market weakening. USD softens. Gold rallies. Rate cut expectations increase.',
+    neutScenario: 'In-line (210–230K): Limited reaction. Market focuses on 4-week average for trend confirmation.',
+    assets: '🇺🇸 USD · 🥇 Gold · 📊 S&P 500'
+  };
+
+  if (n.includes('boe') || n.includes('bank of england')) return {
+    description: 'Bank of England Monetary Policy Committee sets UK interest rates. Decisions directly affect GBP pairs, UK gilts, and FTSE. The BOE is particularly sensitive to UK inflation and Brexit-related economic conditions.',
+    bullScenario: 'Hawkish hike: GBP/USD rallies, EUR/GBP drops, GBP/JPY gains. FTSE may fall on borrowing cost concerns.',
+    bearScenario: 'Dovish cut: GBP weakens across all pairs. FTSE may rally. UK gilts rise.',
+    neutScenario: 'Hold with neutral statement: GBP reaction muted. Focus on vote split (MPC member dissents).',
+    assets: '💷 GBP/USD · 💷 EUR/GBP · 💷 GBP/JPY · 🇬🇧 FTSE 100 · UK Gilts'
+  };
+
+  if (n.includes('retail sales')) return {
+    description: 'Retail Sales measures the change in the total value of sales at the retail level. As consumer spending accounts for ~70% of US GDP, this is a key indicator of economic health and future inflation.',
+    bullScenario: 'Strong retail sales: USD strengthens. Equities rally on consumer strength. Reduces probability of Fed rate cuts.',
+    bearScenario: 'Weak retail sales: USD weakens. Consumer recession fears increase. Bonds rally. Fed more likely to cut.',
+    neutScenario: 'In-line: Limited reaction. Core retail sales (ex-autos) component more closely watched.',
+    assets: '🇺🇸 USD · 📊 S&P 500 · 🛒 Consumer discretionary stocks'
+  };
+
+  if (n.includes('pce') || n.includes('personal consumption')) return {
+    description: 'The PCE Price Index is the Federal Reserve\'s preferred inflation measure. Unlike CPI, it adjusts for consumer substitution behavior, making it a more accurate reflection of actual spending patterns.',
+    bullScenario: 'Hot PCE: USD rallies. Gold falls. Rate cut bets decrease. Short-term Treasury yields rise.',
+    bearScenario: 'Cool PCE: USD weakens. Gold rallies. Rate cut expectations increase. Equities may rally.',
+    neutScenario: 'In-line PCE: Limited reaction. Core PCE (ex food and energy) is the key number to watch.',
+    assets: '🇺🇸 USD · 🥇 Gold · 🏛️ US Treasuries · 📊 S&P 500'
+  };
+
+  if (n.includes('boj') || n.includes('bank of japan')) return {
+    description: 'Bank of Japan monetary policy decisions have outsized global impact due to the yen\'s role as the world\'s primary funding currency for carry trades. Ultra-loose BOJ policy has been a key driver of global liquidity.',
+    bullScenario: 'Hawkish tightening: JPY surges across all pairs (USD/JPY falls sharply). Carry trades unwind — risk-off globally. Gold may rally.',
+    bearScenario: 'Dovish easing or YCC expansion: JPY weakens. USD/JPY, EUR/JPY rally. Carry trades re-engage. Nikkei may rally.',
+    neutScenario: 'Hold with unchanged guidance: Limited JPY reaction. Watch for any hints about YCC adjustments.',
+    assets: '💴 USD/JPY · 💴 EUR/JPY · 💴 GBP/JPY · 🇯🇵 Nikkei 225 · 🥇 Gold'
+  };
+
+  // Generic fallback
+  return {
+    description: `${name} is a key macro indicator for ${country}. This release provides insight into economic conditions and may influence central bank policy decisions and currency valuations.`,
+    bullScenario: `Better-than-expected ${name}: Local currency strengthens, risk assets may rally. Central bank tightening expectations increase.`,
+    bearScenario: `Worse-than-expected ${name}: Local currency weakens, safe-haven assets attract flows. Rate cut expectations may increase.`,
+    neutScenario: `In-line ${name}: Limited initial reaction. Market looks for further confirmation from related indicators.`,
+    assets: 'Local currency · Local equity index · Related commodity markets'
+  };
+}
+
+// ── AI deep analysis ──────────────────────────────────────────
+async function generateAIAnalysis(eventId) {
+  const ev = allEvents.find(e => e.id === eventId);
+  if (!ev) return;
+
+  const btn = document.getElementById('aiBtn');
+  const spinner = document.getElementById('aiSpinner');
+  const result  = document.getElementById('aiResult');
+
+  btn.disabled = true;
+  spinner.style.display = 'inline-block';
+  btn.querySelector(':last-child').textContent = ' Generating analysis...';
+
+  const info = getEventInfo(ev.name, ev.country);
+  const timeStr = ev.datetime.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:'Europe/Berlin'});
+  const dateStr = fmtDateFull(ev.datetime);
+  const hasActual = ev.actual !== null;
+
+  const prompt = hasActual
+    ? `You are a senior macro strategist at an institutional trading desk.
+Write a concise post-release analysis of the ${ev.name} (${ev.country}) data released today (${dateStr}).
+
+DATA:
+Actual: ${ev.actual}${ev.unit||''}
+Forecast: ${ev.forecast !== null ? ev.forecast + (ev.unit||'') : 'N/A'}
+Previous: ${ev.previous !== null ? ev.previous + (ev.unit||'') : 'N/A'}
+
+Write 3 short paragraphs in professional English:
+1. REACTION: Was this a beat or miss? How significant is the surprise? Immediate market reaction expected.
+2. IMPLICATIONS: What does this mean for central bank policy (rate hike/cut probability)? Which specific currency pairs, indices, and commodities are most affected and in which direction?
+3. TRADE SETUP: One specific near-term trade idea with entry trigger, target, and stop based on this data release.
+
+Rules: Professional institutional tone. Exact asset names. No asterisks. No markdown. Max 220 words.`
+    : `You are a senior macro strategist at an institutional trading desk.
+Write a pre-release briefing for the upcoming ${ev.name} (${ev.country}) release on ${dateStr} at ${timeStr} CET.
+
+CONTEXT:
+Forecast: ${ev.forecast !== null ? ev.forecast + (ev.unit||'') : 'N/A'}
+Previous: ${ev.previous !== null ? ev.previous + (ev.unit||'') : 'N/A'}
+
+Write 3 short paragraphs in professional English:
+1. PREVIEW: What does the current forecast imply? What is the market consensus and key risk (beat vs miss)?
+2. SCENARIOS: Beat scenario (specific currency/asset reaction with direction) vs Miss scenario (opposite reaction). Which assets are most sensitive?
+3. POSITIONING: How should traders position ahead of this release? What levels to watch? What to do immediately after the number?
+
+Rules: Professional institutional tone. Exact asset names (e.g. EUR/USD, Gold, S&P 500). No asterisks. No markdown. Max 220 words.`;
+
+  try {
+    const res = await fetch(WORKER, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 600,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const data = await res.json();
+    const text = data?.content?.[0]?.text || '';
+    if (text) {
+      result.innerHTML = text.replace(/\n\n/g, '<br><br>').replace(/\n/g, '<br>');
+      result.classList.add('active');
+    }
+  } catch(e) {
+    result.innerHTML = '<span style="color:var(--red)">Error generating analysis. Please try again.</span>';
+    result.classList.add('active');
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '<span class="spinner" id="aiSpinner" style="display:none"></span>✦ Regenerate AI Analysis';
+}
+
+// ── Init ──────────────────────────────────────────────────────
+const d0 = new Date();
+document.getElementById('headerDate').textContent =
+  MONTHS[d0.getMonth()].toUpperCase() + ' ' + d0.getDate() + ', ' + d0.getFullYear();
+
+loadCalendar();
+</script>
+</body>
+</html>
