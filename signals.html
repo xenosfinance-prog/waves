@@ -1655,8 +1655,15 @@ function drawPattern(ctx, pat, isBull, entry, sl, tp, py, px, CW, CH, ML, MR, MT
     [0.12,0.28,0.48,0.64].forEach(t=>DOT(px(t),supStartY+(supEndY-supStartY)*(t/0.68),ORANGE,5));
     ctx.fillStyle=col; ctx.font='bold 11px "Space Mono",monospace'; ctx.textAlign='center';
     ctx.fillText('RESISTANCE (flat)',px(0.37),resY-12);
-    ctx.fillStyle=ORANGE; ctx.font='10px "Space Mono",monospace';
-    ctx.fillText('ASCENDING SUPPORT',px(0.25),supStartY+(supEndY-supStartY)*0.3+16);
+    const supLblX = px(0.22);
+    const supLblY = supStartY + (supEndY - supStartY) * 0.3 + 22;
+    ctx.font = 'bold 12px "Space Mono",monospace';
+    const supLblW = ctx.measureText('ASCENDING SUPPORT').width;
+    ctx.fillStyle = 'rgba(6,8,16,0.75)';
+    ctx.fillRect(supLblX - supLblW/2 - 6, supLblY - 14, supLblW + 12, 20);
+    ctx.fillStyle = ORANGE;
+    ctx.textAlign = 'center';
+    ctx.fillText('ASCENDING SUPPORT', supLblX, supLblY);
     LBL('ASCENDING TRIANGLE',px(0.35),supEndY,col,false,13);
     targetArrow(nowX,resY);
   }
@@ -2301,17 +2308,15 @@ async function doSendToTelegram(idx, token, chatId) {
     // Combina i due canvas verticalmente
     const combined = document.createElement('canvas');
     const OUT_W = 1200;
-    const pAspect = patternC.width / patternC.height;
-    const pOutH = Math.round(OUT_W / pAspect);
-    const lOutH = liveC ? Math.round(OUT_W / (liveC.width / liveC.height)) : 0;
-    const gap = 6;
+    const OUT_H = 500; // altezza fissa uguale per entrambi i pannelli
+    const gap = 4;
     combined.width  = OUT_W;
-    combined.height = pOutH + (liveC ? lOutH + gap : 0);
+    combined.height = OUT_H * 2 + gap;
     const cctx = combined.getContext('2d');
     cctx.fillStyle = '#060810';
     cctx.fillRect(0, 0, combined.width, combined.height);
-    cctx.drawImage(patternC, 0, 0, OUT_W, pOutH);
-    if (liveC) cctx.drawImage(liveC, 0, pOutH + gap, OUT_W, lOutH);
+    cctx.drawImage(patternC, 0, 0, OUT_W, OUT_H);
+    if (liveC) cctx.drawImage(liveC, 0, OUT_H + gap, OUT_W, OUT_H);
 
     let imageData = combined.toDataURL('image/png').split(',')[1];
     const dir = sig.direction === 'BUY' ? '🟢' : '🔴';
