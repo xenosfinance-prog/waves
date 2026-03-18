@@ -1116,7 +1116,7 @@ const FH_CANDLE_MAP = {
   'GBPCHF':  { sym:'OANDA:GBP_CHF',  type:'forex' },
   // Metalli → forex/candle
   'XAUUSD':  { sym:'OANDA:XAU_USD',  type:'forex' },
-  'XAGUSD':  { sym:'OANDA:XAG_USD',  type:'forex' },
+  'XAGUSD':  { sym:'SI=F',   type:'stock' },  // Silver futures — OANDA non disponibile su free tier
   // Crypto → crypto/candle
   'BTCUSD':  { sym:'BINANCE:BTCUSDT', type:'crypto' },
   'ETHUSD':  { sym:'BINANCE:ETHUSDT', type:'crypto' },
@@ -1159,23 +1159,30 @@ async function loadLiveChart(container, sig, idx) {
 
     let candles = ohlcvCache[cacheKey];
     if (!candles) {
-      // ── Tentativo 1: Twelve Data ──
-      try {
-        const res = await fetch(WORKER, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            type: 'twelvedata', action: 'ohlcv',
-            symbol: sig.pair, interval: tf, outputsize: 80
-          })
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.candles && data.candles.length > 0) {
-            candles = data.candles.reverse();
+      // XAUUSD e XAGUSD: salta Twelve Data (prezzi errati) → vai diretto a Finnhub
+      const TD_SKIP = ['XAUUSD','XAGUSD','USOIL','UKOIL','NGAS','COPPER',
+                       'US500','US30','NAS100','UK100','GER40','FRA40','JPN225','HK50','AUS200'];
+      const skipTD = TD_SKIP.includes(sig.pair);
+
+      // ── Tentativo 1: Twelve Data (solo FX e Crypto) ──
+      if (!skipTD) {
+        try {
+          const res = await fetch(WORKER, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              type: 'twelvedata', action: 'ohlcv',
+              symbol: sig.pair, interval: tf, outputsize: 80
+            })
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.candles && data.candles.length > 0) {
+              candles = data.candles.reverse();
+            }
           }
-        }
-      } catch(e) { console.warn('TD candles failed:', e.message); }
+        } catch(e) { console.warn('TD candles failed:', e.message); }
+      }
 
       // ── Tentativo 2: Finnhub candles (fallback) ──
       if (!candles) {
