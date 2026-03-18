@@ -840,7 +840,7 @@ async function generateSignals() {
     ]);
 
     document.getElementById('loader-sub').textContent = 'Generating AI signals with live context...';
-    const raw = await callClaudeAPI(buildPrompt(pairs, selectedTF, selectedDir, minConf, livePrices, marketNews));
+    const raw = await callClaudeAPI(buildPrompt(pairs, selectedTF, selectedDir, minConf, livePrices, marketNews, signals));
     clearInterval(loaderInterval);
     const parsed = parseSignals(raw, minConf, selectedDir);
     signals = parsed;
@@ -856,7 +856,7 @@ async function generateSignals() {
   btn.disabled = false;
 }
 
-function buildPrompt(pairs, tf, dir, minConf, livePrices = {}, marketNews = {}) {
+function buildPrompt(pairs, tf, dir, minConf, livePrices = {}, marketNews = {}, prevSignals = []) {
   const dirNote = dir === 'BOTH' ? 'bullish and bearish' : dir === 'BUY' ? 'bullish only' : 'bearish only';
   const priceLines = pairs.map(p => {
     const price = livePrices[p];
@@ -876,11 +876,18 @@ ${cryptoNews  ? `\nCrypto News:\n${cryptoNews}`       : ''}
 ${sentLines   ? `\nMarket Sentiment: ${sentLines}`    : ''}
 ` : '';
 
+  // Segnali precedenti attivi — per evitare contraddizioni
+  const prevSection = prevSignals && prevSignals.length > 0 ? `
+PREVIOUSLY GENERATED SIGNALS (still active — do NOT contradict these):
+${prevSignals.map(s => `  ${s.pair}: ${s.direction} @ ${s.entry} (pattern: ${s.pattern}, conf: ${s.confidence}%)`).join('\n')}
+RULE: If a pair already has an active signal above, you MUST either keep the same direction or OMIT that pair entirely. Never reverse direction on the same pair within the same session.
+` : '';
+
   return `You are an expert intraday CFD trader specializing in technical pattern recognition, Elliott Wave analysis, and institutional trading setups. Generate precise trading signals.
 
 LIVE MARKET PRICES (real-time):
 ${priceLines}
-${newsSection}
+${prevSection}${newsSection}
 Analyze these CFD instruments on ${tf} timeframe: ${pairs.join(', ')}
 
 Generate ${dirNote} signals where a real pattern exists. Return ONLY a raw JSON array, no markdown, no text outside the array.
@@ -916,6 +923,10 @@ Rules:
 - R:R between 1:1.5 and 1:4
 - Be selective, not every pair needs a signal
 - Minimum confidence: ${minConf}%
+- CONSISTENCY: Never generate a signal that contradicts a previously active signal on the same pair
+- QUALITY OVER QUANTITY: it is better to return 2-3 high-conviction signals than 6-8 weak ones
+- TEMPORAL COHERENCE: ew_context must reference current market conditions (March 2026), never invent past dates or future events
+- NO NOISE: if the market structure is unclear or consolidating, do NOT force a signal — return nothing for that pair
 
 Output only the JSON array.
 
@@ -2289,16 +2300,18 @@ async function doSendToTelegram(idx, token, chatId) {
 
     // Combina i due canvas verticalmente
     const combined = document.createElement('canvas');
-    const pW = patternC.width, pH = patternC.height;
-    const lW = liveC ? liveC.width : 0, lH = liveC ? liveC.height : 0;
-    const gap = 4;
-    combined.width  = Math.max(pW, lW);
-    combined.height = pH + (liveC ? lH + gap : 0);
+    const OUT_W = 1200;
+    const pAspect = patternC.width / patternC.height;
+    const pOutH = Math.round(OUT_W / pAspect);
+    const lOutH = liveC ? Math.round(OUT_W / (liveC.width / liveC.height)) : 0;
+    const gap = 6;
+    combined.width  = OUT_W;
+    combined.height = pOutH + (liveC ? lOutH + gap : 0);
     const cctx = combined.getContext('2d');
     cctx.fillStyle = '#060810';
     cctx.fillRect(0, 0, combined.width, combined.height);
-    cctx.drawImage(patternC, 0, 0);
-    if (liveC) cctx.drawImage(liveC, 0, pH + gap);
+    cctx.drawImage(patternC, 0, 0, OUT_W, pOutH);
+    if (liveC) cctx.drawImage(liveC, 0, pOutH + gap, OUT_W, lOutH);
 
     let imageData = combined.toDataURL('image/png').split(',')[1];
     const dir = sig.direction === 'BUY' ? '🟢' : '🔴';
