@@ -1014,7 +1014,7 @@ function renderSignals(list) {
           <div class="live-chart-section">
             <div class="live-chart-header">
               <span>LIVE CANDLES · ${sig.pair} · ${selectedTF}</span>
-              <span class="live-chart-badge">${TV_SYMBOL_MAP[sig.pair] ? '● TRADINGVIEW' : '● TWELVE DATA'}</span>
+              <span class="live-chart-badge">● TRADINGVIEW</span>
             </div>
             <div class="live-chart-body loading" id="lc-${idx}"></div>
           </div>
@@ -1093,15 +1093,30 @@ const FH_RES_MAP = { 'M15': '15', 'H1': '60', 'H4': '240', 'D1': 'D' };
 
 // Simboli che usano TradingView widget (non hanno candles via TD/Finnhub)
 const TV_SYMBOL_MAP = {
-  // Metalli — OANDA CFD
+  // FX — OANDA
+  'EURUSD': 'OANDA:EURUSD',
+  'GBPUSD': 'OANDA:GBPUSD',
+  'USDJPY': 'OANDA:USDJPY',
+  'USDCHF': 'OANDA:USDCHF',
+  'AUDUSD': 'OANDA:AUDUSD',
+  'NZDUSD': 'OANDA:NZDUSD',
+  'USDCAD': 'OANDA:USDCAD',
+  'EURGBP': 'OANDA:EURGBP',
+  'EURJPY': 'OANDA:EURJPY',
+  'GBPJPY': 'OANDA:GBPJPY',
+  'CADJPY': 'OANDA:CADJPY',
+  'AUDNZD': 'OANDA:AUDNZD',
+  'EURCHF': 'OANDA:EURCHF',
+  'GBPCHF': 'OANDA:GBPCHF',
+  // Metalli — OANDA
   'XAUUSD': 'OANDA:XAUUSD',
   'XAGUSD': 'OANDA:XAGUSD',
-  // Commodities — OANDA CFD
+  // Commodities — OANDA
   'USOIL':  'OANDA:WTICOUSD',
   'UKOIL':  'OANDA:BCOUSD',
   'NGAS':   'OANDA:NATGASUSD',
   'COPPER': 'OANDA:XCUUSD',
-  // Indici — OANDA CFD
+  // Indici — OANDA
   'US500':  'OANDA:SPX500USD',
   'US30':   'OANDA:US30USD',
   'NAS100': 'OANDA:NAS100USD',
@@ -1111,6 +1126,13 @@ const TV_SYMBOL_MAP = {
   'JPN225': 'OANDA:JP225USD',
   'HK50':   'OANDA:HK33HKD',
   'AUS200': 'OANDA:AU200AUD',
+  // Crypto — BINANCE (OANDA non ha crypto)
+  'BTCUSD':  'BINANCE:BTCUSDT',
+  'ETHUSD':  'BINANCE:ETHUSDT',
+  'XRPUSD':  'BINANCE:XRPUSDT',
+  'SOLUSD':  'BINANCE:SOLUSDT',
+  'DOGEUSD': 'BINANCE:DOGEUSDT',
+  'ZECUSD':  'BINANCE:ZECUSDT',
 };
 
 // TF XenosFinance → TradingView interval
@@ -1282,24 +1304,13 @@ async function loadLightweightChart(container, sig) {
   ro.observe(container);
 }
 
-// ── Router principale ────────────────────────────────────────
-async function loadLiveChart(container, sig, idx) {
-  container.classList.remove('error');
-  container.classList.add('loading');
-
-  // Commodities, indici e metalli → TradingView widget
+// ── Router principale — TradingView per tutti i simboli ─────
+function loadLiveChart(container, sig, idx) {
+  container.classList.remove('error', 'loading');
   if (TV_SYMBOL_MAP[sig.pair]) {
     loadTradingViewChart(container, sig);
-    return;
-  }
-
-  // FX e Crypto → Lightweight Charts (TD + Finnhub)
-  try {
-    await loadLightweightChart(container, sig);
-  } catch(e) {
-    console.warn('Live chart error:', e.message);
-    container.classList.remove('loading');
-    container.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100%;font-family:var(--mono);font-size:11px;color:var(--text-dim);letter-spacing:0.1em;">Live chart unavailable · ${e.message}</div>`;
+  } else {
+    container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;font-family:var(--mono);font-size:11px;color:var(--text-dim);letter-spacing:0.1em;">Symbol not mapped</div>';
   }
 }
 
