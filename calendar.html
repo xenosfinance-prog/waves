@@ -333,8 +333,12 @@ async function loadCalendar() {
     console.warn('Finnhub calendar failed, using fallback:', e.message);
   }
 
-  // Normalize and sort — il Worker ha già filtrato per settimana, non rifiltriamo qui
+  // Normalizza eventi — se vuoti usa fallback statico
   allEvents = normalizeEvents(events);
+  if (allEvents.length === 0) {
+    console.warn('No events from ForexFactory — using static fallback');
+    allEvents = normalizeEvents(generateFallbackEvents(mon, fri));
+  }
   allEvents.sort((a,b) => a.datetime - b.datetime);
   buildDayTabs();
 }
@@ -436,7 +440,7 @@ function generateFallbackEvents(mon, fri) {
       country: ev.country,
       event: ev.name,
       impact: ev.impact,
-      actual: null, forecast: null, prev: null
+      actual: null, estimate: null, prev: null
     });
   });
   return events;
