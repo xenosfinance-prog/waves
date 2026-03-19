@@ -352,24 +352,28 @@ async function loadCalendar() {
 
 function normalizeEvents(raw, mon, fri) {
   const normalized = [];
-  // Extend fri to end of day to include all Friday events
-  const friEnd = new Date(fri);
-  friEnd.setHours(23, 59, 59, 999);
+  const monTs = mon.getTime();
+  const friTs = new Date(fri).setHours(23, 59, 59, 999);
 
   for (const e of raw) {
-    // Finnhub uses 'time' field in format "2026-03-19 13:15:00"
     const dateStr = e.time || e.date || e.datetime || '';
     if (!dateStr) continue;
-    // Handle both "2026-03-19 13:15:00" and ISO formats
-    const dt = new Date(dateStr.includes('T') ? dateStr : dateStr.replace(' ', 'T') + 'Z');
+
+    // ForexFactory: "2026-03-19T13:15:00-04:00" — ISO con offset → new Date() gestisce correttamente
+    // Finnhub:      "2026-03-19 13:15:00"        — sostituiamo spazio con T e aggiungiamo Z (UTC)
+    let dt;
+    if (dateStr.includes('T') || dateStr.includes('+') || /\d{2}:\d{2}:\d{2}[+-]/.test(dateStr)) {
+      dt = new Date(dateStr); // ISO con timezone — lascia fare al browser
+    } else {
+      dt = new Date(dateStr.replace(' ', 'T') + 'Z'); // formato Finnhub senza tz → assumiamo UTC
+    }
     if (isNaN(dt)) continue;
-    if (dt < mon || dt > friEnd) continue;
+
+    const ts = dt.getTime();
+    if (ts < monTs || ts > friTs) continue;
 
     const impact = mapImpact(e.impact || e.importance || '');
-
-    // Only include medium and high impact events from Finnhub
-    // (Finnhub returns hundreds of low-impact events otherwise)
-    if (impact === 'low') continue;
+    if (impact === 'low') continue; // escludiamo low impact — troppi eventi irrilevanti
 
     normalized.push({
       id:       e.id || Math.random().toString(36).slice(2),
