@@ -359,13 +359,13 @@ function normalizeEvents(raw, mon, fri) {
     const dateStr = e.time || e.date || e.datetime || '';
     if (!dateStr) continue;
 
-    // ForexFactory: "2026-03-19T13:15:00-04:00" — ISO con offset → new Date() gestisce correttamente
-    // Finnhub:      "2026-03-19 13:15:00"        — sostituiamo spazio con T e aggiungiamo Z (UTC)
+    // ForexFactory: "2026-03-19T13:15:00-04:00" — ISO con offset, new Date() gestisce correttamente
+    // Finnhub:      "2026-03-19 13:15:00"        — sostituiamo spazio con T + Z (UTC)
     let dt;
-    if (dateStr.includes('T') || dateStr.includes('+') || /\d{2}:\d{2}:\d{2}[+-]/.test(dateStr)) {
-      dt = new Date(dateStr); // ISO con timezone — lascia fare al browser
+    if (dateStr.includes('T')) {
+      dt = new Date(dateStr);
     } else {
-      dt = new Date(dateStr.replace(' ', 'T') + 'Z'); // formato Finnhub senza tz → assumiamo UTC
+      dt = new Date(dateStr.replace(' ', 'T') + 'Z');
     }
     if (isNaN(dt)) continue;
 
