@@ -1014,7 +1014,7 @@ function renderSignals(list) {
           <div class="live-chart-section">
             <div class="live-chart-header">
               <span>LIVE CANDLES · ${sig.pair} · ${selectedTF}</span>
-              <span class="live-chart-badge">● TWELVE DATA</span>
+              <span class="live-chart-badge">${TV_SYMBOL_MAP[sig.pair] ? '● TRADINGVIEW' : '● TWELVE DATA'}</span>
             </div>
             <div class="live-chart-body loading" id="lc-${idx}"></div>
           </div>
@@ -1082,257 +1082,213 @@ function renderSignals(list) {
 }
 
 // ══════════════════════════════════════════════════════════════
-// LIVE CHART ENGINE — Lightweight Charts + Twelve Data OHLCV
+// LIVE CHART ENGINE
+// FX + Crypto  → Twelve Data / Finnhub (Lightweight Charts)
+// Commodities + Indici + Metalli → TradingView widget (iframe)
 // ══════════════════════════════════════════════════════════════
 
-// Cache in memoria: evita chiamate ripetute per lo stesso simbolo+TF
 const ohlcvCache = {};
-
-// Mappa timeframe UI → intervallo Twelve Data
-const TF_MAP = { 'M15': '15min', 'H1': '1h', 'H4': '4h', 'D1': '1day' };
-
-// Mappa timeframe UI → risoluzione Finnhub (in minuti, o 'D'/'W')
+const TF_MAP    = { 'M15': '15min', 'H1': '1h', 'H4': '4h', 'D1': '1day' };
 const FH_RES_MAP = { 'M15': '15', 'H1': '60', 'H4': '240', 'D1': 'D' };
 
-// Mappa simboli XenosFinance → Finnhub per OHLCV
-// FX + metalli: OANDA forex/candle
-// Crypto: BINANCE crypto/candle  
-// Indices + energie: ETF stock/candle (più dati disponibili sul free tier)
+// Simboli che usano TradingView widget (non hanno candles via TD/Finnhub)
+const TV_SYMBOL_MAP = {
+  // Metalli
+  'XAUUSD': 'OANDA:XAUUSD', 'XAGUSD': 'OANDA:XAGUSD',
+  // Commodities
+  'USOIL':  'NYMEX:CL1!',   'UKOIL':  'NYMEX:BB1!',
+  'NGAS':   'NYMEX:NG1!',   'COPPER': 'COMEX:HG1!',
+  // Indici
+  'US500':  'SP:SPX',       'US30':   'DJ:DJI',
+  'NAS100': 'NASDAQ:NDX',   'UK100':  'SPREADEX:UK100',
+  'GER40':  'XETR:DAX',     'FRA40':  'EURONEXT:PX1',
+  'JPN225': 'TVC:NI225',    'HK50':   'TVC:HSI',
+  'AUS200': 'ASX:XJO',
+};
+
+// TF XenosFinance → TradingView interval
+const TV_TF_MAP = { 'M15': '15', 'H1': '60', 'H4': '240', 'D1': 'D' };
+
+// Finnhub candles per FX e Crypto (invariato)
 const FH_CANDLE_MAP = {
-  // FX → forex/candle
-  'EURUSD':  { sym:'OANDA:EUR_USD',  type:'forex' },
-  'GBPUSD':  { sym:'OANDA:GBP_USD',  type:'forex' },
-  'USDJPY':  { sym:'OANDA:USD_JPY',  type:'forex' },
-  'USDCHF':  { sym:'OANDA:USD_CHF',  type:'forex' },
-  'AUDUSD':  { sym:'OANDA:AUD_USD',  type:'forex' },
-  'NZDUSD':  { sym:'OANDA:NZD_USD',  type:'forex' },
-  'USDCAD':  { sym:'OANDA:USD_CAD',  type:'forex' },
-  'EURGBP':  { sym:'OANDA:EUR_GBP',  type:'forex' },
-  'EURJPY':  { sym:'OANDA:EUR_JPY',  type:'forex' },
-  'GBPJPY':  { sym:'OANDA:GBP_JPY',  type:'forex' },
-  'CADJPY':  { sym:'OANDA:CAD_JPY',  type:'forex' },
-  'AUDNZD':  { sym:'OANDA:AUD_NZD',  type:'forex' },
-  'EURCHF':  { sym:'OANDA:EUR_CHF',  type:'forex' },
-  'GBPCHF':  { sym:'OANDA:GBP_CHF',  type:'forex' },
-  // Metalli → forex/candle
-  'XAUUSD':  { sym:'OANDA:XAU_USD',  type:'forex' },
-  'XAGUSD':  { sym:'SI=F',   type:'stock' },  // Silver futures — OANDA non disponibile su free tier
-  // Crypto → crypto/candle
+  'EURUSD':  { sym:'OANDA:EUR_USD',   type:'forex' },
+  'GBPUSD':  { sym:'OANDA:GBP_USD',   type:'forex' },
+  'USDJPY':  { sym:'OANDA:USD_JPY',   type:'forex' },
+  'USDCHF':  { sym:'OANDA:USD_CHF',   type:'forex' },
+  'AUDUSD':  { sym:'OANDA:AUD_USD',   type:'forex' },
+  'NZDUSD':  { sym:'OANDA:NZD_USD',   type:'forex' },
+  'USDCAD':  { sym:'OANDA:USD_CAD',   type:'forex' },
+  'EURGBP':  { sym:'OANDA:EUR_GBP',   type:'forex' },
+  'EURJPY':  { sym:'OANDA:EUR_JPY',   type:'forex' },
+  'GBPJPY':  { sym:'OANDA:GBP_JPY',   type:'forex' },
+  'CADJPY':  { sym:'OANDA:CAD_JPY',   type:'forex' },
+  'AUDNZD':  { sym:'OANDA:AUD_NZD',   type:'forex' },
+  'EURCHF':  { sym:'OANDA:EUR_CHF',   type:'forex' },
+  'GBPCHF':  { sym:'OANDA:GBP_CHF',   type:'forex' },
   'BTCUSD':  { sym:'BINANCE:BTCUSDT', type:'crypto' },
   'ETHUSD':  { sym:'BINANCE:ETHUSDT', type:'crypto' },
   'XRPUSD':  { sym:'BINANCE:XRPUSDT', type:'crypto' },
   'SOLUSD':  { sym:'BINANCE:SOLUSDT', type:'crypto' },
   'DOGEUSD': { sym:'BINANCE:DOGEUSDT',type:'crypto' },
   'ZECUSD':  { sym:'BINANCE:ZECUSDT', type:'crypto' },
-  // Indices → ETF stock/candle
-  'US500':   { sym:'SPY',   type:'stock' },
-  'US30':    { sym:'DIA',   type:'stock' },
-  'NAS100':  { sym:'QQQ',   type:'stock' },
-  'UK100':   { sym:'EWU',   type:'stock' },
-  'GER40':   { sym:'EWG',   type:'stock' },
-  'FRA40':   { sym:'EWQ',   type:'stock' },
-  'JPN225':  { sym:'EWJ',   type:'stock' },
-  'HK50':    { sym:'EWH',   type:'stock' },
-  'AUS200':  { sym:'EWA',   type:'stock' },
-  // Commodities energetiche → ETF stock/candle
-  'USOIL':   { sym:'USO',   type:'stock' },
-  'UKOIL':   { sym:'BNO',   type:'stock' },
-  'NGAS':    { sym:'UNG',   type:'stock' },
-  'COPPER':  { sym:'CPER',  type:'stock' },
 };
 
-async function loadLiveChart(container, sig, idx) {
-  container.classList.remove('error');
-  container.classList.add('loading');
+// ── TradingView widget (commodities + indici + metalli) ──────
+function loadTradingViewChart(container, sig) {
+  container.classList.remove('loading', 'error');
+  container.innerHTML = '';
+  container.style.height = '340px';
 
-  // Guard: libreria non caricata
+  const tvSym = TV_SYMBOL_MAP[sig.pair];
+  const tvTF  = TV_TF_MAP[selectedTF] || '60';
+
+  const widgetId = 'tv_' + sig.pair + '_' + Date.now();
+  const div = document.createElement('div');
+  div.id = widgetId;
+  div.style.cssText = 'width:100%;height:100%;';
+  container.appendChild(div);
+
+  const script = document.createElement('script');
+  script.src = 'https://s3.tradingview.com/tv.js';
+  script.onload = () => {
+    new TradingView.widget({
+      container_id:    widgetId,
+      symbol:          tvSym,
+      interval:        tvTF,
+      timezone:        'Etc/UTC',
+      theme:           'dark',
+      style:           '1',        // candele
+      locale:          'en',
+      toolbar_bg:      '#060810',
+      enable_publishing: false,
+      hide_top_toolbar:  false,
+      hide_legend:       false,
+      save_image:        false,
+      backgroundColor:   '#060810',
+      gridColor:         'rgba(30,42,58,0.6)',
+      width:             '100%',
+      height:            340,
+      studies:           [],
+      disabled_features: ['use_localstorage_for_settings','header_symbol_search','header_compare'],
+      enabled_features:  ['hide_left_toolbar_by_default'],
+    });
+  };
+  // Se tv.js è già caricato, crea direttamente il widget
+  if (window.TradingView) {
+    script.onload();
+  } else {
+    document.head.appendChild(script);
+  }
+}
+
+// ── Lightweight Charts (FX + Crypto via TD/Finnhub) ─────────
+async function loadLightweightChart(container, sig) {
   if (typeof LightweightCharts === 'undefined') {
     container.classList.remove('loading');
-    container.classList.add('error');
     container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;font-family:var(--mono);font-size:11px;color:var(--text-dim);letter-spacing:0.1em;">Live chart library not loaded</div>';
     return;
   }
 
-  try {
-    const tf = TF_MAP[selectedTF] || '1h';
-    const cacheKey = sig.pair + '_' + tf;
+  const tf       = TF_MAP[selectedTF] || '1h';
+  const cacheKey = sig.pair + '_' + tf;
+  let candles    = ohlcvCache[cacheKey];
 
-    let candles = ohlcvCache[cacheKey];
+  if (!candles) {
+    // Tentativo 1: Twelve Data
+    try {
+      const res = await fetch(WORKER, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'twelvedata', action: 'ohlcv', symbol: sig.pair, interval: tf, outputsize: 80 })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.candles && data.candles.length > 0) candles = data.candles.reverse();
+      }
+    } catch(e) { console.warn('TD candles failed:', e.message); }
+
+    // Tentativo 2: Finnhub
     if (!candles) {
-      // XAUUSD e XAGUSD: salta Twelve Data (prezzi errati) → vai diretto a Finnhub
-      const TD_SKIP = ['XAUUSD','XAGUSD','USOIL','UKOIL','NGAS','COPPER',
-                       'US500','US30','NAS100','UK100','GER40','FRA40','JPN225','HK50','AUS200'];
-      const skipTD = TD_SKIP.includes(sig.pair);
-
-      // ── Tentativo 1: Twelve Data (solo FX e Crypto) ──
-      if (!skipTD) {
+      const fhEntry = FH_CANDLE_MAP[sig.pair];
+      const fhRes   = FH_RES_MAP[selectedTF] || '60';
+      if (fhEntry) {
         try {
-          const res = await fetch(WORKER, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              type: 'twelvedata', action: 'ohlcv',
-              symbol: sig.pair, interval: tf, outputsize: 80
-            })
+          const now  = Math.floor(Date.now() / 1000);
+          const secs = fhRes === 'D' ? 86400 : parseInt(fhRes) * 60;
+          const from = now - (80 * secs);
+          const res  = await fetch(WORKER, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: 'finnhub', action: 'candles', symbol: fhEntry.sym, assetType: fhEntry.type, resolution: fhRes, from, to: now })
           });
           if (res.ok) {
             const data = await res.json();
-            if (data.candles && data.candles.length > 0) {
-              candles = data.candles.reverse();
-            }
+            if (data.candles && data.candles.length > 0) candles = data.candles;
           }
-        } catch(e) { console.warn('TD candles failed:', e.message); }
+        } catch(e) { console.warn('Finnhub candles failed:', e.message); }
       }
-
-      // ── Tentativo 2: Finnhub candles (fallback) ──
-      if (!candles) {
-        const fhEntry = FH_CANDLE_MAP[sig.pair];
-        const fhRes   = FH_RES_MAP[selectedTF] || '60';
-        if (fhEntry) {
-          try {
-            const now  = Math.floor(Date.now() / 1000);
-            const secs = fhRes === 'D' ? 86400 : parseInt(fhRes) * 60;
-            const from = now - (80 * secs);
-            const res  = await fetch(WORKER, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                type:       'finnhub',
-                action:     'candles',
-                symbol:     fhEntry.sym,
-                assetType:  fhEntry.type,
-                resolution: fhRes,
-                from, to:   now
-              })
-            });
-            if (res.ok) {
-              const data = await res.json();
-              if (data.candles && data.candles.length > 0) {
-                candles = data.candles;
-              }
-            }
-          } catch(e) { console.warn('Finnhub candles failed:', e.message); }
-        }
-      }
-
-      if (!candles || candles.length === 0) throw new Error('No candles available');
-      ohlcvCache[cacheKey] = candles;
     }
 
-    container.classList.remove('loading');
-    container.innerHTML = '';
+    if (!candles || candles.length === 0) throw new Error('No candles available');
+    ohlcvCache[cacheKey] = candles;
+  }
 
-    const chart = LightweightCharts.createChart(container, {
-      width:  container.offsetWidth || 860,
-      height: 320,
-      layout: {
-        background:  { type: 'solid', color: '#060810' },
-        textColor:   '#5a7a9a',
-        fontSize:    11,
-        fontFamily:  "'Space Mono', monospace",
-      },
-      grid: {
-        vertLines: { color: '#1a2535', style: 1 },
-        horzLines: { color: '#1a2535', style: 1 },
-      },
-      crosshair: {
-        mode: LightweightCharts.CrosshairMode.Normal,
-      },
-      rightPriceScale: {
-        borderColor: '#1e2a3a',
-      },
-      timeScale: {
-        borderColor:    '#1e2a3a',
-        timeVisible:    true,
-        secondsVisible: false,
-      },
-      handleScroll:  { mouseWheel: true, pressedMouseMove: true },
-      handleScale:   { mouseWheel: true, pinch: true },
-    });
+  container.classList.remove('loading');
+  container.innerHTML = '';
 
-    // Candele
-    const candleSeries = chart.addCandlestickSeries({
-      upColor:         '#00e676',
-      downColor:       '#ff3d5a',
-      borderUpColor:   '#00e676',
-      borderDownColor: '#ff3d5a',
-      wickUpColor:     '#00e676',
-      wickDownColor:   '#ff3d5a',
-    });
+  const chart = LightweightCharts.createChart(container, {
+    width:  container.offsetWidth || 860,
+    height: 320,
+    layout: { background: { type: 'solid', color: '#060810' }, textColor: '#5a7a9a', fontSize: 11, fontFamily: "'Space Mono', monospace" },
+    grid:   { vertLines: { color: '#1a2535', style: 1 }, horzLines: { color: '#1a2535', style: 1 } },
+    crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+    rightPriceScale: { borderColor: '#1e2a3a' },
+    timeScale: { borderColor: '#1e2a3a', timeVisible: true, secondsVisible: false },
+    handleScroll: { mouseWheel: true, pressedMouseMove: true },
+    handleScale:  { mouseWheel: true, pinch: true },
+  });
 
-    const lcData = candles
-      .map(c => ({
-        time:  Math.floor(new Date(c.datetime).getTime() / 1000),
-        open:  parseFloat(c.open),
-        high:  parseFloat(c.high),
-        low:   parseFloat(c.low),
-        close: parseFloat(c.close),
-      }))
-      .filter(c => c.time > 0 && c.open > 0);
+  const candleSeries = chart.addCandlestickSeries({
+    upColor: '#00e676', downColor: '#ff3d5a',
+    borderUpColor: '#00e676', borderDownColor: '#ff3d5a',
+    wickUpColor: '#00e676', wickDownColor: '#ff3d5a',
+  });
 
-    candleSeries.setData(lcData);
+  candleSeries.setData(
+    candles.map(c => ({ time: Math.floor(new Date(c.datetime).getTime() / 1000), open: parseFloat(c.open), high: parseFloat(c.high), low: parseFloat(c.low), close: parseFloat(c.close) }))
+           .filter(c => c.time > 0 && c.open > 0)
+  );
 
-    // Volume
-    const volumeSeries = chart.addHistogramSeries({
-      priceFormat:    { type: 'volume' },
-      priceScaleId:   '',
-      scaleMargins:   { top: 0.85, bottom: 0 },
-    });
-    const volData = candles
-      .map(c => ({
-        time:  Math.floor(new Date(c.datetime).getTime() / 1000),
-        value: parseFloat(c.volume) || 0,
-        color: parseFloat(c.close) >= parseFloat(c.open) ? 'rgba(0,230,118,0.2)' : 'rgba(255,61,90,0.2)',
-      }))
-      .filter(c => c.time > 0);
-    volumeSeries.setData(volData);
+  const volumeSeries = chart.addHistogramSeries({ priceFormat: { type: 'volume' }, priceScaleId: '', scaleMargins: { top: 0.85, bottom: 0 } });
+  volumeSeries.setData(
+    candles.map(c => ({ time: Math.floor(new Date(c.datetime).getTime() / 1000), value: parseFloat(c.volume) || 0, color: parseFloat(c.close) >= parseFloat(c.open) ? 'rgba(0,230,118,0.2)' : 'rgba(255,61,90,0.2)' }))
+           .filter(c => c.time > 0)
+  );
 
-    // Price lines Entry / SL / TP
-    candleSeries.createPriceLine({
-      price:            parseFloat(sig.entry),
-      color:            '#00d4ff',
-      lineWidth:        2,
-      lineStyle:        LightweightCharts.LineStyle.Dashed,
-      axisLabelVisible: true,
-      title:            ' ENTRY',
-    });
-    candleSeries.createPriceLine({
-      price:            parseFloat(sig.sl),
-      color:            '#ff3d5a',
-      lineWidth:        1,
-      lineStyle:        LightweightCharts.LineStyle.Dashed,
-      axisLabelVisible: true,
-      title:            ' STOP',
-    });
-    candleSeries.createPriceLine({
-      price:            parseFloat(sig.tp),
-      color:            '#00e676',
-      lineWidth:        1,
-      lineStyle:        LightweightCharts.LineStyle.Dashed,
-      axisLabelVisible: true,
-      title:            ' TARGET',
-    });
-    if (sig.tp2 && parseFloat(sig.tp2) > 0) {
-      candleSeries.createPriceLine({
-        price:            parseFloat(sig.tp2),
-        color:            '#00a854',
-        lineWidth:        1,
-        lineStyle:        LightweightCharts.LineStyle.Dotted,
-        axisLabelVisible: true,
-        title:            ' TP2',
-      });
-    }
+  candleSeries.createPriceLine({ price: parseFloat(sig.entry), color: '#00d4ff', lineWidth: 2, lineStyle: LightweightCharts.LineStyle.Dashed, axisLabelVisible: true, title: ' ENTRY' });
+  candleSeries.createPriceLine({ price: parseFloat(sig.sl),    color: '#ff3d5a', lineWidth: 1, lineStyle: LightweightCharts.LineStyle.Dashed, axisLabelVisible: true, title: ' STOP' });
+  candleSeries.createPriceLine({ price: parseFloat(sig.tp),    color: '#00e676', lineWidth: 1, lineStyle: LightweightCharts.LineStyle.Dashed, axisLabelVisible: true, title: ' TARGET' });
+  if (sig.tp2 && parseFloat(sig.tp2) > 0) {
+    candleSeries.createPriceLine({ price: parseFloat(sig.tp2), color: '#00a854', lineWidth: 1, lineStyle: LightweightCharts.LineStyle.Dotted, axisLabelVisible: true, title: ' TP2' });
+  }
 
-    chart.timeScale().fitContent();
+  chart.timeScale().fitContent();
+  const ro = new ResizeObserver(() => { if (container.offsetWidth > 0) chart.applyOptions({ width: container.offsetWidth }); });
+  ro.observe(container);
+}
 
-    // Responsive
-    const ro = new ResizeObserver(() => {
-      if (container.offsetWidth > 0) {
-        chart.applyOptions({ width: container.offsetWidth });
-      }
-    });
-    ro.observe(container);
+// ── Router principale ────────────────────────────────────────
+async function loadLiveChart(container, sig, idx) {
+  container.classList.remove('error');
+  container.classList.add('loading');
 
+  // Commodities, indici e metalli → TradingView widget
+  if (TV_SYMBOL_MAP[sig.pair]) {
+    loadTradingViewChart(container, sig);
+    return;
+  }
+
+  // FX e Crypto → Lightweight Charts (TD + Finnhub)
+  try {
+    await loadLightweightChart(container, sig);
   } catch(e) {
     console.warn('Live chart error:', e.message);
     container.classList.remove('loading');
