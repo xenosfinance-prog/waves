@@ -333,34 +333,23 @@ async function loadCalendar() {
     console.warn('Finnhub calendar failed, using fallback:', e.message);
   }
 
-  // Normalize and sort — if Finnhub returned data use it, otherwise fallback
-  if (events && events.length > 0) {
-    allEvents = normalizeEvents(events, mon, fri);
-    // If Finnhub returned events but none matched the week (shouldn't happen),
-    // fallback to static list
-    if (allEvents.length === 0) {
-      allEvents = normalizeEvents(generateFallbackEvents(mon, fri), mon, fri);
-    }
-  } else {
-    // Finnhub unavailable — use static fallback
-    allEvents = normalizeEvents(generateFallbackEvents(mon, fri), mon, fri);
-  }
-  allEvents.sort((a,b) => new Date(a.datetime) - new Date(b.datetime));
-
+  // Normalize and sort — il Worker ha già filtrato per settimana, non rifiltriamo qui
+  allEvents = normalizeEvents(events);
+  allEvents.sort((a,b) => a.datetime - b.datetime);
   buildDayTabs();
 }
 
-function normalizeEvents(raw, mon, fri) {
+function normalizeEvents(raw) {
+  // Il Worker ha già filtrato gli eventi per settimana e convertito country codes
+  // Qui normalizziamo solo i campi senza ri-filtrare per date
   const normalized = [];
-  const monTs = mon.getTime();
-  const friTs = new Date(fri).setHours(23, 59, 59, 999);
 
   for (const e of raw) {
     const dateStr = e.time || e.date || e.datetime || '';
     if (!dateStr) continue;
 
-    // ForexFactory: "2026-03-19T13:15:00-04:00" — ISO con offset, new Date() gestisce correttamente
-    // Finnhub:      "2026-03-19 13:15:00"        — sostituiamo spazio con T + Z (UTC)
+    // ForexFactory: "2026-03-19T13:15:00-04:00" — ISO con offset
+    // Finnhub:      "2026-03-19 13:15:00"        — spazio → T, aggiungi Z
     let dt;
     if (dateStr.includes('T')) {
       dt = new Date(dateStr);
@@ -369,11 +358,8 @@ function normalizeEvents(raw, mon, fri) {
     }
     if (isNaN(dt)) continue;
 
-    const ts = dt.getTime();
-    if (ts < monTs || ts > friTs) continue;
-
     const impact = mapImpact(e.impact || e.importance || '');
-    if (impact === 'low') continue; // escludiamo low impact — troppi eventi irrilevanti
+    if (impact === 'low') continue;
 
     normalized.push({
       id:       e.id || Math.random().toString(36).slice(2),
