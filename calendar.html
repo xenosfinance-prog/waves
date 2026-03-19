@@ -333,13 +333,18 @@ async function loadCalendar() {
     console.warn('Finnhub calendar failed, using fallback:', e.message);
   }
 
-  // Fallback: hardcoded major events for current week
-  if (!events || events.length === 0) {
-    events = generateFallbackEvents(mon, fri);
+  // Normalize and sort — if Finnhub returned data use it, otherwise fallback
+  if (events && events.length > 0) {
+    allEvents = normalizeEvents(events, mon, fri);
+    // If Finnhub returned events but none matched the week (shouldn't happen),
+    // fallback to static list
+    if (allEvents.length === 0) {
+      allEvents = normalizeEvents(generateFallbackEvents(mon, fri), mon, fri);
+    }
+  } else {
+    // Finnhub unavailable — use static fallback
+    allEvents = normalizeEvents(generateFallbackEvents(mon, fri), mon, fri);
   }
-
-  // Normalize and sort
-  allEvents = normalizeEvents(events, mon, fri);
   allEvents.sort((a,b) => new Date(a.datetime) - new Date(b.datetime));
 
   buildDayTabs();
@@ -347,24 +352,35 @@ async function loadCalendar() {
 
 function normalizeEvents(raw, mon, fri) {
   const normalized = [];
+  // Extend fri to end of day to include all Friday events
+  const friEnd = new Date(fri);
+  friEnd.setHours(23, 59, 59, 999);
+
   for (const e of raw) {
+    // Finnhub uses 'time' field in format "2026-03-19 13:15:00"
     const dateStr = e.time || e.date || e.datetime || '';
     if (!dateStr) continue;
-    const dt = new Date(dateStr);
+    // Handle both "2026-03-19 13:15:00" and ISO formats
+    const dt = new Date(dateStr.includes('T') ? dateStr : dateStr.replace(' ', 'T') + 'Z');
     if (isNaN(dt)) continue;
-    if (dt < mon || dt > fri) continue;
+    if (dt < mon || dt > friEnd) continue;
 
     const impact = mapImpact(e.impact || e.importance || '');
+
+    // Only include medium and high impact events from Finnhub
+    // (Finnhub returns hundreds of low-impact events otherwise)
+    if (impact === 'low') continue;
+
     normalized.push({
       id:       e.id || Math.random().toString(36).slice(2),
       datetime: dt,
-      country:  e.country || 'US',
-      flag:     countryFlag(e.country || 'US'),
+      country:  (e.country || 'US').toUpperCase(),
+      flag:     countryFlag((e.country || 'US').toUpperCase()),
       name:     e.event || e.name || e.description || 'Economic Event',
       impact,
-      actual:   e.actual   != null ? String(e.actual)   : null,
-      forecast: e.estimate != null ? String(e.estimate) : (e.forecast != null ? String(e.forecast) : null),
-      previous: e.prev     != null ? String(e.prev)     : (e.previous != null ? String(e.previous) : null),
+      actual:   e.actual   != null && e.actual   !== '' ? String(e.actual)   : null,
+      forecast: e.estimate != null && e.estimate !== '' ? String(e.estimate) : (e.forecast != null ? String(e.forecast) : null),
+      previous: e.prev     != null && e.prev     !== '' ? String(e.prev)     : (e.previous != null ? String(e.previous) : null),
       unit:     e.unit || '',
       _raw:     e,
     });
