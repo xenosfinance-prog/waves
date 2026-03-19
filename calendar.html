@@ -333,27 +333,28 @@ async function loadCalendar() {
     console.warn('Finnhub calendar failed, using fallback:', e.message);
   }
 
-  // Normalizza eventi — se vuoti usa fallback statico
-  allEvents = normalizeEvents(events);
-  if (allEvents.length === 0) {
-    console.warn('No events from ForexFactory — using static fallback');
-    allEvents = normalizeEvents(generateFallbackEvents(mon, fri));
-  }
+  // Filtra per settimana nel client (confronto stringa, immune a timezone)
+  allEvents = normalizeEvents(events, mon, fri);
+  // Se ForexFactory non ha eventi per questa settimana, usa fallback statico
+  if (allEvents.length === 0) allEvents = normalizeEvents(generateFallbackEvents(mon, fri), mon, fri);
   allEvents.sort((a,b) => a.datetime - b.datetime);
   buildDayTabs();
 }
 
-function normalizeEvents(raw) {
-  // Il Worker ha già filtrato gli eventi per settimana e convertito country codes
-  // Qui normalizziamo solo i campi senza ri-filtrare per date
+function normalizeEvents(raw, mon, fri) {
   const normalized = [];
+  // Filtro date con confronto stringa YYYY-MM-DD — immune a problemi di timezone
+  // ForexFactory: "2026-03-20T08:30:00-04:00" → substring(0,10) = "2026-03-20"
+  const fromStr = mon ? isoDate(mon) : null;
+  const toStr   = fri ? isoDate(fri) : null;
 
   for (const e of raw) {
     const dateStr = e.time || e.date || e.datetime || '';
     if (!dateStr) continue;
 
-    // ForexFactory: "2026-03-19T13:15:00-04:00" — ISO con offset
-    // Finnhub:      "2026-03-19 13:15:00"        — spazio → T, aggiungi Z
+    const dayStr = dateStr.substring(0, 10);
+    if (fromStr && toStr && (dayStr < fromStr || dayStr > toStr)) continue;
+
     let dt;
     if (dateStr.includes('T')) {
       dt = new Date(dateStr);
@@ -440,7 +441,7 @@ function generateFallbackEvents(mon, fri) {
       country: ev.country,
       event: ev.name,
       impact: ev.impact,
-      actual: null, estimate: null, prev: null
+      actual: null, forecast: null, prev: null
     });
   });
   return events;
