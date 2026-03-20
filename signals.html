@@ -937,6 +937,129 @@ function calcRSI(candles, period = 14) {
   return 100 - 100 / (1 + rs);
 }
 
+// ── CFD Market Physics Validator ─────────────────────────────
+// Traduzione del framework CFD (Fluidodinamica) in JS su candele reali.
+// Reynolds Number: energia direzionale vs attrito del mercato.
+//   > 50  → mercato impulsivo, trend forte (TURBULENT)
+//   < 50  → mercato laterale, congestione (LAMINAR)
+// Viscosity: resistenza del mercato = volatilità normalizzata per volume/range.
+//   < 0.5 → mercato fluido, poco attrito → trend si muove liberamente
+//   > 0.8 → mercato viscoso → solo armonici e pattern di inversione funzionano
+//
+// Patterns che richiedono BASSA viscosità + ALTO Reynolds (trend following):
+//   Triangle, Flag, Pennant, Channel, Breakout, EW3/5, Fib bounce
+// Patterns che funzionano con ALTA viscosità (inversione/armonico):
+//   Double Top/Bottom, Head & Shoulders, Gartley, Butterfly, Crab, Bat
+// Pattern neutri (funzionano in entrambi):
+//   Engulfing, Hammer, Shooting Star, Doji (dipende dal contesto)
+
+const CFD_TREND_PATTERNS    = ['Ascending Triangle','Descending Triangle','Symmetrical Triangle',
+  'Bull Flag','Bear Flag','Bull Pennant','Bear Pennant','Rising Channel','Falling Channel',
+  'Breakout Key Level','Fib 61.8% Bounce','Fib 38.2% Bounce','Fib 50% Bounce'];
+const CFD_REVERSAL_PATTERNS = ['Double Top','Double Bottom','Triple Top','Triple Bottom',
+  'Head & Shoulders','Inverse Head & Shoulders','Rising Wedge','Falling Wedge',
+  'Rounding Bottom','Rounding Top','Cup & Handle'];
+const CFD_HARMONIC_PATTERNS = ['Gartley Pattern','Butterfly Pattern','Bat Pattern',
+  'Crab Pattern','ABCD Pattern','Cypher Pattern','Wolfe Wave','Diamond Pattern'];
+
+function cfdValidator(candles, patternName, signalDirection) {
+  const lookback = Math.min(20, candles.length);
+  const recent   = candles.slice(-lookback);
+
+  // Price velocity: media delle variazioni assolute di close (momentum grezzo)
+  const closes   = recent.map(c => parseFloat(c.close));
+  const diffs    = [];
+  for (let i = 1; i < closes.length; i++) diffs.push(closes[i] - closes[i-1]);
+  const priceVelocity = diffs.reduce((a,b) => a+b, 0) / diffs.length; // direzionale
+  const priceSpeed    = diffs.map(Math.abs).reduce((a,b) => a+b, 0) / diffs.length; // assoluto
+
+  // Volatility: std dev delle close
+  const mean   = closes.reduce((a,b) => a+b, 0) / closes.length;
+  const variance = closes.reduce((a,b) => a + (b-mean)**2, 0) / closes.length;
+  const volatility = Math.sqrt(variance);
+
+  // Volume proxy: usa il range H-L medio come proxy di liquidità/volume
+  // (candele reali non sempre hanno volume nelle API forex/crypto)
+  const ranges  = recent.map(c => parseFloat(c.high) - parseFloat(c.low));
+  const volMean = ranges.reduce((a,b) => a+b, 0) / ranges.length;
+
+  // Viscosity: resistenza = volatilità normalizzata per range medio
+  // Alta volatilità relativa al range → mercato "denso", difficile da muovere
+  const viscosity = volatility / (volMean * Math.sqrt(lookback) + 1e-9);
+
+  // Reynolds: energia direzionale vs attrito
+  // Usiamo priceSpeed (assoluto) per misurare l'energia totale del flusso
+  const reynolds = priceSpeed / (viscosity + 1e-9);
+
+  // Flow type
+  const isTurbulent = reynolds > 50;
+  const isLaminar   = reynolds <= 50;
+  const isViscous   = viscosity > 0.5;
+  const isFluid     = viscosity <= 0.5;
+
+  // Directional alignment bonus: il momentum recente è allineato al segnale?
+  const momentumAligned = (signalDirection === 'BUY' && priceVelocity > 0) ||
+                          (signalDirection === 'SELL' && priceVelocity < 0);
+
+  // Validation logic per categoria di pattern
+  let confirmed = false;
+  let confidenceBoost = 0;
+  let rejectReason = '';
+
+  if (CFD_TREND_PATTERNS.includes(patternName)) {
+    // Trend patterns: servono alto Reynolds e bassa viscosità
+    if (isTurbulent && isFluid) {
+      confirmed = true;
+      confidenceBoost = momentumAligned ? 12 : 6;
+    } else if (isTurbulent && !isFluid) {
+      confirmed = true; // mercato mosso ma un po' viscoso — accettiamo
+      confidenceBoost = momentumAligned ? 5 : 0;
+    } else {
+      confirmed = false;
+      rejectReason = `LAMINAR market (Reynolds=${reynolds.toFixed(1)}) — trend pattern unreliable`;
+    }
+  } else if (CFD_REVERSAL_PATTERNS.includes(patternName)) {
+    // Reversal patterns: lavorano bene con viscosità moderata/alta (mercato in fase di stallo)
+    if (isViscous) {
+      confirmed = true;
+      confidenceBoost = momentumAligned ? 8 : 4;
+    } else if (!isTurbulent) {
+      confirmed = true; // laminar + bassa viscosità → laterale, ok per reversal
+      confidenceBoost = momentumAligned ? 6 : 2;
+    } else {
+      // Mercato turbulent + poco viscoso → il trend è troppo forte, il reversal fallirà
+      confirmed = false;
+      rejectReason = `TURBULENT flow (Reynolds=${reynolds.toFixed(1)}) — reversal pattern risks failure`;
+    }
+  } else if (CFD_HARMONIC_PATTERNS.includes(patternName)) {
+    // Armonici: alta viscosità (mercato "denso", prezzo rimbalza sui livelli)
+    if (isViscous) {
+      confirmed = true;
+      confidenceBoost = 10;
+    } else {
+      confirmed = true; // armonici funzionano anche in fluid, ma con meno forza
+      confidenceBoost = 3;
+    }
+  } else {
+    // Candlestick / altri: validazione base
+    confirmed = true;
+    confidenceBoost = momentumAligned ? 6 : 0;
+  }
+
+  return {
+    confirmed,
+    confidenceBoost,
+    rejectReason,
+    metrics: {
+      reynolds:    parseFloat(reynolds.toFixed(2)),
+      viscosity:   parseFloat(viscosity.toFixed(4)),
+      flowType:    isTurbulent ? 'TURBULENT/IMPULSIVE' : 'LAMINAR/CONGESTION',
+      momentumAligned,
+      priceVelocity: parseFloat(priceVelocity.toFixed(6)),
+    }
+  };
+}
+
 function findSwingPoints(candles, lookback = 5) {
   const highs = [], lows = [];
   for (let i = lookback; i < candles.length - lookback; i++) {
@@ -1251,8 +1374,27 @@ function detectPattern(candles, atr, currentPrice) {
 
   // ── Seleziona il pattern con confidence più alta ──────────
   if (results.length === 0) return null;
-  results.sort((a,b) => b.confidence - a.confidence);
-  return results[0];
+
+  // ── CFD Validation: filtra e boosta confidence ────────────
+  // Per ogni pattern candidato, calcola Reynolds/viscosità e
+  // scarta quelli fisicamente inconsistenti, boosta quelli confermati
+  const validated = [];
+  for (const r of results) {
+    const cfd = cfdValidator(candles, r.pattern, r.direction);
+    if (!cfd.confirmed) {
+      // Pattern fisicamente rigettato — lo scartiamo
+      console.debug(`CFD REJECT: ${r.pattern} — ${cfd.rejectReason}`);
+      continue;
+    }
+    // Boosta la confidence in base alla fisica del mercato
+    r.confidence = Math.min(95, r.confidence + cfd.confidenceBoost);
+    r.cfd = cfd.metrics; // salva le metriche per il display
+    validated.push(r);
+  }
+
+  if (validated.length === 0) return null;
+  validated.sort((a,b) => b.confidence - a.confidence);
+  return validated[0];
 }
 
 // ── Analisi completa di un pair ───────────────────────────────
@@ -1302,6 +1444,7 @@ async function analyzePair(pair, livePrices) {
     swingLows:    swingL.slice(-3).map(l => l.price),
     evidence:     detected.evidence,
     key_sr:       detected.key_sr,
+    cfd:          detected.cfd || null,
     candleCount:  candles.length,
   };
 }
@@ -1329,6 +1472,7 @@ ${p} [${a.direction}] — Pattern detected: ${a.pattern}
   Swing Highs   : ${a.swingHighs.map(fmt).join(', ')}
   Swing Lows    : ${a.swingLows.map(fmt).join(', ')}
   Key S/R       : ${JSON.stringify(a.key_sr)}
+  CFD Physics   : Reynolds=${a.cfd ? a.cfd.reynolds : 'N/A'} | Viscosity=${a.cfd ? a.cfd.viscosity : 'N/A'} | Flow=${a.cfd ? a.cfd.flowType : 'N/A'} | Momentum Aligned=${a.cfd ? a.cfd.momentumAligned : 'N/A'}
   Evidence      : RSI=${fmtPct(a.rsi)}, EMA20${a.ema20>a.ema50?'>':'<'}EMA50`;
   }).join('\n');
 
@@ -1582,6 +1726,27 @@ function renderSignals(list) {
             <div class="detail-section-title">Market Context</div>
             <div class="detail-text">${sig.market_context || '—'}</div>
           </div>
+          ${sig.cfd ? `
+          <div>
+            <div class="detail-section-title" style="color:var(--accent)">⚡ CFD Physics Validation</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px;">
+              <div style="background:var(--bg3);padding:8px 10px;font-size:10px;">
+                <div style="color:var(--text-dim);font-size:9px;letter-spacing:.1em;margin-bottom:3px;">REYNOLDS (thrust)</div>
+                <div style="color:${sig.cfd.reynolds > 50 ? 'var(--green)' : 'var(--yellow)'};font-weight:700;">${sig.cfd.reynolds}</div>
+              </div>
+              <div style="background:var(--bg3);padding:8px 10px;font-size:10px;">
+                <div style="color:var(--text-dim);font-size:9px;letter-spacing:.1em;margin-bottom:3px;">VISCOSITY (friction)</div>
+                <div style="color:${sig.cfd.viscosity < 0.5 ? 'var(--green)' : 'var(--yellow)'};font-weight:700;">${sig.cfd.viscosity}</div>
+              </div>
+            </div>
+            <div style="margin-top:6px;padding:7px 10px;background:var(--bg3);font-size:10px;display:flex;justify-content:space-between;align-items:center;">
+              <span style="color:var(--text-dim);font-size:9px;letter-spacing:.1em;">FLOW TYPE</span>
+              <span style="color:${sig.cfd.flowType.includes('TURBULENT') ? 'var(--green)' : 'var(--text-dim)'};font-weight:600;font-size:10px;">${sig.cfd.flowType}</span>
+            </div>
+            <div style="margin-top:4px;padding:5px 10px;background:var(--bg3);font-size:9px;color:${sig.cfd.momentumAligned ? 'var(--green)' : 'var(--yellow)'};letter-spacing:.08em;">
+              ${sig.cfd.momentumAligned ? '✓ MOMENTUM ALIGNED' : '⚠ MOMENTUM DIVERGING'}
+            </div>
+          </div>` : ''}
           <div class="tag-list">${(sig.tags||[]).map(t=>`<span class="tag">${t}</span>`).join('')}</div>
           <button class="tg-send-btn" onclick="sendToTelegram(event, ${idx})">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.248l-2.05 9.667c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L8.31 14.617l-2.967-.924c-.645-.204-.658-.645.136-.953l11.57-4.461c.537-.194 1.006.131.513.969z"/></svg>
