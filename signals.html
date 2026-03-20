@@ -842,7 +842,7 @@ async function fetchCandles(pair) {
     try {
       const res = await fetch(WORKER, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'twelvedata', action: 'ohlcv', symbol: pair, interval: TF_TD[selectedTF] || '1h', outputsize: 120 })
+        body: JSON.stringify({ type: 'twelvedata', action: 'ohlcv', symbol: pair, interval: TF_TD[selectedTF] || '1h', outputsize: 200 })
       });
       if (res.ok) {
         const data = await res.json();
@@ -889,7 +889,7 @@ async function fetchCandles(pair) {
         const fhRes = TF_FH[selectedTF] || '60';
         const now   = Math.floor(Date.now()/1000);
         const secs  = fhRes === 'D' ? 86400 : parseInt(fhRes)*60;
-        const from  = now - 130 * secs;
+        const from  = now - 200 * secs;
         const res   = await fetch(WORKER, {
           method: 'POST', headers: {'Content-Type':'application/json'},
           body: JSON.stringify({ type:'finnhub', action:'candles', symbol:fhEntry.sym, assetType:fhEntry.type, resolution:fhRes, from, to:now })
@@ -1143,7 +1143,7 @@ function calcMACD(closes, fast=12, slow=26, signal=9) {
 }
 
 function calcIchimoku(candles) {
-  if (candles.length < 52) return null;
+  if (candles.length < 40) return null;
   const highs = candles.map(c=>parseFloat(c.high));
   const lows  = candles.map(c=>parseFloat(c.low));
   const n = candles.length;
@@ -1206,7 +1206,7 @@ function calcADX(candles, period=14) {
 // ══════════════════════════════════════════════════════════════════
 
 function detectPattern(candles, atr, currentPrice) {
-  if (!candles || candles.length < 40 || !atr) return null;
+  if (!candles || candles.length < 25 || !atr) return null;
 
   const closes = candles.map(c=>parseFloat(c.close));
   const highs  = candles.map(c=>parseFloat(c.high));
@@ -1222,7 +1222,7 @@ function detectPattern(candles, atr, currentPrice) {
   const bb    = calcBB(closes);
   const macd  = calcMACD(closes);
   const adx   = calcADX(candles);
-  const ichi  = candles.length >= 52 ? calcIchimoku(candles) : null;
+  const ichi  = candles.length >= 52 ? calcIchimoku(candles) : null; // opzionale
   const vol   = calcVolumeProfile(candles);
   const stoch = calcStochRSI(candles);
   const srZones = findSupportResistance(candles, atr);
@@ -1675,16 +1675,44 @@ function detectPattern(candles, atr, currentPrice) {
     }
   }
 
+  // ── FALLBACK: EMA Trend Signal (sempre disponibile se trend chiaro) ──
+  if (results.length === 0 && ema20 && ema50) {
+    const emaSep = Math.abs(ema20 - ema50) / (atr || 1);
+    if (emaSep > 0.5) { // EMAs chiaramente separate
+      const dir = ema20 > ema50 ? 'BUY' : 'SELL';
+      const nearEma = Math.abs(price - ema20) < atr * 1.5;
+      if (nearEma) {
+        results.push({
+          pattern: dir === 'BUY' ? 'EMA Bullish Trend' : 'EMA Bearish Trend',
+          direction: dir,
+          entry: price,
+          sl: dir === 'BUY' ? ema50 - atr * (selectedTF === 'D1' ? 1.5 : 0.8)
+                            : ema50 + atr * (selectedTF === 'D1' ? 1.5 : 0.8),
+          tp: dir === 'BUY' ? price + atr * (selectedTF === 'D1' ? 3 : 2)
+                            : price - atr * (selectedTF === 'D1' ? 3 : 2),
+          confidence: Math.min(75, 55 + (adxTrend ? 8 : 0) + (macdBull && dir==='BUY' ? 6 : 0) + (macdBear && dir==='SELL' ? 6 : 0)),
+          key_sr: { ema20, ema50 },
+          evidence: { emaSep, nearEma, rsi, dir }
+        });
+      }
+    }
+  }
+
   // ── SELEZIONE FINALE con CFD validation ───────────────────────
   if (results.length === 0) return null;
 
-  // Apply CFD validator to each result
+  // Apply CFD validator — boost confirmed, keep rejected with penalty
   const validated = [];
   for (const r of results) {
-    const cfd = cfdValidator(candles, r.pattern, r.direction);
-    if (!cfd.confirmed) { console.debug(`CFD REJECT: ${r.pattern}`); continue; }
-    r.confidence = Math.min(95, r.confidence + cfd.confidenceBoost);
-    r.cfd = cfd.metrics;
+    try {
+      const cfd = cfdValidator(candles, r.pattern, r.direction);
+      if (cfd.confirmed) {
+        r.confidence = Math.min(95, r.confidence + cfd.confidenceBoost);
+      } else {
+        r.confidence = Math.max(50, r.confidence - 5); // small penalty, don't discard
+      }
+      r.cfd = cfd.metrics;
+    } catch(e) {}
     validated.push(r);
   }
   if (validated.length === 0) return null;
