@@ -539,8 +539,9 @@
       <div class="ctrl-group">
         <div class="ctrl-label">Min Confidence</div>
         <select id="conf-min">
-          <option value="60">60%+</option>
-          <option value="70" selected>70%+</option>
+          <option value="50">50%+</option>
+          <option value="60" selected>60%+</option>
+          <option value="70">70%+</option>
           <option value="80">80%+</option>
           <option value="90">90%+</option>
         </select>
@@ -548,10 +549,10 @@
       <div class="ctrl-group">
         <div class="ctrl-label">Pairs Count</div>
         <select id="pairs-count">
-          <option value="5">5 pairs</option>
-          <option value="10" selected>10 pairs</option>
-          <option value="15">15 pairs</option>
-          <option value="22">All (22)</option>
+          <option value="10">10 pairs</option>
+          <option value="20" selected>20 pairs</option>
+          <option value="30">30 pairs</option>
+          <option value="999">All</option>
         </select>
       </div>
       <button class="btn-generate" id="gen-btn" onclick="generateSignals()">▶ GENERATE SIGNALS</button>
@@ -966,7 +967,7 @@ function findSupportResistance(candles, atr) {
     if (existing) { existing.price = (existing.price + level) / 2; existing.touches++; }
     else zones.push({ price: level, touches: 1 });
   }
-  return zones.filter(z => z.touches >= 2).sort((a,b) => b.touches - a.touches).slice(0,6);
+  return zones.filter(z => z.touches >= 1).sort((a,b) => b.touches - a.touches).slice(0,8);
 }
 
 // ── Pattern detection algoritmico ────────────────────────────
@@ -994,7 +995,7 @@ function detectPattern(candles, atr, currentPrice) {
     const prevH  = swingH[swingH.length-2];
     const hDiff  = Math.abs(lastH.price - prevH.price);
     const idxGap = lastH.idx - prevH.idx;
-    if (hDiff < atr * 1.5 && idxGap >= 8 && idxGap <= 60) {
+    if (hDiff < atr * 2.5 && idxGap >= 5 && idxGap <= 80) {
       const neckLow = Math.min(...lows.slice(prevH.idx, lastH.idx));
       const dist    = price - neckLow;
       if (price < lastH.price - atr * 0.5) {
@@ -1014,7 +1015,7 @@ function detectPattern(candles, atr, currentPrice) {
     const prevL  = swingL[swingL.length-2];
     const lDiff  = Math.abs(lastL.price - prevL.price);
     const idxGap = lastL.idx - prevL.idx;
-    if (lDiff < atr * 1.5 && idxGap >= 8 && idxGap <= 60) {
+    if (lDiff < atr * 2.5 && idxGap >= 5 && idxGap <= 80) {
       const neckHigh = Math.max(...highs.slice(prevL.idx, lastL.idx));
       const dist     = neckHigh - price;
       if (price > lastL.price + atr * 0.5) {
@@ -1034,8 +1035,8 @@ function detectPattern(candles, atr, currentPrice) {
   if (swingH.length >= 3 && swingL.length >= 3) {
     const recentH = swingH.slice(-3), recentL = swingL.slice(-3);
     const hFlat   = Math.max(...recentH.map(h=>h.price)) - Math.min(...recentH.map(h=>h.price)) < atr * 1.2;
-    const lRising = recentL[recentL.length-1].price > recentL[0].price + atr * 0.5;
-    const hDesc   = recentH[recentH.length-1].price < recentH[0].price - atr * 0.5;
+    const lRising = recentL[recentL.length-1].price > recentL[0].price + atr * 0.2;
+    const hDesc   = recentH[recentH.length-1].price < recentH[0].price - atr * 0.2;
     const lFlat   = Math.max(...recentL.map(l=>l.price)) - Math.min(...recentL.map(l=>l.price)) < atr * 1.2;
 
     if (hFlat && lRising) {
@@ -1138,7 +1139,7 @@ function detectPattern(candles, atr, currentPrice) {
       const impHigh  = lastSwH.price, impLow = lastSwL.price;
       const fib618   = impHigh - (impHigh - impLow) * 0.618;
       const fib382   = impHigh - (impHigh - impLow) * 0.382;
-      if (Math.abs(price - fib618) < atr * 0.8 && rsi < 45) {
+      if (Math.abs(price - fib618) < atr * 2.0 && rsi < 52) {
         results.push({
           pattern: 'Fib 61.8% Bounce', direction: 'BUY',
           entry: fib618, sl: fib618 - atr * 1.2,
@@ -1153,7 +1154,7 @@ function detectPattern(candles, atr, currentPrice) {
     if (lastSwL.idx > lastSwH.idx) {
       const impLow = lastSwL.price, impHigh = lastSwH.price;
       const fib618 = impLow + (impHigh - impLow) * 0.618;
-      if (Math.abs(price - fib618) < atr * 0.8 && rsi > 55) {
+      if (Math.abs(price - fib618) < atr * 2.0 && rsi > 48) {
         results.push({
           pattern: 'Fib 61.8% Bounce', direction: 'SELL',
           entry: fib618, sl: fib618 + atr * 1.2,
@@ -1171,7 +1172,7 @@ function detectPattern(candles, atr, currentPrice) {
     const strongZones = srZones.filter(z => z.touches >= 3);
     for (const zone of strongZones) {
       const distPct = Math.abs(price - zone.price) / zone.price;
-      if (distPct < 0.003) { // entro 0.3% dal livello
+      if (distPct < 0.008) { // entro 0.8% dal livello
         const dir = price > zone.price ? 'BUY' : 'SELL';
         results.push({
           pattern: 'Breakout Key Level', direction: dir,
@@ -1198,7 +1199,7 @@ function detectPattern(candles, atr, currentPrice) {
 
     // Bullish Engulfing
     if (cl1 < o1 && cl2 > o2 && body2 > body1 * 1.1 && o2 <= cl1 && cl2 >= o1 && rsi < 50) {
-      const nearSupport = srZones.some(z => Math.abs(price - z.price) < atr * 1.5 && z.price < price);
+      const nearSupport = srZones.length === 0 || srZones.some(z => Math.abs(price - z.price) < atr * 3.0 && z.price < price);
       if (nearSupport) {
         results.push({
           pattern: 'Bullish Engulfing', direction: 'BUY',
@@ -1212,7 +1213,7 @@ function detectPattern(candles, atr, currentPrice) {
     }
     // Bearish Engulfing
     if (cl1 > o1 && cl2 < o2 && body2 > body1 * 1.1 && o2 >= cl1 && cl2 <= o1 && rsi > 50) {
-      const nearResistance = srZones.some(z => Math.abs(price - z.price) < atr * 1.5 && z.price > price);
+      const nearResistance = srZones.length === 0 || srZones.some(z => Math.abs(price - z.price) < atr * 3.0 && z.price > price);
       if (nearResistance) {
         results.push({
           pattern: 'Bearish Engulfing', direction: 'SELL',
@@ -1279,7 +1280,7 @@ async function analyzePair(pair, livePrices) {
 
   // Calcola RR
   const rawRR = Math.abs(detected.tp - detected.entry) / Math.abs(detected.sl - detected.entry);
-  if (rawRR < 1.3) return null; // scarta setup con RR troppo basso
+  if (rawRR < 0.9) return null; // scarta setup con RR troppo basso
 
   const rrStr = '1:' + rawRR.toFixed(1);
 
