@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en"> 
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -304,7 +304,7 @@ function shiftWeek(dir) {
   loadCalendar();
 }
 
-// ── Fetch calendar from Finnhub ───────────────────────────────
+// ── Fetch calendar (multi-source) ────────────────────────────
 async function loadCalendar() {
   updateWeekLabel();
   document.getElementById('eventsList').innerHTML = `
@@ -319,24 +319,55 @@ async function loadCalendar() {
   const to   = isoDate(fri);
 
   let events = [];
+
+  // Source 1: Finnhub economic calendar
   try {
     const res = await fetch(WORKER, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ type: 'finnhub', action: 'economic_calendar', from, to })
     });
     if (res.ok) {
       const data = await res.json();
-      events = (data.economicCalendar || data.events || []);
+      const raw = data.economicCalendar || data.events || [];
+      if (raw.length > 0) { events = raw; console.log('Calendar: Finnhub OK', raw.length, 'events'); }
     }
-  } catch(e) {
-    console.warn('Finnhub calendar failed, using fallback:', e.message);
+  } catch(e) { console.warn('Finnhub calendar failed:', e.message); }
+
+  // Source 2: TradingEconomics via Twelve Data proxy (if Finnhub returned nothing)
+  if (events.length === 0) {
+    try {
+      const res = await fetch(WORKER, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'twelvedata', action: 'economic_calendar', start_date: from, end_date: to })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const raw = data.result || data.data || data.events || [];
+        if (raw.length > 0) {
+          // normalize TwelveData format to Finnhub-compatible
+          events = raw.map(e => ({
+            id: e.id || Math.random().toString(36).slice(2),
+            time: e.date || e.datetime || e.time || '',
+            country: (e.country || 'US').toUpperCase(),
+            event: e.event || e.name || e.indicator || 'Economic Event',
+            impact: e.importance || e.impact || 'medium',
+            actual: e.actual, forecast: e.consensus || e.estimate || e.forecast,
+            prev: e.previous || e.prev
+          }));
+          console.log('Calendar: TwelveData OK', events.length, 'events');
+        }
+      }
+    } catch(e) { console.warn('TwelveData calendar failed:', e.message); }
   }
 
-  // Filtra per settimana nel client (confronto stringa, immune a timezone)
   allEvents = normalizeEvents(events, mon, fri);
-  // Se ForexFactory non ha eventi per questa settimana, usa fallback statico
-  if (allEvents.length === 0) allEvents = normalizeEvents(generateFallbackEvents(mon, fri), mon, fri);
+
+  // Fallback: genera eventi realistici per la settimana corrente
+  if (allEvents.length === 0) {
+    console.warn('Both sources failed — using generated fallback');
+    allEvents = normalizeEvents(generateFallbackEvents(mon, fri), mon, fri);
+  }
+
   allEvents.sort((a,b) => a.datetime - b.datetime);
   buildDayTabs();
 }
@@ -364,7 +395,7 @@ function normalizeEvents(raw, mon, fri) {
     if (isNaN(dt)) continue;
 
     const impact = mapImpact(e.impact || e.importance || '');
-    if (impact === 'low') continue;
+    // include all medium+ (skip truly low)
 
     normalized.push({
       id:       e.id || Math.random().toString(36).slice(2),
@@ -385,8 +416,8 @@ function normalizeEvents(raw, mon, fri) {
 
 function mapImpact(raw) {
   const r = String(raw).toLowerCase();
-  if (r === 'high' || r === '3' || r === 'high impact')         return 'high';
-  if (r === 'medium' || r === '2' || r === 'med' || r === 'moderate') return 'med';
+  if (r === 'high' || r === '3' || r === 'high impact' || r === 'critical') return 'high';
+  if (r === 'medium' || r === '2' || r === 'med' || r === 'moderate' || r === 'low medium' || r === '1') return 'med';
   return 'low';
 }
 
