@@ -815,6 +815,565 @@ async function fetchMarketNews() {
   }
 }
 
+// ══════════════════════════════════════════════════════════════
+// XENOS SIGNAL ENGINE v3 — Pattern Recognition su Candele Reali
+// ══════════════════════════════════════════════════════════════
+
+// ── Cache candele in memoria ──────────────────────────────────
+const candleCache = {};
+
+// ── Mappa TF → parametri fetch ────────────────────────────────
+const TF_TD  = { 'M15':'15min', 'H1':'1h', 'H4':'4h', 'D1':'1day' };
+const TF_FH  = { 'M15':'15',    'H1':'60', 'H4':'240','D1':'D'    };
+
+// ── Fetch candele reali per un pair ──────────────────────────
+async function fetchCandles(pair) {
+  const cacheKey = pair + '_' + selectedTF;
+  if (candleCache[cacheKey]) return candleCache[cacheKey];
+
+  const TD_SKIP = ['XAUUSD','XAGUSD','USOIL','UKOIL','NGAS','COPPER',
+                   'US500','US30','NAS100','UK100','GER40','FRA40','JPN225','HK50','AUS200'];
+
+  let candles = null;
+
+  // Tentativo 1: Twelve Data (FX + Crypto)
+  if (!TD_SKIP.includes(pair)) {
+    try {
+      const res = await fetch(WORKER, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'twelvedata', action: 'ohlcv', symbol: pair, interval: TF_TD[selectedTF] || '1h', outputsize: 120 })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.candles && data.candles.length >= 20) candles = data.candles.reverse();
+      }
+    } catch(e) { console.warn('TD candles:', pair, e.message); }
+  }
+
+  // Tentativo 2: Finnhub
+  if (!candles) {
+    const FH_MAP = {
+      'EURUSD':{sym:'OANDA:EUR_USD',type:'forex'},'GBPUSD':{sym:'OANDA:GBP_USD',type:'forex'},
+      'USDJPY':{sym:'OANDA:USD_JPY',type:'forex'},'USDCHF':{sym:'OANDA:USD_CHF',type:'forex'},
+      'AUDUSD':{sym:'OANDA:AUD_USD',type:'forex'},'NZDUSD':{sym:'OANDA:NZD_USD',type:'forex'},
+      'USDCAD':{sym:'OANDA:USD_CAD',type:'forex'},'EURGBP':{sym:'OANDA:EUR_GBP',type:'forex'},
+      'EURJPY':{sym:'OANDA:EUR_JPY',type:'forex'},'GBPJPY':{sym:'OANDA:GBP_JPY',type:'forex'},
+      'CADJPY':{sym:'OANDA:CAD_JPY',type:'forex'},'AUDNZD':{sym:'OANDA:AUD_NZD',type:'forex'},
+      'EURCHF':{sym:'OANDA:EUR_CHF',type:'forex'},'GBPCHF':{sym:'OANDA:GBP_CHF',type:'forex'},
+      'XAUUSD':{sym:'OANDA:XAU_USD',type:'forex'},
+      'BTCUSD':{sym:'BINANCE:BTCUSDT',type:'crypto'},'ETHUSD':{sym:'BINANCE:ETHUSDT',type:'crypto'},
+      'XRPUSD':{sym:'BINANCE:XRPUSDT',type:'crypto'},'SOLUSD':{sym:'BINANCE:SOLUSDT',type:'crypto'},
+      'DOGEUSD':{sym:'BINANCE:DOGEUSDT',type:'crypto'},
+      'US500':{sym:'SPY',type:'stock'},'US30':{sym:'DIA',type:'stock'},
+      'NAS100':{sym:'QQQ',type:'stock'},'GER40':{sym:'EWG',type:'stock'},
+      'UK100':{sym:'EWU',type:'stock'},'USOIL':{sym:'USO',type:'stock'},
+      'XAGUSD':{sym:'SI=F',type:'stock'},'NGAS':{sym:'UNG',type:'stock'},
+    };
+    const fhEntry = FH_MAP[pair];
+    if (fhEntry) {
+      try {
+        const fhRes = TF_FH[selectedTF] || '60';
+        const now   = Math.floor(Date.now()/1000);
+        const secs  = fhRes === 'D' ? 86400 : parseInt(fhRes)*60;
+        const from  = now - 130 * secs;
+        const res   = await fetch(WORKER, {
+          method: 'POST', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ type:'finnhub', action:'candles', symbol:fhEntry.sym, assetType:fhEntry.type, resolution:fhRes, from, to:now })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.candles && data.candles.length >= 20) candles = data.candles;
+        }
+      } catch(e) { console.warn('FH candles:', pair, e.message); }
+    }
+  }
+
+  if (candles) candleCache[cacheKey] = candles;
+  return candles;
+}
+
+// ── Calcoli tecnici su array candele ─────────────────────────
+function calcATR(candles, period = 14) {
+  if (candles.length < period + 1) return null;
+  const trs = [];
+  for (let i = 1; i < candles.length; i++) {
+    const h = parseFloat(candles[i].high), l = parseFloat(candles[i].low), pc = parseFloat(candles[i-1].close);
+    trs.push(Math.max(h - l, Math.abs(h - pc), Math.abs(l - pc)));
+  }
+  return trs.slice(-period).reduce((a,b)=>a+b,0) / period;
+}
+
+function calcEMA(values, period) {
+  if (values.length < period) return null;
+  const k = 2 / (period + 1);
+  let ema = values.slice(0, period).reduce((a,b)=>a+b,0) / period;
+  for (let i = period; i < values.length; i++) ema = values[i] * k + ema * (1 - k);
+  return ema;
+}
+
+function calcRSI(candles, period = 14) {
+  if (candles.length < period + 1) return null;
+  const closes = candles.map(c => parseFloat(c.close));
+  let gains = 0, losses = 0;
+  for (let i = closes.length - period; i < closes.length; i++) {
+    const diff = closes[i] - closes[i-1];
+    if (diff > 0) gains += diff; else losses -= diff;
+  }
+  const rs = gains / (losses || 0.001);
+  return 100 - 100 / (1 + rs);
+}
+
+function findSwingPoints(candles, lookback = 5) {
+  const highs = [], lows = [];
+  for (let i = lookback; i < candles.length - lookback; i++) {
+    const h = parseFloat(candles[i].high), l = parseFloat(candles[i].low);
+    let isHigh = true, isLow = true;
+    for (let j = i - lookback; j <= i + lookback; j++) {
+      if (j === i) continue;
+      if (parseFloat(candles[j].high) >= h) isHigh = false;
+      if (parseFloat(candles[j].low)  <= l) isLow  = false;
+    }
+    if (isHigh) highs.push({ idx: i, price: h });
+    if (isLow)  lows.push({ idx: i, price: l });
+  }
+  return { highs, lows };
+}
+
+function findSupportResistance(candles, atr) {
+  const { highs, lows } = findSwingPoints(candles, 4);
+  const allLevels = [
+    ...highs.map(h => h.price),
+    ...lows.map(l => l.price),
+  ].sort((a,b) => a-b);
+
+  // Raggruppa livelli vicini (entro 0.5 ATR)
+  const zones = [];
+  for (const level of allLevels) {
+    const existing = zones.find(z => Math.abs(z.price - level) < atr * 0.5);
+    if (existing) { existing.price = (existing.price + level) / 2; existing.touches++; }
+    else zones.push({ price: level, touches: 1 });
+  }
+  return zones.filter(z => z.touches >= 2).sort((a,b) => b.touches - a.touches).slice(0,6);
+}
+
+// ── Pattern detection algoritmico ────────────────────────────
+function detectPattern(candles, atr, currentPrice) {
+  if (!candles || candles.length < 30 || !atr) return null;
+
+  const closes  = candles.map(c => parseFloat(c.close));
+  const highs   = candles.map(c => parseFloat(c.high));
+  const lows    = candles.map(c => parseFloat(c.low));
+  const n       = closes.length;
+  const recent  = candles.slice(-20);
+  const { highs: swingH, lows: swingL } = findSwingPoints(candles, 4);
+
+  const rsi    = calcRSI(candles);
+  const ema20  = calcEMA(closes, 20);
+  const ema50  = calcEMA(closes, 50);
+  const price  = currentPrice || closes[n-1];
+  const srZones = findSupportResistance(candles, atr);
+
+  const results = [];
+
+  // ── 1. DOUBLE TOP / BOTTOM ───────────────────────────────
+  if (swingH.length >= 2) {
+    const lastH  = swingH[swingH.length-1];
+    const prevH  = swingH[swingH.length-2];
+    const hDiff  = Math.abs(lastH.price - prevH.price);
+    const idxGap = lastH.idx - prevH.idx;
+    if (hDiff < atr * 1.5 && idxGap >= 8 && idxGap <= 60) {
+      const neckLow = Math.min(...lows.slice(prevH.idx, lastH.idx));
+      const dist    = price - neckLow;
+      if (price < lastH.price - atr * 0.5) {
+        results.push({
+          pattern: 'Double Top', direction: 'SELL',
+          entry: price, sl: lastH.price + atr * 0.5,
+          tp: neckLow - dist * 0.8,
+          confidence: Math.min(88, 68 + (rsi > 65 ? 10 : 0) + (ema20 < ema50 ? 8 : 0) + (idxGap > 15 ? 4 : 0)),
+          key_sr: { resistance: lastH.price, support: neckLow },
+          evidence: { swing_high_delta: hDiff, idx_gap: idxGap, rsi, ema20, ema50 }
+        });
+      }
+    }
+  }
+  if (swingL.length >= 2) {
+    const lastL  = swingL[swingL.length-1];
+    const prevL  = swingL[swingL.length-2];
+    const lDiff  = Math.abs(lastL.price - prevL.price);
+    const idxGap = lastL.idx - prevL.idx;
+    if (lDiff < atr * 1.5 && idxGap >= 8 && idxGap <= 60) {
+      const neckHigh = Math.max(...highs.slice(prevL.idx, lastL.idx));
+      const dist     = neckHigh - price;
+      if (price > lastL.price + atr * 0.5) {
+        results.push({
+          pattern: 'Double Bottom', direction: 'BUY',
+          entry: price, sl: lastL.price - atr * 0.5,
+          tp: neckHigh + dist * 0.8,
+          confidence: Math.min(88, 68 + (rsi < 40 ? 10 : 0) + (ema20 > ema50 ? 8 : 0) + (idxGap > 15 ? 4 : 0)),
+          key_sr: { support: lastL.price, resistance: neckHigh },
+          evidence: { swing_low_delta: lDiff, idx_gap: idxGap, rsi, ema20, ema50 }
+        });
+      }
+    }
+  }
+
+  // ── 2. ASCENDING / DESCENDING TRIANGLE ──────────────────
+  if (swingH.length >= 3 && swingL.length >= 3) {
+    const recentH = swingH.slice(-3), recentL = swingL.slice(-3);
+    const hFlat   = Math.max(...recentH.map(h=>h.price)) - Math.min(...recentH.map(h=>h.price)) < atr * 1.2;
+    const lRising = recentL[recentL.length-1].price > recentL[0].price + atr * 0.5;
+    const hDesc   = recentH[recentH.length-1].price < recentH[0].price - atr * 0.5;
+    const lFlat   = Math.max(...recentL.map(l=>l.price)) - Math.min(...recentL.map(l=>l.price)) < atr * 1.2;
+
+    if (hFlat && lRising) {
+      const resistance = recentH.reduce((a,h)=>a+h.price,0)/recentH.length;
+      results.push({
+        pattern: 'Ascending Triangle', direction: 'BUY',
+        entry: price, sl: recentL[recentL.length-1].price - atr * 0.3,
+        tp: resistance + (resistance - recentL[0].price) * 0.8,
+        confidence: Math.min(85, 65 + (rsi > 50 && rsi < 70 ? 8 : 0) + (ema20 > ema50 ? 10 : 0)),
+        key_sr: { resistance, support: recentL[recentL.length-1].price },
+        evidence: { flat_highs: hFlat, rising_lows: lRising, rsi, ema20, ema50 }
+      });
+    }
+    if (hDesc && lFlat) {
+      const support = recentL.reduce((a,l)=>a+l.price,0)/recentL.length;
+      results.push({
+        pattern: 'Descending Triangle', direction: 'SELL',
+        entry: price, sl: recentH[recentH.length-1].price + atr * 0.3,
+        tp: support - (recentH[0].price - support) * 0.8,
+        confidence: Math.min(85, 65 + (rsi < 50 && rsi > 30 ? 8 : 0) + (ema20 < ema50 ? 10 : 0)),
+        key_sr: { support, resistance: recentH[recentH.length-1].price },
+        evidence: { desc_highs: hDesc, flat_lows: lFlat, rsi, ema20, ema50 }
+      });
+    }
+  }
+
+  // ── 3. BULL / BEAR FLAG ──────────────────────────────────
+  if (n >= 40) {
+    const poleEnd   = n - 20;
+    const poleStart = n - 40;
+    const poleMove  = closes[poleEnd] - closes[poleStart];
+    const flagHigh  = Math.max(...highs.slice(poleEnd));
+    const flagLow   = Math.min(...lows.slice(poleEnd));
+    const flagRange = flagHigh - flagLow;
+
+    if (Math.abs(poleMove) > atr * 4 && flagRange < Math.abs(poleMove) * 0.5) {
+      if (poleMove > 0 && flagLow > closes[poleStart] + atr) {
+        results.push({
+          pattern: 'Bull Flag', direction: 'BUY',
+          entry: price, sl: flagLow - atr * 0.3,
+          tp: flagHigh + Math.abs(poleMove) * 0.8,
+          confidence: Math.min(87, 70 + (rsi > 50 ? 8 : 0) + (ema20 > ema50 ? 9 : 0)),
+          key_sr: { support: flagLow, resistance: flagHigh },
+          evidence: { pole_move: poleMove, flag_range: flagRange, rsi }
+        });
+      }
+      if (poleMove < 0 && flagHigh < closes[poleStart] - atr) {
+        results.push({
+          pattern: 'Bear Flag', direction: 'SELL',
+          entry: price, sl: flagHigh + atr * 0.3,
+          tp: flagLow - Math.abs(poleMove) * 0.8,
+          confidence: Math.min(87, 70 + (rsi < 50 ? 8 : 0) + (ema20 < ema50 ? 9 : 0)),
+          key_sr: { resistance: flagHigh, support: flagLow },
+          evidence: { pole_move: poleMove, flag_range: flagRange, rsi }
+        });
+      }
+    }
+  }
+
+  // ── 4. RISING / FALLING WEDGE ───────────────────────────
+  if (swingH.length >= 3 && swingL.length >= 3) {
+    const recentH = swingH.slice(-3), recentL = swingL.slice(-3);
+    const hRising = recentH[2].price > recentH[0].price + atr * 0.3;
+    const lRising = recentL[2].price > recentL[0].price + atr * 0.3;
+    const hFalling = recentH[2].price < recentH[0].price - atr * 0.3;
+    const lFalling = recentL[2].price < recentL[0].price - atr * 0.3;
+    const hSlope  = (recentH[2].price - recentH[0].price) / Math.max(1, recentH[2].idx - recentH[0].idx);
+    const lSlope  = (recentL[2].price - recentL[0].price) / Math.max(1, recentL[2].idx - recentL[0].idx);
+    const converging = Math.abs(hSlope - lSlope) < atr * 0.05;
+
+    if (hRising && lRising && converging && rsi > 60) {
+      results.push({
+        pattern: 'Rising Wedge', direction: 'SELL',
+        entry: price, sl: recentH[2].price + atr * 0.4,
+        tp: recentL[0].price - atr,
+        confidence: Math.min(83, 63 + (rsi > 65 ? 10 : 0) + (ema20 < ema50 ? 8 : 0)),
+        key_sr: { resistance: recentH[2].price, support: recentL[2].price },
+        evidence: { rsi, hSlope, lSlope }
+      });
+    }
+    if (hFalling && lFalling && converging && rsi < 40) {
+      results.push({
+        pattern: 'Falling Wedge', direction: 'BUY',
+        entry: price, sl: recentL[2].price - atr * 0.4,
+        tp: recentH[0].price + atr,
+        confidence: Math.min(83, 63 + (rsi < 35 ? 10 : 0) + (ema20 > ema50 ? 8 : 0)),
+        key_sr: { support: recentL[2].price, resistance: recentH[2].price },
+        evidence: { rsi, hSlope, lSlope }
+      });
+    }
+  }
+
+  // ── 5. FIB BOUNCE (61.8%) ───────────────────────────────
+  if (swingH.length >= 1 && swingL.length >= 1) {
+    const lastSwH = swingH[swingH.length-1];
+    const lastSwL = swingL[swingL.length-1];
+
+    // Impulso rialzista → ritracciamento al 61.8%
+    if (lastSwH.idx > lastSwL.idx) {
+      const impHigh  = lastSwH.price, impLow = lastSwL.price;
+      const fib618   = impHigh - (impHigh - impLow) * 0.618;
+      const fib382   = impHigh - (impHigh - impLow) * 0.382;
+      if (Math.abs(price - fib618) < atr * 0.8 && rsi < 45) {
+        results.push({
+          pattern: 'Fib 61.8% Bounce', direction: 'BUY',
+          entry: fib618, sl: fib618 - atr * 1.2,
+          tp: impHigh + (impHigh - impLow) * 0.272,
+          confidence: Math.min(86, 66 + (rsi < 40 ? 10 : 0) + (ema20 > ema50 ? 8 : 0)),
+          key_sr: { support: fib618, resistance: impHigh, fib382 },
+          evidence: { fib618, fib382, impulse_range: impHigh - impLow, rsi }
+        });
+      }
+    }
+    // Impulso ribassista → ritracciamento al 61.8%
+    if (lastSwL.idx > lastSwH.idx) {
+      const impLow = lastSwL.price, impHigh = lastSwH.price;
+      const fib618 = impLow + (impHigh - impLow) * 0.618;
+      if (Math.abs(price - fib618) < atr * 0.8 && rsi > 55) {
+        results.push({
+          pattern: 'Fib 61.8% Bounce', direction: 'SELL',
+          entry: fib618, sl: fib618 + atr * 1.2,
+          tp: impLow - (impHigh - impLow) * 0.272,
+          confidence: Math.min(86, 66 + (rsi > 60 ? 10 : 0) + (ema20 < ema50 ? 8 : 0)),
+          key_sr: { resistance: fib618, support: impLow },
+          evidence: { fib618, impulse_range: impHigh - impLow, rsi }
+        });
+      }
+    }
+  }
+
+  // ── 6. BREAKOUT KEY LEVEL ────────────────────────────────
+  if (srZones.length > 0) {
+    const strongZones = srZones.filter(z => z.touches >= 3);
+    for (const zone of strongZones) {
+      const distPct = Math.abs(price - zone.price) / zone.price;
+      if (distPct < 0.003) { // entro 0.3% dal livello
+        const dir = price > zone.price ? 'BUY' : 'SELL';
+        results.push({
+          pattern: 'Breakout Key Level', direction: dir,
+          entry: price,
+          sl: dir === 'BUY' ? zone.price - atr * 0.5 : zone.price + atr * 0.5,
+          tp: dir === 'BUY' ? price + atr * 2.5    : price - atr * 2.5,
+          confidence: Math.min(85, 60 + zone.touches * 5 + (rsi > 50 && dir==='BUY' ? 8 : rsi < 50 && dir==='SELL' ? 8 : 0)),
+          key_sr: { level: zone.price, touches: zone.touches },
+          evidence: { zone_price: zone.price, dist_pct: distPct, touches: zone.touches, rsi }
+        });
+        break;
+      }
+    }
+  }
+
+  // ── 7. CANDLESTICK: ENGULFING / HAMMER / SHOOTING STAR ──
+  if (n >= 3) {
+    const c1 = candles[n-2], c2 = candles[n-1];
+    const o1 = parseFloat(c1.open), cl1 = parseFloat(c1.close);
+    const o2 = parseFloat(c2.open), cl2 = parseFloat(c2.close);
+    const body1 = Math.abs(cl1 - o1), body2 = Math.abs(cl2 - o2);
+    const wick2H = parseFloat(c2.high) - Math.max(o2, cl2);
+    const wick2L = Math.min(o2, cl2) - parseFloat(c2.low);
+
+    // Bullish Engulfing
+    if (cl1 < o1 && cl2 > o2 && body2 > body1 * 1.1 && o2 <= cl1 && cl2 >= o1 && rsi < 50) {
+      const nearSupport = srZones.some(z => Math.abs(price - z.price) < atr * 1.5 && z.price < price);
+      if (nearSupport) {
+        results.push({
+          pattern: 'Bullish Engulfing', direction: 'BUY',
+          entry: price, sl: parseFloat(c2.low) - atr * 0.2,
+          tp: price + atr * 2.2,
+          confidence: Math.min(84, 66 + (rsi < 40 ? 10 : 0) + (ema20 > ema50 ? 8 : 0)),
+          key_sr: { support: parseFloat(c2.low) },
+          evidence: { body_ratio: body2/body1, rsi, near_support: nearSupport }
+        });
+      }
+    }
+    // Bearish Engulfing
+    if (cl1 > o1 && cl2 < o2 && body2 > body1 * 1.1 && o2 >= cl1 && cl2 <= o1 && rsi > 50) {
+      const nearResistance = srZones.some(z => Math.abs(price - z.price) < atr * 1.5 && z.price > price);
+      if (nearResistance) {
+        results.push({
+          pattern: 'Bearish Engulfing', direction: 'SELL',
+          entry: price, sl: parseFloat(c2.high) + atr * 0.2,
+          tp: price - atr * 2.2,
+          confidence: Math.min(84, 66 + (rsi > 60 ? 10 : 0) + (ema20 < ema50 ? 8 : 0)),
+          key_sr: { resistance: parseFloat(c2.high) },
+          evidence: { body_ratio: body2/body1, rsi, near_resistance: nearResistance }
+        });
+      }
+    }
+    // Hammer
+    if (wick2L > body2 * 2 && wick2H < body2 * 0.5 && rsi < 45) {
+      results.push({
+        pattern: 'Hammer', direction: 'BUY',
+        entry: price, sl: parseFloat(c2.low) - atr * 0.2,
+        tp: price + atr * 2,
+        confidence: Math.min(80, 60 + (rsi < 35 ? 12 : 0) + (ema20 > ema50 ? 8 : 0)),
+        key_sr: { support: parseFloat(c2.low) },
+        evidence: { wick_ratio: wick2L/body2, rsi }
+      });
+    }
+    // Shooting Star
+    if (wick2H > body2 * 2 && wick2L < body2 * 0.5 && rsi > 55) {
+      results.push({
+        pattern: 'Shooting Star', direction: 'SELL',
+        entry: price, sl: parseFloat(c2.high) + atr * 0.2,
+        tp: price - atr * 2,
+        confidence: Math.min(80, 60 + (rsi > 65 ? 12 : 0) + (ema20 < ema50 ? 8 : 0)),
+        key_sr: { resistance: parseFloat(c2.high) },
+        evidence: { wick_ratio: wick2H/body2, rsi }
+      });
+    }
+  }
+
+  // ── Seleziona il pattern con confidence più alta ──────────
+  if (results.length === 0) return null;
+  results.sort((a,b) => b.confidence - a.confidence);
+  return results[0];
+}
+
+// ── Analisi completa di un pair ───────────────────────────────
+async function analyzePair(pair, livePrices) {
+  const candles = await fetchCandles(pair);
+  if (!candles || candles.length < 30) return null;
+
+  const closes  = candles.map(c => parseFloat(c.close));
+  const atr     = calcATR(candles);
+  if (!atr) return null;
+
+  const price   = livePrices[pair] || closes[closes.length-1];
+  const ema20   = calcEMA(closes, 20);
+  const ema50   = calcEMA(closes, 50);
+  const rsi     = calcRSI(candles);
+  const srZones = findSupportResistance(candles, atr);
+  const { highs: swingH, lows: swingL } = findSwingPoints(candles, 4);
+
+  const detected = detectPattern(candles, atr, price);
+  if (!detected) return null;
+
+  // Verifica direzione filtro
+  if (selectedDir === 'BUY'  && detected.direction !== 'BUY')  return null;
+  if (selectedDir === 'SELL' && detected.direction !== 'SELL') return null;
+
+  // Calcola RR
+  const rawRR = Math.abs(detected.tp - detected.entry) / Math.abs(detected.sl - detected.entry);
+  if (rawRR < 1.3) return null; // scarta setup con RR troppo basso
+
+  const rrStr = '1:' + rawRR.toFixed(1);
+
+  return {
+    pair,
+    pattern:      detected.pattern,
+    direction:    detected.direction,
+    entry:        detected.entry,
+    sl:           detected.sl,
+    tp:           detected.tp,
+    confidence:   detected.confidence,
+    rr:           rrStr,
+    atr,
+    ema20,
+    ema50,
+    rsi,
+    srZones,
+    swingHighs:   swingH.slice(-3).map(h => h.price),
+    swingLows:    swingL.slice(-3).map(l => l.price),
+    evidence:     detected.evidence,
+    key_sr:       detected.key_sr,
+    candleCount:  candles.length,
+  };
+}
+
+// ── Prompt a Claude con dati tecnici reali ───────────────────
+function buildPromptFromAnalysis(analyses, tf, marketNews, prevSignals = []) {
+  const { generalNews, forexNews, cryptoNews, sentLines } = marketNews;
+  const hasNews = generalNews || forexNews || cryptoNews;
+
+  const analysisLines = analyses.map(a => {
+    const p = a.pair;
+    const fmt = (v) => v != null ? v.toFixed(p.includes('JPY')||p.includes('225')||p.includes('JPN')?2:p.includes('BTC')?0:4) : 'N/A';
+    const fmtPct = (v) => v != null ? v.toFixed(1) + '%' : 'N/A';
+
+    return `
+${p} [${a.direction}] — Pattern detected: ${a.pattern}
+  Current Price : ${fmt(a.entry)}
+  ATR (${tf})   : ${fmt(a.atr)}
+  RSI (14)      : ${fmtPct(a.rsi)}
+  EMA20 / EMA50 : ${fmt(a.ema20)} / ${fmt(a.ema50)} → trend: ${a.ema20 > a.ema50 ? 'BULLISH' : 'BEARISH'}
+  Algo Entry    : ${fmt(a.entry)}
+  Algo SL       : ${fmt(a.sl)} (${Math.abs(a.sl - a.entry)/a.atr < 1 ? 'tight' : 'normal'} — ${(Math.abs(a.sl - a.entry)/a.atr).toFixed(1)}x ATR)
+  Algo TP       : ${fmt(a.tp)} (R:R ${a.rr})
+  Algo Conf     : ${a.confidence}%
+  Swing Highs   : ${a.swingHighs.map(fmt).join(', ')}
+  Swing Lows    : ${a.swingLows.map(fmt).join(', ')}
+  Key S/R       : ${JSON.stringify(a.key_sr)}
+  Evidence      : RSI=${fmtPct(a.rsi)}, EMA20${a.ema20>a.ema50?'>':'<'}EMA50`;
+  }).join('\n');
+
+  const prevSection = prevSignals.length > 0 ? `
+PREVIOUSLY ACTIVE SIGNALS (do NOT contradict):
+${prevSignals.map(s=>`  ${s.pair}: ${s.direction} @ ${s.entry}`).join('\n')}
+` : '';
+
+  const newsSection = hasNews ? `
+LIVE MARKET CONTEXT:
+${generalNews ? `Macro: ${generalNews}` : ''}
+${forexNews   ? `Forex: ${forexNews}`   : ''}
+${cryptoNews  ? `Crypto: ${cryptoNews}` : ''}
+${sentLines   ? `Sentiment: ${sentLines}` : ''}
+` : '';
+
+  return `You are a senior institutional trader reviewing algorithmically detected chart patterns.
+
+The patterns below were detected by a technical analysis algorithm on REAL OHLCV candle data (${tf} timeframe). Your job is to:
+1. Validate the pattern and write professional analysis
+2. Use EXACTLY the entry, SL, TP levels provided — do NOT change them
+3. Write ew_context, pattern_desc, key_levels, invalidation, market_context fields
+4. Assign a final confidence score (can adjust ±5 from algo confidence based on news/macro)
+5. Add relevant tags
+6. If a pattern genuinely looks weak or contradicts macro, you may OMIT it (return nothing for that pair)
+
+${prevSection}${newsSection}
+DETECTED PATTERNS ON REAL DATA:
+${analysisLines}
+
+Return ONLY a raw JSON array. Each object:
+{
+  "pair": "EURUSD",
+  "direction": "BUY",
+  "pattern": "Double Bottom",
+  "entry": 1.0823,
+  "sl": 1.0795,
+  "tp": 1.0890,
+  "tp2": null,
+  "confidence": 76,
+  "rr": "1:2.4",
+  "ew_context": "Price completing corrective structure at key support — wave 2 or B wave territory",
+  "pattern_desc": "Clear double bottom formed over 18 candles with near-identical lows. Neckline at 1.0856 represents the key trigger level.",
+  "key_levels": "Support: 1.0795 (swing low). Resistance: 1.0856 (neckline), 1.0900 (prior structure)",
+  "invalidation": "Close below 1.0790 on ${tf} timeframe negates the pattern",
+  "market_context": "USD weakness amid Fed dovish repricing supports EUR recovery from oversold levels",
+  "tags": ["double_bottom","key_support","mean_reversion"]
+}
+
+CRITICAL RULES:
+- entry, sl, tp MUST match the algo values exactly (do not invent new levels)
+- BUY: sl < entry < tp | SELL: tp < entry < sl
+- rr string must match the algo rr exactly
+- confidence: algo value ±5 only
+- Return empty array [] if no patterns are convincing
+- Output only the JSON array, no markdown`;
+}
+
+// ── Main generate function ────────────────────────────────────
 async function generateSignals() {
   const btn = document.getElementById('gen-btn');
   btn.disabled = true;
@@ -823,127 +1382,90 @@ async function generateSignals() {
   document.getElementById('signals-list').innerHTML = '';
   document.getElementById('stats-bar').style.display = 'none';
 
-  const pairs = getPairsToAnalyze();
-  const minConf = parseInt(document.getElementById('conf-min').value);
-  const loaderMsgs = ['Fetching live prices + news...','Scanning Elliott Wave structures...','Identifying chart patterns...','Calculating ATR-based SL/TP...','Filtering by confidence threshold...'];
+  const pairs    = getPairsToAnalyze();
+  const minConf  = parseInt(document.getElementById('conf-min').value);
+
+  const loaderSteps = [
+    'Fetching live prices...',
+    'Downloading real candle data...',
+    'Running pattern recognition algorithm...',
+    'Calculating ATR, EMA, RSI, S/R levels...',
+    'Filtering high-confidence setups...',
+    'Validating with AI analysis...',
+  ];
   let li = 0;
   const loaderInterval = setInterval(() => {
-    document.getElementById('loader-sub').textContent = loaderMsgs[li++ % loaderMsgs.length];
-  }, 1800);
+    document.getElementById('loader-sub').textContent = loaderSteps[li++ % loaderSteps.length];
+  }, 2000);
 
   try {
-    // Fetch prezzi e news in PARALLELO — nessuna latenza aggiuntiva
+    // Step 1: prezzi live + news in parallelo
     document.getElementById('loader-sub').textContent = 'Fetching live prices + market news...';
     const [livePrices, marketNews] = await Promise.all([
       fetchLivePrices(pairs),
       fetchMarketNews()
     ]);
 
-    document.getElementById('loader-sub').textContent = 'Generating AI signals with live context...';
-    const raw = await callClaudeAPI(buildPrompt(pairs, selectedTF, selectedDir, minConf, livePrices, marketNews, signals));
+    // Step 2: scarica candele reali e analizza ogni pair in parallelo
+    document.getElementById('loader-sub').textContent = 'Fetching real candles + running pattern detection...';
+    const analysisResults = await Promise.all(
+      pairs.map(pair => analyzePair(pair, livePrices).catch(e => {
+        console.warn('analyzePair failed:', pair, e.message);
+        return null;
+      }))
+    );
+
+    // Filtra null e per minConf
+    const validAnalyses = analysisResults
+      .filter(a => a !== null && a.confidence >= minConf);
+
+    if (validAnalyses.length === 0) {
+      clearInterval(loaderInterval);
+      showToast('No patterns detected on real candle data — try different filters');
+      document.getElementById('empty-state').classList.add('active');
+      document.getElementById('loader').classList.remove('active');
+      btn.disabled = false;
+      return;
+    }
+
+    showToast(`${validAnalyses.length} pattern(s) detected on real data — validating with AI...`);
+
+    // Step 3: Claude valida e scrive il commento
+    document.getElementById('loader-sub').textContent = `AI validating ${validAnalyses.length} real patterns...`;
+    const prompt = buildPromptFromAnalysis(validAnalyses, selectedTF, marketNews, signals);
+    const raw    = await callClaudeAPI(prompt);
+
     clearInterval(loaderInterval);
+
     const parsed = parseSignals(raw, minConf, selectedDir);
-    signals = parsed;
-    renderSignals(parsed);
-    updateStats(parsed);
+
+    // Merge dati algoritmici nel segnale Claude (per tp2, tags, ecc.)
+    const merged = parsed.map(sig => {
+      const algo = validAnalyses.find(a => a.pair === sig.pair);
+      if (algo) {
+        // Forza i livelli algoritmici (Claude non può cambiarli)
+        sig.entry = algo.entry;
+        sig.sl    = algo.sl;
+        sig.tp    = algo.tp;
+        sig.rr    = algo.rr;
+        sig.confidence = algo.confidence; // usa sempre confidence algo
+      }
+      return sig;
+    });
+
+    signals = merged;
+    renderSignals(merged);
+    updateStats(merged);
+
   } catch(e) {
     clearInterval(loaderInterval);
     console.error(e);
-    showToast('Errore API: ' + e.message);
+    showToast('Error: ' + e.message);
     document.getElementById('empty-state').classList.add('active');
   }
+
   document.getElementById('loader').classList.remove('active');
   btn.disabled = false;
-}
-
-function buildPrompt(pairs, tf, dir, minConf, livePrices = {}, marketNews = {}, prevSignals = []) {
-  const dirNote = dir === 'BOTH' ? 'bullish and bearish' : dir === 'BUY' ? 'bullish only' : 'bearish only';
-  const priceLines = pairs.map(p => {
-    const price = livePrices[p];
-    return price != null
-      ? `  ${p}: CURRENT PRICE = ${price} (USE THIS EXACT PRICE as base for entry/sl/tp)`
-      : `  ${p}: price unavailable — use realistic estimate`;
-  }).join('\n');
-
-  // Sezione news — inclusa solo se disponibile
-  const { generalNews, forexNews, cryptoNews, sentLines } = marketNews;
-  const hasNews = generalNews || forexNews || cryptoNews;
-  const newsSection = hasNews ? `
-LIVE MARKET CONTEXT (Finnhub — use to calibrate signal confidence and market_context field):
-${generalNews ? `Macro/General News:\n${generalNews}` : ''}
-${forexNews   ? `\nForex News:\n${forexNews}`         : ''}
-${cryptoNews  ? `\nCrypto News:\n${cryptoNews}`       : ''}
-${sentLines   ? `\nMarket Sentiment: ${sentLines}`    : ''}
-` : '';
-
-  // Segnali precedenti attivi — per evitare contraddizioni
-  const prevSection = prevSignals && prevSignals.length > 0 ? `
-PREVIOUSLY GENERATED SIGNALS (still active — do NOT contradict these):
-${prevSignals.map(s => `  ${s.pair}: ${s.direction} @ ${s.entry} (pattern: ${s.pattern}, conf: ${s.confidence}%)`).join('\n')}
-RULE: If a pair already has an active signal above, you MUST either keep the same direction or OMIT that pair entirely. Never reverse direction on the same pair within the same session.
-` : '';
-
-  return `You are an expert intraday CFD trader specializing in technical pattern recognition, Elliott Wave analysis, and institutional trading setups. Generate precise trading signals.
-
-LIVE MARKET PRICES (real-time):
-${priceLines}
-${prevSection}${newsSection}
-Analyze these CFD instruments on ${tf} timeframe: ${pairs.join(', ')}
-
-Generate ${dirNote} signals where a real pattern exists. Return ONLY a raw JSON array, no markdown, no text outside the array.
-
-CRITICAL: For instruments where a CURRENT PRICE is provided above, you MUST use that price as the base. Entry must be within 0.1%-0.5% of current price. SL and TP must be realistic ATR-based distances from that entry.
-If LIVE MARKET CONTEXT is provided, use it to:
-- Adjust confidence based on macro alignment
-- Enrich the market_context field with relevant news
-- Avoid signals that directly contradict major macro events
-
-Each signal object:
-{
-  "pair": "EURUSD",
-  "direction": "BUY",
-  "pattern": "Head & Shoulders",
-  "entry": 1.0850,
-  "sl": 1.0820,
-  "tp": 1.0910,
-  "tp2": 1.0950,
-  "confidence": 78,
-  "rr": "1:2.1",
-  "ew_context": "1 sentence EW context",
-  "pattern_desc": "2-3 sentence pattern description",
-  "key_levels": "S/R and fib levels",
-  "invalidation": "what invalidates this setup",
-  "market_context": "brief macro/session context — reference live news if relevant",
-  "tags": ["tag1","tag2","tag3"]
-}
-
-Rules:
-- BUY: sl < entry < tp. SELL: tp < entry < sl
-- confidence: ${minConf}–96 (integer)
-- R:R between 1:1.5 and 1:4
-- Be selective, not every pair needs a signal
-- Minimum confidence: ${minConf}%
-- CONSISTENCY: Never generate a signal that contradicts a previously active signal on the same pair
-- QUALITY OVER QUANTITY: it is better to return 2-3 high-conviction signals than 6-8 weak ones
-- TEMPORAL COHERENCE: ew_context must reference current market conditions (March 2026), never invent past dates or future events
-- NO NOISE: if the market structure is unclear or consolidating, do NOT force a signal — return nothing for that pair
-
-Output only the JSON array.
-
-IMPORTANT: Use ONLY these exact pattern names (no variations):
-Elliott Wave 3, Elliott Wave 5, Elliott Wave C,
-Head & Shoulders, Inverse Head & Shoulders,
-Double Top, Double Bottom, Triple Top, Triple Bottom,
-Ascending Triangle, Descending Triangle, Symmetrical Triangle, Broadening Triangle,
-Bull Flag, Bear Flag, Bull Pennant, Bear Pennant,
-Rising Channel, Falling Channel, Horizontal Channel,
-Cup & Handle, Rounding Bottom, Rounding Top,
-Rising Wedge, Falling Wedge,
-Breakout Key Level, Fib 61.8% Bounce, Fib 38.2% Bounce, Fib 50% Bounce,
-Gartley Pattern, Butterfly Pattern, Bat Pattern, Crab Pattern, ABCD Pattern, Cypher Pattern,
-Bullish Engulfing, Bearish Engulfing, Doji Reversal,
-Hammer, Shooting Star, Morning Star, Evening Star, Bullish Harami, Bearish Harami,
-Island Reversal, Diamond Pattern, Wolfe Wave`;
 }
 
 async function callClaudeAPI(prompt) {
@@ -968,6 +1490,7 @@ function parseSignals(raw, minConf, dir) {
   let arr = JSON.parse(cleaned.slice(start, end+1));
   return arr.filter(s => s.confidence >= minConf && (dir === 'BOTH' || s.direction === dir));
 }
+
 
 function renderSignals(list) {
   const container = document.getElementById('signals-list');
