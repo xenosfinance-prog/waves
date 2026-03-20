@@ -1121,10 +1121,11 @@ function detectPattern(candles, atr, currentPrice) {
     if (hDiff < atr * 2.5 && idxGap >= 5 && idxGap <= 80) {
       const neckLow = Math.min(...lows.slice(prevH.idx, lastH.idx));
       const dist    = price - neckLow;
-      if (price < lastH.price - atr * 0.5) {
+      const dtDist = (lastH.price - price) / lastH.price;
+      if (price < lastH.price - atr * 0.5 && dtDist < 0.025) { // max 2.5% dai massimi
         results.push({
           pattern: 'Double Top', direction: 'SELL',
-          entry: price, sl: lastH.price + atr * 0.5,
+          entry: price, sl: lastH.price + atr * (selectedTF === 'D1' ? 1.5 : selectedTF === 'H4' ? 1.2 : 0.5),
           tp: neckLow - dist * 0.8,
           confidence: Math.min(88, 68 + (rsi > 65 ? 10 : 0) + (ema20 < ema50 ? 8 : 0) + (idxGap > 15 ? 4 : 0)),
           key_sr: { resistance: lastH.price, support: neckLow },
@@ -1141,10 +1142,11 @@ function detectPattern(candles, atr, currentPrice) {
     if (lDiff < atr * 2.5 && idxGap >= 5 && idxGap <= 80) {
       const neckHigh = Math.max(...highs.slice(prevL.idx, lastL.idx));
       const dist     = neckHigh - price;
-      if (price > lastL.price + atr * 0.5) {
+      const dbDist = (price - lastL.price) / lastL.price;
+      if (price > lastL.price + atr * 0.5 && dbDist < 0.025) { // max 2.5% dai minimi
         results.push({
           pattern: 'Double Bottom', direction: 'BUY',
-          entry: price, sl: lastL.price - atr * 0.5,
+          entry: price, sl: lastL.price - atr * (selectedTF === 'D1' ? 1.5 : selectedTF === 'H4' ? 1.2 : 0.5),
           tp: neckHigh + dist * 0.8,
           confidence: Math.min(88, 68 + (rsi < 40 ? 10 : 0) + (ema20 > ema50 ? 8 : 0) + (idxGap > 15 ? 4 : 0)),
           key_sr: { support: lastL.price, resistance: neckHigh },
@@ -1166,7 +1168,7 @@ function detectPattern(candles, atr, currentPrice) {
       const resistance = recentH.reduce((a,h)=>a+h.price,0)/recentH.length;
       results.push({
         pattern: 'Ascending Triangle', direction: 'BUY',
-        entry: price, sl: recentL[recentL.length-1].price - atr * 0.3,
+        entry: price, sl: recentL[recentL.length-1].price - atr * (selectedTF === 'D1' ? 1.5 : selectedTF === 'H4' ? 1.0 : 0.3),
         tp: resistance + (resistance - recentL[0].price) * 0.8,
         confidence: Math.min(85, 65 + (rsi > 50 && rsi < 70 ? 8 : 0) + (ema20 > ema50 ? 10 : 0)),
         key_sr: { resistance, support: recentL[recentL.length-1].price },
@@ -1177,7 +1179,7 @@ function detectPattern(candles, atr, currentPrice) {
       const support = recentL.reduce((a,l)=>a+l.price,0)/recentL.length;
       results.push({
         pattern: 'Descending Triangle', direction: 'SELL',
-        entry: price, sl: recentH[recentH.length-1].price + atr * 0.3,
+        entry: price, sl: recentH[recentH.length-1].price + atr * (selectedTF === 'D1' ? 1.5 : selectedTF === 'H4' ? 1.0 : 0.3),
         tp: support - (recentH[0].price - support) * 0.8,
         confidence: Math.min(85, 65 + (rsi < 50 && rsi > 30 ? 8 : 0) + (ema20 < ema50 ? 10 : 0)),
         key_sr: { support, resistance: recentH[recentH.length-1].price },
@@ -1199,7 +1201,7 @@ function detectPattern(candles, atr, currentPrice) {
       if (poleMove > 0 && flagLow > closes[poleStart] + atr) {
         results.push({
           pattern: 'Bull Flag', direction: 'BUY',
-          entry: price, sl: flagLow - atr * 0.3,
+          entry: price, sl: flagLow - atr * (selectedTF === 'D1' ? 1.5 : selectedTF === 'H4' ? 1.0 : 0.3),
           tp: flagHigh + Math.abs(poleMove) * 0.8,
           confidence: Math.min(87, 70 + (rsi > 50 ? 8 : 0) + (ema20 > ema50 ? 9 : 0)),
           key_sr: { support: flagLow, resistance: flagHigh },
@@ -1209,7 +1211,7 @@ function detectPattern(candles, atr, currentPrice) {
       if (poleMove < 0 && flagHigh < closes[poleStart] - atr) {
         results.push({
           pattern: 'Bear Flag', direction: 'SELL',
-          entry: price, sl: flagHigh + atr * 0.3,
+          entry: price, sl: flagHigh + atr * (selectedTF === 'D1' ? 1.5 : selectedTF === 'H4' ? 1.0 : 0.3),
           tp: flagLow - Math.abs(poleMove) * 0.8,
           confidence: Math.min(87, 70 + (rsi < 50 ? 8 : 0) + (ema20 < ema50 ? 9 : 0)),
           key_sr: { resistance: flagHigh, support: flagLow },
@@ -1296,15 +1298,21 @@ function detectPattern(candles, atr, currentPrice) {
     for (const zone of strongZones) {
       const distPct = Math.abs(price - zone.price) / zone.price;
       if (distPct < 0.008) { // entro 0.8% dal livello
+        // BUY = price broke ABOVE the zone (price > zone = rialzo)
+        // SELL = price broke BELOW the zone (price < zone = ribasso)
         const dir = price > zone.price ? 'BUY' : 'SELL';
+        // SL multiplier depends on timeframe: D1 needs more room
+        const slMult = selectedTF === 'D1' ? 2.0 : selectedTF === 'H4' ? 1.5 : 1.0;
+        const tpMult = selectedTF === 'D1' ? 4.0 : selectedTF === 'H4' ? 3.0 : 2.5;
         results.push({
           pattern: 'Breakout Key Level', direction: dir,
           entry: price,
-          sl: dir === 'BUY' ? zone.price - atr * 0.5 : zone.price + atr * 0.5,
-          tp: dir === 'BUY' ? price + atr * 2.5    : price - atr * 2.5,
+          // SL goes BEYOND the broken level (retest protection)
+          sl: dir === 'BUY' ? zone.price - atr * slMult : zone.price + atr * slMult,
+          tp: dir === 'BUY' ? price + atr * tpMult      : price - atr * tpMult,
           confidence: Math.min(85, 60 + zone.touches * 5 + (rsi > 50 && dir==='BUY' ? 8 : rsi < 50 && dir==='SELL' ? 8 : 0)),
           key_sr: { level: zone.price, touches: zone.touches },
-          evidence: { zone_price: zone.price, dist_pct: distPct, touches: zone.touches, rsi }
+          evidence: { zone_price: zone.price, dist_pct: distPct, touches: zone.touches, rsi, slMult, tpMult }
         });
         break;
       }
@@ -1422,7 +1430,9 @@ async function analyzePair(pair, livePrices) {
 
   // Calcola RR
   const rawRR = Math.abs(detected.tp - detected.entry) / Math.abs(detected.sl - detected.entry);
-  if (rawRR < 0.9) return null; // scarta setup con RR troppo basso
+  // RR minimo dipende dal timeframe: D1 richiede setup migliori
+  const minRR = selectedTF === 'D1' ? 1.5 : selectedTF === 'H4' ? 1.2 : 0.9;
+  if (rawRR < minRR) return null; // scarta setup con RR troppo basso
 
   const rrStr = '1:' + rawRR.toFixed(1);
 
