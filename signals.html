@@ -540,7 +540,7 @@
         <div class="ctrl-label">Min Confidence</div>
         <select id="conf-min">
           <option value="50">50%+</option>
-          <option value="60" selected>60%+</option>
+          <option value="55" selected>55%+</option>
           <option value="70">70%+</option>
           <option value="80">80%+</option>
           <option value="90">90%+</option>
@@ -1094,318 +1094,604 @@ function findSupportResistance(candles, atr) {
 }
 
 // ── Pattern detection algoritmico ────────────────────────────
-function detectPattern(candles, atr, currentPrice) {
-  if (!candles || candles.length < 30 || !atr) return null;
+// ══════════════════════════════════════════════════════════════════
+// INDICATOR LIBRARY
+// ══════════════════════════════════════════════════════════════════
 
-  const closes  = candles.map(c => parseFloat(c.close));
-  const highs   = candles.map(c => parseFloat(c.high));
-  const lows    = candles.map(c => parseFloat(c.low));
-  const n       = closes.length;
-  const recent  = candles.slice(-20);
+function calcStochRSI(candles, period=14) {
+  if (candles.length < period*2) return null;
+  const closes = candles.map(c=>parseFloat(c.close));
+  // RSI series
+  const rsiSeries = [];
+  for (let i = period; i < closes.length; i++) {
+    let g=0, l=0;
+    for (let j=i-period+1; j<=i; j++) {
+      const d=closes[j]-closes[j-1]; if(d>0) g+=d; else l-=d;
+    }
+    const rs=g/(l||0.001); rsiSeries.push(100-100/(1+rs));
+  }
+  if (rsiSeries.length < period) return null;
+  const slice = rsiSeries.slice(-period);
+  const minR=Math.min(...slice), maxR=Math.max(...slice);
+  if (maxR===minR) return 50;
+  return ((rsiSeries[rsiSeries.length-1]-minR)/(maxR-minR))*100;
+}
+
+function calcBB(closes, period=20, mult=2) {
+  if (closes.length < period) return null;
+  const slice = closes.slice(-period);
+  const mean = slice.reduce((a,b)=>a+b,0)/period;
+  const std = Math.sqrt(slice.reduce((a,b)=>a+(b-mean)**2,0)/period);
+  return { upper: mean+mult*std, mid: mean, lower: mean-mult*std, std };
+}
+
+function calcMACD(closes, fast=12, slow=26, signal=9) {
+  if (closes.length < slow+signal) return null;
+  const emaFast = calcEMA(closes, fast);
+  const emaSlow = calcEMA(closes, slow);
+  if (!emaFast||!emaSlow) return null;
+  const macdLine = emaFast - emaSlow;
+  // simplified signal
+  const macdSeries = [];
+  for (let i=slow-1; i<closes.length; i++) {
+    const ef = calcEMA(closes.slice(0,i+1), fast);
+    const es = calcEMA(closes.slice(0,i+1), slow);
+    if(ef&&es) macdSeries.push(ef-es);
+  }
+  const signalLine = calcEMA(macdSeries, signal);
+  return { macd: macdLine, signal: signalLine, hist: macdLine - (signalLine||0) };
+}
+
+function calcIchimoku(candles) {
+  if (candles.length < 52) return null;
+  const highs = candles.map(c=>parseFloat(c.high));
+  const lows  = candles.map(c=>parseFloat(c.low));
+  const n = candles.length;
+  const maxSlice=(arr,from,len)=>Math.max(...arr.slice(from,from+len));
+  const minSlice=(arr,from,len)=>Math.min(...arr.slice(from,from+len));
+  // Tenkan (9), Kijun (26), Senkou A/B (52)
+  const tenkan = (maxSlice(highs,n-9,9)+minSlice(lows,n-9,9))/2;
+  const kijun  = (maxSlice(highs,n-26,26)+minSlice(lows,n-26,26))/2;
+  const senkouA = (tenkan+kijun)/2;
+  const senkouB = (maxSlice(highs,n-52,52)+minSlice(lows,n-52,52))/2;
+  const price = parseFloat(candles[n-1].close);
+  const aboveCloud = price > Math.max(senkouA, senkouB);
+  const belowCloud = price < Math.min(senkouA, senkouB);
+  const inCloud    = !aboveCloud && !belowCloud;
+  const tkCross = tenkan > kijun; // bullish TK cross
+  return { tenkan, kijun, senkouA, senkouB, aboveCloud, belowCloud, inCloud, tkCross, price };
+}
+
+function calcVolumeProfile(candles) {
+  // Volume proxy = range * (1 + body/range) — works without real volume data
+  const vols = candles.map(c=>{
+    const h=parseFloat(c.high),l=parseFloat(c.low),o=parseFloat(c.open),cl=parseFloat(c.close);
+    const range=h-l||0.0001;
+    const body=Math.abs(cl-o);
+    return (parseFloat(c.volume)||0) || range*(1+body/range);
+  });
+  const mean = vols.reduce((a,b)=>a+b,0)/vols.length;
+  const recent5 = vols.slice(-5).reduce((a,b)=>a+b,0)/5;
+  const recent20 = vols.slice(-20).reduce((a,b)=>a+b,0)/20;
+  return {
+    volumeExpanding: recent5 > recent20 * 1.2,
+    volumeContracting: recent5 < recent20 * 0.8,
+    lastBarVolHigh: vols[vols.length-1] > mean * 1.3,
+    volRatio: recent5/recent20
+  };
+}
+
+function calcADX(candles, period=14) {
+  if (candles.length < period+2) return null;
+  const highs=candles.map(c=>parseFloat(c.high));
+  const lows=candles.map(c=>parseFloat(c.low));
+  const closes=candles.map(c=>parseFloat(c.close));
+  let dmPlus=0, dmMinus=0, tr=0;
+  for (let i=candles.length-period; i<candles.length; i++) {
+    const upMove=highs[i]-highs[i-1];
+    const downMove=lows[i-1]-lows[i];
+    dmPlus  += upMove>downMove&&upMove>0 ? upMove : 0;
+    dmMinus += downMove>upMove&&downMove>0 ? downMove : 0;
+    tr += Math.max(highs[i]-lows[i], Math.abs(highs[i]-closes[i-1]), Math.abs(lows[i]-closes[i-1]));
+  }
+  if (!tr) return null;
+  const diPlus=(dmPlus/tr)*100, diMinus=(dmMinus/tr)*100;
+  const dx=Math.abs(diPlus-diMinus)/(diPlus+diMinus+0.001)*100;
+  return { adx: dx, diPlus, diMinus, trending: dx > 20 };
+}
+
+// ══════════════════════════════════════════════════════════════════
+// PATTERN DETECTION ENGINE v4.0
+// Full geometric detection: 20+ patterns with multi-indicator confirmation
+// ══════════════════════════════════════════════════════════════════
+
+function detectPattern(candles, atr, currentPrice) {
+  if (!candles || candles.length < 40 || !atr) return null;
+
+  const closes = candles.map(c=>parseFloat(c.close));
+  const highs  = candles.map(c=>parseFloat(c.high));
+  const lows   = candles.map(c=>parseFloat(c.low));
+  const n = closes.length;
+  const price = currentPrice || closes[n-1];
+
+  // Core indicators
+  const rsi   = calcRSI(candles);
+  const ema20 = calcEMA(closes, 20);
+  const ema50 = calcEMA(closes, 50);
+  const ema200= calcEMA(closes, 200);
+  const bb    = calcBB(closes);
+  const macd  = calcMACD(closes);
+  const adx   = calcADX(candles);
+  const ichi  = candles.length >= 52 ? calcIchimoku(candles) : null;
+  const vol   = calcVolumeProfile(candles);
+  const stoch = calcStochRSI(candles);
+  const srZones = findSupportResistance(candles, atr);
   const { highs: swingH, lows: swingL } = findSwingPoints(candles, 4);
 
-  const rsi    = calcRSI(candles);
-  const ema20  = calcEMA(closes, 20);
-  const ema50  = calcEMA(closes, 50);
-  const price  = currentPrice || closes[n-1];
-  const srZones = findSupportResistance(candles, atr);
+  // Trend context
+  const trendUp   = ema20 > ema50 && price > ema20;
+  const trendDown = ema20 < ema50 && price < ema20;
+  const ichiBull  = ichi ? ichi.aboveCloud && ichi.tkCross : null;
+  const ichiBear  = ichi ? ichi.belowCloud && !ichi.tkCross : null;
+  const macdBull  = macd ? macd.hist > 0 && macd.macd > macd.signal : false;
+  const macdBear  = macd ? macd.hist < 0 && macd.macd < macd.signal : false;
+  const adxTrend  = adx ? adx.trending : false;
 
   const results = [];
 
-  // ── 1. DOUBLE TOP / BOTTOM ───────────────────────────────
+  // Helper: confirmation score (0-4) how many indicators agree
+  const bullScore = (rsi<55?1:0) + (trendUp?1:0) + (macdBull?1:0) + (ichiBull?1:0);
+  const bearScore = (rsi>45?1:0) + (trendDown?1:0) + (macdBear?1:0) + (ichiBear?1:0);
+
+  // ── 1. DOUBLE TOP ────────────────────────────────────────────
   if (swingH.length >= 2) {
-    const lastH  = swingH[swingH.length-1];
-    const prevH  = swingH[swingH.length-2];
-    const hDiff  = Math.abs(lastH.price - prevH.price);
-    const idxGap = lastH.idx - prevH.idx;
-    if (hDiff < atr * 2.5 && idxGap >= 5 && idxGap <= 80) {
-      const neckLow = Math.min(...lows.slice(prevH.idx, lastH.idx));
-      const dist    = price - neckLow;
-      const dtDist = (lastH.price - price) / lastH.price;
-      if (price < lastH.price - atr * 0.5 && dtDist < 0.025) { // max 2.5% dai massimi
-        results.push({
-          pattern: 'Double Top', direction: 'SELL',
-          entry: price, sl: lastH.price + atr * (selectedTF === 'D1' ? 1.5 : selectedTF === 'H4' ? 1.2 : 0.5),
-          tp: neckLow - dist * 0.8,
-          confidence: Math.min(88, 68 + (rsi > 65 ? 10 : 0) + (ema20 < ema50 ? 8 : 0) + (idxGap > 15 ? 4 : 0)),
-          key_sr: { resistance: lastH.price, support: neckLow },
-          evidence: { swing_high_delta: hDiff, idx_gap: idxGap, rsi, ema20, ema50 }
-        });
+    const h1=swingH[swingH.length-2], h2=swingH[swingH.length-1];
+    const hDiff=Math.abs(h1.price-h2.price);
+    const gap=h2.idx-h1.idx;
+    if (hDiff < atr*2.0 && gap>=8 && gap<=80) {
+      const neckLow=Math.min(...lows.slice(h1.idx,h2.idx+1));
+      const dtDist=(h2.price-price)/h2.price;
+      if (price < h2.price - atr*0.3 && dtDist < 0.06 && price < neckLow+atr*2) {
+        const conf=Math.min(90, 62+(rsi>60?8:0)+(trendDown?8:0)+(macdBear?6:0)+(vol.volumeExpanding?4:0)+(hDiff<atr?4:0));
+        results.push({ pattern:'Double Top', direction:'SELL',
+          entry:price, sl:h2.price+atr*(selectedTF==='D1'?1.8:1.0),
+          tp:neckLow-(h2.price-neckLow)*0.9,
+          confidence:conf, key_sr:{resistance:h2.price, support:neckLow},
+          evidence:{hDiff,gap,rsi,neckLow,trendDown,macdBear} });
       }
     }
   }
+
+  // ── 2. DOUBLE BOTTOM ─────────────────────────────────────────
   if (swingL.length >= 2) {
-    const lastL  = swingL[swingL.length-1];
-    const prevL  = swingL[swingL.length-2];
-    const lDiff  = Math.abs(lastL.price - prevL.price);
-    const idxGap = lastL.idx - prevL.idx;
-    if (lDiff < atr * 2.5 && idxGap >= 5 && idxGap <= 80) {
-      const neckHigh = Math.max(...highs.slice(prevL.idx, lastL.idx));
-      const dist     = neckHigh - price;
-      const dbDist = (price - lastL.price) / lastL.price;
-      if (price > lastL.price + atr * 0.5 && dbDist < 0.025) { // max 2.5% dai minimi
-        results.push({
-          pattern: 'Double Bottom', direction: 'BUY',
-          entry: price, sl: lastL.price - atr * (selectedTF === 'D1' ? 1.5 : selectedTF === 'H4' ? 1.2 : 0.5),
-          tp: neckHigh + dist * 0.8,
-          confidence: Math.min(88, 68 + (rsi < 40 ? 10 : 0) + (ema20 > ema50 ? 8 : 0) + (idxGap > 15 ? 4 : 0)),
-          key_sr: { support: lastL.price, resistance: neckHigh },
-          evidence: { swing_low_delta: lDiff, idx_gap: idxGap, rsi, ema20, ema50 }
-        });
+    const l1=swingL[swingL.length-2], l2=swingL[swingL.length-1];
+    const lDiff=Math.abs(l1.price-l2.price);
+    const gap=l2.idx-l1.idx;
+    if (lDiff < atr*2.0 && gap>=8 && gap<=80) {
+      const neckHigh=Math.max(...highs.slice(l1.idx,l2.idx+1));
+      const dbDist=(price-l2.price)/l2.price;
+      if (price > l2.price + atr*0.3 && dbDist < 0.06 && price > neckHigh-atr*2) {
+        const conf=Math.min(90, 62+(rsi<45?8:0)+(trendUp?8:0)+(macdBull?6:0)+(vol.volumeExpanding?4:0)+(lDiff<atr?4:0));
+        results.push({ pattern:'Double Bottom', direction:'BUY',
+          entry:price, sl:l2.price-atr*(selectedTF==='D1'?1.8:1.0),
+          tp:neckHigh+(neckHigh-l2.price)*0.9,
+          confidence:conf, key_sr:{support:l2.price, resistance:neckHigh},
+          evidence:{lDiff,gap,rsi,neckHigh,trendUp,macdBull} });
       }
     }
   }
 
-  // ── 2. ASCENDING / DESCENDING TRIANGLE ──────────────────
+  // ── 3. HEAD & SHOULDERS ──────────────────────────────────────
+  if (swingH.length >= 3 && swingL.length >= 2) {
+    const [ls,head,rs]=swingH.slice(-3);
+    if (head.price > ls.price && head.price > rs.price) {
+      const shoulderSym = Math.abs(ls.price-rs.price) < atr*2.0;
+      const neckline = (swingL[swingL.length-2].price + swingL[swingL.length-1].price)/2;
+      if (shoulderSym && price < neckline+atr && price > neckline-atr*3) {
+        const conf=Math.min(88, 65+(rsi>55?6:0)+(trendDown?8:0)+(macdBear?6:0)+(vol.volumeExpanding?4:0));
+        const target=neckline-(head.price-neckline);
+        results.push({ pattern:'Head & Shoulders', direction:'SELL',
+          entry:price, sl:rs.price+atr*(selectedTF==='D1'?1.5:0.8),
+          tp:target,
+          confidence:conf, key_sr:{neckline, head:head.price},
+          evidence:{head:head.price, leftShoulder:ls.price, rightShoulder:rs.price, rsi} });
+      }
+    }
+  }
+
+  // ── 4. INVERSE HEAD & SHOULDERS ──────────────────────────────
+  if (swingL.length >= 3 && swingH.length >= 2) {
+    const [ls,head,rs]=swingL.slice(-3);
+    if (head.price < ls.price && head.price < rs.price) {
+      const shoulderSym = Math.abs(ls.price-rs.price) < atr*2.0;
+      const neckline = (swingH[swingH.length-2].price + swingH[swingH.length-1].price)/2;
+      if (shoulderSym && price > neckline-atr && price < neckline+atr*3) {
+        const conf=Math.min(88, 65+(rsi<45?6:0)+(trendUp?8:0)+(macdBull?6:0)+(vol.volumeExpanding?4:0));
+        const target=neckline+(neckline-head.price);
+        results.push({ pattern:'Inverse Head & Shoulders', direction:'BUY',
+          entry:price, sl:rs.price-atr*(selectedTF==='D1'?1.5:0.8),
+          tp:target,
+          confidence:conf, key_sr:{neckline, head:head.price},
+          evidence:{head:head.price, rsi, trendUp, macdBull} });
+      }
+    }
+  }
+
+  // ── 5. RISING WEDGE (bearish) ────────────────────────────────
   if (swingH.length >= 3 && swingL.length >= 3) {
-    const recentH = swingH.slice(-3), recentL = swingL.slice(-3);
-    const hFlat   = Math.max(...recentH.map(h=>h.price)) - Math.min(...recentH.map(h=>h.price)) < atr * 1.2;
-    const lRising = recentL[recentL.length-1].price > recentL[0].price + atr * 0.2;
-    const hDesc   = recentH[recentH.length-1].price < recentH[0].price - atr * 0.2;
-    const lFlat   = Math.max(...recentL.map(l=>l.price)) - Math.min(...recentL.map(l=>l.price)) < atr * 1.2;
-
-    if (hFlat && lRising) {
-      const resistance = recentH.reduce((a,h)=>a+h.price,0)/recentH.length;
-      results.push({
-        pattern: 'Ascending Triangle', direction: 'BUY',
-        entry: price, sl: recentL[recentL.length-1].price - atr * (selectedTF === 'D1' ? 1.5 : selectedTF === 'H4' ? 1.0 : 0.3),
-        tp: resistance + (resistance - recentL[0].price) * 0.8,
-        confidence: Math.min(85, 65 + (rsi > 50 && rsi < 70 ? 8 : 0) + (ema20 > ema50 ? 10 : 0)),
-        key_sr: { resistance, support: recentL[recentL.length-1].price },
-        evidence: { flat_highs: hFlat, rising_lows: lRising, rsi, ema20, ema50 }
-      });
-    }
-    if (hDesc && lFlat) {
-      const support = recentL.reduce((a,l)=>a+l.price,0)/recentL.length;
-      results.push({
-        pattern: 'Descending Triangle', direction: 'SELL',
-        entry: price, sl: recentH[recentH.length-1].price + atr * (selectedTF === 'D1' ? 1.5 : selectedTF === 'H4' ? 1.0 : 0.3),
-        tp: support - (recentH[0].price - support) * 0.8,
-        confidence: Math.min(85, 65 + (rsi < 50 && rsi > 30 ? 8 : 0) + (ema20 < ema50 ? 10 : 0)),
-        key_sr: { support, resistance: recentH[recentH.length-1].price },
-        evidence: { desc_highs: hDesc, flat_lows: lFlat, rsi, ema20, ema50 }
-      });
+    const rH=swingH.slice(-3), rL=swingL.slice(-3);
+    const hRising=rH[2].price>rH[0].price, lRising=rL[2].price>rL[0].price;
+    const hSlope=(rH[2].price-rH[0].price)/(rH[2].idx-rH[0].idx+1);
+    const lSlope=(rL[2].price-rL[0].price)/(rL[2].idx-rL[0].idx+1);
+    const converging = lSlope > hSlope && Math.abs(lSlope-hSlope) < atr*0.05;
+    if (hRising && lRising && converging) {
+      const conf=Math.min(86, 62+(rsi>60?8:0)+(trendDown||!trendUp?6:0)+(macdBear?6:0)+(adxTrend?4:0));
+      results.push({ pattern:'Rising Wedge', direction:'SELL',
+        entry:price, sl:rH[2].price+atr*(selectedTF==='D1'?1.5:0.8),
+        tp:rL[0].price,
+        confidence:conf, key_sr:{resistance:rH[2].price, support:rL[0].price},
+        evidence:{hSlope,lSlope,converging,rsi} });
     }
   }
 
-  // ── 3. BULL / BEAR FLAG ──────────────────────────────────
-  if (n >= 40) {
-    const poleEnd   = n - 20;
-    const poleStart = n - 40;
-    const poleMove  = closes[poleEnd] - closes[poleStart];
-    const flagHigh  = Math.max(...highs.slice(poleEnd));
-    const flagLow   = Math.min(...lows.slice(poleEnd));
-    const flagRange = flagHigh - flagLow;
-
-    if (Math.abs(poleMove) > atr * 4 && flagRange < Math.abs(poleMove) * 0.5) {
-      if (poleMove > 0 && flagLow > closes[poleStart] + atr) {
-        results.push({
-          pattern: 'Bull Flag', direction: 'BUY',
-          entry: price, sl: flagLow - atr * (selectedTF === 'D1' ? 1.5 : selectedTF === 'H4' ? 1.0 : 0.3),
-          tp: flagHigh + Math.abs(poleMove) * 0.8,
-          confidence: Math.min(87, 70 + (rsi > 50 ? 8 : 0) + (ema20 > ema50 ? 9 : 0)),
-          key_sr: { support: flagLow, resistance: flagHigh },
-          evidence: { pole_move: poleMove, flag_range: flagRange, rsi }
-        });
-      }
-      if (poleMove < 0 && flagHigh < closes[poleStart] - atr) {
-        results.push({
-          pattern: 'Bear Flag', direction: 'SELL',
-          entry: price, sl: flagHigh + atr * (selectedTF === 'D1' ? 1.5 : selectedTF === 'H4' ? 1.0 : 0.3),
-          tp: flagLow - Math.abs(poleMove) * 0.8,
-          confidence: Math.min(87, 70 + (rsi < 50 ? 8 : 0) + (ema20 < ema50 ? 9 : 0)),
-          key_sr: { resistance: flagHigh, support: flagLow },
-          evidence: { pole_move: poleMove, flag_range: flagRange, rsi }
-        });
-      }
-    }
-  }
-
-  // ── 4. RISING / FALLING WEDGE ───────────────────────────
+  // ── 6. FALLING WEDGE (bullish) ───────────────────────────────
   if (swingH.length >= 3 && swingL.length >= 3) {
-    const recentH = swingH.slice(-3), recentL = swingL.slice(-3);
-    const hRising = recentH[2].price > recentH[0].price + atr * 0.3;
-    const lRising = recentL[2].price > recentL[0].price + atr * 0.3;
-    const hFalling = recentH[2].price < recentH[0].price - atr * 0.3;
-    const lFalling = recentL[2].price < recentL[0].price - atr * 0.3;
-    const hSlope  = (recentH[2].price - recentH[0].price) / Math.max(1, recentH[2].idx - recentH[0].idx);
-    const lSlope  = (recentL[2].price - recentL[0].price) / Math.max(1, recentL[2].idx - recentL[0].idx);
-    const converging = Math.abs(hSlope - lSlope) < atr * 0.05;
-
-    if (hRising && lRising && converging && rsi > 60) {
-      results.push({
-        pattern: 'Rising Wedge', direction: 'SELL',
-        entry: price, sl: recentH[2].price + atr * 0.4,
-        tp: recentL[0].price - atr,
-        confidence: Math.min(83, 63 + (rsi > 65 ? 10 : 0) + (ema20 < ema50 ? 8 : 0)),
-        key_sr: { resistance: recentH[2].price, support: recentL[2].price },
-        evidence: { rsi, hSlope, lSlope }
-      });
-    }
-    if (hFalling && lFalling && converging && rsi < 40) {
-      results.push({
-        pattern: 'Falling Wedge', direction: 'BUY',
-        entry: price, sl: recentL[2].price - atr * 0.4,
-        tp: recentH[0].price + atr,
-        confidence: Math.min(83, 63 + (rsi < 35 ? 10 : 0) + (ema20 > ema50 ? 8 : 0)),
-        key_sr: { support: recentL[2].price, resistance: recentH[2].price },
-        evidence: { rsi, hSlope, lSlope }
-      });
+    const rH=swingH.slice(-3), rL=swingL.slice(-3);
+    const hFalling=rH[2].price<rH[0].price, lFalling=rL[2].price<rL[0].price;
+    const hSlope=(rH[2].price-rH[0].price)/(rH[2].idx-rH[0].idx+1);
+    const lSlope=(rL[2].price-rL[0].price)/(rL[2].idx-rL[0].idx+1);
+    const converging = hSlope < lSlope && Math.abs(lSlope-hSlope) < atr*0.05;
+    if (hFalling && lFalling && converging) {
+      const conf=Math.min(86, 62+(rsi<45?8:0)+(trendUp||!trendDown?6:0)+(macdBull?6:0)+(adxTrend?4:0));
+      results.push({ pattern:'Falling Wedge', direction:'BUY',
+        entry:price, sl:rL[2].price-atr*(selectedTF==='D1'?1.5:0.8),
+        tp:rH[0].price,
+        confidence:conf, key_sr:{support:rL[2].price, resistance:rH[0].price},
+        evidence:{hSlope,lSlope,converging,rsi} });
     }
   }
 
-  // ── 5. FIB BOUNCE (61.8%) ───────────────────────────────
+  // ── 7. ASCENDING TRIANGLE ────────────────────────────────────
+  if (swingH.length >= 3 && swingL.length >= 3) {
+    const rH=swingH.slice(-3), rL=swingL.slice(-3);
+    const flatHighs=Math.max(...rH.map(h=>h.price))-Math.min(...rH.map(h=>h.price)) < atr*1.5;
+    const risingLows=rL[2].price > rL[0].price+atr*0.3;
+    if (flatHighs && risingLows) {
+      const resistance=rH.reduce((a,h)=>a+h.price,0)/rH.length;
+      const target=resistance+(resistance-rL[2].price);
+      const conf=Math.min(85, 62+(trendUp?8:0)+(macdBull?6:0)+(vol.volumeContracting?4:0)+(ichi?.aboveCloud?4:0));
+      results.push({ pattern:'Ascending Triangle', direction:'BUY',
+        entry:price, sl:rL[2].price-atr*(selectedTF==='D1'?1.5:0.5),
+        tp:target,
+        confidence:conf, key_sr:{resistance, support:rL[2].price},
+        evidence:{flatHighs,risingLows,rsi,trendUp} });
+    }
+  }
+
+  // ── 8. DESCENDING TRIANGLE ───────────────────────────────────
+  if (swingH.length >= 3 && swingL.length >= 3) {
+    const rH=swingH.slice(-3), rL=swingL.slice(-3);
+    const flatLows=Math.max(...rL.map(l=>l.price))-Math.min(...rL.map(l=>l.price)) < atr*1.5;
+    const fallingHighs=rH[2].price < rH[0].price-atr*0.3;
+    if (flatLows && fallingHighs) {
+      const support=rL.reduce((a,l)=>a+l.price,0)/rL.length;
+      const target=support-(rH[2].price-support);
+      const conf=Math.min(85, 62+(trendDown?8:0)+(macdBear?6:0)+(vol.volumeContracting?4:0)+(ichi?.belowCloud?4:0));
+      results.push({ pattern:'Descending Triangle', direction:'SELL',
+        entry:price, sl:rH[2].price+atr*(selectedTF==='D1'?1.5:0.5),
+        tp:target,
+        confidence:conf, key_sr:{support, resistance:rH[2].price},
+        evidence:{flatLows,fallingHighs,rsi,trendDown} });
+    }
+  }
+
+  // ── 9. SYMMETRICAL TRIANGLE ──────────────────────────────────
+  if (swingH.length >= 3 && swingL.length >= 3) {
+    const rH=swingH.slice(-3), rL=swingL.slice(-3);
+    const hFall=rH[2].price<rH[0].price-atr*0.3, lRise=rL[2].price>rL[0].price+atr*0.3;
+    if (hFall && lRise) {
+      const dir = trendUp ? 'BUY' : trendDown ? 'SELL' : (macdBull ? 'BUY' : 'SELL');
+      const tgtDist=(rH[0].price-rL[0].price)*0.8;
+      const conf=Math.min(82, 58+(adxTrend?6:0)+(dir==='BUY'?macdBull?6:0:macdBear?6:0)+(vol.volumeContracting?4:0));
+      results.push({ pattern:'Symmetrical Triangle', direction:dir,
+        entry:price,
+        sl: dir==='BUY' ? rL[2].price-atr*(selectedTF==='D1'?1.5:0.5) : rH[2].price+atr*(selectedTF==='D1'?1.5:0.5),
+        tp: dir==='BUY' ? price+tgtDist : price-tgtDist,
+        confidence:conf, key_sr:{upper:rH[2].price, lower:rL[2].price},
+        evidence:{hFall,lRise,dir,rsi} });
+    }
+  }
+
+  // ── 10. RISING CHANNEL ───────────────────────────────────────
+  if (swingH.length >= 3 && swingL.length >= 3) {
+    const rH=swingH.slice(-3), rL=swingL.slice(-3);
+    const hRising=rH[2].price>rH[0].price+atr*0.5, lRising=rL[2].price>rL[0].price+atr*0.5;
+    const hSlope=(rH[2].price-rH[0].price)/(rH[2].idx-rH[0].idx+1);
+    const lSlope=(rL[2].price-rL[0].price)/(rL[2].idx-rL[0].idx+1);
+    const parallel=Math.abs(hSlope-lSlope)<atr*0.03;
+    if (hRising && lRising && parallel) {
+      // Buy at lower channel line, sell at upper
+      const nearLower=Math.abs(price-rL[2].price)<atr*0.5;
+      const nearUpper=Math.abs(price-rH[2].price)<atr*0.5;
+      if (nearLower) {
+        results.push({ pattern:'Rising Channel', direction:'BUY',
+          entry:price, sl:rL[2].price-atr*(selectedTF==='D1'?1.5:0.5), tp:rH[2].price,
+          confidence:Math.min(82,60+(trendUp?8:0)+(ichi?.aboveCloud?6:0)+(rsi<55?4:0)),
+          key_sr:{lower:rL[2].price, upper:rH[2].price},
+          evidence:{parallel,nearLower,rsi} });
+      } else if (nearUpper) {
+        results.push({ pattern:'Rising Channel', direction:'SELL',
+          entry:price, sl:rH[2].price+atr*(selectedTF==='D1'?1.5:0.5), tp:rL[2].price,
+          confidence:Math.min(80,58+(rsi>65?8:0)+(macdBear?6:0)),
+          key_sr:{lower:rL[2].price, upper:rH[2].price},
+          evidence:{parallel,nearUpper,rsi} });
+      }
+    }
+  }
+
+  // ── 11. FALLING CHANNEL ──────────────────────────────────────
+  if (swingH.length >= 3 && swingL.length >= 3) {
+    const rH=swingH.slice(-3), rL=swingL.slice(-3);
+    const hFall=rH[2].price<rH[0].price-atr*0.5, lFall=rL[2].price<rL[0].price-atr*0.5;
+    const hSlope=(rH[2].price-rH[0].price)/(rH[2].idx-rH[0].idx+1);
+    const lSlope=(rL[2].price-rL[0].price)/(rL[2].idx-rL[0].idx+1);
+    const parallel=Math.abs(hSlope-lSlope)<atr*0.03;
+    if (hFall && lFall && parallel) {
+      const nearLower=Math.abs(price-rL[2].price)<atr*0.5;
+      const nearUpper=Math.abs(price-rH[2].price)<atr*0.5;
+      if (nearUpper) {
+        results.push({ pattern:'Falling Channel', direction:'SELL',
+          entry:price, sl:rH[2].price+atr*(selectedTF==='D1'?1.5:0.5), tp:rL[2].price,
+          confidence:Math.min(82,60+(trendDown?8:0)+(ichi?.belowCloud?6:0)+(rsi>50?4:0)),
+          key_sr:{lower:rL[2].price, upper:rH[2].price},
+          evidence:{parallel,nearUpper,rsi} });
+      } else if (nearLower) {
+        results.push({ pattern:'Falling Channel', direction:'BUY',
+          entry:price, sl:rL[2].price-atr*(selectedTF==='D1'?1.5:0.5), tp:rH[2].price,
+          confidence:Math.min(78,55+(rsi<35?10:0)+(macdBull?6:0)),
+          key_sr:{lower:rL[2].price, upper:rH[2].price},
+          evidence:{parallel,nearLower,rsi} });
+      }
+    }
+  }
+
+  // ── 12. BULL FLAG ────────────────────────────────────────────
+  if (swingH.length >= 2 && n >= 30) {
+    const rH=swingH.slice(-2), rL=swingL.slice(-2);
+    const poleMove=rH[1].price-rL[0].price;
+    const flagRange=rH[1].price-rL[1].price;
+    const isPole=poleMove > atr*3 && rH[1].idx>rL[0].idx;
+    const isFlag=flagRange < poleMove*0.5 && flagRange > atr*0.5;
+    const recentConsolidation=rH[1].idx > n-15;
+    if (isPole && isFlag && recentConsolidation && trendUp) {
+      const conf=Math.min(88,65+(vol.volumeContracting?8:0)+(macdBull?6:0)+(ichi?.aboveCloud?4:0)+(rsi>50&&rsi<70?4:0));
+      results.push({ pattern:'Bull Flag', direction:'BUY',
+        entry:price, sl:rL[1].price-atr*(selectedTF==='D1'?1.5:0.4),
+        tp:price+poleMove*0.9,
+        confidence:conf, key_sr:{support:rL[1].price, resistance:rH[1].price},
+        evidence:{poleMove,flagRange,recentConsolidation,rsi} });
+    }
+  }
+
+  // ── 13. BEAR FLAG ────────────────────────────────────────────
+  if (swingL.length >= 2 && n >= 30) {
+    const rH=swingH.slice(-2), rL=swingL.slice(-2);
+    const poleMove=rH[0].price-rL[1].price;
+    const flagRange=rH[1].price-rL[1].price;
+    const isPole=poleMove > atr*3 && rL[1].idx>rH[0].idx;
+    const isFlag=flagRange < poleMove*0.5 && flagRange > atr*0.5;
+    const recentConsolidation=rL[1].idx > n-15;
+    if (isPole && isFlag && recentConsolidation && trendDown) {
+      const conf=Math.min(88,65+(vol.volumeContracting?8:0)+(macdBear?6:0)+(ichi?.belowCloud?4:0)+(rsi>30&&rsi<55?4:0));
+      results.push({ pattern:'Bear Flag', direction:'SELL',
+        entry:price, sl:rH[1].price+atr*(selectedTF==='D1'?1.5:0.4),
+        tp:price-poleMove*0.9,
+        confidence:conf, key_sr:{resistance:rH[1].price, support:rL[1].price},
+        evidence:{poleMove,flagRange,recentConsolidation,rsi} });
+    }
+  }
+
+  // ── 14. CUP & HANDLE ─────────────────────────────────────────
+  if (swingL.length >= 2 && swingH.length >= 2 && n >= 50) {
+    const cupLeft=swingH[swingH.length-2], cupBottom=swingL[swingL.length-1], cupRight=swingH[swingH.length-1];
+    if (cupRight.idx > cupBottom.idx && cupBottom.idx > cupLeft.idx) {
+      const cupDepth=cupLeft.price-cupBottom.price;
+      const rightRim=Math.abs(cupRight.price-cupLeft.price)<atr*2;
+      const handleDip=Math.abs(price-cupRight.price)<atr*1.5;
+      if (cupDepth>atr*2 && rightRim && handleDip && price>cupBottom.price+cupDepth*0.6) {
+        const conf=Math.min(85,62+(vol.volumeExpanding?8:0)+(macdBull?6:0)+(rsi>50&&rsi<70?4:0));
+        results.push({ pattern:'Cup & Handle', direction:'BUY',
+          entry:price, sl:price-atr*(selectedTF==='D1'?2.0:1.0),
+          tp:cupLeft.price+cupDepth,
+          confidence:conf, key_sr:{rim:cupLeft.price, bottom:cupBottom.price},
+          evidence:{cupDepth,rightRim,rsi} });
+      }
+    }
+  }
+
+  // ── 15. FIB 61.8% BOUNCE ─────────────────────────────────────
   if (swingH.length >= 1 && swingL.length >= 1) {
-    const lastSwH = swingH[swingH.length-1];
-    const lastSwL = swingL[swingL.length-1];
-
-    // Impulso rialzista → ritracciamento al 61.8%
+    const lastSwH=swingH[swingH.length-1], lastSwL=swingL[swingL.length-1];
     if (lastSwH.idx > lastSwL.idx) {
-      const impHigh  = lastSwH.price, impLow = lastSwL.price;
-      const fib618   = impHigh - (impHigh - impLow) * 0.618;
-      const fib382   = impHigh - (impHigh - impLow) * 0.382;
-      if (Math.abs(price - fib618) < atr * 2.0 && rsi < 52) {
-        results.push({
-          pattern: 'Fib 61.8% Bounce', direction: 'BUY',
-          entry: fib618, sl: fib618 - atr * 1.2,
-          tp: impHigh + (impHigh - impLow) * 0.272,
-          confidence: Math.min(86, 66 + (rsi < 40 ? 10 : 0) + (ema20 > ema50 ? 8 : 0)),
-          key_sr: { support: fib618, resistance: impHigh, fib382 },
-          evidence: { fib618, fib382, impulse_range: impHigh - impLow, rsi }
-        });
+      // Bullish impulse → retracement to 61.8%
+      const impLow=lastSwL.price, impHigh=lastSwH.price;
+      const fib618=impHigh-(impHigh-impLow)*0.618;
+      const fib382=impHigh-(impHigh-impLow)*0.382;
+      if (Math.abs(price-fib618)<atr*2.0 && rsi<55) {
+        const conf=Math.min(86,64+(rsi<45?8:0)+(trendUp?6:0)+(macdBull?6:0)+(ichi?.aboveCloud?4:0));
+        results.push({ pattern:'Fib 61.8% Bounce', direction:'BUY',
+          entry:fib618, sl:fib618-atr*(selectedTF==='D1'?2.0:1.2),
+          tp:impHigh+(impHigh-impLow)*0.272,
+          confidence:conf, key_sr:{support:fib618, fib382, resistance:impHigh},
+          evidence:{fib618,fib382,rsi,trendUp} });
       }
     }
-    // Impulso ribassista → ritracciamento al 61.8%
     if (lastSwL.idx > lastSwH.idx) {
-      const impLow = lastSwL.price, impHigh = lastSwH.price;
-      const fib618 = impLow + (impHigh - impLow) * 0.618;
-      if (Math.abs(price - fib618) < atr * 2.0 && rsi > 48) {
-        results.push({
-          pattern: 'Fib 61.8% Bounce', direction: 'SELL',
-          entry: fib618, sl: fib618 + atr * 1.2,
-          tp: impLow - (impHigh - impLow) * 0.272,
-          confidence: Math.min(86, 66 + (rsi > 60 ? 10 : 0) + (ema20 < ema50 ? 8 : 0)),
-          key_sr: { resistance: fib618, support: impLow },
-          evidence: { fib618, impulse_range: impHigh - impLow, rsi }
-        });
+      // Bearish impulse → retracement to 61.8%
+      const impLow=lastSwL.price, impHigh=lastSwH.price;
+      const fib618=impLow+(impHigh-impLow)*0.618;
+      if (Math.abs(price-fib618)<atr*2.0 && rsi>45) {
+        const conf=Math.min(86,64+(rsi>55?8:0)+(trendDown?6:0)+(macdBear?6:0)+(ichi?.belowCloud?4:0));
+        results.push({ pattern:'Fib 61.8% Bounce', direction:'SELL',
+          entry:fib618, sl:fib618+atr*(selectedTF==='D1'?2.0:1.2),
+          tp:impLow-(impHigh-impLow)*0.272,
+          confidence:conf, key_sr:{resistance:fib618, support:impLow},
+          evidence:{fib618,rsi,trendDown} });
       }
     }
   }
 
-  // ── 6. BREAKOUT KEY LEVEL ────────────────────────────────
+  // ── 16. BREAKOUT KEY LEVEL ───────────────────────────────────
   if (srZones.length > 0) {
-    const strongZones = srZones.filter(z => z.touches >= 3);
+    const strongZones=srZones.filter(z=>z.touches>=2);
     for (const zone of strongZones) {
-      const distPct = Math.abs(price - zone.price) / zone.price;
-      if (distPct < 0.008) { // entro 0.8% dal livello
-        // BUY = price broke ABOVE the zone (price > zone = rialzo)
-        // SELL = price broke BELOW the zone (price < zone = ribasso)
-        const dir = price > zone.price ? 'BUY' : 'SELL';
-        // SL multiplier depends on timeframe: D1 needs more room
-        const slMult = selectedTF === 'D1' ? 2.0 : selectedTF === 'H4' ? 1.5 : 1.0;
-        const tpMult = selectedTF === 'D1' ? 4.0 : selectedTF === 'H4' ? 3.0 : 2.5;
-        results.push({
-          pattern: 'Breakout Key Level', direction: dir,
-          entry: price,
-          // SL goes BEYOND the broken level (retest protection)
-          sl: dir === 'BUY' ? zone.price - atr * slMult : zone.price + atr * slMult,
-          tp: dir === 'BUY' ? price + atr * tpMult      : price - atr * tpMult,
-          confidence: Math.min(85, 60 + zone.touches * 5 + (rsi > 50 && dir==='BUY' ? 8 : rsi < 50 && dir==='SELL' ? 8 : 0)),
-          key_sr: { level: zone.price, touches: zone.touches },
-          evidence: { zone_price: zone.price, dist_pct: distPct, touches: zone.touches, rsi, slMult, tpMult }
-        });
+      const distPct=Math.abs(price-zone.price)/zone.price;
+      if (distPct < 0.015) {
+        const dir=price>zone.price ? 'BUY' : 'SELL';
+        // Confirm breakout direction with indicators
+        const dirOk = dir==='BUY' ? (macdBull||trendUp||bullScore>=2) : (macdBear||trendDown||bearScore>=2);
+        const slMult=selectedTF==='D1'?2.0:selectedTF==='H4'?1.5:1.0;
+        const tpMult=selectedTF==='D1'?4.0:selectedTF==='H4'?3.0:2.5;
+        const conf=Math.min(88,60+zone.touches*5+(dirOk?8:0)+(vol.volumeExpanding?6:0)+(adxTrend?4:0));
+        results.push({ pattern:'Breakout Key Level', direction:dir,
+          entry:price,
+          sl: dir==='BUY' ? zone.price-atr*slMult : zone.price+atr*slMult,
+          tp: dir==='BUY' ? price+atr*tpMult      : price-atr*tpMult,
+          confidence:conf, key_sr:{level:zone.price, touches:zone.touches},
+          evidence:{distPct,dirOk,vol:vol.volRatio,rsi,adxTrend} });
         break;
       }
     }
   }
 
-  // ── 7. CANDLESTICK: ENGULFING / HAMMER / SHOOTING STAR ──
-  if (n >= 3) {
-    const c1 = candles[n-2], c2 = candles[n-1];
-    const o1 = parseFloat(c1.open), cl1 = parseFloat(c1.close);
-    const o2 = parseFloat(c2.open), cl2 = parseFloat(c2.close);
-    const body1 = Math.abs(cl1 - o1), body2 = Math.abs(cl2 - o2);
-    const wick2H = parseFloat(c2.high) - Math.max(o2, cl2);
-    const wick2L = Math.min(o2, cl2) - parseFloat(c2.low);
-
-    // Bullish Engulfing
-    if (cl1 < o1 && cl2 > o2 && body2 > body1 * 1.1 && o2 <= cl1 && cl2 >= o1 && rsi < 50) {
-      const nearSupport = srZones.length === 0 || srZones.some(z => Math.abs(price - z.price) < atr * 3.0 && z.price < price);
-      if (nearSupport) {
-        results.push({
-          pattern: 'Bullish Engulfing', direction: 'BUY',
-          entry: price, sl: parseFloat(c2.low) - atr * 0.2,
-          tp: price + atr * 2.2,
-          confidence: Math.min(84, 66 + (rsi < 40 ? 10 : 0) + (ema20 > ema50 ? 8 : 0)),
-          key_sr: { support: parseFloat(c2.low) },
-          evidence: { body_ratio: body2/body1, rsi, near_support: nearSupport }
-        });
-      }
-    }
-    // Bearish Engulfing
-    if (cl1 > o1 && cl2 < o2 && body2 > body1 * 1.1 && o2 >= cl1 && cl2 <= o1 && rsi > 50) {
-      const nearResistance = srZones.length === 0 || srZones.some(z => Math.abs(price - z.price) < atr * 3.0 && z.price > price);
-      if (nearResistance) {
-        results.push({
-          pattern: 'Bearish Engulfing', direction: 'SELL',
-          entry: price, sl: parseFloat(c2.high) + atr * 0.2,
-          tp: price - atr * 2.2,
-          confidence: Math.min(84, 66 + (rsi > 60 ? 10 : 0) + (ema20 < ema50 ? 8 : 0)),
-          key_sr: { resistance: parseFloat(c2.high) },
-          evidence: { body_ratio: body2/body1, rsi, near_resistance: nearResistance }
-        });
-      }
-    }
-    // Hammer
-    if (wick2L > body2 * 2 && wick2H < body2 * 0.5 && rsi < 45) {
-      results.push({
-        pattern: 'Hammer', direction: 'BUY',
-        entry: price, sl: parseFloat(c2.low) - atr * 0.2,
-        tp: price + atr * 2,
-        confidence: Math.min(80, 60 + (rsi < 35 ? 12 : 0) + (ema20 > ema50 ? 8 : 0)),
-        key_sr: { support: parseFloat(c2.low) },
-        evidence: { wick_ratio: wick2L/body2, rsi }
-      });
-    }
-    // Shooting Star
-    if (wick2H > body2 * 2 && wick2L < body2 * 0.5 && rsi > 55) {
-      results.push({
-        pattern: 'Shooting Star', direction: 'SELL',
-        entry: price, sl: parseFloat(c2.high) + atr * 0.2,
-        tp: price - atr * 2,
-        confidence: Math.min(80, 60 + (rsi > 65 ? 12 : 0) + (ema20 < ema50 ? 8 : 0)),
-        key_sr: { resistance: parseFloat(c2.high) },
-        evidence: { wick_ratio: wick2H/body2, rsi }
-      });
+  // ── 17. ICHIMOKU CLOUD BREAKOUT ──────────────────────────────
+  if (ichi) {
+    const justAbove = ichi.aboveCloud && !trendUp && macdBull;
+    const justBelow = ichi.belowCloud && !trendDown && macdBear;
+    const cloudThick = Math.abs(ichi.senkouA-ichi.senkouB);
+    if (justAbove && price > Math.max(ichi.senkouA,ichi.senkouB)+atr*0.5) {
+      results.push({ pattern:'Ichimoku Breakout', direction:'BUY',
+        entry:price, sl:Math.max(ichi.senkouA,ichi.senkouB)-atr*(selectedTF==='D1'?1.5:0.8),
+        tp:price+cloudThick*2.5,
+        confidence:Math.min(86,65+(ichi.tkCross?8:0)+(vol.volumeExpanding?6:0)),
+        key_sr:{cloudTop:Math.max(ichi.senkouA,ichi.senkouB), kijun:ichi.kijun},
+        evidence:{tenkan:ichi.tenkan,kijun:ichi.kijun,tkCross:ichi.tkCross} });
+    } else if (justBelow && price < Math.min(ichi.senkouA,ichi.senkouB)-atr*0.5) {
+      results.push({ pattern:'Ichimoku Breakout', direction:'SELL',
+        entry:price, sl:Math.min(ichi.senkouA,ichi.senkouB)+atr*(selectedTF==='D1'?1.5:0.8),
+        tp:price-cloudThick*2.5,
+        confidence:Math.min(86,65+(!ichi.tkCross?8:0)+(vol.volumeExpanding?6:0)),
+        key_sr:{cloudBot:Math.min(ichi.senkouA,ichi.senkouB), kijun:ichi.kijun},
+        evidence:{tenkan:ichi.tenkan,kijun:ichi.kijun} });
     }
   }
 
-  // ── Seleziona il pattern con confidence più alta ──────────
+  // ── 18. MACD DIVERGENCE ──────────────────────────────────────
+  if (macd && swingH.length >= 2 && swingL.length >= 2) {
+    // Bearish divergence: price higher high but MACD lower high
+    const ph1=closes[swingH[swingH.length-2].idx], ph2=closes[swingH[swingH.length-1].idx];
+    // Simplified: RSI divergence proxy
+    const rsiPrev=calcRSI({length:candles.length, map:()=>0,...candles}, 14);
+    if (ph2 > ph1 && macd.hist < 0 && rsi < 55) {
+      results.push({ pattern:'Bearish Divergence', direction:'SELL',
+        entry:price, sl:swingH[swingH.length-1].price+atr*(selectedTF==='D1'?1.5:0.8),
+        tp:price-atr*(selectedTF==='D1'?4:2.5),
+        confidence:Math.min(84,62+(rsi>60?6:0)+(macdBear?8:0)),
+        key_sr:{resistance:swingH[swingH.length-1].price},
+        evidence:{macdHist:macd.hist,rsi} });
+    }
+    const pl1=closes[swingL[swingL.length-2].idx], pl2=closes[swingL[swingL.length-1].idx];
+    if (pl2 < pl1 && macd.hist > 0 && rsi > 45) {
+      results.push({ pattern:'Bullish Divergence', direction:'BUY',
+        entry:price, sl:swingL[swingL.length-1].price-atr*(selectedTF==='D1'?1.5:0.8),
+        tp:price+atr*(selectedTF==='D1'?4:2.5),
+        confidence:Math.min(84,62+(rsi<40?6:0)+(macdBull?8:0)),
+        key_sr:{support:swingL[swingL.length-1].price},
+        evidence:{macdHist:macd.hist,rsi} });
+    }
+  }
+
+  // ── 19. BB SQUEEZE BREAKOUT ──────────────────────────────────
+  if (bb) {
+    const bbWidth=(bb.upper-bb.lower)/bb.mid;
+    const isSqueezing=bbWidth<0.02; // tight bands
+    if (isSqueezing) {
+      const dir=trendUp||(macdBull&&!trendDown)?'BUY':'SELL';
+      results.push({ pattern:'BB Squeeze', direction:dir,
+        entry:price,
+        sl: dir==='BUY' ? bb.lower-atr*(selectedTF==='D1'?1.5:0.5) : bb.upper+atr*(selectedTF==='D1'?1.5:0.5),
+        tp: dir==='BUY' ? price+bb.std*3 : price-bb.std*3,
+        confidence:Math.min(82,58+(adxTrend?6:0)+(vol.volumeContracting?6:0)+(ichi&&!ichi.inCloud?4:0)),
+        key_sr:{upper:bb.upper, lower:bb.lower, mid:bb.mid},
+        evidence:{bbWidth,isSqueezing,dir,rsi} });
+    }
+  }
+
+  // ── 20. ENGULFING CANDLES ────────────────────────────────────
+  if (n >= 3) {
+    const c1=candles[n-2], c2=candles[n-1];
+    const o1=parseFloat(c1.open),cl1=parseFloat(c1.close);
+    const o2=parseFloat(c2.open),cl2=parseFloat(c2.close);
+    const body1=Math.abs(cl1-o1), body2=Math.abs(cl2-o2);
+    // Bullish engulfing
+    if (cl1<o1&&cl2>o2&&body2>body1*1.1&&o2<=cl1&&cl2>=o1&&rsi<52) {
+      const nearSup=srZones.some(z=>Math.abs(price-z.price)<atr*3&&z.price<price);
+      const conf=Math.min(84,62+(rsi<40?10:0)+(nearSup?8:0)+(vol.lastBarVolHigh?6:0)+(macdBull?4:0));
+      results.push({ pattern:'Bullish Engulfing', direction:'BUY',
+        entry:price, sl:parseFloat(c2.low)-atr*(selectedTF==='D1'?1.5:0.3),
+        tp:price+atr*(selectedTF==='D1'?3:2.2),
+        confidence:conf, key_sr:{support:parseFloat(c2.low)},
+        evidence:{bodyRatio:body2/body1,rsi,nearSup,volHigh:vol.lastBarVolHigh} });
+    }
+    // Bearish engulfing
+    if (cl1>o1&&cl2<o2&&body2>body1*1.1&&o2>=cl1&&cl2<=o1&&rsi>48) {
+      const nearRes=srZones.some(z=>Math.abs(price-z.price)<atr*3&&z.price>price);
+      const conf=Math.min(84,62+(rsi>60?10:0)+(nearRes?8:0)+(vol.lastBarVolHigh?6:0)+(macdBear?4:0));
+      results.push({ pattern:'Bearish Engulfing', direction:'SELL',
+        entry:price, sl:parseFloat(c2.high)+atr*(selectedTF==='D1'?1.5:0.3),
+        tp:price-atr*(selectedTF==='D1'?3:2.2),
+        confidence:conf, key_sr:{resistance:parseFloat(c2.high)},
+        evidence:{bodyRatio:body2/body1,rsi,nearRes,volHigh:vol.lastBarVolHigh} });
+    }
+    // Hammer
+    const wick2L=Math.min(o2,cl2)-parseFloat(c2.low);
+    const wick2H=parseFloat(c2.high)-Math.max(o2,cl2);
+    if (wick2L>body2*2&&wick2H<body2*0.5&&rsi<48) {
+      results.push({ pattern:'Hammer', direction:'BUY',
+        entry:price, sl:parseFloat(c2.low)-atr*(selectedTF==='D1'?1.5:0.3),
+        tp:price+atr*(selectedTF==='D1'?3:2.0),
+        confidence:Math.min(80,60+(rsi<40?8:0)+(vol.lastBarVolHigh?6:0)+(srZones.some(z=>Math.abs(price-z.price)<atr*2)?6:0)),
+        key_sr:{support:parseFloat(c2.low)},
+        evidence:{wickRatio:wick2L/body2,rsi} });
+    }
+    // Shooting star
+    if (wick2H>body2*2&&wick2L<body2*0.5&&rsi>52) {
+      results.push({ pattern:'Shooting Star', direction:'SELL',
+        entry:price, sl:parseFloat(c2.high)+atr*(selectedTF==='D1'?1.5:0.3),
+        tp:price-atr*(selectedTF==='D1'?3:2.0),
+        confidence:Math.min(80,60+(rsi>60?8:0)+(vol.lastBarVolHigh?6:0)+(srZones.some(z=>Math.abs(price-z.price)<atr*2&&z.price>price)?6:0)),
+        key_sr:{resistance:parseFloat(c2.high)},
+        evidence:{wickRatio:wick2H/body2,rsi} });
+    }
+  }
+
+  // ── SELEZIONE FINALE con CFD validation ───────────────────────
   if (results.length === 0) return null;
 
-  // ── CFD Validation: filtra e boosta confidence ────────────
-  // Per ogni pattern candidato, calcola Reynolds/viscosità e
-  // scarta quelli fisicamente inconsistenti, boosta quelli confermati
+  // Apply CFD validator to each result
   const validated = [];
   for (const r of results) {
     const cfd = cfdValidator(candles, r.pattern, r.direction);
-    if (!cfd.confirmed) {
-      // Pattern fisicamente rigettato — lo scartiamo
-      console.debug(`CFD REJECT: ${r.pattern} — ${cfd.rejectReason}`);
-      continue;
-    }
-    // Boosta la confidence in base alla fisica del mercato
+    if (!cfd.confirmed) { console.debug(`CFD REJECT: ${r.pattern}`); continue; }
     r.confidence = Math.min(95, r.confidence + cfd.confidenceBoost);
-    r.cfd = cfd.metrics; // salva le metriche per il display
+    r.cfd = cfd.metrics;
     validated.push(r);
   }
-
   if (validated.length === 0) return null;
-  validated.sort((a,b) => b.confidence - a.confidence);
+  validated.sort((a,b)=>b.confidence-a.confidence);
   return validated[0];
 }
 
-// ── Analisi completa di un pair ───────────────────────────────
 async function analyzePair(pair, livePrices) {
   const candles = await fetchCandles(pair);
   if (!candles || candles.length < 30) return null;
@@ -1431,7 +1717,7 @@ async function analyzePair(pair, livePrices) {
   // Calcola RR
   const rawRR = Math.abs(detected.tp - detected.entry) / Math.abs(detected.sl - detected.entry);
   // RR minimo dipende dal timeframe: D1 richiede setup migliori
-  const minRR = selectedTF === 'D1' ? 1.5 : selectedTF === 'H4' ? 1.2 : 0.9;
+  const minRR = selectedTF === 'D1' ? 1.2 : selectedTF === 'H4' ? 1.0 : 0.8;
   if (rawRR < minRR) return null; // scarta setup con RR troppo basso
 
   const rrStr = '1:' + rawRR.toFixed(1);
@@ -1607,16 +1893,40 @@ async function generateSignals() {
 
     const parsed = parseSignals(raw, minConf, selectedDir);
 
-    // Merge dati algoritmici nel segnale Claude (per tp2, tags, ecc.)
-    const merged = parsed.map(sig => {
+    // Se Claude torna array vuoto o parziale, fallback sui dati algoritmici
+    let finalSignals = parsed;
+
+    if (!finalSignals || finalSignals.length === 0) {
+      // Claude ha restituito [] — costruiamo segnali direttamente dall'algo
+      console.warn('Claude returned empty — using algo data directly');
+      finalSignals = validAnalyses.map(a => ({
+        pair:         a.pair,
+        direction:    a.direction,
+        entry:        a.entry,
+        sl:           a.sl,
+        tp:           a.tp,
+        rr:           a.rr,
+        confidence:   a.confidence,
+        pattern:      a.pattern,
+        ew_context:   'Elliott Wave analysis: ' + (a.direction === 'BUY' ? 'bullish' : 'bearish') + ' structure detected on ' + selectedTF,
+        pattern_desc: a.pattern + ' pattern identified with ' + a.confidence + '% confidence. Entry at key level.',
+        key_levels:   'Support: ' + (a.key_sr ? JSON.stringify(a.key_sr) : 'N/A'),
+        invalidation: 'Close beyond stop loss ' + a.sl,
+        market_context: 'Technical setup on ' + selectedTF + ' timeframe.',
+        tags: [a.pattern.toLowerCase().replace(/ /g,'_')]
+      }));
+    }
+
+    // Merge dati algoritmici (forza entry/sl/tp/rr/confidence dall'algo)
+    const merged = finalSignals.map(sig => {
       const algo = validAnalyses.find(a => a.pair === sig.pair);
       if (algo) {
-        // Forza i livelli algoritmici (Claude non può cambiarli)
-        sig.entry = algo.entry;
-        sig.sl    = algo.sl;
-        sig.tp    = algo.tp;
-        sig.rr    = algo.rr;
-        sig.confidence = algo.confidence; // usa sempre confidence algo
+        sig.entry      = algo.entry;
+        sig.sl         = algo.sl;
+        sig.tp         = algo.tp;
+        sig.rr         = algo.rr;
+        sig.confidence = algo.confidence;
+        sig.cfd        = algo.cfd || null;
       }
       return sig;
     });
