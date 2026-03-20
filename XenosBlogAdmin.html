@@ -7,9 +7,9 @@
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=IBM+Plex+Mono:wght@300;400;500&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #0b0e14; --bg2: #111520; --bg3: #161b27; --border: #1e2535;
-    --gold: #c9a84c; --gold-light: #e8c96a; --text: #c8cdd8;
-    --text-dim: #5a6070; --text-bright: #e8eaf0;
+    --bg: #FDF0D5; --bg2: #F5E6C0; --bg3: #EDD99A; --border: #C8A96E;
+    --gold: #7A5C00; --gold-light: #9B7600; --text: #2a1e08;
+    --text-dim: #7a6440; --text-bright: #1a1208;
   }
   * { margin:0; padding:0; box-sizing:border-box; }
   body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; font-weight:300; }
@@ -42,7 +42,7 @@
   .gen-select option { background:var(--bg3); }
   .gen-input::placeholder { color:var(--text-dim); }
   .gen-actions { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
-  .btn-generate { background:var(--gold); color:#0b0e14; border:none; padding:12px 26px; font-family:'IBM Plex Mono',monospace; font-size:0.7rem; font-weight:500; letter-spacing:0.15em; text-transform:uppercase; cursor:pointer; transition:background 0.2s,transform 0.15s; display:flex; align-items:center; gap:8px; }
+  .btn-generate { background:var(--gold); color:#FDF0D5; border:none; padding:12px 26px; font-family:'IBM Plex Mono',monospace; font-size:0.7rem; font-weight:500; letter-spacing:0.15em; text-transform:uppercase; cursor:pointer; transition:background 0.2s,transform 0.15s; display:flex; align-items:center; gap:8px; }
   .btn-generate:hover:not(:disabled) { background:var(--gold-light); transform:translateY(-1px); }
   .btn-generate:disabled { opacity:0.4; cursor:not-allowed; }
   .gen-status { font-family:'IBM Plex Mono',monospace; font-size:0.68rem; color:var(--gold); }
@@ -80,30 +80,53 @@
   .card-excerpt { font-size:0.8rem; color:var(--text-dim); line-height:1.65; margin-bottom:16px; }
   .card-footer { display:flex; justify-content:space-between; font-family:'IBM Plex Mono',monospace; font-size:0.58rem; color:var(--text-dim); }
   .card-read { color:var(--gold); }
-  .spinner { display:inline-block; width:12px; height:12px; border:1.5px solid rgba(11,14,20,0.3); border-top-color:#0b0e14; border-radius:50%; animation:spin 0.7s linear infinite; }
+  .spinner { display:inline-block; width:12px; height:12px; border:1.5px solid rgba(255,255,255,0.3); border-top-color:#fff; border-radius:50%; animation:spin 0.7s linear infinite; }
   @keyframes spin { to{transform:rotate(360deg)} }
-  .spinner-gold { display:inline-block; width:12px; height:12px; border:1.5px solid rgba(201,168,76,0.2); border-top-color:var(--gold); border-radius:50%; animation:spin 0.7s linear infinite; }
+  .spinner-gold { display:inline-block; width:12px; height:12px; border:1.5px solid rgba(122,92,0,0.2); border-top-color:var(--gold); border-radius:50%; animation:spin 0.7s linear infinite; }
   footer { background:var(--bg2); border-top:1px solid var(--border); padding:28px 5vw; display:flex; justify-content:space-between; align-items:center; }
   .footer-logo { font-family:'IBM Plex Mono',monospace; font-size:1rem; color:var(--text-bright); }
   .footer-logo span { color:var(--gold); }
   .footer-note { font-family:'IBM Plex Mono',monospace; font-size:0.56rem; color:var(--text-dim); text-align:right; line-height:1.7; }
   @media(max-width:800px){ .gen-grid{grid-template-columns:1fr 1fr;} .tg-fields,.blog-grid{grid-template-columns:1fr;} }
   @media(max-width:500px){ .gen-grid{grid-template-columns:1fr;} }
+
+  /* ── PREVIEW MODAL ── */
+  .preview-overlay { display:none; position:fixed; inset:0; z-index:8000; background:rgba(26,18,8,0.55); backdrop-filter:blur(3px); align-items:center; justify-content:center; }
+  .preview-overlay.open { display:flex; }
+  .preview-modal { background:var(--bg); border:1px solid var(--border); max-width:800px; width:95vw; max-height:88vh; display:flex; flex-direction:column; }
+  .preview-modal-head { display:flex; justify-content:space-between; align-items:center; padding:16px 24px; border-bottom:1px solid var(--border); flex-shrink:0; }
+  .preview-modal-title { font-family:'IBM Plex Mono',monospace; font-size:0.65rem; letter-spacing:0.2em; text-transform:uppercase; color:var(--gold); }
+  .preview-modal-close { background:none; border:1px solid var(--border); color:var(--text-dim); font-family:'IBM Plex Mono',monospace; font-size:0.6rem; padding:5px 12px; cursor:pointer; letter-spacing:0.1em; text-transform:uppercase; }
+  .preview-modal-close:hover { border-color:var(--gold); color:var(--gold); }
+  .preview-modal-body { overflow-y:auto; padding:32px 40px; flex:1; }
+  .preview-modal-body .article-cat { font-family:'IBM Plex Mono',monospace; font-size:0.6rem; letter-spacing:0.22em; text-transform:uppercase; color:var(--gold); margin-bottom:14px; }
+  .preview-modal-body .article-title { font-family:'Playfair Display',serif; font-size:clamp(1.5rem,3vw,2.2rem); font-weight:900; color:var(--text-bright); line-height:1.12; margin-bottom:18px; }
+  .preview-modal-body .article-meta { display:flex; gap:20px; font-family:'IBM Plex Mono',monospace; font-size:0.62rem; color:var(--text-dim); border-top:1px solid var(--border); border-bottom:1px solid var(--border); padding:10px 0; margin-bottom:24px; }
+  .preview-modal-body p { font-size:0.95rem; line-height:1.85; color:var(--text); margin-bottom:18px; }
+  .preview-modal-body h2 { font-family:'Playfair Display',serif; font-size:1.25rem; font-weight:700; color:var(--text-bright); margin:28px 0 12px; }
+  .preview-modal-body h3 { font-family:'IBM Plex Mono',monospace; font-size:0.7rem; letter-spacing:0.15em; text-transform:uppercase; color:var(--gold); margin:22px 0 8px; }
+  .preview-modal-body blockquote { border-left:2px solid var(--gold); padding:10px 0 10px 18px; margin:22px 0; font-family:'Playfair Display',serif; font-size:1rem; font-style:italic; color:var(--text-dim); background:var(--bg2); }
+  .preview-modal-foot { padding:16px 24px; border-top:1px solid var(--border); display:flex; gap:10px; flex-shrink:0; background:var(--bg); }
+  .btn-preview-confirm { background:var(--gold); color:#FDF0D5; border:none; padding:10px 22px; font-family:'IBM Plex Mono',monospace; font-size:0.62rem; font-weight:600; letter-spacing:0.15em; text-transform:uppercase; cursor:pointer; }
+  .btn-preview-confirm:hover { background:var(--gold-light); }
+  .btn-preview-tg { background:rgba(42,130,200,0.12); border:1px solid rgba(42,130,200,0.35); color:#5aabde; padding:10px 18px; font-family:'IBM Plex Mono',monospace; font-size:0.62rem; letter-spacing:0.12em; text-transform:uppercase; cursor:pointer; }
+  .btn-preview-tg:hover { background:rgba(42,130,200,0.22); }
+  .preview-note { font-family:'IBM Plex Mono',monospace; font-size:0.58rem; color:var(--text-dim); align-self:center; margin-left:auto; }
 </style>
 </head>
 <body>
 
 <!-- LOGIN -->
-<div id="loginScreen" style="display:none;align-items:center;justify-content:center;position:fixed;inset:0;z-index:9999;background:#0b0e14;">
-  <div style="width:340px;background:#111520;border:1px solid #2a3550;padding:44px 36px;">
-    <div style="font-family:'IBM Plex Mono',monospace;font-size:1.2rem;font-weight:500;color:#e8eaf0;margin-bottom:4px;">XENOS<span style="color:#c9a84c;">FINANCE</span></div>
-    <div style="font-family:'IBM Plex Mono',monospace;font-size:0.6rem;color:#5a6070;letter-spacing:.15em;text-transform:uppercase;margin-bottom:32px;">Admin · Accesso riservato</div>
-    <div style="font-family:'IBM Plex Mono',monospace;font-size:0.6rem;letter-spacing:.12em;text-transform:uppercase;color:#5a6070;margin-bottom:6px;">Password</div>
+<div id="loginScreen" style="display:none;align-items:center;justify-content:center;position:fixed;inset:0;z-index:9999;background:#FDF0D5;">
+  <div style="width:340px;background:#F5E6C0;border:1px solid #C8A96E;padding:44px 36px;">
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:1.2rem;font-weight:500;color:#1a1208;margin-bottom:4px;">XENOS<span style="color:#7A5C00;">FINANCE</span></div>
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:0.6rem;color:#7a6440;letter-spacing:.15em;text-transform:uppercase;margin-bottom:32px;">Admin · Accesso riservato</div>
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:0.6rem;letter-spacing:.12em;text-transform:uppercase;color:#7a6440;margin-bottom:6px;">Password</div>
     <input id="loginPw" type="password" placeholder="••••••••"
-      style="width:100%;background:#0b0e14;border:1px solid #1e2535;color:#e8eaf0;font-family:'IBM Plex Mono',monospace;font-size:13px;padding:11px 13px;outline:none;margin-bottom:14px;"
+      style="width:100%;background:#FDF0D5;border:1px solid #C8A96E;color:#1a1208;font-family:'IBM Plex Mono',monospace;font-size:13px;padding:11px 13px;outline:none;margin-bottom:14px;"
       onkeydown="if(event.key==='Enter') doLogin()">
-    <button onclick="doLogin()" style="width:100%;background:#c9a84c;color:#0b0e14;border:none;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;padding:13px;cursor:pointer;">Accedi</button>
-    <div id="loginErr" style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#e05555;margin-top:10px;min-height:16px;"></div>
+    <button onclick="doLogin()" style="width:100%;background:#7A5C00;color:#FDF0D5;border:none;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;padding:13px;cursor:pointer;">Accedi</button>
+    <div id="loginErr" style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#AE2020;margin-top:10px;min-height:16px;"></div>
   </div>
 </div>
 
@@ -211,6 +234,7 @@
   <div class="article-actions">
     <button class="btn-action" onclick="copyArticle()">📋 Copia testo</button>
     <button class="btn-action" onclick="generateArticle()">✦ Nuovo articolo</button>
+    <button class="btn-action" onclick="openPreview()" style="border-color:var(--gold);color:var(--gold);">👁 Anteprima</button>
     <button class="btn-publish" id="publishBtn" onclick="publishToBlog()"><span id="pubIcon">✦</span> Pubblica nel blog</button>
     <button class="btn-telegram" onclick="toggleTgConfig()">✈ Invia su Telegram</button>
   </div>
@@ -267,6 +291,22 @@
   <div class="footer-logo">XENOS<span>FINANCE</span></div>
   <div class="footer-note">© XENOSFINANCE 2026 · AI Blog<br>⚠ Non costituisce consulenza finanziaria</div>
 </footer>
+
+<!-- ── PREVIEW MODAL ── -->
+<div class="preview-overlay" id="previewOverlay">
+  <div class="preview-modal">
+    <div class="preview-modal-head">
+      <span class="preview-modal-title">// Anteprima articolo — prima della pubblicazione</span>
+      <button class="preview-modal-close" onclick="closePreview()">✕ Chiudi</button>
+    </div>
+    <div class="preview-modal-body" id="previewBody"></div>
+    <div class="preview-modal-foot">
+      <button class="btn-preview-confirm" onclick="closePreview();publishToBlog()">✦ Pubblica nel blog</button>
+      <button class="btn-preview-tg" onclick="closePreview();toggleTgConfig();document.getElementById('articleDisplay').scrollIntoView({behavior:'smooth'})">✈ Invia su Telegram</button>
+      <span class="preview-note">Rivedi il testo, poi scegli dove pubblicare</span>
+    </div>
+  </div>
+</div>
 
 <script>
 // ── LOGIN ──
@@ -516,7 +556,28 @@ async function sendToTelegram() {
   } catch(e) { tgStatus.textContent = '⚠ Errore di connessione'; }
   btn.disabled = false;
   setTimeout(function(){ tgStatus.textContent=''; }, 5000);
+// ── PREVIEW ──
+function openPreview() {
+  if (!currentArticle) return;
+  var a = currentArticle;
+  var d = new Date();
+  var html = '<div class="article-cat">' + a.categoryLabel + '</div>';
+  html += '<div class="article-title">' + a.title + '</div>';
+  html += '<div class="article-meta"><span>📅 ' + d.getDate() + ' ' + monthsIT[d.getMonth()] + ' ' + d.getFullYear() + '</span><span>⏱ ' + a.readTime + '</span><span>✦ XenosFinance AI</span></div>';
+  html += '<p>' + a.intro + '</p>';
+  a.sections.forEach(function(s){ html += '<h2>' + s.heading + '</h2><p>' + s.content + '</p>'; });
+  html += '<blockquote>' + a.quote + '</blockquote><h3>// Conclusione</h3><p>' + a.conclusion + '</p>';
+  document.getElementById('previewBody').innerHTML = html;
+  document.getElementById('previewOverlay').classList.add('open');
 }
+function closePreview() {
+  document.getElementById('previewOverlay').classList.remove('open');
+}
+// Chiudi cliccando fuori dal modal
+document.addEventListener('click', function(e) {
+  var overlay = document.getElementById('previewOverlay');
+  if (e.target === overlay) closePreview();
+});
 </script>
 </body>
 </html>
