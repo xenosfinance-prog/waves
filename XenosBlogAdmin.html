@@ -91,6 +91,16 @@
   @media(max-width:800px){ .gen-grid{grid-template-columns:1fr 1fr;} .tg-fields,.blog-grid{grid-template-columns:1fr;} }
   @media(max-width:500px){ .gen-grid{grid-template-columns:1fr;} }
 
+
+  /* ── EDIT MODE ── */
+  .edit-mode-banner { display:none; align-items:center; gap:12px; background:rgba(122,82,0,0.08); border:1px solid rgba(122,82,0,0.3); border-left:3px solid var(--gold); padding:10px 16px; margin-bottom:16px; font-family:'IBM Plex Mono',monospace; font-size:0.6rem; color:var(--gold); letter-spacing:0.1em; }
+  .edit-mode-banner.active { display:flex; }
+  .btn-done-edit { background:var(--gold); color:#FDF8EF; border:none; padding:6px 14px; font-family:'IBM Plex Mono',monospace; font-size:0.58rem; font-weight:600; letter-spacing:0.12em; text-transform:uppercase; cursor:pointer; }
+  .btn-done-edit:hover { background:var(--gold-light); }
+  [contenteditable=true] { outline:none; border-bottom:1px dashed var(--gold); cursor:text; background:rgba(122,82,0,0.03); }
+  [contenteditable=true]:focus { background:rgba(122,82,0,0.06); border-bottom:1px solid var(--gold); }
+  .article-title[contenteditable=true] { border-bottom:2px dashed var(--gold); }
+
   /* ── PREVIEW MODAL ── */
   .preview-overlay { display:none; position:fixed; inset:0; z-index:8000; background:rgba(28,15,0,0.45); backdrop-filter:blur(3px); align-items:center; justify-content:center; }
   .preview-overlay.open { display:flex; }
@@ -232,10 +242,14 @@
     <span>✦ Generato da AI — XenosFinance</span>
   </div>
   <div class="article-body" id="artBody"></div>
+  <div class="edit-mode-banner" id="editBanner">
+    ✎ EDIT MODE ACTIVE — Click on title or body to edit directly
+    <button class="btn-done-edit" onclick="toggleEdit()">✓ Done</button>
+  </div>
   <div class="article-actions">
     <button class="btn-action" onclick="copyArticle()">📋 Copia testo</button>
     <button class="btn-action" onclick="generateArticle()">✦ Nuovo articolo</button>
-    <button class="btn-action" onclick="openPreview()" style="border-color:var(--gold);color:var(--gold);font-weight:600;">👁 Anteprima</button>
+    <button class="btn-action" id="editBtn" onclick="toggleEdit()" style="border-color:var(--gold);color:var(--gold);font-weight:600;">✎ Edit</button>
     <button class="btn-publish" id="publishBtn" onclick="publishToBlog()"><span id="pubIcon">✦</span> Pubblica nel blog</button>
     <button class="btn-telegram" onclick="toggleTgConfig()">✈ Invia su Telegram</button>
   </div>
@@ -544,6 +558,39 @@ async function sendToTelegram() {
 }
 
 // ── PREVIEW ──
+
+let editMode = false;
+function toggleEdit() {
+  editMode = !editMode;
+  const title  = document.getElementById('artTitle');
+  const body   = document.getElementById('artBody');
+  const banner = document.getElementById('editBanner');
+  const btn    = document.getElementById('editBtn');
+
+  if (editMode) {
+    title.contentEditable = 'true';
+    body.contentEditable  = 'true';
+    banner.classList.add('active');
+    btn.textContent = '✓ Done';
+    btn.style.background = 'rgba(122,82,0,0.1)';
+    title.focus();
+  } else {
+    title.contentEditable = 'false';
+    body.contentEditable  = 'false';
+    banner.classList.remove('active');
+    btn.textContent = '✎ Edit';
+    btn.style.background = '';
+    // Save edits back to internal state so publish picks them up
+    if (window.currentArticle) {
+      // Sync title back to currentArticle
+      currentArticle.title = title.textContent.trim();
+      // Sync body: store edited HTML as intro so publish/telegram use it
+      currentArticle.intro = body.innerText.substring(0, 300);
+      currentArticle._editedBody = body.innerHTML;  // full edited HTML
+    }
+  }
+}
+
 function openPreview() {
   if (!currentArticle) return;
   var a = currentArticle, d = new Date();
