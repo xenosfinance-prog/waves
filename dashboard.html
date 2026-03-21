@@ -1116,6 +1116,16 @@ function fmtChg(chg) {
   const arr = chg >= 0 ? '▲' : '▼';
   return { str: `${arr} ${chg >= 0 ? '+' : ''}${chg.toFixed(2)}%`, cls: chg >= 0 ? 'up' : 'dn' };
 }
+// Extract price and change_pct from Worker response (now returns {price, change_pct} object)
+function extractPrice(d) {
+  if (d == null) return { price: null, chg: null };
+  if (typeof d === 'object') {
+    const price = parseFloat(d.price || d.p || 0) || null;
+    const chg   = parseFloat(d.change_pct ?? d.chg ?? 0);
+    return { price, chg: isNaN(chg) ? 0 : chg };
+  }
+  return { price: parseFloat(d) || null, chg: 0 };
+}
 
 // ── Clock ─────────────────────────────────────────────────────
 function updateClock() {
@@ -1172,11 +1182,9 @@ function renderStats() {
     { id:'eur',  yf:'EURUSD=X', fmt:'fx',     label:'EUR/USD' },
   ];
   for (const p of pairs) {
-    const d = prices[p.yf];
-    if (!d) continue;
-    const pr = typeof d === 'object' ? (d.price || d.p || d) : d;
-    const chg = typeof d === 'object' ? (d.change_pct || d.chg || 0) : 0;
-    const c = fmtChg(parseFloat(chg));
+    const { price: pr, chg } = extractPrice(prices[p.yf]);
+    if (!pr) continue;
+    const c = fmtChg(chg);
     document.getElementById(`stat-${p.id}`).textContent = fmtP(pr, p.fmt);
     const el = document.getElementById(`stat-${p.id}-chg`);
     el.textContent = c.str;
@@ -1189,9 +1197,7 @@ function renderWatchlist() {
   const el = document.getElementById('watchlist');
   let html = '';
   for (const w of WATCHLIST) {
-    const d = prices[w.yf];
-    const pr = d ? (typeof d === 'object' ? (d.price || d.p || d) : d) : null;
-    const chg = d ? parseFloat(typeof d === 'object' ? (d.change_pct || d.chg || 0) : 0) : null;
+    const { price: pr, chg } = extractPrice(prices[w.yf]);
     const c = fmtChg(chg);
     const isActive = w.sym === activeWL;
     html += `<div class="watch-item${isActive?' active':''}" onclick="selectAsset('${w.sym}','${w.name}','${w.yf}','${w.fmt}',this)">
@@ -1216,9 +1222,7 @@ function renderGlobal() {
   for (const region of GLOBAL_MARKETS) {
     html += `<div class="market-region">${region.region}</div>`;
     for (const item of region.items) {
-      const d = prices[item.yf];
-      const pr = d ? (typeof d === 'object' ? (d.price || d.p || d) : d) : null;
-      const chg = d ? parseFloat(typeof d === 'object' ? (d.change_pct || d.chg || 0) : 0) : null;
+      const { price: pr, chg } = extractPrice(prices[item.yf]);
       const c = fmtChg(chg);
       html += `<div class="market-row">
         <div class="market-left">
@@ -1241,9 +1245,8 @@ function renderSectors() {
   let html = '';
   // Sort by change
   const sorted = [...SECTORS].map(s => {
-    const d = prices[s.sym];
-    const chg = d ? parseFloat(typeof d === 'object' ? (d.change_pct || d.chg || 0) : 0) : (Math.random()*4-2);
-    return { ...s, chg };
+    const { chg } = extractPrice(prices[s.sym]);
+    return { ...s, chg: chg ?? 0 };
   }).sort((a,b) => b.chg - a.chg);
 
   for (const s of sorted) {
@@ -1270,10 +1273,8 @@ function renderTicker() {
   ];
   let html = '';
   for (const item of items) {
-    const d = prices[item.yf];
-    if (!d) continue;
-    const pr = typeof d === 'object' ? (d.price || d.p || d) : d;
-    const chg = parseFloat(typeof d === 'object' ? (d.change_pct || d.chg || 0) : 0);
+    const { price: pr, chg } = extractPrice(prices[item.yf]);
+    if (!pr) continue;
     const arr = chg >= 0 ? '▲' : '▼';
     const cls = chg >= 0 ? 'up' : 'dn';
     html += `<span class="t-item"><span class="t-sym">${item.sym}</span><span class="t-price">${parseFloat(pr).toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:2})}</span><span class="t-chg ${cls}">${arr} ${Math.abs(chg).toFixed(2)}%</span></span>`;
@@ -1337,8 +1338,8 @@ async function loadChartData(yf) {
   } catch(e) {}
 
   // Fallback: generate plausible demo data from current price
-  const d = prices[yf];
-  const base = d ? parseFloat(typeof d === 'object' ? (d.price || d.p || d) : d) : 100;
+  const { price: _bp } = extractPrice(prices[yf]);
+  const base = _bp || 100;
   const points = activeTF === '1D' ? 78 : activeTF === '1W' ? 120 : activeTF === '1M' ? 30 : activeTF === '3M' ? 90 : 260;
   const now = Math.floor(Date.now() / 1000);
   const step = activeTF === '1D' ? 300 : activeTF === '1W' ? 3600 : 86400;
@@ -1360,10 +1361,8 @@ async function selectAsset(sym, name, yf, fmt, el) {
   document.getElementById('chart-sym').textContent = sym.replace('-USD','').replace('=X','').replace('=F','');
   document.getElementById('chart-name').textContent = name;
 
-  const d = prices[yf];
-  if (d) {
-    const pr = typeof d === 'object' ? (d.price || d.p || d) : d;
-    const chg = parseFloat(typeof d === 'object' ? (d.change_pct || d.chg || 0) : 0);
+  const { price: pr, chg } = extractPrice(prices[yf]);
+  if (pr) {
     const c = fmtChg(chg);
     document.getElementById('chart-price').textContent = fmtP(pr, fmt);
     const cel = document.getElementById('chart-chg');
@@ -1639,10 +1638,7 @@ function renderPortfolio() {
   let html = '';
 
   for (const pos of pfPositions) {
-    const d      = prices[pos.sym];
-    const curRaw = d ? (typeof d === 'object' ? (d.price || d.p || d) : d) : null;
-    const cur    = curRaw ? parseFloat(curRaw) : null;
-    const chgPct = d ? parseFloat(typeof d === 'object' ? (d.change_pct || d.chg || 0) : 0) : 0;
+    const { price: cur, chg: chgPct } = extractPrice(prices[pos.sym]);
 
     const cost   = pos.qty * pos.entry;
     const value  = cur ? pos.qty * cur : cost;
