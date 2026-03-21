@@ -557,10 +557,7 @@ body {
 }
 
   /* ── PORTFOLIO ── */
-  #portfolioView { display:none; }
-  #portfolioView.active { display:block; }
-  #dashboardView { display:block; }
-  #dashboardView.hidden { display:none; }
+  /* views controlled by showView() via display:none/block */
 
   .pf-header-row {
     display:flex; align-items:center; justify-content:space-between;
@@ -727,6 +724,30 @@ body {
   }
   .site-nav a:hover { color: var(--gold); }
   .site-nav a.active { color: var(--gold); border-bottom-color: var(--gold); }
+
+  /* ── VIEW ROWS (Stocks/Markets/Currencies/Global/Performance/Analysis) ── */
+  .view-row {
+    display:grid; grid-template-columns:1fr 120px 120px 100px;
+    padding:11px 18px; border-bottom:1px solid var(--border2);
+    align-items:center; transition:background 0.12s; cursor:default; gap:0;
+  }
+  .view-row:hover { background:var(--bg3); }
+  .view-section-label {
+    font-family:var(--mono); font-size:0.5rem; letter-spacing:0.18em;
+    text-transform:uppercase; color:var(--gold);
+    padding:10px 18px 6px; border-bottom:1px solid var(--border2);
+    background:var(--bg3); margin-top:4px;
+  }
+  .vr-sym  { font-family:var(--mono); font-size:0.72rem; font-weight:500; color:var(--text); }
+  .vr-name { font-family:var(--mono); font-size:0.5rem;  color:var(--dim); margin-top:2px; }
+  .vr-sector{ font-family:var(--mono); font-size:0.55rem; color:var(--dim); }
+  .vr-price { font-family:var(--mono); font-size:0.72rem; color:var(--text); text-align:right; }
+  .vr-chg   { font-family:var(--mono); font-size:0.62rem; text-align:right; }
+  .vr-chg.up { color:var(--green); } .vr-chg.dn { color:var(--red); } .vr-chg.neutral { color:var(--dim); }
+  /* Chart height fix */
+  #chartContainer { flex:1; min-height:420px; height:420px; }
+  .chart-panel { display:flex; flex-direction:column; background:var(--bg); min-height:540px; }
+
 </style>
 </head>
 <body>
@@ -916,10 +937,59 @@ body {
         <div id="sectorList"></div>
       </div>
     </div>
+  </div><!-- /dashboardView -->
 
+  <!-- ── STOCKS VIEW ── -->
+  <div id="stocksView" style="display:none">
+    <div class="panel" style="border:1px solid var(--border)">
+      <div class="panel-header"><div class="panel-title">US Stocks & ETFs</div><div class="panel-sub">Click any row to chart</div></div>
+      <div style="display:grid;grid-template-columns:1fr 130px 120px 100px;padding:8px 18px;border-bottom:1px solid var(--border);background:var(--bg3);font-family:var(--mono);font-size:0.5rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--dim);">
+        <span>Asset</span><span>Sector</span><span style="text-align:right">Price</span><span style="text-align:right">Change</span>
+      </div>
+      <div id="stocks-list"></div>
+    </div>
+  </div>
+
+  <!-- ── MARKETS VIEW ── -->
+  <div id="marketsView" style="display:none">
+    <div class="panel" style="border:1px solid var(--border)">
+      <div class="panel-header"><div class="panel-title">Markets Overview</div><div class="panel-sub">Global indices & commodities</div></div>
+      <div id="markets-list"></div>
+    </div>
+  </div>
+
+  <!-- ── CURRENCIES VIEW ── -->
+  <div id="currenciesView" style="display:none">
+    <div class="panel" style="border:1px solid var(--border)">
+      <div class="panel-header"><div class="panel-title">Currencies & FX</div><div class="panel-sub">Live rates</div></div>
+      <div id="currencies-list"></div>
+    </div>
+  </div>
+
+  <!-- ── GLOBAL VIEW ── -->
+  <div id="globalView" style="display:none">
+    <div class="panel" style="border:1px solid var(--border)">
+      <div class="panel-header"><div class="panel-title">🌐 Global Markets</div><div class="panel-sub">All regions</div></div>
+      <div id="global-full-list"></div>
+    </div>
+  </div>
+
+  <!-- ── PERFORMANCE VIEW ── -->
+  <div id="performanceView" style="display:none">
+    <div class="panel" style="border:1px solid var(--border)">
+      <div class="panel-header"><div class="panel-title">Performance</div><div class="panel-sub">All assets ranked by daily change</div></div>
+      <div id="perf-list"></div>
+    </div>
+  </div>
+
+  <!-- ── ANALYSIS VIEW ── -->
+  <div id="analysisView" style="display:none">
+    <div class="panel-header" style="border:1px solid var(--border);margin-bottom:2px"><div class="panel-title">Technical Analysis</div><div class="panel-sub">Sector ETFs + market breadth</div></div>
+    <div id="analysis-list"></div>
+  </div>
 
   <!-- ── PORTFOLIO VIEW ── -->
-  <div id="portfolioView">
+  <div id="portfolioView" style="display:none">
 
     <!-- GitHub config strip -->
     <div class="pf-gh-cfg" id="pfGhCfg">
@@ -1144,11 +1214,6 @@ function toggleSidebar() {
   document.getElementById('mainArea').classList.toggle('collapsed', !sidebarOpen);
   document.querySelector('.sidebar-toggle').textContent = sidebarOpen ? '◀' : '▶';
 }
-function setNav(el) {
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  el.classList.add('active');
-}
-
 // ── Fetch prices ──────────────────────────────────────────────
 async function fetchPrices() {
   const syms = [...new Set([
@@ -1706,24 +1771,209 @@ function updatePfSummary(totalVal, totalCost, dayPnl) {
   document.getElementById('pf-day-pnl-sub').textContent = 'Today vs yesterday close';
 }
 
-// ── Navigation wiring ─────────────────────────────────────────
-// Override setNav to show/hide portfolio view
-const _origSetNav = setNav;
+// ── Navigation routing ───────────────────────────────────────
+const ALL_VIEWS = ['dashboardView','stocksView','marketsView','currenciesView',
+                   'globalView','portfolioView','performanceView','analysisView'];
+const VIEW_MAP  = {'Dashboard':'dashboardView','Stocks':'stocksView','Markets':'marketsView',
+  'Currencies':'currenciesView','Global':'globalView','Portfolio':'portfolioView',
+  'Performance':'performanceView','Analysis':'analysisView'};
+const TITLE_MAP = {'Dashboard':'Market Dashboard','Stocks':'Stocks & ETFs',
+  'Markets':'Markets Overview','Currencies':'Currencies & FX','Global':'Global Markets',
+  'Portfolio':'My Portfolio','Performance':'Performance','Analysis':'Technical Analysis'};
+
+function showView(id) {
+  ALL_VIEWS.forEach(v => {
+    const el = document.getElementById(v);
+    if (el) el.style.display = (v === id) ? 'block' : 'none';
+  });
+}
+
 function setNav(el) {
-  _origSetNav(el);
-  const label = el.querySelector('.nav-label')?.textContent?.trim();
-  const dash  = document.getElementById('dashboardView');
-  const pf    = document.getElementById('portfolioView');
-  if (label === 'Portfolio') {
-    dash.classList.add('hidden');
-    pf.classList.add('active');
-    document.querySelector('.page-title').textContent = 'My Portfolio';
-    renderPortfolio(); // refresh P&L with latest prices
-  } else {
-    pf.classList.remove('active');
-    dash.classList.remove('hidden');
-    document.querySelector('.page-title').textContent = 'Market Dashboard';
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  el.classList.add('active');
+  const label  = el.querySelector('.nav-label')?.textContent?.trim();
+  const viewId = VIEW_MAP[label] || 'dashboardView';
+  showView(viewId);
+  document.querySelector('.page-title').textContent = TITLE_MAP[label] || 'Market Dashboard';
+  if (label==='Portfolio')   renderPortfolio();
+  if (label==='Stocks')      renderStocksView();
+  if (label==='Markets')     renderMarketsView();
+  if (label==='Currencies')  renderCurrenciesView();
+  if (label==='Global')      renderGlobalView();
+  if (label==='Performance') renderPerformanceView();
+  if (label==='Analysis')    renderAnalysisView();
+}
+
+// ── STOCKS VIEW ───────────────────────────────────────────────
+const STOCKS_LIST = [
+  {sym:'AAPL',name:'Apple Inc.',yf:'AAPL',sector:'Technology'},
+  {sym:'MSFT',name:'Microsoft',yf:'MSFT',sector:'Technology'},
+  {sym:'NVDA',name:'NVIDIA Corp.',yf:'NVDA',sector:'Technology'},
+  {sym:'GOOGL',name:'Alphabet Inc.',yf:'GOOGL',sector:'Technology'},
+  {sym:'META',name:'Meta Platforms',yf:'META',sector:'Technology'},
+  {sym:'TSLA',name:'Tesla Inc.',yf:'TSLA',sector:'Consumer Discr.'},
+  {sym:'AMZN',name:'Amazon.com',yf:'AMZN',sector:'Consumer Discr.'},
+  {sym:'JPM',name:'JPMorgan Chase',yf:'JPM',sector:'Financials'},
+  {sym:'V',name:'Visa Inc.',yf:'V',sector:'Financials'},
+  {sym:'XOM',name:'Exxon Mobil',yf:'XOM',sector:'Energy'},
+  {sym:'JNJ',name:'Johnson & Johnson',yf:'JNJ',sector:'Healthcare'},
+  {sym:'SPY',name:'S&P 500 ETF',yf:'SPY',sector:'ETF'},
+  {sym:'QQQ',name:'Nasdaq 100 ETF',yf:'QQQ',sector:'ETF'},
+  {sym:'DIA',name:'Dow Jones ETF',yf:'DIA',sector:'ETF'},
+  {sym:'XLK',name:'Technology ETF',yf:'XLK',sector:'Sector ETF'},
+  {sym:'XLF',name:'Financials ETF',yf:'XLF',sector:'Sector ETF'},
+];
+function renderStocksView() {
+  const el = document.getElementById('stocks-list'); if (!el) return;
+  let html = '';
+  for (const s of STOCKS_LIST) {
+    const {price:pr,chg} = extractPrice(prices[s.yf]);
+    const c = fmtChg(chg);
+    html += `<div class="view-row" style="cursor:pointer" onclick="goToChart('${s.sym}','${s.name}','${s.yf}','price')">
+      <div><div class="vr-sym">${s.sym}</div><div class="vr-name">${s.name}</div></div>
+      <div class="vr-sector">${s.sector}</div>
+      <div class="vr-price">${pr?fmtP(pr,'price'):'—'}</div>
+      <div class="vr-chg ${c.cls}">${c.str}</div>
+    </div>`;
   }
+  el.innerHTML = html;
+}
+
+// ── MARKETS VIEW ──────────────────────────────────────────────
+const MARKETS_LIST = [
+  {name:'S&P 500',sym:'SPX',yf:'SPY',type:'US Indices'},
+  {name:'NASDAQ 100',sym:'NDX',yf:'QQQ',type:'US Indices'},
+  {name:'Dow Jones',sym:'DJI',yf:'DIA',type:'US Indices'},
+  {name:'DAX 40',sym:'DAX',yf:'EWG',type:'Europe'},
+  {name:'FTSE 100',sym:'UKX',yf:'EWU',type:'Europe'},
+  {name:'CAC 40',sym:'CAC',yf:'EWQ',type:'Europe'},
+  {name:'Nikkei 225',sym:'N225',yf:'EWJ',type:'Asia Pacific'},
+  {name:'Hang Seng',sym:'HSI',yf:'EWH',type:'Asia Pacific'},
+  {name:'Gold',sym:'XAU',yf:'GC=F',type:'Commodities'},
+  {name:'Crude Oil WTI',sym:'WTI',yf:'CL=F',type:'Commodities'},
+  {name:'Silver',sym:'XAG',yf:'SI=F',type:'Commodities'},
+  {name:'Natural Gas',sym:'NG',yf:'NG=F',type:'Commodities'},
+];
+function renderMarketsView() {
+  const el = document.getElementById('markets-list'); if (!el) return;
+  const byType = {};
+  MARKETS_LIST.forEach(m => { if(!byType[m.type]) byType[m.type]=[]; byType[m.type].push(m); });
+  let html = '';
+  for (const [type,items] of Object.entries(byType)) {
+    html += `<div class="view-section-label">${type}</div>`;
+    for (const s of items) {
+      const {price:pr,chg} = extractPrice(prices[s.yf]);
+      const c = fmtChg(chg);
+      html += `<div class="view-row">
+        <div><div class="vr-sym">${s.name}</div><div class="vr-name">${s.sym}</div></div>
+        <div></div>
+        <div class="vr-price">${pr?parseFloat(pr).toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:2}):'—'}</div>
+        <div class="vr-chg ${c.cls}">${c.str}</div>
+      </div>`;
+    }
+  }
+  el.innerHTML = html;
+}
+
+// ── CURRENCIES VIEW ───────────────────────────────────────────
+const FX_LIST = [
+  {label:'EUR/USD',yf:'EURUSD=X',name:'Euro / US Dollar',fmt:'fx'},
+  {label:'GBP/USD',yf:'GBPUSD=X',name:'British Pound / Dollar',fmt:'fx'},
+  {label:'USD/JPY',yf:'USDJPY=X',name:'Dollar / Japanese Yen',fmt:'fx'},
+  {label:'USD/CHF',yf:'USDCHF=X',name:'Dollar / Swiss Franc',fmt:'fx'},
+  {label:'AUD/USD',yf:'AUDUSD=X',name:'Australian Dollar / Dollar',fmt:'fx'},
+  {label:'NZD/USD',yf:'NZDUSD=X',name:'New Zealand Dollar / Dollar',fmt:'fx'},
+  {label:'USD/CAD',yf:'USDCAD=X',name:'Dollar / Canadian Dollar',fmt:'fx'},
+  {label:'BTC/USD',yf:'BTC-USD',name:'Bitcoin / US Dollar',fmt:'crypto'},
+  {label:'ETH/USD',yf:'ETH-USD',name:'Ethereum / US Dollar',fmt:'crypto'},
+];
+function renderCurrenciesView() {
+  const el = document.getElementById('currencies-list'); if (!el) return;
+  let html = `<div style="display:grid;grid-template-columns:1fr 130px 120px 100px;padding:8px 18px;border-bottom:1px solid var(--border);background:var(--bg3);font-family:var(--mono);font-size:0.5rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--dim)">
+    <span>Pair</span><span></span><span style="text-align:right">Rate</span><span style="text-align:right">Change</span>
+  </div>`;
+  for (const s of FX_LIST) {
+    const {price:pr,chg} = extractPrice(prices[s.yf]);
+    const c = fmtChg(chg);
+    html += `<div class="view-row">
+      <div><div class="vr-sym">${s.label}</div><div class="vr-name">${s.name}</div></div>
+      <div></div>
+      <div class="vr-price">${pr?fmtP(pr,s.fmt):'—'}</div>
+      <div class="vr-chg ${c.cls}">${c.str}</div>
+    </div>`;
+  }
+  el.innerHTML = html;
+}
+
+// ── GLOBAL VIEW ───────────────────────────────────────────────
+function renderGlobalView() {
+  const el = document.getElementById('global-full-list'); if (!el) return;
+  let html = '';
+  for (const region of GLOBAL_MARKETS) {
+    html += `<div class="view-section-label">${region.region}</div>`;
+    for (const item of region.items) {
+      const {price:pr,chg} = extractPrice(prices[item.yf]);
+      const c = fmtChg(chg);
+      html += `<div class="view-row">
+        <div><div class="vr-sym">${item.name}</div><div class="vr-name">${item.ticker}</div></div>
+        <div></div>
+        <div class="vr-price">${pr?parseFloat(pr).toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:2}):'—'}</div>
+        <div class="vr-chg ${c.cls}">${c.str}</div>
+      </div>`;
+    }
+  }
+  el.innerHTML = html;
+}
+
+// ── PERFORMANCE VIEW ──────────────────────────────────────────
+function renderPerformanceView() {
+  const el = document.getElementById('perf-list'); if (!el) return;
+  const all = [...WATCHLIST,...SECTORS.map(s=>({sym:s.sym,name:s.name,yf:s.sym,fmt:'price'}))];
+  const data = all.map(w=>{ const {price:pr,chg}=extractPrice(prices[w.yf]); return{...w,price:pr,chg:chg??0}; })
+    .filter(w=>w.price).sort((a,b)=>b.chg-a.chg);
+  let html = '';
+  for (const w of data) {
+    const c=fmtChg(w.chg);
+    const bw=Math.min(Math.abs(w.chg)*8+10,90), bc=w.chg>=0?'var(--green)':'var(--red)';
+    html+=`<div class="view-row">
+      <div><div class="vr-sym">${w.sym}</div><div class="vr-name">${w.name}</div></div>
+      <div style="padding:0 12px"><div style="height:5px;background:var(--bg3);border-radius:3px"><div style="height:100%;width:${bw}%;background:${bc};border-radius:3px"></div></div></div>
+      <div class="vr-price">${fmtP(w.price,w.fmt||'price')}</div>
+      <div class="vr-chg ${c.cls}">${c.str}</div>
+    </div>`;
+  }
+  el.innerHTML = html||'<div style="padding:40px;text-align:center;font-family:var(--mono);font-size:0.65rem;color:var(--dim)">Loading data...</div>';
+}
+
+// ── ANALYSIS VIEW ─────────────────────────────────────────────
+function renderAnalysisView() {
+  const el = document.getElementById('analysis-list'); if (!el) return;
+  const sData = SECTORS.map(s=>{ const {price:pr,chg}=extractPrice(prices[s.sym]); return{...s,price:pr,chg:chg??0}; });
+  let html=`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border2);border:1px solid var(--border);margin-bottom:20px">`;
+  for (const s of sData) {
+    const c=fmtChg(s.chg);
+    html+=`<div style="background:var(--bg2);padding:20px">
+      <div style="font-family:var(--mono);font-size:0.5rem;letter-spacing:0.14em;text-transform:uppercase;color:var(--dim);margin-bottom:8px">${s.name}</div>
+      <div style="font-family:var(--serif);font-size:1.25rem;font-weight:700;color:var(--text)">${s.price?fmtP(s.price,'price'):'—'}</div>
+      <div style="font-family:var(--mono);font-size:0.6rem;margin-top:5px" class="${c.cls}">${c.str}</div>
+      <div style="margin-top:8px;height:3px;background:var(--bg3);border-radius:2px"><div style="height:100%;width:${Math.min(Math.abs(s.chg)*15+15,90)}%;background:${s.chg>=0?'var(--green)':'var(--red)'};border-radius:2px"></div></div>
+    </div>`;
+  }
+  const bull=sData.filter(s=>s.chg>0).length,bear=sData.filter(s=>s.chg<0).length,neut=sData.filter(s=>s.chg===0).length;
+  html+=`</div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border2);border:1px solid var(--border)">`;
+  [{l:'Bullish Sectors',v:bull,c:'up'},{l:'Bearish Sectors',v:bear,c:'dn'},{l:'Neutral',v:neut,c:'neutral'}].forEach(i=>{
+    html+=`<div style="background:var(--bg2);padding:20px"><div style="font-family:var(--mono);font-size:0.5rem;letter-spacing:0.14em;text-transform:uppercase;color:var(--dim);margin-bottom:8px">${i.l}</div><div style="font-family:var(--serif);font-size:2rem;font-weight:700" class="${i.c}">${i.v}</div></div>`;
+  });
+  el.innerHTML = html+'</div>';
+}
+
+// ── Go to chart helper ────────────────────────────────────────
+function goToChart(sym, name, yf, fmt) {
+  showView('dashboardView');
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.querySelector('.nav-item').classList.add('active');
+  document.querySelector('.page-title').textContent = 'Market Dashboard';
+  selectAsset(sym,name,yf,fmt,null);
 }
 
 // ── Init portfolio ────────────────────────────────────────────
