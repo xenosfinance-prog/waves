@@ -1248,10 +1248,10 @@ function detectPattern(candles, atr, currentPrice) {
     const h1=swingH[swingH.length-2], h2=swingH[swingH.length-1];
     const hDiff=Math.abs(h1.price-h2.price);
     const gap=h2.idx-h1.idx;
-    if (hDiff < atr*2.0 && gap>=8 && gap<=80) {
+    if (hDiff < atr*3.0 && gap>=6 && gap<=100) {
       const neckLow=Math.min(...lows.slice(h1.idx,h2.idx+1));
       const dtDist=(h2.price-price)/h2.price;
-      if (price < h2.price - atr*0.3 && dtDist < 0.06 && price < neckLow+atr*2) {
+      if (price < h2.price - atr*0.2 && dtDist < 0.10 && price < neckLow+atr*3) {
         const conf=Math.min(90, 62+(rsi>60?8:0)+(trendDown?8:0)+(macdBear?6:0)+(vol.volumeExpanding?4:0)+(hDiff<atr?4:0));
         results.push({ pattern:'Double Top', direction:'SELL',
           entry:price, sl:h2.price+atr*(selectedTF==='D1'?1.8:1.0),
@@ -1267,10 +1267,10 @@ function detectPattern(candles, atr, currentPrice) {
     const l1=swingL[swingL.length-2], l2=swingL[swingL.length-1];
     const lDiff=Math.abs(l1.price-l2.price);
     const gap=l2.idx-l1.idx;
-    if (lDiff < atr*2.0 && gap>=8 && gap<=80) {
+    if (lDiff < atr*3.0 && gap>=6 && gap<=100) {
       const neckHigh=Math.max(...highs.slice(l1.idx,l2.idx+1));
       const dbDist=(price-l2.price)/l2.price;
-      if (price > l2.price + atr*0.3 && dbDist < 0.06 && price > neckHigh-atr*2) {
+      if (price > l2.price + atr*0.2 && dbDist < 0.10 && price > neckHigh-atr*3) {
         const conf=Math.min(90, 62+(rsi<45?8:0)+(trendUp?8:0)+(macdBull?6:0)+(vol.volumeExpanding?4:0)+(lDiff<atr?4:0));
         results.push({ pattern:'Double Bottom', direction:'BUY',
           entry:price, sl:l2.price-atr*(selectedTF==='D1'?1.8:1.0),
@@ -1517,7 +1517,7 @@ function detectPattern(candles, atr, currentPrice) {
       const impLow=lastSwL.price, impHigh=lastSwH.price;
       const fib618=impHigh-(impHigh-impLow)*0.618;
       const fib382=impHigh-(impHigh-impLow)*0.382;
-      if (Math.abs(price-fib618)<atr*2.0 && rsi<55) {
+      if (Math.abs(price-fib618)<atr*3.0 && rsi<58) {
         const conf=Math.min(86,64+(rsi<45?8:0)+(trendUp?6:0)+(macdBull?6:0)+(ichi?.aboveCloud?4:0));
         results.push({ pattern:'Fib 61.8% Bounce', direction:'BUY',
           entry:fib618, sl:fib618-atr*(selectedTF==='D1'?2.0:1.2),
@@ -1530,7 +1530,7 @@ function detectPattern(candles, atr, currentPrice) {
       // Bearish impulse → retracement to 61.8%
       const impLow=lastSwL.price, impHigh=lastSwH.price;
       const fib618=impLow+(impHigh-impLow)*0.618;
-      if (Math.abs(price-fib618)<atr*2.0 && rsi>45) {
+      if (Math.abs(price-fib618)<atr*3.0 && rsi>42) {
         const conf=Math.min(86,64+(rsi>55?8:0)+(trendDown?6:0)+(macdBear?6:0)+(ichi?.belowCloud?4:0));
         results.push({ pattern:'Fib 61.8% Bounce', direction:'SELL',
           entry:fib618, sl:fib618+atr*(selectedTF==='D1'?2.0:1.2),
@@ -1546,7 +1546,7 @@ function detectPattern(candles, atr, currentPrice) {
     const strongZones=srZones.filter(z=>z.touches>=2);
     for (const zone of strongZones) {
       const distPct=Math.abs(price-zone.price)/zone.price;
-      if (distPct < 0.015) {
+      if (distPct < 0.025) {
         const dir=price>zone.price ? 'BUY' : 'SELL';
         // Confirm breakout direction with indicators
         const dirOk = dir==='BUY' ? (macdBull||trendUp||bullScore>=2) : (macdBear||trendDown||bearScore>=2);
@@ -1678,9 +1678,9 @@ function detectPattern(candles, atr, currentPrice) {
   // ── FALLBACK: EMA Trend Signal (sempre disponibile se trend chiaro) ──
   if (results.length === 0 && ema20 && ema50) {
     const emaSep = Math.abs(ema20 - ema50) / (atr || 1);
-    if (emaSep > 0.5) { // EMAs chiaramente separate
+    if (emaSep > 0.3) { // EMAs abbastanza separate
       const dir = ema20 > ema50 ? 'BUY' : 'SELL';
-      const nearEma = Math.abs(price - ema20) < atr * 1.5;
+      const nearEma = Math.abs(price - ema20) < atr * 4.0; // ampliato: accetta più situazioni
       if (nearEma) {
         results.push({
           pattern: dir === 'BUY' ? 'EMA Bullish Trend' : 'EMA Bearish Trend',
@@ -1695,6 +1695,50 @@ function detectPattern(candles, atr, currentPrice) {
           evidence: { emaSep, nearEma, rsi, dir }
         });
       }
+    }
+  }
+
+  // ── FALLBACK 2: RSI Extremes (last resort) ───────────────────
+  if (results.length === 0 && rsi != null) {
+    if (rsi < 35) {
+      // Oversold — potenziale rimbalzo
+      results.push({
+        pattern: 'RSI Oversold Bounce',
+        direction: 'BUY',
+        entry: price,
+        sl: price - atr * (selectedTF === 'D1' ? 2.0 : 1.2),
+        tp:  price + atr * (selectedTF === 'D1' ? 3.5 : 2.2),
+        confidence: Math.min(72, 55 + (rsi < 25 ? 10 : 5) + (macdBull ? 5 : 0) + (ema20 > ema50 ? 5 : 0)),
+        key_sr: { ema20, ema50 },
+        evidence: { rsi, trendUp, macdBull }
+      });
+    } else if (rsi > 65) {
+      // Overbought — potenziale ritracciamento
+      results.push({
+        pattern: 'RSI Overbought Fade',
+        direction: 'SELL',
+        entry: price,
+        sl: price + atr * (selectedTF === 'D1' ? 2.0 : 1.2),
+        tp:  price - atr * (selectedTF === 'D1' ? 3.5 : 2.2),
+        confidence: Math.min(72, 55 + (rsi > 75 ? 10 : 5) + (macdBear ? 5 : 0) + (ema20 < ema50 ? 5 : 0)),
+        key_sr: { ema20, ema50 },
+        evidence: { rsi, trendDown, macdBear }
+      });
+    } else if (ema20 && ema50) {
+      // Nessuna condizione estrema — usa direzione EMA come last resort
+      const dir = ema20 > ema50 ? 'BUY' : 'SELL';
+      results.push({
+        pattern: 'EMA Trend Continuation',
+        direction: dir,
+        entry: price,
+        sl: dir === 'BUY' ? Math.min(ema50, price) - atr * (selectedTF === 'D1' ? 1.5 : 0.8)
+                          : Math.max(ema50, price) + atr * (selectedTF === 'D1' ? 1.5 : 0.8),
+        tp:  dir === 'BUY' ? price + atr * (selectedTF === 'D1' ? 3 : 2)
+                           : price - atr * (selectedTF === 'D1' ? 3 : 2),
+        confidence: Math.min(65, 50 + (adxTrend ? 8 : 0) + (macdBull && dir === 'BUY' ? 6 : 0) + (macdBear && dir === 'SELL' ? 6 : 0)),
+        key_sr: { ema20, ema50 },
+        evidence: { rsi, dir, adxTrend }
+      });
     }
   }
 
@@ -1979,7 +2023,7 @@ async function callClaudeAPI(prompt) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: 'claude-opus-4-5',
+      model: 'claude-sonnet-4-20250514',
       max_tokens: 4000,
       messages: [{ role: 'user', content: prompt }]
     })
