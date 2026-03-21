@@ -304,6 +304,88 @@ function shiftWeek(dir) {
   loadCalendar();
 }
 
+// ── ForexFactory XML parser ───────────────────────────────────
+// Feed ufficiale: https://nfs.faireconomy.media/ff_calendar_thisweek.xml
+// Struttura stabile dal 2010 — aggiornato ogni domenica notte.
+// Usiamo allorigins.win come proxy CORS (gratuito, affidabile).
+async function fetchForexFactory(weekOff) {
+  // thisweek per offset 0, nextweek per offset +1, fallback per il resto
+  const feedMap = {
+    0:  'https://nfs.faireconomy.media/ff_calendar_thisweek.xml',
+    1:  'https://nfs.faireconomy.media/ff_calendar_nextweek.xml',
+  };
+  const feedUrl = feedMap[weekOff];
+  if (!feedUrl) return [];   // FF fornisce solo this/next week
+
+  // Proxy CORS: allorigins (primario) → corsproxy.io (fallback)
+  const proxies = [
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(feedUrl)}`,
+    `https://corsproxy.io/?${encodeURIComponent(feedUrl)}`,
+  ];
+
+  for (const proxy of proxies) {
+    try {
+      const res = await fetch(proxy, { signal: AbortSignal.timeout(8000) });
+      if (!res.ok) continue;
+      const txt = await res.text();
+      if (!txt || txt.length < 200) continue;
+
+      const parser = new DOMParser();
+      const doc    = parser.parseFromString(txt, 'text/xml');
+      if (doc.querySelector('parsererror')) continue;
+
+      const events = [];
+      for (const ev of doc.querySelectorAll('event')) {
+        const impact = ev.querySelector('impact')?.textContent?.trim() || '';
+        if (!['High','Medium'].includes(impact)) continue;  // salta Low
+
+        const dateRaw = ev.querySelector('date')?.textContent?.trim() || '';  // MM-DD-YYYY
+        const timeRaw = ev.querySelector('time')?.textContent?.trim() || '';  // 8:30am / Tentative / All Day
+        const country = ev.querySelector('country')?.textContent?.trim() || '';
+        const title   = ev.querySelector('title')?.textContent?.trim() || '';
+        const fore    = ev.querySelector('forecast')?.textContent?.trim() || null;
+        const prev    = ev.querySelector('previous')?.textContent?.trim() || null;
+
+        // Converti data MM-DD-YYYY → YYYY-MM-DD
+        let isoDay = '';
+        const dm = dateRaw.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+        if (dm) isoDay = `${dm[3]}-${dm[1]}-${dm[2]}`;
+        else continue;
+
+        // Converti ora ET (UTC-5 inverno / UTC-4 estate) → CET (UTC+1)
+        // Differenza: +6h in EST (nov-mar), +5h in EDT (mar-nov)
+        // Usiamo +6 come valore conservativo; l'errore max è 1h
+        let timeISO = 'T12:00:00';
+        const tm = timeRaw.toLowerCase().replace(/\s/g,'').match(/^(\d{1,2}):(\d{2})(am|pm)$/);
+        if (tm) {
+          let h = parseInt(tm[1]);
+          const m = parseInt(tm[2]);
+          if (tm[3] === 'pm' && h !== 12) h += 12;
+          if (tm[3] === 'am' && h === 12) h = 0;
+          const hCET = (h + 6) % 24;
+          timeISO = `T${String(hCET).padStart(2,'0')}:${String(m).padStart(2,'0')}:00`;
+        }
+
+        events.push({
+          id:       'ff_' + Math.random().toString(36).slice(2),
+          time:     isoDay + timeISO,           // ISO locale CET
+          country:  country.toUpperCase(),
+          event:    title,
+          impact:   impact.toLowerCase(),        // 'high' | 'medium'
+          actual:   null,
+          forecast: fore || null,
+          prev:     prev || null,
+        });
+      }
+      console.log(`Calendar: ForexFactory OK (${proxy.includes('allorigins') ? 'allorigins' : 'corsproxy'}) — ${events.length} events`);
+      return events;
+    } catch(e) {
+      console.warn('ForexFactory proxy failed:', e.message);
+    }
+  }
+  return [];
+}
+
 // ── Fetch calendar (multi-source) ────────────────────────────
 async function loadCalendar() {
   updateWeekLabel();
@@ -320,20 +402,28 @@ async function loadCalendar() {
 
   let events = [];
 
-  // Source 1: Finnhub economic calendar
-  try {
-    const res = await fetch(WORKER, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'finnhub', action: 'economic_calendar', from, to })
-    });
-    if (res.ok) {
-      const data = await res.json();
-      const raw = data.economicCalendar || data.events || [];
-      if (raw.length > 0) { events = raw; console.log('Calendar: Finnhub OK', raw.length, 'events'); }
-    }
-  } catch(e) { console.warn('Finnhub calendar failed:', e.message); }
+  // ── Source 1: ForexFactory XML (primario — dati reali, gratuito) ──
+  events = await fetchForexFactory(weekOffset);
 
-  // Source 2: TradingEconomics via Twelve Data proxy (if Finnhub returned nothing)
+  // ── Source 2: Finnhub (fallback se FF non disponibile) ───────────
+  if (events.length === 0) {
+    try {
+      const res = await fetch(WORKER, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'finnhub', action: 'economic_calendar', from, to })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const raw = data.economicCalendar || data.events || [];
+        if (raw.length > 0) {
+          events = raw;
+          console.log('Calendar: Finnhub fallback OK', raw.length, 'events');
+        }
+      }
+    } catch(e) { console.warn('Finnhub calendar failed:', e.message); }
+  }
+
+  // ── Source 3: Twelve Data (secondo fallback) ──────────────────────
   if (events.length === 0) {
     try {
       const res = await fetch(WORKER, {
@@ -344,7 +434,6 @@ async function loadCalendar() {
         const data = await res.json();
         const raw = data.result || data.data || data.events || [];
         if (raw.length > 0) {
-          // normalize TwelveData format to Finnhub-compatible
           events = raw.map(e => ({
             id: e.id || Math.random().toString(36).slice(2),
             time: e.date || e.datetime || e.time || '',
@@ -354,7 +443,7 @@ async function loadCalendar() {
             actual: e.actual, forecast: e.consensus || e.estimate || e.forecast,
             prev: e.previous || e.prev
           }));
-          console.log('Calendar: TwelveData OK', events.length, 'events');
+          console.log('Calendar: TwelveData fallback OK', events.length, 'events');
         }
       }
     } catch(e) { console.warn('TwelveData calendar failed:', e.message); }
@@ -362,9 +451,9 @@ async function loadCalendar() {
 
   allEvents = normalizeEvents(events, mon, fri);
 
-  // Fallback: genera eventi realistici per la settimana corrente
+  // ── Fallback statico solo se tutte le sorgenti falliscono ─────────
   if (allEvents.length === 0) {
-    console.warn('Both sources failed — using generated fallback');
+    console.warn('All sources failed — using static fallback');
     allEvents = normalizeEvents(generateFallbackEvents(mon, fri), mon, fri);
   }
 
