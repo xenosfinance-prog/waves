@@ -1,4 +1,4 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -555,6 +555,153 @@ body {
   .dashboard-grid { grid-template-columns: 1fr; }
   .bottom-grid { grid-template-columns: 1fr; }
 }
+
+  /* ── PORTFOLIO ── */
+  #portfolioView { display:none; }
+  #portfolioView.active { display:block; }
+  #dashboardView { display:block; }
+  #dashboardView.hidden { display:none; }
+
+  .pf-header-row {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:20px;
+  }
+  .pf-title {
+    font-family:var(--serif); font-size:1.3rem; font-weight:700; color:var(--text);
+  }
+  .pf-add-btn {
+    display:flex; align-items:center; gap:7px;
+    background:var(--gold); color:var(--bg); border:none;
+    font-family:var(--mono); font-size:0.6rem; font-weight:600;
+    letter-spacing:0.12em; text-transform:uppercase;
+    padding:9px 18px; cursor:pointer; transition:opacity 0.2s;
+  }
+  .pf-add-btn:hover { opacity:0.85; }
+
+  .pf-summary {
+    display:grid; grid-template-columns:repeat(4,1fr);
+    gap:1px; background:var(--border2);
+    border:1px solid var(--border); margin-bottom:20px;
+  }
+  .pf-sum-card {
+    background:var(--bg2); padding:18px 20px;
+  }
+  .pf-sum-label {
+    font-family:var(--mono); font-size:0.5rem; letter-spacing:0.18em;
+    text-transform:uppercase; color:var(--dim); margin-bottom:8px;
+  }
+  .pf-sum-val {
+    font-family:var(--serif); font-size:1.4rem; font-weight:700; color:var(--text);
+  }
+  .pf-sum-sub { font-family:var(--mono); font-size:0.58rem; margin-top:4px; }
+  .pf-sum-sub.up { color:var(--green); }
+  .pf-sum-sub.dn { color:var(--red); }
+  .pf-sum-sub.neutral { color:var(--dim); }
+
+  .pf-table-wrap { border:1px solid var(--border); background:var(--bg2); margin-bottom:20px; }
+  .pf-table-head {
+    display:grid;
+    grid-template-columns:140px 80px 100px 100px 110px 110px 110px 60px;
+    gap:0; padding:10px 16px;
+    border-bottom:1px solid var(--border);
+    background:var(--bg3);
+  }
+  .pf-th {
+    font-family:var(--mono); font-size:0.5rem; letter-spacing:0.14em;
+    text-transform:uppercase; color:var(--dim); text-align:right;
+  }
+  .pf-th:first-child { text-align:left; }
+  .pf-table-body { }
+  .pf-row {
+    display:grid;
+    grid-template-columns:140px 80px 100px 100px 110px 110px 110px 60px;
+    gap:0; padding:13px 16px;
+    border-bottom:1px solid var(--border2);
+    align-items:center; transition:background 0.12s;
+  }
+  .pf-row:hover { background:var(--bg3); }
+  .pf-cell { font-family:var(--mono); font-size:0.68rem; text-align:right; color:var(--text); }
+  .pf-cell:first-child { text-align:left; }
+  .pf-sym { font-weight:500; color:var(--text); }
+  .pf-name { font-size:0.52rem; color:var(--dim); margin-top:2px; }
+  .pf-cell.up { color:var(--green); }
+  .pf-cell.dn { color:var(--red); }
+  .pf-del-btn {
+    background:none; border:1px solid var(--border); color:var(--dim);
+    font-family:var(--mono); font-size:0.5rem; padding:3px 8px;
+    cursor:pointer; transition:all 0.15s; letter-spacing:0.08em;
+  }
+  .pf-del-btn:hover { border-color:var(--red); color:var(--red); }
+
+  .pf-empty {
+    text-align:center; padding:60px 20px;
+    font-family:var(--mono); font-size:0.65rem; color:var(--dim);
+    letter-spacing:0.1em; border:1px dashed var(--border); margin-bottom:20px;
+  }
+  .pf-empty-icon { font-size:2rem; margin-bottom:12px; opacity:0.3; }
+
+  /* Add position modal */
+  .pf-overlay {
+    display:none; position:fixed; inset:0; z-index:9000;
+    background:rgba(28,15,0,0.5); backdrop-filter:blur(3px);
+    align-items:center; justify-content:center;
+  }
+  .pf-overlay.open { display:flex; }
+  .pf-modal {
+    background:var(--bg); border:1px solid var(--border);
+    border-top:2px solid var(--gold);
+    width:420px; max-width:95vw; padding:28px 32px;
+    box-shadow:0 8px 40px rgba(28,15,0,0.2);
+  }
+  .pf-modal-title {
+    font-family:var(--mono); font-size:0.65rem; letter-spacing:0.2em;
+    text-transform:uppercase; color:var(--gold); margin-bottom:20px;
+  }
+  .pf-field { margin-bottom:14px; }
+  .pf-label {
+    display:block; font-family:var(--mono); font-size:0.52rem;
+    letter-spacing:0.12em; text-transform:uppercase; color:var(--dim); margin-bottom:5px;
+  }
+  .pf-input {
+    width:100%; background:var(--bg2); border:1px solid var(--border);
+    color:var(--text); font-family:var(--mono); font-size:0.72rem;
+    padding:9px 12px; outline:none; transition:border-color 0.2s;
+  }
+  .pf-input:focus { border-color:var(--gold); }
+  .pf-input-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .pf-modal-btns { display:flex; gap:10px; margin-top:20px; }
+  .pf-btn-confirm {
+    flex:1; background:var(--gold); color:var(--bg); border:none;
+    font-family:var(--mono); font-size:0.6rem; font-weight:600;
+    letter-spacing:0.12em; text-transform:uppercase; padding:10px; cursor:pointer;
+  }
+  .pf-btn-confirm:hover { opacity:0.85; }
+  .pf-btn-cancel {
+    flex:1; background:none; border:1px solid var(--border); color:var(--dim);
+    font-family:var(--mono); font-size:0.6rem; letter-spacing:0.12em;
+    text-transform:uppercase; padding:10px; cursor:pointer;
+  }
+  .pf-btn-cancel:hover { border-color:var(--gold); color:var(--gold); }
+  .pf-error { font-family:var(--mono); font-size:0.58rem; color:var(--red); margin-top:8px; display:none; }
+  .pf-gh-status { font-family:var(--mono); font-size:0.55rem; color:var(--dim); margin-top:10px; text-align:center; }
+
+  /* GitHub config */
+  .pf-gh-cfg {
+    background:var(--bg2); border:1px solid var(--border);
+    padding:16px 20px; margin-bottom:16px; display:none;
+  }
+  .pf-gh-cfg.open { display:block; }
+  .pf-gh-cfg-title {
+    font-family:var(--mono); font-size:0.58rem; letter-spacing:0.15em;
+    text-transform:uppercase; color:var(--gold); margin-bottom:12px;
+  }
+  @media(max-width:900px) {
+    .pf-summary { grid-template-columns:repeat(2,1fr); }
+    .pf-table-head, .pf-row { grid-template-columns:120px 70px 90px 90px 1fr; }
+    .pf-th:nth-child(6), .pf-th:nth-child(7),
+    .pf-cell:nth-child(6), .pf-cell:nth-child(7) { display:none; }
+  }
+
 </style>
 </head>
 <body>
@@ -648,7 +795,8 @@ body {
   <!-- Content -->
   <div class="content">
 
-    <!-- Stat Cards -->
+    <div id="dashboardView">
+  <!-- Stat Cards -->
     <div class="stat-grid" id="statGrid">
       <div class="stat-card">
         <div class="stat-card-top"><div class="stat-label">S&amp;P 500</div><div class="stat-icon">◈</div></div>
@@ -733,6 +881,130 @@ body {
         <div id="sectorList"></div>
       </div>
     </div>
+
+
+  <!-- ── PORTFOLIO VIEW ── -->
+  <div id="portfolioView">
+
+    <!-- GitHub config strip -->
+    <div class="pf-gh-cfg" id="pfGhCfg">
+      <div class="pf-gh-cfg-title">// GitHub Sync — required to persist portfolio across devices</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px;">
+        <div class="pf-field">
+          <label class="pf-label">GitHub Token (PAT)</label>
+          <input class="pf-input" id="pfGhToken" type="password" placeholder="ghp_...">
+        </div>
+        <div class="pf-field">
+          <label class="pf-label">Repo (user/repo)</label>
+          <input class="pf-input" id="pfGhRepo" value="xenosfinance-prog/waves" placeholder="user/repo">
+        </div>
+        <div class="pf-field">
+          <label class="pf-label">Branch</label>
+          <input class="pf-input" id="pfGhBranch" value="main" placeholder="main">
+        </div>
+      </div>
+      <button class="pf-add-btn" style="background:var(--blue)" onclick="saveGhConfig()">✓ Save &amp; Connect</button>
+      <span id="pfGhStatus" class="pf-gh-status"></span>
+    </div>
+
+    <div class="pf-header-row">
+      <div class="pf-title">My Portfolio</div>
+      <div style="display:flex;gap:10px;align-items:center;">
+        <button class="pf-add-btn" style="background:transparent;border:1px solid var(--border);color:var(--dim);font-size:0.55rem;" onclick="document.getElementById('pfGhCfg').classList.toggle('open')">⚙ GitHub Sync</button>
+        <button class="pf-add-btn" onclick="openAddModal()">+ Add Position</button>
+      </div>
+    </div>
+
+    <!-- Summary cards -->
+    <div class="pf-summary">
+      <div class="pf-sum-card">
+        <div class="pf-sum-label">Total Value</div>
+        <div class="pf-sum-val" id="pf-total-val">$0.00</div>
+        <div class="pf-sum-sub neutral" id="pf-total-cost">Cost: $0.00</div>
+      </div>
+      <div class="pf-sum-card">
+        <div class="pf-sum-label">Total P&amp;L</div>
+        <div class="pf-sum-val" id="pf-total-pnl">$0.00</div>
+        <div class="pf-sum-sub" id="pf-total-pnl-pct">0.00%</div>
+      </div>
+      <div class="pf-sum-card">
+        <div class="pf-sum-label">Day P&amp;L</div>
+        <div class="pf-sum-val" id="pf-day-pnl">$0.00</div>
+        <div class="pf-sum-sub neutral" id="pf-day-pnl-sub">vs yesterday</div>
+      </div>
+      <div class="pf-sum-card">
+        <div class="pf-sum-label">Positions</div>
+        <div class="pf-sum-val" id="pf-count">0</div>
+        <div class="pf-sum-sub neutral" id="pf-last-update">Not synced</div>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div class="pf-table-wrap" id="pfTableWrap">
+      <div class="pf-table-head">
+        <span class="pf-th">Asset</span>
+        <span class="pf-th">Side</span>
+        <span class="pf-th">Qty</span>
+        <span class="pf-th">Avg Price</span>
+        <span class="pf-th">Current</span>
+        <span class="pf-th">Value</span>
+        <span class="pf-th">P&amp;L</span>
+        <span class="pf-th"></span>
+      </div>
+      <div id="pfTableBody">
+        <div class="pf-empty">
+          <div class="pf-empty-icon">◈</div>
+          No positions yet — click <b>+ Add Position</b> to start tracking
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /portfolioView -->
+
+  <!-- Add Position Modal -->
+  <div class="pf-overlay" id="pfOverlay" onclick="closePfModal(event)">
+    <div class="pf-modal">
+      <div class="pf-modal-title">✦ Add Position</div>
+      <div class="pf-field">
+        <label class="pf-label">Symbol</label>
+        <input class="pf-input" id="pfSym" placeholder="e.g. AAPL, BTC-USD, GC=F, EURUSD=X" style="text-transform:uppercase">
+      </div>
+      <div class="pf-field">
+        <label class="pf-label">Asset Name</label>
+        <input class="pf-input" id="pfName" placeholder="e.g. Apple Inc.">
+      </div>
+      <div class="pf-field">
+        <label class="pf-label">Side</label>
+        <select class="pf-input" id="pfSide">
+          <option value="LONG">LONG (Buy)</option>
+          <option value="SHORT">SHORT (Sell)</option>
+        </select>
+      </div>
+      <div class="pf-input-row">
+        <div class="pf-field">
+          <label class="pf-label">Quantity</label>
+          <input class="pf-input" id="pfQty" type="number" step="any" placeholder="e.g. 10">
+        </div>
+        <div class="pf-field">
+          <label class="pf-label">Avg Entry Price ($)</label>
+          <input class="pf-input" id="pfEntry" type="number" step="any" placeholder="e.g. 180.50">
+        </div>
+      </div>
+      <div class="pf-field">
+        <label class="pf-label">Asset Type</label>
+        <select class="pf-input" id="pfFmt">
+          <option value="price">Stock / ETF / Commodity</option>
+          <option value="crypto">Crypto</option>
+          <option value="fx">FX / Forex</option>
+        </select>
+      </div>
+      <div class="pf-error" id="pfError"></div>
+      <div class="pf-modal-btns">
+        <button class="pf-btn-cancel" onclick="closePfModal()">Cancel</button>
+        <button class="pf-btn-confirm" onclick="addPosition()">✦ Add Position</button>
+      </div>
+    </div>
+  </div>
 
   </div><!-- /content -->
 </div><!-- /main -->
@@ -1161,6 +1433,287 @@ async function init() {
 }
 
 init();
+initPortfolio();
+
+
+// ══════════════════════════════════════════════════════════════
+// PORTFOLIO ENGINE — GitHub-synced, P&L live
+// ══════════════════════════════════════════════════════════════
+
+const PF_FILE = 'portfolio.json';
+let pfPositions = [];   // [{id, sym, name, side, qty, entry, fmt, addedAt}]
+let ghConfig    = {};   // {token, repo, branch}
+let pfFileSha   = null; // GitHub file SHA for updates
+
+// ── GitHub helpers ────────────────────────────────────────────
+function getGhConfig() {
+  const saved = localStorage.getItem('xenos_gh_pf');
+  if (saved) { ghConfig = JSON.parse(saved); return ghConfig; }
+  return {};
+}
+function saveGhConfig() {
+  ghConfig = {
+    token:  document.getElementById('pfGhToken').value.trim(),
+    repo:   document.getElementById('pfGhRepo').value.trim(),
+    branch: document.getElementById('pfGhBranch').value.trim() || 'main',
+  };
+  if (!ghConfig.token || !ghConfig.repo) {
+    document.getElementById('pfGhStatus').textContent = '⚠ Token and repo required';
+    return;
+  }
+  localStorage.setItem('xenos_gh_pf', JSON.stringify(ghConfig));
+  document.getElementById('pfGhStatus').textContent = '✓ Saved — syncing...';
+  document.getElementById('pfGhCfg').classList.remove('open');
+  loadPortfolioFromGH();
+}
+
+async function ghRequest(method, path, body=null) {
+  const cfg = getGhConfig();
+  if (!cfg.token) return null;
+  const url = `https://api.github.com/repos/${cfg.repo}/contents/${path}`;
+  const opts = {
+    method,
+    headers: {
+      'Authorization': `token ${cfg.token}`,
+      'Accept': 'application/vnd.github.v3+json',
+      'Content-Type': 'application/json',
+    },
+  };
+  if (body) opts.body = JSON.stringify(body);
+  try {
+    const r = await fetch(url, opts);
+    return { status: r.status, data: await r.json() };
+  } catch(e) { return null; }
+}
+
+function toB64(str) {
+  return btoa(unescape(encodeURIComponent(str)));
+}
+function fromB64(str) {
+  return decodeURIComponent(escape(atob(str.replace(/\s/g,''))));
+}
+
+async function loadPortfolioFromGH() {
+  const res = await ghRequest('GET', PF_FILE);
+  if (!res) { loadFromLocal(); return; }
+  if (res.status === 200 && res.data.content) {
+    pfFileSha = res.data.sha;
+    pfPositions = JSON.parse(fromB64(res.data.content));
+    localStorage.setItem('xenos_pf_local', JSON.stringify(pfPositions));
+    document.getElementById('pf-last-update').textContent = 'Synced from GitHub';
+    renderPortfolio();
+  } else if (res.status === 404) {
+    // File doesn't exist yet — start fresh
+    pfPositions = [];
+    renderPortfolio();
+  } else {
+    loadFromLocal();
+  }
+}
+
+async function savePortfolioToGH() {
+  const cfg = getGhConfig();
+  if (!cfg.token) {
+    localStorage.setItem('xenos_pf_local', JSON.stringify(pfPositions));
+    document.getElementById('pf-last-update').textContent = 'Saved locally (no GitHub)';
+    return;
+  }
+  const payload = {
+    message: 'Portfolio update — XenosFinance Dashboard',
+    content: toB64(JSON.stringify(pfPositions, null, 2)),
+    branch:  cfg.branch || 'main',
+  };
+  if (pfFileSha) payload.sha = pfFileSha;
+  const res = await ghRequest('PUT', PF_FILE, payload);
+  if (res && (res.status === 200 || res.status === 201)) {
+    pfFileSha = res.data.content?.sha || pfFileSha;
+    document.getElementById('pf-last-update').textContent =
+      'Synced ' + new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+    localStorage.setItem('xenos_pf_local', JSON.stringify(pfPositions));
+  } else {
+    document.getElementById('pf-last-update').textContent = '⚠ GitHub sync failed — saved locally';
+    localStorage.setItem('xenos_pf_local', JSON.stringify(pfPositions));
+  }
+}
+
+function loadFromLocal() {
+  const saved = localStorage.getItem('xenos_pf_local');
+  pfPositions = saved ? JSON.parse(saved) : [];
+  document.getElementById('pf-last-update').textContent = 'Local only';
+  renderPortfolio();
+}
+
+// ── Modal ─────────────────────────────────────────────────────
+function openAddModal() {
+  document.getElementById('pfSym').value   = '';
+  document.getElementById('pfName').value  = '';
+  document.getElementById('pfQty').value   = '';
+  document.getElementById('pfEntry').value = '';
+  document.getElementById('pfSide').value  = 'LONG';
+  document.getElementById('pfFmt').value   = 'price';
+  document.getElementById('pfError').style.display = 'none';
+  document.getElementById('pfOverlay').classList.add('open');
+  document.getElementById('pfSym').focus();
+}
+function closePfModal(e) {
+  if (e && e.target !== document.getElementById('pfOverlay')) return;
+  document.getElementById('pfOverlay').classList.remove('open');
+}
+
+async function addPosition() {
+  const sym   = document.getElementById('pfSym').value.trim().toUpperCase();
+  const name  = document.getElementById('pfName').value.trim() || sym;
+  const side  = document.getElementById('pfSide').value;
+  const qty   = parseFloat(document.getElementById('pfQty').value);
+  const entry = parseFloat(document.getElementById('pfEntry').value);
+  const fmt   = document.getElementById('pfFmt').value;
+  const errEl = document.getElementById('pfError');
+
+  if (!sym || isNaN(qty) || qty <= 0 || isNaN(entry) || entry <= 0) {
+    errEl.textContent = '⚠ Please fill all fields with valid values';
+    errEl.style.display = 'block';
+    return;
+  }
+  errEl.style.display = 'none';
+
+  pfPositions.push({ id: Date.now().toString(), sym, name, side, qty, entry, fmt, addedAt: new Date().toISOString() });
+  document.getElementById('pfOverlay').classList.remove('open');
+  await savePortfolioToGH();
+  renderPortfolio();
+}
+
+async function deletePosition(id) {
+  if (!confirm('Remove this position?')) return;
+  pfPositions = pfPositions.filter(p => p.id !== id);
+  await savePortfolioToGH();
+  renderPortfolio();
+}
+
+// ── Render ────────────────────────────────────────────────────
+function renderPortfolio() {
+  const body = document.getElementById('pfTableBody');
+  document.getElementById('pf-count').textContent = pfPositions.length;
+
+  if (pfPositions.length === 0) {
+    body.innerHTML = '<div class="pf-empty"><div class="pf-empty-icon">◈</div>No positions yet — click <b>+ Add Position</b> to start tracking</div>';
+    updatePfSummary(0, 0, 0);
+    return;
+  }
+
+  let totalCost = 0, totalVal = 0, totalDayPnl = 0;
+  let html = '';
+
+  for (const pos of pfPositions) {
+    const d      = prices[pos.sym];
+    const curRaw = d ? (typeof d === 'object' ? (d.price || d.p || d) : d) : null;
+    const cur    = curRaw ? parseFloat(curRaw) : null;
+    const chgPct = d ? parseFloat(typeof d === 'object' ? (d.change_pct || d.chg || 0) : 0) : 0;
+
+    const cost   = pos.qty * pos.entry;
+    const value  = cur ? pos.qty * cur : cost;
+    const pnlRaw = pos.side === 'LONG' ? value - cost : cost - value;
+    const pnlPct = cost > 0 ? (pnlRaw / cost) * 100 : 0;
+    const dayPnl = cur ? pos.qty * cur * (chgPct / 100) * (pos.side === 'LONG' ? 1 : -1) : 0;
+
+    totalCost   += cost;
+    totalVal    += value;
+    totalDayPnl += dayPnl;
+
+    const pnlCls = pnlRaw >= 0 ? 'up' : 'dn';
+    const pnlArr = pnlRaw >= 0 ? '▲' : '▼';
+    const sideCls = pos.side === 'LONG' ? 'up' : 'dn';
+
+    const fmtVal = v => {
+      if (v == null) return '—';
+      const n = parseFloat(v);
+      if (pos.fmt === 'fx')     return n.toFixed(4);
+      if (pos.fmt === 'crypto') return n > 1000 ? '$' + n.toLocaleString('en',{maximumFractionDigits:0}) : '$' + n.toFixed(2);
+      return '$' + n.toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:2});
+    };
+
+    html += `<div class="pf-row">
+      <div class="pf-cell">
+        <div class="pf-sym">${pos.sym}</div>
+        <div class="pf-name">${pos.name}</div>
+      </div>
+      <div class="pf-cell ${sideCls}">${pos.side}</div>
+      <div class="pf-cell">${pos.qty.toLocaleString('en',{maximumFractionDigits:6})}</div>
+      <div class="pf-cell">${fmtVal(pos.entry)}</div>
+      <div class="pf-cell">${cur ? fmtVal(cur) : '<span style="color:var(--dim)">—</span>'}</div>
+      <div class="pf-cell">${'$' + value.toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
+      <div class="pf-cell ${pnlCls}">${pnlArr} $${Math.abs(pnlRaw).toFixed(2)} <span style="font-size:0.52rem">(${pnlPct >= 0 ? '+' : ''}${pnlPct.toFixed(2)}%)</span></div>
+      <div class="pf-cell"><button class="pf-del-btn" onclick="deletePosition('${pos.id}')">✕</button></div>
+    </div>`;
+  }
+
+  body.innerHTML = html;
+  updatePfSummary(totalVal, totalCost, totalDayPnl);
+}
+
+function updatePfSummary(totalVal, totalCost, dayPnl) {
+  const totalPnl    = totalVal - totalCost;
+  const totalPnlPct = totalCost > 0 ? (totalPnl / totalCost) * 100 : 0;
+
+  const fmt$ = v => '$' + Math.abs(v).toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const sign = v => v >= 0 ? '▲ +' : '▼ -';
+  const cls  = v => v >= 0 ? 'up' : 'dn';
+
+  document.getElementById('pf-total-val').textContent  = '$' + totalVal.toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:2});
+  document.getElementById('pf-total-cost').textContent = 'Cost: $' + totalCost.toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:2});
+
+  const pnlEl    = document.getElementById('pf-total-pnl');
+  pnlEl.textContent  = (totalPnl >= 0 ? '+' : '-') + fmt$(totalPnl);
+  pnlEl.className    = 'pf-sum-val ' + cls(totalPnl);
+
+  const pnlPctEl = document.getElementById('pf-total-pnl-pct');
+  pnlPctEl.textContent = sign(totalPnlPct) + Math.abs(totalPnlPct).toFixed(2) + '%';
+  pnlPctEl.className   = 'pf-sum-sub ' + cls(totalPnl);
+
+  const dayEl  = document.getElementById('pf-day-pnl');
+  dayEl.textContent = (dayPnl >= 0 ? '+' : '-') + fmt$(dayPnl);
+  dayEl.className   = 'pf-sum-val ' + cls(dayPnl);
+  document.getElementById('pf-day-pnl-sub').textContent = 'Today vs yesterday close';
+}
+
+// ── Navigation wiring ─────────────────────────────────────────
+// Override setNav to show/hide portfolio view
+const _origSetNav = setNav;
+function setNav(el) {
+  _origSetNav(el);
+  const label = el.querySelector('.nav-label')?.textContent?.trim();
+  const dash  = document.getElementById('dashboardView');
+  const pf    = document.getElementById('portfolioView');
+  if (label === 'Portfolio') {
+    dash.classList.add('hidden');
+    pf.classList.add('active');
+    document.querySelector('.page-title').textContent = 'My Portfolio';
+    renderPortfolio(); // refresh P&L with latest prices
+  } else {
+    pf.classList.remove('active');
+    dash.classList.remove('hidden');
+    document.querySelector('.page-title').textContent = 'Market Dashboard';
+  }
+}
+
+// ── Init portfolio ────────────────────────────────────────────
+function initPortfolio() {
+  const cfg = getGhConfig();
+  if (cfg.token) {
+    document.getElementById('pfGhToken').value  = cfg.token;
+    document.getElementById('pfGhRepo').value   = cfg.repo  || 'xenosfinance-prog/waves';
+    document.getElementById('pfGhBranch').value = cfg.branch || 'main';
+    loadPortfolioFromGH();
+  } else {
+    loadFromLocal();
+  }
+}
+
+// Keyboard shortcut: Escape closes modal
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') document.getElementById('pfOverlay').classList.remove('open');
+  if (e.key === 'Enter' && document.getElementById('pfOverlay').classList.contains('open')) addPosition();
+});
+
 </script>
 </body>
 </html>
