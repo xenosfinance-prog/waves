@@ -368,7 +368,7 @@ async function fetchForexFactory(weekOff) {
         }
 
         events.push({
-          id:       'ff_' + Math.random().toString(36).slice(2),
+          id:       'ff_' + isoDay + '_' + title.slice(0,16).replace(/\s/g,'_'),
           time:     isoDay + timeISO,           // ISO locale CET
           country:  country.toUpperCase(),
           event:    title,
@@ -450,12 +450,12 @@ async function loadCalendar() {
     } catch(e) { console.warn('TwelveData calendar failed:', e.message); }
   }
 
-  allEvents = normalizeEvents(events, mon, fri);
+  allEvents = deduplicateEvents(normalizeEvents(events, mon, fri));
 
   // ── Fallback statico solo se tutte le sorgenti falliscono ─────────
   if (allEvents.length === 0) {
     console.warn('All sources failed — using static fallback');
-    allEvents = normalizeEvents(generateFallbackEvents(mon, fri), mon, fri);
+    allEvents = deduplicateEvents(normalizeEvents(generateFallbackEvents(mon, fri), mon, fri));
   }
 
   allEvents.sort((a,b) => a.datetime - b.datetime);
@@ -488,15 +488,15 @@ function normalizeEvents(raw, mon, fri) {
     // include all medium+ (skip truly low)
 
     normalized.push({
-      id:       e.id || Math.random().toString(36).slice(2),
+      id:       e.id || ('ev_' + isoDate(dt) + '_' + (e.event||e.name||'').slice(0,12).replace(/\s/g,'_')),
       datetime: dt,
       country:  (e.country || 'US').toUpperCase(),
       flag:     countryFlag((e.country || 'US').toUpperCase()),
       name:     e.event || e.name || e.description || 'Economic Event',
       impact,
       actual:   e.actual   != null && e.actual   !== '' ? String(e.actual)   : null,
-      forecast: e.estimate != null && e.estimate !== '' ? String(e.estimate) : (e.forecast != null ? String(e.forecast) : null),
-      previous: e.prev     != null && e.prev     !== '' ? String(e.prev)     : (e.previous != null ? String(e.previous) : null),
+      forecast: e.estimate != null && e.estimate !== '' ? String(e.estimate) : (e.forecast != null && e.forecast !== '' ? String(e.forecast) : null),
+      previous: e.prev     != null && e.prev     !== '' ? String(e.prev)     : (e.previous != null && e.previous !== '' ? String(e.previous) : null),
       unit:     e.unit || '',
       _raw:     e,
     });
@@ -520,52 +520,108 @@ function countryFlag(cc) {
 }
 
 // ── Fallback static events ─────────────────────────────────────
+// Ogni evento ha un giorno fisso della settimana (0=Mon…4=Fri).
+// Gli eventi NON si ripetono tutti ogni settimana — simuliamo un
+// calendario realistico dove eventi mensili compaiono solo la prima
+// settimana del mese, settimanali ogni settimana, ecc.
 function generateFallbackEvents(mon, fri) {
-  const fallback = [
-    { country:'US', impact:'high',   name:'Federal Reserve Interest Rate Decision', time:'Wed 18:00 UTC' },
-    { country:'US', impact:'high',   name:'Non-Farm Payrolls',                      time:'Fri 12:30 UTC' },
-    { country:'US', impact:'high',   name:'CPI m/m (Consumer Price Index)',          time:'Wed 12:30 UTC' },
-    { country:'US', impact:'high',   name:'Initial Jobless Claims',                  time:'Thu 12:30 UTC' },
-    { country:'US', impact:'med',    name:'ADP Non-Farm Employment Change',          time:'Wed 12:15 UTC' },
-    { country:'EU', impact:'high',   name:'ECB Interest Rate Decision',              time:'Thu 12:15 UTC' },
-    { country:'EU', impact:'med',    name:'Flash GDP q/q',                          time:'Tue 09:00 UTC' },
-    { country:'GB', impact:'med',    name:'BOE Interest Rate Decision',              time:'Thu 12:00 UTC' },
-    { country:'US', impact:'med',    name:'ISM Manufacturing PMI',                   time:'Mon 14:00 UTC' },
-    { country:'US', impact:'med',    name:'Retail Sales m/m',                       time:'Wed 12:30 UTC' },
-    { country:'US', impact:'med',    name:'PPI m/m (Producer Price Index)',           time:'Thu 12:30 UTC' },
-    { country:'JP', impact:'med',    name:'BOJ Monetary Policy Statement',           time:'Fri 03:00 UTC' },
-    { country:'US', impact:'low',    name:'CB Consumer Confidence',                  time:'Tue 14:00 UTC' },
-    { country:'DE', impact:'med',    name:'German Ifo Business Climate',             time:'Mon 08:00 UTC' },
-    { country:'US', impact:'med',    name:'PCE Price Index m/m',                    time:'Fri 12:30 UTC' },
-    { country:'CA', impact:'med',    name:'BOC Rate Statement',                      time:'Wed 14:00 UTC' },
-    { country:'AU', impact:'med',    name:'RBA Rate Decision',                       time:'Tue 03:30 UTC' },
-    { country:'US', impact:'low',    name:'EIA Crude Oil Inventories',               time:'Wed 14:30 UTC' },
-    { country:'US', impact:'med',    name:'FOMC Meeting Minutes',                    time:'Wed 18:00 UTC' },
-    { country:'EU', impact:'med',    name:'Flash CPI y/y',                          time:'Fri 09:00 UTC' },
+  const monDate = mon.getDate();
+  const isFirstWeek  = monDate <= 7;
+  const isSecondWeek = monDate > 7  && monDate <= 14;
+  const isThirdWeek  = monDate > 14 && monDate <= 21;
+  const isFourthWeek = monDate > 21;
+
+  // [dayOfWeek(0=Mon…4=Fri), hUTC, mUTC, country, impact, name, frequency]
+  // frequency: 'weekly' | 'monthly_1' | 'monthly_2' | 'monthly_3' | 'monthly_4' | 'any'
+  const TEMPLATE = [
+    // ── WEEKLY ──
+    [3, 12, 30, 'US', 'high', 'Initial Jobless Claims',            'weekly'],
+    [2, 14, 30, 'US', 'low',  'EIA Crude Oil Inventories',         'weekly'],
+
+    // ── 1st week of month ──
+    [4, 12, 30, 'US', 'high', 'Non-Farm Payrolls',                 'monthly_1'],
+    [4, 12, 30, 'US', 'med',  'Unemployment Rate',                 'monthly_1'],
+    [0, 14, 0,  'US', 'med',  'ISM Manufacturing PMI',             'monthly_1'],
+    [2, 14, 0,  'US', 'med',  'ISM Services PMI',                  'monthly_1'],
+    [1,  3, 30, 'AU', 'med',  'RBA Rate Decision',                 'monthly_1'],
+    [2, 14, 0,  'CA', 'med',  'BOC Rate Statement',                'monthly_1'],
+
+    // ── 2nd week of month ──
+    [2, 12, 30, 'US', 'high', 'CPI m/m (Consumer Price Index)',    'monthly_2'],
+    [2, 12, 30, 'US', 'high', 'Core CPI m/m',                      'monthly_2'],
+    [3, 12, 30, 'US', 'med',  'PPI m/m (Producer Price Index)',    'monthly_2'],
+    [2, 12, 15, 'US', 'med',  'ADP Non-Farm Employment Change',    'monthly_2'],
+    [1,  9,  0, 'GB', 'med',  'UK GDP m/m',                        'monthly_2'],
+
+    // ── 3rd week of month ──
+    [2, 12, 30, 'US', 'med',  'Retail Sales m/m',                  'monthly_3'],
+    [3, 12, 0,  'US', 'high', 'Federal Reserve Interest Rate Decision', 'monthly_3'],
+    [3, 18, 30, 'US', 'high', 'FOMC Press Conference',             'monthly_3'],
+    [3, 12, 15, 'EU', 'high', 'ECB Interest Rate Decision',        'monthly_3'],
+    [3, 12,  0, 'GB', 'med',  'BOE Interest Rate Decision',        'monthly_3'],
+    [0,  8,  0, 'DE', 'med',  'German Ifo Business Climate',       'monthly_3'],
+    [4,  3,  0, 'JP', 'med',  'BOJ Monetary Policy Statement',     'monthly_3'],
+
+    // ── 4th week of month ──
+    [4, 12, 30, 'US', 'high', 'PCE Price Index m/m',               'monthly_4'],
+    [4, 12, 30, 'US', 'med',  'Core PCE Price Index m/m',          'monthly_4'],
+    [1, 14,  0, 'US', 'low',  'CB Consumer Confidence',            'monthly_4'],
+    [3, 12, 30, 'US', 'med',  'Durable Goods Orders m/m',          'monthly_4'],
+    [2, 18,  0, 'US', 'med',  'FOMC Meeting Minutes',              'monthly_4'],
+    [4,  9,  0, 'EU', 'med',  'Flash CPI y/y',                     'monthly_4'],
+    [1,  9,  0, 'EU', 'med',  'Flash GDP q/q',                     'monthly_4'],
   ];
-  const events = [];
-  const days = [];
-  for (let i = 0; i < 5; i++) {
-    const d = new Date(mon);
-    d.setDate(mon.getDate() + i);
-    days.push(d);
+
+  function inThisWeek(freq) {
+    if (freq === 'weekly')    return true;
+    if (freq === 'any')       return true;
+    if (freq === 'monthly_1') return isFirstWeek;
+    if (freq === 'monthly_2') return isSecondWeek;
+    if (freq === 'monthly_3') return isThirdWeek;
+    if (freq === 'monthly_4') return isFourthWeek;
+    return false;
   }
-  fallback.forEach((ev, idx) => {
-    const dayIdx = idx % 5;
-    const d = new Date(days[dayIdx]);
-    const hourStr = ev.time.split(' ')[1] || '12:00 UTC';
-    const [h, m] = hourStr.replace(' UTC','').split(':').map(Number);
+
+  const monStr = isoDate(mon); // YYYY-MM-DD — usato per ID deterministici stabili
+  const events = [];
+
+  TEMPLATE.forEach((row, idx) => {
+    const [dow, h, m, country, impact, name, freq] = row;
+    if (!inThisWeek(freq)) return;
+
+    const d = new Date(mon);
+    d.setDate(mon.getDate() + dow);
     d.setUTCHours(h, m, 0, 0);
+
+    // ID deterministico: non cambia tra ricaricamenti
+    const stableId = 'fb_' + monStr + '_' + idx;
+
     events.push({
-      id: 'fb_' + idx,
-      time: d.toISOString(),
-      country: ev.country,
-      event: ev.name,
-      impact: ev.impact,
-      actual: null, forecast: null, prev: null
+      id:      stableId,
+      time:    d.toISOString(),
+      country: country,
+      event:   name,
+      impact:  impact,
+      actual:  null, forecast: null, prev: null
     });
   });
+
   return events;
+}
+
+// ── Deduplication helper ──────────────────────────────────────
+// Rimuove eventi duplicati dopo merge di più sorgenti.
+// Due eventi sono duplicati se hanno stesso giorno + stesso nome (case-insensitive).
+function deduplicateEvents(events) {
+  const seen = new Set();
+  return events.filter(ev => {
+    const dayStr  = isoDate(ev.datetime);
+    const nameKey = (ev.name || '').toLowerCase().replace(/\s+/g,' ').trim();
+    const key = dayStr + '|' + nameKey;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 // ── Build day tabs ────────────────────────────────────────────
