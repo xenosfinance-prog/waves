@@ -1343,13 +1343,17 @@ function renderStats() {
     { id:'eur',  yf:'EURUSD=X', fmt:'fx',     label:'EUR/USD' },
   ];
   for (const p of pairs) {
-    const { price: pr, chg } = extractPrice(prices[p.yf]);
-    if (!pr) continue;
-    const c = fmtChg(chg);
-    document.getElementById(`stat-${p.id}`).textContent = fmtP(pr, p.fmt);
-    const el = document.getElementById(`stat-${p.id}-chg`);
-    el.textContent = c.str;
-    el.className = `stat-sub ${c.cls}`;
+    const raw = prices[p.yf];
+    const { price: pr, chg } = extractPrice(raw);
+    const valEl = document.getElementById(`stat-${p.id}`);
+    const chgEl = document.getElementById(`stat-${p.id}-chg`);
+    if (!valEl || !chgEl) continue;
+    if (pr) {
+      const c = fmtChg(chg);
+      valEl.textContent = fmtP(pr, p.fmt);
+      chgEl.textContent = c.str;
+      chgEl.className = `stat-sub ${c.cls}`;
+    }
   }
 }
 
@@ -1449,33 +1453,40 @@ function renderTicker() {
 // ── Chart ─────────────────────────────────────────────────────
 function initChart() {
   const container = document.getElementById('chartContainer');
-  chart = LightweightCharts.createChart(container, {
-    layout: {
-      background: { color: '#FDF8EF' },
-      textColor: '#8B6B3D',
-    },
-    grid: {
-      vertLines: { color: '#EDE0C0' },
-      horzLines: { color: '#EDE0C0' },
-    },
-    crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
-    rightPriceScale: { borderColor: '#C9A96E' },
-    timeScale: { borderColor: '#C9A96E', timeVisible: true },
-    handleScroll: true,
-    handleScale: true,
-  });
-  lineSeries = chart.addAreaSeries({
-    lineColor: '#7A5200',
-    topColor: 'rgba(122,82,0,0.15)',
-    bottomColor: 'rgba(122,82,0,0.0)',
-    lineWidth: 2,
-  });
+  try {
+    chart = LightweightCharts.createChart(container, {
+      layout: {
+        background: { color: '#FDF8EF' },
+        textColor: '#8B6B3D',
+      },
+      grid: {
+        vertLines: { color: '#EDE0C0' },
+        horzLines: { color: '#EDE0C0' },
+      },
+      crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+      rightPriceScale: { borderColor: '#C9A96E' },
+      timeScale: { borderColor: '#C9A96E', timeVisible: true },
+      handleScroll: true,
+      handleScale: true,
+    });
 
-  // Resize observer
-  new ResizeObserver(() => {
-    const h = Math.max(container.clientHeight, 280);
-    chart.applyOptions({ width: container.clientWidth, height: h });
-  }).observe(container);
+    // Support both LightweightCharts v3 (addAreaSeries) and v4 (addSeries)
+    const _areaOpts = { lineColor:'#7A5200', topColor:'rgba(122,82,0,0.15)', bottomColor:'rgba(122,82,0,0.0)', lineWidth:2 };
+    if (typeof LightweightCharts.AreaSeries !== 'undefined') {
+      lineSeries = chart.addSeries(LightweightCharts.AreaSeries, _areaOpts);
+    } else {
+      lineSeries = chart.addAreaSeries(_areaOpts);
+    }
+
+    // Resize observer
+    new ResizeObserver(() => {
+      const h = Math.max(container.clientHeight, 280);
+      chart.applyOptions({ width: container.clientWidth, height: h });
+    }).observe(container);
+  } catch(e) {
+    console.error('Chart init failed:', e);
+    container.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100%;font-family:var(--mono);font-size:0.65rem;color:var(--dim);padding:40px">Chart error: ${e.message}</div>`;
+  }
 }
 
 async function loadChartData(yf) {
@@ -1531,10 +1542,13 @@ async function selectAsset(sym, name, yf, fmt, el) {
     cel.className = `chart-chg ${c.cls}`;
   }
 
+  if (!lineSeries) return; // chart not initialized
   const data = await loadChartData(yf);
   if (data.length > 0) {
-    lineSeries.setData(data);
-    chart.timeScale().fitContent();
+    try {
+      lineSeries.setData(data);
+      chart.timeScale().fitContent();
+    } catch(e) { console.warn('Chart setData error:', e); }
   }
 }
 
