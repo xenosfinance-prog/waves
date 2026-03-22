@@ -927,6 +927,7 @@ body {
       </div>
     </div>
   </div><!-- /dashboardView -->
+
   <!-- ── STOCKS VIEW ── -->
   <div id="stocksView" style="display:none">
     <div class="panel" style="border:1px solid var(--border)">
@@ -1566,7 +1567,6 @@ function renderAll() {
 
 // ── Init ──────────────────────────────────────────────────────
 async function init() {
-  showView('dashboardView');  // imposta stato iniziale corretto
   await fetchPrices();
   // Load TradingView chart with first asset
   loadTVChart(WATCHLIST[0].yf);
@@ -1577,8 +1577,7 @@ async function init() {
   setInterval(fetchPrices, 60000);
 }
 
-init();
-initPortfolio();
+// init() e initPortfolio() chiamati in fondo al file dopo che tutte le funzioni sono definite
 
 
 // ══════════════════════════════════════════════════════════════
@@ -2141,6 +2140,12 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape') document.getElementById('pfOverlay').classList.remove('open');
   if (e.key === 'Enter' && document.getElementById('pfOverlay').classList.contains('open')) addPosition();
 });
+
+// ── Avvio ─────────────────────────────────────────────────────
+// Chiamato qui in fondo così TUTTE le funzioni sono già definite
+showView('dashboardView');
+init();
+initPortfolio();
 
 </script>
 </body>
