@@ -274,9 +274,11 @@ let activeEvent = null;
 
 function getWeekRange(offset = 0) {
   const now  = new Date();
-  const dow  = now.getDay(); // 0=Sun
+  const dow  = now.getDay(); // 0=Sun, 6=Sat
+  // Domenica: i mercati aprono lunedì, quindi offset=0 punta alla settimana PROSSIMA
+  const baseOffset = (dow === 0) ? 1 : 0;
   const mon  = new Date(now);
-  mon.setDate(now.getDate() - (dow === 0 ? 6 : dow - 1) + offset * 7);
+  mon.setDate(now.getDate() - (dow === 0 ? 6 : dow - 1) + (offset + baseOffset) * 7);
   mon.setHours(0,0,0,0);
   const fri  = new Date(mon);
   fri.setDate(mon.getDate() + 4);
@@ -295,7 +297,12 @@ function isoDate(d) {
 
 function updateWeekLabel() {
   const { mon, fri } = getWeekRange(weekOffset);
-  const label = weekOffset === 0 ? 'This Week — ' : weekOffset === -1 ? 'Last Week — ' : weekOffset === 1 ? 'Next Week — ' : '';
+  const now = new Date();
+  const isSunday = now.getDay() === 0;
+  let label = '';
+  if (weekOffset === 0)       label = isSunday ? 'Next Week — ' : 'This Week — ';
+  else if (weekOffset === -1) label = isSunday ? 'This Week — ' : 'Last Week — ';
+  else if (weekOffset === 1)  label = isSunday ? 'Week After — ' : 'Next Week — ';
   document.getElementById('weekLabel').textContent =
     label + fmtDate(mon) + ' – ' + fmtDate(fri) + ', ' + fri.getFullYear();
 }
@@ -310,12 +317,14 @@ function shiftWeek(dir) {
 // Struttura stabile dal 2010 — aggiornato ogni domenica notte.
 // Usiamo allorigins.win come proxy CORS (gratuito, affidabile).
 async function fetchForexFactory(weekOff) {
-  // thisweek per offset 0, nextweek per offset +1, fallback per il resto
+  // Domenica: offset 0 = nextweek, offset -1 = thisweek
+  const isSunday = new Date().getDay() === 0;
+  const effectiveOff = isSunday ? weekOff - 1 : weekOff;
   const feedMap = {
     0:  'https://nfs.faireconomy.media/ff_calendar_thisweek.xml',
     1:  'https://nfs.faireconomy.media/ff_calendar_nextweek.xml',
   };
-  const feedUrl = feedMap[weekOff];
+  const feedUrl = feedMap[effectiveOff];
   if (!feedUrl) return [];   // FF fornisce solo this/next week
 
   // Proxy CORS: allorigins (primario) → corsproxy.io (fallback)
@@ -402,12 +411,17 @@ async function loadCalendar() {
   const to   = isoDate(fri);
 
   let events = [];
+  let dataSource = '';
 
-  // ── Source 1: ForexFactory XML (primario — dati reali, gratuito) ──
-  events = await fetchForexFactory(weekOffset);
+  // ── ForexFactory XML: solo thisweek (0) e nextweek (+1) ──────
+  // Per settimane passate o future oltre +1 NON usiamo dati inventati
+  if (weekOffset === 0 || weekOffset === 1) {
+    events = await fetchForexFactory(weekOffset);
+    if (events.length > 0) dataSource = 'ForexFactory';
+  }
 
-  // ── Source 2: Finnhub (fallback se FF non disponibile) ───────────
-  if (events.length === 0) {
+  // ── Finnhub fallback (solo se FF ha fallito, stessa settimana) ─
+  if (events.length === 0 && (weekOffset === 0 || weekOffset === 1)) {
     try {
       const res = await fetch(WORKER, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -416,16 +430,13 @@ async function loadCalendar() {
       if (res.ok) {
         const data = await res.json();
         const raw = data.economicCalendar || data.events || [];
-        if (raw.length > 0) {
-          events = raw;
-          console.log('Calendar: Finnhub fallback OK', raw.length, 'events');
-        }
+        if (raw.length > 0) { events = raw; dataSource = 'Finnhub'; }
       }
     } catch(e) { console.warn('Finnhub calendar failed:', e.message); }
   }
 
-  // ── Source 3: Twelve Data (secondo fallback) ──────────────────────
-  if (events.length === 0) {
+  // ── TwelveData secondo fallback ───────────────────────────────
+  if (events.length === 0 && (weekOffset === 0 || weekOffset === 1)) {
     try {
       const res = await fetch(WORKER, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -436,7 +447,7 @@ async function loadCalendar() {
         const raw = data.result || data.data || data.events || [];
         if (raw.length > 0) {
           events = raw.map(e => ({
-            id: e.id || Math.random().toString(36).slice(2),
+            id: 'td_' + (e.id || (e.date||'') + (e.event||'').slice(0,8)),
             time: e.date || e.datetime || e.time || '',
             country: (e.country || 'US').toUpperCase(),
             event: e.event || e.name || e.indicator || 'Economic Event',
@@ -444,20 +455,51 @@ async function loadCalendar() {
             actual: e.actual, forecast: e.consensus || e.estimate || e.forecast,
             prev: e.previous || e.prev
           }));
-          console.log('Calendar: TwelveData fallback OK', events.length, 'events');
+          dataSource = 'TwelveData';
         }
       }
     } catch(e) { console.warn('TwelveData calendar failed:', e.message); }
   }
 
-  allEvents = deduplicateEvents(normalizeEvents(events, mon, fri));
-
-  // ── Fallback statico solo se tutte le sorgenti falliscono ─────────
-  if (allEvents.length === 0) {
-    console.warn('All sources failed — using static fallback');
-    allEvents = deduplicateEvents(normalizeEvents(generateFallbackEvents(mon, fri), mon, fri));
+  // ── Settimane passate o future oltre +1: NO dati inventati ───
+  if (events.length === 0 && weekOffset !== 0 && weekOffset !== 1) {
+    document.getElementById('dayTabs').innerHTML = '';
+    document.getElementById('eventsList').innerHTML = `
+      <div style="padding:48px 20px;text-align:center;border:1px dashed var(--border);margin:20px 0">
+        <div style="font-size:1.8rem;margin-bottom:16px;opacity:0.4">📅</div>
+        <div style="font-family:var(--mono);font-size:0.72rem;color:var(--text);margin-bottom:8px">
+          Dati reali disponibili solo per questa settimana e la prossima
+        </div>
+        <div style="font-family:var(--mono);font-size:0.6rem;color:var(--dim);margin-bottom:20px;line-height:1.7">
+          ForexFactory pubblica il feed XML solo per current/next week.<br>
+          Per settimane future o passate consulta la fonte ufficiale.
+        </div>
+        <a href="https://www.forexfactory.com/calendar" target="_blank"
+           style="font-family:var(--mono);font-size:0.62rem;color:var(--gold);border:1px solid var(--gold);padding:8px 18px;text-decoration:none;letter-spacing:0.1em;text-transform:uppercase">
+          → Apri ForexFactory.com
+        </a>
+      </div>`;
+    return;
   }
 
+  allEvents = deduplicateEvents(normalizeEvents(events, mon, fri));
+
+  // ── Se anche this/next week è vuoto dopo tutti i tentativi ───
+  if (allEvents.length === 0) {
+    document.getElementById('eventsList').innerHTML = `
+      <div style="padding:48px 20px;text-align:center">
+        <div style="font-family:var(--mono);font-size:0.7rem;color:var(--dim);margin-bottom:12px">
+          Impossibile caricare gli eventi — controlla la connessione
+        </div>
+        <button onclick="loadCalendar()" style="font-family:var(--mono);font-size:0.6rem;color:var(--gold);border:1px solid var(--gold);padding:6px 14px;background:none;cursor:pointer;letter-spacing:0.1em">
+          ↺ Riprova
+        </button>
+      </div>`;
+    document.getElementById('dayTabs').innerHTML = '';
+    return;
+  }
+
+  console.log(`Calendar: ${allEvents.length} events from ${dataSource}`);
   allEvents.sort((a,b) => a.datetime - b.datetime);
   buildDayTabs();
 }
