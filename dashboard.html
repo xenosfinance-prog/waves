@@ -5,118 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>XenosFinance — Market Dashboard</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=IBM+Plex+Mono:wght@300;400;500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-<script src="https://unpkg.com/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js">
-// ── PRE-MARKET DATA ───────────────────────────────────────────
-const PM_ASSETS = [
-  {sym:'AAPL',  name:'Apple Inc.',    yf:'AAPL',     fmt:'price', sector:'Tech'},
-  {sym:'MSFT',  name:'Microsoft',     yf:'MSFT',     fmt:'price', sector:'Tech'},
-  {sym:'NVDA',  name:'NVIDIA Corp.',  yf:'NVDA',     fmt:'price', sector:'Tech'},
-  {sym:'GOOGL', name:'Alphabet',      yf:'GOOGL',    fmt:'price', sector:'Tech'},
-  {sym:'META',  name:'Meta Platforms',yf:'META',     fmt:'price', sector:'Tech'},
-  {sym:'TSLA',  name:'Tesla Inc.',    yf:'TSLA',     fmt:'price', sector:'EV'},
-  {sym:'AMZN',  name:'Amazon',        yf:'AMZN',     fmt:'price', sector:'Consumer'},
-  {sym:'JPM',   name:'JPMorgan',      yf:'JPM',      fmt:'price', sector:'Finance'},
-  {sym:'SPY',   name:'S&P 500 ETF',   yf:'SPY',      fmt:'price', sector:'Index'},
-  {sym:'QQQ',   name:'Nasdaq 100 ETF',yf:'QQQ',      fmt:'price', sector:'Index'},
-  {sym:'BTC-USD',name:'Bitcoin',      yf:'BTC-USD',  fmt:'crypto',sector:'Crypto'},
-  {sym:'GC=F',  name:'Gold Futures',  yf:'GC=F',     fmt:'price', sector:'Commodity'},
-];
-
-function getSessionInfo() {
-  const now = new Date();
-  const etHour = parseInt(now.toLocaleString('en-US',{hour:'numeric',hour12:false,timeZone:'America/New_York'}));
-  if (etHour >= 4 && etHour < 9.5)  return {label:'PRE-MARKET',  cls:'up',   msg:'Pre-Market session active · 04:00–09:30 ET'};
-  if (etHour >= 9.5 && etHour < 16) return {label:'MARKET OPEN', cls:'up',   msg:'Regular session active · 09:30–16:00 ET'};
-  if (etHour >= 16 && etHour < 20)  return {label:'AFTER-HOURS', cls:'neutral', msg:'After-hours session · 16:00–20:00 ET'};
-  return {label:'MARKET CLOSED', cls:'dn', msg:'Market closed · Pre-market opens 04:00 ET'};
-}
-
-function renderPreMarket() {
-  const el = document.getElementById('pm-list'); if (!el) return;
-  const sess = getSessionInfo();
-  const badge = document.getElementById('pm-session-badge');
-  const banner = document.getElementById('pm-banner');
-  if (badge) { badge.textContent = sess.label; badge.style.color = sess.cls==='up'?'var(--green)':sess.cls==='dn'?'var(--red)':'var(--dim)'; badge.style.borderColor = 'currentColor'; }
-  if (banner) { banner.textContent = sess.msg; }
-
-  let rows = '';
-  for (const a of PM_ASSETS) {
-    const d = prices[a.yf];
-    const { price: cur, chg } = extractPrice(d);
-    const prevClose = d && typeof d === 'object' ? parseFloat(d.prev_close || d.prevClose || 0) : 0;
-    const pm = cur;
-    const delta = (prevClose && pm) ? pm - prevClose : null;
-    const pct   = (prevClose && delta !== null) ? delta / prevClose * 100 : chg;
-    const absDelta = delta !== null ? Math.abs(delta) : null;
-    const cls = (pct||0) >= 0 ? 'up' : 'dn';
-    const arrow = (pct||0) >= 0 ? '▲' : '▼';
-    const bar = Math.min(Math.abs(pct||0) * 10 + 8, 88);
-    const bc = (pct||0) >= 0 ? 'var(--green)' : 'var(--red)';
-    rows += `<div style="display:grid;grid-template-columns:160px 1fr 110px 110px 110px 110px;padding:11px 18px;border-bottom:1px solid var(--border2);align-items:center;transition:background 0.12s" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">
-      <div>
-        <div style="font-family:var(--mono);font-size:0.72rem;font-weight:500;color:var(--text)">${a.sym.replace('-USD','').replace('=F','')}</div>
-        <div style="font-family:var(--mono);font-size:0.5rem;color:var(--dim);margin-top:2px">${a.name}</div>
-      </div>
-      <div style="padding:0 14px">
-        <div style="height:5px;background:var(--bg3);border-radius:3px">
-          <div style="height:100%;width:${bar}%;background:${bc};border-radius:3px;transition:width 0.4s"></div>
-        </div>
-      </div>
-      <div style="font-family:var(--mono);font-size:0.68rem;text-align:right;color:var(--dim)">${prevClose ? fmtP(prevClose, a.fmt) : '—'}</div>
-      <div style="font-family:var(--mono);font-size:0.72rem;font-weight:500;text-align:right;color:var(--text)">${pm ? fmtP(pm, a.fmt) : '—'}</div>
-      <div style="font-family:var(--mono);font-size:0.68rem;text-align:right" class="${cls}">${absDelta !== null ? (delta>=0?'+':'-')+'$'+absDelta.toFixed(2) : '—'}</div>
-      <div style="font-family:var(--mono);font-size:0.72rem;font-weight:600;text-align:right" class="${cls}">${pct !== null && !isNaN(pct) ? arrow+' '+Math.abs(pct).toFixed(2)+'%' : '—'}</div>
-    </div>`;
-  }
-  el.innerHTML = rows || '<div style="padding:30px;text-align:center;font-family:var(--mono);font-size:0.62rem;color:var(--dim)">Loading...</div>';
-}
-
-// ── FUTURES DATA ──────────────────────────────────────────────
-const FUTURES_ASSETS = [
-  {sym:'ES=F',  name:'S&P 500 E-Mini',   yf:'ES=F',  fmt:'price', group:'US Index Futures'},
-  {sym:'NQ=F',  name:'NASDAQ E-Mini',     yf:'NQ=F',  fmt:'price', group:'US Index Futures'},
-  {sym:'YM=F',  name:'Dow Jones E-Mini',  yf:'YM=F',  fmt:'price', group:'US Index Futures'},
-  {sym:'RTY=F', name:'Russell 2000',      yf:'RTY=F', fmt:'price', group:'US Index Futures'},
-  {sym:'GC=F',  name:'Gold',              yf:'GC=F',  fmt:'price', group:'Commodities'},
-  {sym:'CL=F',  name:'Crude Oil WTI',     yf:'CL=F',  fmt:'price', group:'Commodities'},
-  {sym:'SI=F',  name:'Silver',            yf:'SI=F',  fmt:'price', group:'Commodities'},
-  {sym:'NG=F',  name:'Natural Gas',       yf:'NG=F',  fmt:'price', group:'Commodities'},
-  {sym:'EURUSD=X',name:'EUR/USD',         yf:'EURUSD=X',fmt:'fx',  group:'FX'},
-  {sym:'GBPUSD=X',name:'GBP/USD',         yf:'GBPUSD=X',fmt:'fx',  group:'FX'},
-  {sym:'USDJPY=X',name:'USD/JPY',         yf:'USDJPY=X',fmt:'fx',  group:'FX'},
-  {sym:'BTC-USD', name:'Bitcoin',         yf:'BTC-USD', fmt:'crypto',group:'Crypto Futures'},
-];
-
-function renderFutures() {
-  const el = document.getElementById('futures-list'); if (!el) return;
-  const byGroup = {};
-  FUTURES_ASSETS.forEach(f => { if (!byGroup[f.group]) byGroup[f.group]=[]; byGroup[f.group].push(f); });
-  let html = '';
-  for (const [group, items] of Object.entries(byGroup)) {
-    html += `<div style="font-family:var(--mono);font-size:0.5rem;letter-spacing:0.18em;text-transform:uppercase;color:var(--gold);padding:10px 18px 6px;border-bottom:1px solid var(--border2);background:var(--bg3);margin-top:4px">${group}</div>`;
-    for (const f of items) {
-      const { price: pr, chg } = extractPrice(prices[f.yf]);
-      const d = prices[f.yf];
-      const prevClose = d && typeof d === 'object' ? parseFloat(d.prev_close || d.prevClose || 0) : 0;
-      const delta = (prevClose && pr) ? pr - prevClose : null;
-      const cls = (chg||0) >= 0 ? 'up' : 'dn';
-      const arrow = (chg||0) >= 0 ? '▲' : '▼';
-      html += `<div style="display:grid;grid-template-columns:160px 1fr 110px 110px 110px;padding:11px 18px;border-bottom:1px solid var(--border2);align-items:center;transition:background 0.12s" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">
-        <div>
-          <div style="font-family:var(--mono);font-size:0.72rem;font-weight:500;color:var(--text)">${f.sym.replace('=F','').replace('=X','').replace('-USD','')}</div>
-          <div style="font-family:var(--mono);font-size:0.5rem;color:var(--dim);margin-top:2px">${f.name}</div>
-        </div>
-        <div></div>
-        <div style="font-family:var(--mono);font-size:0.72rem;text-align:right;color:var(--text)">${pr ? fmtP(pr, f.fmt) : '—'}</div>
-        <div style="font-family:var(--mono);font-size:0.68rem;text-align:right" class="${cls}">${delta !== null ? (delta>=0?'+':'-')+'$'+Math.abs(delta).toFixed(2) : '—'}</div>
-        <div style="font-family:var(--mono);font-size:0.72rem;font-weight:600;text-align:right" class="${cls}">${chg !== null && !isNaN(chg) ? arrow+' '+Math.abs(chg).toFixed(2)+'%' : '—'}</div>
-      </div>`;
-    }
-  }
-  el.innerHTML = html;
-}
-
-</script>
+<script src="https://unpkg.com/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
 <style>
 :root {
   --bg:      #FDF8EF;
@@ -1711,6 +1600,104 @@ function handleSearch(e) {
     selectAsset(found.sym, found.name, found.yf, found.fmt, null);
     e.target.value = '';
   }
+}
+
+// ── PRE-MARKET DATA ───────────────────────────────────────────
+const PM_ASSETS = [
+  {sym:'AAPL',  name:'Apple Inc.',     yf:'AAPL',     fmt:'price'},
+  {sym:'MSFT',  name:'Microsoft',      yf:'MSFT',     fmt:'price'},
+  {sym:'NVDA',  name:'NVIDIA Corp.',   yf:'NVDA',     fmt:'price'},
+  {sym:'GOOGL', name:'Alphabet',       yf:'GOOGL',    fmt:'price'},
+  {sym:'META',  name:'Meta Platforms', yf:'META',     fmt:'price'},
+  {sym:'TSLA',  name:'Tesla Inc.',     yf:'TSLA',     fmt:'price'},
+  {sym:'AMZN',  name:'Amazon',         yf:'AMZN',     fmt:'price'},
+  {sym:'JPM',   name:'JPMorgan',       yf:'JPM',      fmt:'price'},
+  {sym:'SPY',   name:'S&P 500 ETF',    yf:'SPY',      fmt:'price'},
+  {sym:'QQQ',   name:'Nasdaq 100 ETF', yf:'QQQ',      fmt:'price'},
+  {sym:'BTC-USD',name:'Bitcoin',       yf:'BTC-USD',  fmt:'crypto'},
+  {sym:'GC=F',  name:'Gold Futures',   yf:'GC=F',     fmt:'price'},
+];
+
+function getSessionInfo() {
+  const now = new Date();
+  const etHour = parseFloat(now.toLocaleString('en-US',{hour:'numeric',hour12:false,timeZone:'America/New_York'}));
+  if (etHour >= 4 && etHour < 9.5)  return {label:'PRE-MARKET',   cls:'up',      msg:'Pre-Market session active · 04:00–09:30 ET'};
+  if (etHour >= 9.5 && etHour < 16) return {label:'MARKET OPEN',  cls:'up',      msg:'Regular session active · 09:30–16:00 ET'};
+  if (etHour >= 16 && etHour < 20)  return {label:'AFTER-HOURS',  cls:'neutral', msg:'After-hours session · 16:00–20:00 ET'};
+  return {label:'MARKET CLOSED', cls:'dn', msg:'Market closed · Pre-market opens 04:00 ET'};
+}
+
+function renderPreMarket() {
+  const el = document.getElementById('pm-list'); if (!el) return;
+  const sess = getSessionInfo();
+  const badge = document.getElementById('pm-session-badge');
+  const banner = document.getElementById('pm-banner');
+  if (badge) { badge.textContent = sess.label; badge.style.color = sess.cls==='up'?'var(--green)':sess.cls==='dn'?'var(--red)':'var(--dim)'; badge.style.borderColor = 'currentColor'; }
+  if (banner) { banner.textContent = sess.msg; }
+  let rows = '';
+  for (const a of PM_ASSETS) {
+    const d = prices[a.yf];
+    const { price: cur, chg } = extractPrice(d);
+    const prevClose = d && typeof d === 'object' ? parseFloat(d.prev_close || d.prevClose || 0) : 0;
+    const delta = (prevClose && cur) ? cur - prevClose : null;
+    const pct   = (prevClose && delta !== null) ? delta / prevClose * 100 : chg;
+    const absDelta = delta !== null ? Math.abs(delta) : null;
+    const cls = (pct||0) >= 0 ? 'up' : 'dn';
+    const arrow = (pct||0) >= 0 ? '▲' : '▼';
+    const bar = Math.min(Math.abs(pct||0) * 10 + 8, 88);
+    const bc = (pct||0) >= 0 ? 'var(--green)' : 'var(--red)';
+    rows += `<div style="display:grid;grid-template-columns:160px 1fr 110px 110px 110px 110px;padding:11px 18px;border-bottom:1px solid var(--border2);align-items:center;transition:background 0.12s" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">
+      <div><div style="font-family:var(--mono);font-size:0.72rem;font-weight:500;color:var(--text)">${a.sym.replace('-USD','').replace('=F','')}</div><div style="font-family:var(--mono);font-size:0.5rem;color:var(--dim);margin-top:2px">${a.name}</div></div>
+      <div style="padding:0 14px"><div style="height:5px;background:var(--bg3);border-radius:3px"><div style="height:100%;width:${bar}%;background:${bc};border-radius:3px;transition:width 0.4s"></div></div></div>
+      <div style="font-family:var(--mono);font-size:0.68rem;text-align:right;color:var(--dim)">${prevClose ? fmtP(prevClose, a.fmt) : '—'}</div>
+      <div style="font-family:var(--mono);font-size:0.72rem;font-weight:500;text-align:right;color:var(--text)">${cur ? fmtP(cur, a.fmt) : '—'}</div>
+      <div style="font-family:var(--mono);font-size:0.68rem;text-align:right" class="${cls}">${absDelta !== null ? (delta>=0?'+':'-')+'$'+absDelta.toFixed(2) : '—'}</div>
+      <div style="font-family:var(--mono);font-size:0.72rem;font-weight:600;text-align:right" class="${cls}">${pct !== null && !isNaN(pct) ? arrow+' '+Math.abs(pct).toFixed(2)+'%' : '—'}</div>
+    </div>`;
+  }
+  el.innerHTML = rows || '<div style="padding:30px;text-align:center;font-family:var(--mono);font-size:0.62rem;color:var(--dim)">Loading...</div>';
+}
+
+// ── FUTURES DATA ──────────────────────────────────────────────
+const FUTURES_ASSETS = [
+  {sym:'ES=F',    name:'S&P 500 E-Mini',  yf:'ES=F',     fmt:'price', group:'US Index Futures'},
+  {sym:'NQ=F',    name:'NASDAQ E-Mini',   yf:'NQ=F',     fmt:'price', group:'US Index Futures'},
+  {sym:'YM=F',    name:'Dow Jones E-Mini',yf:'YM=F',     fmt:'price', group:'US Index Futures'},
+  {sym:'RTY=F',   name:'Russell 2000',    yf:'RTY=F',    fmt:'price', group:'US Index Futures'},
+  {sym:'GC=F',    name:'Gold',            yf:'GC=F',     fmt:'price', group:'Commodities'},
+  {sym:'CL=F',    name:'Crude Oil WTI',   yf:'CL=F',     fmt:'price', group:'Commodities'},
+  {sym:'SI=F',    name:'Silver',          yf:'SI=F',     fmt:'price', group:'Commodities'},
+  {sym:'NG=F',    name:'Natural Gas',     yf:'NG=F',     fmt:'price', group:'Commodities'},
+  {sym:'EURUSD=X',name:'EUR/USD',         yf:'EURUSD=X', fmt:'fx',    group:'FX'},
+  {sym:'GBPUSD=X',name:'GBP/USD',         yf:'GBPUSD=X', fmt:'fx',    group:'FX'},
+  {sym:'USDJPY=X',name:'USD/JPY',         yf:'USDJPY=X', fmt:'fx',    group:'FX'},
+  {sym:'BTC-USD', name:'Bitcoin',         yf:'BTC-USD',  fmt:'crypto',group:'Crypto Futures'},
+];
+
+function renderFutures() {
+  const el = document.getElementById('futures-list'); if (!el) return;
+  const byGroup = {};
+  FUTURES_ASSETS.forEach(f => { if (!byGroup[f.group]) byGroup[f.group]=[]; byGroup[f.group].push(f); });
+  let html = '';
+  for (const [group, items] of Object.entries(byGroup)) {
+    html += `<div style="font-family:var(--mono);font-size:0.5rem;letter-spacing:0.18em;text-transform:uppercase;color:var(--gold);padding:10px 18px 6px;border-bottom:1px solid var(--border2);background:var(--bg3);margin-top:4px">${group}</div>`;
+    for (const f of items) {
+      const { price: pr, chg } = extractPrice(prices[f.yf]);
+      const d = prices[f.yf];
+      const prevClose = d && typeof d === 'object' ? parseFloat(d.prev_close || d.prevClose || 0) : 0;
+      const delta = (prevClose && pr) ? pr - prevClose : null;
+      const cls = (chg||0) >= 0 ? 'up' : 'dn';
+      const arrow = (chg||0) >= 0 ? '▲' : '▼';
+      html += `<div style="display:grid;grid-template-columns:160px 1fr 110px 110px 110px;padding:11px 18px;border-bottom:1px solid var(--border2);align-items:center;transition:background 0.12s" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">
+        <div><div style="font-family:var(--mono);font-size:0.72rem;font-weight:500;color:var(--text)">${f.sym.replace('=F','').replace('=X','').replace('-USD','')}</div><div style="font-family:var(--mono);font-size:0.5rem;color:var(--dim);margin-top:2px">${f.name}</div></div>
+        <div></div>
+        <div style="font-family:var(--mono);font-size:0.72rem;text-align:right;color:var(--text)">${pr ? fmtP(pr, f.fmt) : '—'}</div>
+        <div style="font-family:var(--mono);font-size:0.68rem;text-align:right" class="${cls}">${delta !== null ? (delta>=0?'+':'-')+'$'+Math.abs(delta).toFixed(2) : '—'}</div>
+        <div style="font-family:var(--mono);font-size:0.72rem;font-weight:600;text-align:right" class="${cls}">${chg !== null && !isNaN(chg) ? arrow+' '+Math.abs(chg).toFixed(2)+'%' : '—'}</div>
+      </div>`;
+    }
+  }
+  el.innerHTML = html;
 }
 
 // ── Render all ────────────────────────────────────────────────
