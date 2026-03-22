@@ -273,7 +273,7 @@
   .detail-top { display: grid; grid-template-columns: 1fr 380px; gap: 20px; }
 
   .chart-container {
-    background: #060810;
+    background: #FDF8EF;
     border: 1px solid var(--border-bright);
     border-top: 2px solid var(--accent);
     padding: 0;
@@ -290,7 +290,7 @@
     justify-content: space-between;
     align-items: center;
     border-bottom: 1px solid var(--border);
-    background: #0a0f1a;
+    background: #F5EDD8;
   }
   .chart-pattern-badge {
     font-size: 9px;
@@ -416,7 +416,7 @@
     justify-content: space-between;
     align-items: center;
     padding: 7px 12px;
-    background: #0a0f1a;
+    background: #F5EDD8;
     border-bottom: 1px solid var(--border);
     font-size: 9px;
     color: var(--text-dim);
@@ -432,7 +432,7 @@
   }
   .live-chart-body {
     position: relative;
-    background: #060810;
+    background: #FDF8EF;
     height: 320px;
   }
   .live-chart-body.loading::after {
@@ -2536,15 +2536,15 @@ function loadTradingViewChart(container, sig) {
       symbol:          tvSym,
       interval:        tvTF,
       timezone:        'Etc/UTC',
-      theme:           'dark',
+      theme:           'light',
       style:           '1',        // candele
       locale:          'en',
-      toolbar_bg:      '#060810',
+      toolbar_bg:      '#F5EDD8',
       enable_publishing: false,
       hide_top_toolbar:  false,
       hide_legend:       false,
       save_image:        false,
-      backgroundColor:   '#060810',
+      backgroundColor:   '#FDF8EF',
       gridColor:         'rgba(30,42,58,0.6)',
       width:             '100%',
       height:            340,
@@ -2617,7 +2617,7 @@ async function loadLightweightChart(container, sig) {
   const chart = LightweightCharts.createChart(container, {
     width:  container.offsetWidth || 860,
     height: 320,
-    layout: { background: { type: 'solid', color: '#060810' }, textColor: '#5a7a9a', fontSize: 11, fontFamily: "'Space Mono', monospace" },
+    layout: { background: { type: 'solid', color: '#FDF8EF' }, textColor: '#8B6B3D', fontSize: 11, fontFamily: "'Space Mono', monospace" },
     grid:   { vertLines: { color: '#1a2535', style: 1 }, horzLines: { color: '#1a2535', style: 1 } },
     crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
     rightPriceScale: { borderColor: '#1e2a3a' },
@@ -2697,17 +2697,17 @@ function drawPatternChart(canvas, sig) {
   function py(p) { return MT + CH - ((p - pMin) / (pMax - pMin)) * CH; }
   function px(t) { return ML + t * CW; }
 
-  // ── Palette dark ──
-  const BG       = '#060810';
-  const BG2      = '#0c1018';
-  const GRID     = '#1a2535';
-  const GRIDHI   = '#1e2d40';
-  const ACCENT   = '#00d4ff';
-  const col      = isBull ? '#00e676' : '#ff3d5a';
-  const colDim   = isBull ? '#00a854' : '#cc2040';
-  const ORANGE   = '#ffd600';
-  const WHITE    = '#eaf4ff';
-  const DIMTEXT  = '#4a6a8a';
+  // ── Palette light ──
+  const BG       = '#FAFAF7';
+  const BG2      = '#F0EDE4';
+  const GRID     = '#E8E0D0';
+  const GRIDHI   = '#D8CDB8';
+  const ACCENT   = '#7A5200';
+  const col      = isBull ? '#1e5c35' : '#8B1A1A';
+  const colDim   = isBull ? '#2d8a50' : '#b52828';
+  const ORANGE   = '#9B6800';
+  const WHITE    = '#1C0F00';
+  const DIMTEXT  = '#8B6B3D';
   const nowX     = px(0.70);
   const tpY      = py(tp);
   const entryY   = py(entry);
@@ -2719,9 +2719,9 @@ function drawPatternChart(canvas, sig) {
 
   // Subtle gradient overlay
   const grad = ctx.createLinearGradient(0, MT, 0, MT+CH);
-  grad.addColorStop(0,   'rgba(0,212,255,0.02)');
+  grad.addColorStop(0,   'rgba(122,82,0,0.03)');
   grad.addColorStop(0.5, 'rgba(0,0,0,0)');
-  grad.addColorStop(1,   'rgba(0,212,255,0.015)');
+  grad.addColorStop(1,   'rgba(122,82,0,0.02)');
   ctx.fillStyle = grad;
   ctx.fillRect(ML, MT, CW, CH);
 
