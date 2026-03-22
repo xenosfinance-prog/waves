@@ -1308,23 +1308,9 @@ function toggleSidebar() {
   document.getElementById('mainArea').classList.toggle('collapsed', !sidebarOpen);
   document.querySelector('.sidebar-toggle').textContent = sidebarOpen ? '◀' : '▶';
 }
-// ── Symbol translation: Yahoo format ↔ Worker format ─────────
-const YAHOO_TO_WORKER = {
-  'BTC-USD':'BTCUSD','ETH-USD':'ETHUSD','XRP-USD':'XRPUSD','SOL-USD':'SOLUSD','DOGE-USD':'DOGEUSD',
-  'EURUSD=X':'EURUSD','GBPUSD=X':'GBPUSD','USDJPY=X':'USDJPY','USDCHF=X':'USDCHF',
-  'AUDUSD=X':'AUDUSD','NZDUSD=X':'NZDUSD','USDCAD=X':'USDCAD','EURGBP=X':'EURGBP',
-  'EURJPY=X':'EURJPY','GBPJPY=X':'GBPJPY','CADJPY=X':'CADJPY','AUDNZD=X':'AUDNZD',
-  'EURCHF=X':'EURCHF','GBPCHF=X':'GBPCHF',
-  'GC=F':'XAUUSD','SI=F':'XAGUSD','CL=F':'USOIL','BZ=F':'UKOIL','NG=F':'NGAS','HG=F':'COPPER',
-  'ES=F':'US500','NQ=F':'NAS100','YM=F':'US30','RTY=F':'RUT',
-  'EWG':'GER40','EWU':'UK100','EWQ':'FRA40','EWJ':'JPN225','EWH':'HK50',
-  'DIA':'US30','QQQ':'NAS100',
-};
-const WORKER_TO_YAHOO = Object.fromEntries(Object.entries(YAHOO_TO_WORKER).map(([y,w])=>[w,y]));
-
 // ── Fetch prices ──────────────────────────────────────────────
 async function fetchPrices() {
-  const yahooSyms = [...new Set([
+  const syms = [...new Set([
     ...WATCHLIST.map(w => w.yf),
     'SPY','GC=F','BTC-USD','EURUSD=X',
     'ES=F','NQ=F','YM=F','RTY=F','SI=F','NG=F','CL=F',
@@ -1332,27 +1318,17 @@ async function fetchPrices() {
     ...GLOBAL_MARKETS.flatMap(r => r.items.map(i => i.yf)),
     ...SECTORS.map(s => s.sym),
   ])];
-
-  // Translate to worker format
-  const workerSyms = yahooSyms.map(s => YAHOO_TO_WORKER[s] || s);
-
   try {
     const res = await fetch(WORKER, {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ type:'prices', pairs: workerSyms })
+      body: JSON.stringify({ type:'prices', pairs: syms })
     });
     if (res.ok) {
       const data = await res.json();
-      const raw = data.prices || {};
-      // Remap results back to Yahoo format so all render functions work
-      prices = {};
-      for (const [k, v] of Object.entries(raw)) {
-        const yahooKey = WORKER_TO_YAHOO[k] || k;
-        prices[yahooKey] = v;
-        prices[k] = v; // also keep original key as fallback
-      }
+      prices = data.prices || {};
     }
   } catch(e) {
+    // Use Yahoo Finance fallback via a simple quote fetch
     console.warn('Worker price fetch failed:', e.message);
   }
   renderAll();
@@ -1367,17 +1343,13 @@ function renderStats() {
     { id:'eur',  yf:'EURUSD=X', fmt:'fx',     label:'EUR/USD' },
   ];
   for (const p of pairs) {
-    const raw = prices[p.yf];
-    const { price: pr, chg } = extractPrice(raw);
-    const valEl = document.getElementById(`stat-${p.id}`);
-    const chgEl = document.getElementById(`stat-${p.id}-chg`);
-    if (!valEl || !chgEl) continue;
-    if (pr) {
-      const c = fmtChg(chg);
-      valEl.textContent = fmtP(pr, p.fmt);
-      chgEl.textContent = c.str;
-      chgEl.className = `stat-sub ${c.cls}`;
-    }
+    const { price: pr, chg } = extractPrice(prices[p.yf]);
+    if (!pr) continue;
+    const c = fmtChg(chg);
+    document.getElementById(`stat-${p.id}`).textContent = fmtP(pr, p.fmt);
+    const el = document.getElementById(`stat-${p.id}-chg`);
+    el.textContent = c.str;
+    el.className = `stat-sub ${c.cls}`;
   }
 }
 
@@ -1477,40 +1449,33 @@ function renderTicker() {
 // ── Chart ─────────────────────────────────────────────────────
 function initChart() {
   const container = document.getElementById('chartContainer');
-  try {
-    chart = LightweightCharts.createChart(container, {
-      layout: {
-        background: { color: '#FDF8EF' },
-        textColor: '#8B6B3D',
-      },
-      grid: {
-        vertLines: { color: '#EDE0C0' },
-        horzLines: { color: '#EDE0C0' },
-      },
-      crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
-      rightPriceScale: { borderColor: '#C9A96E' },
-      timeScale: { borderColor: '#C9A96E', timeVisible: true },
-      handleScroll: true,
-      handleScale: true,
-    });
+  chart = LightweightCharts.createChart(container, {
+    layout: {
+      background: { color: '#FDF8EF' },
+      textColor: '#8B6B3D',
+    },
+    grid: {
+      vertLines: { color: '#EDE0C0' },
+      horzLines: { color: '#EDE0C0' },
+    },
+    crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+    rightPriceScale: { borderColor: '#C9A96E' },
+    timeScale: { borderColor: '#C9A96E', timeVisible: true },
+    handleScroll: true,
+    handleScale: true,
+  });
+  lineSeries = chart.addAreaSeries({
+    lineColor: '#7A5200',
+    topColor: 'rgba(122,82,0,0.15)',
+    bottomColor: 'rgba(122,82,0,0.0)',
+    lineWidth: 2,
+  });
 
-    // Support both LightweightCharts v3 (addAreaSeries) and v4 (addSeries)
-    const _areaOpts = { lineColor:'#7A5200', topColor:'rgba(122,82,0,0.15)', bottomColor:'rgba(122,82,0,0.0)', lineWidth:2 };
-    if (typeof LightweightCharts.AreaSeries !== 'undefined') {
-      lineSeries = chart.addSeries(LightweightCharts.AreaSeries, _areaOpts);
-    } else {
-      lineSeries = chart.addAreaSeries(_areaOpts);
-    }
-
-    // Resize observer
-    new ResizeObserver(() => {
-      const h = Math.max(container.clientHeight, 280);
-      chart.applyOptions({ width: container.clientWidth, height: h });
-    }).observe(container);
-  } catch(e) {
-    console.error('Chart init failed:', e);
-    container.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100%;font-family:var(--mono);font-size:0.65rem;color:var(--dim);padding:40px">Chart error: ${e.message}</div>`;
-  }
+  // Resize observer
+  new ResizeObserver(() => {
+    const h = Math.max(container.clientHeight, 280);
+    chart.applyOptions({ width: container.clientWidth, height: h });
+  }).observe(container);
 }
 
 async function loadChartData(yf) {
@@ -1566,13 +1531,10 @@ async function selectAsset(sym, name, yf, fmt, el) {
     cel.className = `chart-chg ${c.cls}`;
   }
 
-  if (!lineSeries) return; // chart not initialized
   const data = await loadChartData(yf);
   if (data.length > 0) {
-    try {
-      lineSeries.setData(data);
-      chart.timeScale().fitContent();
-    } catch(e) { console.warn('Chart setData error:', e); }
+    lineSeries.setData(data);
+    chart.timeScale().fitContent();
   }
 }
 
@@ -1642,26 +1604,26 @@ function handleSearch(e) {
 
 // ── PRE-MARKET DATA ───────────────────────────────────────────
 const PM_ASSETS = [
-  {sym:'AAPL',  name:'Apple Inc.',     yf:'AAPL',     fmt:'price'},
-  {sym:'MSFT',  name:'Microsoft',      yf:'MSFT',     fmt:'price'},
-  {sym:'NVDA',  name:'NVIDIA Corp.',   yf:'NVDA',     fmt:'price'},
-  {sym:'GOOGL', name:'Alphabet',       yf:'GOOGL',    fmt:'price'},
-  {sym:'META',  name:'Meta Platforms', yf:'META',     fmt:'price'},
-  {sym:'TSLA',  name:'Tesla Inc.',     yf:'TSLA',     fmt:'price'},
-  {sym:'AMZN',  name:'Amazon',         yf:'AMZN',     fmt:'price'},
-  {sym:'JPM',   name:'JPMorgan',       yf:'JPM',      fmt:'price'},
-  {sym:'SPY',   name:'S&P 500 ETF',    yf:'SPY',      fmt:'price'},
-  {sym:'QQQ',   name:'Nasdaq 100 ETF', yf:'QQQ',      fmt:'price'},
-  {sym:'BTC-USD',name:'Bitcoin',       yf:'BTC-USD',  fmt:'crypto'},
-  {sym:'GC=F',  name:'Gold Futures',   yf:'GC=F',     fmt:'price'},
+  {sym:'AAPL',  name:'Apple Inc.',    yf:'AAPL',     fmt:'price', sector:'Tech'},
+  {sym:'MSFT',  name:'Microsoft',     yf:'MSFT',     fmt:'price', sector:'Tech'},
+  {sym:'NVDA',  name:'NVIDIA Corp.',  yf:'NVDA',     fmt:'price', sector:'Tech'},
+  {sym:'GOOGL', name:'Alphabet',      yf:'GOOGL',    fmt:'price', sector:'Tech'},
+  {sym:'META',  name:'Meta Platforms',yf:'META',     fmt:'price', sector:'Tech'},
+  {sym:'TSLA',  name:'Tesla Inc.',    yf:'TSLA',     fmt:'price', sector:'EV'},
+  {sym:'AMZN',  name:'Amazon',        yf:'AMZN',     fmt:'price', sector:'Consumer'},
+  {sym:'JPM',   name:'JPMorgan',      yf:'JPM',      fmt:'price', sector:'Finance'},
+  {sym:'SPY',   name:'S&P 500 ETF',   yf:'SPY',      fmt:'price', sector:'Index'},
+  {sym:'QQQ',   name:'Nasdaq 100 ETF',yf:'QQQ',      fmt:'price', sector:'Index'},
+  {sym:'BTC-USD',name:'Bitcoin',      yf:'BTC-USD',  fmt:'crypto',sector:'Crypto'},
+  {sym:'GC=F',  name:'Gold Futures',  yf:'GC=F',     fmt:'price', sector:'Commodity'},
 ];
 
 function getSessionInfo() {
   const now = new Date();
-  const etHour = parseFloat(now.toLocaleString('en-US',{hour:'numeric',hour12:false,timeZone:'America/New_York'}));
-  if (etHour >= 4 && etHour < 9.5)  return {label:'PRE-MARKET',   cls:'up',      msg:'Pre-Market session active · 04:00–09:30 ET'};
-  if (etHour >= 9.5 && etHour < 16) return {label:'MARKET OPEN',  cls:'up',      msg:'Regular session active · 09:30–16:00 ET'};
-  if (etHour >= 16 && etHour < 20)  return {label:'AFTER-HOURS',  cls:'neutral', msg:'After-hours session · 16:00–20:00 ET'};
+  const etHour = parseInt(now.toLocaleString('en-US',{hour:'numeric',hour12:false,timeZone:'America/New_York'}));
+  if (etHour >= 4 && etHour < 9.5)  return {label:'PRE-MARKET',  cls:'up',   msg:'Pre-Market session active · 04:00–09:30 ET'};
+  if (etHour >= 9.5 && etHour < 16) return {label:'MARKET OPEN', cls:'up',   msg:'Regular session active · 09:30–16:00 ET'};
+  if (etHour >= 16 && etHour < 20)  return {label:'AFTER-HOURS', cls:'neutral', msg:'After-hours session · 16:00–20:00 ET'};
   return {label:'MARKET CLOSED', cls:'dn', msg:'Market closed · Pre-market opens 04:00 ET'};
 }
 
@@ -1672,12 +1634,14 @@ function renderPreMarket() {
   const banner = document.getElementById('pm-banner');
   if (badge) { badge.textContent = sess.label; badge.style.color = sess.cls==='up'?'var(--green)':sess.cls==='dn'?'var(--red)':'var(--dim)'; badge.style.borderColor = 'currentColor'; }
   if (banner) { banner.textContent = sess.msg; }
+
   let rows = '';
   for (const a of PM_ASSETS) {
     const d = prices[a.yf];
     const { price: cur, chg } = extractPrice(d);
     const prevClose = d && typeof d === 'object' ? parseFloat(d.prev_close || d.prevClose || 0) : 0;
-    const delta = (prevClose && cur) ? cur - prevClose : null;
+    const pm = cur;
+    const delta = (prevClose && pm) ? pm - prevClose : null;
     const pct   = (prevClose && delta !== null) ? delta / prevClose * 100 : chg;
     const absDelta = delta !== null ? Math.abs(delta) : null;
     const cls = (pct||0) >= 0 ? 'up' : 'dn';
@@ -1685,10 +1649,17 @@ function renderPreMarket() {
     const bar = Math.min(Math.abs(pct||0) * 10 + 8, 88);
     const bc = (pct||0) >= 0 ? 'var(--green)' : 'var(--red)';
     rows += `<div style="display:grid;grid-template-columns:160px 1fr 110px 110px 110px 110px;padding:11px 18px;border-bottom:1px solid var(--border2);align-items:center;transition:background 0.12s" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">
-      <div><div style="font-family:var(--mono);font-size:0.72rem;font-weight:500;color:var(--text)">${a.sym.replace('-USD','').replace('=F','')}</div><div style="font-family:var(--mono);font-size:0.5rem;color:var(--dim);margin-top:2px">${a.name}</div></div>
-      <div style="padding:0 14px"><div style="height:5px;background:var(--bg3);border-radius:3px"><div style="height:100%;width:${bar}%;background:${bc};border-radius:3px;transition:width 0.4s"></div></div></div>
+      <div>
+        <div style="font-family:var(--mono);font-size:0.72rem;font-weight:500;color:var(--text)">${a.sym.replace('-USD','').replace('=F','')}</div>
+        <div style="font-family:var(--mono);font-size:0.5rem;color:var(--dim);margin-top:2px">${a.name}</div>
+      </div>
+      <div style="padding:0 14px">
+        <div style="height:5px;background:var(--bg3);border-radius:3px">
+          <div style="height:100%;width:${bar}%;background:${bc};border-radius:3px;transition:width 0.4s"></div>
+        </div>
+      </div>
       <div style="font-family:var(--mono);font-size:0.68rem;text-align:right;color:var(--dim)">${prevClose ? fmtP(prevClose, a.fmt) : '—'}</div>
-      <div style="font-family:var(--mono);font-size:0.72rem;font-weight:500;text-align:right;color:var(--text)">${cur ? fmtP(cur, a.fmt) : '—'}</div>
+      <div style="font-family:var(--mono);font-size:0.72rem;font-weight:500;text-align:right;color:var(--text)">${pm ? fmtP(pm, a.fmt) : '—'}</div>
       <div style="font-family:var(--mono);font-size:0.68rem;text-align:right" class="${cls}">${absDelta !== null ? (delta>=0?'+':'-')+'$'+absDelta.toFixed(2) : '—'}</div>
       <div style="font-family:var(--mono);font-size:0.72rem;font-weight:600;text-align:right" class="${cls}">${pct !== null && !isNaN(pct) ? arrow+' '+Math.abs(pct).toFixed(2)+'%' : '—'}</div>
     </div>`;
@@ -1698,18 +1669,18 @@ function renderPreMarket() {
 
 // ── FUTURES DATA ──────────────────────────────────────────────
 const FUTURES_ASSETS = [
-  {sym:'ES=F',    name:'S&P 500 E-Mini',  yf:'ES=F',     fmt:'price', group:'US Index Futures'},
-  {sym:'NQ=F',    name:'NASDAQ E-Mini',   yf:'NQ=F',     fmt:'price', group:'US Index Futures'},
-  {sym:'YM=F',    name:'Dow Jones E-Mini',yf:'YM=F',     fmt:'price', group:'US Index Futures'},
-  {sym:'RTY=F',   name:'Russell 2000',    yf:'RTY=F',    fmt:'price', group:'US Index Futures'},
-  {sym:'GC=F',    name:'Gold',            yf:'GC=F',     fmt:'price', group:'Commodities'},
-  {sym:'CL=F',    name:'Crude Oil WTI',   yf:'CL=F',     fmt:'price', group:'Commodities'},
-  {sym:'SI=F',    name:'Silver',          yf:'SI=F',     fmt:'price', group:'Commodities'},
-  {sym:'NG=F',    name:'Natural Gas',     yf:'NG=F',     fmt:'price', group:'Commodities'},
-  {sym:'EURUSD=X',name:'EUR/USD',         yf:'EURUSD=X', fmt:'fx',    group:'FX'},
-  {sym:'GBPUSD=X',name:'GBP/USD',         yf:'GBPUSD=X', fmt:'fx',    group:'FX'},
-  {sym:'USDJPY=X',name:'USD/JPY',         yf:'USDJPY=X', fmt:'fx',    group:'FX'},
-  {sym:'BTC-USD', name:'Bitcoin',         yf:'BTC-USD',  fmt:'crypto',group:'Crypto Futures'},
+  {sym:'ES=F',  name:'S&P 500 E-Mini',   yf:'ES=F',  fmt:'price', group:'US Index Futures'},
+  {sym:'NQ=F',  name:'NASDAQ E-Mini',     yf:'NQ=F',  fmt:'price', group:'US Index Futures'},
+  {sym:'YM=F',  name:'Dow Jones E-Mini',  yf:'YM=F',  fmt:'price', group:'US Index Futures'},
+  {sym:'RTY=F', name:'Russell 2000',      yf:'RTY=F', fmt:'price', group:'US Index Futures'},
+  {sym:'GC=F',  name:'Gold',              yf:'GC=F',  fmt:'price', group:'Commodities'},
+  {sym:'CL=F',  name:'Crude Oil WTI',     yf:'CL=F',  fmt:'price', group:'Commodities'},
+  {sym:'SI=F',  name:'Silver',            yf:'SI=F',  fmt:'price', group:'Commodities'},
+  {sym:'NG=F',  name:'Natural Gas',       yf:'NG=F',  fmt:'price', group:'Commodities'},
+  {sym:'EURUSD=X',name:'EUR/USD',         yf:'EURUSD=X',fmt:'fx',  group:'FX'},
+  {sym:'GBPUSD=X',name:'GBP/USD',         yf:'GBPUSD=X',fmt:'fx',  group:'FX'},
+  {sym:'USDJPY=X',name:'USD/JPY',         yf:'USDJPY=X',fmt:'fx',  group:'FX'},
+  {sym:'BTC-USD', name:'Bitcoin',         yf:'BTC-USD', fmt:'crypto',group:'Crypto Futures'},
 ];
 
 function renderFutures() {
@@ -1727,7 +1698,10 @@ function renderFutures() {
       const cls = (chg||0) >= 0 ? 'up' : 'dn';
       const arrow = (chg||0) >= 0 ? '▲' : '▼';
       html += `<div style="display:grid;grid-template-columns:160px 1fr 110px 110px 110px;padding:11px 18px;border-bottom:1px solid var(--border2);align-items:center;transition:background 0.12s" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">
-        <div><div style="font-family:var(--mono);font-size:0.72rem;font-weight:500;color:var(--text)">${f.sym.replace('=F','').replace('=X','').replace('-USD','')}</div><div style="font-family:var(--mono);font-size:0.5rem;color:var(--dim);margin-top:2px">${f.name}</div></div>
+        <div>
+          <div style="font-family:var(--mono);font-size:0.72rem;font-weight:500;color:var(--text)">${f.sym.replace('=F','').replace('=X','').replace('-USD','')}</div>
+          <div style="font-family:var(--mono);font-size:0.5rem;color:var(--dim);margin-top:2px">${f.name}</div>
+        </div>
         <div></div>
         <div style="font-family:var(--mono);font-size:0.72rem;text-align:right;color:var(--text)">${pr ? fmtP(pr, f.fmt) : '—'}</div>
         <div style="font-family:var(--mono);font-size:0.68rem;text-align:right" class="${cls}">${delta !== null ? (delta>=0?'+':'-')+'$'+Math.abs(delta).toFixed(2) : '—'}</div>
