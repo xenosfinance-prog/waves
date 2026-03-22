@@ -2282,12 +2282,25 @@ function loadTradingViewChart(container, sig) {
       hide_legend:       false,
       save_image:        false,
       backgroundColor:   '#FDF8EF',
-      gridColor:         'rgba(30,42,58,0.6)',
+      gridColor:         'rgba(0,0,0,0)',
       width:             '100%',
       height:            340,
       studies:           [],
-      disabled_features: ['use_localstorage_for_settings','header_symbol_search','header_compare'],
+      disabled_features: ['use_localstorage_for_settings','header_symbol_search','header_compare',
+        'left_toolbar','header_indicators','header_undo_redo','header_screenshot',
+        'header_fullscreen_button'],
       enabled_features:  ['hide_left_toolbar_by_default'],
+      overrides: {
+        'paneProperties.vertGridProperties.color': 'rgba(0,0,0,0)',
+        'paneProperties.horzGridProperties.color': 'rgba(0,0,0,0)',
+        'scalesProperties.textColor': '#8B6B3D',
+        'mainSeriesProperties.candleStyle.upColor': '#1e5c35',
+        'mainSeriesProperties.candleStyle.downColor': '#8B1A1A',
+        'mainSeriesProperties.candleStyle.borderUpColor': '#1e5c35',
+        'mainSeriesProperties.candleStyle.borderDownColor': '#8B1A1A',
+        'mainSeriesProperties.candleStyle.wickUpColor': '#1e5c35',
+        'mainSeriesProperties.candleStyle.wickDownColor': '#8B1A1A',
+      },
     });
   };
   // Se tv.js è già caricato, crea direttamente il widget
@@ -2355,7 +2368,7 @@ async function loadLightweightChart(container, sig) {
     width:  container.offsetWidth || 860,
     height: 320,
     layout: { background: { type: 'solid', color: '#FDF8EF' }, textColor: '#8B6B3D', fontSize: 11, fontFamily: "'Space Mono', monospace" },
-    grid:   { vertLines: { color: '#1a2535', style: 1 }, horzLines: { color: '#1a2535', style: 1 } },
+    grid:   { vertLines: { color: 'rgba(0,0,0,0)' }, horzLines: { color: 'rgba(200,185,165,0.4)' } },
     crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
     rightPriceScale: { borderColor: '#1e2a3a' },
     timeScale: { borderColor: '#1e2a3a', timeVisible: true, secondsVisible: false },
@@ -2506,15 +2519,16 @@ function drawPatternChart(canvas, sig) {
   ctx.fillStyle = '#000'; ctx.font = 'bold 11px "Space Mono",monospace'; ctx.textAlign = 'center';
   ctx.fillText(isBull ? '▲  BUY' : '▼  SELL', bdgX + bdgW/2, bdgY+16);
 
-  // Confidence badge
-  const confCol = sig.confidence >= 80 ? '#00e676' : sig.confidence >= 70 ? '#ffd600' : '#00d4ff';
-  ctx.fillStyle = BG2; ctx.strokeStyle = confCol; ctx.lineWidth = 1.5;
+  // Confidence badge — colori leggibili su sfondo chiaro
+  const confCol = sig.confidence >= 80 ? '#1e5c35' : sig.confidence >= 70 ? '#7A5200' : '#1a3a6b';
+  const confBg  = sig.confidence >= 80 ? 'rgba(30,92,53,0.12)' : sig.confidence >= 70 ? 'rgba(122,82,0,0.12)' : 'rgba(26,58,107,0.12)';
+  ctx.fillStyle = confBg; ctx.strokeStyle = confCol; ctx.lineWidth = 1.5;
   ctx.beginPath(); ctx.roundRect(bdgX+bdgW+6, bdgY, 62, bdgH, 3); ctx.fill(); ctx.stroke();
   ctx.fillStyle = confCol; ctx.font = 'bold 11px "Space Mono",monospace';
   ctx.fillText(sig.confidence + '%', bdgX+bdgW+6+31, bdgY+16);
 
   // R:R badge
-  ctx.fillStyle = BG2; ctx.strokeStyle = ORANGE; ctx.lineWidth = 1.5;
+  ctx.fillStyle = 'rgba(155,104,0,0.1)'; ctx.strokeStyle = ORANGE; ctx.lineWidth = 1.5;
   ctx.beginPath(); ctx.roundRect(bdgX+bdgW+6+68, bdgY, 82, bdgH, 3); ctx.fill(); ctx.stroke();
   ctx.fillStyle = ORANGE; ctx.font = '10px "Space Mono",monospace';
   ctx.fillText('R:R ' + (sig.rr || '—'), bdgX+bdgW+6+68+41, bdgY+16);
@@ -2581,24 +2595,23 @@ function drawPatternChart(canvas, sig) {
     ctx.fillStyle=c; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
     ctx.restore();
   }
-  function LBL(text,x,y,c,above=true,size=12) {
+  function LBL(text,x,y,c,above=true,size=11) {
     ctx.save();
     ctx.font='bold '+size+'px "Space Mono",monospace';
     const tw=ctx.measureText(text).width;
-    const pad=10, h=22;
+    const pad=9, h=22;
     const bx=x-tw/2-pad, by=above?y-h-10:y+10;
-    // Shadow glow
-    ctx.shadowColor=c; ctx.shadowBlur=12;
-    // Background
-    ctx.fillStyle='rgba(6,8,16,0.92)';
-    ctx.strokeStyle=c; ctx.lineWidth=1.5;
+    // Background bianco con bordo colorato
+    ctx.fillStyle='rgba(253,248,239,0.97)';
+    ctx.strokeStyle=c; ctx.lineWidth=2;
+    ctx.shadowColor='rgba(0,0,0,0.15)'; ctx.shadowBlur=6; ctx.shadowOffsetY=2;
     ctx.beginPath(); ctx.roundRect(bx,by,tw+pad*2,h,4); ctx.fill(); ctx.stroke();
-    ctx.shadowBlur=0;
-    ctx.fillStyle=c; ctx.textAlign='center';
+    ctx.shadowBlur=0; ctx.shadowOffsetY=0;
+    ctx.fillStyle='#1C0F00'; ctx.textAlign='center';
     ctx.fillText(text,x,by+h-5);
     ctx.restore();
   }
-  function vDash(x) { L(x,MT,x,MT+CH,'#2a3f58',1,[5,4],0.5); }
+  function vDash(x) { L(x,MT,x,MT+CH,'rgba(201,169,110,0.25)',1,[5,4],0.6); }
   function targetArrow(fromX, fromY) { trajArrow(fromX, fromY, col, isBull); }
 
   vDash(nowX);
@@ -2607,7 +2620,7 @@ function drawPatternChart(canvas, sig) {
     col, colDim, ORANGE, WHITE, DIMTEXT, ACCENT, BG, nowX, tpY, entryY, slY);
 
   // ── Border finale ──
-  ctx.strokeStyle = '#1e2a3a'; ctx.lineWidth = 1; ctx.globalAlpha = 1;
+  ctx.strokeStyle = '#C9A96E'; ctx.lineWidth = 1; ctx.globalAlpha = 1;
   ctx.strokeRect(ML, MT, CW, CH);
 }
 
@@ -2639,7 +2652,7 @@ function drawPattern(ctx, pat, isBull, entry, sl, tp, py, px, CW, CH, ML, MR, MT
     const lo=inv?18:-18;
     ctx.fillStyle=ORANGE; ctx.font='bold 12px "Space Mono",monospace'; ctx.textAlign='center';
     ctx.fillText('LS',lsX,lsY+lo); ctx.fillText('HEAD',hdX,hdY+lo); ctx.fillText('RS',rsX,rsY+lo);
-    ctx.fillStyle=DIMTEXT; ctx.font='10px "Space Mono",monospace';
+    ctx.fillStyle='#1C0F00'; ctx.font='bold 10px "Space Mono",monospace';
     ctx.fillText('NECKLINE',px(0.35),nkY+(inv?16:-10));
     LBL(inv?'INVERSE H&S':'HEAD & SHOULDERS',px(0.38),inv?hdY:hdY,col,!inv,13);
     targetArrow(nowX,nkY);
@@ -2682,7 +2695,7 @@ function drawPattern(ctx, pat, isBull, entry, sl, tp, py, px, CW, CH, ML, MR, MT
     vals.forEach(x => DOT(x, valY, ORANGE, 6));
 
     // Label neckline
-    ctx.fillStyle = DIMTEXT; ctx.font = '10px "Space Mono",monospace'; ctx.textAlign = 'center';
+    ctx.fillStyle = '#1C0F00'; ctx.font = 'bold 10px "Space Mono",monospace'; ctx.textAlign = 'center';
     ctx.fillText('NECKLINE', px(0.40), nkY + (isBull ? 16 : -10));
 
     // Label A, B, C sui punti
