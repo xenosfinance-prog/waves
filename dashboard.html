@@ -107,7 +107,8 @@ body {
   overflow: hidden;
 }
 .nav-item:hover { background: var(--bg3); color: var(--gold); }
-.nav-item.active { border-left-color: var(--gold); background: var(--bg3); color: var(--gold); }
+.nav-item.active { border-left-color: var(--gold); background: var(--bg3); color: var(--gold); font-weight: 500; }
+.nav-item.active .nav-icon { color: var(--gold); }
 .nav-icon { font-size: 0.85rem; flex-shrink: 0; width: 18px; text-align: center; }
 .nav-label { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; }
 .sidebar.collapsed .nav-label { display: none; }
@@ -291,7 +292,7 @@ body {
   gap: 1px;
   background: var(--border2);
   border: 1px solid var(--border);
-  height: 600px;
+  min-height: 640px;
 }
 
 /* ── WATCHLIST ── */
@@ -362,7 +363,7 @@ body {
 .watch-sparkline { margin-top: 6px; }
 
 /* ── CHART PANEL ── */
-.chart-panel { background: var(--bg); display: flex; flex-direction: column; overflow: hidden; }
+.chart-panel { background: var(--bg); display: flex; flex-direction: column; overflow: hidden; min-height: 640px; }
 .chart-header {
   padding: 14px 20px;
   border-bottom: 1px solid var(--border);
@@ -477,8 +478,9 @@ body {
   background: var(--border2);
   border: 1px solid var(--border);
   margin-top: 24px;
+  min-height: 320px;
 }
-.bottom-panel { background: var(--bg2); }
+.bottom-panel { background: var(--bg2); min-height: 320px; }
 
 .news-item {
   padding: 12px 18px;
@@ -746,7 +748,9 @@ body {
   .vr-chg.up { color:var(--green); } .vr-chg.dn { color:var(--red); } .vr-chg.neutral { color:var(--dim); }
   /* Chart height fix */
   #chartContainer { flex:1; min-height:420px; height:420px; }
-  .chart-panel { display:flex; flex-direction:column; background:var(--bg); min-height:540px; }
+  .chart-panel { display:flex; flex-direction:column; background:var(--bg); min-height:640px; }
+  #tv-chart-container { flex:1; min-height:600px; }
+  #tradingview_main { height:100%; min-height:600px; }
 
 </style>
 </head>
@@ -890,8 +894,8 @@ body {
 
       <!-- Chart — TradingView Advanced Chart -->
       <div class="chart-panel">
-        <div id="tv-chart-container" style="flex:1;height:100%;min-height:560px;width:100%">
-          <div id="tradingview_main" style="height:100%;width:100%"></div>
+        <div id="tv-chart-container" style="flex:1;height:100%;min-height:600px;width:100%">
+          <div id="tradingview_main" style="height:100%;width:100%;min-height:600px"></div>
         </div>
       </div>
 
@@ -1935,6 +1939,7 @@ function setNav(el) {
   const viewId = VIEW_MAP[label] || 'dashboardView';
   showView(viewId);
   document.querySelector('.page-title').textContent = TITLE_MAP[label] || 'Market Dashboard';
+  window.scrollTo(0, 0);
   if (label==='Portfolio')   renderPortfolio();
   if (label==='Stocks')      renderStocksView();
   if (label==='Markets')     renderMarketsView();
