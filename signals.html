@@ -2003,9 +2003,20 @@ async function generateSignals() {
       return sig;
     });
 
-    signals = merged;
-    renderSignals(merged);
-    updateStats(merged);
+    // ── Un solo segnale per pair: tieni quello con confidence più alta ──
+    const bestPerPair = {};
+    for (const sig of merged) {
+      const key = sig.pair;
+      if (!bestPerPair[key] || sig.confidence > bestPerPair[key].confidence) {
+        bestPerPair[key] = sig;
+      }
+    }
+    const dedupedSignals = Object.values(bestPerPair)
+      .sort((a, b) => b.confidence - a.confidence);
+
+    signals = dedupedSignals;
+    renderSignals(dedupedSignals);
+    updateStats(dedupedSignals);
 
   } catch(e) {
     clearInterval(loaderInterval);
