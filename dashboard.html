@@ -1308,9 +1308,23 @@ function toggleSidebar() {
   document.getElementById('mainArea').classList.toggle('collapsed', !sidebarOpen);
   document.querySelector('.sidebar-toggle').textContent = sidebarOpen ? '◀' : '▶';
 }
+// ── Symbol translation: Yahoo format ↔ Worker format ─────────
+const YAHOO_TO_WORKER = {
+  'BTC-USD':'BTCUSD','ETH-USD':'ETHUSD','XRP-USD':'XRPUSD','SOL-USD':'SOLUSD','DOGE-USD':'DOGEUSD',
+  'EURUSD=X':'EURUSD','GBPUSD=X':'GBPUSD','USDJPY=X':'USDJPY','USDCHF=X':'USDCHF',
+  'AUDUSD=X':'AUDUSD','NZDUSD=X':'NZDUSD','USDCAD=X':'USDCAD','EURGBP=X':'EURGBP',
+  'EURJPY=X':'EURJPY','GBPJPY=X':'GBPJPY','CADJPY=X':'CADJPY','AUDNZD=X':'AUDNZD',
+  'EURCHF=X':'EURCHF','GBPCHF=X':'GBPCHF',
+  'GC=F':'XAUUSD','SI=F':'XAGUSD','CL=F':'USOIL','BZ=F':'UKOIL','NG=F':'NGAS','HG=F':'COPPER',
+  'ES=F':'US500','NQ=F':'NAS100','YM=F':'US30','RTY=F':'RUT',
+  'EWG':'GER40','EWU':'UK100','EWQ':'FRA40','EWJ':'JPN225','EWH':'HK50',
+  'DIA':'US30','QQQ':'NAS100',
+};
+const WORKER_TO_YAHOO = Object.fromEntries(Object.entries(YAHOO_TO_WORKER).map(([y,w])=>[w,y]));
+
 // ── Fetch prices ──────────────────────────────────────────────
 async function fetchPrices() {
-  const syms = [...new Set([
+  const yahooSyms = [...new Set([
     ...WATCHLIST.map(w => w.yf),
     'SPY','GC=F','BTC-USD','EURUSD=X',
     'ES=F','NQ=F','YM=F','RTY=F','SI=F','NG=F','CL=F',
@@ -1318,17 +1332,27 @@ async function fetchPrices() {
     ...GLOBAL_MARKETS.flatMap(r => r.items.map(i => i.yf)),
     ...SECTORS.map(s => s.sym),
   ])];
+
+  // Translate to worker format
+  const workerSyms = yahooSyms.map(s => YAHOO_TO_WORKER[s] || s);
+
   try {
     const res = await fetch(WORKER, {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ type:'prices', pairs: syms })
+      body: JSON.stringify({ type:'prices', pairs: workerSyms })
     });
     if (res.ok) {
       const data = await res.json();
-      prices = data.prices || {};
+      const raw = data.prices || {};
+      // Remap results back to Yahoo format so all render functions work
+      prices = {};
+      for (const [k, v] of Object.entries(raw)) {
+        const yahooKey = WORKER_TO_YAHOO[k] || k;
+        prices[yahooKey] = v;
+        prices[k] = v; // also keep original key as fallback
+      }
     }
   } catch(e) {
-    // Use Yahoo Finance fallback via a simple quote fetch
     console.warn('Worker price fetch failed:', e.message);
   }
   renderAll();
