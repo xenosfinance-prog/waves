@@ -105,8 +105,9 @@ body {
   border-left: 2px solid transparent;
   white-space: nowrap;
   overflow: hidden;
+  user-select: none;
 }
-.nav-item:hover { background: var(--bg3); color: var(--gold); }
+.nav-item:hover { background: var(--bg4); color: var(--gold); border-left-color: var(--gold3); }
 .nav-item.active { border-left-color: var(--gold); background: var(--bg3); color: var(--gold); font-weight: 500; }
 .nav-item.active .nav-icon { color: var(--gold); }
 .nav-icon { font-size: 0.85rem; flex-shrink: 0; width: 18px; text-align: center; }
@@ -1620,11 +1621,32 @@ function handleSearch(e) {
   if (e.key !== 'Enter') return;
   const q = e.target.value.toUpperCase().trim();
   if (!q) return;
-  const found = WATCHLIST.find(w => w.sym.includes(q) || w.name.toUpperCase().includes(q));
-  if (found) {
-    selectAsset(found.sym, found.name, found.yf, found.fmt, null);
-    e.target.value = '';
+
+  // Watchlist
+  const wl = WATCHLIST.find(w => w.sym.toUpperCase().includes(q) || w.name.toUpperCase().includes(q));
+  if (wl) { goToChart(wl.sym, wl.name, wl.yf, wl.fmt); e.target.value = ''; return; }
+
+  // Stocks
+  const st = STOCKS_LIST.find(s => s.sym.toUpperCase().includes(q) || s.name.toUpperCase().includes(q));
+  if (st) { goToChart(st.sym, st.name, st.yf, 'price'); e.target.value = ''; return; }
+
+  // Markets
+  const mk = MARKETS_LIST.find(m => m.sym.toUpperCase().includes(q) || m.name.toUpperCase().includes(q));
+  if (mk) { goToChart(mk.sym, mk.name, mk.yf, 'price'); e.target.value = ''; return; }
+
+  // FX
+  const fx = FX_LIST.find(f => f.label.toUpperCase().includes(q) || f.name.toUpperCase().includes(q));
+  if (fx) { goToChart(fx.label, fx.name, fx.yf, fx.fmt); e.target.value = ''; return; }
+
+  // Global
+  for (const region of GLOBAL_MARKETS) {
+    const item = region.items.find(i => i.ticker.toUpperCase().includes(q) || i.name.toUpperCase().includes(q));
+    if (item) { goToChart(item.ticker, item.name, item.yf, 'price'); e.target.value = ''; return; }
   }
+
+  // Simbolo qualsiasi — prova diretto su TradingView
+  goToChart(q, q, q, 'price');
+  e.target.value = '';
 }
 
 // ── Render all ────────────────────────────────────────────────
