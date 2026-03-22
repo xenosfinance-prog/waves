@@ -275,7 +275,6 @@ let activeEvent = null;
 function getWeekRange(offset = 0) {
   const now = new Date();
   const dow = now.getDay();
-  // Weekend: i mercati non sono aperti questa settimana, mostra la prossima
   const weekendShift = (dow === 0 || dow === 6) ? 1 : 0;
   const daysToMon = dow === 0 ? -6 : (1 - dow);
   const mon = new Date(now);
@@ -400,35 +399,55 @@ async function loadCalendar() {
   document.getElementById('eventsList').innerHTML = `
     <div style="text-align:center;padding:60px 0;font-family:var(--mono);font-size:0.7rem;color:var(--dim);">
       <div class="spinner" style="margin:0 auto 16px;width:20px;height:20px;border-width:2px;display:block;"></div>
-      Fetching macro events...
+      Loading events...
     </div>`;
   document.getElementById('dayTabs').innerHTML = '';
+
+  const isWknd = (new Date().getDay() === 0 || new Date().getDay() === 6);
+  // weekOffset 0 = next week se weekend, this week se feriale
+  // Per FF: offset 0 weekend → nextweek feed; offset -1 weekend → thisweek feed
+  const ffWeek = isWknd
+    ? (weekOffset === 0 ? 'nextweek' : weekOffset === -1 ? 'thisweek' : null)
+    : (weekOffset === 0 ? 'thisweek' : weekOffset === 1 ? 'nextweek' : null);
 
   const { mon, fri } = getWeekRange(weekOffset);
   const from = isoDate(mon);
   const to   = isoDate(fri);
   let events = [];
 
-  // ── Source 1: RapidAPI via Worker (dati reali per qualsiasi settimana) ──
-  try {
-    const res = await fetch(WORKER, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'finnhub', action: 'economic_calendar', from, to })
-    });
-    if (res.ok) {
-      const data = await res.json();
-      const raw = data.economicCalendar || [];
-      if (raw.length > 0) {
-        events = raw;
-        console.log('Calendar: RapidAPI OK —', raw.length, 'events for', from, '→', to);
+  // ── Source 1: ForexFactory via Worker (server-side, nessun CORS) ──
+  if (ffWeek) {
+    try {
+      const res = await fetch(WORKER, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'forexfactory', week: ffWeek })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.events && data.events.length > 0) {
+          events = data.events;
+          console.log('Calendar: ForexFactory via Worker OK —', events.length, 'eventi per', ffWeek);
+        }
       }
-    }
-  } catch(e) { console.warn('RapidAPI calendar failed:', e.message); }
+    } catch(e) { console.warn('FF Worker failed:', e.message); }
+  }
 
-  // ── Source 2: ForexFactory XML (fallback — solo this/next week) ──
+  // ── Source 2: RapidAPI via Worker (funziona per qualsiasi settimana) ──
   if (events.length === 0) {
-    events = await fetchForexFactory(weekOffset);
-    if (events.length > 0) console.log('Calendar: ForexFactory fallback OK —', events.length, 'events');
+    try {
+      const res = await fetch(WORKER, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'finnhub', action: 'economic_calendar', from, to })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const raw = data.economicCalendar || [];
+        if (raw.length > 0) {
+          events = raw;
+          console.log('Calendar: RapidAPI fallback OK —', raw.length, 'eventi');
+        }
+      }
+    } catch(e) { console.warn('RapidAPI failed:', e.message); }
   }
 
   allEvents = deduplicateEvents(normalizeEvents(events, mon, fri));
@@ -437,7 +456,7 @@ async function loadCalendar() {
     document.getElementById('eventsList').innerHTML = `
       <div style="padding:40px;text-align:center">
         <div style="font-family:var(--mono);font-size:0.68rem;color:var(--dim);margin-bottom:12px">
-          Nessun evento trovato per questa settimana
+          Nessun evento trovato — riprova
         </div>
         <button onclick="loadCalendar()" style="font-family:var(--mono);font-size:0.6rem;color:var(--gold);border:1px solid var(--gold);padding:6px 14px;background:none;cursor:pointer;letter-spacing:0.1em">
           ↺ Riprova
