@@ -1789,8 +1789,8 @@ async function analyzePair(pair, livePrices) {
   // Calcola RR
   const rawRR = Math.abs(detected.tp - detected.entry) / Math.abs(detected.sl - detected.entry);
   // RR minimo dipende dal timeframe: D1 richiede setup migliori
-  const minRR = selectedTF === 'D1' ? 1.2 : selectedTF === 'H4' ? 1.0 : 0.8;
-  if (rawRR < minRR) return null; // scarta setup con RR troppo basso
+  const minRR = 0.5; // RR minimo basso per non scartare segnali validi
+  if (rawRR < minRR) return null;
 
   const rrStr = '1:' + rawRR.toFixed(1);
 
@@ -1941,9 +1941,9 @@ async function generateSignals() {
       }))
     );
 
-    // Filtra null e per minConf
+    // Filtra null — soglia minima assoluta 40% per non escludere segnali validi
     const validAnalyses = analysisResults
-      .filter(a => a !== null && a.confidence >= minConf);
+      .filter(a => a !== null && a.confidence >= 40);
 
     if (validAnalyses.length === 0) {
       clearInterval(loaderInterval);
@@ -2038,7 +2038,7 @@ function parseSignals(raw, minConf, dir) {
   const start = cleaned.indexOf('['), end = cleaned.lastIndexOf(']');
   if (start === -1 || end === -1) throw new Error('No JSON array in response');
   let arr = JSON.parse(cleaned.slice(start, end+1));
-  return arr.filter(s => s.confidence >= minConf && (dir === 'BOTH' || s.direction === dir));
+  return arr.filter(s => (dir === 'BOTH' || s.direction === dir));
 }
 
 
