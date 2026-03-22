@@ -99,7 +99,7 @@ body {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 9px 18px;
+  padding: 7px 14px;
   cursor: pointer;
   transition: all 0.15s;
   border-left: 2px solid transparent;
@@ -110,7 +110,7 @@ body {
 .nav-item.active { border-left-color: var(--gold); background: var(--bg3); color: var(--gold); font-weight: 500; }
 .nav-item.active .nav-icon { color: var(--gold); }
 .nav-icon { font-size: 0.85rem; flex-shrink: 0; width: 18px; text-align: center; }
-.nav-label { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; }
+.nav-label { font-family: var(--mono); font-size: 0.55rem; letter-spacing: 0.06em; text-transform: uppercase; }
 .sidebar.collapsed .nav-label { display: none; }
 
 .sidebar-footer {
@@ -131,10 +131,13 @@ body {
 .main {
   margin-left: var(--sidebar);
   flex: 1;
+  min-width: 0;
+  max-width: calc(100vw - var(--sidebar));
   min-height: 100vh;
   transition: margin-left 0.25s ease;
   display: flex;
   flex-direction: column;
+  overflow-x: hidden;
 }
 .main.collapsed { margin-left: 56px; }
 
@@ -244,7 +247,7 @@ body {
   gap: 1px;
   background: var(--border2);
   border: 1px solid var(--border);
-  margin-bottom: 12px;
+  margin-bottom: 16px;
 }
 .stat-card {
   background: var(--bg2);
@@ -271,7 +274,7 @@ body {
 .stat-icon { font-size: 0.85rem; color: var(--gold3); }
 .stat-value {
   font-family: var(--serif);
-  font-size: 1.25rem;
+  font-size: 1.2rem;
   font-weight: 700;
   color: var(--text);
   line-height: 1;
@@ -288,12 +291,11 @@ body {
 /* ── MAIN GRID ── */
 .dashboard-grid {
   display: grid;
-  grid-template-columns: 190px 1fr 190px;
+  grid-template-columns: 190px 1fr;
   gap: 1px;
   background: var(--border2);
   border: 1px solid var(--border);
-  height: 460px;
-  max-height: 460px;
+  height: 440px;
   overflow: hidden;
 }
 
@@ -365,7 +367,7 @@ body {
 .watch-sparkline { margin-top: 6px; }
 
 /* ── CHART PANEL ── */
-.chart-panel { background: var(--bg); display: flex; flex-direction: column; overflow: hidden; height: 460px; max-height: 460px; }
+.chart-panel { background: var(--bg); display: flex; flex-direction: column; overflow: hidden; height: 440px; }
 .chart-header {
   padding: 14px 20px;
   border-bottom: 1px solid var(--border);
@@ -425,7 +427,7 @@ body {
 #chartContainer { flex: 1; min-height: 320px; }
 
 /* ── GLOBAL MARKETS ── */
-.global-panel { background: var(--bg2); display: flex; flex-direction: column; overflow-y: auto; }
+.global-panel { display: none; }
 .market-region {
   padding: 14px 18px 4px;
   font-family: var(--mono);
@@ -480,9 +482,9 @@ body {
   background: var(--border2);
   border: 1px solid var(--border);
   margin-top: 24px;
-  min-height: 240px;
+  min-height: 320px;
 }
-.bottom-panel { background: var(--bg2); min-height: 240px; }
+.bottom-panel { background: var(--bg2); min-height: 320px; }
 
 .news-item {
   padding: 12px 18px;
@@ -749,10 +751,10 @@ body {
   .vr-chg   { font-family:var(--mono); font-size:0.62rem; text-align:right; }
   .vr-chg.up { color:var(--green); } .vr-chg.dn { color:var(--red); } .vr-chg.neutral { color:var(--dim); }
   /* Chart height fix */
-  #chartContainer { flex:1; height:400px; max-height:400px; }
-  .chart-panel { display:flex; flex-direction:column; background:var(--bg); height:460px; max-height:460px; }
-  #tv-chart-container { flex:1; height:460px; max-height:460px; }
-  #tradingview_main { height:460px; max-height:460px; }
+  #chartContainer { height:400px; }
+  .chart-panel { display:flex; flex-direction:column; background:var(--bg); height:440px; }
+  #tv-chart-container { flex:1; height:440px; overflow:hidden; }
+  #tradingview_main { height:440px; }
 
 </style>
 </head>
@@ -896,8 +898,8 @@ body {
 
       <!-- Chart — TradingView Advanced Chart -->
       <div class="chart-panel">
-        <div id="tv-chart-container" style="flex:1;height:460px;max-height:460px;width:100%">
-          <div id="tradingview_main" style="height:460px;max-height:460px;width:100%"></div>
+        <div id="tv-chart-container" style="flex:1;height:440px;width:100%">
+          <div id="tradingview_main" style="height:440px;width:100%"></div>
         </div>
       </div>
 
@@ -1534,7 +1536,7 @@ function loadTVChart(yf) {
   if (tvWidget && typeof tvWidget.setSymbol === 'function') {
     try { tvWidget.setSymbol(sym, 'W', function(){}); return; } catch(e) {}
   }
-  container.innerHTML = '<div id="tradingview_main" style="height:100%;width:100%"></div>';
+  container.innerHTML = '<div id="tradingview_main" style="height:440px;width:100%"></div>';
   if (typeof TradingView === 'undefined') { setTimeout(()=>loadTVChart(yf), 500); return; }
   tvWidget = new TradingView.widget({
     container_id: 'tradingview_main',
