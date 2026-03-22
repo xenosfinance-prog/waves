@@ -25,7 +25,7 @@
   --mono:    'IBM Plex Mono', monospace;
   --serif:   'Playfair Display', serif;
   --sans:    'Inter', sans-serif;
-  --sidebar: 200px;
+  --sidebar: 170px;
 }
 
 * { margin:0; padding:0; box-sizing:border-box; }
@@ -98,8 +98,8 @@ body {
 .nav-item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 9px 18px;
+  gap: 8px;
+  padding: 8px 14px;
   cursor: pointer;
   transition: all 0.15s;
   border-left: 2px solid transparent;
@@ -110,8 +110,8 @@ body {
 .nav-item:hover { background: var(--bg4); color: var(--gold); border-left-color: var(--gold3); }
 .nav-item.active { border-left-color: var(--gold); background: var(--bg3); color: var(--gold); font-weight: 500; }
 .nav-item.active .nav-icon { color: var(--gold); }
-.nav-icon { font-size: 0.85rem; flex-shrink: 0; width: 18px; text-align: center; }
-.nav-label { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; }
+.nav-icon { font-size: 0.8rem; flex-shrink: 0; width: 16px; text-align: center; }
+.nav-label { font-family: var(--mono); font-size: 0.56rem; letter-spacing: 0.08em; text-transform: uppercase; }
 .sidebar.collapsed .nav-label { display: none; }
 
 .sidebar-footer {
@@ -143,12 +143,12 @@ body {
 .topbar {
   background: var(--bg2);
   border-bottom: 1px solid var(--border);
-  padding: 0 20px;
-  height: 48px;
+  padding: 0 16px;
+  height: 44px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
   position: sticky;
   top: 0;
   z-index: 50;
@@ -171,7 +171,7 @@ body {
   background: var(--bg3);
   border: 1px solid var(--border);
   padding: 6px 12px;
-  width: 240px;
+  width: 180px;
 }
 .topbar-search input {
   background: none;
@@ -236,7 +236,7 @@ body {
 .t-chg.dn { color: var(--red); }
 
 /* ── CONTENT ── */
-.content { padding: 16px 20px 32px; flex: 1; }
+.content { padding: 12px 16px 28px; flex: 1; }
 
 /* ── STAT CARDS ── */
 .stat-grid {
@@ -249,10 +249,10 @@ body {
 }
 .stat-card {
   background: var(--bg2);
-  padding: 14px 16px;
+  padding: 12px 14px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 5px;
   transition: background 0.15s;
   cursor: default;
 }
@@ -289,7 +289,7 @@ body {
 /* ── MAIN GRID ── */
 .dashboard-grid {
   display: grid;
-  grid-template-columns: 220px 1fr 220px;
+  grid-template-columns: 190px 1fr 190px;
   gap: 1px;
   background: var(--border2);
   border: 1px solid var(--border);
@@ -545,8 +545,8 @@ body {
 ::-webkit-scrollbar-track { background: var(--bg2); }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
-@media (max-width: 1100px) {
-  .dashboard-grid { grid-template-columns: 200px 1fr; }
+@media (max-width: 1200px) {
+  .dashboard-grid { grid-template-columns: 190px 1fr; }
   .global-panel { display: none; }
   .stat-grid { grid-template-columns: repeat(2, 1fr); }
 }
@@ -1004,9 +1004,9 @@ body {
 
     <div class="pf-header-row">
       <div class="pf-title">My Portfolio</div>
-      <div style="display:flex;gap:10px;align-items:center;">
-        <button class="pf-add-btn" style="background:transparent;border:1px solid var(--border);color:var(--dim);font-size:0.55rem;" onclick="document.getElementById('pfGhCfg').classList.toggle('open')">⚙ GitHub Sync</button>
-        <button class="pf-add-btn" onclick="openAddModal()">+ Add Position</button>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <button class="pf-add-btn" style="background:transparent;border:1px solid var(--border);color:var(--dim);font-size:0.55rem;" onclick="document.getElementById('pfGhCfg').classList.toggle('open')">⚙ Sync</button>
+        <button class="pf-add-btn" onclick="openAddModal()" style="font-size:0.65rem;padding:10px 20px;">＋ Add Position</button>
       </div>
     </div>
 
@@ -1621,32 +1621,11 @@ function handleSearch(e) {
   if (e.key !== 'Enter') return;
   const q = e.target.value.toUpperCase().trim();
   if (!q) return;
-
-  // Watchlist
-  const wl = WATCHLIST.find(w => w.sym.toUpperCase().includes(q) || w.name.toUpperCase().includes(q));
-  if (wl) { goToChart(wl.sym, wl.name, wl.yf, wl.fmt); e.target.value = ''; return; }
-
-  // Stocks
-  const st = STOCKS_LIST.find(s => s.sym.toUpperCase().includes(q) || s.name.toUpperCase().includes(q));
-  if (st) { goToChart(st.sym, st.name, st.yf, 'price'); e.target.value = ''; return; }
-
-  // Markets
-  const mk = MARKETS_LIST.find(m => m.sym.toUpperCase().includes(q) || m.name.toUpperCase().includes(q));
-  if (mk) { goToChart(mk.sym, mk.name, mk.yf, 'price'); e.target.value = ''; return; }
-
-  // FX
-  const fx = FX_LIST.find(f => f.label.toUpperCase().includes(q) || f.name.toUpperCase().includes(q));
-  if (fx) { goToChart(fx.label, fx.name, fx.yf, fx.fmt); e.target.value = ''; return; }
-
-  // Global
-  for (const region of GLOBAL_MARKETS) {
-    const item = region.items.find(i => i.ticker.toUpperCase().includes(q) || i.name.toUpperCase().includes(q));
-    if (item) { goToChart(item.ticker, item.name, item.yf, 'price'); e.target.value = ''; return; }
+  const found = WATCHLIST.find(w => w.sym.includes(q) || w.name.toUpperCase().includes(q));
+  if (found) {
+    selectAsset(found.sym, found.name, found.yf, found.fmt, null);
+    e.target.value = '';
   }
-
-  // Simbolo qualsiasi — prova diretto su TradingView
-  goToChart(q, q, q, 'price');
-  e.target.value = '';
 }
 
 // ── Render all ────────────────────────────────────────────────
