@@ -1787,7 +1787,7 @@ async function analyzePair(pair, livePrices) {
   if (selectedDir === 'SELL' && detected.direction !== 'SELL') return null;
 
   // Calcola RR
-  const rawRR = Math.abs(detected.tp - detected.entry) / Math.abs(detected.sl - detected.entry);
+  const rawRR = Math.abs(detected.tp - detected.entry) / (Math.abs(detected.sl - detected.entry) || 0.0001);
   // RR minimo dipende dal timeframe: D1 richiede setup migliori
   const minRR = 0.5; // RR minimo basso per non scartare segnali validi
   if (rawRR < minRR) return null;
@@ -3295,6 +3295,7 @@ function drawPattern(ctx, pat, isBull, entry, sl, tp, py, px, CW, CH, ML, MR, MT
 
 function fmtPrice(v, pair) {
   const n = parseFloat(v);
+  if (isNaN(n) || n == null) return '—';
   if (!pair) return n.toFixed(2);
   if (pair.includes('JPY')||pair.includes('225')||pair.includes('JPN')) return n.toFixed(2);
   if (['US30','US50','NAS1','UK10','GER4','FRA4','AUS2','HK50'].some(x=>pair.startsWith(x))) return n.toFixed(1);
