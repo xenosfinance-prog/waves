@@ -1093,6 +1093,140 @@ function findSupportResistance(candles, atr) {
   return zones.filter(z => z.touches >= 1).sort((a,b) => b.touches - a.touches).slice(0,8);
 }
 
+// ── ICT/SMC: Order Block detection ───────────────────────────
+function findOrderBlocks(candles, atr) {
+  const obs = [];
+  const n = candles.length;
+  for (let i = 3; i < n - 3; i++) {
+    const c = candles[i];
+    const open = parseFloat(c.open), close = parseFloat(c.close);
+    const high = parseFloat(c.high), low = parseFloat(c.low);
+    const body = Math.abs(close - open);
+    const range = high - low;
+    if (body < range * 0.4) continue; // non è una candela direzionale forte
+
+    // Bullish OB: candela ribassista prima di un forte move up
+    if (close < open) {
+      const afterHigh = Math.max(...candles.slice(i+1, Math.min(i+6, n)).map(c=>parseFloat(c.high)));
+      if (afterHigh > high + atr * 1.5) {
+        obs.push({ type: 'bullish', top: high, bottom: low, idx: i, strength: body/atr });
+      }
+    }
+    // Bearish OB: candela rialzista prima di un forte move down
+    if (close > open) {
+      const afterLow = Math.min(...candles.slice(i+1, Math.min(i+6, n)).map(c=>parseFloat(c.low)));
+      if (afterLow < low - atr * 1.5) {
+        obs.push({ type: 'bearish', top: high, bottom: low, idx: i, strength: body/atr });
+      }
+    }
+  }
+  return obs.slice(-6); // ultimi 6 order blocks
+}
+
+// ── ICT/SMC: Fair Value Gap ───────────────────────────────────
+function findFVG(candles, atr) {
+  const fvgs = [];
+  const n = candles.length;
+  for (let i = 1; i < n - 1; i++) {
+    const prev = candles[i-1], curr = candles[i], next = candles[i+1];
+    const prevHigh = parseFloat(prev.high), prevLow = parseFloat(prev.low);
+    const nextHigh = parseFloat(next.high), nextLow = parseFloat(next.low);
+    // Bullish FVG: gap tra prev.high e next.low
+    if (nextLow > prevHigh + atr * 0.3) {
+      fvgs.push({ type: 'bullish', top: nextLow, bottom: prevHigh, idx: i, size: nextLow - prevHigh });
+    }
+    // Bearish FVG: gap tra next.high e prev.low
+    if (prevLow > nextHigh + atr * 0.3) {
+      fvgs.push({ type: 'bearish', top: prevLow, bottom: nextHigh, idx: i, size: prevLow - nextHigh });
+    }
+  }
+  return fvgs.slice(-8);
+}
+
+// ── ICT/SMC: Market Structure Break (MSB) ────────────────────
+function detectMSB(candles, atr) {
+  const { highs, lows } = findSwingPoints(candles, 3);
+  const n = candles.length;
+  const price = parseFloat(candles[n-1].close);
+
+  // Bullish MSB: price breaks above last significant swing high
+  if (highs.length >= 2) {
+    const lastH = highs[highs.length-1].price;
+    const prevH = highs[highs.length-2].price;
+    if (price > lastH && lastH > prevH) {
+      return { type: 'bullish', level: lastH, strength: (price - lastH) / atr };
+    }
+  }
+  // Bearish MSB: price breaks below last significant swing low
+  if (lows.length >= 2) {
+    const lastL = lows[lows.length-1].price;
+    const prevL = lows[lows.length-2].price;
+    if (price < lastL && lastL < prevL) {
+      return { type: 'bearish', level: lastL, strength: (lastL - price) / atr };
+    }
+  }
+  return null;
+}
+
+// ── ICT/SMC: Liquidity Sweep ──────────────────────────────────
+function detectLiquiditySweep(candles, atr) {
+  const n = candles.length;
+  if (n < 10) return null;
+  const recent = candles.slice(-10);
+  const price = parseFloat(candles[n-1].close);
+  const { highs, lows } = findSwingPoints(candles.slice(-30), 3);
+
+  // Sweep of highs (sell signal): spike above recent high then reversal
+  if (highs.length >= 1) {
+    const recentHigh = highs[highs.length-1].price;
+    const lastCandle = candles[n-1];
+    const prevCandle = candles[n-2];
+    // Wick above high but close below = sweep
+    if (parseFloat(lastCandle.high) > recentHigh &&
+        parseFloat(lastCandle.close) < recentHigh &&
+        parseFloat(prevCandle.close) < recentHigh) {
+      return { type: 'bearish_sweep', level: recentHigh, wick: parseFloat(lastCandle.high) - recentHigh };
+    }
+  }
+  // Sweep of lows (buy signal): spike below recent low then recovery
+  if (lows.length >= 1) {
+    const recentLow = lows[lows.length-1].price;
+    const lastCandle = candles[n-1];
+    const prevCandle = candles[n-2];
+    if (parseFloat(lastCandle.low) < recentLow &&
+        parseFloat(lastCandle.close) > recentLow &&
+        parseFloat(prevCandle.close) > recentLow) {
+      return { type: 'bullish_sweep', level: recentLow, wick: recentLow - parseFloat(lastCandle.low) };
+    }
+  }
+  return null;
+}
+
+// ── Wyckoff: Accumulation/Distribution ───────────────────────
+function detectWyckoff(candles, atr, vol) {
+  const n = candles.length;
+  if (n < 30) return null;
+  const recent20 = candles.slice(-20);
+  const closes = recent20.map(c => parseFloat(c.close));
+  const highs = recent20.map(c => parseFloat(c.high));
+  const lows = recent20.map(c => parseFloat(c.low));
+
+  const priceRange = Math.max(...highs) - Math.min(...lows);
+  const atrRatio = priceRange / (atr * 20);
+
+  // Accumulation: low volatility range + price near lows + volume contracting
+  if (atrRatio < 1.2 && vol.volumeContracting) {
+    const rangeBottom = Math.min(...lows);
+    const rangeTop = Math.max(...highs);
+    const price = closes[closes.length - 1];
+    const posInRange = (price - rangeBottom) / (rangeTop - rangeBottom || 1);
+    if (posInRange < 0.35) return { type: 'accumulation', rangeBottom, rangeTop, posInRange };
+    if (posInRange > 0.65) return { type: 'distribution', rangeBottom, rangeTop, posInRange };
+  }
+  return null;
+}
+
+
 // ── Pattern detection algoritmico ────────────────────────────
 // ══════════════════════════════════════════════════════════════════
 // INDICATOR LIBRARY
@@ -1676,6 +1810,144 @@ function detectPattern(candles, atr, currentPrice) {
   }
 
   // ── FALLBACK: EMA Trend Signal (sempre disponibile se trend chiaro) ──
+
+  // ── ICT/SMC PATTERNS ─────────────────────────────────────────
+
+  // Order Block patterns
+  const orderBlocks = findOrderBlocks(candles, atr);
+  const fvgs = findFVG(candles, atr);
+  const msb = detectMSB(candles, atr);
+  const liqSweep = detectLiquiditySweep(candles, atr);
+  const wyckoff = detectWyckoff(candles, atr, vol);
+
+  // ── Order Block Reaction ──────────────────────────────────────
+  for (const ob of orderBlocks) {
+    const nearOB = ob.type === 'bullish'
+      ? (price >= ob.bottom - atr*0.5 && price <= ob.top + atr*0.3)
+      : (price <= ob.top + atr*0.5 && price >= ob.bottom - atr*0.3);
+    if (nearOB) {
+      if (ob.type === 'bullish' && bullScore >= 2) {
+        const conf = Math.min(88, 64 + (bullScore*5) + (rsi<50?6:0) + (adxTrend?4:0) + (ob.strength>1.5?5:0));
+        results.push({ pattern:'Order Block Bullish', direction:'BUY',
+          entry: price,
+          sl: ob.bottom - atr*(selectedTF==='D1'?1.5:0.8),
+          tp: price + (price - ob.bottom + atr) * 2.5,
+          confidence: conf,
+          key_sr: { ob_bottom: ob.bottom, ob_top: ob.top }
+        });
+      }
+      if (ob.type === 'bearish' && bearScore >= 2) {
+        const conf = Math.min(88, 64 + (bearScore*5) + (rsi>50?6:0) + (adxTrend?4:0) + (ob.strength>1.5?5:0));
+        results.push({ pattern:'Order Block Bearish', direction:'SELL',
+          entry: price,
+          sl: ob.top + atr*(selectedTF==='D1'?1.5:0.8),
+          tp: price - (ob.top - price + atr) * 2.5,
+          confidence: conf,
+          key_sr: { ob_bottom: ob.bottom, ob_top: ob.top }
+        });
+      }
+    }
+  }
+
+  // ── Fair Value Gap Fill ───────────────────────────────────────
+  for (const fvg of fvgs.slice(-3)) {
+    const priceinFVG = price >= fvg.bottom - atr*0.3 && price <= fvg.top + atr*0.3;
+    if (priceinFVG) {
+      if (fvg.type === 'bullish' && trendUp) {
+        const conf = Math.min(84, 60 + (bullScore*4) + (macdBull?6:0) + (fvg.size>atr*0.5?5:0));
+        results.push({ pattern:'FVG Bullish Fill', direction:'BUY',
+          entry: price,
+          sl: fvg.bottom - atr*(selectedTF==='D1'?1.2:0.7),
+          tp: fvg.top + (fvg.size * 2),
+          confidence: conf,
+          key_sr: { fvg_bottom: fvg.bottom, fvg_top: fvg.top }
+        });
+      }
+      if (fvg.type === 'bearish' && trendDown) {
+        const conf = Math.min(84, 60 + (bearScore*4) + (macdBear?6:0) + (fvg.size>atr*0.5?5:0));
+        results.push({ pattern:'FVG Bearish Fill', direction:'SELL',
+          entry: price,
+          sl: fvg.top + atr*(selectedTF==='D1'?1.2:0.7),
+          tp: fvg.bottom - (fvg.size * 2),
+          confidence: conf,
+          key_sr: { fvg_bottom: fvg.bottom, fvg_top: fvg.top }
+        });
+      }
+    }
+  }
+
+  // ── Market Structure Break ────────────────────────────────────
+  if (msb) {
+    if (msb.type === 'bullish' && bullScore >= 2) {
+      const conf = Math.min(87, 65 + (bullScore*5) + (macdBull?6:0) + (ichi?.aboveCloud?5:0) + (msb.strength>1?5:0));
+      results.push({ pattern:'Market Structure Break Up', direction:'BUY',
+        entry: price,
+        sl: msb.level - atr*(selectedTF==='D1'?1.5:0.8),
+        tp: price + Math.abs(price - msb.level) * 3,
+        confidence: conf,
+        key_sr: { msb_level: msb.level }
+      });
+    }
+    if (msb.type === 'bearish' && bearScore >= 2) {
+      const conf = Math.min(87, 65 + (bearScore*5) + (macdBear?6:0) + (ichi?.belowCloud?5:0) + (msb.strength>1?5:0));
+      results.push({ pattern:'Market Structure Break Down', direction:'SELL',
+        entry: price,
+        sl: msb.level + atr*(selectedTF==='D1'?1.5:0.8),
+        tp: price - Math.abs(msb.level - price) * 3,
+        confidence: conf,
+        key_sr: { msb_level: msb.level }
+      });
+    }
+  }
+
+  // ── Liquidity Sweep Reversal ──────────────────────────────────
+  if (liqSweep) {
+    if (liqSweep.type === 'bullish_sweep') {
+      const conf = Math.min(90, 68 + (rsi<45?8:0) + (macdBull?6:0) + (bullScore*4) + (liqSweep.wick>atr*0.5?5:0));
+      results.push({ pattern:'Liquidity Sweep Bullish', direction:'BUY',
+        entry: price,
+        sl: liqSweep.level - atr*(selectedTF==='D1'?1.5:1.0),
+        tp: price + Math.abs(price - liqSweep.level) * 3.5,
+        confidence: conf,
+        key_sr: { sweep_level: liqSweep.level }
+      });
+    }
+    if (liqSweep.type === 'bearish_sweep') {
+      const conf = Math.min(90, 68 + (rsi>55?8:0) + (macdBear?6:0) + (bearScore*4) + (liqSweep.wick>atr*0.5?5:0));
+      results.push({ pattern:'Liquidity Sweep Bearish', direction:'SELL',
+        entry: price,
+        sl: liqSweep.level + atr*(selectedTF==='D1'?1.5:1.0),
+        tp: price - Math.abs(liqSweep.level - price) * 3.5,
+        confidence: conf,
+        key_sr: { sweep_level: liqSweep.level }
+      });
+    }
+  }
+
+  // ── Wyckoff Accumulation/Distribution ────────────────────────
+  if (wyckoff) {
+    if (wyckoff.type === 'accumulation' && rsi < 45) {
+      const conf = Math.min(85, 62 + (macdBull?8:0) + (rsi<35?8:0) + (bullScore*4));
+      results.push({ pattern:'Wyckoff Accumulation', direction:'BUY',
+        entry: price,
+        sl: wyckoff.rangeBottom - atr*(selectedTF==='D1'?1.5:0.8),
+        tp: wyckoff.rangeTop + (wyckoff.rangeTop - wyckoff.rangeBottom),
+        confidence: conf,
+        key_sr: { range_bottom: wyckoff.rangeBottom, range_top: wyckoff.rangeTop }
+      });
+    }
+    if (wyckoff.type === 'distribution' && rsi > 55) {
+      const conf = Math.min(85, 62 + (macdBear?8:0) + (rsi>65?8:0) + (bearScore*4));
+      results.push({ pattern:'Wyckoff Distribution', direction:'SELL',
+        entry: price,
+        sl: wyckoff.rangeTop + atr*(selectedTF==='D1'?1.5:0.8),
+        tp: wyckoff.rangeBottom - (wyckoff.rangeTop - wyckoff.rangeBottom),
+        confidence: conf,
+        key_sr: { range_bottom: wyckoff.rangeBottom, range_top: wyckoff.rangeTop }
+      });
+    }
+  }
+
   if (results.length === 0 && ema20 && ema50) {
     const emaSep = Math.abs(ema20 - ema50) / (atr || 1);
     if (emaSep > 0.3) { // EMAs abbastanza separate
@@ -1698,46 +1970,31 @@ function detectPattern(candles, atr, currentPrice) {
     }
   }
 
-  // ── FALLBACK 2: RSI Extremes (last resort) ───────────────────
+  // ── FALLBACK: RSI Extremes + ADX Trend (solo se nessun pattern strutturale) ──
   if (results.length === 0 && rsi != null) {
-    if (rsi < 35) {
-      // Oversold — potenziale rimbalzo
+    if (rsi < 32 && (macdBull || trendUp)) {
+      // RSI fortemente oversold con conferma
       results.push({
-        pattern: 'RSI Oversold Bounce',
+        pattern: 'RSI Extreme Oversold',
         direction: 'BUY',
         entry: price,
         sl: price - atr * (selectedTF === 'D1' ? 2.0 : 1.2),
-        tp:  price + atr * (selectedTF === 'D1' ? 3.5 : 2.2),
-        confidence: Math.min(72, 55 + (rsi < 25 ? 10 : 5) + (macdBull ? 5 : 0) + (ema20 > ema50 ? 5 : 0)),
+        tp:  price + atr * (selectedTF === 'D1' ? 4.0 : 2.5),
+        confidence: Math.min(74, 58 + (rsi < 25 ? 10 : 4) + (macdBull ? 6 : 0) + (ema20 > ema50 ? 4 : 0) + (adxTrend ? 4 : 0)),
         key_sr: { ema20, ema50 },
         evidence: { rsi, trendUp, macdBull }
       });
-    } else if (rsi > 65) {
-      // Overbought — potenziale ritracciamento
+    } else if (rsi > 68 && (macdBear || trendDown)) {
+      // RSI fortemente overbought con conferma
       results.push({
-        pattern: 'RSI Overbought Fade',
+        pattern: 'RSI Extreme Overbought',
         direction: 'SELL',
         entry: price,
         sl: price + atr * (selectedTF === 'D1' ? 2.0 : 1.2),
-        tp:  price - atr * (selectedTF === 'D1' ? 3.5 : 2.2),
-        confidence: Math.min(72, 55 + (rsi > 75 ? 10 : 5) + (macdBear ? 5 : 0) + (ema20 < ema50 ? 5 : 0)),
+        tp:  price - atr * (selectedTF === 'D1' ? 4.0 : 2.5),
+        confidence: Math.min(74, 58 + (rsi > 75 ? 10 : 4) + (macdBear ? 6 : 0) + (ema20 < ema50 ? 4 : 0) + (adxTrend ? 4 : 0)),
         key_sr: { ema20, ema50 },
         evidence: { rsi, trendDown, macdBear }
-      });
-    } else if (ema20 && ema50) {
-      // Nessuna condizione estrema — usa direzione EMA come last resort
-      const dir = ema20 > ema50 ? 'BUY' : 'SELL';
-      results.push({
-        pattern: 'EMA Trend Continuation',
-        direction: dir,
-        entry: price,
-        sl: dir === 'BUY' ? Math.min(ema50, price) - atr * (selectedTF === 'D1' ? 1.5 : 0.8)
-                          : Math.max(ema50, price) + atr * (selectedTF === 'D1' ? 1.5 : 0.8),
-        tp:  dir === 'BUY' ? price + atr * (selectedTF === 'D1' ? 3 : 2)
-                           : price - atr * (selectedTF === 'D1' ? 3 : 2),
-        confidence: Math.min(65, 50 + (adxTrend ? 8 : 0) + (macdBull && dir === 'BUY' ? 6 : 0) + (macdBear && dir === 'SELL' ? 6 : 0)),
-        key_sr: { ema20, ema50 },
-        evidence: { rsi, dir, adxTrend }
       });
     }
   }
@@ -1827,21 +2084,19 @@ function buildPromptFromAnalysis(analyses, tf, marketNews, prevSignals = []) {
     const fmt = (v) => v != null ? v.toFixed(p.includes('JPY')||p.includes('225')||p.includes('JPN')?2:p.includes('BTC')?0:4) : 'N/A';
     const fmtPct = (v) => v != null ? v.toFixed(1) + '%' : 'N/A';
 
+    const ictType = ['Order Block Bullish','Order Block Bearish','FVG Bullish Fill','FVG Bearish Fill',
+      'Market Structure Break Up','Market Structure Break Down','Liquidity Sweep Bullish',
+      'Liquidity Sweep Bearish','Wyckoff Accumulation','Wyckoff Distribution'].includes(a.pattern);
     return `
-${p} [${a.direction}] — Pattern detected: ${a.pattern}
-  Current Price : ${fmt(a.entry)}
-  ATR (${tf})   : ${fmt(a.atr)}
-  RSI (14)      : ${fmtPct(a.rsi)}
-  EMA20 / EMA50 : ${fmt(a.ema20)} / ${fmt(a.ema50)} → trend: ${a.ema20 > a.ema50 ? 'BULLISH' : 'BEARISH'}
-  Algo Entry    : ${fmt(a.entry)}
-  Algo SL       : ${fmt(a.sl)} (${Math.abs(a.sl - a.entry)/a.atr < 1 ? 'tight' : 'normal'} — ${(Math.abs(a.sl - a.entry)/a.atr).toFixed(1)}x ATR)
-  Algo TP       : ${fmt(a.tp)} (R:R ${a.rr})
-  Algo Conf     : ${a.confidence}%
-  Swing Highs   : ${a.swingHighs.map(fmt).join(', ')}
-  Swing Lows    : ${a.swingLows.map(fmt).join(', ')}
-  Key S/R       : ${JSON.stringify(a.key_sr)}
-  CFD Physics   : Reynolds=${a.cfd ? a.cfd.reynolds : 'N/A'} | Viscosity=${a.cfd ? a.cfd.viscosity : 'N/A'} | Flow=${a.cfd ? a.cfd.flowType : 'N/A'} | Momentum Aligned=${a.cfd ? a.cfd.momentumAligned : 'N/A'}
-  Evidence      : RSI=${fmtPct(a.rsi)}, EMA20${a.ema20>a.ema50?'>':'<'}EMA50`;
+${p} [${a.direction}] — ${a.pattern}${ictType ? ' [ICT/SMC]' : ''}
+  Price / Entry : ${fmt(a.entry)}  |  ATR: ${fmt(a.atr)}
+  RSI(14): ${fmtPct(a.rsi)}  |  EMA20: ${fmt(a.ema20)}  |  EMA50: ${fmt(a.ema50)}  |  Trend: ${a.ema20 > a.ema50 ? 'BULLISH (EMA20>50)' : 'BEARISH (EMA20<50)'}
+  SL: ${fmt(a.sl)} (${(Math.abs(a.sl - a.entry)/(a.atr||1)).toFixed(1)}x ATR)  |  TP: ${fmt(a.tp)}  |  R:R ${a.rr}  |  Confidence: ${a.confidence}%
+  Swing Highs: ${a.swingHighs.slice(-3).map(fmt).join(' → ')}
+  Swing Lows:  ${a.swingLows.slice(-3).map(fmt).join(' → ')}
+  Key S/R: ${JSON.stringify(a.key_sr)}
+  CFD Flow: Reynolds=${a.cfd ? parseFloat(a.cfd.reynolds).toFixed(1) : 'N/A'} | Viscosity=${a.cfd ? parseFloat(a.cfd.viscosity).toFixed(3) : 'N/A'} | Type=${a.cfd ? a.cfd.flowType : 'N/A'} | MomentumOK=${a.cfd ? a.cfd.momentumAligned : 'N/A'}
+  ${ictType ? `ICT Key Level: ${JSON.stringify(a.key_sr)}` : `Bull/Bear Score: ${a.ema20>a.ema50?'BULL':'BEAR'} bias`}`;
   }).join('\n');
 
   const prevSection = prevSignals.length > 0 ? `
@@ -1857,46 +2112,51 @@ ${cryptoNews  ? `Crypto: ${cryptoNews}` : ''}
 ${sentLines   ? `Sentiment: ${sentLines}` : ''}
 ` : '';
 
-  return `You are a senior institutional trader reviewing algorithmically detected chart patterns.
+  return `You are an elite institutional trader and market structure analyst combining Elliott Wave, ICT/SMC methodology, Wyckoff, and classical technical analysis.
 
-The patterns below were detected by a technical analysis algorithm on REAL OHLCV candle data (${tf} timeframe). Your job is to:
-1. Validate the pattern and write professional analysis
-2. Use EXACTLY the entry, SL, TP levels provided — do NOT change them
-3. Write ew_context, pattern_desc, key_levels, invalidation, market_context fields
-4. Assign a final confidence score (can adjust ±5 from algo confidence based on news/macro)
-5. Add relevant tags
-6. If a pattern genuinely looks weak or contradicts macro, you may OMIT it (return nothing for that pair)
+You are reviewing algorithmically detected chart patterns on REAL OHLCV candle data (${tf} timeframe). The algo uses: swing point detection, S/R zones, RSI/MACD/ADX/Stoch/Ichimoku/BB, CFD flow dynamics, Order Blocks, FVGs, Market Structure Breaks, Liquidity Sweeps, and Wyckoff.
+
+YOUR JOB:
+1. Validate each pattern with your institutional-grade perspective
+2. Use EXACTLY the entry/SL/TP from the algo — do NOT invent new levels
+3. For ICT/SMC patterns (Order Block, FVG, MSB, Liquidity Sweep): describe the smart money narrative
+4. For Elliott Wave context: identify which wave we are in (impulse vs corrective)
+5. Confidence: algo value ±8 based on news/macro/confluence
+6. OMIT signals where macro strongly contradicts the setup
+7. If pattern is ICT/SMC type, add 2nd target (tp2) at next structure level
 
 ${prevSection}${newsSection}
-DETECTED PATTERNS ON REAL DATA:
+DETECTED PATTERNS:
 ${analysisLines}
 
-Return ONLY a raw JSON array. Each object:
+Return ONLY a raw JSON array. No markdown. Each object:
 {
   "pair": "EURUSD",
   "direction": "BUY",
-  "pattern": "Double Bottom",
+  "pattern": "Order Block Bullish",
   "entry": 1.0823,
   "sl": 1.0795,
   "tp": 1.0890,
-  "tp2": null,
-  "confidence": 76,
+  "tp2": 1.0950,
+  "confidence": 78,
   "rr": "1:2.4",
-  "ew_context": "Price completing corrective structure at key support — wave 2 or B wave territory",
-  "pattern_desc": "Clear double bottom formed over 18 candles with near-identical lows. Neckline at 1.0856 represents the key trigger level.",
-  "key_levels": "Support: 1.0795 (swing low). Resistance: 1.0856 (neckline), 1.0900 (prior structure)",
-  "invalidation": "Close below 1.0790 on ${tf} timeframe negates the pattern",
-  "market_context": "USD weakness amid Fed dovish repricing supports EUR recovery from oversold levels",
-  "tags": ["double_bottom","key_support","mean_reversion"]
+  "ew_context": "Wave 2 corrective pullback completing at institutional demand zone — wave 3 extension imminent",
+  "pattern_desc": "Price swept liquidity below the swing low then reclaimed above the bullish order block. Classic ICT accumulation with bullish displacement confirmed.",
+  "key_levels": "Demand zone: 1.0795-1.0823. Supply: 1.0900. Liquidity above: 1.0960",
+  "invalidation": "4H close below 1.0785 invalidates bullish order block — signals continuation lower",
+  "market_context": "DXY showing exhaustion at resistance. EUR benefiting from ECB hawkish hold. Clean setup at HTF support.",
+  "tags": ["order_block","ict_smc","liquidity_sweep","wave_3_setup"]
 }
 
 CRITICAL RULES:
-- entry, sl, tp MUST match the algo values exactly (do not invent new levels)
-- BUY: sl < entry < tp | SELL: tp < entry < sl
-- rr string must match the algo rr exactly
-- confidence: algo value ±5 only
-- Return empty array [] if no patterns are convincing
-- Output only the JSON array, no markdown`;
+- entry, sl, tp MUST match algo values exactly
+- BUY: sl < entry < tp | SELL: tp < entry < sl  
+- rr string must match algo rr exactly
+- confidence range: algo value ±8
+- For ICT/SMC patterns always include tp2 (next liquidity pool)
+- pattern_desc must be 1-2 sentences, specific and actionable
+- market_context must reference actual macro/news if available
+- Output ONLY the JSON array`;
 }
 
 // ── Main generate function ────────────────────────────────────
