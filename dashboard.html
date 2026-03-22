@@ -25,7 +25,7 @@
   --mono:    'IBM Plex Mono', monospace;
   --serif:   'Playfair Display', serif;
   --sans:    'Inter', sans-serif;
-  --sidebar: 170px;
+  --sidebar: 200px;
 }
 
 * { margin:0; padding:0; box-sizing:border-box; }
@@ -98,20 +98,19 @@ body {
 .nav-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 14px;
+  gap: 10px;
+  padding: 9px 18px;
   cursor: pointer;
   transition: all 0.15s;
   border-left: 2px solid transparent;
   white-space: nowrap;
   overflow: hidden;
-  user-select: none;
 }
-.nav-item:hover { background: var(--bg4); color: var(--gold); border-left-color: var(--gold3); }
+.nav-item:hover { background: var(--bg3); color: var(--gold); }
 .nav-item.active { border-left-color: var(--gold); background: var(--bg3); color: var(--gold); font-weight: 500; }
 .nav-item.active .nav-icon { color: var(--gold); }
-.nav-icon { font-size: 0.8rem; flex-shrink: 0; width: 16px; text-align: center; }
-.nav-label { font-family: var(--mono); font-size: 0.56rem; letter-spacing: 0.08em; text-transform: uppercase; }
+.nav-icon { font-size: 0.85rem; flex-shrink: 0; width: 18px; text-align: center; }
+.nav-label { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; }
 .sidebar.collapsed .nav-label { display: none; }
 
 .sidebar-footer {
@@ -143,12 +142,12 @@ body {
 .topbar {
   background: var(--bg2);
   border-bottom: 1px solid var(--border);
-  padding: 0 16px;
-  height: 44px;
+  padding: 0 20px;
+  height: 48px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 12px;
   position: sticky;
   top: 0;
   z-index: 50;
@@ -171,7 +170,7 @@ body {
   background: var(--bg3);
   border: 1px solid var(--border);
   padding: 6px 12px;
-  width: 180px;
+  width: 240px;
 }
 .topbar-search input {
   background: none;
@@ -236,7 +235,7 @@ body {
 .t-chg.dn { color: var(--red); }
 
 /* ── CONTENT ── */
-.content { padding: 12px 16px 28px; flex: 1; }
+.content { padding: 16px 20px 32px; flex: 1; }
 
 /* ── STAT CARDS ── */
 .stat-grid {
@@ -245,14 +244,14 @@ body {
   gap: 1px;
   background: var(--border2);
   border: 1px solid var(--border);
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 .stat-card {
   background: var(--bg2);
-  padding: 12px 14px;
+  padding: 14px 16px;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 6px;
   transition: background 0.15s;
   cursor: default;
 }
@@ -293,7 +292,9 @@ body {
   gap: 1px;
   background: var(--border2);
   border: 1px solid var(--border);
-  min-height: 520px;
+  height: 460px;
+  max-height: 460px;
+  overflow: hidden;
 }
 
 /* ── WATCHLIST ── */
@@ -364,7 +365,7 @@ body {
 .watch-sparkline { margin-top: 6px; }
 
 /* ── CHART PANEL ── */
-.chart-panel { background: var(--bg); display: flex; flex-direction: column; overflow: hidden; min-height: 520px; }
+.chart-panel { background: var(--bg); display: flex; flex-direction: column; overflow: hidden; height: 460px; max-height: 460px; }
 .chart-header {
   padding: 14px 20px;
   border-bottom: 1px solid var(--border);
@@ -479,9 +480,9 @@ body {
   background: var(--border2);
   border: 1px solid var(--border);
   margin-top: 24px;
-  min-height: 320px;
+  min-height: 240px;
 }
-.bottom-panel { background: var(--bg2); min-height: 320px; }
+.bottom-panel { background: var(--bg2); min-height: 240px; }
 
 .news-item {
   padding: 12px 18px;
@@ -545,8 +546,8 @@ body {
 ::-webkit-scrollbar-track { background: var(--bg2); }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
-@media (max-width: 1200px) {
-  .dashboard-grid { grid-template-columns: 190px 1fr; }
+@media (max-width: 1100px) {
+  .dashboard-grid { grid-template-columns: 200px 1fr; }
   .global-panel { display: none; }
   .stat-grid { grid-template-columns: repeat(2, 1fr); }
 }
@@ -748,10 +749,10 @@ body {
   .vr-chg   { font-family:var(--mono); font-size:0.62rem; text-align:right; }
   .vr-chg.up { color:var(--green); } .vr-chg.dn { color:var(--red); } .vr-chg.neutral { color:var(--dim); }
   /* Chart height fix */
-  #chartContainer { flex:1; min-height:420px; height:420px; }
-  .chart-panel { display:flex; flex-direction:column; background:var(--bg); min-height:520px; }
-  #tv-chart-container { flex:1; min-height:480px; }
-  #tradingview_main { height:100%; min-height:480px; }
+  #chartContainer { flex:1; height:400px; max-height:400px; }
+  .chart-panel { display:flex; flex-direction:column; background:var(--bg); height:460px; max-height:460px; }
+  #tv-chart-container { flex:1; height:460px; max-height:460px; }
+  #tradingview_main { height:460px; max-height:460px; }
 
 </style>
 </head>
@@ -895,8 +896,8 @@ body {
 
       <!-- Chart — TradingView Advanced Chart -->
       <div class="chart-panel">
-        <div id="tv-chart-container" style="flex:1;height:100%;min-height:480px;width:100%">
-          <div id="tradingview_main" style="height:100%;width:100%;min-height:480px"></div>
+        <div id="tv-chart-container" style="flex:1;height:460px;max-height:460px;width:100%">
+          <div id="tradingview_main" style="height:460px;max-height:460px;width:100%"></div>
         </div>
       </div>
 
@@ -1004,9 +1005,9 @@ body {
 
     <div class="pf-header-row">
       <div class="pf-title">My Portfolio</div>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-        <button class="pf-add-btn" style="background:transparent;border:1px solid var(--border);color:var(--dim);font-size:0.55rem;" onclick="document.getElementById('pfGhCfg').classList.toggle('open')">⚙ Sync</button>
-        <button class="pf-add-btn" onclick="openAddModal()" style="font-size:0.65rem;padding:10px 20px;">＋ Add Position</button>
+      <div style="display:flex;gap:10px;align-items:center;">
+        <button class="pf-add-btn" style="background:transparent;border:1px solid var(--border);color:var(--dim);font-size:0.55rem;" onclick="document.getElementById('pfGhCfg').classList.toggle('open')">⚙ GitHub Sync</button>
+        <button class="pf-add-btn" onclick="openAddModal()">+ Add Position</button>
       </div>
     </div>
 
