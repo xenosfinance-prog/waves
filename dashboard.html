@@ -855,7 +855,7 @@ body {
   <!-- Content -->
   <div class="content">
 
-    <div id="dashboardView">
+    <div id="dashboardView" style="display:none">
   <!-- Stat Cards -->
     <div class="stat-grid" id="statGrid">
       <div class="stat-card">
@@ -927,7 +927,6 @@ body {
       </div>
     </div>
   </div><!-- /dashboardView -->
-
   <!-- ── STOCKS VIEW ── -->
   <div id="stocksView" style="display:none">
     <div class="panel" style="border:1px solid var(--border)">
@@ -1567,6 +1566,7 @@ function renderAll() {
 
 // ── Init ──────────────────────────────────────────────────────
 async function init() {
+  showView('dashboardView');  // imposta stato iniziale corretto
   await fetchPrices();
   // Load TradingView chart with first asset
   loadTVChart(WATCHLIST[0].yf);
