@@ -5,7 +5,119 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>XenosFinance — Market Dashboard</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=IBM+Plex+Mono:wght@300;400;500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-<script src="https://unpkg.com/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
+<script src="https://s3.tradingview.com/tv.js"></script>
+<script>
+// ── PRE-MARKET DATA ───────────────────────────────────────────
+const PM_ASSETS = [
+  {sym:'AAPL',  name:'Apple Inc.',    yf:'AAPL',     fmt:'price', sector:'Tech'},
+  {sym:'MSFT',  name:'Microsoft',     yf:'MSFT',     fmt:'price', sector:'Tech'},
+  {sym:'NVDA',  name:'NVIDIA Corp.',  yf:'NVDA',     fmt:'price', sector:'Tech'},
+  {sym:'GOOGL', name:'Alphabet',      yf:'GOOGL',    fmt:'price', sector:'Tech'},
+  {sym:'META',  name:'Meta Platforms',yf:'META',     fmt:'price', sector:'Tech'},
+  {sym:'TSLA',  name:'Tesla Inc.',    yf:'TSLA',     fmt:'price', sector:'EV'},
+  {sym:'AMZN',  name:'Amazon',        yf:'AMZN',     fmt:'price', sector:'Consumer'},
+  {sym:'JPM',   name:'JPMorgan',      yf:'JPM',      fmt:'price', sector:'Finance'},
+  {sym:'SPY',   name:'S&P 500 ETF',   yf:'SPY',      fmt:'price', sector:'Index'},
+  {sym:'QQQ',   name:'Nasdaq 100 ETF',yf:'QQQ',      fmt:'price', sector:'Index'},
+  {sym:'BTC-USD',name:'Bitcoin',      yf:'BTC-USD',  fmt:'crypto',sector:'Crypto'},
+  {sym:'GC=F',  name:'Gold Futures',  yf:'GC=F',     fmt:'price', sector:'Commodity'},
+];
+
+function getSessionInfo() {
+  const now = new Date();
+  const etHour = parseInt(now.toLocaleString('en-US',{hour:'numeric',hour12:false,timeZone:'America/New_York'}));
+  if (etHour >= 4 && etHour < 9.5)  return {label:'PRE-MARKET',  cls:'up',   msg:'Pre-Market session active · 04:00–09:30 ET'};
+  if (etHour >= 9.5 && etHour < 16) return {label:'MARKET OPEN', cls:'up',   msg:'Regular session active · 09:30–16:00 ET'};
+  if (etHour >= 16 && etHour < 20)  return {label:'AFTER-HOURS', cls:'neutral', msg:'After-hours session · 16:00–20:00 ET'};
+  return {label:'MARKET CLOSED', cls:'dn', msg:'Market closed · Pre-market opens 04:00 ET'};
+}
+
+function renderPreMarket() {
+  const el = document.getElementById('pm-list'); if (!el) return;
+  const sess = getSessionInfo();
+  const badge = document.getElementById('pm-session-badge');
+  const banner = document.getElementById('pm-banner');
+  if (badge) { badge.textContent = sess.label; badge.style.color = sess.cls==='up'?'var(--green)':sess.cls==='dn'?'var(--red)':'var(--dim)'; badge.style.borderColor = 'currentColor'; }
+  if (banner) { banner.textContent = sess.msg; }
+
+  let rows = '';
+  for (const a of PM_ASSETS) {
+    const d = prices[a.yf];
+    const { price: cur, chg } = extractPrice(d);
+    const prevClose = d && typeof d === 'object' ? parseFloat(d.prev_close || d.prevClose || 0) : 0;
+    const pm = cur;
+    const delta = (prevClose && pm) ? pm - prevClose : null;
+    const pct   = (prevClose && delta !== null) ? delta / prevClose * 100 : chg;
+    const absDelta = delta !== null ? Math.abs(delta) : null;
+    const cls = (pct||0) >= 0 ? 'up' : 'dn';
+    const arrow = (pct||0) >= 0 ? '▲' : '▼';
+    const bar = Math.min(Math.abs(pct||0) * 10 + 8, 88);
+    const bc = (pct||0) >= 0 ? 'var(--green)' : 'var(--red)';
+    rows += `<div style="display:grid;grid-template-columns:160px 1fr 110px 110px 110px 110px;padding:11px 18px;border-bottom:1px solid var(--border2);align-items:center;transition:background 0.12s" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">
+      <div>
+        <div style="font-family:var(--mono);font-size:0.72rem;font-weight:500;color:var(--text)">${a.sym.replace('-USD','').replace('=F','')}</div>
+        <div style="font-family:var(--mono);font-size:0.5rem;color:var(--dim);margin-top:2px">${a.name}</div>
+      </div>
+      <div style="padding:0 14px">
+        <div style="height:5px;background:var(--bg3);border-radius:3px">
+          <div style="height:100%;width:${bar}%;background:${bc};border-radius:3px;transition:width 0.4s"></div>
+        </div>
+      </div>
+      <div style="font-family:var(--mono);font-size:0.68rem;text-align:right;color:var(--dim)">${prevClose ? fmtP(prevClose, a.fmt) : '—'}</div>
+      <div style="font-family:var(--mono);font-size:0.72rem;font-weight:500;text-align:right;color:var(--text)">${pm ? fmtP(pm, a.fmt) : '—'}</div>
+      <div style="font-family:var(--mono);font-size:0.68rem;text-align:right" class="${cls}">${absDelta !== null ? (delta>=0?'+':'-')+'$'+absDelta.toFixed(2) : '—'}</div>
+      <div style="font-family:var(--mono);font-size:0.72rem;font-weight:600;text-align:right" class="${cls}">${pct !== null && !isNaN(pct) ? arrow+' '+Math.abs(pct).toFixed(2)+'%' : '—'}</div>
+    </div>`;
+  }
+  el.innerHTML = rows || '<div style="padding:30px;text-align:center;font-family:var(--mono);font-size:0.62rem;color:var(--dim)">Loading...</div>';
+}
+
+// ── FUTURES DATA ──────────────────────────────────────────────
+const FUTURES_ASSETS = [
+  {sym:'ES=F',  name:'S&P 500 E-Mini',   yf:'ES=F',  fmt:'price', group:'US Index Futures'},
+  {sym:'NQ=F',  name:'NASDAQ E-Mini',     yf:'NQ=F',  fmt:'price', group:'US Index Futures'},
+  {sym:'YM=F',  name:'Dow Jones E-Mini',  yf:'YM=F',  fmt:'price', group:'US Index Futures'},
+  {sym:'RTY=F', name:'Russell 2000',      yf:'RTY=F', fmt:'price', group:'US Index Futures'},
+  {sym:'GC=F',  name:'Gold',              yf:'GC=F',  fmt:'price', group:'Commodities'},
+  {sym:'CL=F',  name:'Crude Oil WTI',     yf:'CL=F',  fmt:'price', group:'Commodities'},
+  {sym:'SI=F',  name:'Silver',            yf:'SI=F',  fmt:'price', group:'Commodities'},
+  {sym:'NG=F',  name:'Natural Gas',       yf:'NG=F',  fmt:'price', group:'Commodities'},
+  {sym:'EURUSD=X',name:'EUR/USD',         yf:'EURUSD=X',fmt:'fx',  group:'FX'},
+  {sym:'GBPUSD=X',name:'GBP/USD',         yf:'GBPUSD=X',fmt:'fx',  group:'FX'},
+  {sym:'USDJPY=X',name:'USD/JPY',         yf:'USDJPY=X',fmt:'fx',  group:'FX'},
+  {sym:'BTC-USD', name:'Bitcoin',         yf:'BTC-USD', fmt:'crypto',group:'Crypto Futures'},
+];
+
+function renderFutures() {
+  const el = document.getElementById('futures-list'); if (!el) return;
+  const byGroup = {};
+  FUTURES_ASSETS.forEach(f => { if (!byGroup[f.group]) byGroup[f.group]=[]; byGroup[f.group].push(f); });
+  let html = '';
+  for (const [group, items] of Object.entries(byGroup)) {
+    html += `<div style="font-family:var(--mono);font-size:0.5rem;letter-spacing:0.18em;text-transform:uppercase;color:var(--gold);padding:10px 18px 6px;border-bottom:1px solid var(--border2);background:var(--bg3);margin-top:4px">${group}</div>`;
+    for (const f of items) {
+      const { price: pr, chg } = extractPrice(prices[f.yf]);
+      const d = prices[f.yf];
+      const prevClose = d && typeof d === 'object' ? parseFloat(d.prev_close || d.prevClose || 0) : 0;
+      const delta = (prevClose && pr) ? pr - prevClose : null;
+      const cls = (chg||0) >= 0 ? 'up' : 'dn';
+      const arrow = (chg||0) >= 0 ? '▲' : '▼';
+      html += `<div style="display:grid;grid-template-columns:160px 1fr 110px 110px 110px;padding:11px 18px;border-bottom:1px solid var(--border2);align-items:center;transition:background 0.12s" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">
+        <div>
+          <div style="font-family:var(--mono);font-size:0.72rem;font-weight:500;color:var(--text)">${f.sym.replace('=F','').replace('=X','').replace('-USD','')}</div>
+          <div style="font-family:var(--mono);font-size:0.5rem;color:var(--dim);margin-top:2px">${f.name}</div>
+        </div>
+        <div></div>
+        <div style="font-family:var(--mono);font-size:0.72rem;text-align:right;color:var(--text)">${pr ? fmtP(pr, f.fmt) : '—'}</div>
+        <div style="font-family:var(--mono);font-size:0.68rem;text-align:right" class="${cls}">${delta !== null ? (delta>=0?'+':'-')+'$'+Math.abs(delta).toFixed(2) : '—'}</div>
+        <div style="font-family:var(--mono);font-size:0.72rem;font-weight:600;text-align:right" class="${cls}">${chg !== null && !isNaN(chg) ? arrow+' '+Math.abs(chg).toFixed(2)+'%' : '—'}</div>
+      </div>`;
+    }
+  }
+  el.innerHTML = html;
+}
+
+</script>
 <style>
 :root {
   --bg:      #FDF8EF;
@@ -888,26 +1000,11 @@ body {
         <div class="watchlist-items" id="watchlist"></div>
       </div>
 
-      <!-- Chart -->
-      <div class="chart-panel">
-        <div class="chart-header">
-          <div>
-            <div class="chart-sym" id="chart-sym">—</div>
-            <div class="chart-name" id="chart-name">Select an asset</div>
-          </div>
-          <div class="chart-price-block">
-            <div class="chart-price" id="chart-price">—</div>
-            <div class="chart-chg" id="chart-chg">—</div>
-          </div>
+      <!-- Chart — TradingView Advanced Chart -->
+      <div class="chart-panel" style="min-height:540px;background:var(--bg)">
+        <div id="tv-chart-container" style="height:540px;width:100%">
+          <div id="tradingview_main" style="height:100%;width:100%"></div>
         </div>
-        <div class="tf-tabs">
-          <button class="tf-btn" onclick="setTF('1D',this)">1D</button>
-          <button class="tf-btn active" onclick="setTF('1W',this)">1W</button>
-          <button class="tf-btn" onclick="setTF('1M',this)">1M</button>
-          <button class="tf-btn" onclick="setTF('3M',this)">3M</button>
-          <button class="tf-btn" onclick="setTF('1Y',this)">1Y</button>
-        </div>
-        <div id="chartContainer"></div>
       </div>
 
       <!-- Global Markets -->
@@ -1446,106 +1543,72 @@ function renderTicker() {
   }
 }
 
-// ── Chart ─────────────────────────────────────────────────────
-function initChart() {
-  const container = document.getElementById('chartContainer');
-  chart = LightweightCharts.createChart(container, {
-    layout: {
-      background: { color: '#FDF8EF' },
-      textColor: '#8B6B3D',
-    },
-    grid: {
-      vertLines: { color: '#EDE0C0' },
-      horzLines: { color: '#EDE0C0' },
-    },
-    crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
-    rightPriceScale: { borderColor: '#C9A96E' },
-    timeScale: { borderColor: '#C9A96E', timeVisible: true },
-    handleScroll: true,
-    handleScale: true,
-  });
-  lineSeries = chart.addAreaSeries({
-    lineColor: '#7A5200',
-    topColor: 'rgba(122,82,0,0.15)',
-    bottomColor: 'rgba(122,82,0,0.0)',
-    lineWidth: 2,
-  });
+// ── TradingView symbol map ────────────────────────────────────
+const tvSymbolMap = {
+  'SPY':'AMEX:SPY','AAPL':'NASDAQ:AAPL','NVDA':'NASDAQ:NVDA','MSFT':'NASDAQ:MSFT',
+  'TSLA':'NASDAQ:TSLA','BTC-USD':'BITSTAMP:BTCUSD','ETH-USD':'BITSTAMP:ETHUSD',
+  'GC=F':'COMEX:GC1!','CL=F':'NYMEX:CL1!','SI=F':'COMEX:SI1!','NG=F':'NYMEX:NG1!',
+  'EURUSD=X':'OANDA:EURUSD','GBPUSD=X':'OANDA:GBPUSD','USDJPY=X':'OANDA:USDJPY',
+  'USDCHF=X':'OANDA:USDCHF','AUDUSD=X':'OANDA:AUDUSD','NZDUSD=X':'OANDA:NZDUSD','USDCAD=X':'OANDA:USDCAD',
+  'QQQ':'NASDAQ:QQQ','DIA':'AMEX:DIA','GOOGL':'NASDAQ:GOOGL','META':'NASDAQ:META',
+  'AMZN':'NASDAQ:AMZN','JPM':'NYSE:JPM','V':'NYSE:V','XOM':'NYSE:XOM','JNJ':'NYSE:JNJ',
+  'ES=F':'CME_MINI:ES1!','NQ=F':'CME_MINI:NQ1!','YM=F':'CBOT_MINI:YM1!','RTY=F':'CME_MINI:RTY1!',
+  'XLK':'AMEX:XLK','XLF':'AMEX:XLF','XLE':'AMEX:XLE','XLV':'AMEX:XLV',
+  'XLY':'AMEX:XLY','XLI':'AMEX:XLI','XLU':'AMEX:XLU','XLRE':'AMEX:XLRE',
+  'EWG':'AMEX:EWG','EWU':'AMEX:EWU','EWQ':'AMEX:EWQ','EWJ':'AMEX:EWJ','EWH':'AMEX:EWH',
+};
 
-  // Resize observer
-  new ResizeObserver(() => {
-    const h = Math.max(container.clientHeight, 280);
-    chart.applyOptions({ width: container.clientWidth, height: h });
-  }).observe(container);
-}
+// ── Chart (TradingView) ───────────────────────────────────────
+let tvWidget = null;
+function initChart() { /* TradingView loads on first asset select */ }
 
-async function loadChartData(yf) {
-  // Try to get OHLCV from worker
-  const tfMap = { '1D':'5m', '1W':'1h', '1M':'1d', '3M':'1d', '1Y':'1wk' };
-  const interval = tfMap[activeTF] || '1h';
-  try {
-    const res = await fetch(WORKER, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ type:'chart', symbol: yf, interval, range: activeTF })
-    });
-    if (res.ok) {
-      const data = await res.json();
-      if (data.candles && data.candles.length > 0) {
-        return data.candles.map(c => ({
-          time: Math.floor(new Date(c.time || c.ts * 1000).getTime() / 1000),
-          value: parseFloat(c.close)
-        })).filter(c => !isNaN(c.value) && !isNaN(c.time));
-      }
-    }
-  } catch(e) {}
-
-  // Fallback: generate plausible demo data from current price
-  const { price: _bp } = extractPrice(prices[yf]);
-  const base = _bp || 100;
-  const points = activeTF === '1D' ? 78 : activeTF === '1W' ? 120 : activeTF === '1M' ? 30 : activeTF === '3M' ? 90 : 260;
-  const now = Math.floor(Date.now() / 1000);
-  const step = activeTF === '1D' ? 300 : activeTF === '1W' ? 3600 : 86400;
-  const result = [];
-  let v = base * (0.92 + Math.random() * 0.08);
-  for (let i = points; i >= 0; i--) {
-    v += v * (Math.random() - 0.48) * 0.012;
-    result.push({ time: now - i * step, value: parseFloat(v.toFixed(4)) });
+function loadTVChart(yf) {
+  const sym = tvSymbolMap[yf] || yf;
+  const container = document.getElementById('tv-chart-container');
+  if (!container) return;
+  // If widget exists, just change symbol
+  if (tvWidget && typeof tvWidget.setSymbol === 'function') {
+    try { tvWidget.setSymbol(sym, 'W', function(){}); return; } catch(e) {}
   }
-  result[result.length - 1].value = base;
-  return result;
+  container.innerHTML = '<div id="tradingview_main" style="height:100%;min-height:500px"></div>';
+  if (typeof TradingView === 'undefined') return;
+  tvWidget = new TradingView.widget({
+    container_id: 'tradingview_main',
+    symbol: sym,
+    interval: 'W',
+    timezone: 'Europe/Berlin',
+    theme: 'light',
+    style: '1',
+    locale: 'en',
+    toolbar_bg: '#FDF8EF',
+    enable_publishing: false,
+    hide_side_toolbar: false,
+    allow_symbol_change: true,
+    save_image: false,
+    autosize: true,
+    studies: ['RSI@tv-basicstudies','MACD@tv-basicstudies'],
+    overrides: {
+      'paneProperties.background': '#FDF8EF',
+      'paneProperties.backgroundType': 'solid',
+      'scalesProperties.textColor': '#8B6B3D',
+      'mainSeriesProperties.candleStyle.upColor': '#1e5c35',
+      'mainSeriesProperties.candleStyle.downColor': '#8B1A1A',
+      'mainSeriesProperties.candleStyle.borderUpColor': '#1e5c35',
+      'mainSeriesProperties.candleStyle.borderDownColor': '#8B1A1A',
+      'mainSeriesProperties.candleStyle.wickUpColor': '#1e5c35',
+      'mainSeriesProperties.candleStyle.wickDownColor': '#8B1A1A',
+    }
+  });
 }
 
-async function selectAsset(sym, name, yf, fmt, el) {
+function selectAsset(sym, name, yf, fmt, el) {
   activeWL = sym;
   document.querySelectorAll('.watch-item').forEach(i => i.classList.remove('active'));
   if (el) el.classList.add('active');
-
-  document.getElementById('chart-sym').textContent = sym.replace('-USD','').replace('=X','').replace('=F','');
-  document.getElementById('chart-name').textContent = name;
-
-  const { price: pr, chg } = extractPrice(prices[yf]);
-  if (pr) {
-    const c = fmtChg(chg);
-    document.getElementById('chart-price').textContent = fmtP(pr, fmt);
-    const cel = document.getElementById('chart-chg');
-    cel.textContent = c.str;
-    cel.className = `chart-chg ${c.cls}`;
-  }
-
-  const data = await loadChartData(yf);
-  if (data.length > 0) {
-    lineSeries.setData(data);
-    chart.timeScale().fitContent();
-  }
+  loadTVChart(yf);
 }
 
-function setTF(tf, btn) {
-  activeTF = tf;
-  document.querySelectorAll('.tf-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  // Reload chart for active asset
-  const wl = WATCHLIST.find(w => w.sym === activeWL);
-  if (wl) selectAsset(wl.sym, wl.name, wl.yf, wl.fmt, null);
-}
+function setTF(tf, btn) { /* TradingView has its own timeframe controls */ }
 
 // ── News ──────────────────────────────────────────────────────
 async function loadNews() {
@@ -1602,116 +1665,6 @@ function handleSearch(e) {
   }
 }
 
-// ── PRE-MARKET DATA ───────────────────────────────────────────
-const PM_ASSETS = [
-  {sym:'AAPL',  name:'Apple Inc.',    yf:'AAPL',     fmt:'price', sector:'Tech'},
-  {sym:'MSFT',  name:'Microsoft',     yf:'MSFT',     fmt:'price', sector:'Tech'},
-  {sym:'NVDA',  name:'NVIDIA Corp.',  yf:'NVDA',     fmt:'price', sector:'Tech'},
-  {sym:'GOOGL', name:'Alphabet',      yf:'GOOGL',    fmt:'price', sector:'Tech'},
-  {sym:'META',  name:'Meta Platforms',yf:'META',     fmt:'price', sector:'Tech'},
-  {sym:'TSLA',  name:'Tesla Inc.',    yf:'TSLA',     fmt:'price', sector:'EV'},
-  {sym:'AMZN',  name:'Amazon',        yf:'AMZN',     fmt:'price', sector:'Consumer'},
-  {sym:'JPM',   name:'JPMorgan',      yf:'JPM',      fmt:'price', sector:'Finance'},
-  {sym:'SPY',   name:'S&P 500 ETF',   yf:'SPY',      fmt:'price', sector:'Index'},
-  {sym:'QQQ',   name:'Nasdaq 100 ETF',yf:'QQQ',      fmt:'price', sector:'Index'},
-  {sym:'BTC-USD',name:'Bitcoin',      yf:'BTC-USD',  fmt:'crypto',sector:'Crypto'},
-  {sym:'GC=F',  name:'Gold Futures',  yf:'GC=F',     fmt:'price', sector:'Commodity'},
-];
-
-function getSessionInfo() {
-  const now = new Date();
-  const etHour = parseInt(now.toLocaleString('en-US',{hour:'numeric',hour12:false,timeZone:'America/New_York'}));
-  if (etHour >= 4 && etHour < 9.5)  return {label:'PRE-MARKET',  cls:'up',   msg:'Pre-Market session active · 04:00–09:30 ET'};
-  if (etHour >= 9.5 && etHour < 16) return {label:'MARKET OPEN', cls:'up',   msg:'Regular session active · 09:30–16:00 ET'};
-  if (etHour >= 16 && etHour < 20)  return {label:'AFTER-HOURS', cls:'neutral', msg:'After-hours session · 16:00–20:00 ET'};
-  return {label:'MARKET CLOSED', cls:'dn', msg:'Market closed · Pre-market opens 04:00 ET'};
-}
-
-function renderPreMarket() {
-  const el = document.getElementById('pm-list'); if (!el) return;
-  const sess = getSessionInfo();
-  const badge = document.getElementById('pm-session-badge');
-  const banner = document.getElementById('pm-banner');
-  if (badge) { badge.textContent = sess.label; badge.style.color = sess.cls==='up'?'var(--green)':sess.cls==='dn'?'var(--red)':'var(--dim)'; badge.style.borderColor = 'currentColor'; }
-  if (banner) { banner.textContent = sess.msg; }
-
-  let rows = '';
-  for (const a of PM_ASSETS) {
-    const d = prices[a.yf];
-    const { price: cur, chg } = extractPrice(d);
-    const prevClose = d && typeof d === 'object' ? parseFloat(d.prev_close || d.prevClose || 0) : 0;
-    const pm = cur;
-    const delta = (prevClose && pm) ? pm - prevClose : null;
-    const pct   = (prevClose && delta !== null) ? delta / prevClose * 100 : chg;
-    const absDelta = delta !== null ? Math.abs(delta) : null;
-    const cls = (pct||0) >= 0 ? 'up' : 'dn';
-    const arrow = (pct||0) >= 0 ? '▲' : '▼';
-    const bar = Math.min(Math.abs(pct||0) * 10 + 8, 88);
-    const bc = (pct||0) >= 0 ? 'var(--green)' : 'var(--red)';
-    rows += `<div style="display:grid;grid-template-columns:160px 1fr 110px 110px 110px 110px;padding:11px 18px;border-bottom:1px solid var(--border2);align-items:center;transition:background 0.12s" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">
-      <div>
-        <div style="font-family:var(--mono);font-size:0.72rem;font-weight:500;color:var(--text)">${a.sym.replace('-USD','').replace('=F','')}</div>
-        <div style="font-family:var(--mono);font-size:0.5rem;color:var(--dim);margin-top:2px">${a.name}</div>
-      </div>
-      <div style="padding:0 14px">
-        <div style="height:5px;background:var(--bg3);border-radius:3px">
-          <div style="height:100%;width:${bar}%;background:${bc};border-radius:3px;transition:width 0.4s"></div>
-        </div>
-      </div>
-      <div style="font-family:var(--mono);font-size:0.68rem;text-align:right;color:var(--dim)">${prevClose ? fmtP(prevClose, a.fmt) : '—'}</div>
-      <div style="font-family:var(--mono);font-size:0.72rem;font-weight:500;text-align:right;color:var(--text)">${pm ? fmtP(pm, a.fmt) : '—'}</div>
-      <div style="font-family:var(--mono);font-size:0.68rem;text-align:right" class="${cls}">${absDelta !== null ? (delta>=0?'+':'-')+'$'+absDelta.toFixed(2) : '—'}</div>
-      <div style="font-family:var(--mono);font-size:0.72rem;font-weight:600;text-align:right" class="${cls}">${pct !== null && !isNaN(pct) ? arrow+' '+Math.abs(pct).toFixed(2)+'%' : '—'}</div>
-    </div>`;
-  }
-  el.innerHTML = rows || '<div style="padding:30px;text-align:center;font-family:var(--mono);font-size:0.62rem;color:var(--dim)">Loading...</div>';
-}
-
-// ── FUTURES DATA ──────────────────────────────────────────────
-const FUTURES_ASSETS = [
-  {sym:'ES=F',  name:'S&P 500 E-Mini',   yf:'ES=F',  fmt:'price', group:'US Index Futures'},
-  {sym:'NQ=F',  name:'NASDAQ E-Mini',     yf:'NQ=F',  fmt:'price', group:'US Index Futures'},
-  {sym:'YM=F',  name:'Dow Jones E-Mini',  yf:'YM=F',  fmt:'price', group:'US Index Futures'},
-  {sym:'RTY=F', name:'Russell 2000',      yf:'RTY=F', fmt:'price', group:'US Index Futures'},
-  {sym:'GC=F',  name:'Gold',              yf:'GC=F',  fmt:'price', group:'Commodities'},
-  {sym:'CL=F',  name:'Crude Oil WTI',     yf:'CL=F',  fmt:'price', group:'Commodities'},
-  {sym:'SI=F',  name:'Silver',            yf:'SI=F',  fmt:'price', group:'Commodities'},
-  {sym:'NG=F',  name:'Natural Gas',       yf:'NG=F',  fmt:'price', group:'Commodities'},
-  {sym:'EURUSD=X',name:'EUR/USD',         yf:'EURUSD=X',fmt:'fx',  group:'FX'},
-  {sym:'GBPUSD=X',name:'GBP/USD',         yf:'GBPUSD=X',fmt:'fx',  group:'FX'},
-  {sym:'USDJPY=X',name:'USD/JPY',         yf:'USDJPY=X',fmt:'fx',  group:'FX'},
-  {sym:'BTC-USD', name:'Bitcoin',         yf:'BTC-USD', fmt:'crypto',group:'Crypto Futures'},
-];
-
-function renderFutures() {
-  const el = document.getElementById('futures-list'); if (!el) return;
-  const byGroup = {};
-  FUTURES_ASSETS.forEach(f => { if (!byGroup[f.group]) byGroup[f.group]=[]; byGroup[f.group].push(f); });
-  let html = '';
-  for (const [group, items] of Object.entries(byGroup)) {
-    html += `<div style="font-family:var(--mono);font-size:0.5rem;letter-spacing:0.18em;text-transform:uppercase;color:var(--gold);padding:10px 18px 6px;border-bottom:1px solid var(--border2);background:var(--bg3);margin-top:4px">${group}</div>`;
-    for (const f of items) {
-      const { price: pr, chg } = extractPrice(prices[f.yf]);
-      const d = prices[f.yf];
-      const prevClose = d && typeof d === 'object' ? parseFloat(d.prev_close || d.prevClose || 0) : 0;
-      const delta = (prevClose && pr) ? pr - prevClose : null;
-      const cls = (chg||0) >= 0 ? 'up' : 'dn';
-      const arrow = (chg||0) >= 0 ? '▲' : '▼';
-      html += `<div style="display:grid;grid-template-columns:160px 1fr 110px 110px 110px;padding:11px 18px;border-bottom:1px solid var(--border2);align-items:center;transition:background 0.12s" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">
-        <div>
-          <div style="font-family:var(--mono);font-size:0.72rem;font-weight:500;color:var(--text)">${f.sym.replace('=F','').replace('=X','').replace('-USD','')}</div>
-          <div style="font-family:var(--mono);font-size:0.5rem;color:var(--dim);margin-top:2px">${f.name}</div>
-        </div>
-        <div></div>
-        <div style="font-family:var(--mono);font-size:0.72rem;text-align:right;color:var(--text)">${pr ? fmtP(pr, f.fmt) : '—'}</div>
-        <div style="font-family:var(--mono);font-size:0.68rem;text-align:right" class="${cls}">${delta !== null ? (delta>=0?'+':'-')+'$'+Math.abs(delta).toFixed(2) : '—'}</div>
-        <div style="font-family:var(--mono);font-size:0.72rem;font-weight:600;text-align:right" class="${cls}">${chg !== null && !isNaN(chg) ? arrow+' '+Math.abs(chg).toFixed(2)+'%' : '—'}</div>
-      </div>`;
-    }
-  }
-  el.innerHTML = html;
-}
-
 // ── Render all ────────────────────────────────────────────────
 function renderAll() {
   renderStats();
@@ -1723,17 +1676,13 @@ function renderAll() {
 
 // ── Init ──────────────────────────────────────────────────────
 async function init() {
-  initChart();
   await fetchPrices();
-
-  // Select first watchlist item
-  const first = WATCHLIST[0];
-  selectAsset(first.sym, first.name, first.yf, first.fmt,
-    document.querySelector('.watch-item'));
-
+  // Load TradingView chart with first asset
+  loadTVChart(WATCHLIST[0].yf);
+  // Mark first watchlist item active
+  const firstEl = document.querySelector('.watch-item');
+  if (firstEl) firstEl.classList.add('active');
   loadNews();
-
-  // Refresh prices every 60s
   setInterval(fetchPrices, 60000);
 }
 
@@ -2181,10 +2130,10 @@ function renderAnalysisView() {
 // ── Go to chart helper ────────────────────────────────────────
 function goToChart(sym, name, yf, fmt) {
   showView('dashboardView');
-  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.querySelector('.nav-item').classList.add('active');
   document.querySelector('.page-title').textContent = 'Market Dashboard';
-  selectAsset(sym,name,yf,fmt,null);
+  selectAsset(sym, name, yf, fmt, null);
 }
 
 // ── Init portfolio ────────────────────────────────────────────
