@@ -1592,22 +1592,20 @@ function detectPattern(candles, atr, currentPrice) {
     const ph1=closes[swingH[swingH.length-2].idx], ph2=closes[swingH[swingH.length-1].idx];
     // Simplified: RSI divergence proxy
     const rsiPrev=calcRSI({length:candles.length, map:()=>0,...candles}, 14);
-    // Bearish divergence: STRONG confirmation required (rsi>65 + macdBear + trendDown)
-    if (ph2 > ph1 && macd.hist < 0 && rsi > 65 && trendDown && macdBear && bearScore >= 3) {
+    if (ph2 > ph1 && macd.hist < 0 && rsi < 55) {
       results.push({ pattern:'Bearish Divergence', direction:'SELL',
         entry:price, sl:swingH[swingH.length-1].price+atr*(selectedTF==='D1'?1.5:0.8),
         tp:price-atr*(selectedTF==='D1'?4:2.5),
-        confidence:Math.min(84,68+(rsi>70?6:0)+(macdBear?8:0)+(trendDown?4:0)),
+        confidence:Math.min(84,62+(rsi>60?6:0)+(macdBear?8:0)),
         key_sr:{resistance:swingH[swingH.length-1].price},
         evidence:{macdHist:macd.hist,rsi} });
     }
-    // Bullish divergence: STRONG confirmation required (rsi<35 + macdBull + trendUp)
     const pl1=closes[swingL[swingL.length-2].idx], pl2=closes[swingL[swingL.length-1].idx];
-    if (pl2 < pl1 && macd.hist > 0 && rsi < 35 && trendUp && macdBull && bullScore >= 3) {
+    if (pl2 < pl1 && macd.hist > 0 && rsi > 45) {
       results.push({ pattern:'Bullish Divergence', direction:'BUY',
         entry:price, sl:swingL[swingL.length-1].price-atr*(selectedTF==='D1'?1.5:0.8),
         tp:price+atr*(selectedTF==='D1'?4:2.5),
-        confidence:Math.min(84,68+(rsi<30?6:0)+(macdBull?8:0)+(trendUp?4:0)),
+        confidence:Math.min(84,62+(rsi<40?6:0)+(macdBull?8:0)),
         key_sr:{support:swingL[swingL.length-1].price},
         evidence:{macdHist:macd.hist,rsi} });
     }
@@ -1783,10 +1781,6 @@ async function analyzePair(pair, livePrices) {
 
   const detected = detectPattern(candles, atr, price);
   if (!detected) return null;
-  // Garantisce che entry sia sempre il prezzo live corrente
-  if (!detected.entry || isNaN(parseFloat(detected.entry))) detected.entry = price;
-  if (!detected.sl    || isNaN(parseFloat(detected.sl)))    detected.sl = price * (detected.direction === 'BUY' ? 0.99 : 1.01);
-  if (!detected.tp    || isNaN(parseFloat(detected.tp)))    detected.tp = price * (detected.direction === 'BUY' ? 1.02 : 0.98);
 
   // Verifica direzione filtro
   if (selectedDir === 'BUY'  && detected.direction !== 'BUY')  return null;
@@ -1795,8 +1789,8 @@ async function analyzePair(pair, livePrices) {
   // Calcola RR
   const rawRR = Math.abs(detected.tp - detected.entry) / (Math.abs(detected.sl - detected.entry) || 0.0001);
   // RR minimo dipende dal timeframe: D1 richiede setup migliori
-  const minRR = selectedTF === 'D1' ? 1.2 : selectedTF === 'H4' ? 1.0 : 0.8;
-  if (rawRR < minRR) return null; // scarta setup con RR troppo basso
+  const minRR = 0.6; // soglia unica bassa — non bloccare segnali validi su TF alti
+  if (rawRR < minRR) return null;
 
   const rrStr = '1:' + rawRR.toFixed(1);
 
@@ -1948,8 +1942,9 @@ async function generateSignals() {
     );
 
     // Filtra null e per minConf
+    // Soglia minima fissa 40% — il filtro minConf si applica solo al display finale
     const validAnalyses = analysisResults
-      .filter(a => a !== null && a.confidence >= minConf);
+      .filter(a => a !== null && a.confidence >= 40);
 
     if (validAnalyses.length === 0) {
       clearInterval(loaderInterval);
@@ -2547,10 +2542,8 @@ function drawPatternChart(canvas, sig) {
     ctx.closePath(); ctx.fill(); ctx.restore();
   }
 
-  // Target zone (verde/rosso trasparente)
-  zone([[nowX,isBull?tpY:entryY],[ML+CW,isBull?tpY:entryY],[ML+CW,isBull?entryY:tpY],[nowX,isBull?entryY:tpY]], col, 0.08);
-  // Stop zone
-  zone([[nowX,isBull?entryY:slY],[ML+CW,isBull?entryY:slY],[ML+CW,isBull?slY:entryY],[nowX,isBull?slY:entryY]], isBull?'#ff3d5a':'#00e676', 0.04);
+  // Solo zona TARGET (pulita, no entry/stop zone)
+  zone([[nowX,isBull?tpY:slY],[ML+CW,isBull?tpY:slY],[ML+CW,isBull?slY:tpY],[nowX,isBull?slY:tpY]], col, 0.06);
 
   // ── NOW vertical line ──
   ctx.save(); ctx.strokeStyle=ACCENT; ctx.lineWidth=1.5; ctx.globalAlpha=0.5;
@@ -3053,15 +3046,32 @@ function drawPattern(ctx, pat, isBull, entry, sl, tp, py, px, CW, CH, ML, MR, MT
 
   // ══ BREAKOUT KEY LEVEL ══
   else if (pat.includes('breakout')) {
-    ctx.save(); ctx.fillStyle=ORANGE; ctx.globalAlpha=0.10;
-    ctx.fillRect(px(0.04),py(entry+spread*0.28),CW*0.66,py(entry-spread*0.12)-py(entry+spread*0.28)); ctx.restore();
-    ctx.save(); ctx.strokeStyle=ORANGE; ctx.lineWidth=3; ctx.shadowColor=ORANGE; ctx.shadowBlur=12;
-    ctx.beginPath(); ctx.moveTo(px(0.04),py(entry)); ctx.lineTo(nowX,py(entry)); ctx.stroke(); ctx.restore();
-    [0.14,0.26,0.42,0.58].forEach((t,i)=>DOT(px(t),py(entry)+(i%2===0?-4:4),ORANGE,5));
-    ctx.fillStyle=ORANGE; ctx.font='bold 11px "Space Mono",monospace'; ctx.textAlign='center';
-    ctx.fillText('KEY LEVEL / RESISTANCE',px(0.35),py(entry)-14);
-    LBL(isBull?'BULLISH BREAKOUT':'BEARISH BREAKOUT',px(0.35),py(entry),col,!isBull,13);
-    targetArrow(nowX,py(entry));
+    // Zona di consolidamento sopra/sotto il livello chiave
+    const zoneTop = py(entry + spread * (isBull ? 0.06 : 0.35));
+    const zoneBot = py(entry - spread * (isBull ? 0.35 : 0.06));
+    // Shading zona consolidamento (history)
+    ctx.save(); ctx.fillStyle=ORANGE; ctx.globalAlpha=0.07;
+    ctx.fillRect(px(0.04), zoneTop, px(0.64)-px(0.04), zoneBot-zoneTop); ctx.restore();
+    // Linea del livello chiave
+    ctx.save(); ctx.strokeStyle=ORANGE; ctx.lineWidth=2.5; ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(px(0.04),py(entry)); ctx.lineTo(nowX+10,py(entry)); ctx.stroke(); ctx.restore();
+    // Touch dots sul livello
+    [0.10,0.22,0.38,0.54].forEach(t=>DOT(px(t),py(entry),ORANGE,5));
+    // Label livello (SUPPORT o RESISTANCE)
+    const levelType = isBull ? 'SUPPORT BREAKOUT' : 'RESISTANCE BREAKDOWN';
+    ctx.save();
+    ctx.fillStyle='rgba(253,248,239,0.95)'; ctx.strokeStyle=ORANGE; ctx.lineWidth=1.5;
+    const lw=ctx.measureText(levelType).width+20;
+    ctx.beginPath(); ctx.roundRect(px(0.38)-lw/2, py(entry)-13, lw, 20, 3);
+    ctx.fill(); ctx.stroke(); ctx.restore();
+    ctx.fillStyle='#1C0F00'; ctx.font='bold 10px "Space Mono",monospace'; ctx.textAlign='center';
+    ctx.fillText(levelType, px(0.38), py(entry)+3);
+    // Freccia breakout dopo NOW
+    const breakY = py(entry + spread*(isBull?0.15:-0.15));
+    L(nowX, py(entry), nowX+CW*0.12, breakY, col, 2.5, [], 0.9);
+    ARR(nowX+CW*0.08, py(entry+(isBull?0.08:-0.08)*spread), nowX+CW*0.18, py(entry+(isBull?0.18:-0.18)*spread), col, 3);
+    // Etichetta pattern
+    LBL(isBull?'BULLISH BREAKOUT':'BEARISH BREAKDOWN', px(0.28), py(entry), col, !isBull, 12);
   }
 
   // ══ BULLISH / BEARISH ENGULFING ══
@@ -3304,39 +3314,6 @@ function drawPattern(ctx, pat, isBull, entry, sl, tp, py, px, CW, CH, ML, MR, MT
     });
     LBL('WOLFE WAVE',px(0.30),isBull?py(pts[2]):py(pts[2]),col,!isBull,13);
     trajArrow(xs[4],py(pts[4]),col,isBull);
-  }
-
-  // ══ ICT / SMC PATTERNS ══
-  else if (pat.includes('order block')||pat.includes('fvg')||pat.includes('market structure')||
-           pat.includes('liquidity')||pat.includes('wyckoff')) {
-    // Entry zone (order block / demand zone)
-    const zoneH = spread * 0.25;
-    zone([[px(0.04),py(entry+zoneH)],[nowX,py(entry+zoneH)],[nowX,py(entry-zoneH)],[px(0.04),py(entry-zoneH)]], col, 0.12);
-    L(px(0.04),py(entry),nowX,py(entry),col,2,[6,3],0.9);
-    L(px(0.04),py(entry+zoneH),nowX,py(entry+zoneH),ORANGE,1.5,[4,4],0.6);
-    L(px(0.04),py(entry-zoneH),nowX,py(entry-zoneH),ORANGE,1.5,[4,4],0.6);
-    // Dots on zone boundaries
-    [0.15,0.35,0.55].forEach(t => {
-      DOT(px(t),py(entry+zoneH),ORANGE,4);
-      DOT(px(t),py(entry-zoneH),ORANGE,4);
-    });
-    ctx.fillStyle=ORANGE; ctx.font='bold 10px "Space Mono",monospace'; ctx.textAlign='left';
-    ctx.fillText(pat.includes('order block')?'DEMAND ZONE':pat.includes('fvg')?'IMBALANCE ZONE':pat.includes('wyckoff')?'ACCUMULATION ZONE':'INSTITUTIONAL ZONE',
-      px(0.06), py(entry+zoneH)-8);
-    LBL(sig.pattern.toUpperCase(), px(0.38), py(entry), col, !isBull, 11);
-    targetArrow(nowX, py(entry));
-  }
-
-  // ══ RSI EXTREME ══
-  else if (pat.includes('rsi')) {
-    // Oversold / Overbought zone shading
-    zone([[px(0.04),py(entry+spread*0.5)],[nowX,py(entry+spread*0.5)],[nowX,py(entry)],[px(0.04),py(entry)]], col, 0.08);
-    L(px(0.04),py(entry),nowX,py(entry),ORANGE,2,[6,3],0.8);
-    [0.12,0.28,0.45,0.62].forEach((t,i) => DOT(px(t),py(entry)+(i%2===0?-spread*0.08:spread*0.08),col,5));
-    ctx.fillStyle=ORANGE; ctx.font='bold 10px "Space Mono",monospace'; ctx.textAlign='center';
-    ctx.fillText(isBull?'OVERSOLD ZONE':'OVERBOUGHT ZONE', px(0.32), py(entry+spread*0.35));
-    LBL(sig.pattern.toUpperCase(), px(0.38), py(entry), col, !isBull, 11);
-    targetArrow(nowX, py(entry));
   }
 
   // ══ GENERIC FALLBACK ══
