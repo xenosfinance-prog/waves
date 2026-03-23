@@ -247,8 +247,8 @@
 
   .sig-pair { color: var(--text-bright); font-weight: 700; letter-spacing: 0.05em; }
   .sig-dir { font-size: 10px; font-weight: 700; }
-  .sig-dir.BUY { color: var(--green); }
-  .sig-dir.SELL { color: var(--red); }
+  .sig-dir.BUY { color: #1a5c2a; font-weight: 700; }
+  .sig-dir.SELL { color: #7A1A1A; font-weight: 700; }
   .sig-pattern { font-size: 10px; color: var(--accent2); }
   .sig-entry { color: var(--text-bright); }
   .sig-sl { color: var(--red); }
@@ -1789,7 +1789,7 @@ async function analyzePair(pair, livePrices) {
   // Calcola RR
   const rawRR = Math.abs(detected.tp - detected.entry) / (Math.abs(detected.sl - detected.entry) || 0.0001);
   // RR minimo dipende dal timeframe: D1 richiede setup migliori
-  const minRR = 0.6; // soglia unica bassa — non bloccare segnali validi su TF alti
+  const minRR = 0.6;
   if (rawRR < minRR) return null;
 
   const rrStr = '1:' + rawRR.toFixed(1);
@@ -1942,7 +1942,6 @@ async function generateSignals() {
     );
 
     // Filtra null e per minConf
-    // Soglia minima fissa 40% — il filtro minConf si applica solo al display finale
     const validAnalyses = analysisResults
       .filter(a => a !== null && a.confidence >= 40);
 
@@ -2500,7 +2499,7 @@ function drawPatternChart(canvas, sig) {
   hGrad.addColorStop(0,'transparent'); hGrad.addColorStop(0.5,ACCENT); hGrad.addColorStop(1,'transparent');
   ctx.fillStyle = hGrad; ctx.fillRect(0,0,W,1.5);
   // Separator
-  ctx.strokeStyle = '#1e2a3a'; ctx.lineWidth = 1; ctx.globalAlpha = 1;
+  ctx.strokeStyle = '#C9A96E'; ctx.lineWidth = 1; ctx.globalAlpha = 1;
   ctx.beginPath(); ctx.moveTo(0,MT); ctx.lineTo(W,MT); ctx.stroke();
 
   // Pair + TF
@@ -2513,12 +2512,14 @@ function drawPatternChart(canvas, sig) {
   ctx.fillStyle = ACCENT; ctx.font = '11px "Space Mono",monospace';
   ctx.fillText(sig.pattern.toUpperCase(), ML+8, 40);
 
-  // BUY/SELL badge
-  const bdgW = 72, bdgH = 24, bdgX = W - 260, bdgY = 14;
-  ctx.fillStyle = col;
-  ctx.beginPath(); ctx.roundRect(bdgX, bdgY, bdgW, bdgH, 3); ctx.fill();
-  ctx.fillStyle = '#000'; ctx.font = 'bold 11px "Space Mono",monospace'; ctx.textAlign = 'center';
-  ctx.fillText(isBull ? '▲  BUY' : '▼  SELL', bdgX + bdgW/2, bdgY+16);
+  // BUY/SELL badge — professionale, bordo + sfondo tenue
+  const bdgW = 80, bdgH = 26, bdgX = W - 272, bdgY = 13;
+  const dirBg  = isBull ? 'rgba(30,92,53,0.12)'  : 'rgba(139,26,26,0.10)';
+  const dirBdr = isBull ? '#1e5c35' : '#8B1A1A';
+  ctx.fillStyle = dirBg; ctx.strokeStyle = dirBdr; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.roundRect(bdgX, bdgY, bdgW, bdgH, 4); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = dirBdr; ctx.font = 'bold 11px "Space Mono",monospace'; ctx.textAlign = 'center';
+  ctx.fillText(isBull ? '▲  BUY' : '▼  SELL', bdgX + bdgW/2, bdgY+17);
 
   // Confidence badge — colori leggibili su sfondo chiaro
   const confCol = sig.confidence >= 80 ? '#1e5c35' : sig.confidence >= 70 ? '#7A5200' : '#1a3a6b';
@@ -2542,8 +2543,8 @@ function drawPatternChart(canvas, sig) {
     ctx.closePath(); ctx.fill(); ctx.restore();
   }
 
-  // Solo zona TARGET (pulita, no entry/stop zone)
-  zone([[nowX,isBull?tpY:slY],[ML+CW,isBull?tpY:slY],[ML+CW,isBull?slY:tpY],[nowX,isBull?slY:tpY]], col, 0.06);
+  // Zona target pulita (solo area obiettivo, no entry/stop bands)
+  zone([[nowX,isBull?tpY:slY],[ML+CW,isBull?tpY:slY],[ML+CW,isBull?slY:tpY],[nowX,isBull?slY:tpY]], col, 0.07);
 
   // ── NOW vertical line ──
   ctx.save(); ctx.strokeStyle=ACCENT; ctx.lineWidth=1.5; ctx.globalAlpha=0.5;
@@ -2568,19 +2569,29 @@ function drawPatternChart(canvas, sig) {
     ctx.save(); ctx.strokeStyle=c; ctx.lineWidth=w; ctx.setLineDash(dash); ctx.globalAlpha=a;
     ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); ctx.restore();
   }
-  function ARR(x1,y1,x2,y2,c,w=3.5) {
-    ctx.save(); ctx.strokeStyle=c; ctx.fillStyle=c; ctx.lineWidth=w;
-    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
-    const a=Math.atan2(y2-y1,x2-x1), s=16;
-    ctx.beginPath(); ctx.moveTo(x2,y2);
-    ctx.lineTo(x2-s*Math.cos(a-0.38),y2-s*Math.sin(a-0.38));
-    ctx.lineTo(x2-s*Math.cos(a+0.38),y2-s*Math.sin(a+0.38));
-    ctx.closePath(); ctx.fill(); ctx.restore();
+  function ARR(x1,y1,x2,y2,c,w=2.5) {
+    // Freccia pulita: linea + punta triangolare proporzionata
+    ctx.save();
+    ctx.strokeStyle=c; ctx.fillStyle=c; ctx.lineWidth=w;
+    ctx.lineCap='round';
+    const a=Math.atan2(y2-y1,x2-x1);
+    const s=14; // dimensione punta
+    const shorten=s*0.7; // accorcia la linea per non sovrapporre la punta
+    const ex=x2-shorten*Math.cos(a), ey=y2-shorten*Math.sin(a);
+    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(ex,ey); ctx.stroke();
+    // Punta solida proporzionata
+    ctx.beginPath();
+    ctx.moveTo(x2,y2);
+    ctx.lineTo(x2-s*Math.cos(a-0.42),y2-s*Math.sin(a-0.42));
+    ctx.lineTo(x2-s*Math.cos(a+0.42),y2-s*Math.sin(a+0.42));
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
   }
   function trajArrow(fromX, fromY, c, isBullDir) {
-    const len = 60;
-    const angle = isBullDir ? -Math.PI/4 : Math.PI/4;
-    ARR(fromX, fromY, fromX+len*Math.cos(angle), fromY+len*Math.sin(angle), c, 3.5);
+    // Freccia diagonale 45° proporzionata e pulita
+    const lenX = CW * 0.14;
+    const lenY = isBullDir ? -CH * 0.22 : CH * 0.22;
+    ARR(fromX, fromY, fromX+lenX, fromY+lenY, c, 2.5);
   }
   function DOT(x,y,c,r=7) {
     ctx.save();
@@ -3046,32 +3057,52 @@ function drawPattern(ctx, pat, isBull, entry, sl, tp, py, px, CW, CH, ML, MR, MT
 
   // ══ BREAKOUT KEY LEVEL ══
   else if (pat.includes('breakout')) {
-    // Zona di consolidamento sopra/sotto il livello chiave
-    const zoneTop = py(entry + spread * (isBull ? 0.06 : 0.35));
-    const zoneBot = py(entry - spread * (isBull ? 0.35 : 0.06));
-    // Shading zona consolidamento (history)
-    ctx.save(); ctx.fillStyle=ORANGE; ctx.globalAlpha=0.07;
-    ctx.fillRect(px(0.04), zoneTop, px(0.64)-px(0.04), zoneBot-zoneTop); ctx.restore();
-    // Linea del livello chiave
-    ctx.save(); ctx.strokeStyle=ORANGE; ctx.lineWidth=2.5; ctx.setLineDash([]);
-    ctx.beginPath(); ctx.moveTo(px(0.04),py(entry)); ctx.lineTo(nowX+10,py(entry)); ctx.stroke(); ctx.restore();
-    // Touch dots sul livello
-    [0.10,0.22,0.38,0.54].forEach(t=>DOT(px(t),py(entry),ORANGE,5));
-    // Label livello (SUPPORT o RESISTANCE)
-    const levelType = isBull ? 'SUPPORT BREAKOUT' : 'RESISTANCE BREAKDOWN';
+    const kLvl = py(entry); // il livello chiave
+    const isSupport = isBull; // BUY = supporto che tiene, SELL = resistenza che cede
+    const lvlLabel = isSupport ? 'SUPPORT' : 'RESISTANCE';
+
+    // ── 1. Zona di consolidamento (price action pre-breakout) ──
+    const consolidH = spread * 0.30;
+    // Shading zona sopra/sotto il livello
+    ctx.save(); ctx.fillStyle = ORANGE; ctx.globalAlpha = 0.07;
+    ctx.fillRect(px(0.04), kLvl - consolidH, px(0.66)-px(0.04), consolidH * 2);
+    ctx.restore();
+
+    // ── 2. Linea orizzontale del livello — spessa, solida ──
     ctx.save();
-    ctx.fillStyle='rgba(253,248,239,0.95)'; ctx.strokeStyle=ORANGE; ctx.lineWidth=1.5;
-    const lw=ctx.measureText(levelType).width+20;
-    ctx.beginPath(); ctx.roundRect(px(0.38)-lw/2, py(entry)-13, lw, 20, 3);
-    ctx.fill(); ctx.stroke(); ctx.restore();
-    ctx.fillStyle='#1C0F00'; ctx.font='bold 10px "Space Mono",monospace'; ctx.textAlign='center';
-    ctx.fillText(levelType, px(0.38), py(entry)+3);
-    // Freccia breakout dopo NOW
-    const breakY = py(entry + spread*(isBull?0.15:-0.15));
-    L(nowX, py(entry), nowX+CW*0.12, breakY, col, 2.5, [], 0.9);
-    ARR(nowX+CW*0.08, py(entry+(isBull?0.08:-0.08)*spread), nowX+CW*0.18, py(entry+(isBull?0.18:-0.18)*spread), col, 3);
-    // Etichetta pattern
-    LBL(isBull?'BULLISH BREAKOUT':'BEARISH BREAKDOWN', px(0.28), py(entry), col, !isBull, 12);
+    ctx.strokeStyle = ORANGE; ctx.lineWidth = 2.5;
+    ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(px(0.04), kLvl); ctx.lineTo(nowX, kLvl); ctx.stroke();
+    ctx.restore();
+
+    // ── 3. Touch dots sul livello (4-5 tocchi) ──
+    [0.10, 0.22, 0.36, 0.52, 0.62].forEach(t => DOT(px(t), kLvl, ORANGE, 5));
+
+    // ── 4. Label livello tipo con sfondo pulito ──
+    ctx.save();
+    const lvlTw = ctx.measureText(lvlLabel).width + 20;
+    const lvlX = px(0.20), lvlY = kLvl + (isSupport ? 14 : -20);
+    ctx.fillStyle = 'rgba(253,248,239,0.95)'; ctx.strokeStyle = ORANGE; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.roundRect(lvlX - lvlTw/2, lvlY, lvlTw, 18, 3);
+    ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#9B6800'; ctx.font = 'bold 9px "Space Mono",monospace'; ctx.textAlign = 'center';
+    ctx.fillText(lvlLabel, lvlX, lvlY + 12);
+    ctx.restore();
+
+    // ── 5. Breakout: freccia pulita verticale ──
+    // Linea verticale NOW
+    ctx.save(); ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.globalAlpha = 0.5;
+    ctx.setLineDash([4,3]);
+    ctx.beginPath(); ctx.moveTo(nowX, MT); ctx.lineTo(nowX, MT+CH);
+    ctx.stroke(); ctx.restore();
+
+    // Freccia diagonale proporzionata
+    const arrowStartY = kLvl + (isBull ? -8 : 8);
+    const arrowEndY   = kLvl + (isBull ? -CH*0.28 : CH*0.28);
+    ARR(nowX, arrowStartY, nowX + CW*0.15, arrowEndY, col, 2.5);
+
+    // ── 6. Pattern label ──
+    LBL(isBull ? 'BULLISH BREAKOUT' : 'BEARISH BREAKDOWN', px(0.38), kLvl, col, !isBull, 12);
   }
 
   // ══ BULLISH / BEARISH ENGULFING ══
