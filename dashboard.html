@@ -813,6 +813,14 @@ body {
       <span class="nav-icon">📈</span>
       <span class="nav-label">Futures</span>
     </div>
+    <div class="nav-item" onclick="setNav(this)">
+      <span class="nav-icon">⬛</span>
+      <span class="nav-label">Heatmap</span>
+    </div>
+    <div class="nav-item" onclick="setNav(this)">
+      <span class="nav-icon">⚙</span>
+      <span class="nav-label">Screener</span>
+    </div>
   </div>
 
   <div class="sidebar-footer">
@@ -928,6 +936,14 @@ body {
           <div class="panel-sub">S&amp;P 500 Sectors</div>
         </div>
         <div id="sectorList"></div>
+        <!-- Sector Pie Chart -->
+        <div style="margin-top:14px;border-top:1px solid var(--border2);padding-top:12px">
+          <div style="font-family:var(--mono);font-size:0.5rem;letter-spacing:0.14em;text-transform:uppercase;color:var(--gold);margin-bottom:10px">Sector Allocation</div>
+          <div style="display:flex;align-items:center;gap:16px">
+            <canvas id="sectorPieChart" width="110" height="110" style="flex-shrink:0"></canvas>
+            <div id="sectorPieLegend" style="flex:1;display:flex;flex-direction:column;gap:4px"></div>
+          </div>
+        </div>
       </div>
     </div>
   </div><!-- /dashboardView -->
@@ -935,9 +951,23 @@ body {
   <!-- ── STOCKS VIEW ── -->
   <div id="stocksView" style="display:none">
     <div class="panel" style="border:1px solid var(--border)">
-      <div class="panel-header"><div class="panel-title">US Stocks & ETFs</div><div class="panel-sub">Click any row to chart</div></div>
-      <div style="display:grid;grid-template-columns:1fr 130px 120px 100px;padding:8px 18px;border-bottom:1px solid var(--border);background:var(--bg3);font-family:var(--mono);font-size:0.5rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--dim);">
-        <span>Asset</span><span>Sector</span><span style="text-align:right">Price</span><span style="text-align:right">Change</span>
+      <div class="panel-header">
+        <div class="panel-title">US Stocks &amp; ETFs</div>
+        <div class="panel-sub">Dow Jones 30 · Blue Chips · Tech · Financials · Healthcare</div>
+      </div>
+      <!-- Search + Filter bar -->
+      <div style="display:flex;gap:10px;padding:10px 18px;border-bottom:1px solid var(--border);background:var(--bg2)">
+        <input id="stocks-filter-input" type="text" placeholder="Search symbol or name..." 
+          style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:.62rem;padding:6px 10px;outline:none;letter-spacing:.04em"
+          oninput="renderStocksView()">
+        <select id="stocks-sector-filter" onchange="renderStocksView()"
+          style="background:var(--bg3);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:.6rem;padding:6px 10px;cursor:pointer">
+          <option value="ALL">All Sectors</option>
+          <option>Technology</option><option>Financials</option><option>Healthcare</option>
+          <option>Consumer Discr.</option><option>Consumer Staples</option>
+          <option>Industrials</option><option>Energy</option><option>Communication</option>
+          <option>Materials</option><option>ETF</option><option>Sector ETF</option>
+        </select>
       </div>
       <div id="stocks-list"></div>
     </div>
@@ -964,6 +994,40 @@ body {
     <div class="panel" style="border:1px solid var(--border)">
       <div class="panel-header"><div class="panel-title">🌐 Global Markets</div><div class="panel-sub">All regions</div></div>
       <div id="global-full-list"></div>
+    </div>
+  </div>
+
+  <!-- ── HEATMAP VIEW ── -->
+  <div id="heatmapView" style="display:none">
+    <div class="panel" style="border:1px solid var(--border)">
+      <div class="panel-header"><div class="panel-title">Market Heatmap</div><div class="panel-sub">All assets by % daily change — size = weight</div></div>
+      <div id="heatmap-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:2px;padding:2px;background:var(--border2)"></div>
+    </div>
+  </div>
+
+  <!-- ── SCREENER VIEW ── -->
+  <div id="screenerView" style="display:none">
+    <div class="panel" style="border:1px solid var(--border)">
+      <div class="panel-header"><div class="panel-title">Stock Screener</div><div class="panel-sub">Filter by sector, performance, momentum</div></div>
+      <div style="display:flex;gap:10px;padding:12px 18px;border-bottom:1px solid var(--border);background:var(--bg2);flex-wrap:wrap">
+        <select id="scr-sector" onchange="renderScreener()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:.6rem;padding:6px 10px;cursor:pointer">
+          <option value="ALL">All Sectors</option>
+          <option>Technology</option><option>Financials</option><option>Healthcare</option>
+          <option>Consumer Discr.</option><option>Consumer Staples</option><option>Industrials</option>
+          <option>Energy</option><option>Communication</option><option>Materials</option>
+        </select>
+        <select id="scr-dir" onchange="renderScreener()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:.6rem;padding:6px 10px;cursor:pointer">
+          <option value="ALL">All Directions</option>
+          <option value="UP">Gainers Only</option>
+          <option value="DN">Losers Only</option>
+        </select>
+        <select id="scr-sort" onchange="renderScreener()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:.6rem;padding:6px 10px;cursor:pointer">
+          <option value="CHG_DN">Sort: Biggest Loss</option>
+          <option value="CHG_UP">Sort: Biggest Gain</option>
+          <option value="AZ">Sort: A → Z</option>
+        </select>
+      </div>
+      <div id="screener-list"></div>
     </div>
   </div>
 
@@ -1128,9 +1192,27 @@ body {
       </div>
     </div>
 
+    <!-- Transaction History -->
+    <div style="border:1px solid var(--border);margin-top:20px">
+      <div style="padding:10px 18px;border-bottom:1px solid var(--border2);background:var(--bg3);display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-family:var(--mono);font-size:.52rem;letter-spacing:.16em;text-transform:uppercase;color:var(--gold)">Transaction History</div>
+          <div style="font-family:var(--mono);font-size:.46rem;color:var(--dim);margin-top:2px">Last 20 closed trades — stored locally</div>
+        </div>
+        <button onclick="localStorage.removeItem('xenos_tx_history');renderTxHistory()" style="background:none;border:1px solid var(--border);color:var(--dim);font-family:var(--mono);font-size:.48rem;padding:4px 10px;cursor:pointer">Clear</button>
+      </div>
+      <div style="display:grid;grid-template-columns:80px 60px 80px 1fr 110px;padding:7px 18px;border-bottom:1px solid var(--border2);background:var(--bg3);font-family:var(--mono);font-size:.44rem;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)">
+        <span>Symbol</span><span>Side</span><span>Date</span><span>Levels</span><span style="text-align:right;padding-right:18px">P&amp;L</span>
+      </div>
+      <div id="pf-tx-history"></div>
+    </div>
+
   </div><!-- /portfolioView -->
 
-  <!-- Add Position Modal -->
+  <!-- Transaction History (inside portfolio view) -->
+  <!-- Already handled by pf-table which shows current positions -->
+
+  <!-- Add/Edit Position Modal -->
   <div class="pf-overlay" id="pfOverlay" onclick="closePfModal(event)">
     <div class="pf-modal">
       <div class="pf-modal-title">✦ Add Position</div>
@@ -1464,6 +1546,61 @@ function renderGlobal() {
   el.innerHTML = html;
 }
 
+// ── Sector Pie Chart ─────────────────────────────────────────
+function renderSectorPie() {
+  const canvas = document.getElementById('sectorPieChart');
+  const legend = document.getElementById('sectorPieLegend');
+  if (!canvas || !legend) return;
+
+  const sData = SECTORS.map(s => {
+    const { chg } = extractPrice(prices[s.sym]);
+    return { ...s, chg: chg ?? 0 };
+  });
+
+  const total = sData.reduce((s, x) => s + Math.abs(x.chg || 0.5), 0);
+  const ctx = canvas.getContext('2d');
+  canvas.width = 110; canvas.height = 110;
+  ctx.clearRect(0, 0, 110, 110);
+
+  let angle = -Math.PI / 2;
+  for (const s of sData) {
+    const sweep = ((Math.abs(s.chg) || 0.5) / total) * Math.PI * 2;
+    ctx.beginPath();
+    ctx.moveTo(55, 55);
+    ctx.arc(55, 55, 50, angle, angle + sweep);
+    ctx.closePath();
+    ctx.fillStyle = s.chg >= 0 ? s.color : '#8B1A1A';
+    ctx.fill();
+    ctx.strokeStyle = '#FDF8EF';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    angle += sweep;
+  }
+  // Center hole
+  ctx.beginPath();
+  ctx.arc(55, 55, 22, 0, Math.PI * 2);
+  ctx.fillStyle = '#F5EDD8';
+  ctx.fill();
+  // Center text
+  const bull = sData.filter(s => s.chg > 0).length;
+  ctx.fillStyle = bull > 4 ? '#1e5c35' : '#8B1A1A';
+  ctx.font = 'bold 11px IBM Plex Mono, monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(bull + '/' + sData.length, 55, 59);
+
+  // Legend
+  legend.innerHTML = sData.sort((a,b) => b.chg - a.chg).slice(0, 5).map(s => {
+    const col = s.chg >= 0 ? s.color : '#8B1A1A';
+    return `<div style="display:flex;align-items:center;justify-content:space-between;font-family:var(--mono);font-size:.48rem">
+      <div style="display:flex;align-items:center;gap:5px">
+        <span style="width:7px;height:7px;border-radius:50%;background:${col};display:inline-block;flex-shrink:0"></span>
+        <span style="color:var(--dim)">${s.name.substring(0,14)}</span>
+      </div>
+      <span class="${s.chg>=0?'up':'dn'}" style="font-weight:600">${s.chg>=0?'+':''}${s.chg.toFixed(2)}%</span>
+    </div>`;
+  }).join('');
+}
+
 // ── Render sectors ────────────────────────────────────────────
 function renderSectors() {
   const el = document.getElementById('sectorList');
@@ -1682,6 +1819,7 @@ function renderAll() {
   renderWatchlist();
   renderGlobal();
   renderSectors();
+  renderSectorPie();
   renderTicker();
 }
 
@@ -1907,7 +2045,7 @@ function renderPortfolio() {
       <div class="pf-cell">${cur ? fmtVal(cur) : '<span style="color:var(--dim)">—</span>'}</div>
       <div class="pf-cell">${'$' + value.toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
       <div class="pf-cell ${pnlCls}">${pnlArr} $${Math.abs(pnlRaw).toFixed(2)} <span style="font-size:0.52rem">(${pnlPct >= 0 ? '+' : ''}${pnlPct.toFixed(2)}%)</span></div>
-      <div class="pf-cell"><button class="pf-del-btn" onclick="deletePosition('${pos.id}')">✕</button></div>
+      <div class="pf-cell" style="display:flex;gap:4px"><button style="background:none;border:1px solid var(--border);color:var(--gold);font-family:var(--mono);font-size:.48rem;padding:3px 7px;cursor:pointer;letter-spacing:.06em" onclick="openCloseTradeModal('${pos.id}','${pos.sym}','${pos.side}')" title="Close trade">✓ CLOSE</button><button class="pf-del-btn" onclick="deletePosition('${pos.id}')" title="Delete">✕</button></div>
     </div>`;
   }
 
@@ -2346,15 +2484,17 @@ function renderFutures() {
 // ── Navigation routing ───────────────────────────────────────
 const ALL_VIEWS = ['dashboardView','stocksView','marketsView','currenciesView',
                    'globalView','portfolioView','performanceView','analysisView',
-                   'premarketView','futuresView'];
+                   'premarketView','futuresView','heatmapView','screenerView'];
 const VIEW_MAP  = {'Dashboard':'dashboardView','Stocks':'stocksView','Markets':'marketsView',
   'Currencies':'currenciesView','Global':'globalView','Portfolio':'portfolioView',
   'Performance':'performanceView','Analysis':'analysisView',
-  'Pre-Market':'premarketView','Futures':'futuresView'};
+  'Pre-Market':'premarketView','Futures':'futuresView',
+  'Heatmap':'heatmapView','Screener':'screenerView'};
 const TITLE_MAP = {'Dashboard':'Market Dashboard','Stocks':'Stocks & ETFs',
   'Markets':'Markets Overview','Currencies':'Currencies & FX','Global':'Global Markets',
   'Portfolio':'My Portfolio','Performance':'Performance','Analysis':'Technical Analysis',
-  'Pre-Market':'Pre-Market Activity','Futures':'Futures Overview'};
+  'Pre-Market':'Pre-Market Activity','Futures':'Futures Overview',
+  'Heatmap':'Market Heatmap','Screener':'Stock Screener'};
 
 function showView(id) {
   ALL_VIEWS.forEach(v => {
@@ -2371,7 +2511,7 @@ function setNav(el) {
   showView(viewId);
   document.querySelector('.page-title').textContent = TITLE_MAP[label] || 'Market Dashboard';
   window.scrollTo(0, 0);
-  if (label==='Portfolio')   renderPortfolio();
+  if (label==='Portfolio')   { renderPortfolio(); renderTxHistory(); }
   if (label==='Stocks')      renderStocksView();
   if (label==='Markets')     renderMarketsView();
   if (label==='Currencies')  renderCurrenciesView();
@@ -2380,6 +2520,8 @@ function setNav(el) {
   if (label==='Analysis')    renderAnalysisView();
   if (label==='Pre-Market')  renderPreMarket();
   if (label==='Futures')      renderFutures();
+  if (label==='Heatmap')      renderHeatmap();
+  if (label==='Screener')     renderScreener();
 }
 
 // ── STOCKS VIEW ───────────────────────────────────────────────
@@ -2400,21 +2542,143 @@ const STOCKS_LIST = [
   {sym:'DIA',name:'Dow Jones ETF',yf:'DIA',sector:'ETF'},
   {sym:'XLK',name:'Technology ETF',yf:'XLK',sector:'Sector ETF'},
   {sym:'XLF',name:'Financials ETF',yf:'XLF',sector:'Sector ETF'},
+  // Dow Jones 30
+  {sym:'UNH', name:'UnitedHealth Group', yf:'UNH',  sector:'Healthcare'},
+  {sym:'GS',  name:'Goldman Sachs',      yf:'GS',   sector:'Financials'},
+  {sym:'HD',  name:'Home Depot',         yf:'HD',   sector:'Consumer Discr.'},
+  {sym:'CAT', name:'Caterpillar',        yf:'CAT',  sector:'Industrials'},
+  {sym:'MCD', name:"McDonald's",         yf:'MCD',  sector:'Consumer Staples'},
+  {sym:'AMGN',name:'Amgen',              yf:'AMGN', sector:'Healthcare'},
+  {sym:'BA',  name:'Boeing',             yf:'BA',   sector:'Industrials'},
+  {sym:'HON', name:'Honeywell',          yf:'HON',  sector:'Industrials'},
+  {sym:'TRV', name:'Travelers',          yf:'TRV',  sector:'Financials'},
+  {sym:'SHW', name:'Sherwin-Williams',   yf:'SHW',  sector:'Materials'},
+  {sym:'CRM', name:'Salesforce',         yf:'CRM',  sector:'Technology'},
+  {sym:'NKE', name:'Nike',               yf:'NKE',  sector:'Consumer Discr.'},
+  {sym:'MMM', name:'3M Company',         yf:'MMM',  sector:'Industrials'},
+  {sym:'IBM', name:'IBM',                yf:'IBM',  sector:'Technology'},
+  {sym:'AXP', name:'American Express',   yf:'AXP',  sector:'Financials'},
+  {sym:'WMT', name:'Walmart',            yf:'WMT',  sector:'Consumer Staples'},
+  {sym:'PG',  name:'Procter & Gamble',   yf:'PG',   sector:'Consumer Staples'},
+  {sym:'KO',  name:'Coca-Cola',          yf:'KO',   sector:'Consumer Staples'},
+  {sym:'MRK', name:'Merck & Co.',        yf:'MRK',  sector:'Healthcare'},
+  {sym:'CVX', name:'Chevron',            yf:'CVX',  sector:'Energy'},
+  {sym:'DIS', name:'Walt Disney',        yf:'DIS',  sector:'Communication'},
+  {sym:'CSCO',name:'Cisco Systems',      yf:'CSCO', sector:'Technology'},
+  {sym:'INTC',name:'Intel Corporation',  yf:'INTC', sector:'Technology'},
+  {sym:'VZ',  name:'Verizon',            yf:'VZ',   sector:'Communication'},
+  {sym:'WBA', name:'Walgreens Boots',    yf:'WBA',  sector:'Healthcare'},
+  // Blue Chips
+  {sym:'BRK-B',name:'Berkshire Hathaway',yf:'BRK-B',sector:'Financials'},
+  {sym:'LLY', name:'Eli Lilly',          yf:'LLY',  sector:'Healthcare'},
+  {sym:'ABBV',name:'AbbVie',             yf:'ABBV', sector:'Healthcare'},
+  {sym:'AVGO',name:'Broadcom',           yf:'AVGO', sector:'Technology'},
+  {sym:'NFLX',name:'Netflix',            yf:'NFLX', sector:'Communication'},
+  {sym:'ADBE',name:'Adobe',              yf:'ADBE', sector:'Technology'},
+  {sym:'AMD', name:'AMD',                yf:'AMD',  sector:'Technology'},
+  {sym:'PFE', name:'Pfizer',             yf:'PFE',  sector:'Healthcare'},
+  {sym:'T',   name:'AT&T',               yf:'T',    sector:'Communication'},
+  {sym:'ORCL',name:'Oracle',             yf:'ORCL', sector:'Technology'},
+  {sym:'MA',  name:'Mastercard',         yf:'MA',   sector:'Financials'},
+  {sym:'BAC', name:'Bank of America',    yf:'BAC',  sector:'Financials'},
+  {sym:'MS',  name:'Morgan Stanley',     yf:'MS',   sector:'Financials'},
+  {sym:'C',   name:'Citigroup',          yf:'C',    sector:'Financials'},
+  {sym:'WFC', name:'Wells Fargo',        yf:'WFC',  sector:'Financials'},
 ];
 function renderStocksView() {
   const el = document.getElementById('stocks-list'); if (!el) return;
-  let html = '';
+  const filter = (document.getElementById('stocks-filter-input')?.value || '').toUpperCase();
+  const sectorFilter = document.getElementById('stocks-sector-filter')?.value || 'ALL';
+  
+  // Group by sector
+  const byGroup = {};
   for (const s of STOCKS_LIST) {
-    const {price:pr,chg} = extractPrice(prices[s.yf]);
-    const c = fmtChg(chg);
-    html += `<div class="view-row" style="cursor:pointer" onclick="goToChart('${s.sym}','${s.name}','${s.yf}','price')">
-      <div><div class="vr-sym">${s.sym}</div><div class="vr-name">${s.name}</div></div>
-      <div class="vr-sector">${s.sector}</div>
-      <div class="vr-price">${pr?fmtP(pr,'price'):'—'}</div>
-      <div class="vr-chg ${c.cls}">${c.str}</div>
-    </div>`;
+    if (filter && !s.sym.includes(filter) && !s.name.toUpperCase().includes(filter)) continue;
+    if (sectorFilter !== 'ALL' && s.sector !== sectorFilter) continue;
+    if (!byGroup[s.sector]) byGroup[s.sector] = [];
+    byGroup[s.sector].push(s);
   }
+
+  let html = '';
+  for (const [sector, items] of Object.entries(byGroup)) {
+    html += `<div style="font-family:var(--mono);font-size:.48rem;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);padding:8px 18px 5px;border-bottom:1px solid var(--border2);background:var(--bg3)">${sector}</div>`;
+    for (const s of items) {
+      const {price:pr,chg} = extractPrice(prices[s.yf]);
+      const c = fmtChg(chg);
+      const bw = Math.min(Math.abs(chg||0)*8+10,90);
+      const bc = (chg||0)>=0?'var(--green)':'var(--red)';
+      html += `<div class="view-row" style="cursor:pointer;display:grid;grid-template-columns:180px 1fr 120px 110px 100px;align-items:center" 
+               onclick="showStockCard('${s.sym}','${s.name}','${s.yf}','${s.sector}')"
+               onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">
+        <div><div class="vr-sym">${s.sym}</div><div class="vr-name">${s.name}</div></div>
+        <div style="padding:0 14px"><div style="height:4px;background:var(--bg3);border-radius:2px"><div style="height:100%;width:${bw}%;background:${bc};border-radius:2px;transition:width .3s"></div></div></div>
+        <div class="vr-sector" style="font-size:.5rem">${s.sector}</div>
+        <div class="vr-price">${pr?fmtP(pr,'price'):'—'}</div>
+        <div class="vr-chg ${c.cls}" style="text-align:right;padding-right:18px">${c.str}</div>
+      </div>`;
+    }
+  }
+  if (!html) html = '<div style="padding:40px;text-align:center;font-family:var(--mono);font-size:.62rem;color:var(--dim)">No results</div>';
   el.innerHTML = html;
+}
+
+// Stock info card modal
+function showStockCard(sym, name, yf, sector) {
+  const {price:pr,chg} = extractPrice(prices[yf]);
+  const c = fmtChg(chg);
+  const tvSym = (window.tvSymbolMap||{})[yf] || yf;
+  
+  const overlay = document.getElementById('stockCardOverlay');
+  if (!overlay) return;
+  
+  document.getElementById('sc-sym').textContent  = sym;
+  document.getElementById('sc-name').textContent = name;
+  document.getElementById('sc-sector').textContent = sector;
+  document.getElementById('sc-price').textContent = pr ? fmtP(pr,'price') : '—';
+  document.getElementById('sc-chg').textContent   = c.str;
+  document.getElementById('sc-chg').className     = 'sc-chg ' + c.cls;
+  
+  // Load TradingView mini chart
+  const chartDiv = document.getElementById('sc-chart');
+  chartDiv.innerHTML = `<div class="tradingview-widget-container" style="height:200px">
+    <div class="tradingview-widget-container__widget"></div>
+    <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-mini-symbol-overview.js" async>
+    {"symbol":"${tvSym}","width":"100%","height":"200","locale":"en","dateRange":"1M","colorTheme":"light","isTransparent":true,"autosize":true}
+    <\/script>
+  </div>`;
+  
+  // Action buttons
+  document.getElementById('sc-buy-btn').onclick  = () => { closeStockCard(); openAddModalFor(sym, name, 'LONG', 'price'); };
+  document.getElementById('sc-sell-btn').onclick = () => { closeStockCard(); openAddModalFor(sym, name, 'SHORT','price'); };
+  document.getElementById('sc-chart-btn').onclick= () => { closeStockCard(); goToChart(sym,name,yf,'price'); };
+  
+  overlay.classList.add('open');
+}
+
+function closeStockCard() {
+  document.getElementById('stockCardOverlay').classList.remove('open');
+}
+
+function openAddModalFor(sym, name, side, fmt) {
+  // Switch to portfolio view
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>{
+    if(n.querySelector('.nav-label')?.textContent?.trim()==='Portfolio') n.classList.add('active');
+  });
+  showView('portfolioView');
+  document.querySelector('.page-title').textContent = 'My Portfolio';
+  renderPortfolio();
+  // Pre-fill modal
+  setTimeout(() => {
+    document.getElementById('pfSym').value   = sym;
+    document.getElementById('pfName').value  = name;
+    document.getElementById('pfSide').value  = side;
+    document.getElementById('pfFmt').value   = fmt;
+    const p = extractPrice(prices[sym]);
+    if (p.price) document.getElementById('pfEntry').value = parseFloat(p.price).toFixed(2);
+    document.getElementById('pfError').style.display = 'none';
+    document.getElementById('pfOverlay').classList.add('open');
+  }, 100);
 }
 
 // ── MARKETS VIEW ──────────────────────────────────────────────
@@ -2467,17 +2731,29 @@ const FX_LIST = [
 ];
 function renderCurrenciesView() {
   const el = document.getElementById('currencies-list'); if (!el) return;
-  let html = `<div style="display:grid;grid-template-columns:1fr 130px 120px 100px;padding:8px 18px;border-bottom:1px solid var(--border);background:var(--bg3);font-family:var(--mono);font-size:0.5rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--dim)">
-    <span>Pair</span><span></span><span style="text-align:right">Rate</span><span style="text-align:right">Change</span>
+  let html = `<div style="display:grid;grid-template-columns:140px 1fr 130px 110px 120px;padding:8px 18px;border-bottom:1px solid var(--border);background:var(--bg3);font-family:var(--mono);font-size:0.5rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--dim)">
+    <span>Pair</span><span></span><span style="text-align:right">Rate</span><span style="text-align:right">Δ Point</span><span style="text-align:right;padding-right:18px">% Change</span>
   </div>`;
   for (const s of FX_LIST) {
     const {price:pr,chg} = extractPrice(prices[s.yf]);
     const c = fmtChg(chg);
-    html += `<div class="view-row" style="cursor:pointer" onclick="goToChart('${s.label}','${s.name}','${s.yf}','${s.fmt}')">
-      <div><div class="vr-sym">${s.label}</div><div class="vr-name">${s.name}</div></div>
-      <div></div>
-      <div class="vr-price">${pr?fmtP(pr,s.fmt):'—'}</div>
-      <div class="vr-chg ${c.cls}">${c.str}</div>
+    const priceVal = parseFloat(pr) || 0;
+    const isFX = s.fmt === 'fx';
+    const isJPY = s.label.includes('JPY');
+    const pointDelta = priceVal && chg ? (priceVal * chg / 100) : null;
+    const pipDelta = pointDelta ? (isJPY ? pointDelta.toFixed(2) : (pointDelta*10000).toFixed(1) + ' pips') : '—';
+    const bw = Math.min(Math.abs(chg||0)*20+10,95);
+    const bc = (chg||0)>=0?'var(--green)':'var(--red)';
+    html += `<div style="display:grid;grid-template-columns:140px 1fr 130px 110px 120px;padding:11px 18px;border-bottom:1px solid var(--border2);align-items:center;cursor:pointer;transition:background .12s"
+      onclick="goToChart('${s.label}','${s.name}','${s.yf}','${s.fmt}')"
+      onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">
+      <div><div class="vr-sym" style="font-size:.72rem">${s.label}</div><div class="vr-name" style="font-size:.48rem;margin-top:2px">${s.name}</div></div>
+      <div style="padding:0 14px"><div style="height:4px;background:var(--bg3);border-radius:2px"><div style="height:100%;width:${bw}%;background:${bc};border-radius:2px;transition:width .4s"></div></div></div>
+      <div style="font-family:var(--mono);font-size:.72rem;font-weight:500;text-align:right">${pr?fmtP(pr,s.fmt):'—'}</div>
+      <div style="font-family:var(--mono);font-size:.62rem;text-align:right;color:var(--dim)">${isFX?pipDelta:'—'}</div>
+      <div style="font-family:var(--mono);font-size:.78rem;font-weight:700;text-align:right;padding-right:18px" class="${c.cls}">
+        ${chg!=null&&!isNaN(chg)?(chg>=0?'▲ +':'▼ ')+Math.abs(chg).toFixed(2)+'%':'—'}
+      </div>
     </div>`;
   }
   el.innerHTML = html;
@@ -2506,43 +2782,212 @@ function renderGlobalView() {
 // ── PERFORMANCE VIEW ──────────────────────────────────────────
 function renderPerformanceView() {
   const el = document.getElementById('perf-list'); if (!el) return;
-  const all = [...WATCHLIST,...SECTORS.map(s=>({sym:s.sym,name:s.name,yf:s.sym,fmt:'price'}))];
-  const data = all.map(w=>{ const {price:pr,chg}=extractPrice(prices[w.yf]); return{...w,price:pr,chg:chg??0}; })
-    .filter(w=>w.price).sort((a,b)=>b.chg-a.chg);
-  let html = '';
-  for (const w of data) {
-    const c=fmtChg(w.chg);
-    const bw=Math.min(Math.abs(w.chg)*8+10,90), bc=w.chg>=0?'var(--green)':'var(--red)';
-    html+=`<div class="view-row">
-      <div><div class="vr-sym">${w.sym}</div><div class="vr-name">${w.name}</div></div>
-      <div style="padding:0 12px"><div style="height:5px;background:var(--bg3);border-radius:3px"><div style="height:100%;width:${bw}%;background:${bc};border-radius:3px"></div></div></div>
-      <div class="vr-price">${fmtP(w.price,w.fmt||'price')}</div>
-      <div class="vr-chg ${c.cls}">${c.str}</div>
+
+  // Build comprehensive asset list: watchlist + sectors + key stocks + FX + futures
+  const ALL_PERF = [
+    ...WATCHLIST,
+    ...SECTORS.map(s=>({sym:s.sym,name:s.name,yf:s.sym,fmt:'price',group:'Sectors'})),
+    ...FX_LIST.filter(f=>f.fmt==='fx').map(f=>({sym:f.label,name:f.name,yf:f.yf,fmt:'fx',group:'FX'})),
+    ...FUTURES_ASSETS.map(f=>({sym:f.sym,name:f.name,yf:f.yf,fmt:f.fmt,group:f.group})),
+    ...STOCKS_LIST.slice(0,20).map(s=>({...s,group:'Stocks',fmt:'price'})),
+  ];
+
+  const seen = new Set();
+  const unique = ALL_PERF.filter(w => { if(seen.has(w.sym)) return false; seen.add(w.sym); return true; });
+
+  const data = unique.map(w=>{ const {price:pr,chg}=extractPrice(prices[w.yf]); return{...w,price:pr,chg:chg??0}; })
+    .filter(w=>w.price && !isNaN(w.chg)).sort((a,b)=>b.chg-a.chg);
+
+  if (!data.length) {
+    el.innerHTML='<div style="padding:40px;text-align:center;font-family:var(--mono);font-size:.65rem;color:var(--dim)">Loading data...</div>';
+    return;
+  }
+
+  const maxChg = Math.max(...data.map(w=>Math.abs(w.chg)), 1);
+  
+  // Summary stats
+  const gainers = data.filter(w=>w.chg>0).length;
+  const losers  = data.filter(w=>w.chg<0).length;
+  const bestChg = data[0].chg, worstChg = data[data.length-1].chg;
+
+  let html = `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border2);border:1px solid var(--border);margin-bottom:14px">
+    <div style="background:var(--bg2);padding:14px 18px">
+      <div style="font-family:var(--mono);font-size:.46rem;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin-bottom:5px">Top Gainer</div>
+      <div style="font-family:var(--mono);font-size:.8rem;font-weight:700;color:var(--text)">${data[0].sym}</div>
+      <div style="font-family:var(--mono);font-size:.7rem;margin-top:3px" class="up">+${bestChg.toFixed(2)}%</div>
+    </div>
+    <div style="background:var(--bg2);padding:14px 18px;border-left:1px solid var(--border2)">
+      <div style="font-family:var(--mono);font-size:.46rem;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin-bottom:5px">Top Loser</div>
+      <div style="font-family:var(--mono);font-size:.8rem;font-weight:700;color:var(--text)">${data[data.length-1].sym}</div>
+      <div style="font-family:var(--mono);font-size:.7rem;margin-top:3px" class="dn">${worstChg.toFixed(2)}%</div>
+    </div>
+    <div style="background:var(--bg2);padding:14px 18px;border-left:1px solid var(--border2)">
+      <div style="font-family:var(--mono);font-size:.46rem;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin-bottom:5px">Advancing</div>
+      <div style="font-family:var(--mono);font-size:.8rem;font-weight:700" class="up">${gainers}</div>
+    </div>
+    <div style="background:var(--bg2);padding:14px 18px;border-left:1px solid var(--border2)">
+      <div style="font-family:var(--mono);font-size:.46rem;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin-bottom:5px">Declining</div>
+      <div style="font-family:var(--mono);font-size:.8rem;font-weight:700" class="dn">${losers}</div>
+    </div>
+  </div>
+  <div style="border:1px solid var(--border)">
+  <div style="display:grid;grid-template-columns:140px 1fr 130px 120px;padding:8px 18px;border-bottom:1px solid var(--border);background:var(--bg3);font-family:var(--mono);font-size:.46rem;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)">
+    <span>Asset</span><span></span><span style="text-align:right">Price</span><span style="text-align:right;padding-right:18px">% Change</span>
+  </div>`;
+
+  for (let i=0; i<data.length; i++) {
+    const w = data[i];
+    const bw = Math.min((Math.abs(w.chg)/maxChg)*90+5,95);
+    const bc = w.chg>=0?'var(--green)':'var(--red)';
+    const rankCls = i===0?'up':i===data.length-1?'dn':'';
+    html+=`<div style="display:grid;grid-template-columns:140px 1fr 130px 120px;padding:10px 18px;border-bottom:1px solid var(--border2);align-items:center;transition:background .1s;cursor:pointer"
+      onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">
+      <div>
+        <span style="font-family:var(--mono);font-size:.46rem;color:var(--dim);margin-right:6px">#${i+1}</span>
+        <span style="font-family:var(--mono);font-size:.7rem;font-weight:600">${w.sym.replace('-USD','').replace('=X','').replace('=F','')}</span>
+        <div style="font-family:var(--mono);font-size:.46rem;color:var(--dim);margin-top:2px">${w.name.substring(0,20)}</div>
+      </div>
+      <div style="padding:0 14px"><div style="height:5px;background:var(--bg3);border-radius:3px"><div style="height:100%;width:${bw}%;background:${bc};border-radius:3px;transition:width .3s"></div></div></div>
+      <div style="font-family:var(--mono);font-size:.68rem;text-align:right">${fmtP(w.price,w.fmt||'price')}</div>
+      <div style="font-family:var(--mono);font-size:.78rem;font-weight:700;text-align:right;padding-right:18px" class="${w.chg>=0?'up':'dn'}">
+        ${w.chg>=0?'▲ +':'▼ '}${Math.abs(w.chg).toFixed(2)}%
+      </div>
     </div>`;
   }
-  el.innerHTML = html||'<div style="padding:40px;text-align:center;font-family:var(--mono);font-size:0.65rem;color:var(--dim)">Loading data...</div>';
+  el.innerHTML = html+'</div></div>';
 }
 
 // ── ANALYSIS VIEW ─────────────────────────────────────────────
 function renderAnalysisView() {
   const el = document.getElementById('analysis-list'); if (!el) return;
   const sData = SECTORS.map(s=>{ const {price:pr,chg}=extractPrice(prices[s.sym]); return{...s,price:pr,chg:chg??0}; });
-  let html=`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border2);border:1px solid var(--border);margin-bottom:20px">`;
-  for (const s of sData) {
-    const c=fmtChg(s.chg);
-    html+=`<div style="background:var(--bg2);padding:20px">
-      <div style="font-family:var(--mono);font-size:0.5rem;letter-spacing:0.14em;text-transform:uppercase;color:var(--dim);margin-bottom:8px">${s.name}</div>
-      <div style="font-family:var(--serif);font-size:1.25rem;font-weight:700;color:var(--text)">${s.price?fmtP(s.price,'price'):'—'}</div>
-      <div style="font-family:var(--mono);font-size:0.6rem;margin-top:5px" class="${c.cls}">${c.str}</div>
-      <div style="margin-top:8px;height:3px;background:var(--bg3);border-radius:2px"><div style="height:100%;width:${Math.min(Math.abs(s.chg)*15+15,90)}%;background:${s.chg>=0?'var(--green)':'var(--red)'};border-radius:2px"></div></div>
+  const bull=sData.filter(s=>s.chg>0).length, bear=sData.filter(s=>s.chg<0).length;
+  const breadth = sData.length > 0 ? (bull/sData.length*100).toFixed(0) : 0;
+  const moodLabel = bull>5?'RISK ON 🟢':bull>3?'NEUTRAL ⚪':'RISK OFF 🔴';
+  const moodCls   = bull>5?'up':bull>3?'neutral':'dn';
+
+  // Watchlist RSI proxy (use chg as momentum heuristic)
+  const wlData = [...WATCHLIST, ...SECTORS.map(s=>({sym:s.sym,name:s.name,yf:s.sym,fmt:'price'}))].map(w=>{
+    const {price:pr,chg}=extractPrice(prices[w.yf]);
+    // Rough RSI proxy: 50 + clamp(chg*8, -45, 45)
+    const rsiEst = pr ? Math.min(95, Math.max(5, 50 + (chg||0)*8)) : null;
+    return {...w, price:pr, chg:chg??0, rsiEst};
+  }).filter(w=>w.price);
+
+  let html = '';
+
+  // Market Mood banner
+  html += `<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:1px;background:var(--border2);border:1px solid var(--border);margin-bottom:14px">
+    <div style="background:var(--bg2);padding:18px 20px">
+      <div style="font-family:var(--mono);font-size:.48rem;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin-bottom:6px">Market Mood</div>
+      <div style="font-family:var(--mono);font-size:.85rem;font-weight:700" class="${moodCls}">${moodLabel}</div>
+    </div>
+    <div style="background:var(--bg2);padding:18px 20px;border-left:1px solid var(--border2)">
+      <div style="font-family:var(--mono);font-size:.48rem;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin-bottom:6px">Market Breadth</div>
+      <div style="font-family:var(--mono);font-size:.85rem;font-weight:700;color:var(--text)">${breadth}% Bullish</div>
+      <div style="margin-top:6px;height:4px;background:var(--bg3);border-radius:2px"><div style="height:100%;width:${breadth}%;background:${bull>5?'var(--green)':bull>3?'var(--yellow)':'var(--red)'};border-radius:2px"></div></div>
+    </div>
+    <div style="background:var(--bg2);padding:18px 20px;border-left:1px solid var(--border2)">
+      <div style="font-family:var(--mono);font-size:.48rem;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin-bottom:6px">Sectors Advancing</div>
+      <div style="font-family:var(--mono);font-size:.85rem;font-weight:700" class="up">${bull} / ${sData.length}</div>
+    </div>
+    <div style="background:var(--bg2);padding:18px 20px;border-left:1px solid var(--border2)">
+      <div style="font-family:var(--mono);font-size:.48rem;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin-bottom:6px">Sectors Declining</div>
+      <div style="font-family:var(--mono);font-size:.85rem;font-weight:700" class="dn">${bear} / ${sData.length}</div>
+    </div>
+  </div>`;
+
+  // RSI Heatmap
+  html += `<div style="border:1px solid var(--border);margin-bottom:14px">
+    <div style="padding:10px 18px;border-bottom:1px solid var(--border2);background:var(--bg3);font-family:var(--mono);font-size:.5rem;letter-spacing:.14em;text-transform:uppercase;color:var(--gold)">RSI Momentum Heatmap (estimated)</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:1px;background:var(--border2);padding:1px">`;
+  for (const w of wlData.slice(0,20)) {
+    const rsi = w.rsiEst;
+    const rsiCls = rsi>70?'dn':rsi>55?'up':rsi>45?'neutral':'dn';
+    const rsiLabel = rsi>70?'OB':rsi>55?'BULL':rsi>45?'NEUT':'BEAR';
+    const bg = rsi>70?'rgba(139,26,26,0.12)':rsi>55?'rgba(30,92,53,0.12)':rsi>45?'rgba(0,0,0,0)':'rgba(139,26,26,0.06)';
+    html += `<div style="background:${bg};padding:12px 14px;background-color:var(--bg2)">
+      <div style="font-family:var(--mono);font-size:.62rem;font-weight:600">${w.sym.replace('-USD','').replace('=X','').replace('=F','')}</div>
+      <div style="font-family:var(--mono);font-size:.78rem;font-weight:700;margin-top:4px" class="${rsiCls}">${rsi?rsi.toFixed(0):'—'}</div>
+      <div style="font-family:var(--mono);font-size:.45rem;color:var(--dim);margin-top:2px">${rsiLabel} · ${w.chg>=0?'+':''}${w.chg.toFixed(2)}%</div>
     </div>`;
   }
-  const bull=sData.filter(s=>s.chg>0).length,bear=sData.filter(s=>s.chg<0).length,neut=sData.filter(s=>s.chg===0).length;
-  html+=`</div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border2);border:1px solid var(--border)">`;
-  [{l:'Bullish Sectors',v:bull,c:'up'},{l:'Bearish Sectors',v:bear,c:'dn'},{l:'Neutral',v:neut,c:'neutral'}].forEach(i=>{
-    html+=`<div style="background:var(--bg2);padding:20px"><div style="font-family:var(--mono);font-size:0.5rem;letter-spacing:0.14em;text-transform:uppercase;color:var(--dim);margin-bottom:8px">${i.l}</div><div style="font-family:var(--serif);font-size:2rem;font-weight:700" class="${i.c}">${i.v}</div></div>`;
-  });
+  html += `</div></div>`;
+
+  // Sector performance grid
+  html += `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border2);border:1px solid var(--border)">`;
+  for (const s of sData) {
+    const c=fmtChg(s.chg);
+    const signal = s.chg>1?'▲ LONG':s.chg<-1?'▼ SHORT':'◉ NEUTRAL';
+    const sigCls = s.chg>1?'up':s.chg<-1?'dn':'neutral';
+    html+=`<div style="background:var(--bg2);padding:16px;cursor:pointer" onclick="goToChart('${s.name}','${s.name}','${s.sym}','price')">
+      <div style="font-family:var(--mono);font-size:.48rem;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin-bottom:6px">${s.name}</div>
+      <div style="font-family:var(--mono);font-size:1.1rem;font-weight:700;color:var(--text)">${s.price?fmtP(s.price,'price'):'—'}</div>
+      <div style="font-family:var(--mono);font-size:.65rem;margin-top:4px" class="${c.cls}">${c.str}</div>
+      <div style="font-family:var(--mono);font-size:.48rem;margin-top:8px;letter-spacing:.08em" class="${sigCls}">${signal}</div>
+      <div style="margin-top:6px;height:3px;background:var(--bg3);border-radius:2px"><div style="height:100%;width:${Math.min(Math.abs(s.chg)*15+15,90)}%;background:${s.chg>=0?'var(--green)':'var(--red)'};border-radius:2px"></div></div>
+    </div>`;
+  }
   el.innerHTML = html+'</div>';
+}
+
+// ── HEATMAP VIEW ──────────────────────────────────────────────
+function renderHeatmap() {
+  const el = document.getElementById('heatmap-grid');
+  if (!el) return;
+  const ALL_HM = [
+    ...STOCKS_LIST.map(s => ({...s, fmt:'price'})),
+    ...SECTORS.map(s => ({sym:s.sym, name:s.name, yf:s.sym, fmt:'price', sector:'Sector ETF'})),
+    ...FX_LIST.filter(f=>f.fmt==='fx').map(f => ({sym:f.label, name:f.name, yf:f.yf, fmt:'fx', sector:'FX'})),
+  ];
+  const seen = new Set();
+  let html = '';
+  for (const a of ALL_HM) {
+    if (seen.has(a.sym)) continue; seen.add(a.sym);
+    const {price:pr, chg} = extractPrice(prices[a.yf]);
+    if (!pr) continue;
+    const v = chg ?? 0;
+    const intensity = Math.min(Math.abs(v) / 3, 1);
+    const bg = v >= 0 ? `rgba(30,92,53,${0.12+intensity*0.55})` : `rgba(139,26,26,${0.12+intensity*0.55})`;
+    html += `<div style="background:${bg};padding:12px 8px;cursor:pointer;text-align:center;min-height:72px;display:flex;flex-direction:column;justify-content:center;transition:filter .15s"
+      onclick="goToChart('${a.sym}','${a.name}','${a.yf}','${a.fmt}')"
+      onmouseover="this.style.filter='brightness(1.15)'" onmouseout="this.style.filter=''">
+      <div style="font-family:var(--mono);font-size:.6rem;font-weight:700">${a.sym.replace('-USD','').replace('=X','').replace('=F','')}</div>
+      <div style="font-family:var(--mono);font-size:.75rem;font-weight:700;margin-top:4px" class="${v>=0?'up':'dn'}">${v>=0?'+':''}${v.toFixed(2)}%</div>
+      <div style="font-family:var(--mono);font-size:.44rem;color:var(--dim);margin-top:2px">${fmtP(pr,a.fmt)}</div>
+    </div>`;
+  }
+  el.innerHTML = html || '<div style="padding:40px;text-align:center;font-family:var(--mono);font-size:.62rem;color:var(--dim)">Loading data...</div>';
+}
+
+// ── SCREENER VIEW ─────────────────────────────────────────────
+function renderScreener() {
+  const el = document.getElementById('screener-list'); if (!el) return;
+  const sectorF = document.getElementById('scr-sector')?.value || 'ALL';
+  const dirF    = document.getElementById('scr-dir')?.value || 'ALL';
+  const sortF   = document.getElementById('scr-sort')?.value || 'CHG_DN';
+  let data = STOCKS_LIST.map(s => { const {price:pr,chg}=extractPrice(prices[s.yf]); return{...s,price:pr,chg:chg??0}; }).filter(s=>s.price);
+  if (sectorF!=='ALL') data=data.filter(s=>s.sector===sectorF);
+  if (dirF==='UP') data=data.filter(s=>s.chg>0);
+  if (dirF==='DN') data=data.filter(s=>s.chg<0);
+  if (sortF==='CHG_DN') data.sort((a,b)=>a.chg-b.chg);
+  if (sortF==='CHG_UP') data.sort((a,b)=>b.chg-a.chg);
+  if (sortF==='AZ') data.sort((a,b)=>a.sym.localeCompare(b.sym));
+  const maxChg = Math.max(...data.map(s=>Math.abs(s.chg)),1);
+  let html = `<div style="display:grid;grid-template-columns:150px 130px 1fr 120px 120px;padding:7px 18px;border-bottom:1px solid var(--border);background:var(--bg3);font-family:var(--mono);font-size:.44rem;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)"><span>Symbol</span><span>Sector</span><span></span><span style="text-align:right">Price</span><span style="text-align:right;padding-right:18px">% Change</span></div>`;
+  for (const s of data) {
+    const bw=Math.min((Math.abs(s.chg)/maxChg)*90+5,95), bc=s.chg>=0?'var(--green)':'var(--red)';
+    html+=`<div style="display:grid;grid-template-columns:150px 130px 1fr 120px 120px;padding:10px 18px;border-bottom:1px solid var(--border2);align-items:center;cursor:pointer;transition:background .1s"
+      onclick="showStockCard('${s.sym}','${s.name}','${s.yf}','${s.sector}')"
+      onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">
+      <div><div style="font-family:var(--mono);font-size:.7rem;font-weight:600">${s.sym}</div><div style="font-family:var(--mono);font-size:.46rem;color:var(--dim);margin-top:2px">${s.name.substring(0,22)}</div></div>
+      <div style="font-family:var(--mono);font-size:.5rem;color:var(--dim)">${s.sector}</div>
+      <div style="padding:0 14px"><div style="height:4px;background:var(--bg3);border-radius:2px"><div style="height:100%;width:${bw}%;background:${bc};border-radius:2px"></div></div></div>
+      <div style="font-family:var(--mono);font-size:.68rem;text-align:right">${fmtP(s.price,'price')}</div>
+      <div style="font-family:var(--mono);font-size:.75rem;font-weight:700;text-align:right;padding-right:18px" class="${s.chg>=0?'up':'dn'}">${s.chg>=0?'▲ +':'▼ '}${Math.abs(s.chg).toFixed(2)}%</div>
+    </div>`;
+  }
+  el.innerHTML = data.length ? html : '<div style="padding:40px;text-align:center;font-family:var(--mono);font-size:.62rem;color:var(--dim)">No results</div>';
 }
 
 // ── Go to chart helper ────────────────────────────────────────
@@ -2552,6 +2997,58 @@ function goToChart(sym, name, yf, fmt) {
   document.querySelector('.nav-item').classList.add('active');
   document.querySelector('.page-title').textContent = 'Market Dashboard';
   selectAsset(sym, name, yf, fmt, null);
+}
+
+// ── Close Trade Modal ─────────────────────────────────────────
+function openCloseTradeModal(id, sym, side) {
+  const pos = pfPositions.find(p => p.id === id);
+  if (!pos) return;
+  const { price: cur } = extractPrice(prices[pos.sym] || prices[pos.yf]);
+  const cost    = pos.qty * pos.entry;
+  const value   = cur ? pos.qty * cur : cost;
+  const pnl     = pos.side === 'LONG' ? value - cost : cost - value;
+  const pnlPct  = cost > 0 ? (pnl / cost * 100) : 0;
+  const pnlStr  = (pnl >= 0 ? '+$' : '-$') + Math.abs(pnl).toFixed(2) + ' (' + (pnlPct >= 0?'+':'') + pnlPct.toFixed(2) + '%)';
+  const cls     = pnl >= 0 ? 'color:var(--green)' : 'color:var(--red)';
+
+  if (confirm(`Close ${pos.side} ${pos.sym} position?\nP&L: ${pnlStr}\n\nThis will record the trade as closed and remove it from your portfolio.`)) {
+    // Record to transaction history in localStorage
+    const txKey = 'xenos_tx_history';
+    const history = JSON.parse(localStorage.getItem(txKey) || '[]');
+    history.unshift({
+      id: Date.now().toString(),
+      sym: pos.sym, name: pos.name, side: pos.side,
+      qty: pos.qty, entry: pos.entry,
+      exit: cur || pos.entry,
+      pnl: parseFloat(pnl.toFixed(2)),
+      pnlPct: parseFloat(pnlPct.toFixed(2)),
+      closedAt: new Date().toISOString(),
+    });
+    localStorage.setItem(txKey, JSON.stringify(history.slice(0, 100))); // keep last 100
+    deletePosition(id);
+  }
+}
+
+// ── Transaction History ────────────────────────────────────────
+function renderTxHistory() {
+  const el = document.getElementById('pf-tx-history');
+  if (!el) return;
+  const history = JSON.parse(localStorage.getItem('xenos_tx_history') || '[]');
+  if (!history.length) {
+    el.innerHTML = '<div style="font-family:var(--mono);font-size:.58rem;color:var(--dim);padding:16px">No closed trades yet.</div>';
+    return;
+  }
+  el.innerHTML = history.slice(0, 20).map(tx => {
+    const pnlCls = tx.pnl >= 0 ? 'up' : 'dn';
+    const dt = new Date(tx.closedAt).toLocaleDateString('en-GB', {day:'2-digit',month:'short',year:'2-digit'});
+    return `<div style="display:grid;grid-template-columns:80px 60px 80px 1fr 110px;padding:9px 18px;border-bottom:1px solid var(--border2);font-family:var(--mono);font-size:.58rem;align-items:center">
+      <div style="font-weight:600">${tx.sym}</div>
+      <div class="${tx.side==='LONG'?'up':'dn'}">${tx.side}</div>
+      <div style="color:var(--dim)">${dt}</div>
+      <div style="color:var(--dim)">Entry $${tx.entry.toFixed(2)} → Exit $${tx.exit.toFixed(2)}</div>
+      <div class="${pnlCls}" style="text-align:right;font-weight:700;padding-right:18px">${tx.pnl>=0?'+':''}\$${Math.abs(tx.pnl).toFixed(2)} (${tx.pnlPct>=0?'+':''}${tx.pnlPct.toFixed(2)}%)</div>
+    </div>`;
+  }).join('');
 }
 
 // ── Init portfolio ────────────────────────────────────────────
@@ -2580,5 +3077,43 @@ init();
 initPortfolio();
 
 </script>
+
+<!-- ── STOCK INFO CARD MODAL ── -->
+<div id="stockCardOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:900;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .18s"
+  onclick="if(event.target===this)closeStockCard()">
+  <div style="background:var(--bg);border:1px solid var(--border-bright);width:520px;max-width:94vw;position:relative;animation:slideUp .2s ease">
+    <div style="background:var(--bg2);padding:16px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-family:var(--sans);font-size:1rem;font-weight:700" id="sc-sym">—</div>
+        <div style="font-family:var(--mono);font-size:.52rem;color:var(--dim);margin-top:2px" id="sc-name">—</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-family:var(--mono);font-size:1.1rem;font-weight:700" id="sc-price">—</div>
+        <div style="font-family:var(--mono);font-size:.7rem;margin-top:2px" id="sc-chg">—</div>
+      </div>
+    </div>
+    <div id="sc-chart" style="height:200px;overflow:hidden;background:var(--bg3)"></div>
+    <div style="padding:12px 20px;border-top:1px solid var(--border2);font-family:var(--mono);font-size:.5rem;color:var(--dim)">
+      Sector: <span id="sc-sector" style="color:var(--gold)">—</span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:var(--border2);border-top:1px solid var(--border)">
+      <button id="sc-buy-btn" style="background:rgba(30,92,53,0.15);border:none;color:var(--green);font-family:var(--mono);font-size:.62rem;font-weight:700;letter-spacing:.1em;padding:14px;cursor:pointer;transition:background .15s" onmouseover="this.style.background='rgba(30,92,53,0.28)'" onmouseout="this.style.background='rgba(30,92,53,0.15)'">
+        ▲ BUY / LONG
+      </button>
+      <button id="sc-sell-btn" style="background:rgba(139,26,26,0.15);border:none;color:var(--red);font-family:var(--mono);font-size:.62rem;font-weight:700;letter-spacing:.1em;padding:14px;cursor:pointer;transition:background .15s" onmouseover="this.style.background='rgba(139,26,26,0.28)'" onmouseout="this.style.background='rgba(139,26,26,0.15)'">
+        ▼ SELL / SHORT
+      </button>
+      <button id="sc-chart-btn" style="background:var(--bg2);border:none;color:var(--gold);font-family:var(--mono);font-size:.62rem;font-weight:700;letter-spacing:.1em;padding:14px;cursor:pointer;border-left:1px solid var(--border2);transition:background .15s" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background='var(--bg2)'">
+        ◈ FULL CHART
+      </button>
+    </div>
+    <button onclick="closeStockCard()" style="position:absolute;top:10px;right:14px;background:none;border:none;color:var(--dim);font-size:1rem;cursor:pointer;line-height:1">✕</button>
+  </div>
+</div>
+
+<style>
+#stockCardOverlay.open { opacity:1; pointer-events:all; }
+@keyframes slideUp { from{transform:translateY(16px);opacity:0} to{transform:translateY(0);opacity:1} }
+</style>
 </body>
 </html>
