@@ -889,6 +889,7 @@ async function fetchCandles(pair) {
   let candles = null;
 
   // === SOURCE 0: Massive (ex Polygon.io) via Worker — PRIMARY for FX + Crypto ===
+  // Only attempt if MASSIVE_API_KEY is configured in Worker (skip gracefully if not)
   const MASSIVE_SKIP = ['US500','US30','NAS100','UK100','GER40','FRA40','JPN225','HK50','AUS200','USOIL','UKOIL','NGAS','COPPER'];
   if (!MASSIVE_SKIP.includes(pair)) {
     const MV_RES = { 'M15':'15', 'H1':'60', 'H4':'240', 'D1':'D' };
@@ -897,11 +898,15 @@ async function fetchCandles(pair) {
       const now   = Math.floor(Date.now()/1000);
       const secs  = mvRes === 'D' ? 86400 : parseInt(mvRes)*60;
       const from  = now - 300 * secs;
+      const ctrl  = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 3000); // 3s timeout — skip if not configured
       const res = await fetch(WORKER, {
         method: 'POST', headers: {'Content-Type':'application/json'},
         body: JSON.stringify({ type:'massive', action:'candles',
-          symbol: pair, resolution: mvRes, from, to: now })
+          symbol: pair, resolution: mvRes, from, to: now }),
+        signal: ctrl.signal
       });
+      clearTimeout(timer);
       if (res.ok) {
         const data = await res.json();
         if (data.candles && data.candles.length >= 10) {
@@ -909,13 +914,13 @@ async function fetchCandles(pair) {
           console.log(`Massive OK: ${pair} ${candles.length} candles`);
         }
       }
-    } catch(e) { console.warn('Massive:', pair, e.message); }
+    } catch(e) { /* Massive not available — fall through to next source */ }
   }
 
   // === SOURCE 1: Twelve Data via Worker (fast, reliable for FX/Crypto) ===
   const TD_SKIP = ['XAUUSD','XAGUSD','USOIL','UKOIL','NGAS','COPPER',
                    'US500','US30','NAS100','UK100','GER40','FRA40','JPN225','HK50','AUS200'];
-  if (!TD_SKIP.includes(pair)) {
+  if (!candles && !TD_SKIP.includes(pair)) {
     try {
       const res = await fetch(WORKER, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -2005,10 +2010,15 @@ async function generateSignals() {
     // Step 2: scarica candele reali e analizza ogni pair in parallelo
     document.getElementById('loader-sub').textContent = 'Fetching real candles + running pattern detection...';
     const analysisResults = await Promise.all(
-      pairs.map(pair => analyzePair(pair, livePrices).catch(e => {
-        console.warn('analyzePair failed:', pair, e.message);
-        return null;
-      }))
+      pairs.map(pair =>
+        Promise.race([
+          analyzePair(pair, livePrices),
+          new Promise(resolve => setTimeout(() => resolve(null), 25000)) // 25s per-pair timeout
+        ]).catch(e => {
+          console.warn('analyzePair failed:', pair, e.message);
+          return null;
+        })
+      )
     );
 
     const nullCount = analysisResults.filter(a => a === null).length;
