@@ -832,125 +832,168 @@ async function fetchCandles(pair) {
   const cacheKey = pair + '_' + selectedTF;
   if (candleCache[cacheKey]) return candleCache[cacheKey];
 
-  const TD_SKIP = ['XAUUSD','XAGUSD','USOIL','UKOIL','NGAS','COPPER',
-                   'US500','US30','NAS100','UK100','GER40','FRA40','JPN225','HK50','AUS200'];
+  const TF_TD = { 'M15':'15min', 'H1':'1h', 'H4':'4h', 'D1':'1day' };
+  const TF_FH = { 'M15':'15',    'H1':'60', 'H4':'240','D1':'D'    };
+  const TF_YF = { 'M15':'15m',   'H1':'1h', 'H4':'1h', 'D1':'1d'   };
+  const RNG_YF= { 'M15':'5d',    'H1':'30d','H4':'60d', 'D1':'1y'   };
+
+  // Yahoo Finance ticker map (covers all 66 pairs)
+  const YF_MAP = {
+    'EURUSD':'EURUSD=X','GBPUSD':'GBPUSD=X','USDJPY':'USDJPY=X','USDCHF':'USDCHF=X',
+    'AUDUSD':'AUDUSD=X','NZDUSD':'NZDUSD=X','USDCAD':'USDCAD=X','EURGBP':'EURGBP=X',
+    'EURJPY':'EURJPY=X','GBPJPY':'GBPJPY=X','CADJPY':'CADJPY=X','AUDNZD':'AUDNZD=X',
+    'EURCHF':'EURCHF=X','GBPCHF':'GBPCHF=X','AUDCAD':'AUDCAD=X','AUDCHF':'AUDCHF=X',
+    'AUDJPY':'AUDJPY=X','CADCHF':'CADCHF=X','CHFJPY':'CHFJPY=X','EURNZD':'EURNZD=X',
+    'EURAUD':'EURAUD=X','EURCAD':'EURCAD=X','GBPAUD':'GBPAUD=X','GBPCAD':'GBPCAD=X',
+    'GBPNZD':'GBPNZD=X','NZDCAD':'NZDCAD=X','NZDCHF':'NZDCHF=X','NZDJPY':'NZDJPY=X',
+    'USDMXN':'USDMXN=X','USDNOK':'USDNOK=X','USDSEK':'USDSEK=X','USDTRY':'USDTRY=X',
+    'USDZAR':'USDZAR=X',
+    'XAUUSD':'GC=F','XAGUSD':'SI=F','USOIL':'CL=F','UKOIL':'BZ=F','NGAS':'NG=F','COPPER':'HG=F',
+    'US500':'SPY','US30':'DIA','NAS100':'QQQ','UK100':'EWU','GER40':'EWG',
+    'FRA40':'EWQ','JPN225':'EWJ','HK50':'EWH','AUS200':'EWA',
+    'BTCUSD':'BTC-USD','ETHUSD':'ETH-USD','XRPUSD':'XRP-USD','SOLUSD':'SOL-USD',
+    'DOGEUSD':'DOGE-USD','BNBUSD':'BNB-USD','ADAUSD':'ADA-USD','AVAXUSD':'AVAX-USD',
+    'LINKUSD':'LINK-USD','MATICUSD':'MATIC-USD','DOTUSD':'DOT-USD','LTCUSD':'LTC-USD',
+    'ATOMUSD':'ATOM-USD','UNIUSD':'UNI-USD','XLMUSD':'XLM-USD','TRXUSD':'TRX-USD',
+    'ETCUSD':'ETC-USD','NEARUSD':'NEAR-USD',
+  };
+
+  // Finnhub map (secondary for FX + crypto)
+  const FH_MAP = {
+    'EURUSD':{sym:'OANDA:EUR_USD',type:'forex'},'GBPUSD':{sym:'OANDA:GBP_USD',type:'forex'},
+    'USDJPY':{sym:'OANDA:USD_JPY',type:'forex'},'USDCHF':{sym:'OANDA:USD_CHF',type:'forex'},
+    'AUDUSD':{sym:'OANDA:AUD_USD',type:'forex'},'NZDUSD':{sym:'OANDA:NZD_USD',type:'forex'},
+    'USDCAD':{sym:'OANDA:USD_CAD',type:'forex'},'EURGBP':{sym:'OANDA:EUR_GBP',type:'forex'},
+    'EURJPY':{sym:'OANDA:EUR_JPY',type:'forex'},'GBPJPY':{sym:'OANDA:GBP_JPY',type:'forex'},
+    'CADJPY':{sym:'OANDA:CAD_JPY',type:'forex'},'AUDNZD':{sym:'OANDA:AUD_NZD',type:'forex'},
+    'EURCHF':{sym:'OANDA:EUR_CHF',type:'forex'},'GBPCHF':{sym:'OANDA:GBP_CHF',type:'forex'},
+    'AUDCAD':{sym:'OANDA:AUD_CAD',type:'forex'},'AUDCHF':{sym:'OANDA:AUD_CHF',type:'forex'},
+    'AUDJPY':{sym:'OANDA:AUD_JPY',type:'forex'},'CADCHF':{sym:'OANDA:CAD_CHF',type:'forex'},
+    'CHFJPY':{sym:'OANDA:CHF_JPY',type:'forex'},'EURNZD':{sym:'OANDA:EUR_NZD',type:'forex'},
+    'EURAUD':{sym:'OANDA:EUR_AUD',type:'forex'},'EURCAD':{sym:'OANDA:EUR_CAD',type:'forex'},
+    'GBPAUD':{sym:'OANDA:GBP_AUD',type:'forex'},'GBPCAD':{sym:'OANDA:GBP_CAD',type:'forex'},
+    'GBPNZD':{sym:'OANDA:GBP_NZD',type:'forex'},'NZDCAD':{sym:'OANDA:NZD_CAD',type:'forex'},
+    'NZDCHF':{sym:'OANDA:NZD_CHF',type:'forex'},'NZDJPY':{sym:'OANDA:NZD_JPY',type:'forex'},
+    'XAUUSD':{sym:'OANDA:XAU_USD',type:'forex'},
+    'BTCUSD':{sym:'BINANCE:BTCUSDT',type:'crypto'},'ETHUSD':{sym:'BINANCE:ETHUSDT',type:'crypto'},
+    'XRPUSD':{sym:'BINANCE:XRPUSDT',type:'crypto'},'SOLUSD':{sym:'BINANCE:SOLUSDT',type:'crypto'},
+    'DOGEUSD':{sym:'BINANCE:DOGEUSDT',type:'crypto'},'BNBUSD':{sym:'BINANCE:BNBUSDT',type:'crypto'},
+    'ADAUSD':{sym:'BINANCE:ADAUSDT',type:'crypto'},'AVAXUSD':{sym:'BINANCE:AVAXUSDT',type:'crypto'},
+    'LINKUSD':{sym:'BINANCE:LINKUSDT',type:'crypto'},'MATICUSD':{sym:'BINANCE:MATICUSDT',type:'crypto'},
+    'DOTUSD':{sym:'BINANCE:DOTUSDT',type:'crypto'},'LTCUSD':{sym:'BINANCE:LTCUSDT',type:'crypto'},
+    'ATOMUSD':{sym:'BINANCE:ATOMUSDT',type:'crypto'},'UNIUSD':{sym:'BINANCE:UNIUSDT',type:'crypto'},
+    'XLMUSD':{sym:'BINANCE:XLMUSD',type:'crypto'},'TRXUSD':{sym:'BINANCE:TRXUSDT',type:'crypto'},
+    'ETCUSD':{sym:'BINANCE:ETCUSDT',type:'crypto'},'NEARUSD':{sym:'BINANCE:NEARUSDT',type:'crypto'},
+  };
 
   let candles = null;
 
-  // Tentativo 1: Twelve Data (FX + Crypto)
+  // === SOURCE 0: Massive (ex Polygon.io) via Worker — PRIMARY for FX + Crypto ===
+  const MASSIVE_SKIP = ['US500','US30','NAS100','UK100','GER40','FRA40','JPN225','HK50','AUS200','USOIL','UKOIL','NGAS','COPPER'];
+  if (!MASSIVE_SKIP.includes(pair)) {
+    const MV_RES = { 'M15':'15', 'H1':'60', 'H4':'240', 'D1':'D' };
+    try {
+      const mvRes = MV_RES[selectedTF] || '60';
+      const now   = Math.floor(Date.now()/1000);
+      const secs  = mvRes === 'D' ? 86400 : parseInt(mvRes)*60;
+      const from  = now - 300 * secs;
+      const res = await fetch(WORKER, {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ type:'massive', action:'candles',
+          symbol: pair, resolution: mvRes, from, to: now })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.candles && data.candles.length >= 10) {
+          candles = data.candles;
+          console.log(`Massive OK: ${pair} ${candles.length} candles`);
+        }
+      }
+    } catch(e) { console.warn('Massive:', pair, e.message); }
+  }
+
+  // === SOURCE 1: Twelve Data via Worker (fast, reliable for FX/Crypto) ===
+  const TD_SKIP = ['XAUUSD','XAGUSD','USOIL','UKOIL','NGAS','COPPER',
+                   'US500','US30','NAS100','UK100','GER40','FRA40','JPN225','HK50','AUS200'];
   if (!TD_SKIP.includes(pair)) {
     try {
       const res = await fetch(WORKER, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'twelvedata', action: 'ohlcv', symbol: pair, interval: TF_TD[selectedTF] || '1h', outputsize: 200 })
+        body: JSON.stringify({ type: 'twelvedata', action: 'ohlcv', symbol: pair,
+          interval: TF_TD[selectedTF] || '1h', outputsize: 200 })
       });
       if (res.ok) {
         const data = await res.json();
-        if (data.candles && data.candles.length >= 20) candles = data.candles.reverse();
+        if (data.candles && data.candles.length >= 10) {
+          candles = data.candles.reverse();
+          console.log(`TD OK: ${pair} ${candles.length} candles`);
+        }
       }
-    } catch(e) { console.warn('TD candles:', pair, e.message); }
+    } catch(e) { console.warn('TD:', pair, e.message); }
   }
 
-  // Tentativo 2: Finnhub
+  // === SOURCE 2: Finnhub via Worker ===
   if (!candles) {
-    const FH_MAP = {
-      'EURUSD':{sym:'OANDA:EUR_USD',type:'forex'},'GBPUSD':{sym:'OANDA:GBP_USD',type:'forex'},
-      'USDJPY':{sym:'OANDA:USD_JPY',type:'forex'},'USDCHF':{sym:'OANDA:USD_CHF',type:'forex'},
-      'AUDUSD':{sym:'OANDA:AUD_USD',type:'forex'},'NZDUSD':{sym:'OANDA:NZD_USD',type:'forex'},
-      'USDCAD':{sym:'OANDA:USD_CAD',type:'forex'},'EURGBP':{sym:'OANDA:EUR_GBP',type:'forex'},
-      'EURJPY':{sym:'OANDA:EUR_JPY',type:'forex'},'GBPJPY':{sym:'OANDA:GBP_JPY',type:'forex'},
-      'CADJPY':{sym:'OANDA:CAD_JPY',type:'forex'},'AUDNZD':{sym:'OANDA:AUD_NZD',type:'forex'},
-      'EURCHF':{sym:'OANDA:EUR_CHF',type:'forex'},'GBPCHF':{sym:'OANDA:GBP_CHF',type:'forex'},
-      'AUDCAD':{sym:'OANDA:AUD_CAD',type:'forex'},'AUDCHF':{sym:'OANDA:AUD_CHF',type:'forex'},
-      'AUDJPY':{sym:'OANDA:AUD_JPY',type:'forex'},'CADCHF':{sym:'OANDA:CAD_CHF',type:'forex'},
-      'CHFJPY':{sym:'OANDA:CHF_JPY',type:'forex'},'EURNZD':{sym:'OANDA:EUR_NZD',type:'forex'},
-      'EURAUD':{sym:'OANDA:EUR_AUD',type:'forex'},'EURCAD':{sym:'OANDA:EUR_CAD',type:'forex'},
-      'GBPAUD':{sym:'OANDA:GBP_AUD',type:'forex'},'GBPCAD':{sym:'OANDA:GBP_CAD',type:'forex'},
-      'GBPNZD':{sym:'OANDA:GBP_NZD',type:'forex'},'NZDCAD':{sym:'OANDA:NZD_CAD',type:'forex'},
-      'NZDCHF':{sym:'OANDA:NZD_CHF',type:'forex'},'NZDJPY':{sym:'OANDA:NZD_JPY',type:'forex'},
-      'XAUUSD':{sym:'OANDA:XAU_USD',type:'forex'},
-      'BTCUSD':{sym:'BINANCE:BTCUSDT',type:'crypto'},'ETHUSD':{sym:'BINANCE:ETHUSDT',type:'crypto'},
-      'XRPUSD':{sym:'BINANCE:XRPUSDT',type:'crypto'},'SOLUSD':{sym:'BINANCE:SOLUSDT',type:'crypto'},
-      'DOGEUSD':{sym:'BINANCE:DOGEUSDT',type:'crypto'},'BNBUSD':{sym:'BINANCE:BNBUSDT',type:'crypto'},
-      'ADAUSD':{sym:'BINANCE:ADAUSDT',type:'crypto'},'AVAXUSD':{sym:'BINANCE:AVAXUSDT',type:'crypto'},
-      'LINKUSD':{sym:'BINANCE:LINKUSDT',type:'crypto'},'MATICUSD':{sym:'BINANCE:MATICUSDT',type:'crypto'},
-      'DOTUSD':{sym:'BINANCE:DOTUSDT',type:'crypto'},'LTCUSD':{sym:'BINANCE:LTCUSDT',type:'crypto'},
-      'ATOMUSD':{sym:'BINANCE:ATOMUSDT',type:'crypto'},'UNIUSD':{sym:'BINANCE:UNIUSDT',type:'crypto'},
-      'XLMUSD':{sym:'BINANCE:XLMUSDT',type:'crypto'},'TRXUSD':{sym:'BINANCE:TRXUSDT',type:'crypto'},
-      'ETCUSD':{sym:'BINANCE:ETCUSDT',type:'crypto'},'NEARUSD':{sym:'BINANCE:NEARUSDT',type:'crypto'},
-      'US500':{sym:'SPY',type:'stock'},'US30':{sym:'DIA',type:'stock'},
-      'NAS100':{sym:'QQQ',type:'stock'},'GER40':{sym:'EWG',type:'stock'},
-      'UK100':{sym:'EWU',type:'stock'},'USOIL':{sym:'USO',type:'stock'},
-      'XAGUSD':{sym:'SI=F',type:'stock'},'NGAS':{sym:'UNG',type:'stock'},
-    };
     const fhEntry = FH_MAP[pair];
     if (fhEntry) {
       try {
         const fhRes = TF_FH[selectedTF] || '60';
         const now   = Math.floor(Date.now()/1000);
         const secs  = fhRes === 'D' ? 86400 : parseInt(fhRes)*60;
-        const from  = now - 200 * secs;
+        const from  = now - 250 * secs;
         const res   = await fetch(WORKER, {
           method: 'POST', headers: {'Content-Type':'application/json'},
-          body: JSON.stringify({ type:'finnhub', action:'candles', symbol:fhEntry.sym, assetType:fhEntry.type, resolution:fhRes, from, to:now })
+          body: JSON.stringify({ type:'finnhub', action:'candles',
+            symbol: fhEntry.sym, assetType: fhEntry.type,
+            resolution: fhRes, from, to: now })
         });
         if (res.ok) {
           const data = await res.json();
-          if (data.candles && data.candles.length >= 20) candles = data.candles;
+          if (data.candles && data.candles.length >= 10) {
+            candles = data.candles;
+            console.log(`FH OK: ${pair} ${candles.length} candles`);
+          }
         }
-      } catch(e) { console.warn('FH candles:', pair, e.message); }
+      } catch(e) { console.warn('FH:', pair, e.message); }
     }
   }
 
-  // ── Fallback 3: Yahoo Finance (via allorigins proxy, sempre disponibile) ──
+  // === SOURCE 3: Yahoo Finance via allorigins proxy (covers ALL 66 pairs) ===
   if (!candles) {
-    const YF_MAP = {
-      'EURUSD':'EURUSD=X','GBPUSD':'GBPUSD=X','USDJPY':'USDJPY=X','USDCHF':'USDCHF=X',
-      'AUDUSD':'AUDUSD=X','NZDUSD':'NZDUSD=X','USDCAD':'USDCAD=X','EURGBP':'EURGBP=X',
-      'EURJPY':'EURJPY=X','GBPJPY':'GBPJPY=X','CADJPY':'CADJPY=X','AUDNZD':'AUDNZD=X',
-      'EURCHF':'EURCHF=X','GBPCHF':'GBPCHF=X','AUDCAD':'AUDCAD=X','AUDCHF':'AUDCHF=X',
-      'AUDJPY':'AUDJPY=X','CADCHF':'CADCHF=X','CHFJPY':'CHFJPY=X','EURNZD':'EURNZD=X',
-      'EURAUD':'EURAUD=X','EURCAD':'EURCAD=X','GBPAUD':'GBPAUD=X','GBPCAD':'GBPCAD=X',
-      'GBPNZD':'GBPNZD=X','NZDCAD':'NZDCAD=X','NZDCHF':'NZDCHF=X','NZDJPY':'NZDJPY=X',
-      'XAUUSD':'GC=F','XAGUSD':'SI=F','USOIL':'CL=F','UKOIL':'BZ=F','NGAS':'NG=F','COPPER':'HG=F',
-      'US500':'SPY','US30':'DIA','NAS100':'QQQ','UK100':'EWU','GER40':'EWG',
-      'BTCUSD':'BTC-USD','ETHUSD':'ETH-USD','XRPUSD':'XRP-USD','SOLUSD':'SOL-USD',
-      'DOGEUSD':'DOGE-USD','BNBUSD':'BNB-USD','ADAUSD':'ADA-USD','AVAXUSD':'AVAX-USD',
-      'LINKUSD':'LINK-USD','DOTUSD':'DOT-USD','LTCUSD':'LTC-USD','ATOMUSD':'ATOM-USD',
-    };
     const yfSym = YF_MAP[pair];
     if (yfSym) {
       try {
-        const TF_YF_INT = { 'M15':'15m', 'H1':'1h', 'H4':'1h', 'D1':'1d' };
-        const TF_YF_RNG = { 'M15':'5d',  'H1':'30d','H4':'60d','D1':'1y' };
-        const interval = TF_YF_INT[selectedTF] || '1h';
-        const range    = TF_YF_RNG[selectedTF] || '30d';
-        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${yfSym}?interval=${interval}&range=${range}`;
-        const proxy = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-        const res = await fetch(proxy, { signal: AbortSignal.timeout(8000) });
+        const interval = TF_YF[selectedTF] || '1h';
+        const range    = RNG_YF[selectedTF] || '30d';
+        const yfUrl    = `https://query1.finance.yahoo.com/v8/finance/chart/${yfSym}?interval=${interval}&range=${range}`;
+        const proxy    = `https://api.allorigins.win/raw?url=${encodeURIComponent(yfUrl)}`;
+        const res = await fetch(proxy, { signal: AbortSignal.timeout(9000) });
         if (res.ok) {
-          const json = await res.json();
+          const json   = await res.json();
           const result = json?.chart?.result?.[0];
-          const ts = result?.timestamp || [];
-          const q  = result?.indicators?.quote?.[0] || {};
+          const ts     = result?.timestamp || [];
+          const q      = result?.indicators?.quote?.[0] || {};
           if (ts.length >= 10) {
             candles = ts.map((t, i) => ({
               datetime: new Date(t * 1000).toISOString(),
-              open:  q.open?.[i]  ?? q.close?.[i] ?? 0,
-              high:  q.high?.[i]  ?? q.close?.[i] ?? 0,
-              low:   q.low?.[i]   ?? q.close?.[i] ?? 0,
-              close: q.close?.[i] ?? 0,
-              volume: q.volume?.[i] ?? 0,
-            })).filter(c => c.close > 0);
-            console.log('YF fallback OK:', pair, candles.length, 'candles');
+              open:   (q.open?.[i]   ?? q.close?.[i] ?? 0),
+              high:   (q.high?.[i]   ?? q.close?.[i] ?? 0),
+              low:    (q.low?.[i]    ?? q.close?.[i] ?? 0),
+              close:  (q.close?.[i]  ?? 0),
+              volume: (q.volume?.[i] ?? 0),
+            })).filter(c => c.close > 0 && c.high >= c.low);
+            if (candles.length >= 10)
+              console.log(`YF OK: ${pair} (${yfSym}) ${candles.length} candles`);
+            else
+              candles = null;
           }
         }
-      } catch(e) { console.warn('YF fallback:', pair, e.message); }
+      } catch(e) { console.warn('YF:', pair, e.message); }
     }
   }
 
-  if (candles) candleCache[cacheKey] = candles;
-  return candles;
+  if (candles && candles.length >= 10) candleCache[cacheKey] = candles;
+  return candles && candles.length >= 10 ? candles : null;
 }
 
 // ── Calcoli tecnici su array candele ─────────────────────────
@@ -1815,11 +1858,11 @@ async function analyzePair(pair, livePrices) {
   const slDist   = Math.abs(slVal - entryVal);
   const tpDist   = Math.abs(tpVal - entryVal);
   if (!isFinite(entryVal) || !isFinite(slVal) || !isFinite(tpVal)) return null;
-  // Se SL = 0 usa ATR come distanza minima
-  const effectiveSL = slDist < 0.000001 ? (calcATR(candles) || entryVal * 0.001) : slDist;
-  const rawRR = tpDist / effectiveSL;
-  // Nessun filtro RR minimo — mostra tutti i setup validi
-  const rrStr = rawRR > 0 ? '1:' + rawRR.toFixed(1) : '1:1.0';
+  if (slDist < 0.0000001) return null; // only reject truly zero SL
+  const rawRR = tpDist / slDist;
+  // RR minimo dipende dal timeframe: D1 richiede setup migliori
+  // No minimum RR filter
+  const rrStr = '1:' + rawRR.toFixed(1);
 
   return {
     pair,
@@ -1970,12 +2013,11 @@ async function generateSignals() {
 
     const nullCount = analysisResults.filter(a => a === null).length;
     const okCount   = analysisResults.filter(a => a !== null).length;
-    console.log(`analyzePair results: ${okCount} OK, ${nullCount} null (no candles or no pattern)`);
-    if (nullCount > 0) showToast(`Data: ${okCount}/${pairs.length} pairs with candles`);
+    console.log(`Candle results: ${okCount} OK, ${nullCount} null`);
+    if (nullCount > 0) showToast(`Candles: ${okCount}/${pairs.length} pairs loaded — ${nullCount} failed`);
 
-    // Filtra null
-    const validAnalyses = analysisResults
-      .filter(a => a !== null);
+    // Filtra null e per minConf
+    const validAnalyses = analysisResults.filter(a => a !== null);
 
     if (validAnalyses.length === 0) {
       clearInterval(loaderInterval);
@@ -2106,8 +2148,8 @@ function parseSignals(raw, minConf, dir) {
   const start = cleaned.indexOf('['), end = cleaned.lastIndexOf(']');
   if (start === -1 || end === -1) throw new Error('No JSON array in response');
   let arr = JSON.parse(cleaned.slice(start, end+1));
-  // Confidence filter applies AFTER merge with algo data, not here
-  return arr.filter(s => (dir === 'BOTH' || s.direction === dir));
+  // Note: confidence filter is relaxed here because algo data overwrites it in the merge step
+  return arr.filter(s => (dir === 'BOTH' || s.direction === dir)); // confidence filter applied after merge
 }
 
 
