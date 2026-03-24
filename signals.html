@@ -540,7 +540,7 @@
         <div class="ctrl-label">Min Confidence</div>
         <select id="conf-min">
           <option value="50">50%+</option>
-          <option value="55" selected>55%+</option>
+          <option value="50" selected>50%+</option>
           <option value="70">70%+</option>
           <option value="80">80%+</option>
           <option value="90">90%+</option>
@@ -902,6 +902,53 @@ async function fetchCandles(pair) {
     }
   }
 
+  // ── Fallback 3: Yahoo Finance (via allorigins proxy, sempre disponibile) ──
+  if (!candles) {
+    const YF_MAP = {
+      'EURUSD':'EURUSD=X','GBPUSD':'GBPUSD=X','USDJPY':'USDJPY=X','USDCHF':'USDCHF=X',
+      'AUDUSD':'AUDUSD=X','NZDUSD':'NZDUSD=X','USDCAD':'USDCAD=X','EURGBP':'EURGBP=X',
+      'EURJPY':'EURJPY=X','GBPJPY':'GBPJPY=X','CADJPY':'CADJPY=X','AUDNZD':'AUDNZD=X',
+      'EURCHF':'EURCHF=X','GBPCHF':'GBPCHF=X','AUDCAD':'AUDCAD=X','AUDCHF':'AUDCHF=X',
+      'AUDJPY':'AUDJPY=X','CADCHF':'CADCHF=X','CHFJPY':'CHFJPY=X','EURNZD':'EURNZD=X',
+      'EURAUD':'EURAUD=X','EURCAD':'EURCAD=X','GBPAUD':'GBPAUD=X','GBPCAD':'GBPCAD=X',
+      'GBPNZD':'GBPNZD=X','NZDCAD':'NZDCAD=X','NZDCHF':'NZDCHF=X','NZDJPY':'NZDJPY=X',
+      'XAUUSD':'GC=F','XAGUSD':'SI=F','USOIL':'CL=F','UKOIL':'BZ=F','NGAS':'NG=F','COPPER':'HG=F',
+      'US500':'SPY','US30':'DIA','NAS100':'QQQ','UK100':'EWU','GER40':'EWG',
+      'BTCUSD':'BTC-USD','ETHUSD':'ETH-USD','XRPUSD':'XRP-USD','SOLUSD':'SOL-USD',
+      'DOGEUSD':'DOGE-USD','BNBUSD':'BNB-USD','ADAUSD':'ADA-USD','AVAXUSD':'AVAX-USD',
+      'LINKUSD':'LINK-USD','DOTUSD':'DOT-USD','LTCUSD':'LTC-USD','ATOMUSD':'ATOM-USD',
+    };
+    const yfSym = YF_MAP[pair];
+    if (yfSym) {
+      try {
+        const TF_YF_INT = { 'M15':'15m', 'H1':'1h', 'H4':'1h', 'D1':'1d' };
+        const TF_YF_RNG = { 'M15':'5d',  'H1':'30d','H4':'60d','D1':'1y' };
+        const interval = TF_YF_INT[selectedTF] || '1h';
+        const range    = TF_YF_RNG[selectedTF] || '30d';
+        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${yfSym}?interval=${interval}&range=${range}`;
+        const proxy = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+        const res = await fetch(proxy, { signal: AbortSignal.timeout(8000) });
+        if (res.ok) {
+          const json = await res.json();
+          const result = json?.chart?.result?.[0];
+          const ts = result?.timestamp || [];
+          const q  = result?.indicators?.quote?.[0] || {};
+          if (ts.length >= 10) {
+            candles = ts.map((t, i) => ({
+              datetime: new Date(t * 1000).toISOString(),
+              open:  q.open?.[i]  ?? q.close?.[i] ?? 0,
+              high:  q.high?.[i]  ?? q.close?.[i] ?? 0,
+              low:   q.low?.[i]   ?? q.close?.[i] ?? 0,
+              close: q.close?.[i] ?? 0,
+              volume: q.volume?.[i] ?? 0,
+            })).filter(c => c.close > 0);
+            console.log('YF fallback OK:', pair, candles.length, 'candles');
+          }
+        }
+      } catch(e) { console.warn('YF fallback:', pair, e.message); }
+    }
+  }
+
   if (candles) candleCache[cacheKey] = candles;
   return candles;
 }
@@ -1206,7 +1253,7 @@ function calcADX(candles, period=14) {
 // ══════════════════════════════════════════════════════════════════
 
 function detectPattern(candles, atr, currentPrice) {
-  if (!candles || candles.length < 25 || !atr) return null;
+  if (!candles || candles.length < 10 || !atr) return null;
 
   const closes = candles.map(c=>parseFloat(c.close));
   const highs  = candles.map(c=>parseFloat(c.high));
@@ -1222,7 +1269,7 @@ function detectPattern(candles, atr, currentPrice) {
   const bb    = calcBB(closes);
   const macd  = calcMACD(closes);
   const adx   = calcADX(candles);
-  const ichi  = candles.length >= 52 ? calcIchimoku(candles) : null; // opzionale
+  const ichi  = candles.length >= 26 ? calcIchimoku(candles) : null; // opzionale
   const vol   = calcVolumeProfile(candles);
   const stoch = calcStochRSI(candles);
   const srZones = findSupportResistance(candles, atr);
@@ -1323,7 +1370,7 @@ function detectPattern(candles, atr, currentPrice) {
     const hRising=rH[2].price>rH[0].price, lRising=rL[2].price>rL[0].price;
     const hSlope=(rH[2].price-rH[0].price)/(rH[2].idx-rH[0].idx+1);
     const lSlope=(rL[2].price-rL[0].price)/(rL[2].idx-rL[0].idx+1);
-    const converging = lSlope > hSlope && Math.abs(lSlope-hSlope) < atr*0.05;
+    const converging = lSlope > hSlope && Math.abs(lSlope-hSlope) < atr*0.3;
     if (hRising && lRising && converging) {
       const conf=Math.min(86, 62+(rsi>60?8:0)+(trendDown||!trendUp?6:0)+(macdBear?6:0)+(adxTrend?4:0));
       results.push({ pattern:'Rising Wedge', direction:'SELL',
@@ -1340,7 +1387,7 @@ function detectPattern(candles, atr, currentPrice) {
     const hFalling=rH[2].price<rH[0].price, lFalling=rL[2].price<rL[0].price;
     const hSlope=(rH[2].price-rH[0].price)/(rH[2].idx-rH[0].idx+1);
     const lSlope=(rL[2].price-rL[0].price)/(rL[2].idx-rL[0].idx+1);
-    const converging = hSlope < lSlope && Math.abs(lSlope-hSlope) < atr*0.05;
+    const converging = hSlope < lSlope && Math.abs(lSlope-hSlope) < atr*0.3;
     if (hFalling && lFalling && converging) {
       const conf=Math.min(86, 62+(rsi<45?8:0)+(trendUp||!trendDown?6:0)+(macdBull?6:0)+(adxTrend?4:0));
       results.push({ pattern:'Falling Wedge', direction:'BUY',
@@ -1586,35 +1633,10 @@ function detectPattern(candles, atr, currentPrice) {
     }
   }
 
-  // ── 18. MACD DIVERGENCE ──────────────────────────────────────
-  if (macd && swingH.length >= 2 && swingL.length >= 2) {
-    // Bearish divergence: price higher high but MACD lower high
-    const ph1=closes[swingH[swingH.length-2].idx], ph2=closes[swingH[swingH.length-1].idx];
-    // Simplified: RSI divergence proxy
-    const rsiPrev=calcRSI({length:candles.length, map:()=>0,...candles}, 14);
-    if (ph2 > ph1 && macd.hist < 0 && rsi < 55) {
-      results.push({ pattern:'Bearish Divergence', direction:'SELL',
-        entry:price, sl:swingH[swingH.length-1].price+atr*(selectedTF==='D1'?1.5:0.8),
-        tp:price-atr*(selectedTF==='D1'?4:2.5),
-        confidence:Math.min(84,62+(rsi>60?6:0)+(macdBear?8:0)),
-        key_sr:{resistance:swingH[swingH.length-1].price},
-        evidence:{macdHist:macd.hist,rsi} });
-    }
-    const pl1=closes[swingL[swingL.length-2].idx], pl2=closes[swingL[swingL.length-1].idx];
-    if (pl2 < pl1 && macd.hist > 0 && rsi > 45) {
-      results.push({ pattern:'Bullish Divergence', direction:'BUY',
-        entry:price, sl:swingL[swingL.length-1].price-atr*(selectedTF==='D1'?1.5:0.8),
-        tp:price+atr*(selectedTF==='D1'?4:2.5),
-        confidence:Math.min(84,62+(rsi<40?6:0)+(macdBull?8:0)),
-        key_sr:{support:swingL[swingL.length-1].price},
-        evidence:{macdHist:macd.hist,rsi} });
-    }
-  }
-
   // ── 19. BB SQUEEZE BREAKOUT ──────────────────────────────────
   if (bb) {
     const bbWidth=(bb.upper-bb.lower)/bb.mid;
-    const isSqueezing=bbWidth<0.02; // tight bands
+    const isSqueezing=bbWidth<0.05; // tight bands
     if (isSqueezing) {
       const dir=trendUp||(macdBull&&!trendDown)?'BUY':'SELL';
       results.push({ pattern:'BB Squeeze', direction:dir,
@@ -1766,7 +1788,7 @@ function detectPattern(candles, atr, currentPrice) {
 
 async function analyzePair(pair, livePrices) {
   const candles = await fetchCandles(pair);
-  if (!candles || candles.length < 30) return null;
+  if (!candles || candles.length < 10) return null;
 
   const closes  = candles.map(c => parseFloat(c.close));
   const atr     = calcATR(candles);
@@ -1792,13 +1814,12 @@ async function analyzePair(pair, livePrices) {
   const tpVal    = parseFloat(detected.tp);
   const slDist   = Math.abs(slVal - entryVal);
   const tpDist   = Math.abs(tpVal - entryVal);
-  if (!isFinite(entryVal) || !isFinite(slVal) || !isFinite(tpVal) || slDist < 0.000001) return null;
-  const rawRR = tpDist / slDist;
-  // RR minimo dipende dal timeframe: D1 richiede setup migliori
-  const minRR = 0.6;
-  if (rawRR < minRR) return null;
-
-  const rrStr = '1:' + rawRR.toFixed(1);
+  if (!isFinite(entryVal) || !isFinite(slVal) || !isFinite(tpVal)) return null;
+  // Se SL = 0 usa ATR come distanza minima
+  const effectiveSL = slDist < 0.000001 ? (calcATR(candles) || entryVal * 0.001) : slDist;
+  const rawRR = tpDist / effectiveSL;
+  // Nessun filtro RR minimo — mostra tutti i setup validi
+  const rrStr = rawRR > 0 ? '1:' + rawRR.toFixed(1) : '1:1.0';
 
   return {
     pair,
@@ -1947,9 +1968,14 @@ async function generateSignals() {
       }))
     );
 
-    // Filtra null e per minConf
+    const nullCount = analysisResults.filter(a => a === null).length;
+    const okCount   = analysisResults.filter(a => a !== null).length;
+    console.log(`analyzePair results: ${okCount} OK, ${nullCount} null (no candles or no pattern)`);
+    if (nullCount > 0) showToast(`Data: ${okCount}/${pairs.length} pairs with candles`);
+
+    // Filtra null
     const validAnalyses = analysisResults
-      .filter(a => a !== null && a.confidence >= 40);
+      .filter(a => a !== null);
 
     if (validAnalyses.length === 0) {
       clearInterval(loaderInterval);
@@ -2080,8 +2106,8 @@ function parseSignals(raw, minConf, dir) {
   const start = cleaned.indexOf('['), end = cleaned.lastIndexOf(']');
   if (start === -1 || end === -1) throw new Error('No JSON array in response');
   let arr = JSON.parse(cleaned.slice(start, end+1));
-  // Note: confidence filter is relaxed here because algo data overwrites it in the merge step
-  return arr.filter(s => s.confidence >= Math.min(minConf, 50) && (dir === 'BOTH' || s.direction === dir));
+  // Confidence filter applies AFTER merge with algo data, not here
+  return arr.filter(s => (dir === 'BOTH' || s.direction === dir));
 }
 
 
