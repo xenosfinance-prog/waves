@@ -1787,7 +1787,13 @@ async function analyzePair(pair, livePrices) {
   if (selectedDir === 'SELL' && detected.direction !== 'SELL') return null;
 
   // Calcola RR
-  const rawRR = Math.abs(detected.tp - detected.entry) / (Math.abs(detected.sl - detected.entry) || 0.0001);
+  const entryVal = parseFloat(detected.entry);
+  const slVal    = parseFloat(detected.sl);
+  const tpVal    = parseFloat(detected.tp);
+  const slDist   = Math.abs(slVal - entryVal);
+  const tpDist   = Math.abs(tpVal - entryVal);
+  if (!isFinite(entryVal) || !isFinite(slVal) || !isFinite(tpVal) || slDist < 0.000001) return null;
+  const rawRR = tpDist / slDist;
   // RR minimo dipende dal timeframe: D1 richiede setup migliori
   const minRR = 0.6;
   if (rawRR < minRR) return null;
@@ -1999,13 +2005,41 @@ async function generateSignals() {
         sig.rr         = algo.rr;
         sig.confidence = algo.confidence;
         sig.cfd        = algo.cfd || null;
+        sig.atr        = algo.atr;
       }
       return sig;
     });
 
+    // Assicura che tutti i validAnalyses siano nel risultato finale
+    for (const algo of validAnalyses) {
+      if (!merged.find(s => s.pair === algo.pair)) {
+        merged.push({
+          pair:           algo.pair,
+          direction:      algo.direction,
+          entry:          algo.entry,
+          sl:             algo.sl,
+          tp:             algo.tp,
+          rr:             algo.rr,
+          confidence:     algo.confidence,
+          pattern:        algo.pattern,
+          atr:            algo.atr,
+          cfd:            algo.cfd || null,
+          ew_context:     'Elliott Wave analysis: ' + (algo.direction === 'BUY' ? 'bullish' : 'bearish') + ' structure detected on ' + selectedTF,
+          pattern_desc:   algo.pattern + ' pattern identified with ' + algo.confidence + '% confidence.',
+          key_levels:     algo.key_sr ? Object.entries(algo.key_sr).map(([k,v])=>k+': '+fmtPrice(v,algo.pair)).join(' | ') : 'N/A',
+          invalidation:   'Close beyond stop loss ' + fmtPrice(algo.sl, algo.pair),
+          market_context: 'Technical setup on ' + selectedTF + ' timeframe.',
+          tags:           [algo.pattern.toLowerCase().replace(/ /g,'_')]
+        });
+      }
+    }
+
+    // Applica filtro confidence sull'algo confidence (che è il valore reale)
+    const filtered = merged.filter(s => s.confidence >= minConf && (selectedDir === 'BOTH' || s.direction === selectedDir));
+
     // Un solo segnale per pair — tieni il più alto confidence
     const bestPerPair = {};
-    for (const sig of merged) {
+    for (const sig of filtered) {
       if (!bestPerPair[sig.pair] || sig.confidence > bestPerPair[sig.pair].confidence) {
         bestPerPair[sig.pair] = sig;
       }
@@ -2046,7 +2080,8 @@ function parseSignals(raw, minConf, dir) {
   const start = cleaned.indexOf('['), end = cleaned.lastIndexOf(']');
   if (start === -1 || end === -1) throw new Error('No JSON array in response');
   let arr = JSON.parse(cleaned.slice(start, end+1));
-  return arr.filter(s => s.confidence >= minConf && (dir === 'BOTH' || s.direction === dir));
+  // Note: confidence filter is relaxed here because algo data overwrites it in the merge step
+  return arr.filter(s => s.confidence >= Math.min(minConf, 50) && (dir === 'BOTH' || s.direction === dir));
 }
 
 
@@ -2161,10 +2196,14 @@ function renderSignals(list) {
       document.querySelectorAll('.signal-detail').forEach(d => d.classList.remove('open'));
       if (!isOpen) {
         detail.classList.add('open');
-        requestAnimationFrame(() => {
+        // Use setTimeout to ensure detail is fully visible before drawing
+        setTimeout(() => {
           // Pattern chart illustrativo
           const canvas = document.getElementById('chart-' + idx);
           if (canvas && !canvas.dataset.drawn) {
+            // Force explicit dimensions so ctx has a real size
+            canvas.style.width  = '900px';
+            canvas.style.height = '500px';
             drawPatternChart(canvas, sig);
             canvas.dataset.drawn = '1';
           }
@@ -2174,7 +2213,7 @@ function renderSignals(list) {
             loadLiveChart(lcDiv, sig, idx);
             lcDiv.dataset.loaded = '1';
           }
-        });
+        }, 80);
       }
     });
 
@@ -2405,12 +2444,23 @@ async function loadLightweightChart(container, sig) {
   ro.observe(container);
 }
 
-// ── Router principale — TradingView per tutti i simboli ─────
-function loadLiveChart(container, sig, idx) {
-  container.classList.remove('error', 'loading');
+// ── Router principale — Lightweight Charts per FX, TradingView per il resto ─────
+async function loadLiveChart(container, sig, idx) {
+  container.classList.remove('error');
+  // Se il simbolo ha dati Finnhub/TD, usa Lightweight Charts (più affidabile)
+  if (FH_CANDLE_MAP[sig.pair]) {
+    try {
+      await loadLightweightChart(container, sig);
+      return;
+    } catch(e) {
+      console.warn('Lightweight chart failed, trying TradingView:', e.message);
+    }
+  }
+  // Fallback: TradingView widget
   if (TV_SYMBOL_MAP[sig.pair]) {
     loadTradingViewChart(container, sig);
   } else {
+    container.classList.remove('loading');
     container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;font-family:var(--mono);font-size:11px;color:var(--text-dim);letter-spacing:0.1em;">Symbol not mapped</div>';
   }
 }
@@ -2439,7 +2489,15 @@ function drawPatternChart(canvas, sig) {
   const sl      = parseFloat(sig.sl);
   const tp      = parseFloat(sig.tp);
   const pat     = sig.pattern.toLowerCase();
-  const spread  = Math.abs(tp - sl);
+  // Guard: se entry/sl/tp non sono numeri validi, non disegnare
+  if (!isFinite(entry) || !isFinite(sl) || !isFinite(tp)) {
+    ctx.fillStyle = '#8B6B3D';
+    ctx.font = '12px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('Chart data unavailable', W/2, H/2);
+    return;
+  }
+  const spread  = Math.abs(tp - sl) || Math.abs(entry * 0.02) || 1;
   const center  = (entry + sl + tp) / 3;
   const pMin    = center - spread * 2.4;
   const pMax    = center + spread * 2.4;
