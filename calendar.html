@@ -292,7 +292,11 @@ function fmtDateFull(d) {
   return MONTHS[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear();
 }
 function isoDate(d) {
-  return d.toISOString().split('T')[0];
+  // Use local date parts — avoids UTC offset shifting the day in CET (UTC+2)
+  const y   = d.getFullYear();
+  const m   = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 function updateWeekLabel() {
@@ -468,6 +472,9 @@ async function loadCalendar() {
 
   allEvents.sort((a,b) => a.datetime - b.datetime);
   buildDayTabs();
+  // Riavvia auto-refresh: nella settimana corrente aggiorna actuals, altrove si ferma
+  if (weekOffset === 0) startAutoRefresh();
+  else stopAutoRefresh();
 }
 
 function normalizeEvents(raw, mon, fri) {
@@ -1024,12 +1031,107 @@ Rules: Professional institutional tone. Exact asset names (e.g. EUR/USD, Gold, S
   btn.innerHTML = '<span class="spinner" id="aiSpinner" style="display:none"></span>✦ Regenerate AI Analysis';
 }
 
+
+// ── Auto-refresh actuals ───────────────────────────────────────
+// Ricarica i dati da ForexFactory ogni 60s se siamo nella settimana corrente.
+// Aggiorna solo i campi actual/forecast/previous senza ricostruire il DOM.
+let _refreshTimer = null;
+
+async function refreshActuals() {
+  // Solo se siamo nella settimana corrente (weekOffset === 0) e non è weekend
+  if (weekOffset !== 0) return;
+  const dow = new Date().getDay();
+  if (dow === 0 || dow === 6) return;
+
+  try {
+    const res = await fetch(WORKER, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'forexfactory', week: 'thisweek' })
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!data.events || data.events.length === 0) return;
+
+    // Mappa id → evento aggiornato (primario: id, fallback: nome+data)
+    const updatedById   = {};
+    const updatedByName = {};
+    for (const ev of data.events) {
+      const id = ev.id || ev.time;
+      if (id) updatedById[id] = ev;
+      // Chiave secondaria: title + giorno YYYY-MM-DD
+      const dayKey = (ev.time || ev.date || '').substring(0, 10);
+      const nameKey = (ev.event || ev.name || '') + '|' + dayKey;
+      if (nameKey.length > 1) updatedByName[nameKey] = ev;
+    }
+
+    let changed = false;
+    for (const ev of allEvents) {
+      // Prova match per ID, poi per nome+giorno
+      const dayKey = isoDate(ev.datetime);
+      const nameKey = ev.name + '|' + dayKey;
+      const upd = updatedById[ev.id] || updatedByName[nameKey];
+      if (!upd) continue;
+
+      // Aggiorna actual se è arrivato
+      const newActual = upd.actual != null && upd.actual !== '' ? String(upd.actual) : null;
+      const newFore   = upd.forecast != null && upd.forecast !== '' ? String(upd.forecast) : ev.forecast;
+      const newPrev   = upd.prev != null && upd.prev !== '' ? String(upd.prev) : ev.previous;
+
+      if (newActual !== ev.actual || newFore !== ev.forecast || newPrev !== ev.previous) {
+        ev.actual   = newActual;
+        ev.forecast = newFore ?? ev.forecast;
+        ev.previous = newPrev ?? ev.previous;
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      renderEvents();
+      // Se l'evento attivo è aperto, aggiorna anche il detail panel
+      if (activeEvent) {
+        const refreshed = allEvents.find(e => e.id === activeEvent.id);
+        if (refreshed) {
+          activeEvent = refreshed;
+          renderEventDetail(refreshed);
+        }
+      }
+      console.log('Calendar: actuals updated');
+    }
+  } catch(e) {
+    console.warn('refreshActuals:', e.message);
+  }
+}
+
+function startAutoRefresh() {
+  if (_refreshTimer) clearInterval(_refreshTimer);
+  // Aggiorna ogni 60 secondi
+  _refreshTimer = setInterval(refreshActuals, 60000);
+}
+function stopAutoRefresh() {
+  if (_refreshTimer) { clearInterval(_refreshTimer); _refreshTimer = null; }
+}
+
 // ── Init ──────────────────────────────────────────────────────
-const d0 = new Date();
-document.getElementById('headerDate').textContent =
-  MONTHS[d0.getMonth()].toUpperCase() + ' ' + d0.getDate() + ', ' + d0.getFullYear();
+function updateHeaderDate() {
+  const d0 = new Date();
+  document.getElementById('headerDate').textContent =
+    MONTHS[d0.getMonth()].toUpperCase() + ' ' + d0.getDate() + ', ' + d0.getFullYear();
+}
+updateHeaderDate();
+// Aggiorna la data a mezzanotte senza ricaricare la pagina
+setInterval(() => {
+  const now = new Date();
+  if (now.getHours() === 0 && now.getMinutes() === 0) updateHeaderDate();
+}, 60000);
 
 loadCalendar();
+startAutoRefresh();  // Aggiorna actuals ogni 60s per la settimana corrente
+
+// Visibilità pagina: pausa refresh quando tab non è attivo
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) stopAutoRefresh();
+  else { startAutoRefresh(); refreshActuals(); }
+});
 </script>
 </body>
 </html>
