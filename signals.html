@@ -9,20 +9,20 @@
   @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap');
 
   :root {
-  --bg:      #0f1724;
-  --bg2:     #131f2e;
-  --bg3:     #172032;
-  --bg4:     #1c2840;
-  --border:  #1e3050;
-  --border2: #243a5e;
-  --border-bright: #2d4a78;
-  --gold:    #3b82f6;
-  --gold2:   #60a5fa;
-  --gold3:   #1d4ed8;
+  --bg:      #080c10;
+  --bg2:     #0d1117;
+  --bg3:     #111820;
+  --bg4:     #161d27;
+  --border:  #1e2a38;
+  --border2: #243040;
+  --border-bright: #2d4060;
+  --gold:    #f59e0b;
+  --gold2:   #fbbf24;
+  --gold3:   #92400e;
   --accent:  #3b82f6;
   --accent2: #60a5fa;
-  --text:    #c8d8ea;
-  --dim:     #6b8aaa;
+  --text:    #94a3b8;
+  --dim:     #475569;
   --red:     #ef4444;
   --red2:    #f87171;
   --green:   #10b981;
@@ -30,10 +30,10 @@
   --blue:    #3b82f6;
   --blue2:   #60a5fa;
   --yellow:  #f59e0b;
-  --ink:     #e8f0f8;
-  --ink2:    #a8c0d8;
-  --muted:   #7a9ab8;
-  --bright:  #e8f0f8;
+  --ink:     #f1f5f9;
+  --ink2:    #cbd5e1;
+  --muted:   #64748b;
+  --bright:  #f1f5f9;
   --serif:   'Playfair Display', Georgia, serif;
   --body:    'PT Serif', Georgia, serif;
   --mono:    'IBM Plex Mono', 'PT Mono', monospace;
@@ -288,12 +288,12 @@
   .detail-top { display: grid; grid-template-columns: 1fr 380px; gap: 20px; }
 
   .chart-container {
-    background: #0f1724;
+    background: #0d1117;
     border: 1px solid var(--border);
     border-top: 2px solid var(--gold);
     padding: 0;
     position: relative;
-    overflow: visible;
+    overflow: hidden;
   }
   .chart-header {
     font-size: 9px;
@@ -447,8 +447,8 @@
   }
   .live-chart-body {
     position: relative;
-    background: #0f1724;
-    height: 340px;
+    background: #0d1117;
+    height: 420px;
   }
   .live-chart-body.loading::after {
     content: 'Loading live candles...';
@@ -1204,7 +1204,7 @@ function calcMACD(closes, fast=12, slow=26, signal=9) {
 }
 
 function calcIchimoku(candles) {
-  if (candles.length < 10) return null;
+  if (candles.length < 40) return null;
   const highs = candles.map(c=>parseFloat(c.high));
   const lows  = candles.map(c=>parseFloat(c.low));
   const n = candles.length;
@@ -2234,12 +2234,10 @@ function renderSignals(list) {
           // Pattern chart illustrativo
           const canvas = document.getElementById('chart-' + idx);
           if (canvas && !canvas.dataset.drawn) {
-            // Use actual container width for correct coordinate mapping
-            const containerW = canvas.parentElement ? canvas.parentElement.offsetWidth : 860;
-            const useW = containerW > 100 ? containerW : 860;
-            canvas.style.width  = useW + 'px';
-            canvas.style.height = '340px';
-            drawPatternChart(canvas, sig, useW, 340);
+            // Force explicit dimensions so ctx has a real size
+            canvas.style.width  = '860px';
+            canvas.style.height = '420px';
+            drawPatternChart(canvas, sig);
             canvas.dataset.drawn = '1';
           }
           // Live chart con candele reali
@@ -2328,7 +2326,7 @@ const FH_CANDLE_MAP = {
 function loadTradingViewChart(container, sig) {
   container.classList.remove('loading', 'error');
   container.innerHTML = '';
-  container.style.height = '340px';
+  container.style.height = '420px';
 
   const tvSym = TV_SYMBOL_MAP[sig.pair];
   const tvTF  = TV_TF_MAP[selectedTF] || '60';
@@ -2350,7 +2348,7 @@ function loadTradingViewChart(container, sig) {
       theme:           'light',
       style:           '1',        // candele
       locale:          'en',
-      toolbar_bg:      '#f8fafc',
+      toolbar_bg:      '#f9fafb',
       enable_publishing: false,
       hide_top_toolbar:  false,
       hide_legend:       false,
@@ -2358,7 +2356,7 @@ function loadTradingViewChart(container, sig) {
       backgroundColor:   '#ffffff',
       gridColor:         'rgba(0,0,0,0)',
       width:             '100%',
-      height:            340,
+      height:            420,
       studies:           [],
       disabled_features: ['use_localstorage_for_settings','header_symbol_search','header_compare',
         'left_toolbar','header_indicators','header_undo_redo','header_screenshot',
@@ -2505,10 +2503,9 @@ async function loadLiveChart(container, sig, idx) {
 // Canvas 900x500 @ 2x = 1800x1000px effettivi
 // ══════════════════════════════════════════════════════════════
 
-function drawPatternChart(canvas, sig, forcedW, forcedH) {
-  const W = (forcedW && forcedW > 100) ? forcedW : 860;
-  const H = (forcedH && forcedH > 100) ? forcedH : 340;
-  const ML = 70, MR = 20, MT = 60, MB = 50;
+function drawPatternChart(canvas, sig) {
+  const W = 860, H = 420;
+  const ML = 72, MR = 72, MT = 64, MB = 44;
   const CW = W - ML - MR, CH = H - MT - MB;
 
   canvas.width  = W * 2;
@@ -2534,9 +2531,8 @@ function drawPatternChart(canvas, sig, forcedW, forcedH) {
 
   const spread = Math.abs(tp - sl) || Math.abs(entry * 0.015) || 1;
   const center = (tp + sl) / 2;
-  // Range must cover all pattern extremes (patterns draw up to ±2.2x spread)
-  const pMin   = Math.min(sl, tp, entry) - spread * 2.6;
-  const pMax   = Math.max(sl, tp, entry) + spread * 2.6;
+  const pMin   = Math.min(sl, tp, entry) - spread * 2.5;
+  const pMax   = Math.max(sl, tp, entry) + spread * 2.5;
 
   const toY = p => MT + CH - ((p - pMin) / (pMax - pMin)) * CH;
   const toX = t => ML + t * CW;
@@ -3138,50 +3134,29 @@ async function doSendToTelegram(idx, token, chatId) {
   const btn = document.querySelector(`[onclick="sendToTelegram(event, ${idx})"]`);
   if (btn) { btn.disabled = true; btn.textContent = '⏳ SENDING...'; }
   try {
-    // Pattern canvas — redraw at full 1200px width for Telegram quality
-    const patternCanvas = document.getElementById('chart-' + idx);
+    // Pattern canvas — redraw at 1200px for Telegram quality
     const tmp = document.createElement('canvas');
-    drawPatternChart(tmp, sig, 1200, 420);
-    const patternC = tmp;
+    drawPatternChart(tmp, sig);
+    tmp.width = 1200 * 2; tmp.height = 420 * 2;
+    const patternC = (() => { const t2 = document.createElement('canvas'); drawPatternChart(t2, sig); return t2; })();
 
     // Live chart canvas (interno al div lc-idx)
-    // NOTE: TradingView renders inside an iframe — querySelector('canvas') won't work.
-    // We check for a direct canvas (Lightweight Charts = FX/Crypto) first.
-    // For TradingView symbols, we capture the iframe visually via html2canvas if available,
-    // otherwise we send just the pattern chart with a note.
     const liveDiv = document.getElementById('lc-' + idx);
-    let liveC = liveDiv ? liveDiv.querySelector('canvas') : null;
-
-    // If no direct canvas found, check if there's an iframe (TradingView)
-    const hasTVIframe = liveDiv && liveDiv.querySelector('iframe') !== null;
+    // Lightweight Charts = direct canvas; TradingView = iframe (not capturable)
+    const liveC = liveDiv ? (liveDiv.querySelector('canvas:not([data-ignore])') || null) : null;
 
     // Combina i due canvas verticalmente
     const combined = document.createElement('canvas');
     const OUT_W = 1200;
-    const OUT_H = 340;
+    const OUT_H = 420; // matches chart height
     const gap = 4;
-    // If we have live canvas: both panels. If TV iframe only: pattern + placeholder
     combined.width  = OUT_W;
-    combined.height = liveC ? OUT_H * 2 + gap : OUT_H;
+    combined.height = OUT_H * 2 + gap;
     const cctx = combined.getContext('2d');
-    cctx.fillStyle = '#0f1724'; // dark background
+    cctx.fillStyle = '#ffffff';
     cctx.fillRect(0, 0, combined.width, combined.height);
     cctx.drawImage(patternC, 0, 0, OUT_W, OUT_H);
-    if (liveC) {
-      cctx.drawImage(liveC, 0, OUT_H + gap, OUT_W, OUT_H);
-    } else if (hasTVIframe) {
-      // Draw a clean placeholder for TradingView chart
-      cctx.fillStyle = '#1c2840';
-      cctx.fillRect(0, OUT_H + gap, OUT_W, OUT_H);
-      cctx.fillStyle = '#60a5fa';
-      cctx.font = 'bold 18px IBM Plex Mono, monospace';
-      cctx.textAlign = 'center';
-      cctx.fillText('LIVE CANDLES · ' + sig.pair + ' · ' + selectedTF, OUT_W/2, OUT_H + gap + OUT_H/2 - 12);
-      cctx.fillStyle = '#6b8aaa';
-      cctx.font = '13px IBM Plex Mono, monospace';
-      cctx.fillText('View on TradingView for live chart', OUT_W/2, OUT_H + gap + OUT_H/2 + 16);
-      combined.height = OUT_H * 2 + gap; // keep consistent height
-    }
+    if (liveC) cctx.drawImage(liveC, 0, OUT_H + gap, OUT_W, OUT_H);
 
     let imageData = combined.toDataURL('image/png').split(',')[1];
     const dir = sig.direction === 'BUY' ? '🟢' : '🔴';
