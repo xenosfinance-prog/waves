@@ -1475,6 +1475,7 @@ async function fetchPrices() {
     'GBPUSD=X','USDJPY=X','GOOGL','META','AMZN','JPM',
     ...GLOBAL_MARKETS.flatMap(r => r.items.map(i => i.yf)),
     ...SECTORS.map(s => s.sym),
+    ...STOCKS_LIST.map(s => s.yf),  // ← include ALL stocks
   ])];
   try {
     const res = await fetch(WORKER, {
@@ -1591,7 +1592,7 @@ function renderSectorPie() {
   // Center hole
   ctx.beginPath();
   ctx.arc(55, 55, 22, 0, Math.PI * 2);
-  ctx.fillStyle = '#F5EDD8';
+  ctx.fillStyle = '#172032';
   ctx.fill();
   // Center text
   const bull = sData.filter(s => s.chg > 0).length;
@@ -1740,7 +1741,7 @@ function loadTVChart(yf) {
     theme: 'light',
     style: '1',
     locale: 'en',
-    toolbar_bg: '#F5EDD8',
+    toolbar_bg: '#f9fafb',
     enable_publishing: false,
     hide_side_toolbar: false,
     allow_symbol_change: true,
@@ -1748,15 +1749,17 @@ function loadTVChart(yf) {
     autosize: true,
     studies: ['RSI@tv-basicstudies','MACD@tv-basicstudies'],
     overrides: {
-      'paneProperties.background': '#FDF8EF',
+      'paneProperties.background': '#ffffff',
       'paneProperties.backgroundType': 'solid',
-      'scalesProperties.textColor': '#8B6B3D',
-      'mainSeriesProperties.candleStyle.upColor': '#1e5c35',
-      'mainSeriesProperties.candleStyle.downColor': '#8B1A1A',
-      'mainSeriesProperties.candleStyle.borderUpColor': '#1e5c35',
-      'mainSeriesProperties.candleStyle.borderDownColor': '#8B1A1A',
-      'mainSeriesProperties.candleStyle.wickUpColor': '#1e5c35',
-      'mainSeriesProperties.candleStyle.wickDownColor': '#8B1A1A',
+      'paneProperties.vertGridProperties.color': 'rgba(0,0,0,0)',
+      'paneProperties.horzGridProperties.color': 'rgba(0,0,0,0)',
+      'scalesProperties.textColor': '#374151',
+      'mainSeriesProperties.candleStyle.upColor': '#26a69a',
+      'mainSeriesProperties.candleStyle.downColor': '#ef5350',
+      'mainSeriesProperties.candleStyle.borderUpColor': '#26a69a',
+      'mainSeriesProperties.candleStyle.borderDownColor': '#ef5350',
+      'mainSeriesProperties.candleStyle.wickUpColor': '#26a69a',
+      'mainSeriesProperties.candleStyle.wickDownColor': '#ef5350',
     }
   });
 }
@@ -2222,7 +2225,7 @@ function renderAllocationPie(posData) {
   // Center hole
   ctx.beginPath();
   ctx.arc(80, 80, 35, 0, Math.PI * 2);
-  ctx.fillStyle = '#F5EDD8';
+  ctx.fillStyle = '#172032';
   ctx.fill();
 
   legend.innerHTML = slices.map(s =>
