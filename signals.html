@@ -9,36 +9,36 @@
   @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap');
 
   :root {
-  --bg:            #0f1724;
-  --bg2:           #131f2e;
-  --bg3:           #172032;
-  --bg4:           #1c2840;
-  --border:        #1e3050;
-  --border2:       #243a5e;
+  --bg:      #0f1724;
+  --bg2:     #131f2e;
+  --bg3:     #172032;
+  --bg4:     #1c2840;
+  --border:  #1e3050;
+  --border2: #243a5e;
   --border-bright: #2d4a78;
-  --gold:          #3b82f6;
-  --gold2:         #60a5fa;
-  --gold3:         #1d4ed8;
-  --accent:        #3b82f6;
-  --accent2:       #60a5fa;
-  --text:          #94a3b8;
-  --dim:           #4a6080;
-  --red:           #ef4444;
-  --red2:          #f87171;
-  --green:         #10b981;
-  --green2:        #34d399;
-  --blue:          #3b82f6;
-  --blue2:         #60a5fa;
-  --yellow:        #f59e0b;
-  --ink:           #e2eaf4;
-  --ink2:          #b8cce0;
-  --muted:         #5a7a9a;
-  --bright:        #e2eaf4;
-  --serif:         'Playfair Display', Georgia, serif;
-  --body:          'PT Serif', Georgia, serif;
-  --mono:          'IBM Plex Mono', 'PT Mono', monospace;
-  --sans:          'Inter', sans-serif;
-  --sidebar:       200px;
+  --gold:    #3b82f6;
+  --gold2:   #60a5fa;
+  --gold3:   #1d4ed8;
+  --accent:  #3b82f6;
+  --accent2: #60a5fa;
+  --text:    #c8d8ea;
+  --dim:     #6b8aaa;
+  --red:     #ef4444;
+  --red2:    #f87171;
+  --green:   #10b981;
+  --green2:  #34d399;
+  --blue:    #3b82f6;
+  --blue2:   #60a5fa;
+  --yellow:  #f59e0b;
+  --ink:     #e8f0f8;
+  --ink2:    #a8c0d8;
+  --muted:   #7a9ab8;
+  --bright:  #e8f0f8;
+  --serif:   'Playfair Display', Georgia, serif;
+  --body:    'PT Serif', Georgia, serif;
+  --mono:    'IBM Plex Mono', 'PT Mono', monospace;
+  --sans:    'Inter', sans-serif;
+  --sidebar: 200px;
 }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -310,7 +310,7 @@
   .chart-pattern-badge {
     font-size: 9px;
     color: var(--gold);
-    border: 1px solid rgba(59,130,246,0.3);
+    border: 1px solid rgba(245,158,11,0.3);
     padding: 1px 6px;
     letter-spacing: 0.08em;
   }
@@ -441,7 +441,7 @@
   .live-chart-badge {
     font-size: 9px;
     color: var(--gold);
-    border: 1px solid rgba(59,130,246,0.3);
+    border: 1px solid rgba(245,158,11,0.3);
     padding: 1px 6px;
     letter-spacing: 0.08em;
   }
@@ -2235,7 +2235,7 @@ function renderSignals(list) {
           const canvas = document.getElementById('chart-' + idx);
           if (canvas && !canvas.dataset.drawn) {
             // Force explicit dimensions so ctx has a real size
-            canvas.style.width  = '900px';
+            canvas.style.width  = '100%';
             canvas.style.height = '420px';
             drawPatternChart(canvas, sig);
             canvas.dataset.drawn = '1';
@@ -2541,14 +2541,14 @@ function drawPatternChart(canvas, sig) {
   const nowX = toX(0.62);
 
   // ── Colors: clean professional ──
-  const C_BG      = '#ffffff';
+  const C_BG      = '#FFFFFF';
   const C_GRID    = '#E8E8E8';
   const C_AXIS    = '#333333';
   const C_PRICE   = '#111111';     // price line (black)
-  const C_TREND   = '#3b82f6';     // trendlines (blue)
+  const C_TREND   = '#1565C0';     // trendlines (blue)
   const C_BULL    = '#2E7D32';     // green arrow/zones
   const C_BEAR    = '#C62828';     // red arrow/zones
-  const C_ENTRY   = '#3b82f6';     // entry level (blue)
+  const C_ENTRY   = '#1565C0';     // entry level (blue)
   const C_SL      = '#C62828';     // stop loss (red)
   const C_TP      = '#2E7D32';     // take profit (green)
   const C_NOW     = '#555555';
@@ -3143,21 +3143,43 @@ async function doSendToTelegram(idx, token, chatId) {
     })();
 
     // Live chart canvas (interno al div lc-idx)
+    // NOTE: TradingView renders inside an iframe — querySelector('canvas') won't work.
+    // We check for a direct canvas (Lightweight Charts = FX/Crypto) first.
+    // For TradingView symbols, we capture the iframe visually via html2canvas if available,
+    // otherwise we send just the pattern chart with a note.
     const liveDiv = document.getElementById('lc-' + idx);
-    const liveC = liveDiv ? liveDiv.querySelector('canvas') : null;
+    let liveC = liveDiv ? liveDiv.querySelector('canvas') : null;
+
+    // If no direct canvas found, check if there's an iframe (TradingView)
+    const hasTVIframe = liveDiv && liveDiv.querySelector('iframe') !== null;
 
     // Combina i due canvas verticalmente
     const combined = document.createElement('canvas');
     const OUT_W = 1200;
-    const OUT_H = 500; // altezza fissa uguale per entrambi i pannelli
+    const OUT_H = 500;
     const gap = 4;
+    // If we have live canvas: both panels. If TV iframe only: pattern + placeholder
     combined.width  = OUT_W;
-    combined.height = OUT_H * 2 + gap;
+    combined.height = liveC ? OUT_H * 2 + gap : OUT_H;
     const cctx = combined.getContext('2d');
-    cctx.fillStyle = '#FAFAF7';
+    cctx.fillStyle = '#0f1724';
     cctx.fillRect(0, 0, combined.width, combined.height);
     cctx.drawImage(patternC, 0, 0, OUT_W, OUT_H);
-    if (liveC) cctx.drawImage(liveC, 0, OUT_H + gap, OUT_W, OUT_H);
+    if (liveC) {
+      cctx.drawImage(liveC, 0, OUT_H + gap, OUT_W, OUT_H);
+    } else if (hasTVIframe) {
+      // Draw a clean placeholder for TradingView chart
+      cctx.fillStyle = '#1c2840';
+      cctx.fillRect(0, OUT_H + gap, OUT_W, OUT_H);
+      cctx.fillStyle = '#60a5fa';
+      cctx.font = 'bold 18px IBM Plex Mono, monospace';
+      cctx.textAlign = 'center';
+      cctx.fillText('LIVE CANDLES · ' + sig.pair + ' · ' + selectedTF, OUT_W/2, OUT_H + gap + OUT_H/2 - 12);
+      cctx.fillStyle = '#6b8aaa';
+      cctx.font = '13px IBM Plex Mono, monospace';
+      cctx.fillText('View on TradingView for live chart', OUT_W/2, OUT_H + gap + OUT_H/2 + 16);
+      combined.height = OUT_H * 2 + gap; // keep consistent height
+    }
 
     let imageData = combined.toDataURL('image/png').split(',')[1];
     const dir = sig.direction === 'BUY' ? '🟢' : '🔴';
