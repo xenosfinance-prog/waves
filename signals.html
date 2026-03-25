@@ -1204,7 +1204,7 @@ function calcMACD(closes, fast=12, slow=26, signal=9) {
 }
 
 function calcIchimoku(candles) {
-  if (candles.length < 40) return null;
+  if (candles.length < 10) return null;
   const highs = candles.map(c=>parseFloat(c.high));
   const lows  = candles.map(c=>parseFloat(c.low));
   const n = candles.length;
@@ -2068,7 +2068,7 @@ async function generateSignals() {
     }
 
     // Applica filtro confidence sull'algo confidence (che è il valore reale)
-    const filtered = merged.filter(s => s.confidence >= minConf && (selectedDir === 'BOTH' || s.direction === selectedDir));
+    const filtered = merged.filter(s => (selectedDir === 'BOTH' || s.direction === selectedDir));
 
     // Un solo segnale per pair — tieni il più alto confidence
     const bestPerPair = {};
@@ -2114,7 +2114,7 @@ function parseSignals(raw, minConf, dir) {
   if (start === -1 || end === -1) throw new Error('No JSON array in response');
   let arr = JSON.parse(cleaned.slice(start, end+1));
   // Note: confidence filter is relaxed here because algo data overwrites it in the merge step
-  return arr.filter(s => s.confidence >= Math.min(minConf, 50) && (dir === 'BOTH' || s.direction === dir));
+  return arr.filter(s => (dir === 'BOTH' || s.direction === dir));
 }
 
 
@@ -2368,12 +2368,12 @@ function loadTradingViewChart(container, sig) {
         'paneProperties.vertGridProperties.color': 'rgba(0,0,0,0)',
         'paneProperties.horzGridProperties.color': 'rgba(0,0,0,0)',
         'scalesProperties.textColor': '#8B6B3D',
-        'mainSeriesProperties.candleStyle.upColor': '#1e5c35',
-        'mainSeriesProperties.candleStyle.downColor': '#8B1A1A',
-        'mainSeriesProperties.candleStyle.borderUpColor': '#1e5c35',
-        'mainSeriesProperties.candleStyle.borderDownColor': '#8B1A1A',
-        'mainSeriesProperties.candleStyle.wickUpColor': '#1e5c35',
-        'mainSeriesProperties.candleStyle.wickDownColor': '#8B1A1A',
+        'mainSeriesProperties.candleStyle.upColor': '#26a69a',
+        'mainSeriesProperties.candleStyle.downColor': '#ef5350',
+        'mainSeriesProperties.candleStyle.borderUpColor': '#26a69a',
+        'mainSeriesProperties.candleStyle.borderDownColor': '#ef5350',
+        'mainSeriesProperties.candleStyle.wickUpColor': '#26a69a',
+        'mainSeriesProperties.candleStyle.wickDownColor': '#ef5350',
       },
     });
   };
@@ -2534,8 +2534,9 @@ function drawPatternChart(canvas, sig, forcedW, forcedH) {
 
   const spread = Math.abs(tp - sl) || Math.abs(entry * 0.015) || 1;
   const center = (tp + sl) / 2;
-  const pMin   = Math.min(sl, tp, entry) - spread * 0.8;
-  const pMax   = Math.max(sl, tp, entry) + spread * 0.8;
+  // Range must cover all pattern extremes (patterns draw up to ±2.2x spread)
+  const pMin   = Math.min(sl, tp, entry) - spread * 2.6;
+  const pMax   = Math.max(sl, tp, entry) + spread * 2.6;
 
   const toY = p => MT + CH - ((p - pMin) / (pMax - pMin)) * CH;
   const toX = t => ML + t * CW;
@@ -3137,13 +3138,11 @@ async function doSendToTelegram(idx, token, chatId) {
   const btn = document.querySelector(`[onclick="sendToTelegram(event, ${idx})"]`);
   if (btn) { btn.disabled = true; btn.textContent = '⏳ SENDING...'; }
   try {
-    // Pattern canvas
+    // Pattern canvas — redraw at full 1200px width for Telegram quality
     const patternCanvas = document.getElementById('chart-' + idx);
-    let patternC = patternCanvas && patternCanvas.dataset.drawn ? patternCanvas : (() => {
-      const tmp = document.createElement('canvas');
-      drawPatternChart(tmp, sig);
-      return tmp;
-    })();
+    const tmp = document.createElement('canvas');
+    drawPatternChart(tmp, sig, 1200, 420);
+    const patternC = tmp;
 
     // Live chart canvas (interno al div lc-idx)
     // NOTE: TradingView renders inside an iframe — querySelector('canvas') won't work.
@@ -3165,7 +3164,7 @@ async function doSendToTelegram(idx, token, chatId) {
     combined.width  = OUT_W;
     combined.height = liveC ? OUT_H * 2 + gap : OUT_H;
     const cctx = combined.getContext('2d');
-    cctx.fillStyle = '#0f1724';
+    cctx.fillStyle = '#0f1724'; // dark background
     cctx.fillRect(0, 0, combined.width, combined.height);
     cctx.drawImage(patternC, 0, 0, OUT_W, OUT_H);
     if (liveC) {
