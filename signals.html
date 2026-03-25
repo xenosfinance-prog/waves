@@ -6,20 +6,39 @@
 <title>XENOS · Signal Engine</title>
 <script src="https://unpkg.com/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=Outfit:wght@300;400;500;600;700&family=DM+Serif+Display:ital@0;1&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap');
 
-  
-:root {
-  --bg:#080c10; --bg2:#0d1117; --bg3:#111820; --bg4:#161d27;
-  --border:#1e2a38; --border2:#243040; --border-bright:#2d4060;
-  --gold:#f59e0b; --gold2:#fbbf24; --gold3:#92400e;
-  --accent:#3b82f6; --accent2:#60a5fa; --accent-glow:rgba(59,130,246,.10);
-  --gold-glow:rgba(245,158,11,.08);
-  --text:#94a3b8; --text2:#cbd5e1; --text-bright:#f1f5f9; --text-dim:#475569;
-  --red:#ef4444; --red2:#f87171; --green:#10b981; --green2:#34d399;
-  --blue:#3b82f6; --blue2:#60a5fa; --yellow:#f59e0b;
-  --dim:#475569; --bright:#f1f5f9;
-  --mono:'IBM Plex Mono',monospace; --serif:'DM Serif Display',serif; --sans:'Outfit',sans-serif;
+  :root {
+  --bg:      #080c10;
+  --bg2:     #0d1117;
+  --bg3:     #111820;
+  --bg4:     #161d27;
+  --border:  #1e2a38;
+  --border2: #243040;
+  --border-bright: #2d4060;
+  --gold:    #f59e0b;
+  --gold2:   #fbbf24;
+  --gold3:   #92400e;
+  --accent:  #3b82f6;
+  --accent2: #60a5fa;
+  --text:    #94a3b8;
+  --dim:     #475569;
+  --red:     #ef4444;
+  --red2:    #f87171;
+  --green:   #10b981;
+  --green2:  #34d399;
+  --blue:    #3b82f6;
+  --blue2:   #60a5fa;
+  --yellow:  #f59e0b;
+  --ink:     #f1f5f9;
+  --ink2:    #cbd5e1;
+  --muted:   #64748b;
+  --bright:  #f1f5f9;
+  --serif:   'Playfair Display', Georgia, serif;
+  --body:    'PT Serif', Georgia, serif;
+  --mono:    'IBM Plex Mono', 'PT Mono', monospace;
+  --sans:    'Inter', sans-serif;
+  --sidebar: 200px;
 }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -428,8 +447,8 @@
   }
   .live-chart-body {
     position: relative;
-    background: #ffffff;
-    height: 400px;
+    background: #0d1117;
+    height: 320px;
   }
   .live-chart-body.loading::after {
     content: 'Loading live candles...';
@@ -465,13 +484,6 @@
     .signal-row { grid-template-columns: 1fr 1fr 1fr; grid-template-rows: auto auto; }
     .detail-top { grid-template-columns: 1fr; }
   }
-
-  body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 70% 40% at 10% 0%,rgba(59,130,246,.04) 0%,transparent 60%);pointer-events:none;z-index:0;}
-  a{color:var(--accent2);} a:hover{color:var(--gold2);}
-  input,select,textarea{background:var(--bg3)!important;border-color:var(--border)!important;color:var(--text2)!important;}
-  input::placeholder{color:var(--text-dim)!important;}
-  option{background:var(--bg3);color:var(--text2);}
-  ::-webkit-scrollbar{width:5px;height:5px;}::-webkit-scrollbar-track{background:var(--bg2);}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
 </style>
 </head>
 <body>
@@ -2223,8 +2235,8 @@ function renderSignals(list) {
           const canvas = document.getElementById('chart-' + idx);
           if (canvas && !canvas.dataset.drawn) {
             // Force explicit dimensions so ctx has a real size
-            canvas.style.width  = '100%';
-            canvas.style.height = '400px';
+            canvas.style.width  = '900px';
+            canvas.style.height = '500px';
             drawPatternChart(canvas, sig);
             canvas.dataset.drawn = '1';
           }
@@ -2314,7 +2326,7 @@ const FH_CANDLE_MAP = {
 function loadTradingViewChart(container, sig) {
   container.classList.remove('loading', 'error');
   container.innerHTML = '';
-  container.style.height = '400px';
+  container.style.height = '340px';
 
   const tvSym = TV_SYMBOL_MAP[sig.pair];
   const tvTF  = TV_TF_MAP[selectedTF] || '60';
@@ -2336,34 +2348,30 @@ function loadTradingViewChart(container, sig) {
       theme:           'light',
       style:           '1',        // candele
       locale:          'en',
-      toolbar_bg:      '#f8f9fa',
+      toolbar_bg:      '#F5EDD8',
       enable_publishing: false,
       hide_top_toolbar:  false,
       hide_legend:       false,
       save_image:        false,
-      backgroundColor:   '#ffffff',
+      backgroundColor:   '#FDF8EF',
       gridColor:         'rgba(0,0,0,0)',
       width:             '100%',
-      height:            400,
+      height:            340,
       studies:           [],
       disabled_features: ['use_localstorage_for_settings','header_symbol_search','header_compare',
         'left_toolbar','header_indicators','header_undo_redo','header_screenshot',
         'header_fullscreen_button'],
       enabled_features:  ['hide_left_toolbar_by_default'],
       overrides: {
-        'paneProperties.background': '#ffffff',
-        'paneProperties.backgroundType': 'solid',
         'paneProperties.vertGridProperties.color': 'rgba(0,0,0,0)',
         'paneProperties.horzGridProperties.color': 'rgba(0,0,0,0)',
-        'scalesProperties.textColor': '#374151',
-        'scalesProperties.lineColor': '#e5e7eb',
-        'paneProperties.axisProperties.autoScale': true,
-        'mainSeriesProperties.candleStyle.upColor': '#10b981',
-        'mainSeriesProperties.candleStyle.downColor': '#ef4444',
-        'mainSeriesProperties.candleStyle.borderUpColor': '#10b981',
-        'mainSeriesProperties.candleStyle.borderDownColor': '#ef4444',
-        'mainSeriesProperties.candleStyle.wickUpColor': '#10b981',
-        'mainSeriesProperties.candleStyle.wickDownColor': '#ef4444',
+        'scalesProperties.textColor': '#8B6B3D',
+        'mainSeriesProperties.candleStyle.upColor': '#1e5c35',
+        'mainSeriesProperties.candleStyle.downColor': '#8B1A1A',
+        'mainSeriesProperties.candleStyle.borderUpColor': '#1e5c35',
+        'mainSeriesProperties.candleStyle.borderDownColor': '#8B1A1A',
+        'mainSeriesProperties.candleStyle.wickUpColor': '#1e5c35',
+        'mainSeriesProperties.candleStyle.wickDownColor': '#8B1A1A',
       },
     });
   };
@@ -2431,7 +2439,7 @@ async function loadLightweightChart(container, sig) {
   const chart = LightweightCharts.createChart(container, {
     width:  container.offsetWidth || 860,
     height: 320,
-    layout: { background: { type: 'solid', color: '#080c10' }, textColor: '#64748b', fontSize: 11, fontFamily: "'Space Mono', monospace" },
+    layout: { background: { type: 'solid', color: '#FDF8EF' }, textColor: '#8B6B3D', fontSize: 11, fontFamily: "'Space Mono', monospace" },
     grid:   { vertLines: { color: 'rgba(0,0,0,0)' }, horzLines: { color: 'rgba(200,185,165,0.4)' } },
     crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
     rightPriceScale: { borderColor: '#1e2a3a' },
@@ -2496,7 +2504,7 @@ async function loadLiveChart(container, sig, idx) {
 // ══════════════════════════════════════════════════════════════
 
 function drawPatternChart(canvas, sig) {
-  const W = 860, H = 400;
+  const W = 860, H = 420;
   const ML = 70, MR = 20, MT = 60, MB = 50;
   const CW = W - ML - MR, CH = H - MT - MB;
 
@@ -2581,13 +2589,10 @@ function drawPatternChart(canvas, sig) {
     ctx.restore();
   }
 
-  function dot(x, y, color, r=6) {
+  function dot(x, y, color, r=5) {
     ctx.save();
-    ctx.shadowColor = 'rgba(0,0,0,0.2)';
-    ctx.shadowBlur = 4;
     ctx.fillStyle = '#fff';
-    ctx.beginPath(); ctx.arc(x,y,r+2,0,Math.PI*2); ctx.fill();
-    ctx.shadowBlur = 0;
+    ctx.beginPath(); ctx.arc(x,y,r+1.5,0,Math.PI*2); ctx.fill();
     ctx.fillStyle = color;
     ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
     ctx.restore();
@@ -2595,20 +2600,15 @@ function drawPatternChart(canvas, sig) {
 
   function label(text, x, y, color, bgColor='#fff', below=false) {
     ctx.save();
-    ctx.font = 'bold 11px Arial, sans-serif';
+    ctx.font = 'bold 10px Arial, sans-serif';
     const tw = ctx.measureText(text).width;
-    const pad = 7, bh = 20;
+    const pad = 5, bh = 18;
     const bx = x - tw/2 - pad;
-    const by = below ? y + 5 : y - bh - 5;
-    // Shadow for readability
-    ctx.shadowColor = 'rgba(0,0,0,0.18)';
-    ctx.shadowBlur = 6;
-    ctx.shadowOffsetY = 2;
-    ctx.fillStyle = '#ffffff';
+    const by = below ? y + 4 : y - bh - 4;
+    ctx.fillStyle = bgColor;
     ctx.strokeStyle = color;
-    ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.roundRect(bx, by, tw+pad*2, bh, 4); ctx.fill(); ctx.stroke();
-    ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.roundRect(bx, by, tw+pad*2, bh, 3); ctx.fill(); ctx.stroke();
     ctx.fillStyle = color;
     ctx.textAlign = 'center';
     ctx.fillText(text, x, by + bh - 5);
@@ -2635,11 +2635,11 @@ function drawPatternChart(canvas, sig) {
     ctx.beginPath(); ctx.moveTo(ML, y); ctx.lineTo(ML+CW, y); ctx.stroke();
     // Y-axis price label
     const price = pMax - (i/6)*(pMax-pMin);
-    ctx.fillStyle = '#555';
-    ctx.font = '10px Arial, sans-serif';
+    ctx.fillStyle = '#888';
+    ctx.font = '9px monospace';
     ctx.textAlign = 'right';
     const fmtP = p => p > 1000 ? p.toFixed(0) : p > 10 ? p.toFixed(2) : p.toFixed(4);
-    ctx.fillText(fmtP(price), ML-5, y+3);
+    ctx.fillText(fmtP(price), ML-6, y+3);
   }
   for (let i = 1; i <= 8; i++) {
     const x = ML + (i/8)*CW;
@@ -2667,26 +2667,12 @@ function drawPatternChart(canvas, sig) {
   line(ML, slY,    ML+CW, slY,    C_SL,    1.5, [6,4]);
 
   // Level labels on right
-  // Right-side level labels — clear pill style
-  ctx.font = 'bold 10px Arial, sans-serif';
+  ctx.font = 'bold 9px monospace';
   ctx.textAlign = 'left';
   const fmtP2 = p => p > 1000 ? p.toFixed(0) : p > 10 ? p.toFixed(2) : p.toFixed(4);
-  function levelPill(label, val, y, color) {
-    const txt = label + ' ' + fmtP2(val);
-    const tw2 = ctx.measureText(txt).width;
-    const px2 = ML + CW + 5, py2 = y - 9, pw2 = tw2 + 10, ph2 = 18;
-    ctx.fillStyle = color;
-    ctx.globalAlpha = 0.12;
-    ctx.beginPath(); ctx.roundRect(px2, py2, pw2, ph2, 3); ctx.fill();
-    ctx.globalAlpha = 1;
-    ctx.strokeStyle = color; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.roundRect(px2, py2, pw2, ph2, 3); ctx.stroke();
-    ctx.fillStyle = color;
-    ctx.fillText(txt, px2 + 5, py2 + 12);
-  }
-  levelPill('TP',  tp,    tpY,    C_TP);
-  levelPill('ENT', entry, entryY, C_ENTRY);
-  levelPill('SL',  sl,    slY,    C_SL);
+  ctx.fillStyle = C_TP;    ctx.fillText('TP  ' + fmtP2(tp),    ML+CW+3, tpY+3);
+  ctx.fillStyle = C_ENTRY; ctx.fillText('ENT ' + fmtP2(entry), ML+CW+3, entryY+3);
+  ctx.fillStyle = C_SL;    ctx.fillText('SL  ' + fmtP2(sl),    ML+CW+3, slY+3);
 
   // ── 6. PATTERN SHAPE ──
   drawPatternShape(ctx, pat, isBull, entry, sl, tp,
@@ -2697,12 +2683,12 @@ function drawPatternChart(canvas, sig) {
   // ── 7. NOW vertical line ──
   line(nowX, MT, nowX, MT+CH, C_NOW, 1, [5,4]);
   ctx.fillStyle = C_NOW;
-  ctx.font = 'bold 10px Arial, sans-serif';
+  ctx.font = 'bold 9px monospace';
   ctx.textAlign = 'center';
   ctx.fillText('NOW', nowX, MT+CH+14);
 
   // ── 8. HEADER ──
-  ctx.fillStyle = '#0d1117';
+  ctx.fillStyle = '#F8F8F8';
   ctx.fillRect(0, 0, W, MT);
   ctx.strokeStyle = '#DDDDDD';
   ctx.lineWidth = 1;
@@ -2714,13 +2700,13 @@ function drawPatternChart(canvas, sig) {
 
   // Pair + pattern
   ctx.fillStyle = '#111';
-  ctx.font = 'bold 16px Arial, sans-serif';
+  ctx.font = 'bold 15px Arial, sans-serif';
   ctx.textAlign = 'left';
-  ctx.fillText(sig.pair, 14, 26);
+  ctx.fillText(sig.pair, 14, 24);
 
-  ctx.fillStyle = '#444';
-  ctx.font = '12px Arial, sans-serif';
-  ctx.fillText(sig.pattern.toUpperCase(), 14, 44);
+  ctx.fillStyle = '#555';
+  ctx.font = '11px Arial, sans-serif';
+  ctx.fillText(sig.pattern, 14, 42);
 
   // RIGHT: BUY/SELL badge
   const bx = W - 210, by = 10, bw = 68, bh = 28;
@@ -2729,9 +2715,9 @@ function drawPatternChart(canvas, sig) {
   ctx.lineWidth = 1.5;
   ctx.beginPath(); ctx.roundRect(bx, by, bw, bh, 4); ctx.fill(); ctx.stroke();
   ctx.fillStyle = dirCol;
-  ctx.font = 'bold 13px Arial, sans-serif';
+  ctx.font = 'bold 12px Arial, sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText(isBull ? '▲ BUY' : '▼ SELL', bx+bw/2, by+20);
+  ctx.fillText(isBull ? '▲ BUY' : '▼ SELL', bx+bw/2, by+19);
 
   // Confidence
   const cx2 = bx + bw + 8;
@@ -2759,8 +2745,8 @@ function drawPatternChart(canvas, sig) {
   ctx.fillText(selectedTF, rx2+88, by+19);
 
   // ── 9. BOTTOM LABELS ──
-  ctx.fillStyle = '#777';
-  ctx.font = '10px Arial, sans-serif';
+  ctx.fillStyle = '#888';
+  ctx.font = '9px monospace';
   ctx.textAlign = 'left';
   ctx.fillText('◀ HISTORY', ML+4, MT+CH+30);
   ctx.textAlign = 'right';
@@ -2804,7 +2790,7 @@ function drawPatternShape(ctx, pat, isBull, entry, sl, tp,
     });
     dot(lsX,lsY,C_TREND); dot(hdX,hdY,black,6); dot(rsX,rsY,C_TREND);
     const lo = inv ? -16 : 16;
-    ctx.fillStyle = '#222'; ctx.font = 'bold 11px Arial'; ctx.textAlign = 'center';
+    ctx.fillStyle = '#333'; ctx.font = 'bold 10px Arial'; ctx.textAlign = 'center';
     ctx.fillText('LS', lsX, lsY+lo); ctx.fillText('HEAD', hdX, hdY+lo); ctx.fillText('RS', rsX, rsY+lo);
     ctx.fillStyle = C_TREND; ctx.font = '9px Arial';
     ctx.fillText('— NECKLINE —', toX(0.35), nkY+(inv?12:-8));
@@ -2830,7 +2816,7 @@ function drawPatternShape(ctx, pat, isBull, entry, sl, tp,
     line(prev[0],prev[1],nowX,nkY,black,2.5);
     peaks.forEach(x => dot(x,peakY,black,5));
     vals.forEach(x => dot(x,valY,C_TREND,5));
-    ctx.fillStyle = C_TREND; ctx.font = 'bold 10px Arial'; ctx.textAlign = 'center';
+    ctx.fillStyle = C_TREND; ctx.font = '9px Arial'; ctx.textAlign = 'center';
     ctx.fillText('— NECKLINE —', toX(0.38), nkY+(isBull?12:-8));
     const labels = isTriple ? ['A','C','E'] : ['A','C'];
     const lo = isBull ? -14 : 14;
@@ -3168,7 +3154,7 @@ async function doSendToTelegram(idx, token, chatId) {
     combined.width  = OUT_W;
     combined.height = OUT_H * 2 + gap;
     const cctx = combined.getContext('2d');
-    cctx.fillStyle = '#0d1117';
+    cctx.fillStyle = '#FAFAF7';
     cctx.fillRect(0, 0, combined.width, combined.height);
     cctx.drawImage(patternC, 0, 0, OUT_W, OUT_H);
     if (liveC) cctx.drawImage(liveC, 0, OUT_H + gap, OUT_W, OUT_H);
