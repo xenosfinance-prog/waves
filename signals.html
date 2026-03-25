@@ -288,12 +288,12 @@
   .detail-top { display: grid; grid-template-columns: 1fr 380px; gap: 20px; }
 
   .chart-container {
-    background: #0d1117;
+    background: #0f1724;
     border: 1px solid var(--border);
     border-top: 2px solid var(--gold);
     padding: 0;
     position: relative;
-    overflow: hidden;
+    overflow: visible;
   }
   .chart-header {
     font-size: 9px;
@@ -448,7 +448,7 @@
   .live-chart-body {
     position: relative;
     background: #0f1724;
-    height: 420px;
+    height: 340px;
   }
   .live-chart-body.loading::after {
     content: 'Loading live candles...';
@@ -2234,10 +2234,12 @@ function renderSignals(list) {
           // Pattern chart illustrativo
           const canvas = document.getElementById('chart-' + idx);
           if (canvas && !canvas.dataset.drawn) {
-            // Force explicit dimensions so ctx has a real size
-            canvas.style.width  = '100%';
-            canvas.style.height = '420px';
-            drawPatternChart(canvas, sig);
+            // Use actual container width for correct coordinate mapping
+            const containerW = canvas.parentElement ? canvas.parentElement.offsetWidth : 860;
+            const useW = containerW > 100 ? containerW : 860;
+            canvas.style.width  = useW + 'px';
+            canvas.style.height = '340px';
+            drawPatternChart(canvas, sig, useW, 340);
             canvas.dataset.drawn = '1';
           }
           // Live chart con candele reali
@@ -2326,7 +2328,7 @@ const FH_CANDLE_MAP = {
 function loadTradingViewChart(container, sig) {
   container.classList.remove('loading', 'error');
   container.innerHTML = '';
-  container.style.height = '420px';
+  container.style.height = '340px';
 
   const tvSym = TV_SYMBOL_MAP[sig.pair];
   const tvTF  = TV_TF_MAP[selectedTF] || '60';
@@ -2356,7 +2358,7 @@ function loadTradingViewChart(container, sig) {
       backgroundColor:   '#ffffff',
       gridColor:         'rgba(0,0,0,0)',
       width:             '100%',
-      height:            420,
+      height:            340,
       studies:           [],
       disabled_features: ['use_localstorage_for_settings','header_symbol_search','header_compare',
         'left_toolbar','header_indicators','header_undo_redo','header_screenshot',
@@ -2503,8 +2505,9 @@ async function loadLiveChart(container, sig, idx) {
 // Canvas 900x500 @ 2x = 1800x1000px effettivi
 // ══════════════════════════════════════════════════════════════
 
-function drawPatternChart(canvas, sig) {
-  const W = 860, H = 420;
+function drawPatternChart(canvas, sig, forcedW, forcedH) {
+  const W = (forcedW && forcedW > 100) ? forcedW : 860;
+  const H = (forcedH && forcedH > 100) ? forcedH : 340;
   const ML = 70, MR = 20, MT = 60, MB = 50;
   const CW = W - ML - MR, CH = H - MT - MB;
 
@@ -3156,7 +3159,7 @@ async function doSendToTelegram(idx, token, chatId) {
     // Combina i due canvas verticalmente
     const combined = document.createElement('canvas');
     const OUT_W = 1200;
-    const OUT_H = 500;
+    const OUT_H = 340;
     const gap = 4;
     // If we have live canvas: both panels. If TV iframe only: pattern + placeholder
     combined.width  = OUT_W;
