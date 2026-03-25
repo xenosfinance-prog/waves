@@ -6,25 +6,21 @@
 <title>XENOS · Signal Engine</title>
 <script src="https://unpkg.com/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=Outfit:wght@300;400;500;600;700&family=DM+Serif+Display:ital@0;1&display=swap');
 
-  :root {
-    --bg: #FDF8EF;
-    --bg2: #F5EDD8;
-    --bg3: #EDE0C0;
-    --border: #C9A96E;
-    --border-bright: #B8922A;
-    --accent: #7A5200;
-    --accent2: #9B6800;
-    --green: #1e7a35;
-    --red: #8B1A1A;
-    --yellow: #7A5200;
-    --text: #1C0F00;
-    --text-dim: #8B6B3D;
-    --text-bright: #1C0F00;
-    --mono: 'Space Mono', monospace;
-    --sans: 'Syne', sans-serif;
-  }
+  
+:root {
+  --bg:#080c10; --bg2:#0d1117; --bg3:#111820; --bg4:#161d27;
+  --border:#1e2a38; --border2:#243040; --border-bright:#2d4060;
+  --gold:#f59e0b; --gold2:#fbbf24; --gold3:#92400e;
+  --accent:#3b82f6; --accent2:#60a5fa; --accent-glow:rgba(59,130,246,.10);
+  --gold-glow:rgba(245,158,11,.08);
+  --text:#94a3b8; --text2:#cbd5e1; --text-bright:#f1f5f9; --text-dim:#475569;
+  --red:#ef4444; --red2:#f87171; --green:#10b981; --green2:#34d399;
+  --blue:#3b82f6; --blue2:#60a5fa; --yellow:#f59e0b;
+  --dim:#475569; --bright:#f1f5f9;
+  --mono:'IBM Plex Mono',monospace; --serif:'DM Serif Display',serif; --sans:'Outfit',sans-serif;
+}
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -41,8 +37,8 @@
     position: fixed;
     inset: 0;
     background-image:
-      linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+      linear-gradient(rgba(59,130,246,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(59,130,246,0.03) 1px, transparent 1px);
     background-size: 40px 40px;
     pointer-events: none;
     z-index: 0;
@@ -53,8 +49,8 @@
     position: fixed;
     top: 0; left: 50%; transform: translateX(-50%);
     width: 800px; height: 1px;
-    background: linear-gradient(90deg, transparent, #7A5200, transparent);
-    box-shadow: 0 0 60px 20px rgba(0,212,255,0.08);
+    background: linear-gradient(90deg, transparent, #f59e0b, transparent);
+    box-shadow: 0 0 60px 20px rgba(59,130,246,0.08);
     pointer-events: none;
     z-index: 0;
   }
@@ -103,7 +99,7 @@
     position: absolute;
     top: 0; left: 0; right: 0;
     height: 2px;
-    background: linear-gradient(90deg, transparent, #7A5200, transparent);
+    background: linear-gradient(90deg, transparent, #f59e0b, transparent);
   }
 
   .auth-title { font-family: var(--sans); font-weight: 800; font-size: 22px; color: var(--text-bright); margin-bottom: 6px; }
@@ -193,7 +189,7 @@
     transition: all 0.15s;
     white-space: nowrap;
   }
-  .toggle-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(0,212,255,0.06); }
+  .toggle-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(59,130,246,0.06); }
 
   .btn-generate {
     padding: 8px 24px;
@@ -273,7 +269,7 @@
   .detail-top { display: grid; grid-template-columns: 1fr 380px; gap: 20px; }
 
   .chart-container {
-    background: #FAFAF7;
+    background: #0d1117;
     border: 1px solid var(--border);
     border-top: 2px solid var(--gold);
     padding: 0;
@@ -290,12 +286,12 @@
     justify-content: space-between;
     align-items: center;
     border-bottom: 1px solid var(--border);
-    background: #F0EDE4;
+    background: #111820;
   }
   .chart-pattern-badge {
     font-size: 9px;
     color: var(--gold);
-    border: 1px solid rgba(122,82,0,0.3);
+    border: 1px solid rgba(245,158,11,0.3);
     padding: 1px 6px;
     letter-spacing: 0.08em;
   }
@@ -416,7 +412,7 @@
     justify-content: space-between;
     align-items: center;
     padding: 7px 12px;
-    background: #F0EDE4;
+    background: #111820;
     border-bottom: 1px solid var(--border);
     font-size: 9px;
     color: var(--text-dim);
@@ -426,13 +422,13 @@
   .live-chart-badge {
     font-size: 9px;
     color: var(--gold);
-    border: 1px solid rgba(122,82,0,0.3);
+    border: 1px solid rgba(245,158,11,0.3);
     padding: 1px 6px;
     letter-spacing: 0.08em;
   }
   .live-chart-body {
     position: relative;
-    background: #FAFAF7;
+    background: #0d1117;
     height: 320px;
   }
   .live-chart-body.loading::after {
@@ -469,6 +465,13 @@
     .signal-row { grid-template-columns: 1fr 1fr 1fr; grid-template-rows: auto auto; }
     .detail-top { grid-template-columns: 1fr; }
   }
+
+  body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 70% 40% at 10% 0%,rgba(59,130,246,.04) 0%,transparent 60%);pointer-events:none;z-index:0;}
+  a{color:var(--accent2);} a:hover{color:var(--gold2);}
+  input,select,textarea{background:var(--bg3)!important;border-color:var(--border)!important;color:var(--text2)!important;}
+  input::placeholder{color:var(--text-dim)!important;}
+  option{background:var(--bg3);color:var(--text2);}
+  ::-webkit-scrollbar{width:5px;height:5px;}::-webkit-scrollbar-track{background:var(--bg2);}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
 </style>
 </head>
 <body>
@@ -2333,12 +2336,12 @@ function loadTradingViewChart(container, sig) {
       theme:           'light',
       style:           '1',        // candele
       locale:          'en',
-      toolbar_bg:      '#F5EDD8',
+      toolbar_bg:      '#0d1117',
       enable_publishing: false,
       hide_top_toolbar:  false,
       hide_legend:       false,
       save_image:        false,
-      backgroundColor:   '#FDF8EF',
+      backgroundColor:   '#080c10',
       gridColor:         'rgba(0,0,0,0)',
       width:             '100%',
       height:            340,
@@ -2350,13 +2353,13 @@ function loadTradingViewChart(container, sig) {
       overrides: {
         'paneProperties.vertGridProperties.color': 'rgba(0,0,0,0)',
         'paneProperties.horzGridProperties.color': 'rgba(0,0,0,0)',
-        'scalesProperties.textColor': '#8B6B3D',
-        'mainSeriesProperties.candleStyle.upColor': '#1e5c35',
-        'mainSeriesProperties.candleStyle.downColor': '#8B1A1A',
-        'mainSeriesProperties.candleStyle.borderUpColor': '#1e5c35',
-        'mainSeriesProperties.candleStyle.borderDownColor': '#8B1A1A',
-        'mainSeriesProperties.candleStyle.wickUpColor': '#1e5c35',
-        'mainSeriesProperties.candleStyle.wickDownColor': '#8B1A1A',
+        'scalesProperties.textColor': '#64748b',
+        'mainSeriesProperties.candleStyle.upColor': '#10b981',
+        'mainSeriesProperties.candleStyle.downColor': '#ef4444',
+        'mainSeriesProperties.candleStyle.borderUpColor': '#10b981',
+        'mainSeriesProperties.candleStyle.borderDownColor': '#ef4444',
+        'mainSeriesProperties.candleStyle.wickUpColor': '#10b981',
+        'mainSeriesProperties.candleStyle.wickDownColor': '#ef4444',
       },
     });
   };
@@ -2424,7 +2427,7 @@ async function loadLightweightChart(container, sig) {
   const chart = LightweightCharts.createChart(container, {
     width:  container.offsetWidth || 860,
     height: 320,
-    layout: { background: { type: 'solid', color: '#FDF8EF' }, textColor: '#8B6B3D', fontSize: 11, fontFamily: "'Space Mono', monospace" },
+    layout: { background: { type: 'solid', color: '#080c10' }, textColor: '#64748b', fontSize: 11, fontFamily: "'Space Mono', monospace" },
     grid:   { vertLines: { color: 'rgba(0,0,0,0)' }, horzLines: { color: 'rgba(200,185,165,0.4)' } },
     crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
     rightPriceScale: { borderColor: '#1e2a3a' },
@@ -2673,7 +2676,7 @@ function drawPatternChart(canvas, sig) {
   ctx.fillText('NOW', nowX, MT+CH+14);
 
   // ── 8. HEADER ──
-  ctx.fillStyle = '#F8F8F8';
+  ctx.fillStyle = '#0d1117';
   ctx.fillRect(0, 0, W, MT);
   ctx.strokeStyle = '#DDDDDD';
   ctx.lineWidth = 1;
@@ -3139,7 +3142,7 @@ async function doSendToTelegram(idx, token, chatId) {
     combined.width  = OUT_W;
     combined.height = OUT_H * 2 + gap;
     const cctx = combined.getContext('2d');
-    cctx.fillStyle = '#FAFAF7';
+    cctx.fillStyle = '#0d1117';
     cctx.fillRect(0, 0, combined.width, combined.height);
     cctx.drawImage(patternC, 0, 0, OUT_W, OUT_H);
     if (liveC) cctx.drawImage(liveC, 0, OUT_H + gap, OUT_W, OUT_H);
