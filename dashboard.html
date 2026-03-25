@@ -1344,19 +1344,19 @@ body {
         <div style="background:var(--bg)">
           <div class="tradingview-widget-container" style="height:220px">
             <div class="tradingview-widget-container__widget" style="height:100%"></div>
-            <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-mini-symbol-overview.js" async>{"symbol":"CME_MINI:ES1!","width":"100%","height":"220","locale":"en","dateRange":"1D","colorTheme":"light","isTransparent":true,"autosize":true}</script>
+            <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-mini-symbol-overview.js" async>{"symbol":"OANDA:US500USD","width":"100%","height":"220","locale":"en","dateRange":"1D","colorTheme":"light","isTransparent":true,"autosize":true}</script>
           </div>
         </div>
         <div style="background:var(--bg)">
           <div class="tradingview-widget-container" style="height:220px">
             <div class="tradingview-widget-container__widget" style="height:100%"></div>
-            <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-mini-symbol-overview.js" async>{"symbol":"COMEX:GC1!","width":"100%","height":"220","locale":"en","dateRange":"1D","colorTheme":"light","isTransparent":true,"autosize":true}</script>
+            <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-mini-symbol-overview.js" async>{"symbol":"OANDA:XAUUSD","width":"100%","height":"220","locale":"en","dateRange":"1D","colorTheme":"light","isTransparent":true,"autosize":true}</script>
           </div>
         </div>
         <div style="background:var(--bg)">
           <div class="tradingview-widget-container" style="height:220px">
             <div class="tradingview-widget-container__widget" style="height:100%"></div>
-            <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-mini-symbol-overview.js" async>{"symbol":"NYMEX:CL1!","width":"100%","height":"220","locale":"en","dateRange":"1D","colorTheme":"light","isTransparent":true,"autosize":true}</script>
+            <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-mini-symbol-overview.js" async>{"symbol":"OANDA:WTIUSD","width":"100%","height":"220","locale":"en","dateRange":"1D","colorTheme":"light","isTransparent":true,"autosize":true}</script>
           </div>
         </div>
       </div>
@@ -1475,7 +1475,8 @@ async function fetchPrices() {
     'GBPUSD=X','USDJPY=X','GOOGL','META','AMZN','JPM',
     ...GLOBAL_MARKETS.flatMap(r => r.items.map(i => i.yf)),
     ...SECTORS.map(s => s.sym),
-    ...STOCKS_LIST.map(s => s.yf),  // ← include ALL stocks
+    ...STOCKS_LIST.map(s => s.yf),
+    ...FUTURES_ASSETS.map(f => f.yf),
   ])];
   try {
     const res = await fetch(WORKER, {
@@ -1691,11 +1692,11 @@ const tvSymbolMap = {
   'SI=F':'OANDA:XAGUSD',    // Silver
   'CL=F':'OANDA:WTIUSD',    // WTI Crude Oil
   'BZ=F':'OANDA:BCOUSD',    // Brent Crude
-  'NG=F':'NYMEX:NG1!',      // Natural Gas — NYMEX funziona
+  'NG=F':'OANDA:NATGASUSD',      // Natural Gas — NYMEX funziona
   'HG=F':'COMEX:HG1!',      // Copper
   // US Index Futures — CME funziona
-  'ES=F':'CME_MINI:ES1!','NQ=F':'CME_MINI:NQ1!',
-  'YM=F':'CBOT_MINI:YM1!','RTY=F':'CME_MINI:RTY1!',
+  'ES=F':'OANDA:US500USD','NQ=F':'OANDA:US100USD',
+  'YM=F':'OANDA:US30USD','RTY=F':'OANDA:US2000USD',
   // Global Indices — OANDA (funzionano nel widget senza restrizioni)
   'EWG':'OANDA:DE30EUR',    // DAX 40
   'EWU':'OANDA:UK100GBP',   // FTSE 100
@@ -1741,7 +1742,7 @@ function loadTVChart(yf) {
     theme: 'light',
     style: '1',
     locale: 'en',
-    toolbar_bg: '#f9fafb',
+    toolbar_bg: '#F5EDD8',
     enable_publishing: false,
     hide_side_toolbar: false,
     allow_symbol_change: true,
@@ -1751,8 +1752,6 @@ function loadTVChart(yf) {
     overrides: {
       'paneProperties.background': '#ffffff',
       'paneProperties.backgroundType': 'solid',
-      'paneProperties.vertGridProperties.color': 'rgba(0,0,0,0)',
-      'paneProperties.horzGridProperties.color': 'rgba(0,0,0,0)',
       'scalesProperties.textColor': '#374151',
       'mainSeriesProperties.candleStyle.upColor': '#26a69a',
       'mainSeriesProperties.candleStyle.downColor': '#ef5350',
