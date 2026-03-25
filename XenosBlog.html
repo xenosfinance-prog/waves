@@ -4,9 +4,21 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>XenosFinance — AI Blog</title>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=IBM+Plex+Mono:wght@300;400;500&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=Outfit:wght@300;400;500;600;700&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
 <style>
-  :root { --bg:#FDF8EF; --bg2:#F5EDD8; --bg3:#EDE0C0; --border:#C9A96E; --gold:#7A5200; --gold-light:#9B6800; --text:#1C0F00; --text-dim:#8B6B3D; --text-bright:#1C0F00; }
+  
+:root {
+  --bg:#080c10; --bg2:#0d1117; --bg3:#111820; --bg4:#161d27;
+  --border:#1e2a38; --border2:#243040; --border-bright:#2d4060;
+  --gold:#f59e0b; --gold2:#fbbf24; --gold3:#92400e;
+  --accent:#3b82f6; --accent2:#60a5fa; --accent-glow:rgba(59,130,246,.10);
+  --gold-glow:rgba(245,158,11,.08);
+  --text:#94a3b8; --text2:#cbd5e1; --text-bright:#f1f5f9; --text-dim:#475569;
+  --red:#ef4444; --red2:#f87171; --green:#10b981; --green2:#34d399;
+  --blue:#3b82f6; --blue2:#60a5fa; --yellow:#f59e0b;
+  --dim:#475569; --bright:#f1f5f9;
+  --mono:'IBM Plex Mono',monospace; --serif:'DM Serif Display',serif; --sans:'Outfit',sans-serif;
+}
   * { margin:0; padding:0; box-sizing:border-box; }
   body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; font-weight:300; }
   header { background:var(--bg2); border-bottom:1px solid var(--border); padding:0 5vw; position:sticky; top:0; z-index:100; }
@@ -14,14 +26,14 @@
   .logo { font-family:'IBM Plex Mono',monospace; font-size:1.3rem; font-weight:500; color:var(--text-bright); text-decoration:none; }
   .logo span { color:var(--gold); }
   .header-date { font-family:'IBM Plex Mono',monospace; font-size:0.62rem; color:var(--text-dim); letter-spacing:0.12em; text-transform:uppercase; }
-  .ai-badge { display:inline-flex; align-items:center; gap:6px; background:rgba(201,168,76,0.1); border:1px solid rgba(201,168,76,0.25); color:var(--gold); padding:5px 12px; font-family:'IBM Plex Mono',monospace; font-size:0.6rem; letter-spacing:0.15em; text-transform:uppercase; }
+  .ai-badge { display:inline-flex; align-items:center; gap:6px; background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.25); color:var(--gold); padding:5px 12px; font-family:'IBM Plex Mono',monospace; font-size:0.6rem; letter-spacing:0.15em; text-transform:uppercase; }
   .pulse { width:6px; height:6px; background:var(--gold); border-radius:50%; animation:pulse 1.5s ease infinite; }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.2} }
   nav { display:flex; gap:28px; padding:10px 0; }
   nav a { font-family:'IBM Plex Mono',monospace; font-size:0.65rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--text-dim); text-decoration:none; transition:color 0.2s; }
   nav a:hover, nav a.active { color:var(--gold); }
   .hero { background:var(--bg2); border-bottom:1px solid var(--border); padding:48px 5vw; position:relative; overflow:hidden; }
-  .hero::before { content:''; position:absolute; top:-80px; right:-80px; width:500px; height:500px; background:radial-gradient(circle,rgba(201,168,76,0.05) 0%,transparent 70%); pointer-events:none; }
+  .hero::before { content:''; position:absolute; top:-80px; right:-80px; width:500px; height:500px; background:radial-gradient(circle,rgba(245,158,11,0.05) 0%,transparent 70%); pointer-events:none; }
   .hero-eyebrow { font-family:'IBM Plex Mono',monospace; font-size:0.62rem; letter-spacing:0.25em; text-transform:uppercase; color:var(--gold); margin-bottom:16px; }
   .hero-title { font-family:'Playfair Display',serif; font-size:clamp(2rem,4vw,3.2rem); font-weight:900; color:var(--text-bright); line-height:1.1; margin-bottom:14px; }
   .hero-title span { color:var(--gold); }
@@ -62,24 +74,31 @@
   .footer-logo span { color:var(--gold); }
   .footer-note { font-family:'IBM Plex Mono',monospace; font-size:0.56rem; color:var(--text-dim); text-align:right; line-height:1.7; }
   @keyframes spin { to{transform:rotate(360deg)} }
-  .spinner { display:inline-block; width:14px; height:14px; border:1.5px solid rgba(201,168,76,0.2); border-top-color:var(--gold); border-radius:50%; animation:spin 0.7s linear infinite; vertical-align:middle; margin-right:8px; }
+  .spinner { display:inline-block; width:14px; height:14px; border:1.5px solid rgba(245,158,11,0.2); border-top-color:var(--gold); border-radius:50%; animation:spin 0.7s linear infinite; vertical-align:middle; margin-right:8px; }
   @media(max-width:800px){ .blog-grid{grid-template-columns:1fr 1fr;} }
   @media(max-width:500px){ .blog-grid{grid-template-columns:1fr;} .article-meta{flex-direction:column;gap:6px;} }
+
+  body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 70% 40% at 10% 0%,rgba(59,130,246,.04) 0%,transparent 60%);pointer-events:none;z-index:0;}
+  a{color:var(--accent2);} a:hover{color:var(--gold2);}
+  input,select,textarea{background:var(--bg3)!important;border-color:var(--border)!important;color:var(--text2)!important;}
+  input::placeholder{color:var(--text-dim)!important;}
+  option{background:var(--bg3);color:var(--text2);}
+  ::-webkit-scrollbar{width:5px;height:5px;}::-webkit-scrollbar-track{background:var(--bg2);}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
 </style>
 </head>
 <body>
 
-<div id="loginScreen" style="display:none;align-items:center;justify-content:center;position:fixed;inset:0;z-index:9999;background:#FDF8EF;">
-  <div style="border:1px solid #C9A96E;background:#F5EDD8;padding:40px;width:340px;position:relative;">
-    <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,#7A5200,transparent);"></div>
-    <div style="font-family:'IBM Plex Mono',monospace;font-size:1rem;font-weight:500;color:#1C0F00;margin-bottom:6px;">XENOS<span style="color:#7A5200;">FINANCE</span></div>
-    <div style="font-family:'IBM Plex Mono',monospace;font-size:0.6rem;color:#8B6B3D;letter-spacing:0.12em;margin-bottom:24px;">ADMIN ACCESS — AI BLOG</div>
-    <div style="font-family:'IBM Plex Mono',monospace;font-size:0.58rem;color:#8B6B3D;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:6px;">Password</div>
+<div id="loginScreen" style="display:none;align-items:center;justify-content:center;position:fixed;inset:0;z-index:9999;background:#080c10;">
+  <div style="border:1px solid #1e2a38;background:#0d1117;padding:40px;width:340px;position:relative;">
+    <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,#f59e0b,transparent);"></div>
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:1rem;font-weight:500;color:#f1f5f9;margin-bottom:6px;">XENOS<span style="color:#f59e0b;">FINANCE</span></div>
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:0.6rem;color:#64748b;letter-spacing:0.12em;margin-bottom:24px;">ADMIN ACCESS — AI BLOG</div>
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:0.58rem;color:#64748b;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:6px;">Password</div>
     <input id="loginPw" type="password" placeholder="••••••••"
       onkeydown="if(event.key==='Enter') doLogin()"
-      style="width:100%;background:#FDF8EF;border:1px solid #C9A96E;color:#1C0F00;font-family:'IBM Plex Mono',monospace;font-size:13px;padding:10px 12px;outline:none;margin-bottom:14px;">
-    <button onclick="doLogin()" style="width:100%;background:#7A5200;color:#FDF8EF;border:none;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;padding:13px;cursor:pointer;">Access Admin</button>
-    <div id="loginErr" style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#8B1A1A;margin-top:10px;min-height:16px;"></div>
+      style="width:100%;background:#080c10;border:1px solid #1e2a38;color:#f1f5f9;font-family:'IBM Plex Mono',monospace;font-size:13px;padding:10px 12px;outline:none;margin-bottom:14px;">
+    <button onclick="doLogin()" style="width:100%;background:#f59e0b;color:#080c10;border:none;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;padding:13px;cursor:pointer;">Access Admin</button>
+    <div id="loginErr" style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#ef4444;margin-top:10px;min-height:16px;"></div>
   </div>
 </div>
 
