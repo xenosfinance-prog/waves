@@ -2505,7 +2505,7 @@ async function loadLiveChart(container, sig, idx) {
 
 function drawPatternChart(canvas, sig) {
   const W = 860, H = 420;
-  const ML = 72, MR = 72, MT = 64, MB = 44;
+  const ML = 58, MR = 90, MT = 60, MB = 44;
   const CW = W - ML - MR, CH = H - MT - MB;
 
   canvas.width  = W * 2;
@@ -2531,8 +2531,8 @@ function drawPatternChart(canvas, sig) {
 
   const spread = Math.abs(tp - sl) || Math.abs(entry * 0.015) || 1;
   const center = (tp + sl) / 2;
-  const pMin   = Math.min(sl, tp, entry) - spread * 2.5;
-  const pMax   = Math.max(sl, tp, entry) + spread * 2.5;
+  const pMin   = Math.min(sl, tp, entry) - spread * 3.0;
+  const pMax   = Math.max(sl, tp, entry) + spread * 3.0;
 
   const toY = p => MT + CH - ((p - pMin) / (pMax - pMin)) * CH;
   const toX = t => ML + t * CW;
@@ -2670,9 +2670,19 @@ function drawPatternChart(canvas, sig) {
   ctx.font = 'bold 9px monospace';
   ctx.textAlign = 'left';
   const fmtP2 = p => p > 1000 ? p.toFixed(0) : p > 10 ? p.toFixed(2) : p.toFixed(4);
-  ctx.fillStyle = C_TP;    ctx.fillText('TP  ' + fmtP2(tp),    ML+CW+3, tpY+3);
-  ctx.fillStyle = C_ENTRY; ctx.fillText('ENT ' + fmtP2(entry), ML+CW+3, entryY+3);
-  ctx.fillStyle = C_SL;    ctx.fillText('SL  ' + fmtP2(sl),    ML+CW+3, slY+3);
+  function priceTag(lbl, val, y, col) {
+    const txt = lbl + ' ' + fmtP2(val);
+    ctx.font = 'bold 9px monospace';
+    const tw = ctx.measureText(txt).width;
+    const px = ML+CW+4, pw = tw+10, ph = 16;
+    const py = Math.max(MT+2, Math.min(MT+CH-ph-2, y-ph/2));
+    ctx.fillStyle = col; ctx.globalAlpha = 0.15; ctx.fillRect(px,py,pw,ph);
+    ctx.globalAlpha = 1; ctx.fillStyle = col; ctx.textAlign = 'left';
+    ctx.fillText(txt, px+5, py+11);
+  }
+  priceTag('TP', tp, tpY, C_TP);
+  priceTag('ENT', entry, entryY, C_ENTRY);
+  priceTag('SL', sl, slY, C_SL);
 
   // ── 6. PATTERN SHAPE ──
   drawPatternShape(ctx, pat, isBull, entry, sl, tp,
@@ -3134,21 +3144,18 @@ async function doSendToTelegram(idx, token, chatId) {
   const btn = document.querySelector(`[onclick="sendToTelegram(event, ${idx})"]`);
   if (btn) { btn.disabled = true; btn.textContent = '⏳ SENDING...'; }
   try {
-    // Pattern canvas — redraw at 1200px for Telegram quality
-    const tmp = document.createElement('canvas');
-    drawPatternChart(tmp, sig);
-    tmp.width = 1200 * 2; tmp.height = 420 * 2;
-    const patternC = (() => { const t2 = document.createElement('canvas'); drawPatternChart(t2, sig); return t2; })();
+    // Pattern canvas — redraw fresh for Telegram
+    const patternC = document.createElement('canvas');
+    drawPatternChart(patternC, sig);
 
     // Live chart canvas (interno al div lc-idx)
     const liveDiv = document.getElementById('lc-' + idx);
-    // Lightweight Charts = direct canvas; TradingView = iframe (not capturable)
-    const liveC = liveDiv ? (liveDiv.querySelector('canvas:not([data-ignore])') || null) : null;
+    const liveC = liveDiv ? (liveDiv.querySelector('canvas') || null) : null;
 
     // Combina i due canvas verticalmente
     const combined = document.createElement('canvas');
     const OUT_W = 1200;
-    const OUT_H = 420; // matches chart height
+    const OUT_H = 420;
     const gap = 4;
     combined.width  = OUT_W;
     combined.height = OUT_H * 2 + gap;
