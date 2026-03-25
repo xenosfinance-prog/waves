@@ -9,36 +9,36 @@
   @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap');
 
   :root {
-  --bg:      #080c10;
-  --bg2:     #0d1117;
-  --bg3:     #111820;
-  --bg4:     #161d27;
-  --border:  #1e2a38;
-  --border2: #243040;
-  --border-bright: #2d4060;
-  --gold:    #f59e0b;
-  --gold2:   #fbbf24;
-  --gold3:   #92400e;
-  --accent:  #3b82f6;
-  --accent2: #60a5fa;
-  --text:    #94a3b8;
-  --dim:     #475569;
-  --red:     #ef4444;
-  --red2:    #f87171;
-  --green:   #10b981;
-  --green2:  #34d399;
-  --blue:    #3b82f6;
-  --blue2:   #60a5fa;
-  --yellow:  #f59e0b;
-  --ink:     #f1f5f9;
-  --ink2:    #cbd5e1;
-  --muted:   #64748b;
-  --bright:  #f1f5f9;
-  --serif:   'Playfair Display', Georgia, serif;
-  --body:    'PT Serif', Georgia, serif;
-  --mono:    'IBM Plex Mono', 'PT Mono', monospace;
-  --sans:    'Inter', sans-serif;
-  --sidebar: 200px;
+  --bg:            #0f1724;
+  --bg2:           #131f2e;
+  --bg3:           #172032;
+  --bg4:           #1c2840;
+  --border:        #1e3050;
+  --border2:       #243a5e;
+  --border-bright: #2d4a78;
+  --gold:          #3b82f6;
+  --gold2:         #60a5fa;
+  --gold3:         #1d4ed8;
+  --accent:        #3b82f6;
+  --accent2:       #60a5fa;
+  --text:          #94a3b8;
+  --dim:           #4a6080;
+  --red:           #ef4444;
+  --red2:          #f87171;
+  --green:         #10b981;
+  --green2:        #34d399;
+  --blue:          #3b82f6;
+  --blue2:         #60a5fa;
+  --yellow:        #f59e0b;
+  --ink:           #e2eaf4;
+  --ink2:          #b8cce0;
+  --muted:         #5a7a9a;
+  --bright:        #e2eaf4;
+  --serif:         'Playfair Display', Georgia, serif;
+  --body:          'PT Serif', Georgia, serif;
+  --mono:          'IBM Plex Mono', 'PT Mono', monospace;
+  --sans:          'Inter', sans-serif;
+  --sidebar:       200px;
 }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -310,7 +310,7 @@
   .chart-pattern-badge {
     font-size: 9px;
     color: var(--gold);
-    border: 1px solid rgba(245,158,11,0.3);
+    border: 1px solid rgba(59,130,246,0.3);
     padding: 1px 6px;
     letter-spacing: 0.08em;
   }
@@ -441,14 +441,14 @@
   .live-chart-badge {
     font-size: 9px;
     color: var(--gold);
-    border: 1px solid rgba(245,158,11,0.3);
+    border: 1px solid rgba(59,130,246,0.3);
     padding: 1px 6px;
     letter-spacing: 0.08em;
   }
   .live-chart-body {
     position: relative;
-    background: #0d1117;
-    height: 320px;
+    background: #0f1724;
+    height: 420px;
   }
   .live-chart-body.loading::after {
     content: 'Loading live candles...';
@@ -2236,7 +2236,7 @@ function renderSignals(list) {
           if (canvas && !canvas.dataset.drawn) {
             // Force explicit dimensions so ctx has a real size
             canvas.style.width  = '900px';
-            canvas.style.height = '500px';
+            canvas.style.height = '420px';
             drawPatternChart(canvas, sig);
             canvas.dataset.drawn = '1';
           }
@@ -2326,7 +2326,7 @@ const FH_CANDLE_MAP = {
 function loadTradingViewChart(container, sig) {
   container.classList.remove('loading', 'error');
   container.innerHTML = '';
-  container.style.height = '340px';
+  container.style.height = '420px';
 
   const tvSym = TV_SYMBOL_MAP[sig.pair];
   const tvTF  = TV_TF_MAP[selectedTF] || '60';
@@ -2348,15 +2348,15 @@ function loadTradingViewChart(container, sig) {
       theme:           'light',
       style:           '1',        // candele
       locale:          'en',
-      toolbar_bg:      '#F5EDD8',
+      toolbar_bg:      '#f8fafc',
       enable_publishing: false,
       hide_top_toolbar:  false,
       hide_legend:       false,
       save_image:        false,
-      backgroundColor:   '#FDF8EF',
+      backgroundColor:   '#ffffff',
       gridColor:         'rgba(0,0,0,0)',
       width:             '100%',
-      height:            340,
+      height:            420,
       studies:           [],
       disabled_features: ['use_localstorage_for_settings','header_symbol_search','header_compare',
         'left_toolbar','header_indicators','header_undo_redo','header_screenshot',
@@ -2541,14 +2541,14 @@ function drawPatternChart(canvas, sig) {
   const nowX = toX(0.62);
 
   // ── Colors: clean professional ──
-  const C_BG      = '#FFFFFF';
+  const C_BG      = '#ffffff';
   const C_GRID    = '#E8E8E8';
   const C_AXIS    = '#333333';
   const C_PRICE   = '#111111';     // price line (black)
-  const C_TREND   = '#1565C0';     // trendlines (blue)
+  const C_TREND   = '#3b82f6';     // trendlines (blue)
   const C_BULL    = '#2E7D32';     // green arrow/zones
   const C_BEAR    = '#C62828';     // red arrow/zones
-  const C_ENTRY   = '#1565C0';     // entry level (blue)
+  const C_ENTRY   = '#3b82f6';     // entry level (blue)
   const C_SL      = '#C62828';     // stop loss (red)
   const C_TP      = '#2E7D32';     // take profit (green)
   const C_NOW     = '#555555';
