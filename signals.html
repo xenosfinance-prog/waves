@@ -2272,11 +2272,22 @@ function renderSignals(list) {
           // Pattern chart illustrativo
           const canvas = document.getElementById('chart-' + idx);
           if (canvas && !canvas.dataset.drawn) {
-            // Force explicit dimensions so ctx has a real size
             canvas.style.width  = '860px';
             canvas.style.height = '420px';
+            // Try to draw immediately
             drawPatternChart(canvas, sig);
             canvas.dataset.drawn = '1';
+            // If candles not yet in cache, redraw after live chart loads
+            const ck = sig.pair + '_' + selectedTF;
+            if (!candleCache[ck] || candleCache[ck].length < 10) {
+              setTimeout(() => {
+                if (candleCache[ck] && candleCache[ck].length >= 10) {
+                  canvas.dataset.drawn = '0';
+                  drawPatternChart(canvas, sig);
+                  canvas.dataset.drawn = '1';
+                }
+              }, 5000); // retry after 5s when candles should be loaded
+            }
           }
           // Live chart con candele reali
           const lcDiv = document.getElementById('lc-' + idx);
