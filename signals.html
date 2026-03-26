@@ -450,7 +450,7 @@
   .live-chart-body {
     position: relative;
     background: #0d1117;
-    height: 400px;
+    height: 420px;
   }
   .live-chart-body.loading::after {
     content: 'Loading live candles...';
@@ -760,6 +760,41 @@ async function fetchLivePrices(pairs) {
       }
 
       // Toast finale
+
+    // ── STEP 3: Massive API for FX crosses + extra crypto not covered above ──
+    const MASSIVE_TICKER = {
+      // FX crosses missing from Frankfurter
+      'AUDCAD':'C:AUDCAD','AUDCHF':'C:AUDCHF','AUDJPY':'C:AUDJPY',
+      'CADCHF':'C:CADCHF','CHFJPY':'C:CHFJPY','EURNZD':'C:EURNZD',
+      'EURAUD':'C:EURAUD','EURCAD':'C:EURCAD','GBPAUD':'C:GBPAUD',
+      'GBPCAD':'C:GBPCAD','GBPNZD':'C:GBPNZD','NZDCAD':'C:NZDCAD',
+      'NZDCHF':'C:NZDCHF','NZDJPY':'C:NZDJPY',
+      'USDMXN':'C:USDMXN','USDNOK':'C:USDNOK','USDSEK':'C:USDSEK',
+      'USDTRY':'C:USDTRY','USDZAR':'C:USDZAR',
+      // Crypto not in CoinGecko list
+      'BNBUSD':'X:BNBUSD','ADAUSD':'X:ADAUSD','AVAXUSD':'X:AVAXUSD',
+      'LINKUSD':'X:LINKUSD','MATICUSD':'X:MATICUSD','DOTUSD':'X:DOTUSD',
+      'LTCUSD':'X:LTCUSD','ATOMUSD':'X:ATOMUSD','UNIUSD':'X:UNIUSD',
+      'XLMUSD':'X:XLMUSD','TRXUSD':'X:TRXUSD','ETCUSD':'X:ETCUSD','NEARUSD':'X:NEARUSD',
+    };
+    const missingPairs = pairs.filter(p => !basePrices[p] || basePrices[p] === 0);
+    const massivePairs = missingPairs.filter(p => MASSIVE_TICKER[p]);
+    if (massivePairs.length > 0) {
+      try {
+        const snapshots = await Promise.all(massivePairs.map(async p => {
+          const ticker = MASSIVE_TICKER[p];
+          const url = `https://api.massive.com/v2/snapshot/locale/global/markets/forex/tickers/${encodeURIComponent(ticker)}?apiKey=B9mR9m_8nCD3hzy69GnLKW3l1prM9EKD`;
+          const r = await fetch(url, {signal: AbortSignal.timeout(4000)});
+          if (!r.ok) return null;
+          const d = await r.json();
+          const price = d?.ticker?.lastTrade?.p || d?.ticker?.lastQuote?.P || d?.ticker?.prevDay?.c;
+          return price ? {pair: p, price: parseFloat(price)} : null;
+        }));
+        for (const s of snapshots) {
+          if (s) basePrices[s.pair] = s.price;
+        }
+      } catch(e) { console.warn('Massive prices:', e.message); }
+    }
       const total = Object.keys(basePrices).length;
       if (total > 0) showToast(`Prezzi live: ${total}/${pairs.length} strumenti (FH+TD: ${fhCount})`);
 
@@ -2239,7 +2274,7 @@ function renderSignals(list) {
           if (canvas && !canvas.dataset.drawn) {
             // Force explicit dimensions so ctx has a real size
             canvas.style.width  = '860px';
-            canvas.style.height = '400px';
+            canvas.style.height = '420px';
             drawPatternChart(canvas, sig);
             canvas.dataset.drawn = '1';
           }
@@ -2329,7 +2364,7 @@ const FH_CANDLE_MAP = {
 function loadTradingViewChart(container, sig) {
   container.classList.remove('loading', 'error');
   container.innerHTML = '';
-  container.style.height = '400px';
+  container.style.height = '420px';
 
   const tvSym = TV_SYMBOL_MAP[sig.pair];
   const tvTF  = TV_TF_MAP[selectedTF] || '60';
@@ -2359,7 +2394,7 @@ function loadTradingViewChart(container, sig) {
       backgroundColor:   '#ffffff',
       gridColor:         'rgba(0,0,0,0)',
       width:             '100%',
-      height:            400,
+      height:            420,
       studies:           [],
       disabled_features: ['use_localstorage_for_settings','header_symbol_search','header_compare',
         'left_toolbar','header_indicators','header_undo_redo','header_screenshot',
@@ -2508,7 +2543,7 @@ async function loadLiveChart(container, sig, idx) {
 
 function drawPatternChart(canvas, sig) {
   const W = 860, H = 420;
-  const ML = 60, MR = 90, MT = 60, MB = 44;
+  const ML = 60, MR = 20, MT = 60, MB = 44;
   const CW = W - ML - MR, CH = H - MT - MB;
 
   canvas.width  = W * 2;
@@ -2654,41 +2689,11 @@ function drawPatternChart(canvas, sig) {
   ctx.lineWidth = 1;
   ctx.strokeRect(ML, MT, CW, CH);
 
-  // ── 4. TP / SL ZONES ──
+  // ── 4. Store Y coords for pattern drawing only ──
   const entryY = toY(entry);
   const slY    = toY(sl);
   const tpY    = toY(tp);
-
-  // SL zone (red, left of NOW)
-  fillZone(ML, Math.min(slY,entryY), nowX, Math.max(slY,entryY), C_BEAR, 0.07);
-  // TP zone (green, right of NOW)
-  fillZone(nowX, Math.min(tpY,entryY), ML+CW, Math.max(tpY,entryY), C_BULL, 0.07);
-
-  // ── 5. HORIZONTAL LEVELS ──
-  line(ML, tpY,    ML+CW, tpY,    C_TP,    1.5, [6,4]);
-  line(ML, entryY, ML+CW, entryY, C_ENTRY, 1.5, []);
-  line(ML, slY,    ML+CW, slY,    C_SL,    1.5, [6,4]);
-
-  // Level labels — pill style inside right margin
-  const fmtP2 = p => p > 1000 ? p.toFixed(0) : p > 10 ? p.toFixed(2) : p.toFixed(4);
-  function pricePill(lbl, val, y, col) {
-    ctx.font = 'bold 10px Arial';
-    const txt = lbl + ' ' + fmtP2(val);
-    const tw = ctx.measureText(txt).width;
-    const px = ML+CW+5, ph = 17, pw = Math.max(tw+12, 60);
-    const py = Math.max(MT+2, Math.min(MT+CH-ph-2, y - ph/2));
-    ctx.save();
-    ctx.fillStyle = col; ctx.globalAlpha = 0.15;
-    ctx.beginPath(); ctx.roundRect(px, py, pw, ph, 3); ctx.fill();
-    ctx.globalAlpha = 1; ctx.strokeStyle = col; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.roundRect(px, py, pw, ph, 3); ctx.stroke();
-    ctx.fillStyle = col; ctx.textAlign = 'left';
-    ctx.fillText(txt, px+6, py+12);
-    ctx.restore();
-  }
-  pricePill('TP',  tp,    tpY,    C_TP);
-  pricePill('ENT', entry, entryY, C_ENTRY);
-  pricePill('SL',  sl,    slY,    C_SL);
+  // No SL/Entry/TP lines drawn — pattern shape speaks for itself
 
   // ── 6. PATTERN SHAPE ──
   drawPatternShape(ctx, pat, isBull, entry, sl, tp,
