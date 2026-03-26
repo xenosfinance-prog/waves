@@ -2553,9 +2553,10 @@ async function loadLiveChart(container, sig, idx) {
 // Canvas 900x500 @ 2x = 1800x1000px effettivi
 // ══════════════════════════════════════════════════════════════
 
-function drawPatternChart(canvas, sig, candlesParam) {
-  const W = 860, H = 400;
-  const PAD = 20; // padding all sides — no axis labels, no borders
+function drawPatternChart(canvas, sig) {
+  const W = 860, H = 420;
+  const ML = 70, MR = 20, MT = 60, MB = 50;
+  const CW = W - ML - MR, CH = H - MT - MB;
 
   canvas.width  = W * 2;
   canvas.height = H * 2;
@@ -2570,322 +2571,543 @@ function drawPatternChart(canvas, sig, candlesParam) {
   const tp     = parseFloat(sig.tp);
   const pat    = (sig.pattern || '').toLowerCase();
 
-  // ── WHITE background ──
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, W, H);
-
   if (!isFinite(entry) || !isFinite(sl) || !isFinite(tp)) {
-    ctx.fillStyle = '#999';
-    ctx.font = '13px Arial';
+    ctx.fillStyle = '#888';
+    ctx.font = '13px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('No data', W/2, H/2);
+    ctx.fillText('Chart data unavailable', W/2, H/2);
     return;
   }
 
-  // ── Get candles ──
-  const cacheKey = sig.pair + '_' + selectedTF;
-  const candles  = (candlesParam && candlesParam.length >= 10)
-                   ? candlesParam
-                   : (candleCache[cacheKey] || []);
-  const hasCandles = candles.length >= 10;
+  const spread = Math.abs(tp - sl) || Math.abs(entry * 0.015) || 1;
+  const center = (tp + sl) / 2;
+  const pMin   = Math.min(sl, tp, entry) - spread * 0.8;
+  const pMax   = Math.max(sl, tp, entry) + spread * 0.8;
 
-  // ── Price range from candles or entry/sl/tp ──
-  const spread = Math.abs(tp - sl) || Math.abs(entry * 0.01) || 1;
-  let pMin, pMax;
-  if (hasCandles) {
-    const last = candles.slice(-60);
-    pMin = Math.min(...last.map(c => parseFloat(c.low)));
-    pMax = Math.max(...last.map(c => parseFloat(c.high)));
-    const rng = pMax - pMin;
-    pMin -= rng * 0.08;
-    pMax += rng * 0.08;
-  } else {
-    pMin = Math.min(sl, tp, entry) - spread * 2.5;
-    pMax = Math.max(sl, tp, entry) + spread * 2.5;
-  }
+  const toY = p => MT + CH - ((p - pMin) / (pMax - pMin)) * CH;
+  const toX = t => ML + t * CW;
 
-  const CW = W - PAD * 2;
-  const CH = H - PAD * 2 - 40; // 40px for header
-  const OY = PAD + 40; // chart area starts after header
+  // ── NOW line at 62% ──
+  const nowX = toX(0.62);
 
-  const toY = p  => OY + CH - ((parseFloat(p) - pMin) / (pMax - pMin)) * CH;
-  const toX = t  => PAD + t * CW;
+  // ── Colors: clean professional ──
+  const C_BG      = '#FFFFFF';
+  const C_GRID    = '#E8E8E8';
+  const C_AXIS    = '#333333';
+  const C_PRICE   = '#111111';     // price line (black)
+  const C_TREND   = '#1565C0';     // trendlines (blue)
+  const C_BULL    = '#2E7D32';     // green arrow/zones
+  const C_BEAR    = '#C62828';     // red arrow/zones
+  const C_ENTRY   = '#1565C0';     // entry level (blue)
+  const C_SL      = '#C62828';     // stop loss (red)
+  const C_TP      = '#2E7D32';     // take profit (green)
+  const C_NOW     = '#555555';
 
-  // ── Draw real candles ──
-  if (hasCandles) {
-    const last = candles.slice(-60);
-    const n    = last.length;
-    const cw   = Math.max(3, (CW / n) * 0.65);
-    last.forEach((c, i) => {
-      const o = parseFloat(c.open), h = parseFloat(c.high);
-      const l = parseFloat(c.low),  cl= parseFloat(c.close);
-      const x  = PAD + (i + 0.5) * (CW / n);
-      const up = cl >= o;
-      // Wick
-      ctx.strokeStyle = up ? '#26a69a' : '#ef5350';
-      ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(x, toY(h)); ctx.lineTo(x, toY(l)); ctx.stroke();
-      // Body
-      const by = toY(Math.max(o, cl));
-      const bh = Math.max(1, Math.abs(toY(o) - toY(cl)));
-      ctx.fillStyle = up ? '#26a69a' : '#ef5350';
-      ctx.fillRect(x - cw/2, by, cw, bh);
-    });
-  }
+  const dirCol = isBull ? C_BULL : C_BEAR;
 
-  // ── NOW line ──
-  const nowX = toX(hasCandles ? 0.82 : 0.65);
-  ctx.strokeStyle = '#cccccc';
-  ctx.lineWidth = 1;
-  ctx.setLineDash([5, 4]);
-  ctx.beginPath(); ctx.moveTo(nowX, OY); ctx.lineTo(nowX, OY + CH); ctx.stroke();
-  ctx.setLineDash([]);
-
-  // ── Helper: draw line ──
-  function L(x1, y1, x2, y2, col, w, dash) {
+  // ── Helpers ──
+  function line(x1,y1,x2,y2, color, width=1.5, dash=[]) {
     ctx.save();
-    ctx.strokeStyle = col || '#1a1a1a';
-    ctx.lineWidth   = w   || 2;
+    ctx.strokeStyle = color;
+    ctx.lineWidth   = width;
+    ctx.setLineDash(dash);
     ctx.lineCap = 'round';
-    if (dash) ctx.setLineDash(dash);
-    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x1,y1);
+    ctx.lineTo(x2,y2);
+    ctx.stroke();
     ctx.restore();
   }
 
-  // ── Helper: draw arrow ──
-  function ARR(x1, y1, x2, y2, col) {
+  function arrow(x1,y1,x2,y2, color, width=3) {
     ctx.save();
-    col = col || (isBull ? '#27ae60' : '#e74c3c');
-    ctx.strokeStyle = col; ctx.fillStyle = col;
-    ctx.lineWidth = 3; ctx.lineCap = 'round';
-    const a = Math.atan2(y2-y1, x2-x1), hs = 18;
+    ctx.strokeStyle = color;
+    ctx.fillStyle   = color;
+    ctx.lineWidth   = width;
+    ctx.lineCap     = 'round';
+    const angle = Math.atan2(y2-y1, x2-x1);
+    const hs = 14;
+    // shorten line to not overlap arrowhead
+    const ex = x2 - hs*0.8*Math.cos(angle);
+    const ey = y2 - hs*0.8*Math.sin(angle);
+    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(ex,ey); ctx.stroke();
     ctx.beginPath();
-    ctx.moveTo(x1, y1);
-    ctx.lineTo(x2 - hs*0.8*Math.cos(a), y2 - hs*0.8*Math.sin(a));
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(x2, y2);
-    ctx.lineTo(x2 - hs*Math.cos(a-0.35), y2 - hs*Math.sin(a-0.35));
-    ctx.lineTo(x2 - hs*Math.cos(a+0.35), y2 - hs*Math.sin(a+0.35));
+    ctx.moveTo(x2,y2);
+    ctx.lineTo(x2 - hs*Math.cos(angle-0.4), y2 - hs*Math.sin(angle-0.4));
+    ctx.lineTo(x2 - hs*Math.cos(angle+0.4), y2 - hs*Math.sin(angle+0.4));
     ctx.closePath(); ctx.fill();
     ctx.restore();
   }
 
-  // ── Helper: dot ──
-  function DOT(x, y, col, r) {
-    r = r || 5;
+  function dot(x, y, color, r=5) {
     ctx.save();
     ctx.fillStyle = '#fff';
-    ctx.beginPath(); ctx.arc(x,y,r+2,0,Math.PI*2); ctx.fill();
-    ctx.strokeStyle = col || '#1a1a1a'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(x,y,r+1.5,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = color;
+    ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
     ctx.restore();
   }
 
-  // ── Direction arrow after NOW ──
-  const eY = toY(entry);
-  function dirArrow() {
-    const toYa = isBull
-      ? toY(tp) + (eY - toY(tp)) * 0.2
-      : toY(sl) + (eY - toY(sl)) * 0.2;
-    ARR(nowX + 6, eY, toX(0.95), toYa, isBull ? '#27ae60' : '#e74c3c');
+  function label(text, x, y, color, bgColor='#fff', below=false) {
+    ctx.save();
+    ctx.font = 'bold 10px Arial, sans-serif';
+    const tw = ctx.measureText(text).width;
+    const pad = 5, bh = 18;
+    const bx = x - tw/2 - pad;
+    const by = below ? y + 4 : y - bh - 4;
+    ctx.fillStyle = bgColor;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.roundRect(bx, by, tw+pad*2, bh, 3); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = color;
+    ctx.textAlign = 'center';
+    ctx.fillText(text, x, by + bh - 5);
+    ctx.restore();
   }
 
-  // ── Entry / SL / TP dashed lines — thin, subtle ──
-  const lx1 = PAD, lx2 = PAD + CW;
-  L(lx1, toY(tp),    lx2, toY(tp),    '#27ae60', 1, [6,4]);
-  L(lx1, toY(entry), lx2, toY(entry), '#2980b9', 1, []);
-  L(lx1, toY(sl),    lx2, toY(sl),    '#e74c3c', 1, [6,4]);
-  // Small labels at right edge
-  ctx.font = 'bold 9px Arial'; ctx.textAlign = 'left';
-  ctx.fillStyle = '#27ae60'; ctx.fillText('TP',  lx2+3, toY(tp)+3);
-  ctx.fillStyle = '#2980b9'; ctx.fillText('ENT', lx2+3, toY(entry)+3);
-  ctx.fillStyle = '#e74c3c'; ctx.fillText('SL',  lx2+3, toY(sl)+3);
-
-  // ── Pattern trendlines in BLACK ──
-  const lw = 2.5; // line weight
-
-  if (pat.includes('head') && pat.includes('shoulder')) {
-    const inv = isBull, d = inv ? -1 : 1;
-    const nkY = toY(entry + d*spread*0.2);
-    const lsY = toY(entry + d*spread*1.2), hdY = toY(entry + d*spread*2.0), rsY = toY(entry + d*spread*1.1);
-    const lsX=toX(0.18), v1=toX(0.30), hdX=toX(0.44), v2=toX(0.58), rsX=toX(0.68);
-    if (!hasCandles) {
-      [[toX(0.06),nkY],[lsX,lsY],[v1,nkY],[hdX,hdY],[v2,nkY],[rsX,rsY],[nowX,nkY]]
-        .reduce((a,b)=>{L(a[0],a[1],b[0],b[1],'#2c3e50',lw);return b;});
-    }
-    L(toX(0.06), nkY, nowX, nkY, '#2c3e50', 1.5, [8,5]);
-    DOT(lsX,lsY,'#2c3e50'); DOT(hdX,hdY,'#2c3e50',7); DOT(rsX,rsY,'#2c3e50');
-    ctx.fillStyle='#2c3e50'; ctx.font='bold 10px Arial'; ctx.textAlign='center';
-    const lo = inv ? -14 : 16;
-    ctx.fillText('LS',lsX,lsY+lo); ctx.fillText('HEAD',hdX,hdY+lo); ctx.fillText('RS',rsX,rsY+lo);
-    ctx.fillStyle='#7f8c8d'; ctx.font='9px Arial';
-    ctx.fillText('— neckline —', toX(0.36), nkY+(inv?12:-8));
-    dirArrow();
+  function fillZone(x1,y1,x2,y2, color, alpha=0.08) {
+    ctx.save();
+    ctx.fillStyle = color;
+    ctx.globalAlpha = alpha;
+    ctx.fillRect(Math.min(x1,x2), Math.min(y1,y2), Math.abs(x2-x1), Math.abs(y2-y1));
+    ctx.restore();
   }
 
-  else if (pat.includes('double') || pat.includes('triple')) {
-    const isT=pat.includes('triple'), d=isBull?-1:1;
-    const pkY=toY(entry+d*spread*1.5), vY=toY(entry+d*spread*0.2);
-    const pks=isT?[toX(0.16),toX(0.46),toX(0.76)]:[toX(0.20),toX(0.68)];
-    const vls=isT?[toX(0.31),toX(0.61)]:[toX(0.44)];
-    if (!hasCandles) {
-      let prev=[toX(0.06),vY];
-      pks.forEach((x,i)=>{L(prev[0],prev[1],x,pkY,'#2c3e50',lw);prev=[x,pkY];
-        if(vls[i]){L(x,pkY,vls[i],vY,'#2c3e50',lw);prev=[vls[i],vY];}});
-      L(prev[0],prev[1],nowX,vY,'#2c3e50',lw);
-    }
-    L(toX(0.06),vY,nowX,vY,'#2c3e50',1.5,[8,5]);
-    pks.forEach(x=>DOT(x,pkY,'#2c3e50',5));
-    vls.forEach(x=>DOT(x,vY,'#2c3e50',5));
-    const lo=isBull?-14:15, lbs=isT?['A','C','E']:['A','C'];
-    ctx.fillStyle='#2c3e50'; ctx.font='bold 10px Arial'; ctx.textAlign='center';
-    pks.forEach((x,i)=>ctx.fillText(lbs[i],x,pkY+lo));
-    ctx.fillStyle='#7f8c8d'; ctx.font='9px Arial';
-    ctx.fillText('neckline', toX(0.40), vY+(isBull?12:-8));
-    dirArrow();
+  // ── 1. WHITE BACKGROUND ──
+  ctx.fillStyle = C_BG;
+  ctx.fillRect(0, 0, W, H);
+
+  // ── 2. GRID ──
+  ctx.strokeStyle = C_GRID;
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 6; i++) {
+    const y = MT + (i/6)*CH;
+    ctx.beginPath(); ctx.moveTo(ML, y); ctx.lineTo(ML+CW, y); ctx.stroke();
+    // Y-axis price label
+    const price = pMax - (i/6)*(pMax-pMin);
+    ctx.fillStyle = '#888';
+    ctx.font = '9px monospace';
+    ctx.textAlign = 'right';
+    const fmtP = p => p > 1000 ? p.toFixed(0) : p > 10 ? p.toFixed(2) : p.toFixed(4);
+    ctx.fillText(fmtP(price), ML-6, y+3);
+  }
+  for (let i = 1; i <= 8; i++) {
+    const x = ML + (i/8)*CW;
+    ctx.beginPath(); ctx.moveTo(x, MT); ctx.lineTo(x, MT+CH); ctx.stroke();
   }
 
-  else if (pat.includes('ascending triangle')) {
-    L(toX(0.06), toY(entry+spread*0.8), nowX, toY(entry+spread*0.8), '#2c3e50', lw);
-    L(toX(0.06), toY(entry-spread*1.0), nowX, toY(entry+spread*0.2), '#2c3e50', lw);
-    dirArrow();
-  }
+  // ── 3. AXIS BORDER ──
+  ctx.strokeStyle = '#CCCCCC';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(ML, MT, CW, CH);
 
-  else if (pat.includes('descending triangle')) {
-    L(toX(0.06), toY(entry-spread*0.8), nowX, toY(entry-spread*0.8), '#2c3e50', lw);
-    L(toX(0.06), toY(entry+spread*1.0), nowX, toY(entry-spread*0.2), '#2c3e50', lw);
-    dirArrow();
-  }
+  // ── 4. TP / SL ZONES ──
+  const entryY = toY(entry);
+  const slY    = toY(sl);
+  const tpY    = toY(tp);
 
-  else if (pat.includes('symmetrical') || pat.includes('pennant')) {
-    L(toX(0.06), toY(entry+spread*1.3), nowX, toY(entry+spread*0.15), '#2c3e50', lw);
-    L(toX(0.06), toY(entry-spread*1.3), nowX, toY(entry-spread*0.15), '#2c3e50', lw);
-    dirArrow();
-  }
+  // SL zone (red, left of NOW)
+  fillZone(ML, Math.min(slY,entryY), nowX, Math.max(slY,entryY), C_BEAR, 0.07);
+  // TP zone (green, right of NOW)
+  fillZone(nowX, Math.min(tpY,entryY), ML+CW, Math.max(tpY,entryY), C_BULL, 0.07);
 
-  else if (pat.includes('rising wedge')) {
-    L(toX(0.06), toY(entry+spread*0.3), nowX, toY(entry+spread*1.3), '#2c3e50', lw);
-    L(toX(0.06), toY(entry-spread*1.2), nowX, toY(entry+spread*0.2), '#2c3e50', lw);
-    dirArrow();
-  }
+  // ── 5. HORIZONTAL LEVELS ──
+  line(ML, tpY,    ML+CW, tpY,    C_TP,    1.5, [6,4]);
+  line(ML, entryY, ML+CW, entryY, C_ENTRY, 1.5, []);
+  line(ML, slY,    ML+CW, slY,    C_SL,    1.5, [6,4]);
 
-  else if (pat.includes('falling wedge')) {
-    L(toX(0.06), toY(entry+spread*1.2), nowX, toY(entry-spread*0.3), '#2c3e50', lw);
-    L(toX(0.06), toY(entry+spread*0.2), nowX, toY(entry-spread*1.2), '#2c3e50', lw);
-    dirArrow();
-  }
+  // Level labels on right
+  ctx.font = 'bold 9px monospace';
+  ctx.textAlign = 'left';
+  const fmtP2 = p => p > 1000 ? p.toFixed(0) : p > 10 ? p.toFixed(2) : p.toFixed(4);
+  ctx.fillStyle = C_TP;    ctx.fillText('TP  ' + fmtP2(tp),    ML+CW+3, tpY+3);
+  ctx.fillStyle = C_ENTRY; ctx.fillText('ENT ' + fmtP2(entry), ML+CW+3, entryY+3);
+  ctx.fillStyle = C_SL;    ctx.fillText('SL  ' + fmtP2(sl),    ML+CW+3, slY+3);
 
-  else if (pat.includes('flag')) {
-    const d=isBull?-1:1;
-    if (!hasCandles) {
-      L(toX(0.06), toY(entry+d*spread*2.2), toX(0.22), toY(entry+d*spread*0.2), '#2c3e50', 3);
-    }
-    L(toX(0.22), toY(entry+d*spread*0.3), nowX, toY(entry+d*spread*0.4), '#2c3e50', lw);
-    L(toX(0.22), toY(entry-d*spread*0.2), nowX, toY(entry-d*spread*0.1), '#2c3e50', lw);
-    dirArrow();
-  }
+  // ── 6. PATTERN SHAPE ──
+  drawPatternShape(ctx, pat, isBull, entry, sl, tp,
+    toX, toY, CW, CH, ML, MT, pMin, pMax, spread, nowX,
+    line, arrow, dot, label, fillZone,
+    C_PRICE, C_TREND, C_BULL, C_BEAR, C_ENTRY, C_SL, C_TP, dirCol);
 
-  else if (pat.includes('channel')) {
-    const rising=pat.includes('rising'), falling=pat.includes('falling');
-    const sl2=rising?-CH*0.2:falling?CH*0.2:0;
-    const mid=toY(entry);
-    L(toX(0.06),mid-CH*0.13,nowX,mid-CH*0.13+sl2,'#2c3e50',lw);
-    L(toX(0.06),mid+CH*0.13,nowX,mid+CH*0.13+sl2,'#2c3e50',lw);
-    dirArrow();
-  }
+  // ── 7. NOW vertical line ──
+  line(nowX, MT, nowX, MT+CH, C_NOW, 1, [5,4]);
+  ctx.fillStyle = C_NOW;
+  ctx.font = 'bold 9px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('NOW', nowX, MT+CH+14);
 
-  else if (pat.includes('cup')) {
-    const rim=toY(entry+spread*0.7), cup=toY(entry-spread*1.2);
-    if (!hasCandles) {
-      ctx.save(); ctx.strokeStyle='#2c3e50'; ctx.lineWidth=lw; ctx.lineCap='round';
-      ctx.beginPath(); ctx.moveTo(toX(0.08),rim);
-      ctx.bezierCurveTo(toX(0.18),cup,toX(0.44),cup,toX(0.54),rim);
-      ctx.stroke(); ctx.restore();
-    }
-    L(toX(0.08),rim,nowX,rim,'#2c3e50',1.5,[6,4]);
-    dirArrow();
-  }
+  // ── 8. HEADER ──
+  ctx.fillStyle = '#F8F8F8';
+  ctx.fillRect(0, 0, W, MT);
+  ctx.strokeStyle = '#DDDDDD';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(0,MT); ctx.lineTo(W,MT); ctx.stroke();
 
-  else if (pat.includes('fib')) {
-    const fibY=toY(entry);
-    L(toX(0.06),fibY,nowX,fibY,'#2c3e50',1.5,[6,4]);
-    const pct=pat.includes('61')?'61.8%':pat.includes('38')?'38.2%':'50%';
-    ctx.fillStyle='#7f8c8d'; ctx.font='9px Arial'; ctx.textAlign='left';
-    ctx.fillText(pct+' Fib', toX(0.08), fibY-8);
-    dirArrow();
-  }
+  // Direction stripe
+  ctx.fillStyle = dirCol;
+  ctx.fillRect(0, 0, 4, MT);
 
-  else if (pat.includes('breakout')) {
-    L(toX(0.06),toY(entry),nowX,toY(entry),'#2c3e50',lw,[8,5]);
-    ctx.fillStyle='#7f8c8d'; ctx.font='9px Arial'; ctx.textAlign='center';
-    ctx.fillText('Key Level', toX(0.36), toY(entry)-(isBull?10:-3));
-    dirArrow();
-  }
+  // Pair + pattern
+  ctx.fillStyle = '#111';
+  ctx.font = 'bold 15px Arial, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText(sig.pair, 14, 24);
 
-  else if (pat.includes('elliott')) {
-    const d=isBull?1:-1, isW5=pat.includes('5');
-    if (!hasCandles) {
-      const pts=isW5?[
-        [toX(0.06),toY(entry-d*spread*2.0)],[toX(0.18),toY(entry-d*spread*0.9)],
-        [toX(0.28),toY(entry-d*spread*1.5)],[toX(0.40),toY(entry-d*spread*0.2)],
-        [toX(0.50),toY(entry-d*spread*0.8)],[nowX,toY(entry+d*spread*0.3)],
-      ]:[
-        [toX(0.06),toY(entry-d*spread*2.0)],[toX(0.24),toY(entry-d*spread*0.8)],
-        [toX(0.40),toY(entry-d*spread*1.4)],[nowX,toY(entry+d*spread*0.3)],
-      ];
-      pts.reduce((a,b)=>{L(a[0],a[1],b[0],b[1],'#2c3e50',lw);return b;});
-      const lbs=isW5?['1','2','3','4','5']:['1','2','3'];
-      ctx.fillStyle='#2c3e50'; ctx.font='bold 10px Arial'; ctx.textAlign='center';
-      pts.slice(1).forEach((p,i)=>ctx.fillText('W'+lbs[i],p[0],p[1]-10));
-    }
-    dirArrow();
-  }
+  ctx.fillStyle = '#555';
+  ctx.font = '11px Arial, sans-serif';
+  ctx.fillText(sig.pattern, 14, 42);
 
-  else {
-    // Generic breakout line
-    L(toX(0.06), toY(entry), nowX, toY(entry), '#2c3e50', lw, [6,4]);
-    dirArrow();
-  }
+  // RIGHT: BUY/SELL badge
+  const bx = W - 210, by = 10, bw = 68, bh = 28;
+  ctx.fillStyle = isBull ? '#E8F5E9' : '#FFEBEE';
+  ctx.strokeStyle = dirCol;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.roundRect(bx, by, bw, bh, 4); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = dirCol;
+  ctx.font = 'bold 12px Arial, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(isBull ? '▲ BUY' : '▼ SELL', bx+bw/2, by+19);
 
-  // ── HEADER — clean white with subtle border ──
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, W, PAD + 36);
-  ctx.strokeStyle = '#eeeeee'; ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(0, PAD+36); ctx.lineTo(W, PAD+36); ctx.stroke();
-  // Left accent
-  ctx.fillStyle = isBull ? '#27ae60' : '#e74c3c';
-  ctx.fillRect(0, 0, 4, PAD+36);
-  // Pair name
-  ctx.fillStyle = '#1a1a1a'; ctx.font = 'bold 15px Arial'; ctx.textAlign = 'left';
-  ctx.fillText(sig.pair, 12, PAD+16);
-  // Pattern
-  ctx.fillStyle = '#7f8c8d'; ctx.font = '10px Arial';
-  ctx.fillText(sig.pattern, 12, PAD+32);
-  // Badges right
-  const badges = [
-    {t: isBull?'▲ BUY':'▼ SELL', col: isBull?'#27ae60':'#e74c3c'},
-    {t: sig.confidence+'%',       col: '#2980b9'},
-    {t: sig.rr||'—',              col: '#e67e22'},
-    {t: selectedTF,               col: '#95a5a6'},
-  ];
-  ctx.font = 'bold 10px Arial';
-  let bx = W - 6;
-  for (let i = badges.length-1; i >= 0; i--) {
-    const b = badges[i];
-    const tw = ctx.measureText(b.t).width;
-    const bw = tw+14, bh=20, by=PAD+8;
-    bx -= bw+4;
-    ctx.strokeStyle = b.col; ctx.lineWidth = 1.5;
-    ctx.strokeRect(bx, by, bw, bh);
-    ctx.fillStyle = b.col; ctx.textAlign = 'center';
-    ctx.fillText(b.t, bx+bw/2, by+14);
-  }
-  // NOW label
-  ctx.fillStyle='#aaaaaa'; ctx.font='9px Arial'; ctx.textAlign='center';
-  ctx.fillText('NOW', nowX, OY+CH+16);
+  // Confidence
+  const cx2 = bx + bw + 8;
+  const cCol = sig.confidence >= 80 ? '#1B5E20' : sig.confidence >= 65 ? '#E65100' : '#1565C0';
+  const cBg  = sig.confidence >= 80 ? '#E8F5E9' : sig.confidence >= 65 ? '#FFF3E0' : '#E3F2FD';
+  ctx.fillStyle = cBg; ctx.strokeStyle = cCol;
+  ctx.beginPath(); ctx.roundRect(cx2, by, 56, bh, 4); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = cCol;
+  ctx.font = 'bold 12px Arial, sans-serif';
+  ctx.fillText(sig.confidence+'%', cx2+28, by+19);
+
+  // RR
+  const rx2 = cx2 + 64;
+  ctx.fillStyle = '#FFF9C4'; ctx.strokeStyle = '#F57F17';
+  ctx.beginPath(); ctx.roundRect(rx2, by, 60, bh, 4); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#E65100';
+  ctx.font = 'bold 11px Arial, sans-serif';
+  ctx.fillText(sig.rr || '—', rx2+30, by+19);
+
+  // TF badge
+  ctx.fillStyle = '#EEE'; ctx.strokeStyle = '#AAA';
+  ctx.beginPath(); ctx.roundRect(rx2+68, by, 40, bh, 4); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#444';
+  ctx.font = 'bold 11px Arial, sans-serif';
+  ctx.fillText(selectedTF, rx2+88, by+19);
+
+  // ── 9. BOTTOM LABELS ──
+  ctx.fillStyle = '#888';
+  ctx.font = '9px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('◀ HISTORY', ML+4, MT+CH+30);
+  ctx.textAlign = 'right';
+  ctx.fillText('TARGET ▶', ML+CW-4, MT+CH+30);
 }
 
+// ══════════════════════════════════════════════════════════════
+// PATTERN SHAPES — clean, professional, like HowToTrade cheat sheet
+// ══════════════════════════════════════════════════════════════
+function drawPatternShape(ctx, pat, isBull, entry, sl, tp,
+  toX, toY, CW, CH, ML, MT, pMin, pMax, spread, nowX,
+  line, arrow, dot, label, fillZone,
+  C_PRICE, C_TREND, C_BULL, C_BEAR, C_ENTRY, C_SL, C_TP, dirCol)
+{
+  const entryY = toY(entry);
+  const slY    = toY(sl);
+  const tpY    = toY(tp);
+  const black  = '#111111';
+
+  // Final arrow after NOW
+  function dirArrow() {
+    const fromX = nowX, fromY = entryY;
+    const toXa  = toX(0.88);
+    const toYa  = isBull ? tpY + (entryY-tpY)*0.3 : slY + (entryY-slY)*0.3;
+    arrow(fromX, fromY, toXa, toYa, dirCol, 3);
+  }
+
+  // ── HEAD & SHOULDERS ──
+  if (pat.includes('head') && pat.includes('shoulder')) {
+    const inv = isBull; // inverse H&S is bullish
+    const nkY = toY(entry + (inv ? -spread*0.2 : spread*0.2));
+    const lsY = toY(entry + (inv ? -spread*1.2 : spread*1.2));
+    const hdY = toY(entry + (inv ? -spread*2.0 : spread*2.0));
+    const rsY = toY(entry + (inv ? -spread*1.1 : spread*1.1));
+    const lsX=toX(0.12), v1=toX(0.24), hdX=toX(0.38), v2=toX(0.52), rsX=toX(0.62);
+    // Neckline
+    line(toX(0.04), nkY, nowX, nkY, C_TREND, 2, []);
+    // Price path
+    [[toX(0.04),nkY],[lsX,lsY],[v1,nkY],[hdX,hdY],[v2,nkY],[rsX,rsY],[nowX,nkY]].reduce((a,b)=>{
+      line(a[0],a[1],b[0],b[1],black,2.5); return b;
+    });
+    dot(lsX,lsY,C_TREND); dot(hdX,hdY,black,6); dot(rsX,rsY,C_TREND);
+    const lo = inv ? -16 : 16;
+    ctx.fillStyle = '#333'; ctx.font = 'bold 10px Arial'; ctx.textAlign = 'center';
+    ctx.fillText('LS', lsX, lsY+lo); ctx.fillText('HEAD', hdX, hdY+lo); ctx.fillText('RS', rsX, rsY+lo);
+    ctx.fillStyle = C_TREND; ctx.font = '9px Arial';
+    ctx.fillText('— NECKLINE —', toX(0.35), nkY+(inv?12:-8));
+    dirArrow();
+  }
+
+  // ── DOUBLE / TRIPLE TOP / BOTTOM ──
+  else if (pat.includes('double') || pat.includes('triple')) {
+    const isTriple = pat.includes('triple');
+    const peakY = toY(entry + (isBull ? -spread*1.6 : spread*1.6));
+    const valY  = toY(entry + (isBull ? -spread*0.3 : spread*0.3));
+    const nkY   = valY;
+    const peaks = isTriple ? [toX(0.12),toX(0.36),toX(0.58)] : [toX(0.18),toX(0.52)];
+    const vals  = isTriple ? [toX(0.24),toX(0.47)] : [toX(0.35)];
+    // Neckline
+    line(toX(0.04), nkY, nowX, nkY, C_TREND, 2, []);
+    // Path
+    let prev = [toX(0.04), nkY];
+    peaks.forEach((x,i) => {
+      line(prev[0],prev[1],x,peakY,black,2.5); prev=[x,peakY];
+      if (vals[i]!==undefined) { line(x,peakY,vals[i],valY,black,2.5); prev=[vals[i],valY]; }
+    });
+    line(prev[0],prev[1],nowX,nkY,black,2.5);
+    peaks.forEach(x => dot(x,peakY,black,5));
+    vals.forEach(x => dot(x,valY,C_TREND,5));
+    ctx.fillStyle = C_TREND; ctx.font = '9px Arial'; ctx.textAlign = 'center';
+    ctx.fillText('— NECKLINE —', toX(0.38), nkY+(isBull?12:-8));
+    const labels = isTriple ? ['A','C','E'] : ['A','C'];
+    const lo = isBull ? -14 : 14;
+    ctx.fillStyle = '#333'; ctx.font = 'bold 10px Arial';
+    peaks.forEach((x,i) => ctx.fillText(labels[i], x, peakY+lo));
+    dirArrow();
+  }
+
+  // ── ASCENDING TRIANGLE ──
+  else if (pat.includes('ascending triangle')) {
+    const resY    = toY(entry + spread * 0.9);
+    const supSY   = toY(entry - spread * 1.0);
+    const supEY   = toY(entry + spread * 0.3);
+    line(toX(0.04), resY,  nowX, resY,  C_TREND, 2.5);  // flat resistance
+    line(toX(0.04), supSY, nowX, supEY, C_TREND, 2.5);  // rising support
+    // Zigzag bounces inside
+    [[toX(0.04),supSY],[toX(0.18),resY],[toX(0.30),toY(entry-spread*0.5)],
+     [toX(0.44),resY],[toX(0.56),toY(entry-spread*0.1)],[nowX,resY]].reduce((a,b)=>{ line(a[0],a[1],b[0],b[1],black,2); return b; });
+    ctx.fillStyle = '#1565C0'; ctx.font = '9px Arial'; ctx.textAlign = 'center';
+    ctx.fillText('Resistance', toX(0.30), resY-10);
+    ctx.fillText('Rising Support', toX(0.25), supSY+14);
+    dirArrow();
+  }
+
+  // ── DESCENDING TRIANGLE ──
+  else if (pat.includes('descending triangle')) {
+    const supY   = toY(entry - spread * 0.9);
+    const resSY  = toY(entry + spread * 1.0);
+    const resEY  = toY(entry - spread * 0.3);
+    line(toX(0.04), supY,  nowX, supY,  C_TREND, 2.5);  // flat support
+    line(toX(0.04), resSY, nowX, resEY, C_TREND, 2.5);  // falling resistance
+    [[toX(0.04),resSY],[toX(0.18),supY],[toX(0.30),toY(entry+spread*0.5)],
+     [toX(0.44),supY],[toX(0.56),toY(entry+spread*0.1)],[nowX,supY]].reduce((a,b)=>{ line(a[0],a[1],b[0],b[1],black,2); return b; });
+    ctx.fillStyle = '#1565C0'; ctx.font = '9px Arial'; ctx.textAlign = 'center';
+    ctx.fillText('Support', toX(0.30), supY+12);
+    ctx.fillText('Falling Resistance', toX(0.28), resSY-10);
+    dirArrow();
+  }
+
+  // ── SYMMETRICAL TRIANGLE / PENNANT ──
+  else if (pat.includes('symmetrical') || pat.includes('pennant')) {
+    const topSY = toY(entry + spread*1.4), topEY = toY(entry + spread*0.2);
+    const botSY = toY(entry - spread*1.4), botEY = toY(entry - spread*0.2);
+    line(toX(0.05), topSY, nowX, topEY, C_TREND, 2.5);
+    line(toX(0.05), botSY, nowX, botEY, C_TREND, 2.5);
+    [[toX(0.05),topSY],[toX(0.18),botSY*0.6+topSY*0.4],
+     [toX(0.32),topSY*0.55+botSY*0.45],[toX(0.46),botEY*0.4+topEY*0.6],
+     [nowX,(topEY+botEY)/2]].reduce((a,b)=>{ line(a[0],a[1],b[0],b[1],black,2); return b; });
+    dirArrow();
+  }
+
+  // ── RISING WEDGE (bearish) ──
+  else if (pat.includes('rising wedge')) {
+    const topSY=toY(entry-spread*0.3), topEY=toY(entry+spread*1.2);
+    const botSY=toY(entry-spread*1.4), botEY=toY(entry+spread*0.2);
+    line(toX(0.05),topSY,nowX,topEY,C_TREND,2.5);
+    line(toX(0.05),botSY,nowX,botEY,C_TREND,2.5);
+    [[toX(0.05),botSY],[toX(0.16),topSY*0.6+botSY*0.4],
+     [toX(0.28),botSY*0.3+topSY*0.7],[toX(0.42),topEY*0.3+botEY*0.7],
+     [toX(0.56),botEY*0.2+topEY*0.8],[nowX,topEY]].reduce((a,b)=>{ line(a[0],a[1],b[0],b[1],black,2.5); return b; });
+    dirArrow();
+  }
+
+  // ── FALLING WEDGE (bullish) ──
+  else if (pat.includes('falling wedge')) {
+    const topSY=toY(entry+spread*0.3), topEY=toY(entry-spread*1.2);
+    const botSY=toY(entry+spread*1.4), botEY=toY(entry-spread*0.2);
+    line(toX(0.05),topSY,nowX,topEY,C_TREND,2.5);
+    line(toX(0.05),botSY,nowX,botEY,C_TREND,2.5);
+    [[toX(0.05),topSY],[toX(0.16),botSY*0.6+topSY*0.4],
+     [toX(0.28),topSY*0.3+botSY*0.7],[toX(0.42),botEY*0.3+topEY*0.7],
+     [toX(0.56),topEY*0.2+botEY*0.8],[nowX,botEY]].reduce((a,b)=>{ line(a[0],a[1],b[0],b[1],black,2.5); return b; });
+    dirArrow();
+  }
+
+  // ── FLAG ──
+  else if (pat.includes('flag')) {
+    // Flagpole
+    const poleBot = toY(entry + (isBull ? -spread*2.2 : spread*2.2));
+    const poleTop = toY(entry + (isBull ? -spread*0.2 : spread*0.2));
+    line(toX(0.05), poleBot, toX(0.22), poleTop, black, 3);
+    // Flag body (counter-trend rectangle)
+    const fTop = isBull ? poleTop + CH*0.04 : poleTop - CH*0.04;
+    const fBot = isBull ? poleTop + CH*0.14 : poleTop - CH*0.14;
+    line(toX(0.22),fTop,nowX,isBull?fTop+CH*0.04:fTop-CH*0.04,C_TREND,2);
+    line(toX(0.22),fBot,nowX,isBull?fBot+CH*0.04:fBot-CH*0.04,C_TREND,2);
+    // Price inside flag
+    [[toX(0.22),fTop],[toX(0.32),fBot],[toX(0.42),fTop*0.6+fBot*0.4],[toX(0.52),fBot*0.4+fTop*0.6],[nowX,isBull?fBot+CH*0.02:fTop-CH*0.02]].reduce((a,b)=>{ line(a[0],a[1],b[0],b[1],black,2); return b; });
+    dirArrow();
+  }
+
+  // ── CHANNEL (rising / falling / horizontal) ──
+  else if (pat.includes('channel')) {
+    const rising  = pat.includes('rising');
+    const falling = pat.includes('falling');
+    const slopeY  = rising ? -CH*0.25 : falling ? CH*0.25 : 0;
+    const width   = CH*0.28;
+    const midY    = toY(entry);
+    const topSY   = midY - width/2;
+    const botSY   = midY + width/2;
+    line(toX(0.05), topSY, nowX, topSY+slopeY, C_TREND, 2);
+    line(toX(0.05), botSY, nowX, botSY+slopeY, C_TREND, 2);
+    // Bounces inside
+    const pts = [[toX(0.05),topSY],[toX(0.18),botSY],[toX(0.33),topSY+slopeY*0.5],
+                 [toX(0.48),botSY+slopeY*0.5],[nowX,topSY+slopeY]];
+    pts.reduce((a,b)=>{ line(a[0],a[1],b[0],b[1],black,2); return b; });
+    dirArrow();
+  }
+
+  // ── CUP & HANDLE ──
+  else if (pat.includes('cup')) {
+    const rim   = toY(entry + spread*0.9);
+    const cup   = toY(entry - spread*1.2);
+    const hBot  = toY(entry + spread*0.3);
+    // Cup arc (approximate with bezier)
+    ctx.save(); ctx.strokeStyle=black; ctx.lineWidth=2.5; ctx.lineCap='round';
+    ctx.beginPath();
+    ctx.moveTo(toX(0.05), rim);
+    ctx.bezierCurveTo(toX(0.15), cup, toX(0.40), cup, toX(0.50), rim);
+    ctx.stroke(); ctx.restore();
+    // Handle (small pullback)
+    [[toX(0.50),rim],[toX(0.56),hBot],[toX(0.62),rim*0.7+hBot*0.3],[nowX,rim]].reduce((a,b)=>{ line(a[0],a[1],b[0],b[1],black,2); return b; });
+    line(toX(0.05),rim,nowX,rim,C_TREND,2,[6,4]);
+    dirArrow();
+  }
+
+  // ── ELLIOT WAVE 3 ──
+  else if (pat.includes('elliott') && pat.includes('3') && !pat.includes('5')) {
+    const d = isBull ? 1 : -1;
+    const pts = [
+      [toX(0.05), toY(entry-d*spread*2.0)],  // W1 start
+      [toX(0.14), toY(entry-d*spread*0.8)],  // W1 end
+      [toX(0.22), toY(entry-d*spread*1.4)],  // W2
+      [toX(0.38), toY(entry+d*spread*0.4)],  // W3 end ← current
+      [nowX,      toY(entry+d*spread*0.4)],
+    ];
+    pts.reduce((a,b)=>{ line(a[0],a[1],b[0],b[1],black,2.5); return b; });
+    dot(pts[2][0],pts[2][1],C_TREND,5);
+    dot(pts[3][0],pts[3][1],dirCol,6);
+    ctx.fillStyle='#333'; ctx.font='bold 10px Arial'; ctx.textAlign='center';
+    ['1','2','3'].forEach((n,i)=>ctx.fillText('W'+n, pts[i+1][0], pts[i+1][1]-12));
+    dirArrow();
+  }
+
+  // ── ELLIOT WAVE 5 ──
+  else if (pat.includes('elliott') && pat.includes('5')) {
+    const d = isBull ? 1 : -1;
+    const pts = [
+      [toX(0.05),toY(entry-d*spread*2.2)],[toX(0.13),toY(entry-d*spread*1.2)],
+      [toX(0.20),toY(entry-d*spread*1.8)],[toX(0.30),toY(entry-d*spread*0.4)],
+      [toX(0.38),toY(entry-d*spread*1.0)],[nowX,     toY(entry+d*spread*0.2)],
+    ];
+    pts.reduce((a,b)=>{ line(a[0],a[1],b[0],b[1],black,2.5); return b; });
+    ['1','2','3','4','5'].forEach((n,i)=>{ dot(pts[i+1][0],pts[i+1][1],i===4?dirCol:C_TREND,5); });
+    ctx.fillStyle='#333'; ctx.font='bold 10px Arial'; ctx.textAlign='center';
+    ['1','2','3','4','5'].forEach((n,i)=>ctx.fillText('W'+n, pts[i+1][0], pts[i+1][1]-12));
+    dirArrow();
+  }
+
+  // ── ENGULFING ──
+  else if (pat.includes('engulf')) {
+    const cw = CW*0.10, gap = CW*0.04;
+    const c1x = nowX - cw*2.5 - gap, c2x = nowX - cw - gap*0.5;
+    const sm = spread*0.6, lg = spread*1.1;
+    // Small candle
+    const s1o = toY(entry + (isBull?-sm*0.2:sm*0.2)), s1c = toY(entry + (isBull?sm*0.6:-sm*0.6));
+    ctx.fillStyle = isBull ? '#C62828' : '#2E7D32';
+    ctx.fillRect(c1x, Math.min(s1o,s1c), cw, Math.abs(s1o-s1c)||4);
+    line(c1x+cw/2,toY(entry+(isBull?sm*0.9:-sm*0.9)),c1x+cw/2,toY(entry+(isBull?-sm*0.5:sm*0.5)),isBull?'#C62828':'#2E7D32',1);
+    // Big engulfing candle
+    const s2o = toY(entry+(isBull?sm*0.8:-sm*0.8)), s2c = toY(entry+(isBull?-lg*0.8:lg*0.8));
+    ctx.fillStyle = isBull ? '#2E7D32' : '#C62828';
+    ctx.fillRect(c2x, Math.min(s2o,s2c), cw, Math.abs(s2o-s2c)||4);
+    line(c2x+cw/2,toY(entry+(isBull?-lg:lg)),c2x+cw/2,toY(entry+(isBull?lg*0.9:-lg*0.9)),dirCol,1);
+    dirArrow();
+  }
+
+  // ── HAMMER / SHOOTING STAR ──
+  else if (pat.includes('hammer') || pat.includes('shooting star')) {
+    const isHammer = pat.includes('hammer');
+    const cw = CW*0.10;
+    const cx = nowX - cw*1.5;
+    const co = toY(entry + (isHammer ? -spread*0.15 : spread*0.3));
+    const cc = toY(entry + (isHammer ? spread*0.1 : -spread*0.15));
+    const wickLen = spread * 1.6;
+    const wickTop = isHammer ? toY(entry + spread*0.15) : toY(entry + spread*0.15 + wickLen);
+    const wickBot = isHammer ? toY(entry - wickLen) : toY(entry + spread*0.3);
+    ctx.fillStyle = isHammer ? '#2E7D32' : '#C62828';
+    ctx.fillRect(cx, Math.min(co,cc), cw, Math.abs(co-cc)||4);
+    line(cx+cw/2, wickTop, cx+cw/2, wickBot, '#555', 1.5);
+    dirArrow();
+  }
+
+  // ── FIB BOUNCE ──
+  else if (pat.includes('fib')) {
+    const fibPct = pat.includes('61') ? 0.618 : pat.includes('38') ? 0.382 : 0.5;
+    const swHigh = toY(entry + spread*1.8);
+    const swLow  = toY(entry - spread*1.8);
+    const fibY   = toY(entry + spread*1.8 - (2*spread*1.8)*fibPct);
+    // Swing
+    line(toX(0.05),swLow,toX(0.28),swHigh,black,2.5);
+    line(toX(0.28),swHigh,toX(0.50),fibY,black,2.5);
+    // Fib level
+    line(toX(0.05),fibY,nowX,fibY,C_TREND,2,[6,4]);
+    ctx.fillStyle=C_TREND; ctx.font='bold 10px Arial'; ctx.textAlign='center';
+    ctx.fillText((fibPct*100).toFixed(1)+'% Fib', toX(0.28), fibY-10);
+    dirArrow();
+  }
+
+  // ── BREAKOUT ──
+  else if (pat.includes('breakout')) {
+    const keyY = toY(entry);
+    line(toX(0.04),keyY,nowX,keyY,C_TREND,2.5,[]);
+    // Consolidation before breakout
+    [[toX(0.04),toY(entry+spread*0.3)],[toX(0.14),keyY],[toX(0.24),toY(entry+spread*0.25)],
+     [toX(0.36),keyY],[toX(0.48),toY(entry+spread*0.15)],[nowX,keyY]].reduce((a,b)=>{ line(a[0],a[1],b[0],b[1],black,2); return b; });
+    ctx.fillStyle=C_TREND; ctx.font='bold 10px Arial'; ctx.textAlign='center';
+    ctx.fillText('KEY LEVEL', toX(0.30), keyY-(isBull?12:-5));
+    dirArrow();
+  }
+
+  // ── EMA TREND / RSI / GENERIC ──
+  else {
+    // Clean trend line with momentum
+    const d = isBull ? 1 : -1;
+    const trend = [
+      [toX(0.04), toY(entry - d*spread*1.2)],
+      [toX(0.14), toY(entry - d*spread*0.5)],
+      [toX(0.24), toY(entry - d*spread*0.9)],
+      [toX(0.36), toY(entry - d*spread*0.1)],
+      [toX(0.46), toY(entry - d*spread*0.5)],
+      [nowX,      toY(entry + d*spread*0.1)],
+    ];
+    trend.reduce((a,b)=>{ line(a[0],a[1],b[0],b[1],black,2.5); return b; });
+    // EMA line
+    line(toX(0.04), toY(entry - d*spread*0.8), nowX, toY(entry + d*spread*0.05), C_TREND, 1.5, [4,3]);
+    ctx.fillStyle=C_TREND; ctx.font='9px Arial'; ctx.textAlign='left';
+    ctx.fillText('EMA', toX(0.06), toY(entry - d*spread*0.8) - 5);
+    dirArrow();
+  }
+}
 
 
 
