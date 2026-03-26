@@ -2543,7 +2543,7 @@ async function loadLiveChart(container, sig, idx) {
 
 function drawPatternChart(canvas, sig) {
   const W = 860, H = 420;
-  const ML = 60, MR = 20, MT = 60, MB = 44;
+  const ML = 8, MR = 62, MT = 52, MB = 28;
   const CW = W - ML - MR, CH = H - MT - MB;
 
   canvas.width  = W * 2;
@@ -2558,527 +2558,325 @@ function drawPatternChart(canvas, sig) {
   const sl     = parseFloat(sig.sl);
   const tp     = parseFloat(sig.tp);
   const pat    = (sig.pattern || '').toLowerCase();
+  const dirCol = isBull ? '#26a69a' : '#ef5350';
 
-  if (!isFinite(entry) || !isFinite(sl) || !isFinite(tp)) {
-    ctx.fillStyle = '#888';
-    ctx.font = '13px monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText('Chart data unavailable', W/2, H/2);
-    return;
-  }
-
-  const spread = Math.abs(tp - sl) || Math.abs(entry * 0.015) || 1;
-  const center = (tp + sl) / 2;
-  const pMin   = Math.min(sl, tp, entry) - spread * 3.0;
-  const pMax   = Math.max(sl, tp, entry) + spread * 3.0;
-
-  const toY = p => MT + CH - ((p - pMin) / (pMax - pMin)) * CH;
-  const toX = t => ML + t * CW;
-
-  // ── NOW line at 62% ──
-  const nowX = toX(0.62);
-
-  // ── Colors: clean professional ──
-  const C_BG      = '#FFFFFF';
-  const C_GRID    = '#E8E8E8';
-  const C_AXIS    = '#333333';
-  const C_PRICE   = '#111111';     // price line (black)
-  const C_TREND   = '#1565C0';     // trendlines (blue)
-  const C_BULL    = '#2E7D32';     // green arrow/zones
-  const C_BEAR    = '#C62828';     // red arrow/zones
-  const C_ENTRY   = '#1565C0';     // entry level (blue)
-  const C_SL      = '#C62828';     // stop loss (red)
-  const C_TP      = '#2E7D32';     // take profit (green)
-  const C_NOW     = '#555555';
-
-  const dirCol = isBull ? C_BULL : C_BEAR;
-
-  // ── Helpers ──
-  function line(x1,y1,x2,y2, color, width=1.5, dash=[]) {
-    ctx.save();
-    ctx.strokeStyle = color;
-    ctx.lineWidth   = width;
-    ctx.setLineDash(dash);
-    ctx.lineCap = 'round';
-    ctx.beginPath();
-    ctx.moveTo(x1,y1);
-    ctx.lineTo(x2,y2);
-    ctx.stroke();
-    ctx.restore();
-  }
-
-  function arrow(x1,y1,x2,y2, color, width=3) {
-    ctx.save();
-    ctx.strokeStyle = color;
-    ctx.fillStyle   = color;
-    ctx.lineWidth   = width;
-    ctx.lineCap     = 'round';
-    const angle = Math.atan2(y2-y1, x2-x1);
-    const hs = 14;
-    // shorten line to not overlap arrowhead
-    const ex = x2 - hs*0.8*Math.cos(angle);
-    const ey = y2 - hs*0.8*Math.sin(angle);
-    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(ex,ey); ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(x2,y2);
-    ctx.lineTo(x2 - hs*Math.cos(angle-0.4), y2 - hs*Math.sin(angle-0.4));
-    ctx.lineTo(x2 - hs*Math.cos(angle+0.4), y2 - hs*Math.sin(angle+0.4));
-    ctx.closePath(); ctx.fill();
-    ctx.restore();
-  }
-
-  function dot(x, y, color, r=5) {
-    ctx.save();
-    ctx.fillStyle = '#fff';
-    ctx.beginPath(); ctx.arc(x,y,r+1.5,0,Math.PI*2); ctx.fill();
-    ctx.fillStyle = color;
-    ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
-    ctx.restore();
-  }
-
-  function label(text, x, y, color, bgColor='#fff', below=false) {
-    ctx.save();
-    ctx.font = 'bold 10px Arial, sans-serif';
-    const tw = ctx.measureText(text).width;
-    const pad = 5, bh = 18;
-    const bx = x - tw/2 - pad;
-    const by = below ? y + 4 : y - bh - 4;
-    ctx.fillStyle = bgColor;
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.roundRect(bx, by, tw+pad*2, bh, 3); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = color;
-    ctx.textAlign = 'center';
-    ctx.fillText(text, x, by + bh - 5);
-    ctx.restore();
-  }
-
-  function fillZone(x1,y1,x2,y2, color, alpha=0.08) {
-    ctx.save();
-    ctx.fillStyle = color;
-    ctx.globalAlpha = alpha;
-    ctx.fillRect(Math.min(x1,x2), Math.min(y1,y2), Math.abs(x2-x1), Math.abs(y2-y1));
-    ctx.restore();
-  }
-
-  // ── 1. WHITE BACKGROUND ──
-  ctx.fillStyle = C_BG;
+  // ── Background ──
+  ctx.fillStyle = '#0f1724';
   ctx.fillRect(0, 0, W, H);
 
-  // ── 2. GRID ──
-  ctx.strokeStyle = C_GRID;
-  ctx.lineWidth = 1;
-  for (let i = 0; i <= 6; i++) {
-    const y = MT + (i/6)*CH;
-    ctx.beginPath(); ctx.moveTo(ML, y); ctx.lineTo(ML+CW, y); ctx.stroke();
-    // Y-axis price label
-    const price = pMax - (i/6)*(pMax-pMin);
-    ctx.fillStyle = '#888';
-    ctx.font = '9px monospace';
-    ctx.textAlign = 'right';
-    const fmtP = p => p > 1000 ? p.toFixed(0) : p > 10 ? p.toFixed(2) : p.toFixed(4);
-    ctx.fillText(fmtP(price), ML-6, y+3);
-  }
-  for (let i = 1; i <= 8; i++) {
-    const x = ML + (i/8)*CW;
-    ctx.beginPath(); ctx.moveTo(x, MT); ctx.lineTo(x, MT+CH); ctx.stroke();
+  if (!isFinite(entry) || !isFinite(sl) || !isFinite(tp)) {
+    ctx.fillStyle = '#60a5fa'; ctx.font = '13px IBM Plex Mono'; ctx.textAlign = 'center';
+    ctx.fillText('No data', W/2, H/2); return;
   }
 
-  // ── 3. AXIS BORDER ──
-  ctx.strokeStyle = '#CCCCCC';
-  ctx.lineWidth = 1;
-  ctx.strokeRect(ML, MT, CW, CH);
+  // ── Get real candles from cache ──
+  const cacheKey = sig.pair + '_' + selectedTF;
+  const candles  = candleCache[cacheKey] || [];
+  const useCandles = candles.length >= 10;
 
-  // ── 4. Store Y coords for pattern drawing only ──
-  const entryY = toY(entry);
-  const slY    = toY(sl);
-  const tpY    = toY(tp);
-  // No SL/Entry/TP lines drawn — pattern shape speaks for itself
+  // ── Price range ──
+  let pMin, pMax;
+  if (useCandles) {
+    const last = candles.slice(-80);
+    pMin = Math.min(...last.map(c => parseFloat(c.low)),  sl)  * 0.9985;
+    pMax = Math.max(...last.map(c => parseFloat(c.high)), tp)  * 1.0015;
+    // Extra padding
+    const rng = pMax - pMin;
+    pMin -= rng * 0.05;
+    pMax += rng * 0.05;
+  } else {
+    const spread = Math.abs(tp - sl) || Math.abs(entry * 0.015) || 1;
+    pMin = Math.min(sl, tp, entry) - spread * 3.0;
+    pMax = Math.max(sl, tp, entry) + spread * 3.0;
+  }
 
-  // ── 6. PATTERN SHAPE ──
-  drawPatternShape(ctx, pat, isBull, entry, sl, tp,
-    toX, toY, CW, CH, ML, MT, pMin, pMax, spread, nowX,
-    line, arrow, dot, label, fillZone,
-    C_PRICE, C_TREND, C_BULL, C_BEAR, C_ENTRY, C_SL, C_TP, dirCol);
+  const toY = p  => MT + CH - ((parseFloat(p) - pMin) / (pMax - pMin)) * CH;
+  const toX = t  => ML + t * CW;
+  const nowX = useCandles ? ML + CW * 0.76 : toX(0.68);
 
-  // ── 7. NOW vertical line ──
-  line(nowX, MT, nowX, MT+CH, C_NOW, 1, [5,4]);
-  ctx.fillStyle = C_NOW;
-  ctx.font = 'bold 9px monospace';
-  ctx.textAlign = 'center';
-  ctx.fillText('NOW', nowX, MT+CH+14);
+  // ── Grid ──
+  ctx.strokeStyle = '#1a2940'; ctx.lineWidth = 1;
+  for (let i = 0; i <= 5; i++) {
+    const y = MT + (i/5)*CH;
+    ctx.beginPath(); ctx.moveTo(ML,y); ctx.lineTo(ML+CW,y); ctx.stroke();
+    // Y-axis price labels
+    const price = pMax - (i/5)*(pMax-pMin);
+    ctx.fillStyle = '#4a6080'; ctx.font = '9px IBM Plex Mono'; ctx.textAlign = 'right';
+    const fP = p => p > 10000 ? p.toFixed(0) : p > 100 ? p.toFixed(1) : p > 10 ? p.toFixed(2) : p.toFixed(4);
+    ctx.fillText(fP(price), ML+CW+MR-2, y+3);
+  }
 
-  // ── 8. HEADER ──
-  ctx.fillStyle = '#F8F8F8';
-  ctx.fillRect(0, 0, W, MT);
-  ctx.strokeStyle = '#DDDDDD';
-  ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(0,MT); ctx.lineTo(W,MT); ctx.stroke();
+  // ── Draw real candles ──
+  if (useCandles) {
+    const last = candles.slice(-80);
+    const n    = last.length;
+    const cw   = Math.max(2, (CW / n) * 0.7);
+    const gap  = CW / n;
+    last.forEach((c, i) => {
+      const o = parseFloat(c.open), h = parseFloat(c.high);
+      const l = parseFloat(c.low),  cl= parseFloat(c.close);
+      const x  = ML + i * gap + gap/2;
+      const up = cl >= o;
+      const col= up ? '#26a69a' : '#ef5350';
+      // Wick
+      ctx.strokeStyle = col; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(x, toY(h)); ctx.lineTo(x, toY(l)); ctx.stroke();
+      // Body
+      const by = toY(Math.max(o, cl));
+      const bh = Math.max(1, Math.abs(toY(o) - toY(cl)));
+      ctx.fillStyle = up ? '#26a69a' : '#ef5350';
+      ctx.fillRect(x - cw/2, by, cw, bh);
+    });
+  }
 
-  // Direction stripe
-  ctx.fillStyle = dirCol;
-  ctx.fillRect(0, 0, 4, MT);
+  // ── NOW vertical line ──
+  ctx.strokeStyle = '#2d4a78'; ctx.lineWidth = 1; ctx.setLineDash([4,3]);
+  ctx.beginPath(); ctx.moveTo(nowX, MT); ctx.lineTo(nowX, MT+CH); ctx.stroke();
+  ctx.setLineDash([]);
 
-  // Pair + pattern
-  ctx.fillStyle = '#111';
-  ctx.font = 'bold 15px Arial, sans-serif';
-  ctx.textAlign = 'left';
-  ctx.fillText(sig.pair, 14, 24);
+  // ── Helper draw functions ──
+  function L(x1,y1,x2,y2,col,w,dash) {
+    ctx.save(); ctx.strokeStyle=col||'#e2eaf4'; ctx.lineWidth=w||2;
+    ctx.lineCap='round'; if(dash) ctx.setLineDash(dash);
+    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); ctx.restore();
+  }
+  function ARR(x1,y1,x2,y2,col,w) {
+    ctx.save(); col=col||dirCol; ctx.strokeStyle=col; ctx.fillStyle=col; ctx.lineWidth=w||2.5; ctx.lineCap='round';
+    const a=Math.atan2(y2-y1,x2-x1), hs=14;
+    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2-hs*0.8*Math.cos(a),y2-hs*0.8*Math.sin(a)); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x2,y2);
+    ctx.lineTo(x2-hs*Math.cos(a-0.38),y2-hs*Math.sin(a-0.38));
+    ctx.lineTo(x2-hs*Math.cos(a+0.38),y2-hs*Math.sin(a+0.38));
+    ctx.closePath(); ctx.fill(); ctx.restore();
+  }
+  function DOT(x,y,col,r) {
+    r=r||5; ctx.save();
+    ctx.fillStyle='#0f1724'; ctx.beginPath(); ctx.arc(x,y,r+2,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle=col||'#3b82f6'; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill(); ctx.restore();
+  }
+  function TXT(t,x,y,col,sz,al) {
+    ctx.save(); ctx.fillStyle=col||'#94a3b8'; ctx.font=(sz||10)+'px IBM Plex Mono';
+    ctx.textAlign=al||'center'; ctx.fillText(t,x,y); ctx.restore();
+  }
+  function hLine(price, col, dash, label) {
+    const y = toY(price);
+    if (y < MT || y > MT+CH) return;
+    L(ML, y, ML+CW, y, col, 1.5, dash||[6,4]);
+    if (label) TXT(label, ML+CW+30, y+3, col, 9, 'center');
+  }
 
-  ctx.fillStyle = '#555';
-  ctx.font = '11px Arial, sans-serif';
-  ctx.fillText(sig.pattern, 14, 42);
+  // ── Draw Entry / SL / TP as clean dashed lines ──
+  hLine(tp,    '#26a69a', [6,4], 'TP');
+  hLine(entry, '#60a5fa', [],    'ENT');
+  hLine(sl,    '#ef5350', [6,4], 'SL');
 
-  // RIGHT: BUY/SELL badge
-  const bx = W - 210, by = 10, bw = 68, bh = 28;
-  ctx.fillStyle = isBull ? '#E8F5E9' : '#FFEBEE';
-  ctx.strokeStyle = dirCol;
-  ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.roundRect(bx, by, bw, bh, 4); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = dirCol;
-  ctx.font = 'bold 12px Arial, sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText(isBull ? '▲ BUY' : '▼ SELL', bx+bw/2, by+19);
-
-  // Confidence
-  const cx2 = bx + bw + 8;
-  const cCol = sig.confidence >= 80 ? '#1B5E20' : sig.confidence >= 65 ? '#E65100' : '#1565C0';
-  const cBg  = sig.confidence >= 80 ? '#E8F5E9' : sig.confidence >= 65 ? '#FFF3E0' : '#E3F2FD';
-  ctx.fillStyle = cBg; ctx.strokeStyle = cCol;
-  ctx.beginPath(); ctx.roundRect(cx2, by, 56, bh, 4); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = cCol;
-  ctx.font = 'bold 12px Arial, sans-serif';
-  ctx.fillText(sig.confidence+'%', cx2+28, by+19);
-
-  // RR
-  const rx2 = cx2 + 64;
-  ctx.fillStyle = '#FFF9C4'; ctx.strokeStyle = '#F57F17';
-  ctx.beginPath(); ctx.roundRect(rx2, by, 60, bh, 4); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = '#E65100';
-  ctx.font = 'bold 11px Arial, sans-serif';
-  ctx.fillText(sig.rr || '—', rx2+30, by+19);
-
-  // TF badge
-  ctx.fillStyle = '#EEE'; ctx.strokeStyle = '#AAA';
-  ctx.beginPath(); ctx.roundRect(rx2+68, by, 40, bh, 4); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = '#444';
-  ctx.font = 'bold 11px Arial, sans-serif';
-  ctx.fillText(selectedTF, rx2+88, by+19);
-
-  // ── 9. BOTTOM LABELS ──
-  ctx.fillStyle = '#888';
-  ctx.font = '9px monospace';
-  ctx.textAlign = 'left';
-  ctx.fillText('◀ HISTORY', ML+4, MT+CH+30);
-  ctx.textAlign = 'right';
-  ctx.fillText('TARGET ▶', ML+CW-4, MT+CH+30);
-}
-
-// ══════════════════════════════════════════════════════════════
-// PATTERN SHAPES — clean, professional, like HowToTrade cheat sheet
-// ══════════════════════════════════════════════════════════════
-function drawPatternShape(ctx, pat, isBull, entry, sl, tp,
-  toX, toY, CW, CH, ML, MT, pMin, pMax, spread, nowX,
-  line, arrow, dot, label, fillZone,
-  C_PRICE, C_TREND, C_BULL, C_BEAR, C_ENTRY, C_SL, C_TP, dirCol)
-{
-  const entryY = toY(entry);
-  const slY    = toY(sl);
-  const tpY    = toY(tp);
-  const black  = '#111111';
-
-  // Final arrow after NOW
+  // ── Direction arrow after NOW ──
   function dirArrow() {
-    const fromX = nowX, fromY = entryY;
-    const toXa  = toX(0.88);
-    const toYa  = isBull ? tpY + (entryY-tpY)*0.3 : slY + (entryY-slY)*0.3;
-    arrow(fromX, fromY, toXa, toYa, dirCol, 3);
+    const fromY = toY(entry);
+    const toYa  = isBull ? toY(tp) + (fromY - toY(tp)) * 0.25
+                         : toY(sl) + (fromY - toY(sl)) * 0.25;
+    ARR(nowX+6, fromY, ML+CW-10, toYa, dirCol, 2.5);
+    TXT('Target', ML+CW-30, toYa-(isBull?12:-4), dirCol, 9);
   }
 
-  // ── HEAD & SHOULDERS ──
+  // ── Pattern trendlines ──
+  const eY = toY(entry), sY = toY(sl), tY = toY(tp);
+  const spread = Math.abs(tp - sl) || 1;
+
   if (pat.includes('head') && pat.includes('shoulder')) {
-    const inv = isBull; // inverse H&S is bullish
-    const nkY = toY(entry + (inv ? -spread*0.2 : spread*0.2));
-    const lsY = toY(entry + (inv ? -spread*1.2 : spread*1.2));
-    const hdY = toY(entry + (inv ? -spread*2.0 : spread*2.0));
-    const rsY = toY(entry + (inv ? -spread*1.1 : spread*1.1));
-    const lsX=toX(0.12), v1=toX(0.24), hdX=toX(0.38), v2=toX(0.52), rsX=toX(0.62);
-    // Neckline
-    line(toX(0.04), nkY, nowX, nkY, C_TREND, 2, []);
-    // Price path
-    [[toX(0.04),nkY],[lsX,lsY],[v1,nkY],[hdX,hdY],[v2,nkY],[rsX,rsY],[nowX,nkY]].reduce((a,b)=>{
-      line(a[0],a[1],b[0],b[1],black,2.5); return b;
-    });
-    dot(lsX,lsY,C_TREND); dot(hdX,hdY,black,6); dot(rsX,rsY,C_TREND);
-    const lo = inv ? -16 : 16;
-    ctx.fillStyle = '#333'; ctx.font = 'bold 10px Arial'; ctx.textAlign = 'center';
-    ctx.fillText('LS', lsX, lsY+lo); ctx.fillText('HEAD', hdX, hdY+lo); ctx.fillText('RS', rsX, rsY+lo);
-    ctx.fillStyle = C_TREND; ctx.font = '9px Arial';
-    ctx.fillText('— NECKLINE —', toX(0.35), nkY+(inv?12:-8));
+    const inv=isBull, d=inv?-1:1;
+    const nkY=toY(entry+d*spread*0.2), lsY=toY(entry+d*spread*1.2);
+    const hdY=toY(entry+d*spread*2.0), rsY=toY(entry+d*spread*1.1);
+    const lsX=nowX*0.22, v1=nowX*0.40, hdX=nowX*0.58, v2=nowX*0.76, rsX=nowX*0.92;
+    if (!useCandles) {
+      [[ML+CW*0.05,nkY],[lsX,lsY],[v1,nkY],[hdX,hdY],[v2,nkY],[rsX,rsY],[nowX,nkY]]
+        .reduce((a,b)=>{L(a[0],a[1],b[0],b[1],'#e2eaf4',2);return b;});
+    }
+    L(ML+CW*0.05, nkY, nowX, nkY, '#3b82f6', 1.5, [8,5]);
+    DOT(lsX,lsY,'#3b82f6'); DOT(hdX,hdY,'#e2eaf4',7); DOT(rsX,rsY,'#3b82f6');
+    TXT('LS',lsX,lsY+(inv?-13:15),'#60a5fa',9);
+    TXT('HEAD',hdX,hdY+(inv?-13:15),'#e2eaf4',9);
+    TXT('RS',rsX,rsY+(inv?-13:15),'#60a5fa',9);
+    TXT('NECKLINE',nowX*0.48,nkY+(inv?12:-8),'#3b82f6',9);
     dirArrow();
   }
 
-  // ── DOUBLE / TRIPLE TOP / BOTTOM ──
   else if (pat.includes('double') || pat.includes('triple')) {
-    const isTriple = pat.includes('triple');
-    const peakY = toY(entry + (isBull ? -spread*1.6 : spread*1.6));
-    const valY  = toY(entry + (isBull ? -spread*0.3 : spread*0.3));
-    const nkY   = valY;
-    const peaks = isTriple ? [toX(0.12),toX(0.36),toX(0.58)] : [toX(0.18),toX(0.52)];
-    const vals  = isTriple ? [toX(0.24),toX(0.47)] : [toX(0.35)];
-    // Neckline
-    line(toX(0.04), nkY, nowX, nkY, C_TREND, 2, []);
-    // Path
-    let prev = [toX(0.04), nkY];
-    peaks.forEach((x,i) => {
-      line(prev[0],prev[1],x,peakY,black,2.5); prev=[x,peakY];
-      if (vals[i]!==undefined) { line(x,peakY,vals[i],valY,black,2.5); prev=[vals[i],valY]; }
-    });
-    line(prev[0],prev[1],nowX,nkY,black,2.5);
-    peaks.forEach(x => dot(x,peakY,black,5));
-    vals.forEach(x => dot(x,valY,C_TREND,5));
-    ctx.fillStyle = C_TREND; ctx.font = '9px Arial'; ctx.textAlign = 'center';
-    ctx.fillText('— NECKLINE —', toX(0.38), nkY+(isBull?12:-8));
-    const labels = isTriple ? ['A','C','E'] : ['A','C'];
-    const lo = isBull ? -14 : 14;
-    ctx.fillStyle = '#333'; ctx.font = 'bold 10px Arial';
-    peaks.forEach((x,i) => ctx.fillText(labels[i], x, peakY+lo));
+    const isT=pat.includes('triple'), d=isBull?-1:1;
+    const pkY=toY(entry+d*spread*1.5), vY=toY(entry+d*spread*0.2);
+    const pks=isT?[nowX*0.18,nowX*0.52,nowX*0.82]:[nowX*0.22,nowX*0.72];
+    const vls=isT?[nowX*0.35,nowX*0.67]:[nowX*0.47];
+    if (!useCandles) {
+      let prev=[ML+CW*0.06,vY];
+      pks.forEach((x,i)=>{L(prev[0],prev[1],x,pkY,'#e2eaf4',2);prev=[x,pkY];
+        if(vls[i]){L(x,pkY,vls[i],vY,'#e2eaf4',2);prev=[vls[i],vY];}});
+      L(prev[0],prev[1],nowX,vY,'#e2eaf4',2);
+    }
+    L(ML+CW*0.06,vY,nowX,vY,'#3b82f6',1.5,[8,5]);
+    pks.forEach(x=>DOT(x,pkY,'#e2eaf4',5));
+    vls.forEach(x=>DOT(x,vY,'#3b82f6',5));
+    const lo=isBull?-13:14;
+    const lbs=isT?['A','C','E']:['A','C'];
+    pks.forEach((x,i)=>TXT(lbs[i],x,pkY+lo,'#e2eaf4',10));
+    TXT('NECKLINE',nowX*0.44,vY+(isBull?13:-8),'#3b82f6',9);
     dirArrow();
   }
 
-  // ── ASCENDING TRIANGLE ──
   else if (pat.includes('ascending triangle')) {
-    const resY    = toY(entry + spread * 0.9);
-    const supSY   = toY(entry - spread * 1.0);
-    const supEY   = toY(entry + spread * 0.3);
-    line(toX(0.04), resY,  nowX, resY,  C_TREND, 2.5);  // flat resistance
-    line(toX(0.04), supSY, nowX, supEY, C_TREND, 2.5);  // rising support
-    // Zigzag bounces inside
-    [[toX(0.04),supSY],[toX(0.18),resY],[toX(0.30),toY(entry-spread*0.5)],
-     [toX(0.44),resY],[toX(0.56),toY(entry-spread*0.1)],[nowX,resY]].reduce((a,b)=>{ line(a[0],a[1],b[0],b[1],black,2); return b; });
-    ctx.fillStyle = '#1565C0'; ctx.font = '9px Arial'; ctx.textAlign = 'center';
-    ctx.fillText('Resistance', toX(0.30), resY-10);
-    ctx.fillText('Rising Support', toX(0.25), supSY+14);
+    const resY=toY(entry+spread*0.8);
+    const s1=toY(entry-spread*1.0), s2=toY(entry+spread*0.2);
+    L(ML+CW*0.05,resY,nowX,resY,'#3b82f6',2);
+    L(ML+CW*0.05,s1,nowX,s2,'#3b82f6',2);
+    TXT('Resistance',nowX*0.44,resY-9,'#3b82f6',9);
     dirArrow();
   }
 
-  // ── DESCENDING TRIANGLE ──
   else if (pat.includes('descending triangle')) {
-    const supY   = toY(entry - spread * 0.9);
-    const resSY  = toY(entry + spread * 1.0);
-    const resEY  = toY(entry - spread * 0.3);
-    line(toX(0.04), supY,  nowX, supY,  C_TREND, 2.5);  // flat support
-    line(toX(0.04), resSY, nowX, resEY, C_TREND, 2.5);  // falling resistance
-    [[toX(0.04),resSY],[toX(0.18),supY],[toX(0.30),toY(entry+spread*0.5)],
-     [toX(0.44),supY],[toX(0.56),toY(entry+spread*0.1)],[nowX,supY]].reduce((a,b)=>{ line(a[0],a[1],b[0],b[1],black,2); return b; });
-    ctx.fillStyle = '#1565C0'; ctx.font = '9px Arial'; ctx.textAlign = 'center';
-    ctx.fillText('Support', toX(0.30), supY+12);
-    ctx.fillText('Falling Resistance', toX(0.28), resSY-10);
+    const supY=toY(entry-spread*0.8);
+    const r1=toY(entry+spread*1.0), r2=toY(entry-spread*0.2);
+    L(ML+CW*0.05,supY,nowX,supY,'#3b82f6',2);
+    L(ML+CW*0.05,r1,nowX,r2,'#3b82f6',2);
+    TXT('Support',nowX*0.44,supY+14,'#3b82f6',9);
     dirArrow();
   }
 
-  // ── SYMMETRICAL TRIANGLE / PENNANT ──
   else if (pat.includes('symmetrical') || pat.includes('pennant')) {
-    const topSY = toY(entry + spread*1.4), topEY = toY(entry + spread*0.2);
-    const botSY = toY(entry - spread*1.4), botEY = toY(entry - spread*0.2);
-    line(toX(0.05), topSY, nowX, topEY, C_TREND, 2.5);
-    line(toX(0.05), botSY, nowX, botEY, C_TREND, 2.5);
-    [[toX(0.05),topSY],[toX(0.18),botSY*0.6+topSY*0.4],
-     [toX(0.32),topSY*0.55+botSY*0.45],[toX(0.46),botEY*0.4+topEY*0.6],
-     [nowX,(topEY+botEY)/2]].reduce((a,b)=>{ line(a[0],a[1],b[0],b[1],black,2); return b; });
+    const t1=toY(entry+spread*1.3), t2=toY(entry+spread*0.15);
+    const b1=toY(entry-spread*1.3), b2=toY(entry-spread*0.15);
+    L(ML+CW*0.05,t1,nowX,t2,'#3b82f6',2);
+    L(ML+CW*0.05,b1,nowX,b2,'#3b82f6',2);
     dirArrow();
   }
 
-  // ── RISING WEDGE (bearish) ──
   else if (pat.includes('rising wedge')) {
-    const topSY=toY(entry-spread*0.3), topEY=toY(entry+spread*1.2);
-    const botSY=toY(entry-spread*1.4), botEY=toY(entry+spread*0.2);
-    line(toX(0.05),topSY,nowX,topEY,C_TREND,2.5);
-    line(toX(0.05),botSY,nowX,botEY,C_TREND,2.5);
-    [[toX(0.05),botSY],[toX(0.16),topSY*0.6+botSY*0.4],
-     [toX(0.28),botSY*0.3+topSY*0.7],[toX(0.42),topEY*0.3+botEY*0.7],
-     [toX(0.56),botEY*0.2+topEY*0.8],[nowX,topEY]].reduce((a,b)=>{ line(a[0],a[1],b[0],b[1],black,2.5); return b; });
+    const t1=toY(entry+spread*0.2), t2=toY(entry+spread*1.3);
+    const b1=toY(entry-spread*1.2), b2=toY(entry+spread*0.3);
+    L(ML+CW*0.05,t1,nowX,t2,'#3b82f6',2);
+    L(ML+CW*0.05,b1,nowX,b2,'#3b82f6',2);
     dirArrow();
   }
 
-  // ── FALLING WEDGE (bullish) ──
   else if (pat.includes('falling wedge')) {
-    const topSY=toY(entry+spread*0.3), topEY=toY(entry-spread*1.2);
-    const botSY=toY(entry+spread*1.4), botEY=toY(entry-spread*0.2);
-    line(toX(0.05),topSY,nowX,topEY,C_TREND,2.5);
-    line(toX(0.05),botSY,nowX,botEY,C_TREND,2.5);
-    [[toX(0.05),topSY],[toX(0.16),botSY*0.6+topSY*0.4],
-     [toX(0.28),topSY*0.3+botSY*0.7],[toX(0.42),botEY*0.3+topEY*0.7],
-     [toX(0.56),topEY*0.2+botEY*0.8],[nowX,botEY]].reduce((a,b)=>{ line(a[0],a[1],b[0],b[1],black,2.5); return b; });
+    const t1=toY(entry+spread*1.2), t2=toY(entry-spread*0.2);
+    const b1=toY(entry+spread*0.3),  b2=toY(entry-spread*1.3);
+    L(ML+CW*0.05,t1,nowX,t2,'#3b82f6',2);
+    L(ML+CW*0.05,b1,nowX,b2,'#3b82f6',2);
     dirArrow();
   }
 
-  // ── FLAG ──
   else if (pat.includes('flag')) {
-    // Flagpole
-    const poleBot = toY(entry + (isBull ? -spread*2.2 : spread*2.2));
-    const poleTop = toY(entry + (isBull ? -spread*0.2 : spread*0.2));
-    line(toX(0.05), poleBot, toX(0.22), poleTop, black, 3);
-    // Flag body (counter-trend rectangle)
-    const fTop = isBull ? poleTop + CH*0.04 : poleTop - CH*0.04;
-    const fBot = isBull ? poleTop + CH*0.14 : poleTop - CH*0.14;
-    line(toX(0.22),fTop,nowX,isBull?fTop+CH*0.04:fTop-CH*0.04,C_TREND,2);
-    line(toX(0.22),fBot,nowX,isBull?fBot+CH*0.04:fBot-CH*0.04,C_TREND,2);
-    // Price inside flag
-    [[toX(0.22),fTop],[toX(0.32),fBot],[toX(0.42),fTop*0.6+fBot*0.4],[toX(0.52),fBot*0.4+fTop*0.6],[nowX,isBull?fBot+CH*0.02:fTop-CH*0.02]].reduce((a,b)=>{ line(a[0],a[1],b[0],b[1],black,2); return b; });
+    const d=isBull?-1:1;
+    if (!useCandles) {
+      const pb=toY(entry+d*spread*2.2), pt=toY(entry+d*spread*0.2);
+      L(ML+CW*0.05,pb,ML+CW*0.22,pt,'#e2eaf4',2.5);
+    }
+    const fT=isBull?toY(entry+spread*0.2):toY(entry-spread*0.2);
+    const fB=isBull?toY(entry-spread*0.2):toY(entry+spread*0.2);
+    L(ML+CW*0.22,fT,nowX,isBull?fT+10:fT-10,'#3b82f6',1.5);
+    L(ML+CW*0.22,fB,nowX,isBull?fB+10:fB-10,'#3b82f6',1.5);
     dirArrow();
   }
 
-  // ── CHANNEL (rising / falling / horizontal) ──
   else if (pat.includes('channel')) {
-    const rising  = pat.includes('rising');
-    const falling = pat.includes('falling');
-    const slopeY  = rising ? -CH*0.25 : falling ? CH*0.25 : 0;
-    const width   = CH*0.28;
-    const midY    = toY(entry);
-    const topSY   = midY - width/2;
-    const botSY   = midY + width/2;
-    line(toX(0.05), topSY, nowX, topSY+slopeY, C_TREND, 2);
-    line(toX(0.05), botSY, nowX, botSY+slopeY, C_TREND, 2);
-    // Bounces inside
-    const pts = [[toX(0.05),topSY],[toX(0.18),botSY],[toX(0.33),topSY+slopeY*0.5],
-                 [toX(0.48),botSY+slopeY*0.5],[nowX,topSY+slopeY]];
-    pts.reduce((a,b)=>{ line(a[0],a[1],b[0],b[1],black,2); return b; });
+    const rising=pat.includes('rising'), falling=pat.includes('falling');
+    const sl2=rising?-CH*0.2:falling?CH*0.2:0;
+    const mid=toY(entry);
+    L(ML+CW*0.05,mid-CH*0.12,nowX,mid-CH*0.12+sl2,'#3b82f6',2);
+    L(ML+CW*0.05,mid+CH*0.12,nowX,mid+CH*0.12+sl2,'#3b82f6',2);
     dirArrow();
   }
 
-  // ── CUP & HANDLE ──
   else if (pat.includes('cup')) {
-    const rim   = toY(entry + spread*0.9);
-    const cup   = toY(entry - spread*1.2);
-    const hBot  = toY(entry + spread*0.3);
-    // Cup arc (approximate with bezier)
-    ctx.save(); ctx.strokeStyle=black; ctx.lineWidth=2.5; ctx.lineCap='round';
-    ctx.beginPath();
-    ctx.moveTo(toX(0.05), rim);
-    ctx.bezierCurveTo(toX(0.15), cup, toX(0.40), cup, toX(0.50), rim);
-    ctx.stroke(); ctx.restore();
-    // Handle (small pullback)
-    [[toX(0.50),rim],[toX(0.56),hBot],[toX(0.62),rim*0.7+hBot*0.3],[nowX,rim]].reduce((a,b)=>{ line(a[0],a[1],b[0],b[1],black,2); return b; });
-    line(toX(0.05),rim,nowX,rim,C_TREND,2,[6,4]);
+    const rim=toY(entry+spread*0.7), cup=toY(entry-spread*1.2);
+    if (!useCandles) {
+      ctx.save(); ctx.strokeStyle='#e2eaf4'; ctx.lineWidth=2; ctx.lineCap='round';
+      ctx.beginPath(); ctx.moveTo(ML+CW*0.06,rim);
+      ctx.bezierCurveTo(ML+CW*0.16,cup,ML+CW*0.42,cup,ML+CW*0.52,rim);
+      ctx.stroke(); ctx.restore();
+    }
+    L(ML+CW*0.06,rim,nowX,rim,'#3b82f6',1.5,[6,4]);
     dirArrow();
   }
 
-  // ── ELLIOT WAVE 3 ──
-  else if (pat.includes('elliott') && pat.includes('3') && !pat.includes('5')) {
-    const d = isBull ? 1 : -1;
-    const pts = [
-      [toX(0.05), toY(entry-d*spread*2.0)],  // W1 start
-      [toX(0.14), toY(entry-d*spread*0.8)],  // W1 end
-      [toX(0.22), toY(entry-d*spread*1.4)],  // W2
-      [toX(0.38), toY(entry+d*spread*0.4)],  // W3 end ← current
-      [nowX,      toY(entry+d*spread*0.4)],
-    ];
-    pts.reduce((a,b)=>{ line(a[0],a[1],b[0],b[1],black,2.5); return b; });
-    dot(pts[2][0],pts[2][1],C_TREND,5);
-    dot(pts[3][0],pts[3][1],dirCol,6);
-    ctx.fillStyle='#333'; ctx.font='bold 10px Arial'; ctx.textAlign='center';
-    ['1','2','3'].forEach((n,i)=>ctx.fillText('W'+n, pts[i+1][0], pts[i+1][1]-12));
-    dirArrow();
-  }
-
-  // ── ELLIOT WAVE 5 ──
-  else if (pat.includes('elliott') && pat.includes('5')) {
-    const d = isBull ? 1 : -1;
-    const pts = [
-      [toX(0.05),toY(entry-d*spread*2.2)],[toX(0.13),toY(entry-d*spread*1.2)],
-      [toX(0.20),toY(entry-d*spread*1.8)],[toX(0.30),toY(entry-d*spread*0.4)],
-      [toX(0.38),toY(entry-d*spread*1.0)],[nowX,     toY(entry+d*spread*0.2)],
-    ];
-    pts.reduce((a,b)=>{ line(a[0],a[1],b[0],b[1],black,2.5); return b; });
-    ['1','2','3','4','5'].forEach((n,i)=>{ dot(pts[i+1][0],pts[i+1][1],i===4?dirCol:C_TREND,5); });
-    ctx.fillStyle='#333'; ctx.font='bold 10px Arial'; ctx.textAlign='center';
-    ['1','2','3','4','5'].forEach((n,i)=>ctx.fillText('W'+n, pts[i+1][0], pts[i+1][1]-12));
-    dirArrow();
-  }
-
-  // ── ENGULFING ──
-  else if (pat.includes('engulf')) {
-    const cw = CW*0.10, gap = CW*0.04;
-    const c1x = nowX - cw*2.5 - gap, c2x = nowX - cw - gap*0.5;
-    const sm = spread*0.6, lg = spread*1.1;
-    // Small candle
-    const s1o = toY(entry + (isBull?-sm*0.2:sm*0.2)), s1c = toY(entry + (isBull?sm*0.6:-sm*0.6));
-    ctx.fillStyle = isBull ? '#C62828' : '#2E7D32';
-    ctx.fillRect(c1x, Math.min(s1o,s1c), cw, Math.abs(s1o-s1c)||4);
-    line(c1x+cw/2,toY(entry+(isBull?sm*0.9:-sm*0.9)),c1x+cw/2,toY(entry+(isBull?-sm*0.5:sm*0.5)),isBull?'#C62828':'#2E7D32',1);
-    // Big engulfing candle
-    const s2o = toY(entry+(isBull?sm*0.8:-sm*0.8)), s2c = toY(entry+(isBull?-lg*0.8:lg*0.8));
-    ctx.fillStyle = isBull ? '#2E7D32' : '#C62828';
-    ctx.fillRect(c2x, Math.min(s2o,s2c), cw, Math.abs(s2o-s2c)||4);
-    line(c2x+cw/2,toY(entry+(isBull?-lg:lg)),c2x+cw/2,toY(entry+(isBull?lg*0.9:-lg*0.9)),dirCol,1);
-    dirArrow();
-  }
-
-  // ── HAMMER / SHOOTING STAR ──
-  else if (pat.includes('hammer') || pat.includes('shooting star')) {
-    const isHammer = pat.includes('hammer');
-    const cw = CW*0.10;
-    const cx = nowX - cw*1.5;
-    const co = toY(entry + (isHammer ? -spread*0.15 : spread*0.3));
-    const cc = toY(entry + (isHammer ? spread*0.1 : -spread*0.15));
-    const wickLen = spread * 1.6;
-    const wickTop = isHammer ? toY(entry + spread*0.15) : toY(entry + spread*0.15 + wickLen);
-    const wickBot = isHammer ? toY(entry - wickLen) : toY(entry + spread*0.3);
-    ctx.fillStyle = isHammer ? '#2E7D32' : '#C62828';
-    ctx.fillRect(cx, Math.min(co,cc), cw, Math.abs(co-cc)||4);
-    line(cx+cw/2, wickTop, cx+cw/2, wickBot, '#555', 1.5);
-    dirArrow();
-  }
-
-  // ── FIB BOUNCE ──
-  else if (pat.includes('fib')) {
-    const fibPct = pat.includes('61') ? 0.618 : pat.includes('38') ? 0.382 : 0.5;
-    const swHigh = toY(entry + spread*1.8);
-    const swLow  = toY(entry - spread*1.8);
-    const fibY   = toY(entry + spread*1.8 - (2*spread*1.8)*fibPct);
-    // Swing
-    line(toX(0.05),swLow,toX(0.28),swHigh,black,2.5);
-    line(toX(0.28),swHigh,toX(0.50),fibY,black,2.5);
-    // Fib level
-    line(toX(0.05),fibY,nowX,fibY,C_TREND,2,[6,4]);
-    ctx.fillStyle=C_TREND; ctx.font='bold 10px Arial'; ctx.textAlign='center';
-    ctx.fillText((fibPct*100).toFixed(1)+'% Fib', toX(0.28), fibY-10);
-    dirArrow();
-  }
-
-  // ── BREAKOUT ──
   else if (pat.includes('breakout')) {
-    const keyY = toY(entry);
-    line(toX(0.04),keyY,nowX,keyY,C_TREND,2.5,[]);
-    // Consolidation before breakout
-    [[toX(0.04),toY(entry+spread*0.3)],[toX(0.14),keyY],[toX(0.24),toY(entry+spread*0.25)],
-     [toX(0.36),keyY],[toX(0.48),toY(entry+spread*0.15)],[nowX,keyY]].reduce((a,b)=>{ line(a[0],a[1],b[0],b[1],black,2); return b; });
-    ctx.fillStyle=C_TREND; ctx.font='bold 10px Arial'; ctx.textAlign='center';
-    ctx.fillText('KEY LEVEL', toX(0.30), keyY-(isBull?12:-5));
+    L(ML+CW*0.05,eY,nowX,eY,'#3b82f6',2,[8,5]);
+    TXT('KEY LEVEL',nowX*0.4,eY-(isBull?11:-3),'#3b82f6',9);
     dirArrow();
   }
 
-  // ── EMA TREND / RSI / GENERIC ──
-  else {
-    // Clean trend line with momentum
-    const d = isBull ? 1 : -1;
-    const trend = [
-      [toX(0.04), toY(entry - d*spread*1.2)],
-      [toX(0.14), toY(entry - d*spread*0.5)],
-      [toX(0.24), toY(entry - d*spread*0.9)],
-      [toX(0.36), toY(entry - d*spread*0.1)],
-      [toX(0.46), toY(entry - d*spread*0.5)],
-      [nowX,      toY(entry + d*spread*0.1)],
-    ];
-    trend.reduce((a,b)=>{ line(a[0],a[1],b[0],b[1],black,2.5); return b; });
-    // EMA line
-    line(toX(0.04), toY(entry - d*spread*0.8), nowX, toY(entry + d*spread*0.05), C_TREND, 1.5, [4,3]);
-    ctx.fillStyle=C_TREND; ctx.font='9px Arial'; ctx.textAlign='left';
-    ctx.fillText('EMA', toX(0.06), toY(entry - d*spread*0.8) - 5);
+  else if (pat.includes('fib')) {
+    const pct=pat.includes('61')?0.618:pat.includes('38')?0.382:0.5;
+    const fibY=toY(entry);
+    L(ML+CW*0.05,fibY,nowX,fibY,'#3b82f6',1.5,[6,4]);
+    TXT((pct*100).toFixed(1)+'% Fib',nowX*0.36,fibY-9,'#3b82f6',9);
     dirArrow();
   }
+
+  else if (pat.includes('elliott')) {
+    const d=isBull?1:-1;
+    const isW5=pat.includes('5');
+    if (!useCandles) {
+      const pts=isW5?[
+        [ML+CW*0.06,toY(entry-d*spread*2.0)],[nowX*0.22,toY(entry-d*spread*0.9)],
+        [nowX*0.35,toY(entry-d*spread*1.5)],[nowX*0.52,toY(entry-d*spread*0.2)],
+        [nowX*0.65,toY(entry-d*spread*0.8)],[nowX,toY(entry+d*spread*0.3)],
+      ]:[
+        [ML+CW*0.06,toY(entry-d*spread*2.0)],[nowX*0.28,toY(entry-d*spread*0.8)],
+        [nowX*0.45,toY(entry-d*spread*1.4)],[nowX,toY(entry+d*spread*0.3)],
+      ];
+      pts.reduce((a,b)=>{L(a[0],a[1],b[0],b[1],'#e2eaf4',2);return b;});
+      const labs=isW5?['1','2','3','4','5']:['1','2','3'];
+      pts.slice(1).forEach((p,i)=>{
+        DOT(p[0],p[1],i===labs.length-1?dirCol:'#3b82f6',4);
+        TXT('W'+labs[i],p[0],p[1]-10,'#60a5fa',9);
+      });
+    }
+    dirArrow();
+  }
+
+  else {
+    // Generic: just show direction arrow and key level
+    L(ML+CW*0.05,eY,nowX,eY,'#3b82f6',1.5,[6,4]);
+    dirArrow();
+  }
+
+  // ── HEADER ──
+  ctx.fillStyle = '#0a1120';
+  ctx.fillRect(0, 0, W, MT);
+  ctx.strokeStyle = '#1e3050'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(0,MT); ctx.lineTo(W,MT); ctx.stroke();
+  // Left accent stripe
+  ctx.fillStyle = dirCol; ctx.fillRect(0, 0, 3, MT);
+  // Pair
+  ctx.fillStyle = '#f1f5f9'; ctx.font = 'bold 14px IBM Plex Mono'; ctx.textAlign = 'left';
+  ctx.fillText(sig.pair, 10, 20);
+  // Pattern
+  ctx.fillStyle = '#60a5fa'; ctx.font = '10px IBM Plex Mono';
+  ctx.fillText(sig.pattern.toUpperCase(), 10, 36);
+  // Badges right side
+  const bdgs = [
+    {t: isBull?'▲ BUY':'▼ SELL', col: dirCol,    bg: isBull?'rgba(38,166,154,.15)':'rgba(239,83,80,.15)'},
+    {t: sig.confidence+'%',       col: '#60a5fa', bg: 'rgba(59,130,246,.12)'},
+    {t: sig.rr||'—',              col: '#fbbf24', bg: 'rgba(245,158,11,.12)'},
+    {t: selectedTF,               col: '#94a3b8', bg: 'rgba(100,116,139,.12)'},
+  ];
+  let bx = W - 6;
+  ctx.font = 'bold 10px IBM Plex Mono';
+  for (let i = bdgs.length-1; i >= 0; i--) {
+    const b = bdgs[i];
+    const tw = ctx.measureText(b.t).width;
+    const bw = tw+14, bh=20, by=16;
+    bx -= bw+4;
+    ctx.fillStyle=b.bg; ctx.strokeStyle=b.col; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.roundRect(bx,by,bw,bh,3); ctx.fill(); ctx.stroke();
+    ctx.fillStyle=b.col; ctx.textAlign='center';
+    ctx.fillText(b.t, bx+bw/2, by+14);
+  }
+  // NOW label
+  ctx.fillStyle='#2d4a78'; ctx.font='9px IBM Plex Mono'; ctx.textAlign='center';
+  ctx.fillText('NOW', nowX, MT+CH+18);
 }
+
 
 
 
