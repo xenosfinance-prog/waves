@@ -2274,19 +2274,20 @@ function renderSignals(list) {
           if (canvas && !canvas.dataset.drawn) {
             canvas.style.width  = '860px';
             canvas.style.height = '420px';
-            // Try to draw immediately
-            drawPatternChart(canvas, sig);
             canvas.dataset.drawn = '1';
-            // If candles not yet in cache, redraw after live chart loads
+            // Fetch candles first, then draw with real data
             const ck = sig.pair + '_' + selectedTF;
-            if (!candleCache[ck] || candleCache[ck].length < 10) {
-              setTimeout(() => {
-                if (candleCache[ck] && candleCache[ck].length >= 10) {
-                  canvas.dataset.drawn = '0';
-                  drawPatternChart(canvas, sig);
-                  canvas.dataset.drawn = '1';
+            const cached = candleCache[ck];
+            if (cached && cached.length >= 10) {
+              drawPatternChart(canvas, sig, cached);
+            } else {
+              // Draw placeholder, then fetch and redraw
+              drawPatternChart(canvas, sig, []);
+              fetchCandles(sig.pair).then(candles => {
+                if (candles && candles.length >= 10) {
+                  drawPatternChart(canvas, sig, candles);
                 }
-              }, 5000); // retry after 5s when candles should be loaded
+              });
             }
           }
           // Live chart con candele reali
@@ -2552,7 +2553,7 @@ async function loadLiveChart(container, sig, idx) {
 // Canvas 900x500 @ 2x = 1800x1000px effettivi
 // ══════════════════════════════════════════════════════════════
 
-function drawPatternChart(canvas, sig) {
+function drawPatternChart(canvas, sig, candlesParam) {
   const W = 860, H = 420;
   const ML = 8, MR = 62, MT = 52, MB = 28;
   const CW = W - ML - MR, CH = H - MT - MB;
@@ -2580,9 +2581,11 @@ function drawPatternChart(canvas, sig) {
     ctx.fillText('No data', W/2, H/2); return;
   }
 
-  // ── Get real candles from cache ──
-  const cacheKey = sig.pair + '_' + selectedTF;
-  const candles  = candleCache[cacheKey] || [];
+  // ── Get real candles — prefer passed param, fallback to cache ──
+  const cacheKey   = sig.pair + '_' + selectedTF;
+  const candles    = (candlesParam && candlesParam.length >= 10)
+                     ? candlesParam
+                     : (candleCache[cacheKey] || []);
   const useCandles = candles.length >= 10;
 
   // ── Price range ──
