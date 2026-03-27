@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<meta name="generated" content="20260327193511">
+<meta name="generated" content="20260327190541">
 <title>XenosFinance — Financial Analytics</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=PT+Serif:wght@400;700&family=PT+Mono&display=swap" rel="stylesheet">
 <style>
@@ -74,7 +74,7 @@ body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:10
   <div class="masthead-top">
     <span id="live-date">MARCH 27, 2026</span>
     <span>XENOSFINANCE · FINANCIAL ANALYTICS</span>
-    <span id="live-time">UPDATED AT 19:35 CET</span>
+    <span id="live-time">UPDATED AT 19:05 CET</span>
   </div>
   <div class="masthead-center">
     <div class="masthead-eyebrow">Financial Intelligence · Global Markets</div>
@@ -124,17 +124,21 @@ body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:10
   <div class="section-head-line"></div>
   <div id="news-status" style="font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:1px;">⟳</div>
 </div>
-<div class="news-grid" id="news-grid">
+<div class="news-grid" id="news-grid" style="grid-template-columns:repeat(3,1fr)">
   <div class="news-col" id="col1"><div class="story"><div class="story-src">MARKETS</div><div class="story-hl">Loading...</div></div></div>
   <div class="news-col" id="col2"><div class="story"><div class="story-src">GEOPOLITICS</div><div class="story-hl">Loading...</div></div></div>
-  <div class="news-col" id="col3">
-    <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--gold);text-transform:uppercase;margin-bottom:12px;">⚡ Breaking Feed</div>
-    <div id="flash-feed"></div>
-  </div>
+  <div class="news-col" id="col3"><div class="story"><div class="story-src">🛢️ COMMODITIES</div><div class="story-hl">Loading...</div></div></div>
+</div>
+<div class="section-head" style="margin-top:24px">
+  <div class="section-head-label">⚡ Breaking Feed</div>
+  <div class="section-head-line"></div>
+</div>
+<div style="border:1px solid var(--border);background:var(--bg2);padding:16px 20px;margin-bottom:8px">
+  <div id="flash-feed"></div>
 </div>
 <div class="bottom-bar">
   <span>© XENOSFINANCE 2026</span>
-  <span>Sources: Reuters · CNBC · Yahoo Finance · Al Jazeera · NYT</span>
+  <span>Sources: Reuters · CNBC · Yahoo Finance · Al Jazeera · NYT · Barchart · Finnhub</span>
   <span>⚠ Not investment advice</span>
 </div>
 </div></div>
@@ -174,6 +178,7 @@ async function updateMarkets(){
   const lt=document.getElementById('live-time');if(lt)lt.textContent='UPDATED AT '+hm+' CET';
   const ss=document.getElementById('snap-status');if(ss)ss.textContent='✓ '+hm;
 }
+const WORKER_URL='https://xenos-ai-proxy.xenosfinance.workers.dev';
 const NEWS_FEEDS=[
   {url:'https://finance.yahoo.com/rss/topstories',source:'Yahoo Finance',cat:'markets'},
   {url:'https://finance.yahoo.com/rss/news',source:'Yahoo News',cat:'macro'},
@@ -183,41 +188,42 @@ const NEWS_FEEDS=[
   {url:'https://www.aljazeera.com/xml/rss/all.xml',source:'Al Jazeera',cat:'geo'},
   {url:'https://rss.nytimes.com/services/xml/rss/nyt/Business.xml',source:'NYT',cat:'markets'},
 ];
+const BARCHART_FEEDS=[
+  {url:'https://www.barchart.com/news/rss?category=commodities',source:'Barchart',cat:'commodities'},
+  {url:'https://www.barchart.com/news/rss?category=markets',source:'Barchart',cat:'markets'},
+  {url:'https://www.barchart.com/news/rss?category=futures',source:'Barchart',cat:'commodities'},
+];
 const MKT_KW=['gold','oil','crude','fed','federal reserve','rate','inflation','gdp','nasdaq','s&p','dow','futures','stock','market','treasury','dollar','euro','tariff','trade','trump','china','sanctions','ukraine','russia','opec','energy','bitcoin','crypto','earnings','recession','bank','ecb','wall street','nvidia','apple'];
 function isRel(t){const s=t.toLowerCase();return MKT_KW.some(k=>s.includes(k));}
 const TR=[[/federal reserve/gi,'ФРС'],[/the fed/gi,'ФРС'],[/wall street/gi,'Уолл-стрит'],[/stock market/gi,'фондовый рынок'],[/stocks?/gi,'акции'],[/interest rates?/gi,'процентные ставки'],[/inflation/gi,'инфляция'],[/gdp/gi,'ВВП'],[/recession/gi,'рецессия'],[/crude oil/gi,'сырая нефть'],[/tariffs?/gi,'тарифы'],[/trade war/gi,'торговая война'],[/sanctions/gi,'санкции'],[/dollar/gi,'доллар'],[/earnings/gi,'прибыль'],[/rises?/gi,'растёт'],[/falls?/gi,'падает'],[/surges?/gi,'резко растёт'],[/plunges?/gi,'обрушивается'],[/gains?/gi,'прибавляет'],[/drops?/gi,'снижается'],[/(\d+(\.\d+)?)\s*billion/gi,'$1 млрд'],[/(\d+(\.\d+)?)\s*million/gi,'$1 млн']];
 function translate(t){for(const[re,ru]of TR)t=t.replace(re,ru);return t.charAt(0).toUpperCase()+t.slice(1);}
-function detectImpact(t){const s=t.toLowerCase();const tags=[];if(['gold rises','safe haven','inflation','war','sanctions'].some(k=>s.includes(k)))tags.push({asset:'Gold',dir:'bull'});if(['gold falls','dollar strong'].some(k=>s.includes(k)))tags.push({asset:'Gold',dir:'bear'});if(['oil rises','opec cut','iran'].some(k=>s.includes(k)))tags.push({asset:'Oil',dir:'bull'});if(['oil falls','oversupply'].some(k=>s.includes(k)))tags.push({asset:'Oil',dir:'bear'});if(['stocks rise','rally','earnings beat'].some(k=>s.includes(k)))tags.push({asset:'S&P 500',dir:'bull'});if(['stocks fall','selloff','tariff'].some(k=>s.includes(k)))tags.push({asset:'S&P 500',dir:'bear'});return tags.slice(0,2);}
+function detectImpact(t){const s=t.toLowerCase();const tags=[];if(['gold rises','safe haven','inflation','war','sanctions'].some(k=>s.includes(k)))tags.push({asset:'Gold',dir:'bull'});if(['gold falls','dollar strong'].some(k=>s.includes(k)))tags.push({asset:'Gold',dir:'bear'});if(['oil rises','opec cut','iran'].some(k=>s.includes(k)))tags.push({asset:'Oil',dir:'bull'});if(['oil falls','oversupply'].some(k=>s.includes(k)))tags.push({asset:'Oil',dir:'bear'});if(['stocks rise','rally','earnings beat'].some(k=>s.includes(k)))tags.push({asset:'S&P 500',dir:'bull'});if(['stocks fall','selloff','tariff'].some(k=>s.includes(k)))tags.push({asset:'S&P 500',dir:'bear'});if(['copper','wheat','corn','natural gas','brent','wti','commodity'].some(k=>s.includes(k)))tags.push({asset:'Commodities',dir:s.includes('fall')||s.includes('drop')?'bear':'bull'});return tags.slice(0,2);}
 function tagHtml(t){const cls=t.dir==='bull'?'tag-bull':'tag-bear';const arr=t.dir==='bull'?'▲':'▼';return`<span class="story-tag ${cls}">${arr} ${t.asset}</span>`;}
 function storyHtml(it){const lnk=it.link?`href="${it.link}" target="_blank"`:'';const aO=lnk?`<a ${lnk}>`:'';const aC=lnk?'</a>':'';const desc=it.desc?`<div class="story-desc">${it.desc.substring(0,160)}...</div>`:'';const tags=it.impacts.map(tagHtml).join(' ');return`<div class="story"><div class="story-src">📰 ${it.source.toUpperCase()}</div><div class="story-hl">${aO}${it.title}${aC}</div>${desc}<div style="margin-top:6px">${tags}</div></div>`;}
 async function fetchFeed(feed){
   const proxies=[`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feed.url)}&count=20`,`https://api.allorigins.win/raw?url=${encodeURIComponent(feed.url)}`,`https://corsproxy.io/?${encodeURIComponent(feed.url)}`];
-  try{const r=await fetch(proxies[0],{signal:AbortSignal.timeout(8000)});if(r.ok){const d=await r.json();if(d.status==='ok'&&d.items?.length){return d.items.map(it=>{const raw=it.title?.trim()||'';const desc=(it.description||it.content||'').replace(/<[^>]+>/g,'').trim();if(!raw||raw.length<10)return null;if(!isRel(raw+' '+desc))return null;return{title:translate(raw),desc:desc.substring(0,300),link:it.link||'',source:feed.source,cat:feed.cat,impacts:detectImpact(raw+' '+desc)};}). filter(Boolean);}}}catch(e){}
-  for(const p of proxies.slice(1)){try{const r=await fetch(p,{signal:AbortSignal.timeout(8000)});if(!r.ok)continue;const txt=await r.text();if(!txt||txt.length<100)continue;const doc=new DOMParser().parseFromString(txt,'text/xml');if(doc.querySelector('parsererror'))continue;const items=[];for(const el of doc.querySelectorAll('item')){const raw=el.querySelector('title')?.textContent?.trim()||'';const desc=(el.querySelector('description')?.textContent||'').replace(/<[^>]+>/g,'').trim();const link=el.querySelector('link')?.textContent?.trim()||'';if(!raw||raw.length<10)continue;if(!isRel(raw+' '+desc))continue;items.push({title:translate(raw),desc:desc.substring(0,300),link,source:feed.source,cat:feed.cat,impacts:detectImpact(raw+' '+desc)});}if(items.length)return items;}catch(e){continue;}}return[];
+  try{const r=await fetch(proxies[0],{signal:AbortSignal.timeout(8000)});if(r.ok){const d=await r.json();if(d.status==='ok'&&d.items?.length){return d.items.map(it=>{const raw=it.title?.trim()||'';const desc=(it.description||it.content||'').replace(/<[^>]+>/g,'').trim();if(!raw||raw.length<10)return null;if(!isRel(raw+' '+desc))return null;return{title:raw,desc:desc.substring(0,300),link:it.link||'',source:feed.source,cat:feed.cat,impacts:detectImpact(raw+' '+desc)};}). filter(Boolean);}}}catch(e){}
+  for(const p of proxies.slice(1)){try{const r=await fetch(p,{signal:AbortSignal.timeout(8000)});if(!r.ok)continue;const txt=await r.text();if(!txt||txt.length<100)continue;const doc=new DOMParser().parseFromString(txt,'text/xml');if(doc.querySelector('parsererror'))continue;const items=[];for(const el of doc.querySelectorAll('item')){const raw=el.querySelector('title')?.textContent?.trim()||'';const desc=(el.querySelector('description')?.textContent||'').replace(/<[^>]+>/g,'').trim();const link=el.querySelector('link')?.textContent?.trim()||'';if(!raw||raw.length<10)continue;if(!isRel(raw+' '+desc))continue;items.push({title:raw,desc:desc.substring(0,300),link,source:feed.source,cat:feed.cat,impacts:detectImpact(raw+' '+desc)});}if(items.length)return items;}catch(e){continue;}}return[];
+}
+async function fetchBarchartViaWorker(feed){
+  try{const r=await fetch(WORKER_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:'barchart',url:feed.url}),signal:AbortSignal.timeout(10000)});if(!r.ok)return[];const d=await r.json();return(d.items||[]).map(it=>{if(!it.title||it.title.length<10)return null;if(!isRel(it.title+' '+(it.desc||'')))return null;return{title:it.title,desc:it.desc||'',link:it.link||'',source:feed.source,cat:feed.cat,impacts:detectImpact(it.title+' '+(it.desc||''))};}).filter(Boolean);}catch(e){return[];}
+}
+async function fetchFinnhubNews(){
+  try{const r=await fetch(WORKER_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:'finnhub',action:'market_news',category:'general'}),signal:AbortSignal.timeout(10000)});if(!r.ok)return[];const d=await r.json();return(d.news||[]).map(it=>{if(!it.headline||it.headline.length<10)return null;if(!isRel(it.headline+' '+(it.summary||'')))return null;return{title:it.headline,desc:it.summary||'',link:it.url||'',source:'Finnhub',cat:'markets',impacts:detectImpact(it.headline+' '+(it.summary||''))};}).filter(Boolean);}catch(e){return[];}
 }
 async function loadNews(){
-  const st=document.getElementById('news-status');if(st)st.textContent='⟳ Loading...';
-  const results=await Promise.allSettled(NEWS_FEEDS.map(f=>fetchFeed(f)));
-  let all=[];for(const r of results)if(r.status==='fulfilled')all=all.concat(r.value);
+  const st=document.getElementById('news-status');if(st)st.textContent='⧳ Loading...';
+  const[rssResults,barchartResults,finnhubItems]=await Promise.all([Promise.allSettled(NEWS_FEEDS.map(f=>fetchFeed(f))),Promise.allSettled(BARCHART_FEEDS.map(f=>fetchBarchartViaWorker(f))),fetchFinnhubNews()]);
+  let all=[];for(const r of rssResults)if(r.status==='fulfilled')all=all.concat(r.value);for(const r of barchartResults)if(r.status==='fulfilled')all=all.concat(r.value);all=all.concat(finnhubItems);
   if(!all.length){if(st)st.textContent='⚠ Temporarily unavailable';return;}
-  const seen=new Set();
-  const uniq=all.filter(it=>{const k=it.title.substring(0,40).toLowerCase();if(seen.has(k))return false;seen.add(k);return true;});
-  uniq.sort((a,b)=>b.impacts.length-a.impacts.length);
+  const seen=new Set();const uniq=all.filter(it=>{const k=it.title.substring(0,40).toLowerCase();if(seen.has(k))return false;seen.add(k);return true;});uniq.sort((a,b)=>b.impacts.length-a.impacts.length);
   const top=uniq[0];
-  if(top){
-    const hhl=document.getElementById('hero-hl');if(hhl)hhl.innerHTML=top.link?`<a href="${top.link}" target="_blank">${top.title}</a>`:top.title;
-    const hd=document.getElementById('hero-deck');if(hd)hd.textContent=top.desc?top.desc.substring(0,280)+'...':'';
-    const ht=document.getElementById('hero-tags');if(ht)ht.innerHTML=top.impacts.map(tagHtml).join(' ');
-    const n=new Date(),hm=n.getHours().toString().padStart(2,'0')+':'+n.getMinutes().toString().padStart(2,'0');
-    const hb=document.getElementById('hero-byline');if(hb)hb.textContent=top.source+' · '+hm+' CET';
-    const he=document.getElementById('hero-extras');if(he)he.innerHTML=uniq.slice(1,3).map(storyHtml).join('');
-  }
+  if(top){const hhl=document.getElementById('hero-hl');if(hhl)hhl.innerHTML=top.link?`<a href="${top.link}" target="_blank">${top.title}</a>`:top.title;const hd=document.getElementById('hero-deck');if(hd)hd.textContent=top.desc?top.desc.substring(0,280)+'...':'';const ht=document.getElementById('hero-tags');if(ht)ht.innerHTML=top.impacts.map(tagHtml).join(' ');const n=new Date(),hm=n.getHours().toString().padStart(2,'0')+':'+n.getMinutes().toString().padStart(2,'0');const hb=document.getElementById('hero-byline');if(hb)hb.textContent=top.source+' · '+hm+' CET';const he=document.getElementById('hero-extras');if(he)he.innerHTML=uniq.slice(1,3).map(storyHtml).join('');}
   const c1=document.getElementById('col1');if(c1){const items=uniq.filter(i=>['markets','macro'].includes(i.cat)).slice(0,4);c1.innerHTML=items.length?items.map(storyHtml).join(''):storyHtml(uniq[3]||uniq[2]);}
   const c2=document.getElementById('col2');if(c2){const items=uniq.filter(i=>i.cat==='geo').slice(0,4);c2.innerHTML=items.length?items.map(storyHtml).join(''):storyHtml(uniq[5]||uniq[4]);}
-  const fl=document.getElementById('flash-feed');
-  if(fl){const n=new Date(),hm=n.getHours().toString().padStart(2,'0')+':'+n.getMinutes().toString().padStart(2,'0');fl.innerHTML=uniq.slice(6,14).map(it=>`<div class="flash-item"><div class="flash-time">${hm}</div><div class="flash-hl">${it.link?`<a href="${it.link}" target="_blank">`:''}<br>${it.title.substring(0,90)}${it.link?'</a>':''}</div></div>`).join('');}
-  const n=new Date(),hm=n.getHours().toString().padStart(2,'0')+':'+n.getMinutes().toString().padStart(2,'0');
-  if(st)st.textContent=`✓ ${uniq.length} stories · ${hm} CET`;
+  const c3=document.getElementById('col3');if(c3){const items=uniq.filter(i=>i.cat==='commodities').slice(0,4);c3.innerHTML=items.length?items.map(storyHtml).join(''):'<div style="color:var(--muted);font-family:var(--mono);font-size:11px;padding:10px">⧳ Loading commodities...</div>';}
+  const fl=document.getElementById('flash-feed');if(fl){const n=new Date(),hm=n.getHours().toString().padStart(2,'0')+':'+n.getMinutes().toString().padStart(2,'0');fl.innerHTML=uniq.slice(6,14).map(it=>`<div class="flash-item"><div class="flash-time">${hm}</div><div class="flash-hl">${it.link?`<a href="${it.link}" target="_blank">`:''}<br>${it.title.substring(0,90)}${it.link?'</a>':''}</div></div>`).join('');}
+  const n=new Date(),hm=n.getHours().toString().padStart(2,'0')+':'+n.getMinutes().toString().padStart(2,'0');if(st)st.textContent=`✓ ${uniq.length} stories · ${hm} CET`;
 }
 document.addEventListener('DOMContentLoaded',()=>{updateMarkets();loadNews();setInterval(updateMarkets,60000);setInterval(loadNews,300000);});
 </script>
