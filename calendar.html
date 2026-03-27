@@ -82,6 +82,14 @@ body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:10
 .legend{display:flex;gap:20px;font-family:var(--mono);font-size:10px;color:var(--muted);}
 .legend-item{display:flex;align-items:center;gap:6px;}
 .bottom-bar{border-top:1px solid var(--border);margin-top:32px;padding:14px 0;display:flex;justify-content:space-between;font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:1px;}
+.ai-btn{font-family:var(--mono);font-size:9px;letter-spacing:1px;text-transform:uppercase;padding:3px 8px;border:1px solid var(--gold);color:var(--gold);background:transparent;cursor:pointer;transition:all 0.2s;white-space:nowrap;}
+.ai-btn:hover{background:rgba(59,130,246,0.15);}
+.ai-btn:disabled{opacity:0.4;cursor:not-allowed;}
+.ai-panel td{padding:0 !important;border-bottom:1px solid var(--border) !important;}
+.ai-panel-inner{background:var(--bg3);border-left:3px solid var(--gold);padding:14px 18px;font-family:var(--mono);font-size:11px;line-height:1.7;}
+.ai-panel-header{font-size:9px;letter-spacing:3px;color:var(--gold);text-transform:uppercase;margin-bottom:8px;}
+.ai-panel-text{color:var(--ink2);white-space:pre-wrap;}
+.ai-loading{color:var(--muted);font-style:italic;}
 @media(max-width:900px){.highlight-grid{grid-template-columns:1fr;}.masthead-name{font-size:40px;}.nav-btn{padding:10px 16px;font-size:10px;letter-spacing:2px;}.cal-table th:nth-child(4),.cal-table td:nth-child(4){display:none;}}
 </style>
 </head>
@@ -307,15 +315,21 @@ function renderCalendar() {
         ? `<span class="val-actual" style="color:${ev.actual.includes('TODAY') ? 'var(--gold2)' : 'var(--ink)'}">${ev.actual}</span>`
         : '<span style="color:var(--border2)">—</span>';
       const isToday2 = ev.date === today;
-      html += `<tr style="${isToday2 ? 'background:rgba(59,130,246,0.04)' : ''}">
+      const evIdx = day + '-' + evs.indexOf(ev);
+      const hasReal = hasActual && !ev.actual.includes('TODAY');
+      const aiBtn = hasReal ? `<button class="ai-btn" id="btn-${evIdx}" onclick="analyzeEvent('${evIdx}')">⚡ AI</button>` : '';
+      window._evData = window._evData || {};
+      window._evData[evIdx] = ev;
+      html += `<tr style="${isToday2 ? 'background:rgba(59,130,246,0.04)' : ''}" id="row-${evIdx}">
         <td class="ev-time">${ev.time}</td>
         <td><div class="country-tag">${ev.flag} ${ev.country}</div></td>
         <td><div class="ev-name">${ev.name}</div><div class="ev-desc">${ev.desc}</div></td>
         <td class="ev-val val-forecast">${ev.forecast}</td>
         <td class="ev-val val-prev">${ev.prev}</td>
         <td class="ev-val">${actualHtml}</td>
-        <td>${impactHtml(ev.impact)}</td>
+        <td>${impactHtml(ev.impact)} ${aiBtn}</td>
       </tr>`;
+      html += `<tr id="ai-${evIdx}" style="display:none"><td colspan="7" style="padding:0;border-bottom:1px solid var(--border)"><div id="ai-inner-${evIdx}" class="ai-panel-inner"></div></td></tr>`;
     });
   });
   if (!html) {
@@ -387,6 +401,65 @@ async function loadTicker() {
 }
 
 // ─── INIT ──────────────────────────────────────────────────────────────────
+// ─── AI ANALYSIS ───────────────────────────────────────────────────────────
+async function analyzeEvent(evIdx) {
+  const ev = window._evData && window._evData[evIdx];
+  if (!ev) return;
+  const panel = document.getElementById('ai-' + evIdx);
+  const inner = document.getElementById('ai-inner-' + evIdx);
+  const btn = document.getElementById('btn-' + evIdx);
+  if (!panel || !inner) return;
+
+  // Toggle off if already open
+  if (panel.style.display !== 'none') {
+    panel.style.display = 'none';
+    if (btn) btn.textContent = '⚡ AI';
+    return;
+  }
+
+  panel.style.display = '';
+  if (btn) { btn.textContent = '✕ Close'; }
+  inner.innerHTML = `<div class="ai-panel-header">⚡ AI Market Analysis</div><div class="ai-loading">Analyzing ${ev.name}...</div>`;
+
+  const beat = ev.actual && ev.forecast && ev.actual !== '—' && ev.forecast !== '—'
+    ? (parseFloat(ev.actual) > parseFloat(ev.forecast) ? 'beat' : parseFloat(ev.actual) < parseFloat(ev.forecast) ? 'missed' : 'met')
+    : 'released';
+
+  const prompt = `You are a senior macro analyst at an institutional trading desk. A key economic data point just released.
+
+Event: ${ev.name} (${ev.desc})
+Country: ${ev.flag} ${ev.country}
+Actual: ${ev.actual}
+Forecast: ${ev.forecast}
+Previous: ${ev.prev}
+Result: Data ${beat} expectations
+
+Write a concise institutional-grade market impact analysis (4-6 sentences). Cover:
+1. What the number means vs expectations
+2. Immediate market reaction expected (forex, bonds, equities)
+3. Central bank implications
+4. Key risk or tail scenario to watch
+
+Write in Bloomberg terminal style. No bullet points. No headers. Direct and precise.`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{role: 'user', content: prompt}]
+      })
+    });
+    const data = await res.json();
+    const text = data.content?.[0]?.text || 'Analysis unavailable.';
+    inner.innerHTML = `<div class="ai-panel-header">⚡ AI Market Analysis · ${ev.name}</div><div class="ai-panel-text">${text}</div>`;
+  } catch(e) {
+    inner.innerHTML = `<div class="ai-panel-header">⚡ AI Market Analysis</div><div class="ai-panel-text" style="color:var(--red2)">Analysis failed. Check connection.</div>`;
+  }
+}
+
 // ── LIVE ACTUALS via Worker (ForexFactory) ─────────────────
 const WORKER_URL = 'https://xenos-ai-proxy.xenosfinance.workers.dev';
 let liveEventsCache = {}; // key: event id → actual value
