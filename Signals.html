@@ -9,38 +9,38 @@
   @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap');
 
   :root {
-  --bg:      #080c10;
-  --bg2:     #0d1117;
-  --bg3:     #111820;
-  --bg4:     #161d27;
-  --border:  #1e2a38;
-  --border2: #243040;
-  --border-bright: #2d4060;
-  --gold:    #f59e0b;
-  --gold2:   #fbbf24;
-  --gold3:   #92400e;
-  --accent:  #3b82f6;
-  --accent2: #60a5fa;
-  --text:    #94a3b8;
-  --dim:     #475569;
-  --red:     #ef4444;
-  --red2:    #f87171;
-  --green:   #10b981;
-  --green2:  #34d399;
-  --blue:    #3b82f6;
-  --blue2:   #60a5fa;
-  --yellow:  #f59e0b;
-  --ink:     #f1f5f9;
-  --ink2:    #cbd5e1;
-  --muted:   #64748b;
-  --bright:  #f1f5f9;
-  --text-bright: #f1f5f9;
-  --text-dim:    #64748b;
-  --serif:   'Playfair Display', Georgia, serif;
-  --body:    'PT Serif', Georgia, serif;
-  --mono:    'IBM Plex Mono', 'PT Mono', monospace;
-  --sans:    'Inter', sans-serif;
-  --sidebar: 200px;
+  --bg:            #0f1724;
+  --bg2:           #131f2e;
+  --bg3:           #172032;
+  --bg4:           #1c2840;
+  --border:        #1e3050;
+  --border2:       #243a5e;
+  --border-bright: #2d4a78;
+  --gold:          #3b82f6;
+  --gold2:         #60a5fa;
+  --gold3:         #1d4ed8;
+  --accent:        #3b82f6;
+  --accent2:       #60a5fa;
+  --text:          #c8d8ea;
+  --text-bright:   #f1f5f9;
+  --text-dim:      #6b8aaa;
+  --dim:           #6b8aaa;
+  --red:           #ef4444;
+  --red2:          #f87171;
+  --green:         #10b981;
+  --green2:        #34d399;
+  --blue:          #3b82f6;
+  --blue2:         #60a5fa;
+  --yellow:        #f59e0b;
+  --ink:           #e2eaf4;
+  --ink2:          #b8cce0;
+  --muted:         #5a7a9a;
+  --bright:        #e2eaf4;
+  --serif:         'Playfair Display', Georgia, serif;
+  --body:          'PT Serif', Georgia, serif;
+  --mono:          'IBM Plex Mono', 'PT Mono', monospace;
+  --sans:          'Inter', sans-serif;
+  --sidebar:       200px;
 }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -2272,7 +2272,8 @@ function renderSignals(list) {
           // Pattern chart illustrativo
           const canvas = document.getElementById('chart-' + idx);
           if (canvas && !canvas.dataset.drawn) {
-            canvas.style.width  = '860px';
+            const cW = canvas.parentElement ? canvas.parentElement.offsetWidth : 580;
+            canvas.style.width  = (cW > 100 ? cW : 580) + 'px';
             canvas.style.height = '420px';
             canvas.dataset.drawn = '1';
             // Fetch candles first, then draw with real data
@@ -2554,7 +2555,8 @@ async function loadLiveChart(container, sig, idx) {
 // ══════════════════════════════════════════════════════════════
 
 function drawPatternChart(canvas, sig) {
-  const W = 860, H = 420;
+  const W = (canvas.style.width ? parseInt(canvas.style.width) : 860) || 860;
+  const H = 420;
   const ML = 70, MR = 20, MT = 60, MB = 50;
   const CW = W - ML - MR, CH = H - MT - MB;
 
@@ -2820,7 +2822,14 @@ function drawPatternShape(ctx, pat, isBull, entry, sl, tp,
   function dirArrow() {
     const fromX = nowX, fromY = entryY;
     const toXa  = toX(0.88);
-    const toYa  = isBull ? tpY + (entryY-tpY)*0.3 : slY + (entryY-slY)*0.3;
+    // BUY: arrow goes UP (toward TP which is above entry)
+    // SELL: arrow goes DOWN (toward SL which is below entry for SELL, or TP which is below)
+    const targetPrice = isBull ? tp : sl;
+    const targetY = toY(targetPrice);
+    // Ensure correct visual direction: BUY = up, SELL = down
+    const toYa = isBull
+      ? Math.min(fromY - 30, targetY + (fromY - targetY) * 0.3)  // up
+      : Math.max(fromY + 30, targetY + (fromY - targetY) * 0.3); // down
     arrow(fromX, fromY, toXa, toYa, dirCol, 3);
   }
 
