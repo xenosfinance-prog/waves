@@ -1,0 +1,2384 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>XENOS · Signal Engine</title>
+<script src="https://unpkg.com/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap');
+
+  :root {
+    --bg: #060810;
+    --bg2: #0c1018;
+    --bg3: #111720;
+    --border: #1e2a3a;
+    --border-bright: #2a3f58;
+    --accent: #00d4ff;
+    --accent2: #0099cc;
+    --green: #00e676;
+    --red: #ff3d5a;
+    --yellow: #ffd600;
+    --text: #c8d8e8;
+    --text-dim: #5a7a9a;
+    --text-bright: #eaf4ff;
+    --mono: 'Space Mono', monospace;
+    --sans: 'Syne', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  body::after {
+    content: '';
+    position: fixed;
+    top: 0; left: 50%; transform: translateX(-50%);
+    width: 800px; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    box-shadow: 0 0 60px 20px rgba(0,212,255,0.08);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrap { position: relative; z-index: 1; max-width: 1400px; margin: 0 auto; padding: 0 20px; }
+
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 16px 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+  }
+
+  .logo {
+    font-family: var(--sans);
+    font-weight: 800;
+    font-size: 18px;
+    letter-spacing: 0.15em;
+    color: var(--text-bright);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .logo-dot { width: 8px; height: 8px; background: var(--accent); border-radius: 50%; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.8)} }
+  .logo span { color: var(--accent); }
+
+  .header-status { font-size: 10px; color: var(--text-dim); letter-spacing: 0.1em; text-align: right; }
+  .status-live { color: var(--green); }
+
+  #auth-screen { min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+
+  .auth-box {
+    border: 1px solid var(--border-bright);
+    background: var(--bg2);
+    padding: 40px;
+    width: 380px;
+    position: relative;
+  }
+
+  .auth-box::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  }
+
+  .auth-title { font-family: var(--sans); font-weight: 800; font-size: 22px; color: var(--text-bright); margin-bottom: 6px; }
+  .auth-sub { font-size: 11px; color: var(--text-dim); margin-bottom: 28px; letter-spacing: 0.08em; }
+
+  .field { margin-bottom: 16px; }
+  .field label { display: block; font-size: 10px; color: var(--text-dim); letter-spacing: 0.12em; margin-bottom: 6px; text-transform: uppercase; }
+  .field input {
+    width: 100%;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    color: var(--text-bright);
+    font-family: var(--mono);
+    font-size: 13px;
+    padding: 10px 12px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .field input:focus { border-color: var(--accent2); }
+
+  .btn {
+    width: 100%;
+    padding: 12px;
+    background: var(--accent);
+    color: #000;
+    border: none;
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: background 0.2s;
+  }
+  .btn:hover { background: #00bbee; }
+
+  #app { display: none; }
+
+  .topbar {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 12px;
+    align-items: center;
+    padding: 16px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .topbar-title { font-family: var(--sans); font-size: 20px; font-weight: 800; color: var(--text-bright); letter-spacing: 0.05em; }
+  .topbar-title small { font-family: var(--mono); font-size: 10px; font-weight: 400; color: var(--text-dim); display: block; letter-spacing: 0.12em; margin-top: 2px; }
+
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 16px 0;
+    border-bottom: 1px solid var(--border);
+    align-items: flex-end;
+  }
+
+  .ctrl-group { display: flex; flex-direction: column; gap: 5px; }
+  .ctrl-label { font-size: 9px; color: var(--text-dim); letter-spacing: 0.12em; text-transform: uppercase; }
+
+  select {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 7px 10px;
+    outline: none;
+    cursor: pointer;
+    min-width: 130px;
+  }
+  select:focus { border-color: var(--accent2); }
+
+  .toggle-group { display: flex; gap: 4px; }
+
+  .toggle-btn {
+    padding: 7px 12px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-dim);
+    font-family: var(--mono);
+    font-size: 10px;
+    cursor: pointer;
+    letter-spacing: 0.08em;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .toggle-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(0,212,255,0.06); }
+
+  .btn-generate {
+    padding: 8px 24px;
+    background: var(--accent);
+    color: #000;
+    border: none;
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    text-transform: uppercase;
+    white-space: nowrap;
+    transition: background 0.2s;
+    align-self: flex-end;
+  }
+  .btn-generate:hover { background: #00bbee; }
+  .btn-generate:disabled { background: var(--border); color: var(--text-dim); cursor: not-allowed; }
+
+  .signals-header {
+    display: grid;
+    grid-template-columns: 100px 70px 160px 90px 90px 90px 60px 1fr;
+    gap: 8px;
+    padding: 10px 12px;
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+    margin-top: 16px;
+  }
+
+  #signals-list { display: flex; flex-direction: column; }
+
+  .signal-row {
+    display: grid;
+    grid-template-columns: 100px 70px 160px 90px 90px 90px 60px 1fr;
+    gap: 8px;
+    padding: 11px 12px;
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+    align-items: center;
+    transition: background 0.15s;
+    cursor: pointer;
+    position: relative;
+  }
+  .signal-row::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; }
+  .signal-row.bull::before { background: var(--green); }
+  .signal-row.bear::before { background: var(--red); }
+  .signal-row:hover { background: rgba(255,255,255,0.02); }
+
+  .sig-pair { color: var(--text-bright); font-weight: 700; letter-spacing: 0.05em; }
+  .sig-dir { font-size: 10px; font-weight: 700; }
+  .sig-dir.BUY { color: var(--green); }
+  .sig-dir.SELL { color: var(--red); }
+  .sig-pattern { font-size: 10px; color: var(--accent2); }
+  .sig-entry { color: var(--text-bright); }
+  .sig-sl { color: var(--red); }
+  .sig-tp { color: var(--green); }
+
+  .sig-conf { text-align: center; }
+  .conf-bar { width: 40px; height: 4px; background: var(--bg3); border-radius: 2px; overflow: hidden; display: inline-block; vertical-align: middle; margin-right: 5px; }
+  .conf-fill { height: 100%; border-radius: 2px; background: var(--accent); }
+  .sig-rr { color: var(--yellow); font-size: 10px; }
+
+  .signal-detail {
+    background: var(--bg2);
+    border: 1px solid var(--border-bright);
+    border-left: 2px solid var(--accent);
+    padding: 20px;
+    display: none;
+    animation: slideDown 0.2s ease;
+  }
+  @keyframes slideDown { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+  .signal-detail.open { display: block; }
+
+  .detail-top { display: grid; grid-template-columns: 1fr 380px; gap: 20px; }
+
+  .chart-container {
+    background: #060810;
+    border: 1px solid var(--border-bright);
+    border-top: 2px solid var(--accent);
+    padding: 0;
+    position: relative;
+    overflow: hidden;
+  }
+  .chart-header {
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    padding: 8px 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border);
+    background: #0a0f1a;
+  }
+  .chart-pattern-badge {
+    font-size: 9px;
+    color: var(--accent);
+    border: 1px solid rgba(0,212,255,0.3);
+    padding: 1px 6px;
+    letter-spacing: 0.08em;
+  }
+  .chart-container canvas { display: block; width: 100%; }
+
+  .detail-info { display: flex; flex-direction: column; gap: 14px; }
+
+  .detail-section-title {
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid var(--border);
+  }
+  .detail-text { font-size: 11px; line-height: 1.7; color: var(--text); }
+
+  .levels-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 6px; }
+  .level-box { background: var(--bg3); border: 1px solid var(--border); padding: 8px 10px; }
+  .level-label { font-size: 9px; color: var(--text-dim); letter-spacing: 0.1em; margin-bottom: 3px; }
+  .level-val { font-size: 13px; font-weight: 700; }
+  .level-val.entry { color: var(--accent); }
+  .level-val.sl { color: var(--red); }
+  .level-val.tp { color: var(--green); }
+
+  .tag-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+  .tag { font-size: 9px; padding: 3px 8px; border: 1px solid var(--border-bright); color: var(--text-dim); letter-spacing: 0.08em; }
+
+  .tg-send-btn {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-top: 14px;
+    padding: 9px 16px;
+    background: #0088cc;
+    border: none;
+    color: #fff;
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    transition: background 0.2s;
+    width: fit-content;
+  }
+  .tg-send-btn:hover { background: #0077bb; }
+  .tg-send-btn:disabled { background: #2a3f58; color: var(--text-dim); cursor: not-allowed; }
+  .tg-send-btn svg { flex-shrink: 0; }
+
+  #tg-config {
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--bg2);
+    border: 1px solid var(--border-bright);
+    border-top: 2px solid #0088cc;
+    padding: 28px;
+    width: 360px;
+    z-index: 1000;
+    display: none;
+  }
+  #tg-config.open { display: block; }
+  #tg-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 999;
+    display: none;
+  }
+  #tg-overlay.open { display: block; }
+  .tg-config-title { font-family: var(--sans); font-size: 16px; font-weight: 700; color: var(--text-bright); margin-bottom: 4px; }
+  .tg-config-sub { font-size: 10px; color: var(--text-dim); margin-bottom: 20px; }
+
+  .loader-wrap { text-align: center; padding: 60px 0; display: none; }
+  .loader-wrap.active { display: block; }
+  .loader { width: 40px; height: 40px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 16px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loader-text { font-size: 11px; color: var(--text-dim); letter-spacing: 0.1em; }
+  .loader-sub { font-size: 10px; color: var(--text-dim); margin-top: 6px; opacity: 0.6; }
+
+  .stats-bar { display: flex; gap: 24px; padding: 12px 0; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+  .stat { display: flex; flex-direction: column; gap: 3px; }
+  .stat-val { font-family: var(--sans); font-size: 20px; font-weight: 600; color: var(--text-bright); }
+  .stat-label { font-size: 9px; color: var(--text-dim); letter-spacing: 0.1em; text-transform: uppercase; }
+  .stat-val.green { color: var(--green); }
+  .stat-val.red { color: var(--red); }
+
+  .empty-state { text-align: center; padding: 80px 20px; display: none; }
+  .empty-state.active { display: block; }
+  .empty-icon { font-size: 40px; margin-bottom: 16px; opacity: 0.3; }
+  .empty-text { font-size: 12px; color: var(--text-dim); }
+
+  #toast {
+    position: fixed;
+    bottom: 24px; right: 24px;
+    background: var(--bg3);
+    border: 1px solid var(--border-bright);
+    border-left: 3px solid var(--accent);
+    padding: 12px 18px;
+    font-size: 11px;
+    color: var(--text);
+    z-index: 999;
+    transform: translateY(20px);
+    opacity: 0;
+    transition: all 0.3s;
+    max-width: 320px;
+  }
+  #toast.show { transform: translateY(0); opacity: 1; }
+
+  /* LIVE CHART */
+  .live-chart-section {
+    margin-top: 16px;
+    border: 1px solid var(--border-bright);
+    border-top: 2px solid #ffd600;
+  }
+  .live-chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 7px 12px;
+    background: #0a0f1a;
+    border-bottom: 1px solid var(--border);
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+  .live-chart-badge {
+    font-size: 9px;
+    color: #ffd600;
+    border: 1px solid rgba(255,214,0,0.3);
+    padding: 1px 6px;
+    letter-spacing: 0.08em;
+  }
+  .live-chart-body {
+    position: relative;
+    background: #060810;
+    height: 320px;
+  }
+  .live-chart-body.loading::after {
+    content: 'Loading live candles...';
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+  }
+  .live-chart-body.error::after {
+    content: 'Live chart unavailable';
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+  }
+
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border-bright); }
+
+  @media (max-width: 1000px) {
+    .signals-header { display: none; }
+    .signal-row { grid-template-columns: 1fr 1fr 1fr; grid-template-rows: auto auto; }
+    .detail-top { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div id="auth-screen">
+  <div class="auth-box">
+    <div class="auth-title">XENOS · Engine</div>
+    <div class="auth-sub">INTERNAL ACCESS ONLY — SIGNAL GENERATOR v2</div>
+    <div class="field">
+      <label>Access Password</label>
+      <input type="password" id="pwd-input" placeholder="••••••••" />
+    </div>
+    <button class="btn" onclick="doLogin()">ENTER SIGNAL ENGINE</button>
+    <div style="font-size:10px;color:var(--text-dim);margin-top:14px;line-height:1.6;">
+      Accesso riservato. Credenziali non trasmesse esternamente.
+    </div>
+  </div>
+</div>
+
+<div id="app">
+  <div class="wrap">
+    <header>
+      <div class="logo">
+        <div class="logo-dot"></div>
+        XENOS<span>FINANCE</span>
+      </div>
+      <div class="header-status">
+        <div class="status-live">● LIVE ENGINE</div>
+        <div id="ts-display">--:--:-- UTC</div>
+      </div>
+    </header>
+
+    <div class="topbar">
+      <div class="topbar-title">
+        Signal Engine
+        <small>AI-POWERED CFD INTRADAY · PATTERN RECOGNITION</small>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="ctrl-group">
+        <div class="ctrl-label">Asset Class</div>
+        <div class="toggle-group" id="class-toggle">
+          <button class="toggle-btn active" onclick="toggleClass(this,'ALL')">ALL</button>
+          <button class="toggle-btn" onclick="toggleClass(this,'FX')">FX</button>
+          <button class="toggle-btn" onclick="toggleClass(this,'INDICES')">INDICES</button>
+          <button class="toggle-btn" onclick="toggleClass(this,'COMMODITIES')">COMMODITIES</button>
+          <button class="toggle-btn" onclick="toggleClass(this,'CRYPTO')">CRYPTO</button>
+        </div>
+      </div>
+      <div class="ctrl-group">
+        <div class="ctrl-label">Timeframe</div>
+        <div class="toggle-group" id="tf-toggle">
+          <button class="toggle-btn" onclick="toggleTF(this,'M15')">M15</button>
+          <button class="toggle-btn active" onclick="toggleTF(this,'H1')">H1</button>
+          <button class="toggle-btn" onclick="toggleTF(this,'H4')">H4</button>
+          <button class="toggle-btn" onclick="toggleTF(this,'D1')">D1</button>
+        </div>
+      </div>
+      <div class="ctrl-group">
+        <div class="ctrl-label">Direction Filter</div>
+        <div class="toggle-group" id="dir-toggle">
+          <button class="toggle-btn active" onclick="toggleDir(this,'BOTH')">BOTH</button>
+          <button class="toggle-btn" onclick="toggleDir(this,'BUY')">BUY ONLY</button>
+          <button class="toggle-btn" onclick="toggleDir(this,'SELL')">SELL ONLY</button>
+        </div>
+      </div>
+      <div class="ctrl-group">
+        <div class="ctrl-label">Min Confidence</div>
+        <select id="conf-min">
+          <option value="60">60%+</option>
+          <option value="70" selected>70%+</option>
+          <option value="80">80%+</option>
+          <option value="90">90%+</option>
+        </select>
+      </div>
+      <div class="ctrl-group">
+        <div class="ctrl-label">Pairs Count</div>
+        <select id="pairs-count">
+          <option value="5">5 pairs</option>
+          <option value="10" selected>10 pairs</option>
+          <option value="15">15 pairs</option>
+          <option value="22">All (22)</option>
+        </select>
+      </div>
+      <button class="btn-generate" id="gen-btn" onclick="generateSignals()">▶ GENERATE SIGNALS</button>
+    </div>
+
+    <div class="stats-bar" id="stats-bar" style="display:none">
+      <div class="stat"><div class="stat-val" id="s-total">—</div><div class="stat-label">Signals</div></div>
+      <div class="stat"><div class="stat-val green" id="s-bull">—</div><div class="stat-label">Bullish</div></div>
+      <div class="stat"><div class="stat-val red" id="s-bear">—</div><div class="stat-label">Bearish</div></div>
+      <div class="stat"><div class="stat-val" id="s-avgconf">—</div><div class="stat-label">Avg Confidence</div></div>
+      <div class="stat"><div class="stat-val" id="s-avgrr">—</div><div class="stat-label">Avg R:R</div></div>
+      <div class="stat" style="margin-left:auto"><div class="stat-val" style="font-size:12px;color:var(--text-dim)" id="s-time">—</div><div class="stat-label">Generated At</div></div>
+    </div>
+
+    <div class="signals-header">
+      <div>PAIR</div><div>DIR</div><div>PATTERN</div><div>ENTRY</div><div>STOP LOSS</div><div>TAKE PROFIT</div><div>CONF</div><div>R:R</div>
+    </div>
+
+    <div class="loader-wrap" id="loader">
+      <div class="loader"></div>
+      <div class="loader-text">SCANNING CFD MARKETS</div>
+      <div class="loader-sub" id="loader-sub">Initializing pattern recognition engine...</div>
+    </div>
+
+    <div class="empty-state" id="empty-state">
+      <div class="empty-icon">◈</div>
+      <div class="empty-text">Configure filters and press GENERATE SIGNALS</div>
+    </div>
+
+    <div id="signals-list"></div>
+  </div>
+</div>
+
+<div id="tg-overlay" onclick="closeTgConfig()"></div>
+<div id="tg-config">
+  <div class="tg-config-title">📨 Telegram Config</div>
+  <div class="tg-config-sub">Inserisci le credenziali per inviare segnali al tuo canale</div>
+  <div class="field">
+    <label>Bot Token</label>
+    <input type="text" id="tg-bot-token" placeholder="123456:ABCdef..." />
+  </div>
+  <div class="field">
+    <label>Chat ID (canale o gruppo)</label>
+    <input type="text" id="tg-chat-id" placeholder="-1001234567890" />
+  </div>
+  <button class="btn" style="margin-top:4px" onclick="saveTgConfig()">SALVA E INVIA</button>
+  <button onclick="closeTgConfig()" style="width:100%;padding:8px;background:transparent;border:1px solid var(--border);color:var(--text-dim);font-family:var(--mono);font-size:11px;cursor:pointer;margin-top:8px">ANNULLA</button>
+</div>
+
+<div id="toast"></div>
+
+<script>
+let WORKER = '';
+let selectedClass = 'ALL';
+let selectedTF = 'H1';
+let selectedDir = 'BOTH';
+let signals = [];
+
+const CFD_PAIRS = {
+  FX: ['EURUSD','GBPUSD','USDJPY','USDCHF','AUDUSD','NZDUSD','USDCAD','EURGBP','EURJPY','GBPJPY','CADJPY','AUDNZD','EURCHF','GBPCHF'],
+  INDICES: ['US500','US30','NAS100','UK100','GER40','FRA40','JPN225','HK50','AUS200'],
+  COMMODITIES: ['XAUUSD','XAGUSD','USOIL','UKOIL','NGAS','COPPER'],
+  CRYPTO: ['BTCUSD','ETHUSD','XRPUSD','SOLUSD','DOGEUSD']
+};
+const ALL_PAIRS = [...CFD_PAIRS.FX, ...CFD_PAIRS.INDICES, ...CFD_PAIRS.COMMODITIES, ...CFD_PAIRS.CRYPTO];
+const PATTERNS = ['Elliott Wave 3','Elliott Wave 5','Elliott Wave C','Head & Shoulders','Inverse Head & Shoulders','Double Top','Double Bottom','Triple Top','Triple Bottom','Ascending Triangle','Descending Triangle','Symmetrical Triangle','Broadening Triangle','Bull Flag','Bear Flag','Bull Pennant','Bear Pennant','Rising Channel','Falling Channel','Horizontal Channel','Cup & Handle','Rounding Bottom','Rounding Top','Rising Wedge','Falling Wedge','Breakout Key Level','Fib 61.8% Bounce','Fib 38.2% Bounce','Fib 50% Bounce','Gartley Pattern','Butterfly Pattern','Bat Pattern','Crab Pattern','ABCD Pattern','Cypher Pattern','Bullish Engulfing','Bearish Engulfing','Doji Reversal','Hammer','Shooting Star','Morning Star','Evening Star','Bullish Harami','Bearish Harami','Island Reversal','Diamond Pattern','Wolfe Wave'];
+
+function doLogin() {
+  const pwd = document.getElementById('pwd-input').value;
+  if (!pwd) { showToast('Inserisci la password'); return; }
+  if (pwd !== 'xenosfinance2026') { showToast('Password errata'); return; }
+  WORKER = 'https://xenos-ai-proxy.xenosfinance.workers.dev';
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  startClock();
+  document.getElementById('empty-state').classList.add('active');
+}
+
+function startClock() {
+  setInterval(() => {
+    document.getElementById('ts-display').textContent =
+      new Date().toUTCString().split(' ').slice(4,5)[0] + ' UTC';
+  }, 1000);
+}
+
+function toggleClass(el, val) {
+  document.querySelectorAll('#class-toggle .toggle-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active'); selectedClass = val;
+}
+function toggleTF(el, val) {
+  document.querySelectorAll('#tf-toggle .toggle-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active'); selectedTF = val;
+}
+function toggleDir(el, val) {
+  document.querySelectorAll('#dir-toggle .toggle-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active'); selectedDir = val;
+}
+
+function getPairsToAnalyze() {
+  let pool = selectedClass === 'ALL' ? ALL_PAIRS : CFD_PAIRS[selectedClass] || ALL_PAIRS;
+  const count = parseInt(document.getElementById('pairs-count').value);
+  const seed = Math.floor(Date.now() / 60000);
+  const shuffled = [...pool].sort((a,b) => simpleHash(a+seed) - simpleHash(b+seed));
+  return shuffled.slice(0, Math.min(count, shuffled.length));
+}
+
+function simpleHash(s) {
+  let h = 0; for (let c of String(s)) h = (h*31 + c.charCodeAt(0)) & 0xffffffff; return h;
+}
+
+async function fetchLivePrices(pairs) {
+  try {
+    // ── STEP 1: FX via Frankfurter + Crypto via CoinGecko ──
+    document.getElementById('loader-sub').textContent = 'Fetching live prices (FX + Crypto)...';
+    const res = await fetch(WORKER, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'prices', pairs })
+    });
+    const basePrices = res.ok ? ((await res.json()).prices || {}) : {};
+
+    // ── STEP 2: Commodities + Indices ──
+    // Fonte primaria: Finnhub (60 req/min, prezzi reali)
+    // Fallback:       Twelve Data (8 req/min)
+    // Entrambi sostituiscono le stime hardcoded del Worker
+    const COMMOD_INDEX = [
+      'XAUUSD','XAGUSD','USOIL','UKOIL','NGAS','COPPER',
+      'US500','US30','NAS100','UK100','GER40','FRA40','JPN225','HK50','AUS200'
+    ];
+    const ciPairs = pairs.filter(p => COMMOD_INDEX.includes(p));
+
+    if (ciPairs.length > 0) {
+      let fhCount = 0;
+      const stillNeeded = [];
+
+      // ── 2a: Finnhub (primario) ──
+      document.getElementById('loader-sub').textContent = 'Fetching Commodities + Indices (Finnhub)...';
+      try {
+        const fhRes = await fetch(WORKER, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'finnhub', action: 'quote', symbols: ciPairs })
+        });
+        if (fhRes.ok) {
+          const fhData = await fhRes.json();
+          const quotes = fhData.quotes || {};
+          for (const sym of ciPairs) {
+            const q = quotes[sym];
+            if (q && !q.error && q.price && q.price > 0) {
+              basePrices[sym] = q.price;
+              fhCount++;
+            } else {
+              stillNeeded.push(sym); // Finnhub non ha questo simbolo → prova TD
+            }
+          }
+        } else {
+          ciPairs.forEach(s => stillNeeded.push(s));
+        }
+      } catch(e) {
+        console.warn('Finnhub fallback to TD:', e.message);
+        ciPairs.forEach(s => stillNeeded.push(s));
+      }
+
+      // ── 2b: Twelve Data (fallback per simboli non coperti da Finnhub) ──
+      if (stillNeeded.length > 0) {
+        document.getElementById('loader-sub').textContent = `Fetching ${stillNeeded.length} symbols via Twelve Data...`;
+        try {
+          const tdRes = await fetch(WORKER, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: 'twelvedata', action: 'quote', symbols: stillNeeded })
+          });
+          if (tdRes.ok) {
+            const tdData = await tdRes.json();
+            const quotes = tdData.quotes || {};
+            for (const sym of stillNeeded) {
+              const q = quotes[sym];
+              if (q && !q.error && q.price && q.price > 0) {
+                basePrices[sym] = q.price;
+                fhCount++;
+              }
+            }
+          }
+        } catch(e) {
+          console.warn('Twelve Data also failed:', e.message);
+        }
+      }
+
+      // Toast finale
+      const total = Object.keys(basePrices).length;
+      if (total > 0) showToast(`Prezzi live: ${total}/${pairs.length} strumenti (FH+TD: ${fhCount})`);
+
+    } else {
+      const c = Object.keys(basePrices).length;
+      if (c > 0) showToast(`Prezzi live: ${c}/${pairs.length} strumenti`);
+    }
+
+    return basePrices;
+
+  } catch(e) {
+    console.warn('Price fetch failed:', e.message);
+    return {};
+  }
+}
+
+// ── FETCH MARKET NEWS + SENTIMENT ──────────────────────────
+// Chiama Finnhub news_sentiment_batch: general + forex + crypto news + sentiment
+// Eseguita in parallelo con fetchLivePrices per non aggiungere latenza
+async function fetchMarketNews() {
+  try {
+    // Simboli per sentiment: ETF proxy degli asset principali
+    const sentimentSymbols = ['SPY','GLD','USO','QQQ','UNG'];
+
+    // 3 chiamate in parallelo: general, forex, crypto news
+    const [generalRes, forexRes, cryptoRes] = await Promise.all([
+      fetch(WORKER, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'finnhub', action: 'news_sentiment_batch',
+          symbols: sentimentSymbols, category: 'general' })
+      }),
+      fetch(WORKER, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'finnhub', action: 'market_news', category: 'forex' })
+      }),
+      fetch(WORKER, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'finnhub', action: 'market_news', category: 'crypto' })
+      }),
+    ]);
+
+    const generalData = generalRes.ok ? await generalRes.json() : {};
+    const forexData   = forexRes.ok   ? await forexRes.json()   : {};
+    const cryptoData  = cryptoRes.ok  ? await cryptoRes.json()  : {};
+
+    // Estrai news (max 5 per categoria, solo headline + source)
+    const fmt = (arr) => (arr || []).slice(0,5).map(n =>
+      `  · [${n.source}] ${n.headline}`
+    ).join('\n');
+
+    const generalNews = fmt(generalData.news);
+    const forexNews   = fmt(forexData.news);
+    const cryptoNews  = fmt(cryptoData.news);
+
+    // Estrai sentiment
+    const sentiments = generalData.sentiments || {};
+    const sentLines = Object.entries(sentiments)
+      .filter(([, v]) => v && v.sentiment)
+      .map(([sym, v]) => {
+        const bull = v.sentiment.bullishPercent != null
+          ? Math.round(v.sentiment.bullishPercent * 100) + '% bull'
+          : null;
+        return bull ? `  ${sym}: ${bull}` : null;
+      })
+      .filter(Boolean)
+      .join(' | ');
+
+    return { generalNews, forexNews, cryptoNews, sentLines };
+  } catch(e) {
+    console.warn('Market news fetch failed:', e.message);
+    return { generalNews: '', forexNews: '', cryptoNews: '', sentLines: '' };
+  }
+}
+
+async function generateSignals() {
+  const btn = document.getElementById('gen-btn');
+  btn.disabled = true;
+  document.getElementById('loader').classList.add('active');
+  document.getElementById('empty-state').classList.remove('active');
+  document.getElementById('signals-list').innerHTML = '';
+  document.getElementById('stats-bar').style.display = 'none';
+
+  const pairs = getPairsToAnalyze();
+  const minConf = parseInt(document.getElementById('conf-min').value);
+  const loaderMsgs = ['Fetching live prices + news...','Scanning Elliott Wave structures...','Identifying chart patterns...','Calculating ATR-based SL/TP...','Filtering by confidence threshold...'];
+  let li = 0;
+  const loaderInterval = setInterval(() => {
+    document.getElementById('loader-sub').textContent = loaderMsgs[li++ % loaderMsgs.length];
+  }, 1800);
+
+  try {
+    // Fetch prezzi e news in PARALLELO — nessuna latenza aggiuntiva
+    document.getElementById('loader-sub').textContent = 'Fetching live prices + market news...';
+    const [livePrices, marketNews] = await Promise.all([
+      fetchLivePrices(pairs),
+      fetchMarketNews()
+    ]);
+
+    document.getElementById('loader-sub').textContent = 'Generating AI signals with live context...';
+    const raw = await callClaudeAPI(buildPrompt(pairs, selectedTF, selectedDir, minConf, livePrices, marketNews, signals));
+    clearInterval(loaderInterval);
+    const parsed = parseSignals(raw, minConf, selectedDir);
+    signals = parsed;
+    renderSignals(parsed);
+    updateStats(parsed);
+  } catch(e) {
+    clearInterval(loaderInterval);
+    console.error(e);
+    showToast('Errore API: ' + e.message);
+    document.getElementById('empty-state').classList.add('active');
+  }
+  document.getElementById('loader').classList.remove('active');
+  btn.disabled = false;
+}
+
+function buildPrompt(pairs, tf, dir, minConf, livePrices = {}, marketNews = {}, prevSignals = []) {
+  const dirNote = dir === 'BOTH' ? 'bullish and bearish' : dir === 'BUY' ? 'bullish only' : 'bearish only';
+  const priceLines = pairs.map(p => {
+    const price = livePrices[p];
+    return price != null
+      ? `  ${p}: CURRENT PRICE = ${price} (USE THIS EXACT PRICE as base for entry/sl/tp)`
+      : `  ${p}: price unavailable — use realistic estimate`;
+  }).join('\n');
+
+  // Sezione news — inclusa solo se disponibile
+  const { generalNews, forexNews, cryptoNews, sentLines } = marketNews;
+  const hasNews = generalNews || forexNews || cryptoNews;
+  const newsSection = hasNews ? `
+LIVE MARKET CONTEXT (Finnhub — use to calibrate signal confidence and market_context field):
+${generalNews ? `Macro/General News:\n${generalNews}` : ''}
+${forexNews   ? `\nForex News:\n${forexNews}`         : ''}
+${cryptoNews  ? `\nCrypto News:\n${cryptoNews}`       : ''}
+${sentLines   ? `\nMarket Sentiment: ${sentLines}`    : ''}
+` : '';
+
+  // Segnali precedenti attivi — per evitare contraddizioni
+  const prevSection = prevSignals && prevSignals.length > 0 ? `
+PREVIOUSLY GENERATED SIGNALS (still active — do NOT contradict these):
+${prevSignals.map(s => `  ${s.pair}: ${s.direction} @ ${s.entry} (pattern: ${s.pattern}, conf: ${s.confidence}%)`).join('\n')}
+RULE: If a pair already has an active signal above, you MUST either keep the same direction or OMIT that pair entirely. Never reverse direction on the same pair within the same session.
+` : '';
+
+  return `You are an expert intraday CFD trader specializing in technical pattern recognition, Elliott Wave analysis, and institutional trading setups. Generate precise trading signals.
+
+LIVE MARKET PRICES (real-time):
+${priceLines}
+${prevSection}${newsSection}
+Analyze these CFD instruments on ${tf} timeframe: ${pairs.join(', ')}
+
+Generate ${dirNote} signals where a real pattern exists. Return ONLY a raw JSON array, no markdown, no text outside the array.
+
+CRITICAL: For instruments where a CURRENT PRICE is provided above, you MUST use that price as the base. Entry must be within 0.1%-0.5% of current price. SL and TP must be realistic ATR-based distances from that entry.
+If LIVE MARKET CONTEXT is provided, use it to:
+- Adjust confidence based on macro alignment
+- Enrich the market_context field with relevant news
+- Avoid signals that directly contradict major macro events
+
+Each signal object:
+{
+  "pair": "EURUSD",
+  "direction": "BUY",
+  "pattern": "Head & Shoulders",
+  "entry": 1.0850,
+  "sl": 1.0820,
+  "tp": 1.0910,
+  "tp2": 1.0950,
+  "confidence": 78,
+  "rr": "1:2.1",
+  "ew_context": "1 sentence EW context",
+  "pattern_desc": "2-3 sentence pattern description",
+  "key_levels": "S/R and fib levels",
+  "invalidation": "what invalidates this setup",
+  "market_context": "brief macro/session context — reference live news if relevant",
+  "tags": ["tag1","tag2","tag3"]
+}
+
+Rules:
+- BUY: sl < entry < tp. SELL: tp < entry < sl
+- confidence: ${minConf}–96 (integer)
+- R:R between 1:1.5 and 1:4
+- Be selective, not every pair needs a signal
+- Minimum confidence: ${minConf}%
+- CONSISTENCY: Never generate a signal that contradicts a previously active signal on the same pair
+- QUALITY OVER QUANTITY: it is better to return 2-3 high-conviction signals than 6-8 weak ones
+- TEMPORAL COHERENCE: ew_context must reference current market conditions (March 2026), never invent past dates or future events
+- NO NOISE: if the market structure is unclear or consolidating, do NOT force a signal — return nothing for that pair
+
+Output only the JSON array.
+
+IMPORTANT: Use ONLY these exact pattern names (no variations):
+Elliott Wave 3, Elliott Wave 5, Elliott Wave C,
+Head & Shoulders, Inverse Head & Shoulders,
+Double Top, Double Bottom, Triple Top, Triple Bottom,
+Ascending Triangle, Descending Triangle, Symmetrical Triangle, Broadening Triangle,
+Bull Flag, Bear Flag, Bull Pennant, Bear Pennant,
+Rising Channel, Falling Channel, Horizontal Channel,
+Cup & Handle, Rounding Bottom, Rounding Top,
+Rising Wedge, Falling Wedge,
+Breakout Key Level, Fib 61.8% Bounce, Fib 38.2% Bounce, Fib 50% Bounce,
+Gartley Pattern, Butterfly Pattern, Bat Pattern, Crab Pattern, ABCD Pattern, Cypher Pattern,
+Bullish Engulfing, Bearish Engulfing, Doji Reversal,
+Hammer, Shooting Star, Morning Star, Evening Star, Bullish Harami, Bearish Harami,
+Island Reversal, Diamond Pattern, Wolfe Wave`;
+}
+
+async function callClaudeAPI(prompt) {
+  const res = await fetch(WORKER, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-opus-4-5',
+      max_tokens: 4000,
+      messages: [{ role: 'user', content: prompt }]
+    })
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}: ${(await res.text()).slice(0,200)}`);
+  const data = await res.json();
+  return data?.content?.[0]?.text || '';
+}
+
+function parseSignals(raw, minConf, dir) {
+  let cleaned = raw.trim().replace(/^```json\n?/, '').replace(/```$/, '').trim();
+  const start = cleaned.indexOf('['), end = cleaned.lastIndexOf(']');
+  if (start === -1 || end === -1) throw new Error('No JSON array in response');
+  let arr = JSON.parse(cleaned.slice(start, end+1));
+  return arr.filter(s => s.confidence >= minConf && (dir === 'BOTH' || s.direction === dir));
+}
+
+function renderSignals(list) {
+  const container = document.getElementById('signals-list');
+  container.innerHTML = '';
+  if (!list.length) {
+    document.getElementById('empty-state').classList.add('active');
+    document.getElementById('empty-state').querySelector('.empty-text').textContent = 'Nessun segnale trovato con i filtri correnti';
+    return;
+  }
+  list.sort((a,b) => b.confidence - a.confidence);
+  list.forEach((sig, idx) => {
+    const isBull = sig.direction === 'BUY';
+    const confWidth = Math.round((sig.confidence/100)*40);
+
+    const row = document.createElement('div');
+    row.className = 'signal-row ' + (isBull ? 'bull' : 'bear');
+    row.innerHTML = `
+      <div class="sig-pair">${sig.pair}</div>
+      <div class="sig-dir ${sig.direction}">${sig.direction}</div>
+      <div class="sig-pattern">${sig.pattern}</div>
+      <div class="sig-entry">${fmt(sig.entry, sig.pair)}</div>
+      <div class="sig-sl">${fmt(sig.sl, sig.pair)}</div>
+      <div class="sig-tp">${fmt(sig.tp, sig.pair)}</div>
+      <div class="sig-conf">
+        <div class="conf-bar"><div class="conf-fill" style="width:${confWidth}px"></div></div>
+        ${sig.confidence}%
+      </div>
+      <div class="sig-rr">${sig.rr || '—'}</div>
+    `;
+
+    const detail = document.createElement('div');
+    detail.className = 'signal-detail';
+    detail.innerHTML = `
+      <div class="detail-top">
+        <div>
+          <div class="chart-container">
+            <div class="chart-header">
+              <span>PATTERN CHART · ${sig.pair} · ${selectedTF}</span>
+              <span class="chart-pattern-badge">${sig.pattern}</span>
+            </div>
+            <canvas id="chart-${idx}"></canvas>
+          </div>
+          <!-- LIVE CHART sotto il pattern -->
+          <div class="live-chart-section">
+            <div class="live-chart-header">
+              <span>LIVE CANDLES · ${sig.pair} · ${selectedTF}</span>
+              <span class="live-chart-badge">● TWELVE DATA</span>
+            </div>
+            <div class="live-chart-body loading" id="lc-${idx}"></div>
+          </div>
+        </div>
+        <div class="detail-info">
+          <div class="levels-grid">
+            <div class="level-box"><div class="level-label">ENTRY</div><div class="level-val entry">${fmt(sig.entry, sig.pair)}</div></div>
+            <div class="level-box"><div class="level-label">STOP LOSS</div><div class="level-val sl">${fmt(sig.sl, sig.pair)}</div></div>
+            <div class="level-box"><div class="level-label">TAKE PROFIT</div><div class="level-val tp">${fmt(sig.tp, sig.pair)}</div></div>
+          </div>
+          <div>
+            <div class="detail-section-title">Elliott Wave Context</div>
+            <div class="detail-text">${sig.ew_context || '—'}</div>
+          </div>
+          <div>
+            <div class="detail-section-title">Pattern Description</div>
+            <div class="detail-text">${sig.pattern_desc || '—'}</div>
+          </div>
+          <div>
+            <div class="detail-section-title">Key Levels</div>
+            <div class="detail-text">${sig.key_levels || '—'}</div>
+          </div>
+          <div>
+            <div class="detail-section-title">Invalidation</div>
+            <div class="detail-text" style="color:#ff3d5a">${sig.invalidation || '—'}</div>
+          </div>
+          <div>
+            <div class="detail-section-title">Market Context</div>
+            <div class="detail-text">${sig.market_context || '—'}</div>
+          </div>
+          <div class="tag-list">${(sig.tags||[]).map(t=>`<span class="tag">${t}</span>`).join('')}</div>
+          <button class="tg-send-btn" onclick="sendToTelegram(event, ${idx})">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.248l-2.05 9.667c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L8.31 14.617l-2.967-.924c-.645-.204-.658-.645.136-.953l11.57-4.461c.537-.194 1.006.131.513.969z"/></svg>
+            SEND TO TELEGRAM
+          </button>
+        </div>
+      </div>
+    `;
+
+    row.addEventListener('click', () => {
+      const isOpen = detail.classList.contains('open');
+      document.querySelectorAll('.signal-detail').forEach(d => d.classList.remove('open'));
+      if (!isOpen) {
+        detail.classList.add('open');
+        requestAnimationFrame(() => {
+          // Pattern chart illustrativo
+          const canvas = document.getElementById('chart-' + idx);
+          if (canvas && !canvas.dataset.drawn) {
+            drawPatternChart(canvas, sig);
+            canvas.dataset.drawn = '1';
+          }
+          // Live chart con candele reali
+          const lcDiv = document.getElementById('lc-' + idx);
+          if (lcDiv && !lcDiv.dataset.loaded) {
+            loadLiveChart(lcDiv, sig, idx);
+            lcDiv.dataset.loaded = '1';
+          }
+        });
+      }
+    });
+
+    container.appendChild(row);
+    container.appendChild(detail);
+  });
+}
+
+// ══════════════════════════════════════════════════════════════
+// LIVE CHART ENGINE — Lightweight Charts + Twelve Data OHLCV
+// ══════════════════════════════════════════════════════════════
+
+// Cache in memoria: evita chiamate ripetute per lo stesso simbolo+TF
+const ohlcvCache = {};
+
+// Mappa timeframe UI → intervallo Twelve Data
+const TF_MAP = { 'M15': '15min', 'H1': '1h', 'H4': '4h', 'D1': '1day' };
+
+// Mappa timeframe UI → risoluzione Finnhub (in minuti, o 'D'/'W')
+const FH_RES_MAP = { 'M15': '15', 'H1': '60', 'H4': '240', 'D1': 'D' };
+
+// Mappa simboli XenosFinance → Finnhub per OHLCV
+// FX + metalli: OANDA forex/candle
+// Crypto: BINANCE crypto/candle  
+// Indices + energie: ETF stock/candle (più dati disponibili sul free tier)
+const FH_CANDLE_MAP = {
+  // FX → forex/candle
+  'EURUSD':  { sym:'OANDA:EUR_USD',  type:'forex' },
+  'GBPUSD':  { sym:'OANDA:GBP_USD',  type:'forex' },
+  'USDJPY':  { sym:'OANDA:USD_JPY',  type:'forex' },
+  'USDCHF':  { sym:'OANDA:USD_CHF',  type:'forex' },
+  'AUDUSD':  { sym:'OANDA:AUD_USD',  type:'forex' },
+  'NZDUSD':  { sym:'OANDA:NZD_USD',  type:'forex' },
+  'USDCAD':  { sym:'OANDA:USD_CAD',  type:'forex' },
+  'EURGBP':  { sym:'OANDA:EUR_GBP',  type:'forex' },
+  'EURJPY':  { sym:'OANDA:EUR_JPY',  type:'forex' },
+  'GBPJPY':  { sym:'OANDA:GBP_JPY',  type:'forex' },
+  'CADJPY':  { sym:'OANDA:CAD_JPY',  type:'forex' },
+  'AUDNZD':  { sym:'OANDA:AUD_NZD',  type:'forex' },
+  'EURCHF':  { sym:'OANDA:EUR_CHF',  type:'forex' },
+  'GBPCHF':  { sym:'OANDA:GBP_CHF',  type:'forex' },
+  // Metalli → forex/candle
+  'XAUUSD':  { sym:'OANDA:XAU_USD',  type:'forex' },
+  'XAGUSD':  { sym:'SI=F',   type:'stock' },  // Silver futures — OANDA non disponibile su free tier
+  // Crypto → crypto/candle
+  'BTCUSD':  { sym:'BINANCE:BTCUSDT', type:'crypto' },
+  'ETHUSD':  { sym:'BINANCE:ETHUSDT', type:'crypto' },
+  'XRPUSD':  { sym:'BINANCE:XRPUSDT', type:'crypto' },
+  'SOLUSD':  { sym:'BINANCE:SOLUSDT', type:'crypto' },
+  'DOGEUSD': { sym:'BINANCE:DOGEUSDT',type:'crypto' },
+  'ZECUSD':  { sym:'BINANCE:ZECUSDT', type:'crypto' },
+  // Indices → ETF stock/candle
+  'US500':   { sym:'SPY',   type:'stock' },
+  'US30':    { sym:'DIA',   type:'stock' },
+  'NAS100':  { sym:'QQQ',   type:'stock' },
+  'UK100':   { sym:'EWU',   type:'stock' },
+  'GER40':   { sym:'EWG',   type:'stock' },
+  'FRA40':   { sym:'EWQ',   type:'stock' },
+  'JPN225':  { sym:'EWJ',   type:'stock' },
+  'HK50':    { sym:'EWH',   type:'stock' },
+  'AUS200':  { sym:'EWA',   type:'stock' },
+  // Commodities energetiche → ETF stock/candle
+  'USOIL':   { sym:'USO',   type:'stock' },
+  'UKOIL':   { sym:'BNO',   type:'stock' },
+  'NGAS':    { sym:'UNG',   type:'stock' },
+  'COPPER':  { sym:'CPER',  type:'stock' },
+};
+
+async function loadLiveChart(container, sig, idx) {
+  container.classList.remove('error');
+  container.classList.add('loading');
+
+  // Guard: libreria non caricata
+  if (typeof LightweightCharts === 'undefined') {
+    container.classList.remove('loading');
+    container.classList.add('error');
+    container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;font-family:var(--mono);font-size:11px;color:var(--text-dim);letter-spacing:0.1em;">Live chart library not loaded</div>';
+    return;
+  }
+
+  try {
+    const tf = TF_MAP[selectedTF] || '1h';
+    const cacheKey = sig.pair + '_' + tf;
+
+    let candles = ohlcvCache[cacheKey];
+    if (!candles) {
+      // XAUUSD e XAGUSD: salta Twelve Data (prezzi errati) → vai diretto a Finnhub
+      const TD_SKIP = ['XAUUSD','XAGUSD','USOIL','UKOIL','NGAS','COPPER',
+                       'US500','US30','NAS100','UK100','GER40','FRA40','JPN225','HK50','AUS200'];
+      const skipTD = TD_SKIP.includes(sig.pair);
+
+      // ── Tentativo 1: Twelve Data (solo FX e Crypto) ──
+      if (!skipTD) {
+        try {
+          const res = await fetch(WORKER, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              type: 'twelvedata', action: 'ohlcv',
+              symbol: sig.pair, interval: tf, outputsize: 80
+            })
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.candles && data.candles.length > 0) {
+              candles = data.candles.reverse();
+            }
+          }
+        } catch(e) { console.warn('TD candles failed:', e.message); }
+      }
+
+      // ── Tentativo 2: Finnhub candles (fallback) ──
+      if (!candles) {
+        const fhEntry = FH_CANDLE_MAP[sig.pair];
+        const fhRes   = FH_RES_MAP[selectedTF] || '60';
+        if (fhEntry) {
+          try {
+            const now  = Math.floor(Date.now() / 1000);
+            const secs = fhRes === 'D' ? 86400 : parseInt(fhRes) * 60;
+            const from = now - (80 * secs);
+            const res  = await fetch(WORKER, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                type:       'finnhub',
+                action:     'candles',
+                symbol:     fhEntry.sym,
+                assetType:  fhEntry.type,
+                resolution: fhRes,
+                from, to:   now
+              })
+            });
+            if (res.ok) {
+              const data = await res.json();
+              if (data.candles && data.candles.length > 0) {
+                candles = data.candles;
+              }
+            }
+          } catch(e) { console.warn('Finnhub candles failed:', e.message); }
+        }
+      }
+
+      if (!candles || candles.length === 0) throw new Error('No candles available');
+      ohlcvCache[cacheKey] = candles;
+    }
+
+    container.classList.remove('loading');
+    container.innerHTML = '';
+
+    const chart = LightweightCharts.createChart(container, {
+      width:  container.offsetWidth || 860,
+      height: 320,
+      layout: {
+        background:  { type: 'solid', color: '#060810' },
+        textColor:   '#5a7a9a',
+        fontSize:    11,
+        fontFamily:  "'Space Mono', monospace",
+      },
+      grid: {
+        vertLines: { color: '#1a2535', style: 1 },
+        horzLines: { color: '#1a2535', style: 1 },
+      },
+      crosshair: {
+        mode: LightweightCharts.CrosshairMode.Normal,
+      },
+      rightPriceScale: {
+        borderColor: '#1e2a3a',
+      },
+      timeScale: {
+        borderColor:    '#1e2a3a',
+        timeVisible:    true,
+        secondsVisible: false,
+      },
+      handleScroll:  { mouseWheel: true, pressedMouseMove: true },
+      handleScale:   { mouseWheel: true, pinch: true },
+    });
+
+    // Candele
+    const candleSeries = chart.addCandlestickSeries({
+      upColor:         '#00e676',
+      downColor:       '#ff3d5a',
+      borderUpColor:   '#00e676',
+      borderDownColor: '#ff3d5a',
+      wickUpColor:     '#00e676',
+      wickDownColor:   '#ff3d5a',
+    });
+
+    const lcData = candles
+      .map(c => ({
+        time:  Math.floor(new Date(c.datetime).getTime() / 1000),
+        open:  parseFloat(c.open),
+        high:  parseFloat(c.high),
+        low:   parseFloat(c.low),
+        close: parseFloat(c.close),
+      }))
+      .filter(c => c.time > 0 && c.open > 0);
+
+    candleSeries.setData(lcData);
+
+    // Volume
+    const volumeSeries = chart.addHistogramSeries({
+      priceFormat:    { type: 'volume' },
+      priceScaleId:   '',
+      scaleMargins:   { top: 0.85, bottom: 0 },
+    });
+    const volData = candles
+      .map(c => ({
+        time:  Math.floor(new Date(c.datetime).getTime() / 1000),
+        value: parseFloat(c.volume) || 0,
+        color: parseFloat(c.close) >= parseFloat(c.open) ? 'rgba(0,230,118,0.2)' : 'rgba(255,61,90,0.2)',
+      }))
+      .filter(c => c.time > 0);
+    volumeSeries.setData(volData);
+
+    // Price lines Entry / SL / TP
+    candleSeries.createPriceLine({
+      price:            parseFloat(sig.entry),
+      color:            '#00d4ff',
+      lineWidth:        2,
+      lineStyle:        LightweightCharts.LineStyle.Dashed,
+      axisLabelVisible: true,
+      title:            ' ENTRY',
+    });
+    candleSeries.createPriceLine({
+      price:            parseFloat(sig.sl),
+      color:            '#ff3d5a',
+      lineWidth:        1,
+      lineStyle:        LightweightCharts.LineStyle.Dashed,
+      axisLabelVisible: true,
+      title:            ' STOP',
+    });
+    candleSeries.createPriceLine({
+      price:            parseFloat(sig.tp),
+      color:            '#00e676',
+      lineWidth:        1,
+      lineStyle:        LightweightCharts.LineStyle.Dashed,
+      axisLabelVisible: true,
+      title:            ' TARGET',
+    });
+    if (sig.tp2 && parseFloat(sig.tp2) > 0) {
+      candleSeries.createPriceLine({
+        price:            parseFloat(sig.tp2),
+        color:            '#00a854',
+        lineWidth:        1,
+        lineStyle:        LightweightCharts.LineStyle.Dotted,
+        axisLabelVisible: true,
+        title:            ' TP2',
+      });
+    }
+
+    chart.timeScale().fitContent();
+
+    // Responsive
+    const ro = new ResizeObserver(() => {
+      if (container.offsetWidth > 0) {
+        chart.applyOptions({ width: container.offsetWidth });
+      }
+    });
+    ro.observe(container);
+
+  } catch(e) {
+    console.warn('Live chart error:', e.message);
+    container.classList.remove('loading');
+    container.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100%;font-family:var(--mono);font-size:11px;color:var(--text-dim);letter-spacing:0.1em;">Live chart unavailable · ${e.message}</div>`;
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// XENOS CHART ENGINE HD — Dark Theme · Alta Risoluzione
+// Canvas 900x500 @ 2x = 1800x1000px effettivi
+// ══════════════════════════════════════════════════════════════
+
+function drawPatternChart(canvas, sig) {
+  // ── Dimensioni HD ──
+  const W = 900, H = 500;
+  const ML = 14, MR = 0, MT = 52, MB = 36;
+  const CW = W - ML - MR, CH = H - MT - MB;
+
+  // Canvas 2x per retina
+  canvas.width  = W * 2;
+  canvas.height = H * 2;
+  canvas.style.width  = W + 'px';
+  canvas.style.height = H + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(2, 2);
+
+  const isBull  = sig.direction === 'BUY';
+  const entry   = parseFloat(sig.entry);
+  const sl      = parseFloat(sig.sl);
+  const tp      = parseFloat(sig.tp);
+  const pat     = sig.pattern.toLowerCase();
+  const spread  = Math.abs(tp - sl);
+  const center  = (entry + sl + tp) / 3;
+  const pMin    = center - spread * 2.4;
+  const pMax    = center + spread * 2.4;
+
+  function py(p) { return MT + CH - ((p - pMin) / (pMax - pMin)) * CH; }
+  function px(t) { return ML + t * CW; }
+
+  // ── Palette dark ──
+  const BG       = '#060810';
+  const BG2      = '#0c1018';
+  const GRID     = '#1a2535';
+  const GRIDHI   = '#1e2d40';
+  const ACCENT   = '#00d4ff';
+  const col      = isBull ? '#00e676' : '#ff3d5a';
+  const colDim   = isBull ? '#00a854' : '#cc2040';
+  const ORANGE   = '#ffd600';
+  const WHITE    = '#eaf4ff';
+  const DIMTEXT  = '#4a6a8a';
+  const nowX     = px(0.70);
+  const tpY      = py(tp);
+  const entryY   = py(entry);
+  const slY      = py(sl);
+
+  // ── Background ──
+  ctx.fillStyle = BG;
+  ctx.fillRect(0, 0, W, H);
+
+  // Subtle gradient overlay
+  const grad = ctx.createLinearGradient(0, MT, 0, MT+CH);
+  grad.addColorStop(0,   'rgba(0,212,255,0.02)');
+  grad.addColorStop(0.5, 'rgba(0,0,0,0)');
+  grad.addColorStop(1,   'rgba(0,212,255,0.015)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(ML, MT, CW, CH);
+
+  // ── Grid lines ──
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 8; i++) {
+    const y = MT + (i/8)*CH;
+    ctx.strokeStyle = i % 2 === 0 ? GRIDHI : GRID;
+    ctx.globalAlpha = 0.7;
+    ctx.beginPath(); ctx.moveTo(ML, y); ctx.lineTo(ML+CW, y); ctx.stroke();
+  }
+  // Vertical grid
+  for (let i = 1; i <= 9; i++) {
+    const x = ML + (i/10)*CW;
+    ctx.strokeStyle = GRID; ctx.globalAlpha = 0.4;
+    ctx.beginPath(); ctx.moveTo(x, MT); ctx.lineTo(x, MT+CH); ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
+  // ── Header ──
+  ctx.fillStyle = BG2;
+  ctx.fillRect(0, 0, W, MT);
+  // Header accent line top
+  const hGrad = ctx.createLinearGradient(0,0,W,0);
+  hGrad.addColorStop(0,'transparent'); hGrad.addColorStop(0.5,ACCENT); hGrad.addColorStop(1,'transparent');
+  ctx.fillStyle = hGrad; ctx.fillRect(0,0,W,1.5);
+  // Separator
+  ctx.strokeStyle = '#1e2a3a'; ctx.lineWidth = 1; ctx.globalAlpha = 1;
+  ctx.beginPath(); ctx.moveTo(0,MT); ctx.lineTo(W,MT); ctx.stroke();
+
+  // Pair + TF
+  ctx.fillStyle = WHITE; ctx.font = 'bold 16px "Space Mono",monospace'; ctx.textAlign = 'left';
+  ctx.fillText(sig.pair, ML+8, 22);
+  ctx.fillStyle = DIMTEXT; ctx.font = '11px "Space Mono",monospace';
+  ctx.fillText('· ' + selectedTF, ML+8+ctx.measureText(sig.pair).width+12, 22);
+
+  // Pattern name
+  ctx.fillStyle = ACCENT; ctx.font = '11px "Space Mono",monospace';
+  ctx.fillText(sig.pattern.toUpperCase(), ML+8, 40);
+
+  // BUY/SELL badge
+  const bdgW = 72, bdgH = 24, bdgX = W - 260, bdgY = 14;
+  ctx.fillStyle = col;
+  ctx.beginPath(); ctx.roundRect(bdgX, bdgY, bdgW, bdgH, 3); ctx.fill();
+  ctx.fillStyle = '#000'; ctx.font = 'bold 11px "Space Mono",monospace'; ctx.textAlign = 'center';
+  ctx.fillText(isBull ? '▲  BUY' : '▼  SELL', bdgX + bdgW/2, bdgY+16);
+
+  // Confidence badge
+  const confCol = sig.confidence >= 80 ? '#00e676' : sig.confidence >= 70 ? '#ffd600' : '#00d4ff';
+  ctx.fillStyle = BG2; ctx.strokeStyle = confCol; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.roundRect(bdgX+bdgW+6, bdgY, 62, bdgH, 3); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = confCol; ctx.font = 'bold 11px "Space Mono",monospace';
+  ctx.fillText(sig.confidence + '%', bdgX+bdgW+6+31, bdgY+16);
+
+  // R:R badge
+  ctx.fillStyle = BG2; ctx.strokeStyle = ORANGE; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.roundRect(bdgX+bdgW+6+68, bdgY, 82, bdgH, 3); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = ORANGE; ctx.font = '10px "Space Mono",monospace';
+  ctx.fillText('R:R ' + (sig.rr || '—'), bdgX+bdgW+6+68+41, bdgY+16);
+
+  // ── Zone target / stop ──
+  function zone(pts, c, a=0.07) {
+    ctx.save(); ctx.fillStyle=c; ctx.globalAlpha=a;
+    ctx.beginPath(); ctx.moveTo(pts[0][0],pts[0][1]);
+    pts.slice(1).forEach(p=>ctx.lineTo(p[0],p[1]));
+    ctx.closePath(); ctx.fill(); ctx.restore();
+  }
+
+  // Target zone (verde/rosso trasparente)
+  zone([[nowX,isBull?tpY:entryY],[ML+CW,isBull?tpY:entryY],[ML+CW,isBull?entryY:tpY],[nowX,isBull?entryY:tpY]], col, 0.08);
+  // Stop zone
+  zone([[nowX,isBull?entryY:slY],[ML+CW,isBull?entryY:slY],[ML+CW,isBull?slY:entryY],[nowX,isBull?slY:entryY]], isBull?'#ff3d5a':'#00e676', 0.04);
+
+  // ── NOW vertical line ──
+  ctx.save(); ctx.strokeStyle=ACCENT; ctx.lineWidth=1.5; ctx.globalAlpha=0.5;
+  ctx.setLineDash([6,4]);
+  ctx.beginPath(); ctx.moveTo(nowX,MT); ctx.lineTo(nowX,MT+CH); ctx.stroke();
+  ctx.setLineDash([]); ctx.restore();
+
+  // NOW label
+  ctx.fillStyle = ACCENT; ctx.font = 'bold 10px "Space Mono",monospace'; ctx.textAlign = 'center';
+  ctx.globalAlpha = 0.8;
+  ctx.fillText('NOW', nowX, MT+CH+24);
+  ctx.globalAlpha = 1;
+
+  // HISTORY / TARGET labels
+  ctx.fillStyle = DIMTEXT; ctx.font = '10px "Space Mono",monospace';
+  ctx.fillText('◀ HISTORY', px(0.30), MT+CH+24);
+  ctx.fillStyle = col;
+  ctx.fillText('TARGET ▶', px(0.88), MT+CH+24);
+
+  // ── Helper functions per i pattern ──
+  function L(x1,y1,x2,y2,c,w,dash=[],a=1) {
+    ctx.save(); ctx.strokeStyle=c; ctx.lineWidth=w; ctx.setLineDash(dash); ctx.globalAlpha=a;
+    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); ctx.restore();
+  }
+  function ARR(x1,y1,x2,y2,c,w=3.5) {
+    ctx.save(); ctx.strokeStyle=c; ctx.fillStyle=c; ctx.lineWidth=w;
+    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+    const a=Math.atan2(y2-y1,x2-x1), s=16;
+    ctx.beginPath(); ctx.moveTo(x2,y2);
+    ctx.lineTo(x2-s*Math.cos(a-0.38),y2-s*Math.sin(a-0.38));
+    ctx.lineTo(x2-s*Math.cos(a+0.38),y2-s*Math.sin(a+0.38));
+    ctx.closePath(); ctx.fill(); ctx.restore();
+  }
+  function trajArrow(fromX, fromY, c, isBullDir) {
+    const len = 60;
+    const angle = isBullDir ? -Math.PI/4 : Math.PI/4;
+    ARR(fromX, fromY, fromX+len*Math.cos(angle), fromY+len*Math.sin(angle), c, 3.5);
+  }
+  function DOT(x,y,c,r=7) {
+    ctx.save();
+    // Glow
+    const g = ctx.createRadialGradient(x,y,0,x,y,r*2.5);
+    g.addColorStop(0, c+'88'); g.addColorStop(1, 'transparent');
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,r*2.5,0,Math.PI*2); ctx.fill();
+    // White ring
+    ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(x,y,r+2,0,Math.PI*2); ctx.fill();
+    // Colored dot
+    ctx.fillStyle=c; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+  function LBL(text,x,y,c,above=true,size=12) {
+    ctx.save();
+    ctx.font='bold '+size+'px "Space Mono",monospace';
+    const tw=ctx.measureText(text).width;
+    const pad=10, h=22;
+    const bx=x-tw/2-pad, by=above?y-h-10:y+10;
+    // Shadow glow
+    ctx.shadowColor=c; ctx.shadowBlur=12;
+    // Background
+    ctx.fillStyle='rgba(6,8,16,0.92)';
+    ctx.strokeStyle=c; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.roundRect(bx,by,tw+pad*2,h,4); ctx.fill(); ctx.stroke();
+    ctx.shadowBlur=0;
+    ctx.fillStyle=c; ctx.textAlign='center';
+    ctx.fillText(text,x,by+h-5);
+    ctx.restore();
+  }
+  function vDash(x) { L(x,MT,x,MT+CH,'#2a3f58',1,[5,4],0.5); }
+  function targetArrow(fromX, fromY) { trajArrow(fromX, fromY, col, isBull); }
+
+  vDash(nowX);
+  drawPattern(ctx, pat, isBull, entry, sl, tp, py, px, CW, CH, ML, MR, MT, pMin, pMax, spread, W,
+    L, ARR, trajArrow, DOT, LBL, zone, targetArrow, vDash,
+    col, colDim, ORANGE, WHITE, DIMTEXT, ACCENT, BG, nowX, tpY, entryY, slY);
+
+  // ── Border finale ──
+  ctx.strokeStyle = '#1e2a3a'; ctx.lineWidth = 1; ctx.globalAlpha = 1;
+  ctx.strokeRect(ML, MT, CW, CH);
+}
+
+// ── PATTERN ENGINE (tutte le geometrie separate per leggibilità) ──
+function drawPattern(ctx, pat, isBull, entry, sl, tp, py, px, CW, CH, ML, MR, MT, pMin, pMax, spread, W,
+  L, ARR, trajArrow, DOT, LBL, zone, targetArrow, vDash,
+  col, colDim, ORANGE, WHITE, DIMTEXT, ACCENT, BG, nowX, tpY, entryY, slY) {
+
+  const black = '#0c1422';
+
+  // ══ HEAD & SHOULDERS ══
+  if (pat.includes('head') && pat.includes('shoulder')) {
+    const inv=isBull;
+    const nkY=py(entry+(inv?spread*0.3:-spread*0.3));
+    const lsY=py(entry+(inv?-spread*1.1:spread*1.1));
+    const hdY=py(entry+(inv?-spread*1.9:spread*1.9));
+    const rsY=py(entry+(inv?-spread*1.0:spread*1.0));
+    const lsX=px(0.16),v1=px(0.28),hdX=px(0.42),v2=px(0.56),rsX=px(0.66);
+    // Neckline
+    L(px(0.04),nkY,nowX,nkY,ORANGE,2.5,[8,5],0.8);
+    // Shape
+    [px(0.04),lsX,v1,hdX,v2,rsX,nowX].reduce((prev,x,i,arr)=>{
+      const ys=[nkY,lsY,nkY,hdY,nkY,rsY,nkY];
+      if(i>0) L(arr[i-1],ys[i-1],x,ys[i],col,3);
+      return x;
+    });
+    zone([[px(0.04),nkY],[lsX,lsY],[v1,nkY],[hdX,hdY],[v2,nkY],[rsX,rsY],[nowX,nkY]],col,0.06);
+    DOT(lsX,lsY,ORANGE); DOT(hdX,hdY,col); DOT(rsX,rsY,ORANGE);
+    const lo=inv?18:-18;
+    ctx.fillStyle=ORANGE; ctx.font='bold 12px "Space Mono",monospace'; ctx.textAlign='center';
+    ctx.fillText('LS',lsX,lsY+lo); ctx.fillText('HEAD',hdX,hdY+lo); ctx.fillText('RS',rsX,rsY+lo);
+    ctx.fillStyle=DIMTEXT; ctx.font='10px "Space Mono",monospace';
+    ctx.fillText('NECKLINE',px(0.35),nkY+(inv?16:-10));
+    LBL(inv?'INVERSE H&S':'HEAD & SHOULDERS',px(0.38),inv?hdY:hdY,col,!inv,13);
+    targetArrow(nowX,nkY);
+  }
+
+  // ══ DOUBLE / TRIPLE TOP / BOTTOM ══
+  // Neckline = livello del punto B (valley tra i due peak per bottom, peak tra i due valley per top)
+  else if (pat.includes('double') || pat.includes('triple')) {
+    const isTriple = pat.includes('triple');
+    // peakY = livello dei picchi (top) o valli (bottom)
+    const peakY = py(entry + (isBull ? -spread*1.6 : spread*1.6));
+    // valY = livello del punto B centrale (valley per bottom, peak per top)
+    // La NECKLINE passa ESATTAMENTE per questo punto
+    const valY  = py(entry + (isBull ? -spread*0.3 : spread*0.3));
+    // nkY = neckline = stesso livello di valY (punto B)
+    const nkY   = valY;
+
+    const peaks = isTriple ? [px(0.14),px(0.38),px(0.60)] : [px(0.18),px(0.54)];
+    const vals  = isTriple ? [px(0.26),px(0.49)]          : [px(0.36)];
+
+    // Neckline orizzontale che passa per il valley/peak centrale
+    L(px(0.04), nkY, nowX, nkY, ORANGE, 2.5, [8,5], 0.8);
+
+    // Disegna la forma: peak → val → peak (→ val → peak per triple)
+    let prev = [px(0.04), nkY];
+    peaks.forEach((x, i) => {
+      L(prev[0], prev[1], x, peakY, col, 3); prev = [x, peakY];
+      if (vals[i] !== undefined) {
+        L(x, peakY, vals[i], valY, col, 3); prev = [vals[i], valY];
+      }
+    });
+    L(prev[0], prev[1], nowX, nkY, col, 3);
+
+    // Fill zona
+    zone([[px(0.04),nkY],[...peaks.map(x=>[x,peakY])].flat(),[nowX,nkY]], ORANGE, 0.06);
+
+    // Dot sui peak (A e C)
+    peaks.forEach(x => DOT(x, peakY, col, 6));
+    // Dot sui valley/peak centrali (punto B) — sulla neckline
+    vals.forEach(x => DOT(x, valY, ORANGE, 6));
+
+    // Label neckline
+    ctx.fillStyle = DIMTEXT; ctx.font = '10px "Space Mono",monospace'; ctx.textAlign = 'center';
+    ctx.fillText('NECKLINE', px(0.40), nkY + (isBull ? 16 : -10));
+
+    // Label A, B, C sui punti
+    const lo = isBull ? -18 : 18;
+    const lo2 = isBull ? 20 : -16;
+    ctx.font = 'bold 12px "Space Mono",monospace'; ctx.textAlign = 'center';
+    ctx.fillStyle = col;
+    peaks.forEach((x, i) => {
+      ctx.fillText(isTriple ? ['A','C','E'][i] : ['A','C'][i], x, peakY + lo);
+    });
+    ctx.fillStyle = ORANGE;
+    vals.forEach((x, i) => {
+      ctx.fillText(isTriple ? ['B','D'][i] : 'B', x, valY + lo2);
+    });
+
+    LBL(isTriple ? (isBull?'TRIPLE BOTTOM':'TRIPLE TOP') : (isBull?'DOUBLE BOTTOM':'DOUBLE TOP'),
+        px(0.38), isBull ? peakY : peakY, col, !isBull, 13);
+    targetArrow(nowX, nkY);
+  }
+
+  // ══ ASCENDING TRIANGLE ══
+  // Struttura corretta: supporto ascendente (lower trendline sale) + resistenza orizzontale in alto
+  // BUY: breakout verso l'alto dalla resistenza orizzontale
+  // SELL: breakout verso il basso dalla resistenza orizzontale (raro ma possibile)
+  else if (pat.includes('ascending triangle') || pat==='ascending triangle') {
+    // Resistenza orizzontale (flat in alto)
+    const resY = py(entry + spread * 1.1);
+    // Supporto ascendente: parte in basso a sinistra, sale verso la resistenza
+    const supStartY = py(entry - spread * 1.3); // basso a sinistra
+    const supEndY   = py(entry + spread * 0.4);  // più alto a destra (sale verso res)
+    zone([[px(0.05),resY],[nowX,resY],[nowX,supEndY],[px(0.05),supStartY]],col,0.08);
+    // Resistenza orizzontale — flat
+    L(px(0.05),resY,nowX,resY,col,3.5);
+    // Supporto ascendente — sale
+    L(px(0.05),supStartY,nowX,supEndY,ORANGE,3);
+    // Dot sulla resistenza (touch points)
+    [0.18,0.40,0.60].forEach(t=>DOT(px(t),resY,col,5));
+    // Dot sul supporto ascendente (rimbalzi che salgono)
+    [0.12,0.28,0.48,0.64].forEach(t=>DOT(px(t),supStartY+(supEndY-supStartY)*(t/0.68),ORANGE,5));
+    ctx.fillStyle=col; ctx.font='bold 11px "Space Mono",monospace'; ctx.textAlign='center';
+    ctx.fillText('RESISTANCE (flat)',px(0.37),resY-12);
+    const supLblX = px(0.22);
+    const supLblY = supStartY + (supEndY - supStartY) * 0.3 + 22;
+    ctx.font = 'bold 12px "Space Mono",monospace';
+    const supLblW = ctx.measureText('ASCENDING SUPPORT').width;
+    ctx.fillStyle = 'rgba(6,8,16,0.75)';
+    ctx.fillRect(supLblX - supLblW/2 - 6, supLblY - 14, supLblW + 12, 20);
+    ctx.fillStyle = ORANGE;
+    ctx.textAlign = 'center';
+    ctx.fillText('ASCENDING SUPPORT', supLblX, supLblY);
+    LBL('ASCENDING TRIANGLE',px(0.35),supEndY,col,false,13);
+    targetArrow(nowX,resY);
+  }
+
+  // ══ DESCENDING TRIANGLE ══
+  // Struttura CORRETTA:
+  //   - Resistenza discendente IN ALTO: parte alta sinistra, scende verso destra
+  //   - Supporto orizzontale FLAT IN BASSO: linea piatta bassa
+  //   - Breakout verso il BASSO attraverso il supporto flat
+  else if (pat.includes('descending triangle') || pat==='descending triangle') {
+    const supY      = py(entry - spread * 1.1);   // supporto flat IN BASSO
+    const resLeftY  = py(entry + spread * 1.4);   // resistenza alta a sinistra
+    const resRightY = py(entry - spread * 0.3);   // resistenza scende verso destra
+    zone([[px(0.05),resLeftY],[nowX,resRightY],[nowX,supY],[px(0.05),supY]],col,0.08);
+    L(px(0.05),supY,nowX,supY,col,3.5);                          // supporto flat basso
+    L(px(0.05),resLeftY,nowX,resRightY,ORANGE,3);                 // resistenza discendente alta
+    [0.16,0.36,0.56,0.68].forEach(t=>DOT(px(t),supY,col,5));
+    [0.10,0.26,0.44,0.60].forEach(t=>DOT(px(t),resLeftY+(resRightY-resLeftY)*(t/0.66),ORANGE,5));
+    ctx.fillStyle=col; ctx.font='bold 11px "Space Mono",monospace'; ctx.textAlign='center';
+    ctx.fillText('SUPPORT (flat)',px(0.38),supY+16);
+    ctx.fillStyle=ORANGE; ctx.font='10px "Space Mono",monospace';
+    ctx.fillText('DESCENDING RESISTANCE',px(0.30),resLeftY+(resRightY-resLeftY)*0.2-12);
+    LBL('DESCENDING TRIANGLE',px(0.37),(resRightY+supY)/2,col,true,13);
+    targetArrow(nowX,supY);
+  }
+
+  // ══ SYMMETRICAL TRIANGLE / PENNANT ══
+  else if (pat.includes('symmetrical')||pat.includes('pennant')) {
+    const mid=(pMin+pMax)/2;
+    const t1Y=py(mid+spread*1.5),t2Y=py(mid+spread*0.08);
+    const b1Y=py(mid-spread*1.5),b2Y=py(mid-spread*0.08);
+    zone([[px(0.04),t1Y],[nowX,t2Y],[nowX,b2Y],[px(0.04),b1Y]],'#4a6a8a',0.08);
+    L(px(0.04),t1Y,nowX,t2Y,col,3); L(px(0.04),b1Y,nowX,b2Y,col,3);
+    [0.14,0.32,0.52].forEach(t=>{
+      DOT(px(t),t1Y+(t2Y-t1Y)*(t/0.70),col,5);
+      DOT(px(t+0.10),b1Y+(b2Y-b1Y)*((t+0.10)/0.70),col,5);
+    });
+    LBL(pat.includes('pennant')?(isBull?'BULL PENNANT':'BEAR PENNANT'):'SYM. TRIANGLE',px(0.35),py(mid),ACCENT,isBull,13);
+    targetArrow(nowX,(t2Y+b2Y)/2);
+  }
+
+  // ══ BROADENING TRIANGLE ══
+  else if (pat.includes('broadening')) {
+    const t1Y=py(entry+spread*0.3),t2Y=py(entry+spread*1.4);
+    const b1Y=py(entry-spread*0.3),b2Y=py(entry-spread*1.4);
+    zone([[px(0.05),t1Y],[nowX,t2Y],[nowX,b2Y],[px(0.05),b1Y]],ORANGE,0.07);
+    L(px(0.05),t1Y,nowX,t2Y,ORANGE,3); L(px(0.05),b1Y,nowX,b2Y,ORANGE,3);
+    [0.16,0.36,0.56].forEach(t=>{
+      DOT(px(t),t1Y+(t2Y-t1Y)*(t/0.70),ORANGE,5);
+      DOT(px(t+0.10),b1Y+(b2Y-b1Y)*((t+0.10)/0.70),ORANGE,5);
+    });
+    LBL('BROADENING TRIANGLE',px(0.37),isBull?b2Y:t2Y,col,!isBull,13);
+    targetArrow(nowX,isBull?b2Y:t2Y);
+  }
+
+  // ══ BULL / BEAR FLAG ══
+  else if (pat.includes('flag')&&!pat.includes('pennant')) {
+    const pfY=py(entry-(isBull?spread*2.4:-spread*2.4));
+    const ptY=py(entry+(isBull?spread*0.9:-spread*0.9));
+    const pX0=px(0.04),pX1=px(0.36);
+    // Pole — thick bright line
+    L(pX0,pfY,pX1,ptY,col,5);
+    // Flag
+    const fTop1=py(entry+(isBull?spread*0.9:-spread*0.9));
+    const fTop2=py(entry+(isBull?spread*0.4:-spread*0.4));
+    const fBot1=py(entry+(isBull?spread*0.15:-spread*0.15));
+    const fBot2=py(entry+(isBull?-spread*0.35:spread*0.35));
+    zone([[pX1,fTop1],[nowX,fTop2],[nowX,fBot2],[pX1,fBot1]],col,0.12);
+    L(pX1,fTop1,nowX,fTop2,col,2.5); L(pX1,fBot1,nowX,fBot2,col,2.5);
+    L(pX1,fTop1,pX1,fBot1,DIMTEXT,1,[4,3],0.5);
+    // POLE label — posizionato a sinistra del polo, non sovrapposto
+    ctx.fillStyle=WHITE; ctx.font='bold 11px "Space Mono",monospace'; ctx.textAlign='right';
+    ctx.globalAlpha=0.8;
+    ctx.fillText('POLE', pX0-8, (pfY+ptY)/2+4);
+    ctx.globalAlpha=1;
+    LBL(isBull?'BULL FLAG':'BEAR FLAG',(pX1+nowX)/2,(fTop1+fTop2+fBot1+fBot2)/4,col,!isBull,13);
+    trajArrow(nowX,isBull?fTop2:fBot2,col,isBull);
+  }
+
+  // ══ CHANNEL ══
+  else if (pat.includes('rising channel')||pat.includes('falling channel')||pat.includes('horizontal channel')) {
+    const isRising=pat.includes('rising'),isFalling=pat.includes('falling');
+    let t1,t2,b1,b2;
+    if(isRising){t1=entry+spread*0.3;t2=entry+spread*1.4;b1=entry-spread*0.5;b2=entry+spread*0.6;}
+    else if(isFalling){t1=entry+spread*1.4;t2=entry+spread*0.3;b1=entry+spread*0.6;b2=entry-spread*0.5;}
+    else{t1=entry+spread*0.9;t2=entry+spread*0.9;b1=entry-spread*0.9;b2=entry-spread*0.9;}
+    const top1Y=py(t1),top2Y=py(t2),bot1Y=py(b1),bot2Y=py(b2);
+    zone([[px(0.04),top1Y],[nowX,top2Y],[nowX,bot2Y],[px(0.04),bot1Y]],col,0.08);
+    L(px(0.04),top1Y,nowX,top2Y,col,3); L(px(0.04),bot1Y,nowX,bot2Y,ORANGE,3);
+    const bounceLine=isBull?[bot1Y,bot2Y]:[top1Y,top2Y];
+    [0.16,0.36,0.56].forEach(t=>{
+      DOT(px(t),bounceLine[0]+(bounceLine[1]-bounceLine[0])*(t/0.70),col,5);
+    });
+    LBL(isRising?'RISING CHANNEL':isFalling?'FALLING CHANNEL':'HORIZ. CHANNEL',px(0.37),(top1Y+top2Y+bot1Y+bot2Y)/4,col,!isBull,13);
+    targetArrow(nowX,isBull?bot2Y:top2Y);
+  }
+
+  // ══ CUP & HANDLE ══
+  else if (pat.includes('cup')) {
+    const rimY=py(entry+(isBull?spread*0.6:-spread*0.6));
+    const botY=py(entry-(isBull?spread*1.5:-spread*1.5));
+    ctx.save(); ctx.strokeStyle=col; ctx.lineWidth=3.5; ctx.globalAlpha=0.9;
+    ctx.shadowColor=col; ctx.shadowBlur=10;
+    ctx.beginPath();
+    for(let i=0;i<=40;i++){const t=i/40,x=px(0.04+t*0.50),y=rimY+(botY-rimY)*Math.sin(t*Math.PI);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);}
+    ctx.stroke(); ctx.restore();
+    const hX1=px(0.56);
+    const hT1=rimY,hT2=rimY+(isBull?12:-12),hB1=rimY+(isBull?22:-22),hB2=rimY+(isBull?34:-34);
+    L(hX1,hT1,nowX,hT2,col,2.5); L(hX1,hB1,nowX,hB2,col,2.5);
+    zone([[hX1,hT1],[nowX,hT2],[nowX,hB2],[hX1,hB1]],col,0.08);
+    L(px(0.04),rimY,nowX,rimY,ORANGE,2,[8,5],0.6);
+    DOT(px(0.04),rimY,col,6); DOT(px(0.55),rimY,col,6);
+    LBL('CUP & HANDLE',px(0.28),botY,col,false,13);
+    ctx.fillStyle=ORANGE; ctx.font='10px "Space Mono",monospace'; ctx.textAlign='center';
+    ctx.fillText('RESISTANCE RIM',px(0.28),rimY-12);
+    targetArrow(nowX,hT2);
+  }
+
+  // ══ ROUNDING ══
+  else if (pat.includes('rounding')) {
+    const rimY=py(entry+(isBull?spread*0.6:-spread*0.6));
+    const botY=py(entry-(isBull?spread*1.6:-spread*1.6));
+    ctx.save(); ctx.strokeStyle=col; ctx.lineWidth=3.5; ctx.globalAlpha=0.9;
+    ctx.shadowColor=col; ctx.shadowBlur=10;
+    ctx.beginPath();
+    for(let i=0;i<=40;i++){const t=i/40,x=px(0.04+t*0.66),y=rimY+(botY-rimY)*Math.sin(t*Math.PI);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);}
+    ctx.stroke(); ctx.restore();
+    L(px(0.04),rimY,nowX,rimY,ORANGE,2,[8,5],0.6);
+    LBL(isBull?'ROUNDING BOTTOM':'ROUNDING TOP',px(0.36),botY,col,false,13);
+    ctx.fillStyle=ORANGE; ctx.font='10px "Space Mono",monospace'; ctx.textAlign='center';
+    ctx.fillText('RESISTANCE RIM',px(0.36),rimY-12);
+    targetArrow(nowX,rimY);
+  }
+
+  // ══ RISING WEDGE (bearish) ══
+  // Cuneo CONVERGENTE che sale: entrambe le linee salgono MA si avvicinano verso destra
+  // Upper line sale meno velocemente, lower line sale più velocemente → convergono
+  else if (pat.includes('rising wedge')) {
+    const wCol = '#ff3d5a';
+    // Upper trendline: sale lentamente (poco rialzo da sx a dx)
+    const uL = py(entry + spread * 0.6);   // sinistra alta
+    const uR = py(entry + spread * 1.0);   // destra — sale poco
+    // Lower trendline: sale più velocemente (molto rialzo da sx a dx)
+    const lL = py(entry - spread * 1.2);   // sinistra bassa
+    const lR = py(entry + spread * 0.7);   // destra — sale molto → converge con upper
+    // Le due linee convergono verso destra → forma cuneo
+    zone([[px(0.05),uL],[nowX,uR],[nowX,lR],[px(0.05),lL]], wCol, 0.07);
+    L(px(0.05),uL, nowX,uR, wCol, 3);  // upper
+    L(px(0.05),lL, nowX,lR, wCol, 3);  // lower
+    // Dot: rimbalzi interni al cuneo
+    [0.15,0.32,0.50].forEach(t => {
+      const yU = uL + (uR-uL)*(t/0.68);
+      const yL = lL + (lR-lL)*(t/0.68);
+      DOT(px(t), yU, wCol, 4);
+      DOT(px(t+0.08), yL, wCol, 4);
+    });
+    // Label "WEDGE" con indicazione convergenza
+    ctx.fillStyle = DIMTEXT; ctx.font = '10px "Space Mono",monospace'; ctx.textAlign = 'center';
+    ctx.fillText('converging lines → bearish', px(0.35), uL - 12);
+    LBL('RISING WEDGE', px(0.37), uL, wCol, true, 13);
+    trajArrow(nowX, lR, wCol, false); // breakdown verso il basso
+  }
+
+  // ══ FALLING WEDGE (bullish) ══
+  // Cuneo CONVERGENTE che scende: upper scende PIÙ RIPIDA, lower scende MENO RIPIDA
+  // Le due linee partono distanti e si incontrano verso un apex a destra
+  else if (pat.includes('falling wedge')) {
+    const wCol = '#00e676';
+    // Upper trendline: parte molto in alto a sinistra, scende ripidamente
+    const uL = py(entry + spread * 1.6);   // alto a sinistra
+    const uR = py(entry - spread * 0.2);   // scende molto verso destra
+    // Lower trendline: parte più bassa, scende poco (pendenza molto più lieve)
+    const lL = py(entry + spread * 0.2);   // meno alta a sinistra
+    const lR = py(entry - spread * 0.8);   // scende appena → quasi piatta rispetto a upper
+    // Risultato: upper molto inclinata, lower quasi piatta → convergono verso apex a destra
+    zone([[px(0.05),uL],[nowX,uR],[nowX,lR],[px(0.05),lL]], wCol, 0.08);
+    L(px(0.05),uL, nowX,uR, wCol, 3.5);  // upper — ripida
+    L(px(0.05),lL, nowX,lR, wCol, 3.5);  // lower — meno ripida
+    // Rimbalzi interni: zigzag che tocca alternativamente upper e lower
+    [0.14, 0.30, 0.48, 0.62].forEach((t, i) => {
+      const isUpper = i % 2 === 0;
+      const lineL = isUpper ? uL : lL;
+      const lineR = isUpper ? uR : lR;
+      const y = lineL + (lineR - lineL) * (t / 0.68);
+      DOT(px(t), y, wCol, 5);
+    });
+    // Zigzag interno visibile
+    const zigPts = [0.14, 0.30, 0.48, 0.62].map((t, i) => {
+      const isUpper = i % 2 === 0;
+      const lineL = isUpper ? uL : lL;
+      const lineR = isUpper ? uR : lR;
+      return [px(t), lineL + (lineR - lineL) * (t / 0.68)];
+    });
+    ctx.save(); ctx.strokeStyle = wCol; ctx.lineWidth = 1.5; ctx.globalAlpha = 0.4;
+    ctx.setLineDash([3,3]);
+    ctx.beginPath(); ctx.moveTo(zigPts[0][0], zigPts[0][1]);
+    zigPts.slice(1).forEach(p => ctx.lineTo(p[0], p[1]));
+    ctx.stroke(); ctx.setLineDash([]); ctx.restore();
+    // Label
+    ctx.fillStyle = DIMTEXT; ctx.font = '10px "Space Mono",monospace'; ctx.textAlign = 'center';
+    ctx.fillText('upper steeper · lower flatter → converge', px(0.37), lR + 18);
+    LBL('FALLING WEDGE', px(0.37), uL, wCol, true, 13);
+    trajArrow(nowX, uR, wCol, true); // breakout verso l'alto
+  }
+
+  // ══ ELLIOTT WAVE 3 ══
+  else if (pat.includes('elliott')&&pat.includes('3')&&!pat.includes('5')) {
+    const pts=[entry+(isBull?-spread*1.7:spread*1.7),entry+(isBull?-spread*0.6:spread*0.6),entry+(isBull?-spread*1.2:spread*1.2),entry+(isBull?spread*0.9:-spread*0.9)];
+    const xs=[px(0.06),px(0.22),px(0.40),nowX];
+    const wc=[col,ORANGE,col];
+    for(let i=0;i<3;i++){
+      ctx.save(); ctx.strokeStyle=wc[i]; ctx.lineWidth=i===1?2.5:4;
+      ctx.shadowColor=wc[i]; ctx.shadowBlur=i===1?0:8;
+      ctx.beginPath(); ctx.moveTo(xs[i],py(pts[i])); ctx.lineTo(xs[i+1],py(pts[i+1])); ctx.stroke(); ctx.restore();
+    }
+    xs.slice(0,4).forEach((x,i)=>{
+      DOT(x,py(pts[i]),wc[i]||col,8);
+      const o=isBull?(i%2===0?20:-16):(i%2===0?-16:20);
+      ctx.fillStyle=wc[i]||col; ctx.font='bold 16px "Space Mono",monospace'; ctx.textAlign='center';
+      ctx.fillText(['①','②','③'][i]||'',x,py(pts[i])+o);
+    });
+    ctx.save(); ctx.fillStyle=col; ctx.globalAlpha=0.08;
+    ctx.fillRect(xs[2],Math.min(py(pts[2]),py(pts[3])),xs[3]-xs[2],Math.abs(py(pts[3])-py(pts[2]))); ctx.restore();
+    LBL('ELLIOTT WAVE 3',px(0.53),isBull?py(pts[3]):py(pts[3]),col,!isBull,13);
+    trajArrow(xs[2],py(pts[2]),col,isBull);
+  }
+
+  // ══ ELLIOTT WAVE 5 ══
+  else if (pat.includes('elliott')&&pat.includes('5')) {
+    const pts=[entry+(isBull?-spread*1.9:spread*1.9),entry+(isBull?-spread*0.9:spread*0.9),entry+(isBull?-spread*1.4:spread*1.4),entry+(isBull?-spread*0.3:spread*0.3),entry+(isBull?-spread*0.8:spread*0.8),entry+(isBull?spread*0.7:-spread*0.7)];
+    const xs=[px(0.04),px(0.16),px(0.28),px(0.42),px(0.56),nowX];
+    const wc=[col,ORANGE,col,ORANGE,col];
+    const wl=['①','②','③','④','⑤'];
+    for(let i=0;i<5;i++){
+      ctx.save(); ctx.strokeStyle=wc[i]; ctx.lineWidth=i%2===0?4:2.5;
+      ctx.shadowColor=wc[i]; ctx.shadowBlur=i%2===0?8:0;
+      ctx.beginPath(); ctx.moveTo(xs[i],py(pts[i])); ctx.lineTo(xs[i+1],py(pts[i+1])); ctx.stroke(); ctx.restore();
+    }
+    xs.slice(0,5).forEach((x,i)=>{
+      DOT(x,py(pts[i]),wc[i],8);
+      const o=isBull?(i%2===0?20:-16):(i%2===0?-16:20);
+      ctx.fillStyle=wc[i]; ctx.font='bold 14px "Space Mono",monospace'; ctx.textAlign='center';
+      ctx.fillText(wl[i],x,py(pts[i])+o);
+    });
+    LBL('ELLIOTT WAVE 5',px(0.38),isBull?py(pts[5]):py(pts[5]),col,!isBull,13);
+    trajArrow(xs[4],py(pts[4]),col,isBull);
+  }
+
+  // ══ ELLIOTT WAVE C ══
+  else if (pat.includes('elliott')&&pat.includes('c')) {
+    const aP=entry+(isBull?spread*1.3:-spread*1.3);
+    const bP=entry+(isBull?spread*0.5:-spread*0.5);
+    const cP=entry+(isBull?-spread*0.9:spread*0.9);
+    const aX=px(0.15),bX=px(0.38);
+    L(px(0.04),py(entry),aX,py(aP),ORANGE,3);
+    L(aX,py(aP),bX,py(bP),ORANGE,2);
+    ctx.save(); ctx.strokeStyle=col; ctx.lineWidth=4; ctx.shadowColor=col; ctx.shadowBlur=10;
+    ctx.beginPath(); ctx.moveTo(bX,py(bP)); ctx.lineTo(nowX,py(cP)); ctx.stroke(); ctx.restore();
+    DOT(aX,py(aP),ORANGE,8); DOT(bX,py(bP),ORANGE,8);
+    const ao=isBull?-18:18,bo=isBull?20:-16;
+    ctx.font='bold 16px "Space Mono",monospace'; ctx.textAlign='center';
+    ctx.fillStyle=ORANGE; ctx.fillText('A',aX,py(aP)+ao); ctx.fillText('B',bX,py(bP)+bo);
+    ctx.fillStyle=col; ctx.fillText('C',nowX+10,py(cP)+ao);
+    LBL('ELLIOTT WAVE C',px(0.40),isBull?py(cP):py(aP),col,!isBull,13);
+    trajArrow(bX,py(bP),col,isBull);
+  }
+
+  // ══ FIB PATTERNS ══
+  else if (pat.includes('fib')) {
+    const impF=entry+(isBull?-spread*1.9:spread*1.9);
+    const impT=entry+(isBull?spread*0.9:-spread*0.9);
+    ctx.save(); ctx.strokeStyle=col; ctx.lineWidth=3.5; ctx.shadowColor=col; ctx.shadowBlur=8;
+    ctx.beginPath(); ctx.moveTo(px(0.04),py(impF)); ctx.lineTo(px(0.35),py(impT)); ctx.stroke(); ctx.restore();
+    DOT(px(0.04),py(impF),col,6); DOT(px(0.35),py(impT),col,6);
+    const fibs=[[0.236,'#4a6a8a',1.5],[0.382,ORANGE,2],[0.500,'#6a8aaa',1.5],[0.618,'#ff3d5a',3]];
+    fibs.forEach(([f,c,w])=>{
+      const lP=impT+(impF-impT)*f,y=py(lP);
+      L(px(0.35),y,nowX,y,c,w,f===0.5?[6,4]:[]);
+      ctx.fillStyle=c; ctx.font=w>2?'bold 11px "Space Mono",monospace':'10px "Space Mono",monospace';
+      ctx.textAlign='left'; ctx.fillText((f*100).toFixed(1)+'%',px(0.35)+6,y-5);
+    });
+    const f618P=impT+(impF-impT)*0.618,f500P=impT+(impF-impT)*0.500;
+    zone([[px(0.35),py(f618P)],[nowX,py(f618P)],[nowX,py(f500P)],[px(0.35),py(f500P)]],'#ff3d5a',0.08);
+    L(px(0.35),py(impT),px(0.58),py(f618P),ORANGE,2,[6,4]);
+    DOT(px(0.58),py(f618P),ORANGE,7);
+    LBL(isBull?'FIB BOUNCE':'FIB REJECTION',px(0.50),py(f618P),'#ff3d5a',!isBull,13);
+    trajArrow(px(0.58),py(f618P),col,isBull);
+  }
+
+  // ══ BREAKOUT KEY LEVEL ══
+  else if (pat.includes('breakout')) {
+    ctx.save(); ctx.fillStyle=ORANGE; ctx.globalAlpha=0.10;
+    ctx.fillRect(px(0.04),py(entry+spread*0.28),CW*0.66,py(entry-spread*0.12)-py(entry+spread*0.28)); ctx.restore();
+    ctx.save(); ctx.strokeStyle=ORANGE; ctx.lineWidth=3; ctx.shadowColor=ORANGE; ctx.shadowBlur=12;
+    ctx.beginPath(); ctx.moveTo(px(0.04),py(entry)); ctx.lineTo(nowX,py(entry)); ctx.stroke(); ctx.restore();
+    [0.14,0.26,0.42,0.58].forEach((t,i)=>DOT(px(t),py(entry)+(i%2===0?-4:4),ORANGE,5));
+    ctx.fillStyle=ORANGE; ctx.font='bold 11px "Space Mono",monospace'; ctx.textAlign='center';
+    ctx.fillText('KEY LEVEL / RESISTANCE',px(0.35),py(entry)-14);
+    LBL(isBull?'BULLISH BREAKOUT':'BEARISH BREAKOUT',px(0.35),py(entry),col,!isBull,13);
+    targetArrow(nowX,py(entry));
+  }
+
+  // ══ BULLISH / BEARISH ENGULFING ══
+  // Rappresentazione professionale: candele realistiche con body + wick
+  // Candela 1 (piccola, contro-trend) + Candela 2 (grande, la engulfing che copre la 1)
+  else if (pat.includes('engulf')) {
+    const isBullE = isBull;
+    // Candela 1 (piccola, contro-trend): bearish per bullish engulfing, bullish per bearish
+    const c1BodyH = 28, c1WickT = 12, c1WickB = 10;
+    const c1X = px(0.46), c1W = 22;
+    // Candela 2 (engulfing, grande): bullish per bullish engulfing, bearish per bearish
+    const c2BodyH = 70, c2WickT = 18, c2WickB = 16;
+    const c2X = px(0.60), c2W = 28;
+
+    // Posizione verticale centrale
+    const midY = py(entry);
+
+    // Trend prima (linea grigia tratteggiata che arriva alla candela 1)
+    const trendStartY = py(entry + (isBullE ? spread*1.2 : -spread*1.2));
+    L(px(0.04), trendStartY, c1X, isBullE ? midY + c1BodyH/2 : midY - c1BodyH/2, '#4a6a8a', 2, [4,3], 0.5);
+
+    // ── CANDELA 1 (piccola, contro-trend) ──
+    const c1Color = isBullE ? '#ff3d5a' : '#00e676'; // bearish se bullish engulfing
+    const c1Top   = midY - c1BodyH/2;
+    const c1Bot   = midY + c1BodyH/2;
+    // Wick superiore
+    ctx.strokeStyle = c1Color; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(c1X + c1W/2, c1Top - c1WickT); ctx.lineTo(c1X + c1W/2, c1Top); ctx.stroke();
+    // Wick inferiore
+    ctx.beginPath(); ctx.moveTo(c1X + c1W/2, c1Bot); ctx.lineTo(c1X + c1W/2, c1Bot + c1WickB); ctx.stroke();
+    // Body
+    ctx.fillStyle = c1Color;
+    ctx.fillRect(c1X, c1Top, c1W, c1BodyH);
+    ctx.strokeStyle = isBullE ? '#cc2040' : '#00a854'; ctx.lineWidth = 1.5;
+    ctx.strokeRect(c1X, c1Top, c1W, c1BodyH);
+
+    // ── CANDELA 2 (engulfing, più grande, copre la 1) ──
+    const c2Color = isBullE ? '#00e676' : '#ff3d5a'; // bullish se bullish engulfing
+    const c2Top   = midY - c2BodyH/2;
+    const c2Bot   = midY + c2BodyH/2;
+    // Wick superiore
+    ctx.strokeStyle = c2Color; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(c2X + c2W/2, c2Top - c2WickT); ctx.lineTo(c2X + c2W/2, c2Top); ctx.stroke();
+    // Wick inferiore
+    ctx.beginPath(); ctx.moveTo(c2X + c2W/2, c2Bot); ctx.lineTo(c2X + c2W/2, c2Bot + c2WickB); ctx.stroke();
+    // Body (glow)
+    ctx.save();
+    ctx.shadowColor = c2Color; ctx.shadowBlur = 14;
+    ctx.fillStyle = c2Color;
+    ctx.fillRect(c2X, c2Top, c2W, c2BodyH);
+    ctx.restore();
+    ctx.strokeStyle = isBullE ? '#00a854' : '#cc2040'; ctx.lineWidth = 2;
+    ctx.strokeRect(c2X, c2Top, c2W, c2BodyH);
+
+    // Label "1" e "2" sopra le candele
+    ctx.fillStyle = DIMTEXT; ctx.font = '10px "Space Mono",monospace'; ctx.textAlign = 'center';
+    ctx.fillText('①', c1X + c1W/2, c1Top - c1WickT - 8);
+    ctx.fillStyle = c2Color; ctx.font = 'bold 10px "Space Mono",monospace';
+    ctx.fillText('② ENGULF', c2X + c2W/2, c2Top - c2WickT - 8);
+
+    // Freccia direzionale dal close della candela 2
+    const arrowFrom = isBullE ? c2Top : c2Bot;
+    trajArrow(c2X + c2W/2, arrowFrom, c2Color, isBullE);
+
+    LBL(isBullE ? 'BULLISH ENGULFING' : 'BEARISH ENGULFING',
+        (c1X + c2X + c2W) / 2,
+        isBullE ? c2Bot + 20 : c2Top - 20,
+        col, !isBullE, 13);
+  }
+
+  // ══ HAMMER / SHOOTING STAR ══
+  else if (pat.includes('hammer')||pat.includes('shooting star')) {
+    const isHammer=pat.includes('hammer');
+    L(px(0.04),py(entry+(isHammer?spread*1.5:-spread*1.5)),px(0.54),py(entry+(isHammer?spread*0.2:-spread*0.2)),'#4a6a8a',2,[4,3],0.6);
+    const cX=px(0.60),cW=22;
+    const bodyH=18,longWick=50;
+    const bodyTop=py(entry)+(isHammer?-bodyH/2:bodyH/2-longWick);
+    const bodyBot=py(entry)+(isHammer?-bodyH/2+bodyH:bodyH/2);
+    ctx.strokeStyle=WHITE; ctx.lineWidth=2;
+    ctx.beginPath();
+    if(isHammer){ctx.moveTo(cX+cW/2,bodyTop);ctx.lineTo(cX+cW/2,bodyTop-longWick);}
+    else{ctx.moveTo(cX+cW/2,bodyBot);ctx.lineTo(cX+cW/2,bodyBot+longWick);}
+    ctx.stroke();
+    ctx.fillStyle=col; ctx.fillRect(cX,bodyTop,cW,bodyH);
+    ctx.save(); ctx.strokeStyle=ORANGE; ctx.lineWidth=2.5; ctx.setLineDash([4,3]);
+    ctx.beginPath(); ctx.arc(cX+cW/2,py(entry),cW+8,0,Math.PI*2); ctx.stroke();
+    ctx.setLineDash([]); ctx.restore();
+    LBL(isHammer?'HAMMER':'SHOOTING STAR',cX+cW/2,py(entry),col,!isBull,13);
+    trajArrow(cX+cW/2,py(entry),col,isBull);
+  }
+
+  // ══ MORNING / EVENING STAR ══
+  else if (pat.includes('morning star')||pat.includes('evening star')) {
+    const isMorning=pat.includes('morning');
+    const c1O=entry+(isMorning?spread*0.9:-spread*0.2),c1C=entry+(isMorning?spread*0.2:-spread*0.9);
+    const c2O=entry+(isMorning?spread*0.1:-spread*0.1),c2C=entry+(isMorning?-spread*0.1:spread*0.1);
+    const c3O=entry+(isMorning?-spread*0.3:spread*0.3),c3C=entry+(isMorning?spread*0.6:-spread*0.6);
+    const cW=20;
+    L(px(0.04),py(entry+(isMorning?spread*1.3:-spread*1.3)),px(0.36),py(c1O),'#4a6a8a',2,[4,3],0.6);
+    [[px(0.38),c1O,c1C,!isMorning],[px(0.54),c2O,c2C,true],[px(0.70),c3O,c3C,isMorning]].forEach(([x,o,c,isUp])=>{
+      ctx.fillStyle=isUp?'#00e676':'#ff3d5a';
+      ctx.fillRect(x,Math.min(py(o),py(c)),cW,Math.max(3,Math.abs(py(o)-py(c))));
+    });
+    ctx.save(); ctx.strokeStyle=ORANGE; ctx.lineWidth=2.5; ctx.setLineDash([4,3]);
+    ctx.beginPath(); ctx.arc(px(0.54)+cW/2,py(entry),cW+10,0,Math.PI*2); ctx.stroke();
+    ctx.setLineDash([]); ctx.restore();
+    LBL(isMorning?'MORNING STAR':'EVENING STAR',px(0.54)+cW/2,py(entry),col,!isMorning,13);
+    trajArrow(px(0.70)+cW/2,py(c3C),col,isBull);
+  }
+
+  // ══ HARAMI ══
+  else if (pat.includes('harami')) {
+    const isBullH=pat.includes('bullish');
+    const bigO=entry+(isBullH?spread*0.8:-spread*0.2),bigC=entry+(isBullH?0:-spread*0.8);
+    const smO=entry+(isBullH?spread*0.25:-spread*0.45),smC=entry+(isBullH?spread*0.45:-spread*0.25);
+    L(px(0.04),py(entry+(isBullH?spread*1.3:-spread*1.3)),px(0.44),py(bigO),'#4a6a8a',2,[4,3],0.6);
+    ctx.fillStyle=isBullH?'#ff3d5a':'#00e676';
+    ctx.fillRect(px(0.46),Math.min(py(bigO),py(bigC)),22,Math.max(3,Math.abs(py(bigO)-py(bigC))));
+    ctx.fillStyle=isBullH?'#00e676':'#ff3d5a';
+    ctx.fillRect(px(0.58),Math.min(py(smO),py(smC)),16,Math.max(3,Math.abs(py(smO)-py(smC))));
+    ctx.save(); ctx.strokeStyle=ORANGE; ctx.lineWidth=2; ctx.setLineDash([4,3]);
+    const midX=px(0.58)+8;
+    ctx.beginPath(); ctx.arc(midX,(py(smO)+py(smC))/2,20,0,Math.PI*2); ctx.stroke();
+    ctx.setLineDash([]); ctx.restore();
+    LBL(isBullH?'BULLISH HARAMI':'BEARISH HARAMI',midX,py(entry),col,!isBullH,13);
+    trajArrow(midX,py(smC),col,isBull);
+  }
+
+  // ══ DOJI ══
+  else if (pat.includes('doji')) {
+    L(px(0.04),py(entry+(isBull?spread*1.6:-spread*1.6)),px(0.56),py(entry),'#4a6a8a',2,[4,3],0.6);
+    const dX=px(0.60),dW=22;
+    ctx.strokeStyle=WHITE; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(dX+dW/2,py(entry+spread*0.4)); ctx.lineTo(dX+dW/2,py(entry-spread*0.4)); ctx.stroke();
+    ctx.fillStyle='#0c1422'; ctx.strokeStyle=WHITE; ctx.lineWidth=2;
+    ctx.fillRect(dX,py(entry)+1,dW,5); ctx.strokeRect(dX,py(entry)+1,dW,5);
+    ctx.save(); ctx.strokeStyle=ORANGE; ctx.lineWidth=2.5; ctx.setLineDash([4,3]);
+    ctx.beginPath(); ctx.arc(dX+dW/2,py(entry),dW+8,0,Math.PI*2); ctx.stroke();
+    ctx.setLineDash([]); ctx.restore();
+    LBL('DOJI REVERSAL',dX+dW/2,py(entry),col,!isBull,13);
+    trajArrow(dX+dW/2,py(entry),col,isBull);
+  }
+
+  // ══ RSI / MACD DIVERGENCE — rimosso, cade nel fallback generico ══
+
+  // ══ HARMONICI (Gartley, Butterfly, Bat, Crab, Cypher, ABCD) ══
+  else if (pat.includes('gartley')||pat.includes('butterfly')||pat.includes('bat')||pat.includes('crab')||pat.includes('cypher')||pat.includes('abcd')) {
+    const isABCD=pat.includes('abcd');
+    let pts,xs,labels;
+    if(isABCD){
+      pts=[entry+(isBull?-spread*1.5:spread*1.5),entry+(isBull?-spread*0.4:spread*0.4),entry+(isBull?-spread*1.1:spread*1.1),entry+(isBull?spread*0.2:-spread*0.2)];
+      xs=[px(0.08),px(0.28),px(0.48),nowX]; labels=['A','B','C','D'];
+    } else {
+      pts=[entry+(isBull?-spread*0.5:spread*0.5),entry+(isBull?-spread*1.6:spread*1.6),entry+(isBull?-spread*0.8:spread*0.8),entry+(isBull?-spread*1.3:spread*1.3),entry+(isBull?spread*0.2:-spread*0.2)];
+      xs=[px(0.04),px(0.18),px(0.34),px(0.50),nowX]; labels=['X','A','B','C','D'];
+    }
+    const colors=[ORANGE,col,ORANGE,col,col];
+    for(let i=0;i<xs.length-1;i++){
+      ctx.save(); ctx.strokeStyle=colors[i]; ctx.lineWidth=3;
+      ctx.shadowColor=colors[i]; ctx.shadowBlur=6;
+      ctx.beginPath(); ctx.moveTo(xs[i],py(pts[i])); ctx.lineTo(xs[i+1],py(pts[i+1])); ctx.stroke(); ctx.restore();
+    }
+    xs.forEach((x,i)=>{
+      DOT(x,py(pts[i]),colors[i]||col,8);
+      const o=(i%2===0)?(isBull?-20:18):(isBull?18:-18);
+      ctx.fillStyle=colors[i]||col; ctx.font='bold 14px "Space Mono",monospace'; ctx.textAlign='center';
+      ctx.fillText(labels[i],x,py(pts[i])+o);
+    });
+    ctx.save(); ctx.fillStyle=col; ctx.globalAlpha=0.10;
+    ctx.fillRect(xs[xs.length-2],Math.min(py(pts[pts.length-1]),entryY)-6,nowX-xs[xs.length-2],Math.abs(py(pts[pts.length-1])-entryY)+12);
+    ctx.restore();
+    ctx.fillStyle=col; ctx.font='bold 11px "Space Mono",monospace'; ctx.textAlign='center';
+    ctx.fillText('PRZ',(xs[xs.length-2]+nowX)/2,Math.min(py(pts[pts.length-1]),entryY)-10);
+    const patName=pat.includes('gartley')?'GARTLEY':pat.includes('butterfly')?'BUTTERFLY':pat.includes('bat')?'BAT':pat.includes('crab')?'CRAB':pat.includes('cypher')?'CYPHER':'ABCD';
+    LBL(patName+' PATTERN',px(0.33),isBull?py(pts[isABCD?0:1]):py(pts[isABCD?0:1]),col,!isBull,13);
+    targetArrow(nowX,py(pts[pts.length-1]));
+  }
+
+  // ══ ISLAND REVERSAL ══
+  else if (pat.includes('island')) {
+    const gap1=isBull?-spread*1.3:spread*1.3;
+    const islandLevel=entry+(isBull?-spread*0.9:spread*0.9);
+    L(px(0.04),py(entry+gap1*1.5),px(0.24),py(entry+gap1),'#4a6a8a',2,[4,3],0.6);
+    ctx.save(); ctx.fillStyle=ORANGE; ctx.globalAlpha=0.18;
+    ctx.fillRect(px(0.24),py(islandLevel+spread*0.35),px(0.44)-px(0.24),py(islandLevel-spread*0.35)-py(islandLevel+spread*0.35));
+    ctx.restore();
+    L(px(0.24),py(islandLevel),px(0.44),py(islandLevel),WHITE,2,[5,3],0.6);
+    ctx.save(); ctx.fillStyle='#ff3d5a'; ctx.globalAlpha=0.15;
+    ctx.fillRect(px(0.21),py(entry+gap1),px(0.24)-px(0.21),py(islandLevel)-py(entry+gap1)); ctx.restore();
+    ctx.save(); ctx.fillStyle='#00e676'; ctx.globalAlpha=0.15;
+    ctx.fillRect(px(0.44),py(islandLevel),px(0.47)-px(0.44),py(entry)-py(islandLevel)); ctx.restore();
+    ctx.fillStyle=ORANGE; ctx.font='bold 11px "Space Mono",monospace'; ctx.textAlign='center';
+    ctx.fillText('GAP',px(0.225),(py(entry+gap1)+py(islandLevel))/2);
+    ctx.fillText('GAP',px(0.455),(py(islandLevel)+py(entry))/2);
+    LBL('ISLAND REVERSAL',px(0.34),py(islandLevel),col,!isBull,13);
+    targetArrow(nowX,py(entry));
+  }
+
+  // ══ DIAMOND PATTERN ══
+  else if (pat.includes('diamond')) {
+    const top=py(entry+(isBull?-spread*0.3:spread*0.3));
+    const bot=py(entry+(isBull?spread*0.3:-spread*0.3));
+    const left=px(0.10),right=nowX;
+    const topWide=py(entry+(isBull?-spread*1.5:spread*1.5));
+    const botWide=py(entry+(isBull?spread*1.5:-spread*1.5));
+    L(left,py(entry),px(0.25),topWide,ORANGE,2.5);
+    L(left,py(entry),px(0.25),botWide,ORANGE,2.5);
+    L(px(0.25),topWide,right,top,col,2.5);
+    L(px(0.25),botWide,right,bot,col,2.5);
+    zone([[left,py(entry)],[px(0.25),topWide],[right,top],[right,bot],[px(0.25),botWide]],ORANGE,0.07);
+    DOT(left,py(entry),ORANGE,7); DOT(px(0.25),topWide,ORANGE,5); DOT(px(0.25),botWide,ORANGE,5);
+    LBL('DIAMOND PATTERN',px(0.34),isBull?botWide:topWide,col,!isBull,13);
+    targetArrow(nowX,isBull?bot:top);
+  }
+
+  // ══ WOLFE WAVE ══
+  else if (pat.includes('wolfe')) {
+    const pts=isBull
+      ?[entry-spread*1.7,entry-spread*0.5,entry-spread*1.3,entry+spread*0.2,entry-spread*0.8]
+      :[entry+spread*1.7,entry+spread*0.5,entry+spread*1.3,entry-spread*0.2,entry+spread*0.8];
+    const xs=[px(0.06),px(0.18),px(0.32),px(0.46),px(0.60)];
+    for(let i=0;i<4;i++){
+      ctx.save(); ctx.strokeStyle=i%2===0?col:ORANGE; ctx.lineWidth=3;
+      ctx.shadowColor=i%2===0?col:ORANGE; ctx.shadowBlur=6;
+      ctx.beginPath(); ctx.moveTo(xs[i],py(pts[i])); ctx.lineTo(xs[i+1],py(pts[i+1])); ctx.stroke(); ctx.restore();
+    }
+    xs.forEach((x,i)=>DOT(x,py(pts[i]),i%2===0?col:ORANGE,7));
+    const sl13=(py(pts[2])-py(pts[0]))/(xs[2]-xs[0]);
+    L(xs[0],py(pts[0]),nowX,py(pts[0])+sl13*(nowX-xs[0]),col,2,[6,4],0.6);
+    ctx.fillStyle=col; ctx.font='bold 10px "Space Mono",monospace'; ctx.textAlign='left';
+    ctx.fillText('1-3 LINE',xs[2]+6,py(pts[2])-8);
+    const sl24=(py(pts[3])-py(pts[1]))/(xs[3]-xs[1]);
+    L(xs[1],py(pts[1]),nowX,py(pts[1])+sl24*(nowX-xs[1]),'#4a6a8a',1.5,[6,4],0.5);
+    [1,2,3,4,5].forEach((n,i)=>{
+      if(i<5){
+        const o=isBull?(i%2===0?20:-16):(i%2===0?-16:20);
+        ctx.fillStyle=i%2===0?col:ORANGE; ctx.font='bold 13px "Space Mono",monospace'; ctx.textAlign='center';
+        ctx.fillText(n,xs[i],py(pts[i])+o);
+      }
+    });
+    LBL('WOLFE WAVE',px(0.30),isBull?py(pts[2]):py(pts[2]),col,!isBull,13);
+    trajArrow(xs[4],py(pts[4]),col,isBull);
+  }
+
+  // ══ GENERIC FALLBACK ══
+  else {
+    ctx.save(); ctx.fillStyle=ORANGE; ctx.globalAlpha=0.10;
+    ctx.fillRect(px(0.04),py(entry+spread*0.28),CW*0.66,py(entry-spread*0.12)-py(entry+spread*0.28)); ctx.restore();
+    ctx.save(); ctx.strokeStyle=ORANGE; ctx.lineWidth=3; ctx.shadowColor=ORANGE; ctx.shadowBlur=10;
+    ctx.beginPath(); ctx.moveTo(px(0.04),py(entry)); ctx.lineTo(nowX,py(entry)); ctx.stroke(); ctx.restore();
+    [0.14,0.26,0.42,0.58].forEach((t,i)=>DOT(px(t),py(entry)+(i%2===0?-5:5),ORANGE,5));
+    ctx.fillStyle=ORANGE; ctx.font='bold 11px "Space Mono",monospace'; ctx.textAlign='center';
+    ctx.fillText('KEY LEVEL',px(0.35),py(entry)-16);
+    LBL(sig.pattern.toUpperCase(),px(0.35),py(entry),col,!isBull,13);
+    targetArrow(nowX,py(entry));
+  }
+}
+
+function fmtPrice(v, pair) {
+  const n = parseFloat(v);
+  if (!pair) return n.toFixed(2);
+  if (pair.includes('JPY')||pair.includes('225')||pair.includes('JPN')) return n.toFixed(2);
+  if (['US30','US50','NAS1','UK10','GER4','FRA4','AUS2','HK50'].some(x=>pair.startsWith(x))) return n.toFixed(1);
+  if (pair.includes('BTC')||pair.includes('ETH')) return n.toFixed(0);
+  if (n > 500) return n.toFixed(1);
+  return n.toFixed(4);
+}
+
+function fmt(val, pair) {
+  if (!val) return '—';
+  if (pair && (pair.includes('JPY') || pair.includes('225') || pair.includes('JPN'))) return parseFloat(val).toFixed(2);
+  if (pair && (pair.includes('US30') || pair.includes('US500') || pair.includes('NAS') || pair.includes('UK100') || pair.includes('GER') || pair.includes('FRA') || pair.includes('AUS'))) return parseFloat(val).toFixed(1);
+  if (pair && (pair.includes('BTC') || pair.includes('ETH'))) return parseFloat(val).toFixed(0);
+  return parseFloat(val).toFixed(4);
+}
+
+function updateStats(list) {
+  if (!list.length) return;
+  document.getElementById('stats-bar').style.display = 'flex';
+  const bulls = list.filter(s => s.direction === 'BUY').length;
+  const bears = list.filter(s => s.direction === 'SELL').length;
+  const avgConf = Math.round(list.reduce((a,s) => a+s.confidence, 0) / list.length);
+  const rrs = list.map(s => { const m = String(s.rr||'').match(/1:(\d+\.?\d*)/); return m ? parseFloat(m[1]) : 0; }).filter(r => r > 0);
+  const avgRR = rrs.length ? (rrs.reduce((a,b)=>a+b,0)/rrs.length).toFixed(1) : '—';
+  document.getElementById('s-total').textContent = list.length;
+  document.getElementById('s-bull').textContent = bulls;
+  document.getElementById('s-bear').textContent = bears;
+  document.getElementById('s-avgconf').textContent = avgConf + '%';
+  document.getElementById('s-avgrr').textContent = '1:' + avgRR;
+  document.getElementById('s-time').textContent = new Date().toUTCString().split(' ').slice(4,5)[0] + ' UTC';
+}
+
+let pendingTgSignalIdx = null;
+
+function sendToTelegram(event, idx) {
+  event.stopPropagation();
+  pendingTgSignalIdx = idx;
+  const token = localStorage.getItem('tg_token');
+  const chatId = localStorage.getItem('tg_chat_id');
+  if (token && chatId) { doSendToTelegram(idx, token, chatId); }
+  else {
+    document.getElementById('tg-bot-token').value = token || '';
+    document.getElementById('tg-chat-id').value = chatId || '';
+    document.getElementById('tg-config').classList.add('open');
+    document.getElementById('tg-overlay').classList.add('open');
+  }
+}
+
+function closeTgConfig() {
+  document.getElementById('tg-config').classList.remove('open');
+  document.getElementById('tg-overlay').classList.remove('open');
+}
+
+function saveTgConfig() {
+  const token = document.getElementById('tg-bot-token').value.trim();
+  const chatId = document.getElementById('tg-chat-id').value.trim();
+  if (!token || !chatId) { showToast('Inserisci Bot Token e Chat ID'); return; }
+  localStorage.setItem('tg_token', token);
+  localStorage.setItem('tg_chat_id', chatId);
+  closeTgConfig();
+  if (pendingTgSignalIdx !== null) doSendToTelegram(pendingTgSignalIdx, token, chatId);
+}
+
+async function doSendToTelegram(idx, token, chatId) {
+  const sig = signals[idx];
+  if (!sig) return;
+  const btn = document.querySelector(`[onclick="sendToTelegram(event, ${idx})"]`);
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ SENDING...'; }
+  try {
+    // Pattern canvas
+    const patternCanvas = document.getElementById('chart-' + idx);
+    let patternC = patternCanvas && patternCanvas.dataset.drawn ? patternCanvas : (() => {
+      const tmp = document.createElement('canvas');
+      drawPatternChart(tmp, sig);
+      return tmp;
+    })();
+
+    // Live chart canvas (interno al div lc-idx)
+    const liveDiv = document.getElementById('lc-' + idx);
+    const liveC = liveDiv ? liveDiv.querySelector('canvas') : null;
+
+    // Combina i due canvas verticalmente
+    const combined = document.createElement('canvas');
+    const OUT_W = 1200;
+    const OUT_H = 500; // altezza fissa uguale per entrambi i pannelli
+    const gap = 4;
+    combined.width  = OUT_W;
+    combined.height = OUT_H * 2 + gap;
+    const cctx = combined.getContext('2d');
+    cctx.fillStyle = '#060810';
+    cctx.fillRect(0, 0, combined.width, combined.height);
+    cctx.drawImage(patternC, 0, 0, OUT_W, OUT_H);
+    if (liveC) cctx.drawImage(liveC, 0, OUT_H + gap, OUT_W, OUT_H);
+
+    let imageData = combined.toDataURL('image/png').split(',')[1];
+    const dir = sig.direction === 'BUY' ? '🟢' : '🔴';
+    const rr  = sig.rr || '—';
+    const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const caption = [
+      `${dir} <b>${esc(sig.pair)}</b> — ${esc(sig.direction)}`,
+      `📐 <b>Pattern:</b> ${esc(sig.pattern)}`,
+      `⏱ <b>Timeframe:</b> ${esc(selectedTF)}`,
+      ``,
+      `📍 <b>Entry:</b> <code>${esc(fmt(sig.entry, sig.pair))}</code>`,
+      `🛑 <b>Stop Loss:</b> <code>${esc(fmt(sig.sl, sig.pair))}</code>`,
+      `🎯 <b>Take Profit:</b> <code>${esc(fmt(sig.tp, sig.pair))}</code>`,
+      `📊 <b>R:R:</b> ${esc(rr)}  |  <b>Conf:</b> ${esc(sig.confidence)}%`,
+      ``,
+      `🌊 <b>EW Context:</b> ${esc(sig.ew_context || '—')}`,
+      ``,
+      `⚠️ <b>Invalidation:</b> ${esc(sig.invalidation || '—')}`,
+      ``,
+      `🏷 ${(sig.tags || []).map(t => '#' + t.replace(/\s+/g,'_')).join(' ')}`,
+      ``,
+      `<i>Generated by XenosFinance Signal Engine</i>`,
+    ].join('\n');
+    const res = await fetch(WORKER, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'telegram_photo', token, chat_id: chatId, image_base64: imageData, caption, parse_mode: 'HTML' })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      showToast('✅ Segnale inviato su Telegram!');
+      if (btn) { btn.disabled = false; btn.innerHTML = '✅ SENT'; }
+      setTimeout(() => {
+        if (btn) { btn.disabled = false; btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.248l-2.05 9.667c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L8.31 14.617l-2.967-.924c-.645-.204-.658-.645.136-.953l11.57-4.461c.537-.194 1.006.131.513.969z"/></svg> SEND TO TELEGRAM'; }
+      }, 3000);
+    } else {
+      throw new Error(data.description || 'Telegram error');
+    }
+  } catch(e) {
+    showToast('❌ Errore: ' + e.message);
+    if (btn) { btn.disabled = false; btn.innerHTML = '⚠️ RETRY'; }
+  }
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+window.onload = () => {
+  document.getElementById('empty-state').classList.add('active');
+  document.getElementById('pwd-input').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+};
+</script>
+</body>
+</html>
