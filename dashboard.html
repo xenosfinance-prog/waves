@@ -1,4 +1,4 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -233,30 +233,31 @@ function fmtP(s, p) {
   return s.prefix + p.toFixed(s.dec);
 }
 
+const WORKER_URL = 'https://xenos-ai-proxy.xenosfinance.workers.dev';
+const WORKER_SYM_MAP = {
+  'OIL':'USOIL','GOLD':'XAUUSD','SILVER':'XAGUSD','NGAS':'NGAS',
+  'EURUSD':'EURUSD=X','GBPUSD':'GBPUSD=X','USDJPY':'USDJPY=X','USDCHF':'USDCHF=X',
+  'BTCUSD':'BTC-USD','ETHUSD':'ETH-USD',
+  'SPY':'SPY','NASDAQ':'NAS100','DAX':'GER40','FTSE':'UK100',
+};
 async function fetchSym(s) {
-  const u = `https://query1.finance.yahoo.com/v8/finance/chart/${s.yf}?range=5d&interval=1d`;
-  const proxies = [
-    `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
-    `https://corsproxy.io/?${encodeURIComponent(u)}`
-  ];
-  for (const p of proxies) {
-    try {
-      const r = await fetch(p, {signal: AbortSignal.timeout(9000)});
-      if (!r.ok) continue;
-      const d = await r.json();
-      const res = d.chart?.result?.[0];
-      if (!res) continue;
-      const closes = res.indicators.quote[0].close.filter(x => x !== null);
-      if (closes.length < 2) continue;
-      const price = closes[closes.length - 1];
-      const meta = res.meta || {};
-      const prev = parseFloat(meta.previousClose || meta.chartPreviousClose || closes[closes.length - 2]);
-      const weekAgo = closes[0];
-      sparkData[s.id] = closes;
-      return { price, chg: ((price - prev) / prev) * 100, weekChg: ((price - weekAgo) / weekAgo) * 100 };
-    } catch(e) { continue; }
-  }
-  return null;
+  const wsym = WORKER_SYM_MAP[s.id] || s.id;
+  try {
+    const r = await fetch(WORKER_URL, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({type: 'prices', pairs: [wsym]}),
+      signal: AbortSignal.timeout(10000)
+    });
+    if (!r.ok) return null;
+    const d = await r.json();
+    const p = d.prices?.[wsym];
+    if (!p || !p.price) return null;
+    // sparkData: store minimal fake closes for sparkline (prev + current)
+    const prev = p.price / (1 + (p.change_pct || 0) / 100);
+    sparkData[s.id] = [prev, p.price];
+    return { price: p.price, chg: p.change_pct || 0, weekChg: p.change_pct || 0 };
+  } catch(e) { return null; }
 }
 
 function drawSpark(canvasId, data, up) {
