@@ -618,7 +618,7 @@ body { background: var(--bg); color: var(--ink); font-family: var(--mono); min-h
       <div class="chart-card-body">
         <div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
         <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
-        {"autosize":true,"symbol":"XETR:DAX","interval":"D","timezone":"Europe/London","theme":"dark","style":"1","locale":"en","allow_symbol_change":false,"studies":["RSI@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
+        {"autosize":true,"symbol":"INDEX:DAX","interval":"D","timezone":"Europe/London","theme":"dark","style":"1","locale":"en","allow_symbol_change":false,"studies":["RSI@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
         </script></div>
       </div>
     </div>
@@ -627,7 +627,7 @@ body { background: var(--bg); color: var(--ink); font-family: var(--mono); min-h
       <div class="chart-card-body">
         <div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
         <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
-        {"autosize":true,"symbol":"TVC:NI225","interval":"D","timezone":"Asia/Tokyo","theme":"dark","style":"1","locale":"en","allow_symbol_change":false,"studies":["RSI@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
+        {"autosize":true,"symbol":"INDEX:NKY","interval":"D","timezone":"Asia/Tokyo","theme":"dark","style":"1","locale":"en","allow_symbol_change":false,"studies":["RSI@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
         </script></div>
       </div>
     </div>
@@ -636,7 +636,7 @@ body { background: var(--bg); color: var(--ink); font-family: var(--mono); min-h
       <div class="chart-card-body">
         <div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
         <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
-        {"autosize":true,"symbol":"SPREADEX:FTSE","interval":"D","timezone":"Europe/London","theme":"dark","style":"1","locale":"en","allow_symbol_change":false,"studies":["RSI@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
+        {"autosize":true,"symbol":"INDEX:UKX","interval":"D","timezone":"Europe/London","theme":"dark","style":"1","locale":"en","allow_symbol_change":false,"studies":["RSI@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
         </script></div>
       </div>
     </div>
@@ -648,12 +648,12 @@ body { background: var(--bg); color: var(--ink); font-family: var(--mono); min-h
 // ── GLOBAL MACRO ENGINE ───────────────────────────────────────
 const MACRO_WORKER = 'https://xenos-ai-proxy.xenosfinance.workers.dev';
 const MACRO_SYMS = {
-  dxy:  'DXY',
-  us10y:'TNX',
-  us2y: 'UST2Y',
-  us5y: 'UST5Y',
-  us3m: 'IRX',
-  us30y:'TYX',
+  dxy:  'DXY=F',
+  us10y:'US10Y',
+  us2y: 'US02Y',
+  us5y: 'US05Y',
+  us3m: 'US03MY',
+  us30y:'US30Y',
   vix:  'VIX',
   gold: 'XAUUSD',
   oil:  'USOIL',
@@ -664,18 +664,48 @@ const MACRO_SYMS = {
 let macroCache = {};
 
 async function fetchMacroData() {
-  const pairs = Object.values(MACRO_SYMS);
+  // Fetch standard prices via Worker
+  const workerPairs = ['XAUUSD','USOIL','BTC-USD','SPY','VIX'];
   try {
     const r = await fetch(MACRO_WORKER, {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({type:'prices', pairs}),
+      body: JSON.stringify({type:'prices', pairs: workerPairs}),
       signal: AbortSignal.timeout(15000)
     });
-    if (!r.ok) return;
-    const d = await r.json();
-    macroCache = d.prices || {};
-  } catch(e) { console.warn('Macro fetch error:', e); }
+    if (r.ok) {
+      const d = await r.json();
+      Object.assign(macroCache, d.prices || {});
+    }
+  } catch(e) { console.warn('Macro worker error:', e); }
+
+  // Fetch bonds + DXY via Yahoo Finance proxy
+  const yfSyms = {
+    'DXY=F': 'DX-Y.NYB',
+    'US10Y': '%5ETNX',
+    'US02Y': '%5EIRX',  // use 13-week as proxy for 2Y
+    'US30Y': '%5ETYX',
+    'VIX':   '%5EVIX',
+  };
+  await Promise.all(Object.entries(yfSyms).map(async ([key, yf]) => {
+    try {
+      const u = `https://query1.finance.yahoo.com/v8/finance/chart/${yf}?range=2d&interval=1d`;
+      const proxy = `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`;
+      const r = await fetch(proxy, {signal: AbortSignal.timeout(8000)});
+      if (!r.ok) return;
+      const d = await r.json();
+      const res = d.chart?.result?.[0];
+      if (!res) return;
+      const cls = res.indicators.quote[0].close.filter(x => x !== null);
+      if (cls.length < 1) return;
+      const price = cls[cls.length-1];
+      const prev = cls.length > 1 ? cls[cls.length-2] : price;
+      const change_pct = ((price - prev) / prev) * 100;
+      macroCache[key] = { price, change_pct };
+      // Also store VIX under 'VIX' key if not already set
+      if (key === 'VIX' && !macroCache['VIX']) macroCache['VIX'] = { price, change_pct };
+    } catch(e) {}
+  }));
 
   renderMacroKPI();
   renderYieldCurve();
@@ -704,8 +734,8 @@ function renderMacroKPI() {
     if (box) { box.className = 'mkpi ' + (parseFloat(chg)>=0?'up':'dn'); }
   };
   const g = (sym) => macroCache[sym] || {};
-  set('dxy',  fmt(g('DXY').price, 2), g('DXY').change_pct);
-  set('10y',  fmt(g('TNX').price, 3)+'%', g('TNX').change_pct);
+  set('dxy',  fmt(g('DXY=F').price, 2), g('DXY=F').change_pct);
+  set('10y',  fmt(g('US10Y').price, 3)+'%', g('US10Y').change_pct);
   set('vix',  fmt(g('VIX').price, 2), g('VIX').change_pct);
   set('gold', '$'+Math.round(g('XAUUSD').price||0).toLocaleString(), g('XAUUSD').change_pct);
   set('oil',  '$'+fmt(g('USOIL').price, 2), g('USOIL').change_pct);
@@ -715,11 +745,11 @@ function renderMacroKPI() {
 
 function renderYieldCurve() {
   const yields = {
-    '3m': parseFloat(macroCache['IRX']?.price || 4.8),
-    '2y': parseFloat(macroCache['UST2Y']?.price || macroCache['TNX']?.price * 0.92 || 4.2),
-    '5y': parseFloat(macroCache['UST5Y']?.price || macroCache['TNX']?.price * 0.96 || 4.3),
-    '10y': parseFloat(macroCache['TNX']?.price || 4.5),
-    '30y': parseFloat(macroCache['TYX']?.price || 4.7),
+    '3m': parseFloat(macroCache['US02Y']?.price || 4.3),
+    '2y': parseFloat(macroCache['US02Y']?.price || 4.2),
+    '5y': parseFloat(macroCache['US10Y']?.price * 0.96 || 4.3),
+    '10y': parseFloat(macroCache['US10Y']?.price || 4.5),
+    '30y': parseFloat(macroCache['US30Y']?.price || 4.7),
   };
 
   const maxY = Math.max(...Object.values(yields));
@@ -797,11 +827,11 @@ function renderFearGreed() {
 
 function renderRegime() {
   const vix = parseFloat(macroCache['VIX']?.price || 20);
-  const dxy = parseFloat(macroCache['DXY']?.price || 104);
-  const dxyChg = parseFloat(macroCache['DXY']?.change_pct || 0);
+  const dxy = parseFloat(macroCache['DXY=F']?.price || 104);
+  const dxyChg = parseFloat(macroCache['DXY=F']?.change_pct || 0);
   const goldChg = parseFloat(macroCache['XAUUSD']?.change_pct || 0);
   const goldP = parseFloat(macroCache['XAUUSD']?.price || 2000);
-  const us10y = parseFloat(macroCache['TNX']?.price || 4.5);
+  const us10y = parseFloat(macroCache['US10Y']?.price || 4.5);
   const btcChg = parseFloat(macroCache['BTC-USD']?.change_pct || 0);
   const spyChg = parseFloat(macroCache['SPY']?.change_pct || 0);
 
