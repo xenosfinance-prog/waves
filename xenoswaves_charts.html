@@ -1,4 +1,4 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -158,7 +158,7 @@ body { background: var(--bg); color: var(--ink); font-family: var(--mono); min-h
   <button class="tab-btn" onclick="switchTab('commodities',this)">🛢️ Commodities</button>
   <button class="tab-btn" onclick="switchTab('equity',this)">📈 US Equities</button>
   <button class="tab-btn" onclick="switchTab('crypto',this)">₿ Crypto</button>
-  <button class="tab-btn" onclick="switchTab('macro',this)">🌍 Macro &amp; Calendar</button>
+  <button class="tab-btn" onclick="switchTab('macro',this)">🔥 US Equities Heatmap</button>
 </div>
 
 <!-- TAB: OVERVIEW -->
@@ -455,65 +455,304 @@ body { background: var(--bg); color: var(--ink); font-family: var(--mono); min-h
 
 <!-- TAB: MACRO & CALENDAR -->
 <div class="chart-panel" id="panel-macro">
-  <div class="section-label">Economic Calendar</div>
+  <div class="section-label">S&amp;P 500 Sector Heatmap</div>
   <hr class="section-divider">
-  <div class="chart-card" style="margin-bottom:20px">
-    <div class="chart-card-header"><span class="chart-card-title">📅 Economic Calendar</span><span class="chart-card-sub">Fed · ECB · BOJ · Macro Data</span></div>
-    <div class="chart-card-body" style="height:600px">
-      <div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
-      <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-events.js" async>
-      {"colorTheme":"dark","isTransparent":false,"width":"100%","height":"100%","locale":"en","importanceFilter":"0,1","countryFilter":"us,eu,gb,jp,cn,ca,au,ch"}
-      </script></div>
+
+  <!-- Heatmap styles -->
+  <style>
+  .hm-wrap{background:var(--bg2,#131f2e);border:1px solid var(--border,#1e3050);padding:20px;margin-bottom:24px;}
+  .hm-controls{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;}
+  .hm-label{font-family:var(--mono,monospace);font-size:9px;letter-spacing:3px;color:var(--gold,#3b82f6);text-transform:uppercase;}
+  .hm-btn{font-family:var(--mono,monospace);font-size:10px;padding:5px 12px;border:1px solid var(--border,#1e3050);background:transparent;color:var(--muted,#5a7a9a);cursor:pointer;transition:all 0.2s;letter-spacing:1px;}
+  .hm-btn:hover,.hm-btn.on{border-color:var(--gold,#3b82f6);color:var(--gold,#3b82f6);background:rgba(59,130,246,0.1);}
+  .hm-status{font-family:var(--mono,monospace);font-size:10px;color:var(--muted,#5a7a9a);margin-left:auto;}
+  .hm-status.live{color:#34d399;}
+  .hm-grid{display:flex;flex-direction:column;gap:2px;}
+  .hm-sector-row{display:flex;gap:2px;align-items:stretch;}
+  .hm-sector-label{width:110px;min-width:110px;background:rgba(255,255,255,0.04);display:flex;align-items:center;padding:0 10px;font-family:var(--mono,monospace);font-size:9px;letter-spacing:1px;color:var(--ink2,#b8cce0);text-transform:uppercase;border-left:3px solid transparent;}
+  .hm-sector-label.up-sector{border-left-color:#34d399;}
+  .hm-sector-label.dn-sector{border-left-color:#f87171;}
+  .hm-stocks{display:flex;flex-wrap:wrap;gap:2px;flex:1;}
+  .hm-cell{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:6px 4px;cursor:pointer;transition:opacity 0.15s;min-width:64px;flex:1;max-width:100px;}
+  .hm-cell:hover{opacity:0.85;outline:1px solid rgba(255,255,255,0.3);}
+  .hm-cell .sym{font-family:var(--mono,monospace);font-size:11px;font-weight:bold;color:#fff;letter-spacing:0.5px;}
+  .hm-cell .pct{font-family:var(--mono,monospace);font-size:10px;color:rgba(255,255,255,0.85);margin-top:2px;}
+  .hm-cell .price{font-family:var(--mono,monospace);font-size:9px;color:rgba(255,255,255,0.6);margin-top:1px;}
+  .hm-legend{display:flex;align-items:center;gap:6px;margin-top:14px;font-family:var(--mono,monospace);font-size:9px;color:var(--muted,#5a7a9a);}
+  .hm-legend-bar{display:flex;height:8px;width:180px;border-radius:2px;overflow:hidden;}
+  .hm-legend-seg{flex:1;}
+
+  /* Summary bar */
+  .hm-summary{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--border,#1e3050);margin-bottom:16px;}
+  .hm-sum-box{background:var(--bg2,#131f2e);padding:10px 14px;text-align:center;}
+  .hm-sum-label{font-family:var(--mono,monospace);font-size:8px;letter-spacing:2px;color:var(--muted,#5a7a9a);text-transform:uppercase;margin-bottom:4px;}
+  .hm-sum-val{font-family:var(--mono,monospace);font-size:16px;font-weight:bold;}
+
+  /* Top movers table */
+  .movers-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border,#1e3050);}
+  .movers-box{background:var(--bg2,#131f2e);padding:16px 20px;}
+  .movers-head{font-family:var(--mono,monospace);font-size:9px;letter-spacing:3px;color:var(--gold,#3b82f6);text-transform:uppercase;border-bottom:1px solid var(--border,#1e3050);padding-bottom:8px;margin-bottom:12px;}
+  .mover-row{display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border2,#243a5e);font-family:var(--mono,monospace);font-size:12px;}
+  .mover-row:last-child{border-bottom:none;}
+  .mover-sym{color:var(--ink,#e2eaf4);font-weight:bold;width:60px;}
+  .mover-name{color:var(--muted,#5a7a9a);font-size:10px;flex:1;padding:0 8px;}
+  .mover-pct{font-weight:bold;width:60px;text-align:right;}
+  .mover-price{color:var(--ink2,#b8cce0);width:70px;text-align:right;}
+  .up{color:#34d399;}.dn{color:#f87171;}
+  @media(max-width:900px){.hm-sector-label{width:70px;min-width:70px;font-size:8px;}.hm-cell{min-width:50px;}.hm-summary{grid-template-columns:repeat(3,1fr)}.movers-grid{grid-template-columns:1fr;}}
+  </style>
+
+  <!-- Summary bar -->
+  <div class="hm-summary" id="hm-summary">
+    <div class="hm-sum-box"><div class="hm-sum-label">S&P 500</div><div class="hm-sum-val" id="sum-spy">--</div></div>
+    <div class="hm-sum-box"><div class="hm-sum-label">Nasdaq</div><div class="hm-sum-val" id="sum-qqq">--</div></div>
+    <div class="hm-sum-box"><div class="hm-sum-label">Dow Jones</div><div class="hm-sum-val" id="sum-dia">--</div></div>
+    <div class="hm-sum-box"><div class="hm-sum-label">VIX Fear</div><div class="hm-sum-val" id="sum-vix" style="color:#f87171">--</div></div>
+    <div class="hm-sum-box"><div class="hm-sum-label">Last Update</div><div class="hm-sum-val" id="sum-time" style="font-size:13px;color:#5a7a9a">--:--</div></div>
+  </div>
+
+  <!-- Controls -->
+  <div class="hm-wrap">
+    <div class="hm-controls">
+      <span class="hm-label">View:</span>
+      <button class="hm-btn on" id="btn-1d" onclick="setHmPeriod('1d')">1D</button>
+      <button class="hm-btn" id="btn-5d" onclick="setHmPeriod('5d')">5D</button>
+      <button class="hm-btn" id="btn-1mo" onclick="setHmPeriod('1mo')">1M</button>
+      <span class="hm-label" style="margin-left:12px">Size by:</span>
+      <button class="hm-btn on" id="btn-eq" onclick="setHmSize('equal')">Equal</button>
+      <button class="hm-btn" id="btn-mc" onclick="setHmSize('mcap')">Market Cap</button>
+      <span class="hm-status" id="hm-status">⟳ Loading...</span>
+    </div>
+
+    <!-- Heatmap grid -->
+    <div class="hm-grid" id="hm-grid">
+      <div style="text-align:center;padding:60px;font-family:monospace;font-size:11px;color:#5a7a9a;">⟳ Fetching market data via XenosFinance Worker...</div>
+    </div>
+
+    <!-- Legend -->
+    <div class="hm-legend">
+      <span>-5%+</span>
+      <div class="hm-legend-bar">
+        <div class="hm-legend-seg" style="background:#7f1d1d"></div>
+        <div class="hm-legend-seg" style="background:#b91c1c"></div>
+        <div class="hm-legend-seg" style="background:#ef4444"></div>
+        <div class="hm-legend-seg" style="background:#374151"></div>
+        <div class="hm-legend-seg" style="background:#059669"></div>
+        <div class="hm-legend-seg" style="background:#10b981"></div>
+        <div class="hm-legend-seg" style="background:#6ee7b7"></div>
+      </div>
+      <span>+5%+</span>
+      <span style="margin-left:16px">Data: Yahoo Finance via Worker · Delayed 15min</span>
     </div>
   </div>
 
-  <div class="section-label">Bonds &amp; Dollar</div>
+  <!-- Top Movers -->
+  <div class="section-label" style="margin-top:24px">Top Movers</div>
   <hr class="section-divider">
-  <div class="chart-grid-2">
-    <div class="chart-card">
-      <div class="chart-card-header">
-        <span class="chart-card-title">🏛️ TLT — 20Y Treasury Bonds</span>
-        <span class="chart-card-sub">ETF · Daily · US10Y Proxy</span>
-      </div>
-      <div class="chart-card-body">
-        <div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
-        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
-        {"autosize":true,"symbol":"NASDAQ:TLT","interval":"D","timezone":"Europe/London","theme":"dark","style":"1","locale":"en","allow_symbol_change":false,"studies":["RSI@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
-        </script></div>
-      </div>
+  <div class="movers-grid">
+    <div class="movers-box">
+      <div class="movers-head">🚀 Top Gainers</div>
+      <div id="gainers-list"><div style="color:#5a7a9a;font-family:monospace;font-size:11px;padding:10px;">Loading...</div></div>
     </div>
-    <div class="chart-card">
-      <div class="chart-card-header">
-        <span class="chart-card-title">💵 UUP — Dollar Index ETF</span>
-        <span class="chart-card-sub">ETF · Daily · DXY Proxy</span>
-      </div>
-      <div class="chart-card-body">
-        <div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
-        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
-        {"autosize":true,"symbol":"AMEX:UUP","interval":"D","timezone":"Europe/London","theme":"dark","style":"1","locale":"en","allow_symbol_change":false,"studies":["RSI@tv-basicstudies","MACD@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
-        </script></div>
-      </div>
-    </div>
-    <div class="chart-card">
-      <div class="chart-card-header"><span class="chart-card-title">😱 VIX — Fear Index</span><span class="chart-card-sub">Daily</span></div>
-      <div class="chart-card-body">
-        <div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
-        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
-        {"autosize":true,"symbol":"TVC:VIX","interval":"D","timezone":"Europe/London","theme":"dark","style":"2","locale":"en","allow_symbol_change":false,"studies":[],"support_host":"https://www.tradingview.com"}
-        </script></div>
-      </div>
-    </div>
-    <div class="chart-card">
-      <div class="chart-card-header"><span class="chart-card-title">⚖️ Gold / Oil Ratio</span><span class="chart-card-sub">Macro Risk Indicator</span></div>
-      <div class="chart-card-body">
-        <div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
-        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
-        {"autosize":true,"symbol":"TVC:GOLD/TVC:USOIL","interval":"W","timezone":"Europe/London","theme":"dark","style":"2","locale":"en","allow_symbol_change":false,"studies":[],"support_host":"https://www.tradingview.com"}
-        </script></div>
-      </div>
+    <div class="movers-box">
+      <div class="movers-head">📉 Top Losers</div>
+      <div id="losers-list"><div style="color:#5a7a9a;font-family:monospace;font-size:11px;padding:10px;">Loading...</div></div>
     </div>
   </div>
+
 </div>
+
+<script>
+// ── HEATMAP DATA ─────────────────────────────────────────────
+const HM_SECTORS = [
+  { name:'Technology',   etf:'XLK',  stocks:['AAPL','MSFT','NVDA','AVGO','ORCL','CSCO','ADBE','AMD','INTC','QCOM'] },
+  { name:'Financials',   etf:'XLF',  stocks:['JPM','BAC','WFC','GS','MS','BLK','AXP','C','SCHW','USB'] },
+  { name:'Health Care',  etf:'XLV',  stocks:['JNJ','UNH','LLY','ABBV','MRK','TMO','ABT','DHR','BMY','AMGN'] },
+  { name:'Cons. Discr.', etf:'XLY',  stocks:['AMZN','TSLA','HD','MCD','NKE','SBUX','LOW','TJX','BKNG','CMG'] },
+  { name:'Comm. Svc.',   etf:'XLC',  stocks:['META','GOOGL','NFLX','DIS','T','VZ','CMCSA','ATVI','EA','TTWO'] },
+  { name:'Industrials',  etf:'XLI',  stocks:['CAT','HON','UPS','BA','GE','RTX','DE','MMM','LMT','FDX'] },
+  { name:'Energy',       etf:'XLE',  stocks:['XOM','CVX','COP','EOG','SLB','MPC','VLO','PSX','OXY','HAL'] },
+  { name:'Utilities',    etf:'XLU',  stocks:['NEE','DUK','SO','AEP','EXC','SRE','D','XEL','PCG','ED'] },
+  { name:'Real Estate',  etf:'XLRE', stocks:['AMT','PLD','CCI','EQIX','PSA','SPG','O','DLR','WELL','AVB'] },
+  { name:'Materials',    etf:'XLB',  stocks:['LIN','APD','SHW','FCX','NEM','NUE','VMC','MLM','IFF','ALB'] },
+];
+
+const HM_INDEX_SYMS = ['SPY','QQQ','DIA'];
+
+const WORKER = 'https://xenos-ai-proxy.xenosfinance.workers.dev';
+
+let hmPriceCache = {};
+let hmPeriod = '1d';
+let hmSize = 'equal';
+
+function pctColor(pct) {
+  const p = Math.max(-6, Math.min(6, pct));
+  if (p >= 4)  return '#065f46';
+  if (p >= 2)  return '#059669';
+  if (p >= 0.5)return '#10b981';
+  if (p >= -0.5) return '#374151';
+  if (p >= -2) return '#ef4444';
+  if (p >= -4) return '#b91c1c';
+  return '#7f1d1d';
+}
+
+function fmtPct(p) {
+  return (p >= 0 ? '+' : '') + p.toFixed(2) + '%';
+}
+
+function setHmPeriod(p) {
+  hmPeriod = p;
+  ['1d','5d','1mo'].forEach(x => document.getElementById('btn-'+x)?.classList.toggle('on', x===p));
+  renderHeatmap();
+}
+
+function setHmSize(s) {
+  hmSize = s;
+  ['eq','mc'].forEach(x => document.getElementById('btn-'+x)?.classList.toggle('on', (x==='eq'?'equal':'mcap')===s));
+  renderHeatmap();
+}
+
+async function fetchHmPrices() {
+  const status = document.getElementById('hm-status');
+  if (status) { status.textContent = '⟳ Loading...'; status.className = 'hm-status'; }
+
+  const allSyms = [...HM_INDEX_SYMS];
+  HM_SECTORS.forEach(s => { allSyms.push(s.etf); allSyms.push(...s.stocks); });
+  // Also VIX
+  allSyms.push('VIX');
+
+  // Batch via Worker — split into chunks of 20 to avoid timeouts
+  const chunks = [];
+  for (let i = 0; i < allSyms.length; i += 20) chunks.push(allSyms.slice(i, i+20));
+
+  const results = {};
+  await Promise.all(chunks.map(async chunk => {
+    try {
+      const r = await fetch(WORKER, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ type: 'prices', pairs: chunk }),
+        signal: AbortSignal.timeout(15000)
+      });
+      if (!r.ok) return;
+      const d = await r.json();
+      Object.assign(results, d.prices || {});
+    } catch(e) { console.warn('Heatmap fetch chunk error:', e.message); }
+  }));
+
+  hmPriceCache = results;
+
+  const now = new Date();
+  const hm = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
+  if (status) { status.textContent = '✓ Live · ' + hm + ' CET'; status.className = 'hm-status live'; }
+
+  // Update summary bar
+  const spy = results['SPY'];
+  const qqq = results['QQQ'];
+  const dia = results['DIA'];
+  const vix = results['VIX'];
+
+  function sumVal(d, el) {
+    if (!d || !el) return;
+    const up = (d.change_pct || 0) >= 0;
+    el.textContent = fmtPct(d.change_pct || 0);
+    el.style.color = up ? '#34d399' : '#f87171';
+  }
+  sumVal(spy, document.getElementById('sum-spy'));
+  sumVal(qqq, document.getElementById('sum-qqq'));
+  sumVal(dia, document.getElementById('sum-dia'));
+  if (vix && document.getElementById('sum-vix'))
+    document.getElementById('sum-vix').textContent = (vix.price || '--').toFixed ? vix.price.toFixed(2) : '--';
+  document.getElementById('sum-time').textContent = hm + ' CET';
+
+  renderHeatmap();
+  renderMovers();
+}
+
+function renderHeatmap() {
+  const grid = document.getElementById('hm-grid');
+  if (!grid || !Object.keys(hmPriceCache).length) return;
+
+  let html = '';
+  HM_SECTORS.forEach(sector => {
+    const etfData = hmPriceCache[sector.etf];
+    const sectorPct = etfData?.change_pct || 0;
+    const sectorClass = sectorPct >= 0 ? 'up-sector' : 'dn-sector';
+
+    let stocksHtml = '';
+    sector.stocks.forEach(sym => {
+      const d = hmPriceCache[sym];
+      if (!d) { stocksHtml += `<div class="hm-cell" style="background:#1a2535"><span class="sym">${sym}</span><span class="pct" style="color:#5a7a9a">--</span></div>`; return; }
+      const pct = d.change_pct || 0;
+      const bg = pctColor(pct);
+      const price = d.price ? (d.price > 999 ? d.price.toFixed(0) : d.price.toFixed(2)) : '--';
+      stocksHtml += `<div class="hm-cell" style="background:${bg}" title="${sym}: ${fmtPct(pct)} · $${price}">
+        <span class="sym">${sym}</span>
+        <span class="pct">${fmtPct(pct)}</span>
+        <span class="price">$${price}</span>
+      </div>`;
+    });
+
+    const etfPctStr = etfData ? fmtPct(sectorPct) : '--';
+    html += `<div class="hm-sector-row">
+      <div class="hm-sector-label ${sectorClass}">
+        <div>
+          <div>${sector.name}</div>
+          <div style="font-size:8px;color:${sectorPct>=0?'#34d399':'#f87171'};margin-top:2px">${etfPctStr}</div>
+        </div>
+      </div>
+      <div class="hm-stocks">${stocksHtml}</div>
+    </div>`;
+  });
+
+  grid.innerHTML = html;
+}
+
+function renderMovers() {
+  const allStocks = [];
+  HM_SECTORS.forEach(s => s.stocks.forEach(sym => {
+    const d = hmPriceCache[sym];
+    if (d && d.change_pct !== undefined) allStocks.push({ sym, pct: d.change_pct, price: d.price });
+  }));
+  allStocks.sort((a,b) => b.pct - a.pct);
+
+  function moverRow(m) {
+    const up = m.pct >= 0;
+    const price = m.price ? (m.price > 999 ? '$'+m.price.toFixed(0) : '$'+m.price.toFixed(2)) : '--';
+    return `<div class="mover-row">
+      <span class="mover-sym">${m.sym}</span>
+      <span class="mover-pct ${up?'up':'dn'}">${fmtPct(m.pct)}</span>
+      <span class="mover-price">${price}</span>
+    </div>`;
+  }
+
+  const gainersEl = document.getElementById('gainers-list');
+  const losersEl  = document.getElementById('losers-list');
+  if (gainersEl) gainersEl.innerHTML = allStocks.slice(0, 8).map(moverRow).join('');
+  if (losersEl)  losersEl.innerHTML  = allStocks.slice(-8).reverse().map(moverRow).join('');
+}
+
+// Init heatmap when tab is opened
+const _origSwitchTab = typeof switchTab === 'function' ? switchTab : null;
+function switchTab(name, btn) {
+  if (_origSwitchTab) _origSwitchTab(name, btn);
+  if (name === 'macro' && !Object.keys(hmPriceCache).length) {
+    fetchHmPrices();
+  }
+}
+// Auto-load if macro tab is active on page load
+document.addEventListener('DOMContentLoaded', () => {
+  if (document.getElementById('panel-macro')?.classList.contains('active')) {
+    fetchHmPrices();
+  }
+});
+// Refresh every 2 minutes
+setInterval(() => {
+  if (document.getElementById('panel-macro')?.classList.contains('active')) {
+    fetchHmPrices();
+  }
+}, 120000);
+</script>
 
 <!-- FOOTER -->
 <div class="page-footer">
@@ -551,28 +790,24 @@ const TICKER_SYMS = [
   {id:'NGAS',  yf:'NG%3DF',     label:'NAT GAS', dec:3, prefix:'$'},
 ];
 
+const TICKER_WORKER_MAP = {
+  'OIL':'USOIL','GOLD':'XAUUSD','EURUSD':'EURUSD=X','BTCUSD':'BTC-USD',
+  'SPY':'SPY','NASDAQ':'NAS100','USDJPY':'USDJPY=X','SILVER':'XAGUSD','NGAS':'NGAS',
+};
 async function fetchTick(s) {
-  const u = `https://query1.finance.yahoo.com/v8/finance/chart/${s.yf}?range=5d&interval=1d`;
-  const px = [
-    `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
-    `https://corsproxy.io/?${encodeURIComponent(u)}`
-  ];
-  for (const p of px) {
-    try {
-      const r = await fetch(p, {signal: AbortSignal.timeout(9000)});
-      if (!r.ok) continue;
-      const d = await r.json();
-      const res = d.chart?.result?.[0];
-      if (!res) continue;
-      const cls = res.indicators.quote[0].close.filter(x => x !== null);
-      if (cls.length < 2) continue;
-      const price = cls[cls.length-1];
-      const meta = res.meta || {};
-      const prev = parseFloat(meta.previousClose || meta.chartPreviousClose || cls[cls.length-2]);
-      return {price, chg: ((price-prev)/prev)*100};
-    } catch(e) { continue; }
-  }
-  return null;
+  const wsym = TICKER_WORKER_MAP[s.id] || s.id;
+  try {
+    const r = await fetch('https://xenos-ai-proxy.xenosfinance.workers.dev', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({type:'prices', pairs:[wsym]}),
+      signal: AbortSignal.timeout(10000)
+    });
+    if (!r.ok) return null;
+    const d = await r.json();
+    const p = d.prices?.[wsym];
+    if (!p || !p.price) return null;
+    return { price: p.price, chg: p.change_pct || 0 };
+  } catch(e) { return null; }
 }
 
 async function loadTicker() {
