@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>XenosFinance — Interactive Charts</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=PT+Serif:wght@400;700&family=PT+Mono&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:            #0f1724;
+  --bg2:           #131f2e;
+  --bg3:           #172032;
+  --bg4:           #1c2840;
+  --border:        #1e3050;
+  --border2:       #243a5e;
+  --border-bright: #2d4a78;
+  --gold:          #3b82f6;
+  --gold2:         #60a5fa;
+  --gold3:         #1d4ed8;
+  --accent:        #3b82f6;
+  --accent2:       #60a5fa;
+  --text:          #c8d8ea;
+  --dim:           #6b8aaa;
+  --red:           #ef4444;
+  --red2:          #f87171;
+  --green:         #10b981;
+  --green2:        #34d399;
+  --blue:          #3b82f6;
+  --blue2:         #60a5fa;
+  --yellow:        #f59e0b;
+  --ink:           #e2eaf4;
+  --ink2:          #b8cce0;
+  --muted:         #5a7a9a;
+  --bright:        #e2eaf4;
+  --serif:         'Playfair Display', Georgia, serif;
+  --body:          'PT Serif', Georgia, serif;
+  --mono:          'IBM Plex Mono', 'PT Mono', monospace;
+  --sans:          'Inter', sans-serif;
+  --sidebar:       200px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--ink); font-family: var(--mono); min-height: 100vh; }
+.wrap { max-width: 1300px; margin: 0 auto; padding: 0 24px 60px; }
+.masthead { border-bottom: 3px double var(--gold); padding: 0; }
+.masthead-top {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 0; font-size: 10px; color: var(--muted);
+  letter-spacing: 2px; border-bottom: 1px solid var(--border);
+}
+.masthead-center { text-align: center; padding: 24px 0 16px; }
+.masthead-eyebrow { font-size: 9px; letter-spacing: 6px; color: var(--gold); text-transform: uppercase; margin-bottom: 8px; }
+.masthead-name { font-family: var(--serif); font-size: 56px; font-weight: 900; letter-spacing: -2px; line-height: 1; text-transform: uppercase; }
+.masthead-name span { color: var(--gold); }
+.masthead-sub { font-size: 10px; letter-spacing: 5px; color: var(--muted); margin-top: 6px; text-transform: uppercase; }
+.masthead-nav {
+  display: flex; justify-content: center; gap: 0;
+  border-top: 1px solid var(--border); background: var(--bg2);
+}
+.masthead-nav a {
+  font-size: 11px; letter-spacing: 3px; text-transform: uppercase;
+  padding: 11px 36px; color: var(--muted); text-decoration: none;
+  border-bottom: 3px solid transparent; transition: all 0.2s; display: inline-block;
+}
+.masthead-nav a:hover, .masthead-nav a.active { color: var(--gold); border-bottom-color: var(--gold); }
+.ticker-bar {
+  background: var(--bg2); border-bottom: 1px solid var(--border);
+  padding: 7px 0; overflow: hidden; font-size: 11px;
+}
+.ticker-inner { display: flex; gap: 0; white-space: nowrap; animation: ticker 70s linear infinite; }
+.ticker-inner:hover { animation-play-state: paused; }
+@keyframes ticker { 0% { transform: translateX(0) } 100% { transform: translateX(-50%) } }
+.t-item { display: inline-flex; gap: 10px; padding: 0 20px; border-right: 1px solid var(--border); }
+.t-sym { color: var(--gold); font-weight: bold; }
+.t-up { color: var(--green2); } .t-dn { color: #e74c3c; }
+.section-label {
+  font-size: 9px; font-weight: bold; letter-spacing: 4px; text-transform: uppercase;
+  background: var(--gold); color: var(--bg);
+  padding: 4px 12px; display: inline-block; margin: 28px 0 0;
+}
+.section-divider { border: none; border-top: 1px solid var(--border); margin: 8px 0 20px; }
+.asset-tabs {
+  display: flex; gap: 0; border-bottom: 2px solid var(--border);
+  margin-bottom: 20px; overflow-x: auto; scrollbar-width: none;
+  margin-top: 24px;
+}
+.asset-tabs::-webkit-scrollbar { display: none; }
+.tab-btn {
+  font-family: var(--mono); font-size: 11px; letter-spacing: 1px;
+  text-transform: uppercase; padding: 10px 20px; border: none;
+  background: transparent; color: var(--muted); cursor: pointer;
+  border-bottom: 3px solid transparent; margin-bottom: -2px;
+  white-space: nowrap; transition: all 0.15s;
+}
+.tab-btn:hover { color: var(--ink); background: var(--bg2); }
+.tab-btn.active { color: var(--gold); font-weight: 600; border-bottom: 3px solid var(--gold); background: var(--bg); }
+.chart-panel { display: none; }
+.chart-panel.active { display: block; }
+.chart-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.chart-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+@media (max-width: 900px) { .chart-grid-2, .chart-grid-3 { grid-template-columns: 1fr; } }
+.chart-card { border: 1px solid var(--border); background: var(--bg2); }
+.chart-card-header {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding: 8px 14px 7px; border-bottom: 1px solid var(--border); background: var(--bg);
+}
+.chart-card-title { font-family: var(--mono); font-weight: bold; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; color: var(--ink); }
+.chart-card-sub { font-size: 9px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; }
+.chart-card-body { padding: 0; height: 380px; overflow: hidden; }
+.chart-card-body.tall { height: 500px; }
+.chart-card-body .tradingview-widget-container,
+.chart-card-body .tradingview-widget-container__widget { width: 100% !important; height: 100% !important; }
+.page-footer {
+  border-top: 1px solid var(--border); padding: 14px 0;
+  display: flex; justify-content: space-between;
+  font-size: 9px; color: var(--muted); margin-top: 40px; letter-spacing: 1px;
+}
+.footer-links { display: flex; gap: 24px; }
+.footer-links a { color: var(--muted); text-decoration: none; }
+.footer-links a:hover { color: var(--gold); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- MASTHEAD -->
+<div class="masthead">
+  <div class="masthead-top">
+    <span>VOL. I — INTERACTIVE CHARTS</span>
+    <span id="live-date">—</span>
+    <span>REAL-TIME DATA</span>
+  </div>
+  <div class="masthead-center">
+    <div class="masthead-eyebrow">Financial Analytics · Global Markets</div>
+    <div class="masthead-name">XENOS<span>FINANCE</span></div>
+    <div class="masthead-sub">Interactive Charts — TradingView</div>
+  </div>
+  <nav class="masthead-nav">
+    <a href="https://xenosfinance.com">📰 News</a>
+    <a href="https://xenosfinance.com/dashboard.html">📊 Dashboard</a>
+    <a href="https://xenosfinance.com/xenoswaves_charts.html" class="active">◈ Charts</a>
+    <a href="https://xenosfinance.com/XenosBlog.html">✦ AI Blog</a>
+    <a href="https://xenosfinance.com/signals.html">⚡ Signals</a>
+    <a href="https://xenosfinance.com/calendar.html">🗓 Calendar</a>
+  </nav>
+</div>
+
+<!-- TICKER -->
+<div class="ticker-bar">
+  <div class="ticker-inner" id="ticker-content">
+    <span class="t-item"><span class="t-sym">LOADING...</span></span>
+  </div>
+</div>
+
+<!-- TABS -->
+<div class="asset-tabs">
+  <button class="tab-btn active" onclick="switchTab('overview',this)">📊 Overview</button>
+  <button class="tab-btn" onclick="switchTab('forex',this)">💱 Forex</button>
+  <button class="tab-btn" onclick="switchTab('commodities',this)">🛢️ Commodities</button>
+  <button class="tab-btn" onclick="switchTab('equity',this)">📈 US Equities</button>
+  <button class="tab-btn" onclick="switchTab('crypto',this)">₿ Crypto</button>
+  <button class="tab-btn" onclick="switchTab('macro',this)">🌍 Macro &amp; Calendar</button>
+</div>
+
+<!-- TAB: OVERVIEW -->
+<div class="chart-panel active" id="panel-overview">
+  <div class="section-label">Market Heatmap</div>
+  <hr class="section-divider">
+  <div class="chart-card" style="margin-bottom:20px">
+    <div class="chart-card-header">
+      <span class="chart-card-title">S&amp;P 500 — Sector Heatmap</span>
+      <span class="chart-card-sub">1 Day</span>
+    </div>
+    <div class="chart-card-body" style="height:500px">
+      <div class="tradingview-widget-container" style="height:100%;width:100%">
+        <div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
+        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-stock-heatmap.js" async>
+        {"exchanges":[],"dataSource":"SPX500","grouping":"sector","blockSize":"market_cap_basic","blockColor":"change","locale":"en","colorTheme":"dark","hasTopBar":false,"isZoomEnabled":true,"hasSymbolTooltip":true,"isMonoSize":false,"width":"100%","height":"100%"}
+        </script>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-label">Key Assets</div>
+  <hr class="section-divider">
+  <div class="chart-grid-2">
+    <div class="chart-card">
+      <div class="chart-card-header"><span class="chart-card-title">📊 S&amp;P 500</span><span class="chart-card-sub">SPY · Daily</span></div>
+      <div class="chart-card-body">
+        <div class="tradingview-widget-container" style="height:100%;width:100%">
+          <div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
+          <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
+          {"autosize":true,"symbol":"AMEX:SPY","interval":"D","timezone":"Europe/London","theme":"dark","style":"1","locale":"en","allow_symbol_change":true,"studies":["RSI@tv-basicstudies","MACD@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
+          </script>
+        </div>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-card-header"><span class="chart-card-title">🥇 Gold</span><span class="chart-card-sub">XAUUSD · Daily</span></div>
+      <div class="chart-card-body">
+        <div class="tradingview-widget-container" style="height:100%;width:100%">
+          <div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
+          <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
+          {"autosize":true,"symbol":"TVC:GOLD","interval":"D","timezone":"Europe/London","theme":"dark","style":"1","locale":"en","allow_symbol_change":true,"studies":["RSI@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
+          </script>
+        </div>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-card-header"><span class="chart-card-title">💶 EUR/USD</span><span class="chart-card-sub">Forex · Daily</span></div>
+      <div class="chart-card-body">
+        <div class="tradingview-widget-container" style="height:100%;width:100%">
+          <div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
+          <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
+          {"autosize":true,"symbol":"FX:EURUSD","interval":"D","timezone":"Europe/London","theme":"dark","style":"1","locale":"en","allow_symbol_change":true,"studies":["RSI@tv-basicstudies","MACD@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
+          </script>
+        </div>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-card-header"><span class="chart-card-title">₿ Bitcoin</span><span class="chart-card-sub">BTCUSD · Daily</span></div>
+      <div class="chart-card-body">
+        <div class="tradingview-widget-container" style="height:100%;width:100%">
+          <div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
+          <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
+          {"autosize":true,"symbol":"BITSTAMP:BTCUSD","interval":"D","timezone":"Europe/London","theme":"dark","style":"1","locale":"en","allow_symbol_change":true,"studies":["RSI@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
+          </script>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TAB: FOREX -->
+<div class="chart-panel" id="panel-forex">
+  <div class="section-label">Major Currency Pairs</div>
+  <hr class="section-divider">
+  <div class="chart-card" style="margin-bottom:20px">
+    <div class="chart-card-header"><span class="chart-card-title">FX Cross Rates — Major Pairs</span><span class="chart-card-sub">Real-time</span></div>
+    <div class="chart-card-body" style="height:420px">
+      <div class="tradingview-widget-container" style="height:100%;width:100%">
+        <div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
+        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-forex-cross-rates.js" async>
+        {"width":"100%","height":"100%","currencies":["EUR","USD","GBP","JPY","CHF","AUD","CAD","NZD"],"isTransparent":false,"colorTheme":"dark","locale":"en"}
+        </script>
+      </div>
+    </div>
+  </div>
+  <div class="chart-grid-3">
+    <div class="chart-card">
+      <div class="chart-card-header"><span class="chart-card-title">💶 EUR/USD</span><span class="chart-card-sub">Daily</span></div>
+      <div class="chart-card-body">
+        <div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
+        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
+        {"autosize":true,"symbol":"FX:EURUSD","interval":"D","timezone":"Europe/London","theme":"dark","style":"1","locale":"en","allow_symbol_change":false,"studies":["RSI@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
+        </script></div>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-card-header"><span class="chart-card-title">💷 GBP/USD</span><span class="chart-card-sub">Daily</span></div>
+      <div class="chart-card-body">
+        <div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
+        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
+        {"autosize":true,"symbol":"FX:GBPUSD","interval":"D","timezone":"Europe/London","theme":"dark","style":"1","locale":"en","allow_symbol_change":false,"studies":["RSI@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
+        </script></div>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-card-header"><span class="chart-card-title">💴 USD/JPY</span><span class="chart-card-sub">Daily</span></div>
+      <div class="chart-card-body">
+        <div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
+        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
+        {"autosize":true,"symbol":"FX:USDJPY","interval":"D","timezone":"Europe/London","theme":"dark","style":"1","locale":"en","allow_symbol_change":false,"studies":["RSI@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
+        </script></div>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-card-header"><span class="chart-card-title">🇦🇺 AUD/USD</span><span class="chart-card-sub">Daily</span></div>
+      <div class="chart-card-body">
+        <div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
+        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
+        {"autosize":true,"symbol":"FX:AUDUSD","interval":"D","timezone":"Europe/London","theme":"dark","style":"1","locale":"en","allow_symbol_change":false,"studies":["RSI@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
+        </script></div>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-card-header"><span class="chart-card-title">🇨🇭 USD/CHF</span><span class="chart-card-sub">Daily</span></div>
+      <div class="chart-card-body">
+        <div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
+        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
+        {"autosize":true,"symbol":"FX:USDCHF","interval":"D","timezone":"Europe/London","theme":"dark","style":"1","locale":"en","allow_symbol_change":false,"studies":["RSI@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
+        </script></div>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-card-header"><span class="chart-card-title">🇳🇿 NZD/USD</span><span class="chart-card-sub">Daily</span></div>
+      <div class="chart-card-body">
+        <div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
+        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
+        {"autosize":true,"symbol":"FX:NZDUSD","interval":"D","timezone":"Europe/London","theme":"dark","style":"1","locale":"en","allow_symbol_change":false,"studies":["RSI@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
+        </script></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TAB: COMMODITIES -->
+<div class="chart-panel" id="panel-commodities">
+  <div class="section-label">Commodities — Energy &amp; Metals</div>
+  <hr class="section-divider">
+  <div class="chart-grid-2">
+    <div class="chart-card">
+      <div class="chart-card-header"><span class="chart-card-title">🥇 Gold · XAUUSD</span><span class="chart-card-sub">Daily + RSI + MACD</span></div>
+      <div class="chart-card-body tall">
+        <div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
+        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
+        {"autosize":true,"symbol":"TVC:GOLD","interval":"D","timezone":"Europe/London","theme":"dark","style":"1","locale":"en","allow_symbol_change":false,"studies":["RSI@tv-basicstudies","MACD@tv-basicstudies","BB@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
+        </script></div>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-card-header"><span class="chart-card-title">🛢️ WTI Crude Oil</span><span class="chart-card-sub">Daily + RSI + MACD</span></div>
+      <div class="chart-card-body tall">
+        <div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
+        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
+        {"autosize":true,"symbol":"TVC:USOIL","interval":"D","timezone":"Europe/London","theme":"dark","style":"1","locale":"en","allow_symbol_change":false,"studies":["RSI@tv-basicstudies","MACD@tv-basicstudies","BB@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
+        </script></div>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-card-header"><span class="chart-card-title">🥈 Silver · XAGUSD</span><span class="chart-card-sub">Daily</span></div>
+      <div class="chart-card-body">
+        <div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
+        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
+        {"autosize":true,"symbol":"TVC:SILVER","interval":"D","timezone":"Europe/London","theme":"dark","style":"1","locale":"en","allow_symbol_change":false,"studies":["RSI@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
+        </script></div>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-card-header"><span class="chart-card-title">⛽ Natural Gas</span><span class="chart-card-sub">Daily</span></div>
+      <div class="chart-card-body">
+        <div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
+        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
+        {"autosize":true,"symbol":"TVC:NATURALGAS","interval":"D","timezone":"Europe/London","theme":"dark","style":"1","locale":"en","allow_symbol_change":false,"studies":["RSI@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
+        </script></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TAB: EQUITY USA -->
+<div class="chart-panel" id="panel-equity">
+  <div class="section-label">Indices &amp; Blue Chips</div>
+  <hr class="section-divider">
+  <div class="chart-card" style="margin-bottom:20px">
+    <div class="chart-card-header"><span class="chart-card-title">📋 Stock Screener — S&amp;P 500</span><span class="chart-card-sub">Performance &amp; Momentum</span></div>
+    <div class="chart-card-body" style="height:500px">
+      <div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
+      <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-screener.js" async>
+      {"width":"100%","height":"100%","defaultColumn":"overview","defaultScreen":"most_capitalized","market":"america","showToolbar":true,"colorTheme":"dark","locale":"en"}
+      </script></div>
+    </div>
+  </div>
+  <div class="chart-grid-3">
+    <div class="chart-card">
+      <div class="chart-card-header"><span class="chart-card-title">📊 S&amp;P 500</span><span class="chart-card-sub">SPY · Weekly</span></div>
+      <div class="chart-card-body">
+        <div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
+        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
+        {"autosize":true,"symbol":"AMEX:SPY","interval":"W","timezone":"Europe/London","theme":"dark","style":"1","locale":"en","allow_symbol_change":false,"studies":["RSI@tv-basicstudies","EMA@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
+        </script></div>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-card-header"><span class="chart-card-title">📈 Nasdaq</span><span class="chart-card-sub">QQQ · Weekly</span></div>
+      <div class="chart-card-body">
+        <div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
+        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
+        {"autosize":true,"symbol":"NASDAQ:QQQ","interval":"W","timezone":"Europe/London","theme":"dark","style":"1","locale":"en","allow_symbol_change":false,"studies":["RSI@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
+        </script></div>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-card-header"><span class="chart-card-title">🇺🇸 Dow Jones</span><span class="chart-card-sub">DIA ETF · Weekly</span></div>
+      <div class="chart-card-body">
+        <div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
+        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
+        {"autosize":true,"symbol":"AMEX:DIA","interval":"W","timezone":"Europe/London","theme":"dark","style":"1","locale":"en","allow_symbol_change":false,"studies":["RSI@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
+        </script></div>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-card-header"><span class="chart-card-title">🎮 Nvidia</span><span class="chart-card-sub">NVDA · Daily</span></div>
+      <div class="chart-card-body">
+        <div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
+        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
+        {"autosize":true,"symbol":"NASDAQ:NVDA","interval":"D","timezone":"Europe/London","theme":"dark","style":"1","locale":"en","allow_symbol_change":true,"studies":["RSI@tv-basicstudies","MACD@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
+        </script></div>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-card-header"><span class="chart-card-title">🍎 Apple</span><span class="chart-card-sub">AAPL · Daily</span></div>
+      <div class="chart-card-body">
+        <div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
+        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
+        {"autosize":true,"symbol":"NASDAQ:AAPL","interval":"D","timezone":"Europe/London","theme":"dark","style":"1","locale":"en","allow_symbol_change":true,"studies":["RSI@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
+        </script></div>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-card-header"><span class="chart-card-title">⚡ Tesla</span><span class="chart-card-sub">TSLA · Daily</span></div>
+      <div class="chart-card-body">
+        <div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
+        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
+        {"autosize":true,"symbol":"NASDAQ:TSLA","interval":"D","timezone":"Europe/London","theme":"dark","style":"1","locale":"en","allow_symbol_change":true,"studies":["RSI@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
+        </script></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TAB: CRYPTO -->
+<div class="chart-panel" id="panel-crypto">
+  <div class="section-label">Crypto Markets</div>
+  <hr class="section-divider">
+  <div class="chart-grid-2">
+    <div class="chart-card">
+      <div class="chart-card-header"><span class="chart-card-title">₿ Bitcoin · BTCUSD</span><span class="chart-card-sub">Daily + RSI + MACD + BB</span></div>
+      <div class="chart-card-body tall">
+        <div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
+        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
+        {"autosize":true,"symbol":"BITSTAMP:BTCUSD","interval":"D","timezone":"Europe/London","theme":"dark","style":"1","locale":"en","allow_symbol_change":false,"studies":["RSI@tv-basicstudies","MACD@tv-basicstudies","BB@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
+        </script></div>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-card-header"><span class="chart-card-title">💎 Ethereum · ETHUSD</span><span class="chart-card-sub">Daily + RSI + MACD</span></div>
+      <div class="chart-card-body tall">
+        <div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
+        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
+        {"autosize":true,"symbol":"BITSTAMP:ETHUSD","interval":"D","timezone":"Europe/London","theme":"dark","style":"1","locale":"en","allow_symbol_change":false,"studies":["RSI@tv-basicstudies","MACD@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
+        </script></div>
+      </div>
+    </div>
+  </div>
+  <div class="chart-card" style="margin-top:20px">
+    <div class="chart-card-header"><span class="chart-card-title">🏆 Top Cryptocurrencies — Market Cap</span><span class="chart-card-sub">Cap Ranking</span></div>
+    <div class="chart-card-body" style="height:420px">
+      <div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
+      <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-screener.js" async>
+      {"width":"100%","height":"100%","defaultColumn":"overview","defaultScreen":"most_capitalized","market":"crypto","showToolbar":true,"colorTheme":"dark","locale":"en"}
+      </script></div>
+    </div>
+  </div>
+</div>
+
+<!-- TAB: MACRO & CALENDAR -->
+<div class="chart-panel" id="panel-macro">
+  <div class="section-label">Economic Calendar</div>
+  <hr class="section-divider">
+  <div class="chart-card" style="margin-bottom:20px">
+    <div class="chart-card-header"><span class="chart-card-title">📅 Economic Calendar</span><span class="chart-card-sub">Fed · ECB · BOJ · Macro Data</span></div>
+    <div class="chart-card-body" style="height:600px">
+      <div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
+      <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-events.js" async>
+      {"colorTheme":"dark","isTransparent":false,"width":"100%","height":"100%","locale":"en","importanceFilter":"0,1","countryFilter":"us,eu,gb,jp,cn,ca,au,ch"}
+      </script></div>
+    </div>
+  </div>
+
+  <div class="section-label">Bonds &amp; Dollar</div>
+  <hr class="section-divider">
+  <div class="chart-grid-2">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <span class="chart-card-title">🏛️ TLT — 20Y Treasury Bonds</span>
+        <span class="chart-card-sub">ETF · Daily · US10Y Proxy</span>
+      </div>
+      <div class="chart-card-body">
+        <div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
+        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
+        {"autosize":true,"symbol":"NASDAQ:TLT","interval":"D","timezone":"Europe/London","theme":"dark","style":"1","locale":"en","allow_symbol_change":false,"studies":["RSI@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
+        </script></div>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <span class="chart-card-title">💵 UUP — Dollar Index ETF</span>
+        <span class="chart-card-sub">ETF · Daily · DXY Proxy</span>
+      </div>
+      <div class="chart-card-body">
+        <div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
+        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
+        {"autosize":true,"symbol":"AMEX:UUP","interval":"D","timezone":"Europe/London","theme":"dark","style":"1","locale":"en","allow_symbol_change":false,"studies":["RSI@tv-basicstudies","MACD@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
+        </script></div>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-card-header"><span class="chart-card-title">😱 VIX — Fear Index</span><span class="chart-card-sub">Daily</span></div>
+      <div class="chart-card-body">
+        <div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
+        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
+        {"autosize":true,"symbol":"TVC:VIX","interval":"D","timezone":"Europe/London","theme":"dark","style":"2","locale":"en","allow_symbol_change":false,"studies":[],"support_host":"https://www.tradingview.com"}
+        </script></div>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-card-header"><span class="chart-card-title">⚖️ Gold / Oil Ratio</span><span class="chart-card-sub">Macro Risk Indicator</span></div>
+      <div class="chart-card-body">
+        <div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
+        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
+        {"autosize":true,"symbol":"TVC:GOLD/TVC:USOIL","interval":"W","timezone":"Europe/London","theme":"dark","style":"2","locale":"en","allow_symbol_change":false,"studies":[],"support_host":"https://www.tradingview.com"}
+        </script></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<div class="page-footer">
+  <span>XenosFinance · Interactive Charts</span>
+  <div class="footer-links">
+    <a href="https://xenosfinance.com">📰 News</a>
+    <a href="https://xenosfinance.com/dashboard.html">📊 Dashboard</a>
+    <a href="https://xenosfinance.com/XenosBlogAdmin.html">✦ AI Blog</a>
+    <a href="https://www.tradingview.com" target="_blank">Powered by TradingView</a>
+  </div>
+  <span>⚠ Not investment advice</span>
+</div>
+
+</div><!-- /wrap -->
+
+<script>
+(function() {
+  const months = ['JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE',
+                  'JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'];
+  const days = ['SUNDAY','MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY'];
+  const n = new Date();
+  document.getElementById('live-date').textContent =
+    days[n.getDay()] + ' ' + months[n.getMonth()] + ' ' + n.getDate() + ', ' + n.getFullYear();
+})();
+
+const TICKER_SYMS = [
+  {id:'OIL',   yf:'CL%3DF',     label:'OIL WTI', dec:2, prefix:'$'},
+  {id:'GOLD',  yf:'GC%3DF',     label:'GOLD',    dec:2, prefix:'$'},
+  {id:'EURUSD',yf:'EURUSD%3DX', label:'EUR/USD', dec:4, prefix:''},
+  {id:'BTCUSD',yf:'BTC-USD',    label:'BTC/USD', dec:0, prefix:'$', comma:true},
+  {id:'SPY',   yf:'SPY',        label:'S&P 500', dec:2, prefix:'$'},
+  {id:'NASDAQ',yf:'%5EIXIC',    label:'NASDAQ',  dec:0, prefix:'$', comma:true},
+  {id:'USDJPY',yf:'USDJPY%3DX', label:'USD/JPY', dec:4, prefix:''},
+  {id:'SILVER',yf:'SI%3DF',     label:'SILVER',  dec:2, prefix:'$'},
+  {id:'NGAS',  yf:'NG%3DF',     label:'NAT GAS', dec:3, prefix:'$'},
+];
+
+async function fetchTick(s) {
+  const u = `https://query1.finance.yahoo.com/v8/finance/chart/${s.yf}?range=5d&interval=1d`;
+  const px = [
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+    `https://corsproxy.io/?${encodeURIComponent(u)}`
+  ];
+  for (const p of px) {
+    try {
+      const r = await fetch(p, {signal: AbortSignal.timeout(9000)});
+      if (!r.ok) continue;
+      const d = await r.json();
+      const res = d.chart?.result?.[0];
+      if (!res) continue;
+      const cls = res.indicators.quote[0].close.filter(x => x !== null);
+      if (cls.length < 2) continue;
+      const price = cls[cls.length-1];
+      const meta = res.meta || {};
+      const prev = parseFloat(meta.previousClose || meta.chartPreviousClose || cls[cls.length-2]);
+      return {price, chg: ((price-prev)/prev)*100};
+    } catch(e) { continue; }
+  }
+  return null;
+}
+
+async function loadTicker() {
+  let html = '';
+  for (const s of TICKER_SYMS) {
+    const d = await fetchTick(s);
+    if (!d) continue;
+    const up = d.chg >= 0;
+    const ps = s.comma ? s.prefix + Math.round(d.price).toLocaleString('en-US') : s.prefix + d.price.toFixed(s.dec);
+    const cs = (up ? '+' : '') + d.chg.toFixed(2) + '%';
+    const arr = up ? '▲' : '▼';
+    html += `<span class="t-item"><span class="t-sym">${s.label}</span><span class="${up?'t-up':'t-dn'}">${ps}</span><span class="${up?'t-up':'t-dn'}">${arr} ${cs}</span></span>`;
+  }
+  if (html) {
+    const tc = document.getElementById('ticker-content');
+    if (tc) tc.innerHTML = html + html;
+  }
+}
+
+function switchTab(name, btn) {
+  document.querySelectorAll('.chart-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  if (btn) btn.classList.add('active');
+  window.scrollTo({top: 160, behavior: 'smooth'});
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  loadTicker();
+  setInterval(loadTicker, 60000);
+});
+</script>
+</body>
+</html>
