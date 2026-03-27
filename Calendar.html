@@ -1,1141 +1,399 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <title>XenosFinance — Economic Calendar</title>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=IBM+Plex+Mono:wght@300;400;500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=PT+Serif:wght@400;700&family=PT+Mono&display=swap" rel="stylesheet">
 <style>
-:root {
-  --bg:#0f1724;--bg2:#131f2e;--bg3:#172032;--bg4:#1c2840;
-  --border:#1e3050;--border2:#243a5e;--border-bright:#2d4a78;
-  --gold:#3b82f6;--gold2:#60a5fa;--gold3:#1d4ed8;
-  --accent:#3b82f6;--accent2:#60a5fa;
-  --text:#c8d8ea;--dim:#6b8aaa;--bright:#e2eaf4;
-  --red:#ef4444;--red2:#f87171;--green:#10b981;--green2:#34d399;
-  --blue:#3b82f6;--blue2:#60a5fa;--yellow:#f59e0b;
-  --ink:#e2eaf4;--ink2:#b8cce0;--muted:#5a7a9a;
-  --serif:'Playfair Display',Georgia,serif;
-  --body:'PT Serif',Georgia,serif;
-  --mono:'IBM Plex Mono',monospace;
-  --sans:'Inter',sans-serif;
-}
-* { margin:0; padding:0; box-sizing:border-box; }
-body { background:var(--bg); color:var(--text); font-family:var(--sans); font-weight:300; min-height:100vh; overflow-x:hidden; }
-
-/* ── HEADER ── */
-header { background:var(--bg2); border-bottom:1px solid var(--border); padding:0 5vw; position:sticky; top:0; z-index:200; }
-.header-top { display:flex; align-items:center; justify-content:space-between; padding:14px 0; border-bottom:1px solid var(--border); }
-.logo { font-family:var(--mono); font-size:1.2rem; font-weight:500; color:var(--bright); text-decoration:none; }
-.logo span { color:var(--gold); }
-.header-date { font-family:var(--mono); font-size:0.6rem; color:var(--dim); letter-spacing:0.12em; text-transform:uppercase; }
-.ai-badge { display:inline-flex; align-items:center; gap:6px; background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.2); color:var(--gold); padding:5px 12px; font-family:var(--mono); font-size:0.58rem; letter-spacing:0.15em; text-transform:uppercase; }
-.pulse { width:6px; height:6px; background:var(--gold); border-radius:50%; animation:pulse 1.5s ease infinite; }
-@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.2} }
-nav { display:flex; gap:28px; padding:10px 0; }
-nav a { font-family:var(--mono); font-size:0.62rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--dim); text-decoration:none; transition:color 0.2s; }
-nav a:hover, nav a.active { color:var(--gold); }
-
-/* ── HERO ── */
-.hero { background:var(--bg2); border-bottom:1px solid var(--border); padding:40px 5vw 36px; position:relative; overflow:hidden; }
-.hero::before { content:''; position:absolute; top:-100px; right:-100px; width:600px; height:600px; background:radial-gradient(circle, rgba(245,158,11,0.04) 0%, transparent 65%); pointer-events:none; }
-.hero-eyebrow { font-family:var(--mono); font-size:0.6rem; letter-spacing:0.25em; text-transform:uppercase; color:var(--gold); margin-bottom:12px; }
-.hero-title { font-family:var(--serif); font-size:clamp(1.8rem,3vw,2.6rem); font-weight:900; color:var(--bright); line-height:1.1; margin-bottom:10px; }
-.hero-title span { color:var(--gold); }
-.hero-sub { font-size:0.88rem; color:var(--dim); max-width:560px; line-height:1.7; }
-
-/* ── WEEK NAV ── */
-.week-nav { background:var(--bg2); border-bottom:1px solid var(--border); padding:0 5vw; display:flex; align-items:center; justify-content:space-between; gap:16px; }
-.week-nav-inner { display:flex; align-items:center; gap:0; }
-.week-btn { font-family:var(--mono); font-size:0.6rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--dim); padding:14px 18px; cursor:pointer; border:none; background:none; transition:color 0.2s; }
-.week-btn:hover { color:var(--gold); }
-.week-label { font-family:var(--mono); font-size:0.65rem; letter-spacing:0.15em; color:var(--bright); padding:0 16px; border-left:1px solid var(--border); border-right:1px solid var(--border); }
-.impact-legend { display:flex; gap:16px; align-items:center; padding:14px 0; }
-.legend-item { display:flex; align-items:center; gap:6px; font-family:var(--mono); font-size:0.55rem; letter-spacing:0.1em; color:var(--dim); text-transform:uppercase; }
-.legend-dot { width:8px; height:8px; border-radius:50%; }
-.dot-high { background:var(--red); }
-.dot-med  { background:var(--yellow); }
-.dot-low  { background:var(--dim); }
-
-/* ── DAY TABS ── */
-.day-tabs { background:var(--bg2); border-bottom:1px solid var(--border); padding:0 5vw; display:flex; gap:0; overflow-x:auto; }
-.day-tab { font-family:var(--mono); font-size:0.58rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--dim); padding:12px 20px; cursor:pointer; border:none; background:none; border-bottom:2px solid transparent; white-space:nowrap; transition:all 0.2s; }
-.day-tab:hover { color:var(--text); }
-.day-tab.active { color:var(--gold); border-bottom-color:var(--gold); }
-.day-tab .tab-date { display:block; font-size:0.7rem; color:var(--bright); margin-bottom:2px; }
-.day-tab .tab-count { display:inline-block; background:rgba(245,158,11,0.15); color:var(--gold); padding:1px 5px; font-size:0.5rem; border-radius:2px; margin-left:4px; }
-
-/* ── MAIN LAYOUT ── */
-.main { display:grid; grid-template-columns:1fr 380px; gap:0; min-height:calc(100vh - 300px); padding:0 5vw; }
-.events-col { border-right:1px solid var(--border); padding:24px 28px 40px 0; }
-.detail-col { padding:24px 0 40px 28px; position:sticky; top:160px; max-height:calc(100vh - 180px); overflow-y:auto; }
-
-/* ── EVENTS LIST ── */
-.events-section { margin-bottom:8px; }
-.events-time-group { margin-bottom:24px; }
-.time-label { font-family:var(--mono); font-size:0.56rem; letter-spacing:0.18em; color:var(--dim); text-transform:uppercase; padding:8px 0 8px 12px; border-left:1px solid var(--border); margin-bottom:8px; }
-
-.event-row {
-  display:grid;
-  grid-template-columns:56px 28px 1fr 90px 90px 90px;
-  gap:0;
-  align-items:center;
-  padding:13px 14px;
-  border:1px solid transparent;
-  border-bottom:1px solid var(--border);
-  cursor:pointer;
-  transition:all 0.15s;
-  position:relative;
-}
-.event-row:hover { background:var(--bg3); border-color:var(--border2); }
-.event-row.active { background:var(--bg3); border-color:var(--gold); border-left:2px solid var(--gold); }
-.event-row.released { opacity:0.7; }
-
-.ev-time { font-family:var(--mono); font-size:0.62rem; color:var(--dim); }
-.ev-impact { display:flex; align-items:center; justify-content:center; }
-.impact-dot { width:7px; height:7px; border-radius:50%; }
-.ev-name { padding:0 12px; }
-.ev-name-main { font-size:0.82rem; color:var(--bright); font-weight:500; line-height:1.3; }
-.ev-name-sub { font-family:var(--mono); font-size:0.56rem; color:var(--dim); margin-top:2px; }
-.ev-flag { font-size:0.85rem; margin-right:6px; }
-.ev-num { font-family:var(--mono); font-size:0.7rem; text-align:right; padding:0 6px; }
-.ev-actual { color:var(--bright); }
-.ev-forecast { color:var(--dim); }
-.ev-previous { color:var(--dim); }
-.ev-num.beat { color:var(--green); }
-.ev-num.miss { color:var(--red); }
-
-.ev-header { display:grid; grid-template-columns:56px 28px 1fr 90px 90px 90px; gap:0; padding:8px 14px; border-bottom:1px solid var(--border2); margin-bottom:4px; }
-.ev-header span { font-family:var(--mono); font-size:0.52rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--dim); text-align:right; }
-.ev-header span:nth-child(3) { text-align:left; padding:0 12px; }
-
-.no-events { font-family:var(--mono); font-size:0.7rem; color:var(--dim); padding:40px 0; text-align:center; }
-
-/* ── DETAIL PANEL ── */
-.detail-empty { display:flex; flex-direction:column; align-items:center; justify-content:center; height:300px; color:var(--dim); font-family:var(--mono); font-size:0.65rem; letter-spacing:0.1em; text-align:center; border:1px dashed var(--border); }
-.detail-empty .detail-icon { font-size:2rem; margin-bottom:16px; opacity:0.3; }
-
-.detail-panel { display:none; }
-.detail-panel.active { display:block; }
-
-.detail-flag-title { display:flex; align-items:flex-start; gap:12px; margin-bottom:20px; }
-.detail-flag { font-size:2rem; line-height:1; }
-.detail-impact-badge { display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:2px; font-family:var(--mono); font-size:0.56rem; letter-spacing:0.1em; text-transform:uppercase; margin-bottom:8px; }
-.badge-high { background:rgba(224,82,82,0.12); border:1px solid rgba(224,82,82,0.3); color:var(--red); }
-.badge-med  { background:rgba(232,184,75,0.12); border:1px solid rgba(232,184,75,0.3); color:var(--yellow); }
-.badge-low  { background:rgba(90,96,112,0.12); border:1px solid rgba(90,96,112,0.2); color:var(--dim); }
-.detail-title { font-family:var(--serif); font-size:1.3rem; font-weight:700; color:var(--bright); line-height:1.2; }
-.detail-meta { font-family:var(--mono); font-size:0.6rem; color:var(--dim); margin-top:6px; }
-
-.detail-numbers { display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--border); border:1px solid var(--border); margin:20px 0; }
-.detail-num-box { background:var(--bg3); padding:14px 12px; text-align:center; }
-.detail-num-label { font-family:var(--mono); font-size:0.52rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--dim); margin-bottom:6px; }
-.detail-num-val { font-family:var(--mono); font-size:1rem; font-weight:500; color:var(--bright); }
-.detail-num-val.beat { color:var(--green); }
-.detail-num-val.miss { color:var(--red); }
-.detail-num-val.pending { color:var(--dim); }
-
-.detail-section { margin-bottom:20px; }
-.detail-section-title { font-family:var(--mono); font-size:0.58rem; letter-spacing:0.18em; text-transform:uppercase; color:var(--gold); margin-bottom:10px; padding-bottom:6px; border-bottom:1px solid var(--border); }
-.detail-text { font-size:0.82rem; line-height:1.75; color:var(--text); }
-
-.scenario-box { border:1px solid var(--border); padding:14px; margin-bottom:8px; }
-.scenario-box.bull { border-left:2px solid var(--green); }
-.scenario-box.bear { border-left:2px solid var(--red); }
-.scenario-box.neut { border-left:2px solid var(--dim); }
-.scenario-label { font-family:var(--mono); font-size:0.56rem; letter-spacing:0.15em; text-transform:uppercase; margin-bottom:6px; }
-.scenario-box.bull .scenario-label { color:var(--green); }
-.scenario-box.bear .scenario-label { color:var(--red); }
-.scenario-box.neut .scenario-label { color:var(--dim); }
-.scenario-text { font-size:0.78rem; line-height:1.65; color:var(--text); }
-
-.history-row { display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:8px; padding:8px 0; border-bottom:1px solid var(--border); font-family:var(--mono); font-size:0.62rem; align-items:center; }
-.history-row:last-child { border-bottom:none; }
-.history-date { color:var(--dim); }
-.history-val { text-align:right; }
-.history-val.beat { color:var(--green); }
-.history-val.miss { color:var(--red); }
-
-.ai-analysis-btn { width:100%; padding:12px; background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.25); color:var(--gold); font-family:var(--mono); font-size:0.62rem; letter-spacing:0.12em; text-transform:uppercase; cursor:pointer; transition:all 0.2s; margin-top:16px; display:flex; align-items:center; justify-content:center; gap:8px; }
-.ai-analysis-btn:hover { background:rgba(245,158,11,0.14); border-color:rgba(245,158,11,0.5); }
-.ai-analysis-btn:disabled { opacity:0.5; cursor:not-allowed; }
-.ai-result { margin-top:16px; padding:16px; background:var(--bg3); border:1px solid var(--border); border-left:2px solid var(--gold); font-size:0.8rem; line-height:1.75; color:var(--text); display:none; }
-.ai-result.active { display:block; }
-
-/* ── LOADER ── */
-.spinner { display:inline-block; width:12px; height:12px; border:1.5px solid rgba(245,158,11,0.2); border-top-color:var(--gold); border-radius:50%; animation:spin 0.7s linear infinite; }
-@keyframes spin { to{transform:rotate(360deg)} }
-
-/* ── FOOTER ── */
-footer { background:var(--bg2); border-top:1px solid var(--border); padding:24px 5vw; display:flex; justify-content:space-between; align-items:center; margin-top:0; }
-.footer-logo { font-family:var(--mono); font-size:0.95rem; color:var(--bright); }
-.footer-logo span { color:var(--gold); }
-.footer-note { font-family:var(--mono); font-size:0.54rem; color:var(--dim); text-align:right; line-height:1.7; }
-
-@media(max-width:900px) {
-  .main { grid-template-columns:1fr; }
-  .events-col { border-right:none; padding-right:0; }
-  .detail-col { padding-left:0; border-top:1px solid var(--border); position:static; max-height:none; }
-  .event-row { grid-template-columns:50px 24px 1fr 70px 70px; }
-  .ev-header { grid-template-columns:50px 24px 1fr 70px 70px; }
-  .event-row .ev-previous,
-  .ev-header span:last-child { display:none; }
-}
+:root{--bg:#0f1724;--bg2:#131f2e;--bg3:#172032;--ink:#e2eaf4;--ink2:#b8cce0;--muted:#5a7a9a;--border:#1e3050;--border2:#243a5e;--red:#ef4444;--red2:#f87171;--green:#10b981;--green2:#34d399;--gold:#3b82f6;--gold2:#60a5fa;--blue2:#60a5fa;--serif:'Playfair Display',Georgia,serif;--body:'PT Serif',Georgia,serif;--mono:'IBM Plex Mono','PT Mono',monospace;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:100vh;line-height:1.6;}
+.masthead{background:var(--bg);border-bottom:1px solid var(--border);}
+.masthead-top{display:flex;justify-content:space-between;align-items:center;padding:8px 32px;font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:2px;border-bottom:1px solid var(--border2);}
+.masthead-center{text-align:center;padding:28px 32px 20px;border-bottom:3px double var(--gold);}
+.masthead-eyebrow{font-family:var(--mono);font-size:9px;letter-spacing:6px;color:var(--gold);text-transform:uppercase;margin-bottom:10px;}
+.masthead-name{font-family:var(--serif);font-size:64px;font-weight:900;letter-spacing:-2px;line-height:1;color:var(--ink);text-transform:uppercase;}
+.masthead-name span{color:var(--gold);}
+.masthead-sub{font-family:var(--mono);font-size:10px;letter-spacing:5px;color:var(--muted);margin-top:8px;text-transform:uppercase;}
+.masthead-nav{display:flex;justify-content:center;gap:0;border-top:1px solid var(--border);background:var(--bg2);}
+.nav-btn{font-family:var(--mono);font-size:11px;letter-spacing:3px;text-transform:uppercase;padding:12px 36px;color:var(--muted);text-decoration:none;border-bottom:3px solid transparent;transition:all 0.2s;display:inline-block;}
+.nav-btn:hover,.nav-btn.active{color:var(--gold);border-bottom-color:var(--gold);}
+.ticker-bar{background:var(--bg2);border-bottom:1px solid var(--border);padding:7px 0;overflow:hidden;font-family:var(--mono);font-size:11px;}
+.ticker-inner{display:flex;gap:0;white-space:nowrap;animation:ticker 70s linear infinite;}
+.ticker-inner:hover{animation-play-state:paused;}
+@keyframes ticker{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+.t-item{display:inline-flex;gap:10px;padding:0 20px;border-right:1px solid var(--border);}
+.t-sym{color:var(--gold);font-weight:bold;}
+.t-up{color:var(--green2);}.t-dn{color:var(--red2);}
+.wrap{max-width:1280px;margin:0 auto;padding:24px 24px 80px;}
+.page-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;padding-bottom:12px;border-bottom:1px solid var(--border);}
+.page-title{font-family:var(--serif);font-size:28px;font-weight:700;color:var(--ink);}
+.page-sub{font-family:var(--mono);font-size:9px;letter-spacing:3px;color:var(--muted);text-transform:uppercase;margin-top:4px;}
+.section-head{display:flex;align-items:center;gap:12px;margin:28px 0 16px;}
+.section-head-label{font-family:var(--mono);font-size:9px;letter-spacing:4px;text-transform:uppercase;color:var(--gold);white-space:nowrap;}
+.section-head-line{flex:1;height:1px;background:var(--border);}
+/* Filter bar */
+.filter-bar{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;align-items:center;}
+.filter-btn{font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;padding:6px 14px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all 0.2s;}
+.filter-btn:hover,.filter-btn.on{border-color:var(--gold);color:var(--gold);background:rgba(59,130,246,0.1);}
+.filter-btn.high{border-color:var(--red2);color:var(--red2);}
+.filter-btn.high.on{background:rgba(239,68,68,0.1);}
+.filter-label{font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-right:4px;}
+/* Week tabs */
+.week-tabs{display:flex;gap:0;margin-bottom:0;border-bottom:1px solid var(--border);}
+.week-tab{font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;padding:10px 20px;cursor:pointer;color:var(--muted);border-bottom:3px solid transparent;transition:all 0.2s;}
+.week-tab:hover,.week-tab.on{color:var(--gold);border-bottom-color:var(--gold);}
+/* Calendar table */
+.cal-table{width:100%;border-collapse:collapse;}
+.cal-table th{text-align:left;font-family:var(--mono);font-size:9px;letter-spacing:3px;color:var(--gold);text-transform:uppercase;padding:10px 12px;border-bottom:1px solid var(--border);background:var(--bg2);}
+.cal-table td{padding:11px 12px;border-bottom:1px solid var(--border2);vertical-align:middle;}
+.cal-table tr:hover td{background:var(--bg3);}
+.cal-table .day-sep td{background:var(--bg2);font-family:var(--mono);font-size:10px;letter-spacing:3px;color:var(--gold);text-transform:uppercase;padding:8px 12px;border-top:1px solid var(--border);}
+/* Impact dots */
+.impact{display:inline-flex;align-items:center;gap:3px;font-family:var(--mono);font-size:9px;letter-spacing:1px;}
+.impact-dot{width:8px;height:8px;border-radius:50%;display:inline-block;}
+.dot-high{background:var(--red2);}
+.dot-med{background:#f59e0b;}
+.dot-low{background:var(--muted);}
+/* Country flag label */
+.country-tag{font-family:var(--mono);font-size:10px;letter-spacing:1px;color:var(--ink2);display:flex;align-items:center;gap:4px;}
+.ev-name{font-family:var(--serif);font-size:14px;color:var(--ink);line-height:1.3;}
+.ev-desc{font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:2px;}
+.ev-val{font-family:var(--mono);font-size:12px;text-align:right;}
+.val-actual{color:var(--ink);}
+.val-forecast{color:var(--muted);}
+.val-prev{color:var(--muted);}
+.val-beat{color:var(--green2);}
+.val-miss{color:var(--red2);}
+.ev-time{font-family:var(--mono);font-size:11px;color:var(--muted);}
+/* Upcoming highlight cards */
+.highlight-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);margin-bottom:24px;}
+.highlight-card{background:var(--bg2);padding:16px 20px;border-left:3px solid var(--border);}
+.highlight-card.high{border-left-color:var(--red2);}
+.highlight-card.med{border-left-color:#f59e0b;}
+.hc-date{font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:6px;}
+.hc-name{font-family:var(--serif);font-size:15px;color:var(--ink);margin-bottom:4px;}
+.hc-meta{font-family:var(--mono);font-size:10px;color:var(--muted);}
+.hc-impact{font-family:var(--mono);font-size:9px;margin-top:6px;}
+.hc-forecast{font-family:var(--mono);font-size:12px;color:var(--gold2);margin-top:4px;}
+/* Legend */
+.legend{display:flex;gap:20px;font-family:var(--mono);font-size:10px;color:var(--muted);}
+.legend-item{display:flex;align-items:center;gap:6px;}
+.bottom-bar{border-top:1px solid var(--border);margin-top:32px;padding:14px 0;display:flex;justify-content:space-between;font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:1px;}
+@media(max-width:900px){.highlight-grid{grid-template-columns:1fr;}.masthead-name{font-size:40px;}.nav-btn{padding:10px 16px;font-size:10px;letter-spacing:2px;}.cal-table th:nth-child(4),.cal-table td:nth-child(4){display:none;}}
 </style>
 </head>
 <body>
-
-<header>
-  <div class="header-top">
-    <a href="https://xenosfinance.com" class="logo">XENOS<span>FINANCE</span></a>
-    <div class="header-date" id="headerDate"></div>
-    <div class="ai-badge"><div class="pulse"></div>Economic Calendar</div>
+<div class="masthead">
+  <div class="masthead-top">
+    <span id="live-date">MARCH 27, 2026</span>
+    <span>XENOSFINANCE · ECONOMIC CALENDAR</span>
+    <span id="live-time">UPDATED AT --:-- CET</span>
   </div>
-  <nav>
-    <a href="https://xenosfinance.com">📰 News</a>
-    <a href="https://xenosfinance.com/dashboard.html">📊 Dashboard</a>
-    <a href="https://xenosfinance.com/xenoswaves_charts.html">◈ Charts</a>
-    <a href="https://xenosfinance.com/signals.html">⚡ Signals</a>
-    <a href="https://xenosfinance.com/XenosBlog.html">✦ AI Blog</a>
-    <a href="https://xenosfinance.com/calendar.html" class="active">🗓 Calendar</a>
-  </nav>
-</header>
-
-<section class="hero">
-  <div class="hero-eyebrow">// Macro Intelligence — XenosFinance</div>
-  <h1 class="hero-title">Economic <span>Calendar</span></h1>
-  <p class="hero-sub">Key macro events with AI-powered scenario analysis. Click any event for market impact, historical context and trade implications.</p>
-</section>
-
-<div class="week-nav">
-  <div class="week-nav-inner">
-    <button class="week-btn" onclick="shiftWeek(-1)">← Prev</button>
-    <span class="week-label" id="weekLabel">Loading...</span>
-    <button class="week-btn" onclick="shiftWeek(1)">Next →</button>
+  <div class="masthead-center">
+    <div class="masthead-eyebrow">Financial Intelligence · Global Markets</div>
+    <div class="masthead-name">XENOS<span>FINANCE</span></div>
+    <div class="masthead-sub">Elliott Waves · Geopolitics · Macroeconomics</div>
   </div>
-  <div class="impact-legend">
-    <div class="legend-item"><div class="legend-dot dot-high"></div>High impact</div>
-    <div class="legend-item"><div class="legend-dot dot-med"></div>Medium</div>
-    <div class="legend-item"><div class="legend-dot dot-low"></div>Low</div>
+  <div class="masthead-nav">
+    <a class="nav-btn" href="https://xenosfinance.com">📰 News</a>
+    <a class="nav-btn" href="https://xenosfinance.com/dashboard.html">📊 Dashboard</a>
+    <a class="nav-btn" href="https://xenosfinance.com/xenoswaves_charts.html">◈ Charts</a>
+    <a class="nav-btn" href="https://xenosfinance.com/signals.html">⚡ Signals</a>
+    <a class="nav-btn active" href="https://xenosfinance.com/calendar.html">🗓 Calendar</a>
+    <a class="nav-btn" href="https://xenosfinance.com/XenosBlog.html">✦ AI Blog</a>
+  </div>
+</div>
+<div class="ticker-bar">
+  <div class="ticker-inner" id="ticker-inner">
+    <span class="t-item"><span class="t-sym">LOADING...</span></span>
   </div>
 </div>
 
-<div class="day-tabs" id="dayTabs"></div>
-
-<div class="main">
-  <div class="events-col">
-    <div class="ev-header">
-      <span>Time</span>
-      <span></span>
-      <span>Event</span>
-      <span>Actual</span>
-      <span>Forecast</span>
-      <span>Previous</span>
+<div class="wrap">
+  <div class="page-head">
+    <div>
+      <div class="page-title">🗓 Economic Calendar</div>
+      <div class="page-sub">Central Banks · Macro Data · Key Events · Earnings</div>
     </div>
-    <div id="eventsList">
-      <div style="text-align:center;padding:60px 0;font-family:var(--mono);font-size:0.7rem;color:var(--dim);">
-        <div class="spinner" style="margin:0 auto 16px;width:20px;height:20px;border-width:2px;display:block;"></div>
-        Loading calendar...
-      </div>
+    <div class="legend">
+      <div class="legend-item"><span class="impact-dot dot-high"></span> High Impact</div>
+      <div class="legend-item"><span class="impact-dot dot-med"></span> Medium</div>
+      <div class="legend-item"><span class="impact-dot dot-low"></span> Low</div>
     </div>
   </div>
-  <div class="detail-col">
-    <div class="detail-empty" id="detailEmpty">
-      <div class="detail-icon">🗓</div>
-      Select an event<br>to view analysis
-    </div>
-    <div class="detail-panel" id="detailPanel"></div>
+
+  <!-- Upcoming highlights -->
+  <div class="section-head">
+    <div class="section-head-label">This Week's Key Events</div>
+    <div class="section-head-line"></div>
+  </div>
+  <div class="highlight-grid" id="highlights-grid">
+    <!-- populated by JS -->
+  </div>
+
+  <!-- Filter bar -->
+  <div class="filter-bar">
+    <span class="filter-label">Filter:</span>
+    <button class="filter-btn high on" id="f-high" onclick="toggleFilter('high')">● High Impact</button>
+    <button class="filter-btn on" id="f-med" onclick="toggleFilter('med')">● Medium</button>
+    <button class="filter-btn on" id="f-low" onclick="toggleFilter('low')">● Low</button>
+    <span style="width:1px;height:20px;background:var(--border);display:inline-block;margin:0 4px;"></span>
+    <button class="filter-btn on" id="f-USD" onclick="toggleFilter('USD')">🇺🇸 USD</button>
+    <button class="filter-btn on" id="f-EUR" onclick="toggleFilter('EUR')">🇪🇺 EUR</button>
+    <button class="filter-btn on" id="f-GBP" onclick="toggleFilter('GBP')">🇬🇧 GBP</button>
+    <button class="filter-btn on" id="f-JPY" onclick="toggleFilter('JPY')">🇯🇵 JPY</button>
+    <button class="filter-btn on" id="f-OTHER" onclick="toggleFilter('OTHER')">🌐 Other</button>
+  </div>
+
+  <!-- Week tabs -->
+  <div class="week-tabs" id="week-tabs"></div>
+
+  <!-- Calendar table -->
+  <table class="cal-table">
+    <thead>
+      <tr>
+        <th style="width:90px">Time (CET)</th>
+        <th style="width:80px">Country</th>
+        <th>Event</th>
+        <th style="width:90px">Forecast</th>
+        <th style="width:90px">Previous</th>
+        <th style="width:90px">Actual</th>
+        <th style="width:80px">Impact</th>
+      </tr>
+    </thead>
+    <tbody id="cal-tbody">
+    </tbody>
+  </table>
+
+  <div class="bottom-bar">
+    <span>© XENOSFINANCE 2026</span>
+    <span>Data: Curated macro calendar · All times CET</span>
+    <span>⚠ Not investment advice</span>
   </div>
 </div>
-
-<footer>
-  <div class="footer-logo">XENOS<span>FINANCE</span></div>
-  <div class="footer-note">© XENOSFINANCE 2026 · Economic Calendar<br>⚠ Not investment advice</div>
-</footer>
 
 <script>
-const WORKER = 'https://xenos-ai-proxy.xenosfinance.workers.dev';
+// ─── CALENDAR DATA ─────────────────────────────────────────────────────────────
+// Static curated calendar for current period. Can be extended via API.
+const EVENTS = [
+  // WEEK OF MARCH 24–28
+  {date:'2026-03-24', time:'09:00', country:'EUR', flag:'🇩🇪', name:'German Ifo Business Climate', desc:'Mar 2026', impact:'high', forecast:'86.5', prev:'85.2', actual:''},
+  {date:'2026-03-24', time:'15:00', country:'USD', flag:'🇺🇸', name:'US CB Consumer Confidence', desc:'Mar 2026', impact:'high', forecast:'93.0', prev:'92.9', actual:''},
+  {date:'2026-03-25', time:'08:30', country:'GBP', flag:'🇬🇧', name:'UK CPI m/m', desc:'Feb 2026', impact:'high', forecast:'0.4%', prev:'0.1%', actual:''},
+  {date:'2026-03-25', time:'08:30', country:'GBP', flag:'🇬🇧', name:'UK CPI y/y', desc:'Feb 2026', impact:'high', forecast:'2.9%', prev:'3.0%', actual:''},
+  {date:'2026-03-25', time:'14:30', country:'USD', flag:'🇺🇸', name:'US Durable Goods Orders m/m', desc:'Feb 2026', impact:'med', forecast:'-1.0%', prev:'3.2%', actual:''},
+  {date:'2026-03-26', time:'08:00', country:'EUR', flag:'🇩🇪', name:'German GfK Consumer Climate', desc:'Apr 2026', impact:'med', forecast:'-24.0', prev:'-24.7', actual:''},
+  {date:'2026-03-26', time:'14:30', country:'USD', flag:'🇺🇸', name:'US GDP q/q (Final)', desc:'Q4 2025', impact:'high', forecast:'2.3%', prev:'2.3%', actual:''},
+  {date:'2026-03-26', time:'14:30', country:'USD', flag:'🇺🇸', name:'US Initial Jobless Claims', desc:'Week ending Mar 21', impact:'high', forecast:'225K', prev:'223K', actual:''},
+  {date:'2026-03-27', time:'08:00', country:'EUR', flag:'🇩🇪', name:'German Retail Sales m/m', desc:'Feb 2026', impact:'med', forecast:'0.5%', prev:'-0.4%', actual:''},
+  {date:'2026-03-27', time:'10:00', country:'EUR', flag:'🇪🇺', name:'Eurozone Business Climate', desc:'Mar 2026', impact:'med', forecast:'-0.40', prev:'-0.59', actual:''},
+  {date:'2026-03-27', time:'14:30', country:'USD', flag:'🇺🇸', name:'US Core PCE Price Index m/m', desc:'Feb 2026', impact:'high', forecast:'0.3%', prev:'0.3%', actual:'— TODAY'},
+  {date:'2026-03-27', time:'14:30', country:'USD', flag:'🇺🇸', name:'US Personal Income m/m', desc:'Feb 2026', impact:'med', forecast:'0.4%', prev:'0.9%', actual:'— TODAY'},
+  {date:'2026-03-27', time:'14:30', country:'USD', flag:'🇺🇸', name:'US Personal Spending m/m', desc:'Feb 2026', impact:'med', forecast:'0.5%', prev:'-0.2%', actual:'— TODAY'},
+  {date:'2026-03-27', time:'16:00', country:'USD', flag:'🇺🇸', name:'US Michigan Consumer Sentiment (Final)', desc:'Mar 2026', impact:'high', forecast:'57.9', prev:'64.7', actual:'— TODAY'},
+  {date:'2026-03-28', time:'--:--', country:'USD', flag:'🇺🇸', name:'Good Friday — US Markets Closed', desc:'Market Holiday', impact:'high', forecast:'—', prev:'—', actual:''},
 
-// ── Date helpers ──────────────────────────────────────────────
-const MONTHS = ['January','February','March','April','May','June',
-                'July','August','September','October','November','December'];
-const DAYS   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  // WEEK OF MARCH 31 — APRIL 4 (next week — key NFP week)
+  {date:'2026-03-31', time:'09:30', country:'GBP', flag:'🇬🇧', name:'UK Final GDP q/q', desc:'Q4 2025', impact:'high', forecast:'0.1%', prev:'0.1%', actual:''},
+  {date:'2026-03-31', time:'10:00', country:'EUR', flag:'🇪🇺', name:'Eurozone CPI Flash y/y', desc:'Mar 2026', impact:'high', forecast:'2.2%', prev:'2.3%', actual:''},
+  {date:'2026-03-31', time:'14:30', country:'USD', flag:'🇺🇸', name:'US Chicago PMI', desc:'Mar 2026', impact:'med', forecast:'46.0', prev:'45.5', actual:''},
+  {date:'2026-04-01', time:'03:45', country:'OTHER', flag:'🇨🇳', name:'China Caixin Manufacturing PMI', desc:'Mar 2026', impact:'high', forecast:'51.1', prev:'50.8', actual:''},
+  {date:'2026-04-01', time:'10:00', country:'EUR', flag:'🇪🇺', name:'Eurozone Manufacturing PMI (Final)', desc:'Mar 2026', impact:'med', forecast:'48.7', prev:'47.6', actual:''},
+  {date:'2026-04-01', time:'15:00', country:'USD', flag:'🇺🇸', name:'US ISM Manufacturing PMI', desc:'Mar 2026', impact:'high', forecast:'49.7', prev:'50.3', actual:''},
+  {date:'2026-04-02', time:'14:15', country:'USD', flag:'🇺🇸', name:'US ADP Non-Farm Employment Change', desc:'Mar 2026', impact:'high', forecast:'118K', prev:'77K', actual:''},
+  {date:'2026-04-03', time:'14:30', country:'USD', flag:'🇺🇸', name:'US Initial Jobless Claims', desc:'Week ending Mar 28', impact:'high', forecast:'225K', prev:'224K', actual:''},
+  {date:'2026-04-03', time:'15:00', country:'USD', flag:'🇺🇸', name:'US ISM Services PMI', desc:'Mar 2026', impact:'high', forecast:'53.0', prev:'53.5', actual:''},
+  {date:'2026-04-04', time:'14:30', country:'USD', flag:'🇺🇸', name:'US Non-Farm Payrolls', desc:'Mar 2026', impact:'high', forecast:'137K', prev:'151K', actual:''},
+  {date:'2026-04-04', time:'14:30', country:'USD', flag:'🇺🇸', name:'US Unemployment Rate', desc:'Mar 2026', impact:'high', forecast:'4.1%', prev:'4.1%', actual:''},
+  {date:'2026-04-04', time:'14:30', country:'USD', flag:'🇺🇸', name:'US Average Hourly Earnings m/m', desc:'Mar 2026', impact:'high', forecast:'0.3%', prev:'0.3%', actual:''},
 
-let weekOffset = 0;
-let allEvents  = [];
-let activeDay  = null;
-let activeEvent = null;
+  // Central Bank events
+  {date:'2026-04-09', time:'20:00', country:'USD', flag:'🇺🇸', name:'FOMC Meeting Minutes', desc:'Mar 18-19 meeting', impact:'high', forecast:'—', prev:'—', actual:''},
+  {date:'2026-04-10', time:'12:45', country:'EUR', flag:'🇪🇺', name:'ECB Interest Rate Decision', desc:'Apr 2026', impact:'high', forecast:'2.40%', prev:'2.65%', actual:''},
+  {date:'2026-04-10', time:'13:30', country:'EUR', flag:'🇪🇺', name:'ECB Press Conference', desc:'Lagarde speaks', impact:'high', forecast:'—', prev:'—', actual:''},
+];
 
-function getWeekRange(offset = 0) {
-  const now = new Date();
-  const dow = now.getDay();
-  const weekendShift = (dow === 0 || dow === 6) ? 1 : 0;
-  const daysToMon = dow === 0 ? -6 : (1 - dow);
-  const mon = new Date(now);
-  mon.setDate(now.getDate() + daysToMon + (offset + weekendShift) * 7);
-  mon.setHours(0, 0, 0, 0);
-  const fri = new Date(mon);
-  fri.setDate(mon.getDate() + 4);
-  return { mon, fri };
+// ─── STATE ──────────────────────────────────────────────────────────────────
+const activeFilters = {high:true, med:true, low:true, USD:true, EUR:true, GBP:true, JPY:true, OTHER:true};
+let currentWeek = 0; // 0 = this week, 1 = next week
+
+function toggleFilter(key) {
+  activeFilters[key] = !activeFilters[key];
+  const btn = document.getElementById('f-' + key);
+  if (btn) btn.classList.toggle('on', activeFilters[key]);
+  renderCalendar();
 }
 
-function fmtDate(d) {
-  return MONTHS[d.getMonth()].substring(0,3) + ' ' + d.getDate();
-}
-function fmtDateFull(d) {
-  return MONTHS[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear();
-}
-function isoDate(d) {
-  // Use local date parts — avoids UTC offset shifting the day in CET (UTC+2)
-  const y   = d.getFullYear();
-  const m   = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
+// ─── WEEK HELPERS ──────────────────────────────────────────────────────────
+function getWeekStart(offset) {
+  const d = new Date();
+  d.setHours(0,0,0,0);
+  const day = d.getDay() || 7; // Mon=1
+  d.setDate(d.getDate() - day + 1 + offset * 7);
+  return d;
 }
 
-function updateWeekLabel() {
-  const { mon, fri } = getWeekRange(weekOffset);
-  const isWknd = (new Date().getDay() === 0 || new Date().getDay() === 6);
-  let label = '';
-  if      (weekOffset === 0)  label = isWknd ? 'Next Week — ' : 'This Week — ';
-  else if (weekOffset === -1) label = isWknd ? 'This Week — ' : 'Last Week — ';
-  else if (weekOffset === 1)  label = isWknd ? 'Week After — ' : 'Next Week — ';
-  document.getElementById('weekLabel').textContent =
-    label + fmtDate(mon) + ' – ' + fmtDate(fri) + ', ' + fri.getFullYear();
+function dateKey(d) {
+  return d.toISOString().split('T')[0];
 }
 
-function shiftWeek(dir) {
-  weekOffset += dir;
-  loadCalendar();
-}
-
-// ── ForexFactory XML parser ───────────────────────────────────
-// Feed ufficiale: https://nfs.faireconomy.media/ff_calendar_thisweek.xml
-// Struttura stabile dal 2010 — aggiornato ogni domenica notte.
-// Usiamo allorigins.win come proxy CORS (gratuito, affidabile).
-async function fetchForexFactory(weekOff) {
-  // thisweek per offset 0, nextweek per offset +1, fallback per il resto
-  const feedMap = {
-    0:  'https://nfs.faireconomy.media/ff_calendar_thisweek.xml',
-    1:  'https://nfs.faireconomy.media/ff_calendar_nextweek.xml',
-  };
-  const feedUrl = feedMap[weekOff];
-  if (!feedUrl) return [];   // FF fornisce solo this/next week
-
-  // Proxy CORS: allorigins (primario) → corsproxy.io (fallback)
-  const proxies = [
-    `https://api.allorigins.win/raw?url=${encodeURIComponent(feedUrl)}`,
-    `https://corsproxy.io/?${encodeURIComponent(feedUrl)}`,
-  ];
-
-  for (const proxy of proxies) {
-    try {
-      const res = await fetch(proxy, { signal: AbortSignal.timeout(8000) });
-      if (!res.ok) continue;
-      const txt = await res.text();
-      if (!txt || txt.length < 200) continue;
-
-      const parser = new DOMParser();
-      const doc    = parser.parseFromString(txt, 'text/xml');
-      if (doc.querySelector('parsererror')) continue;
-
-      const events = [];
-      for (const ev of doc.querySelectorAll('event')) {
-        const impact = ev.querySelector('impact')?.textContent?.trim() || '';
-        if (!['High','Medium'].includes(impact)) continue;  // salta Low
-
-        const dateRaw = ev.querySelector('date')?.textContent?.trim() || '';  // MM-DD-YYYY
-        const timeRaw = ev.querySelector('time')?.textContent?.trim() || '';  // 8:30am / Tentative / All Day
-        const country = ev.querySelector('country')?.textContent?.trim() || '';
-        const title   = ev.querySelector('title')?.textContent?.trim() || '';
-        const fore    = ev.querySelector('forecast')?.textContent?.trim() || null;
-        const prev    = ev.querySelector('previous')?.textContent?.trim() || null;
-
-        // Converti data MM-DD-YYYY → YYYY-MM-DD
-        let isoDay = '';
-        const dm = dateRaw.match(/^(\d{2})-(\d{2})-(\d{4})$/);
-        if (dm) isoDay = `${dm[3]}-${dm[1]}-${dm[2]}`;
-        else continue;
-
-        // Converti ora ET (UTC-5 inverno / UTC-4 estate) → CET (UTC+1)
-        // Differenza: +6h in EST (nov-mar), +5h in EDT (mar-nov)
-        // Usiamo +6 come valore conservativo; l'errore max è 1h
-        let timeISO = 'T12:00:00';
-        const tm = timeRaw.toLowerCase().replace(/\s/g,'').match(/^(\d{1,2}):(\d{2})(am|pm)$/);
-        if (tm) {
-          let h = parseInt(tm[1]);
-          const m = parseInt(tm[2]);
-          if (tm[3] === 'pm' && h !== 12) h += 12;
-          if (tm[3] === 'am' && h === 12) h = 0;
-          const hCET = (h + 6) % 24;
-          timeISO = `T${String(hCET).padStart(2,'0')}:${String(m).padStart(2,'0')}:00`;
-        }
-
-        events.push({
-          id:       'ff_' + isoDay + '_' + title.slice(0,16).replace(/\s/g,'_'),
-          time:     isoDay + timeISO,           // ISO locale CET
-          country:  country.toUpperCase(),
-          event:    title,
-          impact:   impact.toLowerCase(),        // 'high' | 'medium'
-          actual:   null,
-          forecast: fore || null,
-          prev:     prev || null,
-        });
-      }
-      console.log(`Calendar: ForexFactory OK (${proxy.includes('allorigins') ? 'allorigins' : 'corsproxy'}) — ${events.length} events`);
-      return events;
-    } catch(e) {
-      console.warn('ForexFactory proxy failed:', e.message);
-    }
+function weekDates(offset) {
+  const start = getWeekStart(offset);
+  const days = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    days.push(dateKey(d));
   }
-  return [];
+  return days;
 }
 
-// ── Fetch calendar ───────────────────────────────────────────
-async function loadCalendar() {
-  updateWeekLabel();
-  document.getElementById('eventsList').innerHTML = `
-    <div style="text-align:center;padding:60px 0;font-family:var(--mono);font-size:0.7rem;color:var(--dim);">
-      <div class="spinner" style="margin:0 auto 16px;width:20px;height:20px;border-width:2px;display:block;"></div>
-      Loading events...
-    </div>`;
-  document.getElementById('dayTabs').innerHTML = '';
+const DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-  const isWknd = (new Date().getDay() === 0 || new Date().getDay() === 6);
-  // weekOffset 0 = next week se weekend, this week se feriale
-  // Per FF: offset 0 weekend → nextweek feed; offset -1 weekend → thisweek feed
-  const ffWeek = isWknd
-    ? (weekOffset === 0 ? 'nextweek' : weekOffset === -1 ? 'thisweek' : null)
-    : (weekOffset === 0 ? 'thisweek' : weekOffset === 1 ? 'nextweek' : null);
+function friendlyDate(iso) {
+  const d = new Date(iso + 'T12:00:00');
+  return DAY_NAMES[d.getDay()] + ' ' + d.getDate() + ' ' + MONTH_NAMES[d.getMonth()];
+}
 
-  const { mon, fri } = getWeekRange(weekOffset);
-  const from = isoDate(mon);
-  const to   = isoDate(fri);
-  let events = [];
+// ─── RENDER ───────────────────────────────────────────────────────────────
+function renderWeekTabs() {
+  const tabs = document.getElementById('week-tabs');
+  if (!tabs) return;
+  const labels = ['This Week', 'Next Week', 'Week +2', 'Week +3'];
+  tabs.innerHTML = labels.map((l, i) =>
+    `<div class="week-tab ${i === currentWeek ? 'on' : ''}" onclick="setWeek(${i})">${l}</div>`
+  ).join('');
+}
 
-  // ── Source 1: ForexFactory via Worker (server-side, nessun CORS) ──
-  if (ffWeek) {
-    try {
-      const res = await fetch(WORKER, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'forexfactory', week: ffWeek })
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.events && data.events.length > 0) {
-          events = data.events;
-          console.log('Calendar: ForexFactory via Worker OK —', events.length, 'eventi per', ffWeek);
-        }
-      }
-    } catch(e) { console.warn('FF Worker failed:', e.message); }
+function setWeek(n) {
+  currentWeek = n;
+  renderWeekTabs();
+  renderCalendar();
+}
+
+function impactHtml(impact) {
+  if (impact === 'high') return `<span class="impact"><span class="impact-dot dot-high"></span> HIGH</span>`;
+  if (impact === 'med')  return `<span class="impact"><span class="impact-dot dot-med"></span> MED</span>`;
+  return `<span class="impact"><span class="impact-dot dot-low"></span> LOW</span>`;
+}
+
+function matchesFilter(ev) {
+  if (!activeFilters[ev.impact]) return false;
+  const cur = ev.country;
+  if (['USD','EUR','GBP','JPY'].includes(cur)) {
+    return activeFilters[cur];
   }
-
-  // ── Source 2: RapidAPI via Worker (funziona per qualsiasi settimana) ──
-  if (events.length === 0) {
-    try {
-      const res = await fetch(WORKER, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'finnhub', action: 'economic_calendar', from, to })
-      });
-      if (res.ok) {
-        const data = await res.json();
-        const raw = data.economicCalendar || [];
-        if (raw.length > 0) {
-          events = raw;
-          console.log('Calendar: RapidAPI fallback OK —', raw.length, 'eventi');
-        }
-      }
-    } catch(e) { console.warn('RapidAPI failed:', e.message); }
-  }
-
-  allEvents = deduplicateEvents(normalizeEvents(events, mon, fri));
-
-  if (allEvents.length === 0) {
-    document.getElementById('eventsList').innerHTML = `
-      <div style="padding:40px;text-align:center">
-        <div style="font-family:var(--mono);font-size:0.68rem;color:var(--dim);margin-bottom:12px">
-          Nessun evento trovato — riprova
-        </div>
-        <button onclick="loadCalendar()" style="font-family:var(--mono);font-size:0.6rem;color:var(--gold);border:1px solid var(--gold);padding:6px 14px;background:none;cursor:pointer;letter-spacing:0.1em">
-          ↺ Riprova
-        </button>
-      </div>`;
-    document.getElementById('dayTabs').innerHTML = '';
-    return;
-  }
-
-  allEvents.sort((a,b) => a.datetime - b.datetime);
-  buildDayTabs();
-  // Riavvia auto-refresh: nella settimana corrente aggiorna actuals, altrove si ferma
-  if (weekOffset === 0) startAutoRefresh();
-  else stopAutoRefresh();
+  return activeFilters['OTHER'];
 }
 
-function normalizeEvents(raw, mon, fri) {
-  const normalized = [];
-  // Filtro date con confronto stringa YYYY-MM-DD — immune a problemi di timezone
-  // ForexFactory: "2026-03-20T08:30:00-04:00" → substring(0,10) = "2026-03-20"
-  const fromStr = mon ? isoDate(mon) : null;
-  const toStr   = fri ? isoDate(fri) : null;
-
-  for (const e of raw) {
-    const dateStr = e.time || e.date || e.datetime || '';
-    if (!dateStr) continue;
-
-    const dayStr = dateStr.substring(0, 10);
-    if (fromStr && toStr && (dayStr < fromStr || dayStr > toStr)) continue;
-
-    let dt;
-    if (dateStr.includes('T')) {
-      dt = new Date(dateStr);
-    } else {
-      dt = new Date(dateStr.replace(' ', 'T') + 'Z');
-    }
-    if (isNaN(dt)) continue;
-
-    const impact = mapImpact(e.impact || e.importance || '');
-    // include all medium+ (skip truly low)
-
-    normalized.push({
-      id:       e.id || ('ev_' + isoDate(dt) + '_' + (e.event||e.name||'').slice(0,12).replace(/\s/g,'_')),
-      datetime: dt,
-      country:  (e.country || 'US').toUpperCase(),
-      flag:     countryFlag((e.country || 'US').toUpperCase()),
-      name:     e.event || e.name || e.description || 'Economic Event',
-      impact,
-      actual:   e.actual   != null && e.actual   !== '' ? String(e.actual)   : null,
-      forecast: e.estimate != null && e.estimate !== '' ? String(e.estimate) : (e.forecast != null && e.forecast !== '' ? String(e.forecast) : null),
-      previous: e.prev     != null && e.prev     !== '' ? String(e.prev)     : (e.previous != null && e.previous !== '' ? String(e.previous) : null),
-      unit:     e.unit || '',
-      _raw:     e,
-    });
-  }
-  return normalized;
-}
-
-function mapImpact(raw) {
-  const r = String(raw).toLowerCase();
-  if (r === 'high' || r === '3' || r === 'high impact' || r === 'critical') return 'high';
-  if (r === 'medium' || r === '2' || r === 'med' || r === 'moderate' || r === 'low medium' || r === '1') return 'med';
-  return 'low';
-}
-
-function countryFlag(cc) {
-  const flags = { US:'🇺🇸', EU:'🇪🇺', GB:'🇬🇧', DE:'🇩🇪', JP:'🇯🇵', CN:'🇨🇳',
-                  CA:'🇨🇦', AU:'🇦🇺', CH:'🇨🇭', NZ:'🇳🇿', FR:'🇫🇷', IT:'🇮🇹',
-                  ES:'🇪🇸', ZA:'🇿🇦', MX:'🇲🇽', BR:'🇧🇷', KR:'🇰🇷', IN:'🇮🇳',
-                  EMU:'🇪🇺', G20:'🌐', WLD:'🌐' };
-  return flags[cc.toUpperCase()] || '🌐';
-}
-
-// ── Fallback static events ─────────────────────────────────────
-// Ogni evento ha un giorno fisso della settimana (0=Mon…4=Fri).
-// Gli eventi NON si ripetono tutti ogni settimana — simuliamo un
-// calendario realistico dove eventi mensili compaiono solo la prima
-// settimana del mese, settimanali ogni settimana, ecc.
-function generateFallbackEvents(mon, fri) {
-  const monDate = mon.getDate();
-  const isFirstWeek  = monDate <= 7;
-  const isSecondWeek = monDate > 7  && monDate <= 14;
-  const isThirdWeek  = monDate > 14 && monDate <= 21;
-  const isFourthWeek = monDate > 21;
-
-  // [dayOfWeek(0=Mon…4=Fri), hUTC, mUTC, country, impact, name, frequency]
-  // frequency: 'weekly' | 'monthly_1' | 'monthly_2' | 'monthly_3' | 'monthly_4' | 'any'
-  const TEMPLATE = [
-    // ── WEEKLY ──
-    [3, 12, 30, 'US', 'high', 'Initial Jobless Claims',            'weekly'],
-    [2, 14, 30, 'US', 'high', 'EIA Crude Oil Inventories',         'weekly'],
-    [2, 14, 30, 'US', 'high', 'EIA Natural Gas Storage',            'weekly'],
-
-    // ── 1st week of month ──
-    [4, 12, 30, 'US', 'high', 'Non-Farm Payrolls',                 'monthly_1'],
-    [4, 12, 30, 'US', 'med',  'Unemployment Rate',                 'monthly_1'],
-    [0, 14, 0,  'US', 'med',  'ISM Manufacturing PMI',             'monthly_1'],
-    [2, 14, 0,  'US', 'med',  'ISM Services PMI',                  'monthly_1'],
-    [1,  3, 30, 'AU', 'med',  'RBA Rate Decision',                 'monthly_1'],
-    [2, 14, 0,  'CA', 'med',  'BOC Rate Statement',                'monthly_1'],
-
-    // ── 2nd week of month ──
-    [2, 12, 30, 'US', 'high', 'CPI m/m (Consumer Price Index)',    'monthly_2'],
-    [2, 12, 30, 'US', 'high', 'Core CPI m/m',                      'monthly_2'],
-    [3, 12, 30, 'US', 'med',  'PPI m/m (Producer Price Index)',    'monthly_2'],
-    [2, 12, 15, 'US', 'med',  'ADP Non-Farm Employment Change',    'monthly_2'],
-    [1,  9,  0, 'GB', 'med',  'UK GDP m/m',                        'monthly_2'],
-
-    // ── 3rd week of month ──
-    [2, 12, 30, 'US', 'med',  'Retail Sales m/m',                  'monthly_3'],
-    [3, 12, 0,  'US', 'high', 'Federal Reserve Interest Rate Decision', 'monthly_3'],
-    [3, 18, 30, 'US', 'high', 'FOMC Press Conference',             'monthly_3'],
-    [3, 12, 15, 'EU', 'high', 'ECB Interest Rate Decision',        'monthly_3'],
-    [3, 12,  0, 'GB', 'med',  'BOE Interest Rate Decision',        'monthly_3'],
-    [0,  8,  0, 'DE', 'med',  'German Ifo Business Climate',       'monthly_3'],
-    [4,  3,  0, 'JP', 'med',  'BOJ Monetary Policy Statement',     'monthly_3'],
-
-    // ── 4th week of month ──
-    [4, 12, 30, 'US', 'high', 'PCE Price Index m/m',               'monthly_4'],
-    [4, 12, 30, 'US', 'med',  'Core PCE Price Index m/m',          'monthly_4'],
-    [1, 14,  0, 'US', 'low',  'CB Consumer Confidence',            'monthly_4'],
-    [3, 12, 30, 'US', 'med',  'Durable Goods Orders m/m',          'monthly_4'],
-    [2, 18,  0, 'US', 'med',  'FOMC Meeting Minutes',              'monthly_4'],
-    [4,  9,  0, 'EU', 'med',  'Flash CPI y/y',                     'monthly_4'],
-    [1,  9,  0, 'EU', 'med',  'Flash GDP q/q',                     'monthly_4'],
-  ];
-
-  function inThisWeek(freq) {
-    if (freq === 'weekly')    return true;
-    if (freq === 'any')       return true;
-    if (freq === 'monthly_1') return isFirstWeek;
-    if (freq === 'monthly_2') return isSecondWeek;
-    if (freq === 'monthly_3') return isThirdWeek;
-    if (freq === 'monthly_4') return isFourthWeek;
-    return false;
-  }
-
-  const monStr = isoDate(mon); // YYYY-MM-DD — usato per ID deterministici stabili
-  const events = [];
-
-  TEMPLATE.forEach((row, idx) => {
-    const [dow, h, m, country, impact, name, freq] = row;
-    if (!inThisWeek(freq)) return;
-
-    const d = new Date(mon);
-    d.setDate(mon.getDate() + dow);
-    d.setUTCHours(h, m, 0, 0);
-
-    // ID deterministico: non cambia tra ricaricamenti
-    const stableId = 'fb_' + monStr + '_' + idx;
-
-    events.push({
-      id:      stableId,
-      time:    d.toISOString(),
-      country: country,
-      event:   name,
-      impact:  impact,
-      actual:  null, forecast: null, prev: null
-    });
-  });
-
-  return events;
-}
-
-// ── Deduplication helper ──────────────────────────────────────
-// Rimuove eventi duplicati dopo merge di più sorgenti.
-// Due eventi sono duplicati se hanno stesso giorno + stesso nome (case-insensitive).
-function deduplicateEvents(events) {
-  const seen = new Set();
-  return events.filter(ev => {
-    const dayStr  = isoDate(ev.datetime);
-    const nameKey = (ev.name || '').toLowerCase().replace(/\s+/g,' ').trim();
-    const key = dayStr + '|' + nameKey;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-}
-
-// ── Build day tabs ────────────────────────────────────────────
-function buildDayTabs() {
-  const { mon } = getWeekRange(weekOffset);
-  const tabsEl  = document.getElementById('dayTabs');
-  tabsEl.innerHTML = '';
-
-  const byDay = {};
-  allEvents.forEach(ev => {
-    const key = isoDate(ev.datetime);
-    if (!byDay[key]) byDay[key] = [];
-    byDay[key].push(ev);
-  });
-
-  // All tab
-  const allTab = document.createElement('button');
-  allTab.className = 'day-tab' + (activeDay === 'all' ? ' active' : '');
-  allTab.innerHTML = `<span class="tab-date">All</span>`;
-  allTab.onclick = () => selectDay('all');
-  tabsEl.appendChild(allTab);
-
-  for (let i = 0; i < 5; i++) {
-    const d = new Date(mon);
-    d.setDate(mon.getDate() + i);
-    const key   = isoDate(d);
-    const count = (byDay[key] || []).length;
-    const tab   = document.createElement('button');
-    const isToday = isoDate(new Date()) === key;
-    tab.className = 'day-tab' + (activeDay === key ? ' active' : '');
-    tab.innerHTML = `<span class="tab-date">${DAYS[d.getDay()].substring(0,3)} ${d.getDate()}</span>${isToday ? '<span class="tab-count">TODAY</span>' : (count > 0 ? `<span class="tab-count">${count}</span>` : '')}`;
-    tab.onclick = () => selectDay(key);
-    tabsEl.appendChild(tab);
-  }
-
-  // Default: today or first day with events
-  const todayKey = isoDate(new Date());
-  if (byDay[todayKey]) {
-    selectDay(todayKey);
-  } else {
-    selectDay('all');
-  }
-}
-
-function selectDay(key) {
-  activeDay = key;
-  document.querySelectorAll('.day-tab').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.day-tab').forEach(t => {
-    if (t.querySelector('.tab-date').textContent.trim() === 'All' && key === 'all') t.classList.add('active');
-    if (key !== 'all') {
-      const { mon } = getWeekRange(weekOffset);
-      for (let i = 0; i < 5; i++) {
-        const d = new Date(mon);
-        d.setDate(mon.getDate() + i);
-        if (isoDate(d) === key) {
-          const dayText = DAYS[d.getDay()].substring(0,3) + ' ' + d.getDate();
-          if (t.querySelector('.tab-date')?.textContent.trim() === dayText) t.classList.add('active');
-        }
-      }
-    }
-  });
-  renderEvents();
-}
-
-// ── Render events list ────────────────────────────────────────
-function renderEvents() {
-  const el = document.getElementById('eventsList');
-  // Use activeDay
-  let filtered = activeDay === 'all'
-    ? allEvents
-    : allEvents.filter(ev => isoDate(ev.datetime) === activeDay);
-
-  if (!filtered.length) {
-    el.innerHTML = '<div class="no-events">No events for this day.</div>';
-    return;
-  }
-
-  // Group by time bucket
-  const now = new Date();
+function renderCalendar() {
+  const tbody = document.getElementById('cal-tbody');
+  if (!tbody) return;
+  const days = weekDates(currentWeek);
+  const today = dateKey(new Date());
   let html = '';
-  let lastHour = null;
-
-  filtered.forEach(ev => {
-    const h = ev.datetime.getHours();
-    const bucket = h < 9 ? 'Pre-Market (before 09:00 CET)' :
-                   h < 13 ? 'Morning Session (09:00–13:00 CET)' :
-                   h < 17 ? 'Afternoon Session (13:00–17:00 CET)' :
-                   h < 22 ? 'US Session (17:00–22:00 CET)' : 'After Hours';
-    if (bucket !== lastHour) {
-      html += `<div class="time-label">${bucket}</div>`;
-      lastHour = bucket;
-    }
-
-    const timeStr = ev.datetime.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:'Europe/Berlin'}) + ' CET';
-    const impactCol = ev.impact === 'high' ? 'var(--red)' : ev.impact === 'med' ? 'var(--yellow)' : 'var(--dim)';
-    const isReleased = ev.actual !== null;
-    const isPast = ev.datetime < now;
-
-    let actualClass = '';
-    if (ev.actual !== null && ev.forecast !== null) {
-      const a = parseFloat(ev.actual), f = parseFloat(ev.forecast);
-      if (!isNaN(a) && !isNaN(f)) actualClass = a >= f ? ' beat' : ' miss';
-    }
-
-    const isActive = activeEvent && activeEvent.id === ev.id ? ' active' : '';
-
-    html += `<div class="event-row${isReleased ? ' released' : ''}${isActive}" onclick="selectEvent('${ev.id}', this)">
-      <div class="ev-time">${timeStr}</div>
-      <div class="ev-impact"><div class="impact-dot" style="background:${impactCol}"></div></div>
-      <div class="ev-name">
-        <div class="ev-name-main"><span class="ev-flag">${ev.flag}</span>${ev.name}</div>
-        <div class="ev-name-sub">${ev.country} · ${ev.impact.toUpperCase()} IMPACT</div>
-      </div>
-      <div class="ev-num ev-actual${actualClass}">${ev.actual !== null ? ev.actual + (ev.unit||'') : (isPast ? '—' : '⏳')}</div>
-      <div class="ev-num ev-forecast">${ev.forecast !== null ? ev.forecast + (ev.unit||'') : '—'}</div>
-      <div class="ev-num ev-previous">${ev.previous !== null ? ev.previous + (ev.unit||'') : '—'}</div>
-    </div>`;
-  });
-
-  el.innerHTML = html;
-}
-
-// ── Select event → show detail ────────────────────────────────
-function selectEvent(id, el) {
-  activeEvent = allEvents.find(e => e.id === id);
-  if (!activeEvent) return;
-
-  // Update active class
-  document.querySelectorAll('.event-row').forEach(r => r.classList.remove('active'));
-  if (el) el.classList.add('active');
-
-  renderEventDetail(activeEvent);
-}
-
-function renderEventDetail(ev) {
-  document.getElementById('detailEmpty').style.display = 'none';
-  const panel = document.getElementById('detailPanel');
-  panel.classList.add('active');
-
-  const impactBadgeClass = ev.impact === 'high' ? 'badge-high' : ev.impact === 'med' ? 'badge-med' : 'badge-low';
-  const impactLabel = ev.impact === 'high' ? '🔴 High Impact' : ev.impact === 'med' ? '🟡 Medium Impact' : '⚪ Low Impact';
-  const timeStr = ev.datetime.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:'Europe/Berlin'}) + ' CET';
-  const dateStr = fmtDateFull(ev.datetime);
-
-  let actualClass = 'pending', foreClass = '', prevClass = '';
-  if (ev.actual !== null && ev.forecast !== null) {
-    const a = parseFloat(ev.actual), f = parseFloat(ev.forecast);
-    if (!isNaN(a) && !isNaN(f)) { actualClass = a >= f ? 'beat' : 'miss'; }
-  }
-
-  // Get description and scenarios from knowledge base
-  const info = getEventInfo(ev.name, ev.country);
-
-  panel.innerHTML = `
-    <div class="detail-flag-title">
-      <div class="detail-flag">${ev.flag}</div>
-      <div>
-        <div class="detail-impact-badge ${impactBadgeClass}">${impactLabel}</div>
-        <div class="detail-title">${ev.name}</div>
-        <div class="detail-meta">${ev.country} · ${dateStr} · ${timeStr}</div>
-      </div>
-    </div>
-
-    <div class="detail-numbers">
-      <div class="detail-num-box">
-        <div class="detail-num-label">Actual</div>
-        <div class="detail-num-val ${actualClass}">${ev.actual !== null ? ev.actual + (ev.unit||'') : '—'}</div>
-      </div>
-      <div class="detail-num-box">
-        <div class="detail-num-label">Forecast</div>
-        <div class="detail-num-val">${ev.forecast !== null ? ev.forecast + (ev.unit||'') : '—'}</div>
-      </div>
-      <div class="detail-num-box">
-        <div class="detail-num-label">Previous</div>
-        <div class="detail-num-val">${ev.previous !== null ? ev.previous + (ev.unit||'') : '—'}</div>
-      </div>
-    </div>
-
-    <div class="detail-section">
-      <div class="detail-section-title">// What is this indicator</div>
-      <div class="detail-text">${info.description}</div>
-    </div>
-
-    <div class="detail-section">
-      <div class="detail-section-title">// Market scenarios</div>
-      <div class="scenario-box bull">
-        <div class="scenario-label">📈 Beat / Hawkish / Strong</div>
-        <div class="scenario-text">${info.bullScenario}</div>
-      </div>
-      <div class="scenario-box bear">
-        <div class="scenario-label">📉 Miss / Dovish / Weak</div>
-        <div class="scenario-text">${info.bearScenario}</div>
-      </div>
-      <div class="scenario-box neut">
-        <div class="scenario-label">↔ In-line / Neutral</div>
-        <div class="scenario-text">${info.neutScenario}</div>
-      </div>
-    </div>
-
-    <div class="detail-section">
-      <div class="detail-section-title">// Key assets to watch</div>
-      <div class="detail-text">${info.assets}</div>
-    </div>
-
-    <button class="ai-analysis-btn" id="aiBtn" onclick="generateAIAnalysis('${ev.id}')">
-      <span class="spinner" id="aiSpinner" style="display:none"></span>
-      ✦ Generate AI Deep Analysis
-    </button>
-    <div class="ai-result" id="aiResult"></div>
-  `;
-}
-
-// ── Event knowledge base ──────────────────────────────────────
-function getEventInfo(name, country) {
-  const n = name.toLowerCase();
-
-  if (n.includes('non-farm') || n.includes('nfp')) return {
-    description: 'The Non-Farm Payrolls report measures monthly change in employment in the US, excluding the farming sector. Released on the first Friday of each month, it is the single most market-moving data point in global finance.',
-    bullScenario: 'Beat (+200K+): USD strengthens across the board. DXY rallies, EUR/USD and GBP/USD sell off. Gold under pressure as rate-hike expectations rise. Equities mixed — strong jobs = Fed less likely to cut.',
-    bearScenario: 'Miss (<100K): USD weakens, safe-haven flows into Gold and JPY. EUR/USD and GBP/USD rally. Fed cut expectations increase — equities may rally on dovish pivot hopes.',
-    neutScenario: 'In-line (150–180K): Limited reaction. Markets focus on wage growth component. Steady Fed = current trend continues.',
-    assets: '🇺🇸 USD (direct) · 🥇 Gold (inverse) · 💴 USD/JPY · 💶 EUR/USD · 📊 S&P 500'
-  };
-
-  if (n.includes('cpi') || n.includes('consumer price')) return {
-    description: 'The Consumer Price Index measures the change in the price of goods and services from the consumer\'s perspective. It is the primary inflation gauge used by the Federal Reserve and other central banks to calibrate monetary policy.',
-    bullScenario: 'Hot CPI (above forecast): USD rallies sharply. Rate hike bets increase. Gold and bonds sell off. EUR/USD drops. Equities under pressure as higher rates compress valuations.',
-    bearScenario: 'Cool CPI (below forecast): USD weakens. Gold and bonds rally. Rate cut bets increase — equities may spike. EUR/USD and GBP/USD gain.',
-    neutScenario: 'In-line: Initial volatility fades quickly. Current positioning maintained. Focus shifts to next Fed speaker.',
-    assets: '🇺🇸 USD · 🥇 Gold · 🏛️ US Treasuries · 📊 S&P 500 · 💶 EUR/USD'
-  };
-
-  if (n.includes('fed') || n.includes('federal reserve') || n.includes('fomc') || n.includes('interest rate')) return {
-    description: 'Federal Reserve rate decisions are the most impactful monetary policy events in global markets. The FOMC sets the federal funds rate, affecting borrowing costs, equity valuations, and currency flows worldwide.',
-    bullScenario: 'Hawkish hike or hawkish hold: USD surges across all pairs. Gold falls. Emerging market currencies under pressure. Short-term yields spike. Equities may sell off on valuation concerns.',
-    bearScenario: 'Dovish cut or dovish signal: USD falls sharply. Gold rallies. EUR/USD and risk currencies gain. Equities typically surge on rate cut optimism.',
-    neutScenario: 'Hold with balanced statement: Initial volatility, then return to trend. Focus on press conference nuances and dot plot revisions.',
-    assets: '🇺🇸 USD (all pairs) · 🥇 Gold · 📊 S&P 500 · 🏛️ Treasuries · 💶 EUR/USD · 💴 USD/JPY'
-  };
-
-  if (n.includes('ecb') || n.includes('european central')) return {
-    description: 'The European Central Bank sets monetary policy for the 20 eurozone countries. Rate decisions and forward guidance from ECB President directly move EUR pairs and European equity markets.',
-    bullScenario: 'Hawkish hike/signal: EUR/USD rallies strongly. EUR/JPY and EUR/GBP gain. Eurozone bonds sell off. German DAX may drop on higher borrowing costs.',
-    bearScenario: 'Dovish cut/signal: EUR/USD drops. EUR crosses weaken. Eurozone bonds rally (yields fall). DAX may rise on cheaper credit.',
-    neutScenario: 'Hold with neutral guidance: Limited EUR reaction. Market watches for hints in press conference about future path.',
-    assets: '💶 EUR/USD · 💶 EUR/JPY · 💶 EUR/GBP · 🇩🇪 DAX · 🇫🇷 CAC 40'
-  };
-
-  if (n.includes('pmi') || n.includes('purchasing managers')) return {
-    description: 'Purchasing Managers\' Index surveys manufacturing and services sector managers on business conditions. Above 50 = expansion, below 50 = contraction. Flash estimates move markets significantly.',
-    bullScenario: 'PMI above 52: Expansion signal. Local currency strengthens. Equities rally on growth optimism. Risk-on: sell safe havens (gold, JPY, CHF).',
-    bearScenario: 'PMI below 48: Contraction signal. Currency of that country weakens. Safe-haven flows. Rate cut expectations increase.',
-    neutScenario: 'PMI 49–51: Near stagnation, market muted. Watch the employment and price sub-indices for deeper signals.',
-    assets: 'Local currency · Local equity index · 🥇 Gold (inverse)'
-  };
-
-  if (n.includes('gdp')) return {
-    description: 'Gross Domestic Product measures the total economic output of a country. Quarterly GDP figures confirm whether an economy is growing or contracting, directly influencing central bank policy decisions.',
-    bullScenario: 'GDP beat: Currency strengthens, equities rally. Reduces recession fears. Central bank less likely to cut rates aggressively.',
-    bearScenario: 'GDP miss or negative: Currency weakens, bonds rally. Recession concerns increase. Increases probability of rate cuts.',
-    neutScenario: 'In-line GDP: Limited reaction. Focus shifts to composition — consumer spending and investment components matter most.',
-    assets: 'Local currency · Local equity index · 🏛️ Local bonds'
-  };
-
-  if (n.includes('eia') || n.includes('crude oil inventories') || n.includes('oil inventories')) return {
-    description: 'The EIA Weekly Petroleum Status Report tracks changes in US crude oil stockpiles. Released every Wednesday at 10:30 ET (16:30 CET). A draw (decrease) in inventories is bullish for WTI and Brent prices; a build (increase) is bearish. One of the most market-moving weekly reports for oil traders.',
-    bullScenario: 'Large draw (-3M+ barrels): WTI and Brent rally. Energy stocks gain. CAD strengthens. Inflationary pressure on CPI.',
-    bearScenario: 'Large build (+3M+ barrels): WTI and Brent sell off. Energy stocks weaken. CAD weakens.',
-    neutScenario: 'Small change (±1M barrels): Limited oil reaction. Focus on gasoline and distillate components.',
-    assets: '🛢️ WTI Crude · 🛢️ Brent · 🇨🇦 CAD/USD · ⛽ Natural Gas · Energy ETFs'
-  };
-
-  if (n.includes('jobless') || n.includes('unemployment claims')) return {
-    description: 'Weekly Initial Jobless Claims measures the number of Americans filing for unemployment benefits for the first time. A leading indicator of labor market health — lower is better for the economy.',
-    bullScenario: 'Low claims (<200K): Strong labor market confirmed. USD firms. Gold under pressure. Equities positive.',
-    bearScenario: 'High claims (>250K): Labor market weakening. USD softens. Gold rallies. Rate cut expectations increase.',
-    neutScenario: 'In-line (210–230K): Limited reaction. Market focuses on 4-week average for trend confirmation.',
-    assets: '🇺🇸 USD · 🥇 Gold · 📊 S&P 500'
-  };
-
-  if (n.includes('boe') || n.includes('bank of england')) return {
-    description: 'Bank of England Monetary Policy Committee sets UK interest rates. Decisions directly affect GBP pairs, UK gilts, and FTSE. The BOE is particularly sensitive to UK inflation and Brexit-related economic conditions.',
-    bullScenario: 'Hawkish hike: GBP/USD rallies, EUR/GBP drops, GBP/JPY gains. FTSE may fall on borrowing cost concerns.',
-    bearScenario: 'Dovish cut: GBP weakens across all pairs. FTSE may rally. UK gilts rise.',
-    neutScenario: 'Hold with neutral statement: GBP reaction muted. Focus on vote split (MPC member dissents).',
-    assets: '💷 GBP/USD · 💷 EUR/GBP · 💷 GBP/JPY · 🇬🇧 FTSE 100 · UK Gilts'
-  };
-
-  if (n.includes('retail sales')) return {
-    description: 'Retail Sales measures the change in the total value of sales at the retail level. As consumer spending accounts for ~70% of US GDP, this is a key indicator of economic health and future inflation.',
-    bullScenario: 'Strong retail sales: USD strengthens. Equities rally on consumer strength. Reduces probability of Fed rate cuts.',
-    bearScenario: 'Weak retail sales: USD weakens. Consumer recession fears increase. Bonds rally. Fed more likely to cut.',
-    neutScenario: 'In-line: Limited reaction. Core retail sales (ex-autos) component more closely watched.',
-    assets: '🇺🇸 USD · 📊 S&P 500 · 🛒 Consumer discretionary stocks'
-  };
-
-  if (n.includes('pce') || n.includes('personal consumption')) return {
-    description: 'The PCE Price Index is the Federal Reserve\'s preferred inflation measure. Unlike CPI, it adjusts for consumer substitution behavior, making it a more accurate reflection of actual spending patterns.',
-    bullScenario: 'Hot PCE: USD rallies. Gold falls. Rate cut bets decrease. Short-term Treasury yields rise.',
-    bearScenario: 'Cool PCE: USD weakens. Gold rallies. Rate cut expectations increase. Equities may rally.',
-    neutScenario: 'In-line PCE: Limited reaction. Core PCE (ex food and energy) is the key number to watch.',
-    assets: '🇺🇸 USD · 🥇 Gold · 🏛️ US Treasuries · 📊 S&P 500'
-  };
-
-  if (n.includes('boj') || n.includes('bank of japan')) return {
-    description: 'Bank of Japan monetary policy decisions have outsized global impact due to the yen\'s role as the world\'s primary funding currency for carry trades. Ultra-loose BOJ policy has been a key driver of global liquidity.',
-    bullScenario: 'Hawkish tightening: JPY surges across all pairs (USD/JPY falls sharply). Carry trades unwind — risk-off globally. Gold may rally.',
-    bearScenario: 'Dovish easing or YCC expansion: JPY weakens. USD/JPY, EUR/JPY rally. Carry trades re-engage. Nikkei may rally.',
-    neutScenario: 'Hold with unchanged guidance: Limited JPY reaction. Watch for any hints about YCC adjustments.',
-    assets: '💴 USD/JPY · 💴 EUR/JPY · 💴 GBP/JPY · 🇯🇵 Nikkei 225 · 🥇 Gold'
-  };
-
-  // Generic fallback
-  return {
-    description: `${name} is a key macro indicator for ${country}. This release provides insight into economic conditions and may influence central bank policy decisions and currency valuations.`,
-    bullScenario: `Better-than-expected ${name}: Local currency strengthens, risk assets may rally. Central bank tightening expectations increase.`,
-    bearScenario: `Worse-than-expected ${name}: Local currency weakens, safe-haven assets attract flows. Rate cut expectations may increase.`,
-    neutScenario: `In-line ${name}: Limited initial reaction. Market looks for further confirmation from related indicators.`,
-    assets: 'Local currency · Local equity index · Related commodity markets'
-  };
-}
-
-// ── AI deep analysis ──────────────────────────────────────────
-async function generateAIAnalysis(eventId) {
-  const ev = allEvents.find(e => e.id === eventId);
-  if (!ev) return;
-
-  const btn = document.getElementById('aiBtn');
-  const spinner = document.getElementById('aiSpinner');
-  const result  = document.getElementById('aiResult');
-
-  btn.disabled = true;
-  spinner.style.display = 'inline-block';
-  btn.querySelector(':last-child').textContent = ' Generating analysis...';
-
-  const info = getEventInfo(ev.name, ev.country);
-  const timeStr = ev.datetime.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:'Europe/Berlin'});
-  const dateStr = fmtDateFull(ev.datetime);
-  const hasActual = ev.actual !== null;
-
-  const prompt = hasActual
-    ? `You are a senior macro strategist at an institutional trading desk.
-Write a concise post-release analysis of the ${ev.name} (${ev.country}) data released today (${dateStr}).
-
-DATA:
-Actual: ${ev.actual}${ev.unit||''}
-Forecast: ${ev.forecast !== null ? ev.forecast + (ev.unit||'') : 'N/A'}
-Previous: ${ev.previous !== null ? ev.previous + (ev.unit||'') : 'N/A'}
-
-Write 3 short paragraphs in professional English:
-1. REACTION: Was this a beat or miss? How significant is the surprise? Immediate market reaction expected.
-2. IMPLICATIONS: What does this mean for central bank policy (rate hike/cut probability)? Which specific currency pairs, indices, and commodities are most affected and in which direction?
-3. TRADE SETUP: One specific near-term trade idea with entry trigger, target, and stop based on this data release.
-
-Rules: Professional institutional tone. Exact asset names. No asterisks. No markdown. Max 220 words.`
-    : `You are a senior macro strategist at an institutional trading desk.
-Write a pre-release briefing for the upcoming ${ev.name} (${ev.country}) release on ${dateStr} at ${timeStr} CET.
-
-CONTEXT:
-Forecast: ${ev.forecast !== null ? ev.forecast + (ev.unit||'') : 'N/A'}
-Previous: ${ev.previous !== null ? ev.previous + (ev.unit||'') : 'N/A'}
-
-Write 3 short paragraphs in professional English:
-1. PREVIEW: What does the current forecast imply? What is the market consensus and key risk (beat vs miss)?
-2. SCENARIOS: Beat scenario (specific currency/asset reaction with direction) vs Miss scenario (opposite reaction). Which assets are most sensitive?
-3. POSITIONING: How should traders position ahead of this release? What levels to watch? What to do immediately after the number?
-
-Rules: Professional institutional tone. Exact asset names (e.g. EUR/USD, Gold, S&P 500). No asterisks. No markdown. Max 220 words.`;
-
-  try {
-    const res = await fetch(WORKER, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 600,
-        messages: [{ role: 'user', content: prompt }]
-      })
+  days.forEach(day => {
+    const evs = EVENTS.filter(e => e.date === day && matchesFilter(e));
+    if (!evs.length) return;
+    const isToday = day === today;
+    html += `<tr class="day-sep"><td colspan="7">${friendlyDate(day)}${isToday ? ' <span style="color:var(--red2);margin-left:8px">● TODAY</span>' : ''}</td></tr>`;
+    evs.forEach(ev => {
+      const hasActual = ev.actual && ev.actual !== '' && ev.actual !== '—';
+      const actualHtml = ev.actual
+        ? `<span class="val-actual" style="color:${ev.actual.includes('TODAY') ? 'var(--gold2)' : 'var(--ink)'}">${ev.actual}</span>`
+        : '<span style="color:var(--border2)">—</span>';
+      const isToday2 = ev.date === today;
+      html += `<tr style="${isToday2 ? 'background:rgba(59,130,246,0.04)' : ''}">
+        <td class="ev-time">${ev.time}</td>
+        <td><div class="country-tag">${ev.flag} ${ev.country}</div></td>
+        <td><div class="ev-name">${ev.name}</div><div class="ev-desc">${ev.desc}</div></td>
+        <td class="ev-val val-forecast">${ev.forecast}</td>
+        <td class="ev-val val-prev">${ev.prev}</td>
+        <td class="ev-val">${actualHtml}</td>
+        <td>${impactHtml(ev.impact)}</td>
+      </tr>`;
     });
-    const data = await res.json();
-    const text = data?.content?.[0]?.text || '';
-    if (text) {
-      result.innerHTML = text.replace(/\n\n/g, '<br><br>').replace(/\n/g, '<br>');
-      result.classList.add('active');
-    }
-  } catch(e) {
-    result.innerHTML = '<span style="color:var(--red)">Error generating analysis. Please try again.</span>';
-    result.classList.add('active');
-  }
-
-  btn.disabled = false;
-  btn.innerHTML = '<span class="spinner" id="aiSpinner" style="display:none"></span>✦ Regenerate AI Analysis';
-}
-
-
-// ── Auto-refresh actuals ───────────────────────────────────────
-// Ricarica i dati da ForexFactory ogni 60s se siamo nella settimana corrente.
-// Aggiorna solo i campi actual/forecast/previous senza ricostruire il DOM.
-let _refreshTimer = null;
-
-async function refreshActuals() {
-  // Solo se siamo nella settimana corrente (weekOffset === 0) e non è weekend
-  if (weekOffset !== 0) return;
-  const dow = new Date().getDay();
-  if (dow === 0 || dow === 6) return;
-
-  try {
-    const res = await fetch(WORKER, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'forexfactory', week: 'thisweek' })
-    });
-    if (!res.ok) return;
-    const data = await res.json();
-    if (!data.events || data.events.length === 0) return;
-
-    // Mappa id → evento aggiornato (primario: id, fallback: nome+data)
-    const updatedById   = {};
-    const updatedByName = {};
-    for (const ev of data.events) {
-      const id = ev.id || ev.time;
-      if (id) updatedById[id] = ev;
-      // Chiave secondaria: title + giorno YYYY-MM-DD
-      const dayKey = (ev.time || ev.date || '').substring(0, 10);
-      const nameKey = (ev.event || ev.name || '') + '|' + dayKey;
-      if (nameKey.length > 1) updatedByName[nameKey] = ev;
-    }
-
-    let changed = false;
-    for (const ev of allEvents) {
-      // Prova match per ID, poi per nome+giorno
-      const dayKey = isoDate(ev.datetime);
-      const nameKey = ev.name + '|' + dayKey;
-      const upd = updatedById[ev.id] || updatedByName[nameKey];
-      if (!upd) continue;
-
-      // Aggiorna actual se è arrivato
-      const newActual = upd.actual != null && upd.actual !== '' ? String(upd.actual) : null;
-      const newFore   = upd.forecast != null && upd.forecast !== '' ? String(upd.forecast) : ev.forecast;
-      const newPrev   = upd.prev != null && upd.prev !== '' ? String(upd.prev) : ev.previous;
-
-      if (newActual !== ev.actual || newFore !== ev.forecast || newPrev !== ev.previous) {
-        ev.actual   = newActual;
-        ev.forecast = newFore ?? ev.forecast;
-        ev.previous = newPrev ?? ev.previous;
-        changed = true;
-      }
-    }
-
-    if (changed) {
-      renderEvents();
-      // Se l'evento attivo è aperto, aggiorna anche il detail panel
-      if (activeEvent) {
-        const refreshed = allEvents.find(e => e.id === activeEvent.id);
-        if (refreshed) {
-          activeEvent = refreshed;
-          renderEventDetail(refreshed);
-        }
-      }
-      console.log('Calendar: actuals updated');
-    }
-  } catch(e) {
-    console.warn('refreshActuals:', e.message);
-  }
-}
-
-function startAutoRefresh() {
-  if (_refreshTimer) clearInterval(_refreshTimer);
-  _refreshTimer = setInterval(refreshActuals, 180000); // every 3min
-  // Refresh immediately when tab becomes visible again
-  document.addEventListener('visibilitychange', () => {
-    if (!document.hidden && weekOffset === 0) refreshActuals();
   });
-  // Also refresh at :00 and :30 of every hour (when data usually releases)
-  const now = new Date();
-  const msToNextHalfHour = (30 - now.getMinutes() % 30) * 60000 - now.getSeconds() * 1000;
-  setTimeout(() => {
-    refreshActuals();
-    setInterval(refreshActuals, 1800000); // every 30min on the dot
-  }, msToNextHalfHour);
-}
-function stopAutoRefresh() {
-  if (_refreshTimer) { clearInterval(_refreshTimer); _refreshTimer = null; }
+  if (!html) {
+    html = `<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:40px;font-family:var(--mono);font-size:11px;">No events match the current filter for this week.</td></tr>`;
+  }
+  tbody.innerHTML = html;
 }
 
-// ── Init ──────────────────────────────────────────────────────
-function updateHeaderDate() {
-  const d0 = new Date();
-  document.getElementById('headerDate').textContent =
-    MONTHS[d0.getMonth()].toUpperCase() + ' ' + d0.getDate() + ', ' + d0.getFullYear();
+function renderHighlights() {
+  const grid = document.getElementById('highlights-grid');
+  if (!grid) return;
+  const thisWeek = weekDates(0);
+  const highEvs = EVENTS.filter(e => thisWeek.includes(e.date) && e.impact === 'high').slice(0, 6);
+  const today = dateKey(new Date());
+  grid.innerHTML = highEvs.map(ev => `
+    <div class="highlight-card high">
+      <div class="hc-date">${friendlyDate(ev.date)} · ${ev.time} CET ${ev.date === today ? '· <span style="color:var(--red2)">TODAY</span>' : ''}</div>
+      <div class="hc-name">${ev.flag} ${ev.name}</div>
+      <div class="hc-meta">${ev.desc}</div>
+      ${ev.forecast !== '—' ? `<div class="hc-forecast">Forecast: ${ev.forecast}</div>` : ''}
+    </div>
+  `).join('');
 }
-updateHeaderDate();
-// Aggiorna la data a mezzanotte senza ricaricare la pagina
-setInterval(() => {
-  const now = new Date();
-  if (now.getHours() === 0 && now.getMinutes() === 0) updateHeaderDate();
-}, 60000);
 
-loadCalendar();
-startAutoRefresh();  // Aggiorna actuals ogni 60s per la settimana corrente
+// ─── DATE/TIME ─────────────────────────────────────────────────────────────
+function updateDateTime() {
+  const n = new Date();
+  const months = ['JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE','JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'];
+  const ld = document.getElementById('live-date');
+  if (ld) ld.textContent = months[n.getMonth()] + ' ' + n.getDate() + ', ' + n.getFullYear();
+  const hm = n.getHours().toString().padStart(2,'0') + ':' + n.getMinutes().toString().padStart(2,'0');
+  const lt = document.getElementById('live-time');
+  if (lt) lt.textContent = 'UPDATED AT ' + hm + ' CET';
+}
 
-// Visibilità pagina: pausa refresh quando tab non è attivo
-document.addEventListener('visibilitychange', () => {
-  if (document.hidden) stopAutoRefresh();
-  else { startAutoRefresh(); refreshActuals(); }
+// ─── QUICK MARKET TICKER ───────────────────────────────────────────────────
+const TICKER_SYMS = [
+  {id:'OIL', yf:'CL%3DF', label:'OIL WTI', dec:2, prefix:'$'},
+  {id:'GOLD', yf:'GC%3DF', label:'GOLD', dec:2, prefix:'$'},
+  {id:'EURUSD', yf:'EURUSD%3DX', label:'EUR/USD', dec:4, prefix:''},
+  {id:'BTCUSD', yf:'BTC-USD', label:'BTC/USD', dec:0, prefix:'$', comma:true},
+  {id:'SPY', yf:'SPY', label:'S&P 500', dec:2, prefix:'$'},
+  {id:'USDJPY', yf:'USDJPY%3DX', label:'USD/JPY', dec:4, prefix:''},
+];
+
+async function loadTicker() {
+  let th = '';
+  for (const s of TICKER_SYMS) {
+    try {
+      const u = `https://query1.finance.yahoo.com/v8/finance/chart/${s.yf}?range=2d&interval=1d`;
+      const p = `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`;
+      const r = await fetch(p, {signal: AbortSignal.timeout(8000)});
+      if (!r.ok) continue;
+      const d = await r.json();
+      const res = d.chart?.result?.[0];
+      if (!res) continue;
+      const cls = res.indicators.quote[0].close.filter(x => x !== null);
+      if (cls.length < 2) continue;
+      const price = cls[cls.length - 1];
+      const meta = res.meta || {};
+      const prev = parseFloat(meta.previousClose || meta.chartPreviousClose || cls[cls.length - 2]);
+      const chg = ((price - prev) / prev) * 100;
+      const up = chg >= 0;
+      const ps = s.comma ? s.prefix + Math.round(price).toLocaleString('en-US') : s.prefix + price.toFixed(s.dec);
+      th += `<span class="t-item"><span class="t-sym">${s.label}</span><span class="${up ? 't-up' : 't-dn'}">${ps}</span><span class="${up ? 't-up' : 't-dn'}">${up ? '▲ +' : '▼ '}${chg.toFixed(2)}%</span></span>`;
+    } catch(e) {}
+  }
+  if (th) { const ti = document.getElementById('ticker-inner'); if (ti) ti.innerHTML = th + th; }
+}
+
+// ─── INIT ──────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  updateDateTime();
+  renderHighlights();
+  renderWeekTabs();
+  renderCalendar();
+  loadTicker();
+  setInterval(updateDateTime, 60000);
 });
 </script>
 </body>
