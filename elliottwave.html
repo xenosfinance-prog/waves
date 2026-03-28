@@ -1,119 +1,186 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>XenosFinance — Elliott Wave Theory</title>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=PT+Serif:wght@400;700&family=IBM+Plex+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=PT+Serif:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#0f1724;--bg2:#131f2e;--bg3:#172032;--ink:#e2eaf4;--ink2:#b8cce0;--muted:#5a7a9a;--border:#1e3050;--border2:#243a5e;--red:#ef4444;--red2:#f87171;--green:#10b981;--green2:#34d399;--gold:#3b82f6;--gold2:#60a5fa;--amber:#f59e0b;--serif:"Playfair Display",Georgia,serif;--mono:"IBM Plex Mono","PT Mono",monospace;}
-*{box-sizing:border-box;margin:0;padding:0;}
-body{background:var(--bg);color:var(--ink);font-family:var(--mono);min-height:100vh;line-height:1.6;}
-.masthead{background:var(--bg);border-bottom:1px solid var(--border);}
-.masthead-top{display:flex;justify-content:space-between;align-items:center;padding:8px 32px;font-size:10px;color:var(--muted);letter-spacing:2px;border-bottom:1px solid var(--border2);}
-.masthead-center{text-align:center;padding:28px 32px 20px;border-bottom:3px double var(--gold);}
-.masthead-eyebrow{font-size:9px;letter-spacing:6px;color:var(--gold);text-transform:uppercase;margin-bottom:10px;}
-.masthead-name{font-family:var(--serif);font-size:64px;font-weight:900;letter-spacing:-2px;line-height:1;color:var(--ink);text-transform:uppercase;}
-.masthead-name span{color:var(--gold);}
-.masthead-sub{font-size:10px;letter-spacing:5px;color:var(--muted);margin-top:8px;text-transform:uppercase;}
-.masthead-nav{display:flex;justify-content:center;gap:0;border-top:1px solid var(--border);background:var(--bg2);}
-.nav-btn{font-size:11px;letter-spacing:3px;text-transform:uppercase;padding:12px 36px;color:var(--muted);text-decoration:none;border-bottom:3px solid transparent;transition:all 0.2s;display:inline-block;}
-.nav-btn:hover,.nav-btn.active{color:var(--gold);border-bottom-color:var(--gold);}
-.wrap{max-width:1280px;margin:0 auto;padding:40px 24px 80px;}
-/* PAGE HERO */
-.page-hero{text-align:center;padding:60px 0 40px;border-bottom:1px solid var(--border);margin-bottom:48px;}
-.page-hero-eyebrow{font-size:9px;letter-spacing:6px;color:var(--gold);text-transform:uppercase;margin-bottom:16px;}
-.page-hero-title{font-family:var(--serif);font-size:52px;font-weight:700;color:var(--ink);line-height:1.1;margin-bottom:16px;}
-.page-hero-title span{color:var(--gold);}
-.page-hero-sub{font-size:12px;color:var(--muted);letter-spacing:2px;max-width:600px;margin:0 auto;}
-/* SECTION HEADERS */
-.section-head{display:flex;align-items:center;gap:12px;margin:48px 0 24px;}
-.section-head-label{font-size:9px;letter-spacing:4px;text-transform:uppercase;color:var(--gold);white-space:nowrap;}
-.section-head-line{flex:1;height:1px;background:var(--border);}
-/* THEORY CARDS */
-.theory-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);margin-bottom:32px;}
-.theory-card{background:var(--bg2);padding:28px 24px;}
-.theory-card-num{font-size:9px;letter-spacing:3px;color:var(--gold);text-transform:uppercase;margin-bottom:8px;}
-.theory-card-title{font-family:var(--serif);font-size:20px;color:var(--ink);margin-bottom:12px;}
-.theory-card-body{font-size:12px;color:var(--ink2);line-height:1.8;}
-.rule-box{background:var(--bg3);border-left:3px solid var(--red);padding:12px 16px;margin-top:12px;font-size:11px;color:var(--red2);}
-.rule-box.green{border-left-color:var(--green);color:var(--green2);}
-.rule-box.amber{border-left-color:var(--amber);color:var(--amber);}
-/* WAVE DIAGRAM */
-.diagram-wrap{background:var(--bg2);border:1px solid var(--border);margin-bottom:32px;}
-.diagram-header{padding:12px 20px;border-bottom:1px solid var(--border);font-size:9px;letter-spacing:3px;color:var(--gold);text-transform:uppercase;display:flex;justify-content:space-between;align-items:center;}
-.diagram-body{padding:0;}
-canvas.diagram{display:block;width:100%;}
-/* TABS */
-.tab-bar{display:flex;border-bottom:1px solid var(--border);background:var(--bg2);overflow-x:auto;scrollbar-width:none;}
-.tab-bar::-webkit-scrollbar{display:none;}
-.tab{font-size:10px;letter-spacing:2px;text-transform:uppercase;padding:12px 20px;color:var(--muted);cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;transition:all 0.2s;}
-.tab:hover,.tab.active{color:var(--gold);border-bottom-color:var(--gold);}
-.tab-panel{display:none;padding:28px 24px;}
-.tab-panel.active{display:block;}
-/* RULES TABLE */
-.rules-table{width:100%;border-collapse:collapse;font-size:12px;}
-.rules-table th{font-size:9px;letter-spacing:3px;color:var(--gold);text-transform:uppercase;padding:10px 14px;border-bottom:1px solid var(--border);background:var(--bg3);text-align:left;}
-.rules-table td{padding:12px 14px;border-bottom:1px solid var(--border2);color:var(--ink2);vertical-align:top;}
-.rules-table tr:hover td{background:var(--bg3);}
-.badge{display:inline-block;font-size:9px;letter-spacing:1px;padding:2px 8px;border-radius:2px;}
-.badge-red{background:rgba(239,68,68,0.15);color:var(--red2);border:1px solid rgba(239,68,68,0.3);}
-.badge-green{background:rgba(16,185,129,0.15);color:var(--green2);border:1px solid rgba(16,185,129,0.3);}
-.badge-amber{background:rgba(245,158,11,0.15);color:var(--amber);border:1px solid rgba(245,158,11,0.3);}
-/* QUIZ */
-.quiz-box{background:var(--bg2);border:1px solid var(--border);padding:28px 24px;margin-bottom:16px;}
-.quiz-q{font-family:var(--serif);font-size:18px;color:var(--ink);margin-bottom:20px;}
-.quiz-options{display:flex;flex-direction:column;gap:8px;}
-.quiz-opt{background:var(--bg3);border:1px solid var(--border);padding:12px 16px;cursor:pointer;font-size:12px;color:var(--ink2);transition:all 0.2s;text-align:left;}
-.quiz-opt:hover{border-color:var(--gold);color:var(--ink);}
-.quiz-opt.correct{border-color:var(--green);background:rgba(16,185,129,0.1);color:var(--green2);}
-.quiz-opt.wrong{border-color:var(--red);background:rgba(239,68,68,0.1);color:var(--red2);}
-.quiz-feedback{font-size:11px;margin-top:12px;padding:10px 14px;border-left:3px solid var(--border);}
-.quiz-feedback.show{border-left-color:var(--gold);color:var(--ink2);}
-.quiz-nav{display:flex;justify-content:space-between;align-items:center;margin-top:20px;}
-.btn{font-size:10px;letter-spacing:2px;text-transform:uppercase;padding:8px 20px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all 0.2s;}
-.btn:hover{border-color:var(--gold);color:var(--gold);}
-.btn-primary{background:var(--gold);color:var(--bg);border-color:var(--gold);}
-.btn-primary:hover{background:var(--gold2);border-color:var(--gold2);color:var(--bg);}
-.quiz-score{font-size:11px;color:var(--muted);}
-/* AI ANALYSIS SECTION */
-.ai-section{background:var(--bg2);border:1px solid var(--border);margin-top:48px;}
-.ai-section-header{padding:16px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
-.ai-section-title{font-size:9px;letter-spacing:3px;color:var(--gold);text-transform:uppercase;}
-.ai-locked{padding:40px 24px;text-align:center;}
-.ai-locked-icon{font-size:32px;margin-bottom:12px;}
-.ai-locked-text{font-size:12px;color:var(--muted);margin-bottom:20px;}
-.ai-admin-panel{padding:24px;display:none;}
-.ai-inputs{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:12px;margin-bottom:16px;}
-.ai-input{background:var(--bg3);border:1px solid var(--border);color:var(--ink);font-family:var(--mono);font-size:12px;padding:10px 14px;outline:none;}
-.ai-input:focus{border-color:var(--gold);}
-.ai-input option{background:var(--bg2);}
-.ai-result{background:var(--bg3);border-left:3px solid var(--gold);padding:20px 24px;font-size:12px;color:var(--ink2);line-height:1.9;white-space:pre-wrap;display:none;margin-top:16px;}
-.ai-result.show{display:block;}
-.ai-status{font-size:10px;color:var(--muted);margin-top:8px;}
-.tg-row{display:flex;gap:10px;margin-top:12px;}
-.tg-input{flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--ink);font-family:var(--mono);font-size:11px;padding:8px 12px;outline:none;}
-.tg-input:focus{border-color:var(--gold);}
-/* LOGIN MODAL */
-.modal-overlay{position:fixed;inset:0;background:rgba(10,14,26,0.95);z-index:9999;display:none;align-items:center;justify-content:center;}
-.modal-overlay.open{display:flex;}
-.modal-box{background:var(--bg2);border:1px solid var(--border2);padding:40px;width:340px;position:relative;}
-.modal-accent{position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);}
-.modal-logo{font-size:1rem;font-weight:500;color:var(--ink);margin-bottom:6px;}
-.modal-logo span{color:var(--gold);}
-.modal-sub{font-size:9px;color:var(--muted);letter-spacing:2px;margin-bottom:24px;text-transform:uppercase;}
-.modal-label{font-size:9px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;}
-.modal-input{width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--ink);font-family:var(--mono);font-size:13px;padding:10px 12px;outline:none;margin-bottom:14px;}
-.modal-input:focus{border-color:var(--gold);}
-.modal-err{font-size:11px;color:var(--red2);margin-top:8px;min-height:16px;}
-/* WAVE DEGREE TABLE */
-.degree-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);}
-.degree-cell{background:var(--bg2);padding:14px 16px;}
-.degree-name{font-size:9px;letter-spacing:2px;color:var(--gold);text-transform:uppercase;margin-bottom:4px;}
-.degree-val{font-size:13px;color:var(--ink2);}
-/* BOTTOM BAR */
-.bottom-bar{border-top:1px solid var(--border);margin-top:48px;padding:14px 0;display:flex;justify-content:space-between;font-size:9px;color:var(--muted);letter-spacing:1px;}
-@media(max-width:900px){.theory-grid{grid-template-columns:1fr;}.masthead-name{font-size:40px;}.nav-btn{padding:10px 16px;font-size:10px;}.ai-inputs{grid-template-columns:1fr 1fr;}.degree-grid{grid-template-columns:1fr 1fr;}.page-hero-title{font-size:36px;}}
+:root {
+  --bg:            #0f1724;
+  --bg2:           #131f2e;
+  --bg3:           #172032;
+  --bg4:           #1c2840;
+  --border:        #1e3050;
+  --border2:       #243a5e;
+  --border-bright: #2d4a78;
+  --gold:          #3b82f6;
+  --gold2:         #60a5fa;
+  --gold3:         #1d4ed8;
+  --accent:        #3b82f6;
+  --accent2:       #60a5fa;
+  --text:          #c8d8ea;
+  --dim:           #6b8aaa;
+  --red:           #ef4444;
+  --red2:          #f87171;
+  --green:         #10b981;
+  --green2:        #34d399;
+  --yellow:        #f59e0b;
+  --ink:           #e2eaf4;
+  --ink2:          #b8cce0;
+  --muted:         #5a7a9a;
+  --bright:        #e2eaf4;
+  --serif:         'Playfair Display', Georgia, serif;
+  --body:          'PT Serif', Georgia, serif;
+  --mono:          'IBM Plex Mono', 'PT Mono', monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--ink); font-family: var(--mono); min-height: 100vh; }
+
+/* ── MASTHEAD ── */
+.masthead { border-bottom: 3px double var(--gold); padding: 0; }
+.masthead-top {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 6px 32px; font-size: 9px; letter-spacing: 3px;
+  color: var(--muted); border-bottom: 1px solid var(--border); text-transform: uppercase;
+}
+.masthead-center { text-align: center; padding: 24px 0 16px; }
+.masthead-eyebrow { font-size: 9px; letter-spacing: 6px; color: var(--gold); text-transform: uppercase; margin-bottom: 8px; }
+.masthead-name { font-family: var(--serif); font-size: 56px; font-weight: 900; letter-spacing: -2px; line-height: 1; text-transform: uppercase; }
+.masthead-name span { color: var(--gold); }
+.masthead-sub { font-size: 10px; letter-spacing: 5px; color: var(--muted); margin-top: 6px; text-transform: uppercase; }
+.masthead-nav {
+  border-top: 1px solid var(--border); background: var(--bg2);
+  display: flex; justify-content: center; gap: 0; padding: 0;
+}
+.masthead-nav a {
+  display: inline-block; padding: 12px 20px; font-size: 10px; letter-spacing: 2px;
+  text-transform: uppercase; text-decoration: none; color: var(--muted);
+  border-bottom: 2px solid transparent; transition: all 0.2s;
+}
+.masthead-nav a:hover, .masthead-nav a.active { color: var(--gold); border-bottom-color: var(--gold); }
+
+/* ── LAYOUT ── */
+.page-wrap { max-width: 1100px; margin: 0 auto; padding: 48px 24px 80px; }
+
+/* ── HERO ── */
+.ew-hero { text-align: center; padding: 56px 0 48px; border-bottom: 1px solid var(--border); margin-bottom: 56px; }
+.ew-hero-label { font-size: 9px; letter-spacing: 6px; color: var(--gold); text-transform: uppercase; margin-bottom: 16px; }
+.ew-hero-title { font-family: var(--serif); font-size: 48px; font-weight: 900; line-height: 1.1; margin-bottom: 16px; }
+.ew-hero-title em { color: var(--gold); font-style: normal; }
+.ew-hero-sub { font-size: 11px; color: var(--muted); letter-spacing: 2px; max-width: 540px; margin: 0 auto; line-height: 1.8; }
+
+/* ── SECTION ── */
+.ew-section { margin-bottom: 64px; }
+.ew-section-header { display: flex; align-items: center; gap: 16px; margin-bottom: 32px; }
+.ew-section-num { font-size: 9px; letter-spacing: 4px; color: var(--gold); text-transform: uppercase; white-space: nowrap; }
+.ew-section-line { flex: 1; height: 1px; background: var(--border); }
+.ew-section-title { font-family: var(--serif); font-size: 28px; font-weight: 700; margin-bottom: 16px; }
+.ew-prose { font-family: var(--body); font-size: 15px; color: var(--ink2); line-height: 1.85; margin-bottom: 20px; }
+.ew-prose strong { color: var(--ink); font-weight: 700; }
+
+/* ── CANVAS DIAGRAMS ── */
+.diagram-wrap { background: var(--bg2); border: 1px solid var(--border); padding: 24px; margin: 28px 0; display: flex; flex-direction: column; align-items: center; }
+.diagram-label { font-size: 9px; letter-spacing: 4px; color: var(--muted); text-transform: uppercase; margin-top: 12px; }
+canvas { display: block; }
+
+/* ── RULES TABLE ── */
+.rules-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1px; background: var(--border); border: 1px solid var(--border); margin: 24px 0; }
+.rule-card { background: var(--bg2); padding: 24px 20px; }
+.rule-num { font-size: 9px; letter-spacing: 4px; color: var(--gold); text-transform: uppercase; margin-bottom: 8px; }
+.rule-title { font-family: var(--serif); font-size: 18px; font-weight: 700; margin-bottom: 10px; }
+.rule-body { font-size: 12px; color: var(--ink2); line-height: 1.7; }
+.rule-law { display: inline-block; margin-top: 10px; padding: 4px 10px; background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.3); font-size: 10px; color: var(--gold2); letter-spacing: 1px; }
+
+/* ── WAVE TABS ── */
+.wave-tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 0; }
+.wave-tab { padding: 10px 18px; font-size: 10px; letter-spacing: 2px; text-transform: uppercase; cursor: pointer; color: var(--muted); border-bottom: 2px solid transparent; background: none; border-top: none; border-left: none; border-right: none; transition: all 0.2s; }
+.wave-tab.active { color: var(--gold); border-bottom-color: var(--gold); }
+.wave-panels { background: var(--bg2); border: 1px solid var(--border); border-top: none; }
+.wave-panel { display: none; padding: 28px; }
+.wave-panel.active { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+.wave-panel-text h3 { font-family: var(--serif); font-size: 20px; margin-bottom: 10px; }
+.wave-panel-text p { font-size: 12px; color: var(--ink2); line-height: 1.8; margin-bottom: 10px; }
+.wave-fib { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.fib-badge { padding: 4px 10px; background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.25); font-size: 10px; color: var(--gold2); letter-spacing: 1px; }
+.fib-badge.key { background: rgba(59,130,246,0.2); border-color: var(--gold); color: var(--gold); }
+
+/* ── CORRECTIVE TABLE ── */
+.corr-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border); border: 1px solid var(--border); margin: 24px 0; }
+.corr-card { background: var(--bg2); padding: 22px; }
+.corr-title { font-size: 11px; letter-spacing: 3px; color: var(--gold); text-transform: uppercase; margin-bottom: 8px; }
+.corr-body { font-size: 12px; color: var(--ink2); line-height: 1.7; }
+
+/* ── FIB TABLE ── */
+.fib-table { width: 100%; border-collapse: collapse; font-size: 12px; margin: 20px 0; }
+.fib-table th { padding: 10px 14px; text-align: left; font-size: 9px; letter-spacing: 3px; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--border); }
+.fib-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--ink2); }
+.fib-table tr:hover td { background: var(--bg3); }
+.fib-table .key-row td { color: var(--gold2); }
+
+/* ── DEGREES TABLE ── */
+.degrees-list { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); margin: 20px 0; }
+.degree-item { background: var(--bg2); padding: 14px 16px; }
+.degree-name { font-size: 11px; color: var(--gold2); letter-spacing: 1px; margin-bottom: 4px; }
+.degree-time { font-size: 10px; color: var(--muted); }
+
+/* ── QUIZ ── */
+.quiz-wrap { background: var(--bg2); border: 1px solid var(--border); padding: 32px; }
+.quiz-q { margin-bottom: 28px; padding-bottom: 28px; border-bottom: 1px solid var(--border); }
+.quiz-q:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+.quiz-question { font-size: 13px; color: var(--ink); margin-bottom: 14px; line-height: 1.6; }
+.quiz-question span { color: var(--gold2); }
+.quiz-options { display: flex; flex-direction: column; gap: 8px; }
+.quiz-opt { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border: 1px solid var(--border); cursor: pointer; font-size: 12px; color: var(--ink2); transition: all 0.2s; background: var(--bg); }
+.quiz-opt:hover { border-color: var(--border2); background: var(--bg3); }
+.quiz-opt.correct { border-color: var(--green); background: rgba(16,185,129,0.08); color: var(--green2); }
+.quiz-opt.wrong { border-color: var(--red); background: rgba(239,68,68,0.08); color: var(--red2); }
+.quiz-opt input { accent-color: var(--gold); }
+.quiz-explanation { display: none; margin-top: 10px; padding: 10px 14px; background: rgba(59,130,246,0.06); border-left: 2px solid var(--gold); font-size: 11px; color: var(--ink2); line-height: 1.7; }
+.quiz-btn { margin-top: 28px; padding: 12px 32px; background: var(--gold3); color: var(--ink); border: none; font-family: var(--mono); font-size: 11px; letter-spacing: 3px; text-transform: uppercase; cursor: pointer; transition: background 0.2s; }
+.quiz-btn:hover { background: var(--gold); }
+.quiz-score { display: none; margin-top: 20px; padding: 16px 20px; background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.3); font-size: 13px; color: var(--gold2); text-align: center; }
+
+/* ── ADMIN SECTION ── */
+.admin-gate { background: var(--bg2); border: 1px solid var(--border); padding: 32px; margin-top: 40px; }
+.admin-gate-title { font-size: 9px; letter-spacing: 4px; color: var(--muted); text-transform: uppercase; margin-bottom: 20px; }
+.admin-login-row { display: flex; gap: 10px; align-items: center; }
+.admin-pw-input { background: var(--bg); border: 1px solid var(--border); color: var(--ink); font-family: var(--mono); font-size: 13px; padding: 10px 14px; outline: none; width: 200px; }
+.admin-pw-input:focus { border-color: var(--border2); }
+.admin-btn { padding: 10px 24px; background: var(--gold3); color: var(--ink); border: none; font-family: var(--mono); font-size: 10px; letter-spacing: 2px; text-transform: uppercase; cursor: pointer; }
+.admin-btn:hover { background: var(--gold); }
+.admin-err { font-size: 11px; color: var(--red2); margin-top: 8px; min-height: 16px; }
+.admin-panel { display: none; margin-top: 28px; }
+.admin-controls { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+.admin-label { font-size: 9px; letter-spacing: 3px; color: var(--muted); text-transform: uppercase; margin-bottom: 6px; }
+.admin-select, .admin-input { width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--ink); font-family: var(--mono); font-size: 12px; padding: 9px 12px; outline: none; }
+.admin-select:focus, .admin-input:focus { border-color: var(--border2); }
+.admin-textarea { width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--ink); font-family: var(--mono); font-size: 12px; padding: 10px 12px; outline: none; resize: vertical; min-height: 80px; margin-bottom: 14px; }
+.admin-run-btn { padding: 12px 32px; background: var(--gold3); color: var(--ink); border: none; font-family: var(--mono); font-size: 11px; letter-spacing: 3px; text-transform: uppercase; cursor: pointer; margin-right: 10px; }
+.admin-run-btn:hover { background: var(--gold); }
+.admin-run-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.admin-tg-btn { padding: 12px 24px; background: rgba(42,130,200,0.15); border: 1px solid rgba(42,130,200,0.4); color: #5aabde; font-family: var(--mono); font-size: 10px; letter-spacing: 2px; text-transform: uppercase; cursor: pointer; display: none; }
+.admin-tg-btn:hover { background: rgba(42,130,200,0.25); }
+.analysis-output { display: none; margin-top: 20px; background: var(--bg); border: 1px solid var(--border); padding: 24px; }
+.analysis-output pre { font-family: var(--mono); font-size: 12px; color: var(--ink2); white-space: pre-wrap; line-height: 1.7; }
+.analysis-loading { font-size: 11px; color: var(--muted); letter-spacing: 2px; }
+
+/* ── FOOTER ── */
+.page-footer { border-top: 1px solid var(--border); padding: 24px 32px; display: flex; justify-content: space-between; align-items: center; font-size: 10px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; margin-top: 80px; }
+.footer-links { display: flex; gap: 24px; }
+.footer-links a { color: var(--muted); text-decoration: none; }
+.footer-links a:hover { color: var(--gold); }
+
+@media(max-width:768px){
+  .masthead-name{font-size:36px;}
+  .masthead-nav a{padding:10px 12px;font-size:9px;}
+  .rules-grid{grid-template-columns:1fr;}
+  .wave-panel.active{grid-template-columns:1fr;}
+  .corr-grid{grid-template-columns:1fr;}
+  .degrees-list{grid-template-columns:1fr 1fr;}
+  .admin-controls{grid-template-columns:1fr;}
+  .page-footer{flex-direction:column;gap:12px;text-align:center;}
+}
 </style>
 </head>
 <body>
@@ -121,836 +188,741 @@ canvas.diagram{display:block;width:100%;}
 <!-- MASTHEAD -->
 <div class="masthead">
   <div class="masthead-top">
-    <span id="live-date">MARCH 28, 2026</span>
-    <span>XENOSFINANCE · ELLIOTT WAVE THEORY</span>
-    <span id="live-time">UPDATED AT --:-- CET</span>
+    <span>VOL. I — EDUCATIONAL SERIES</span>
+    <span id="live-date">—</span>
+    <span>WAVE THEORY</span>
   </div>
   <div class="masthead-center">
-    <div class="masthead-eyebrow">Financial Intelligence · Global Markets</div>
+    <div class="masthead-eyebrow">Financial Analytics · Global Markets</div>
     <div class="masthead-name">XENOS<span>FINANCE</span></div>
-    <div class="masthead-sub">Elliott Waves · Geopolitics · Macroeconomics</div>
+    <div class="masthead-sub">Elliott Wave Theory — Complete Guide</div>
   </div>
-  <div class="masthead-nav">
-    <a class="nav-btn" href="https://xenosfinance.com">📰 News</a>
-    <a class="nav-btn" href="https://xenosfinance.com/dashboard.html">📊 Dashboard</a>
-    <a class="nav-btn" href="https://xenosfinance.com/xenoswaves_charts.html">◈ Charts</a>
-    <a class="nav-btn" href="https://xenosfinance.com/signals.html">⚡ Signals</a>
-    <a class="nav-btn" href="https://xenosfinance.com/calendar.html">🗓 Calendar</a>
-    <a class="nav-btn active" href="https://xenosfinance.com/elliottwave.html">〜 Elliott Wave</a>
-    <a class="nav-btn" href="https://xenosfinance.com/XenosBlog.html">✦ AI Blog</a>
-  </div>
+  <nav class="masthead-nav">
+    <a href="https://xenosfinance.com">📰 News</a>
+    <a href="https://xenosfinance.com/dashboard.html">📊 Dashboard</a>
+    <a href="https://xenosfinance.com/xenoswaves_charts.html">◈ Charts</a>
+    <a href="https://xenosfinance.com/XenosBlog.html">✦ AI Blog</a>
+    <a href="https://xenosfinance.com/signals.html">⚡ Signals</a>
+    <a href="https://xenosfinance.com/calendar.html">🗓 Calendar</a>
+    <a href="https://xenosfinance.com/elliottwave.html" class="active">〜 Elliott Wave</a>
+  </nav>
 </div>
 
-<div class="wrap">
+<div class="page-wrap">
 
   <!-- HERO -->
-  <div class="page-hero">
-    <div class="page-hero-eyebrow">Educational Series · Volume I</div>
-    <div class="page-hero-title">Elliott <span>Wave</span> Theory</div>
-    <div class="page-hero-sub">The complete institutional guide to market structure, impulse sequences, and corrective patterns — from discovery to application</div>
+  <div class="ew-hero">
+    <div class="ew-hero-label">Educational Series · Market Structure</div>
+    <h1 class="ew-hero-title">Elliott Wave<br><em>Theory</em></h1>
+    <p class="ew-hero-sub">The complete institutional framework for reading market structure. From wave identification to trade execution.</p>
   </div>
 
-  <!-- ════ SECTION 1: FOUNDATIONS ════ -->
-  <div class="section-head">
-    <div class="section-head-label">01 · Foundations</div>
-    <div class="section-head-line"></div>
+  <!-- SECTION 1: FOUNDATIONS -->
+  <div class="ew-section">
+    <div class="ew-section-header">
+      <span class="ew-section-num">01 — Foundations</span>
+      <div class="ew-section-line"></div>
+    </div>
+    <h2 class="ew-section-title">What is Elliott Wave Theory?</h2>
+    <p class="ew-prose">Developed by Ralph Nelson Elliott in the 1930s, Elliott Wave Theory is a form of technical analysis that describes how markets move in <strong>repetitive fractal patterns</strong> driven by collective investor psychology. Elliott observed that crowd behavior alternates between optimism and pessimism in natural sequences.</p>
+    <p class="ew-prose">The core insight: markets move in a basic pattern of <strong>five waves in the direction of the primary trend</strong>, followed by <strong>three corrective waves</strong> against it. This 5-3 structure repeats at every degree of trend, from minute charts to multi-decade cycles.</p>
+
+    <div class="diagram-wrap">
+      <canvas id="canvas-basic" width="680" height="260"></canvas>
+      <div class="diagram-label">Complete 8-Wave Cycle — 5 Impulse + 3 Corrective</div>
+    </div>
   </div>
 
-  <div class="theory-grid">
-    <div class="theory-card">
-      <div class="theory-card-num">Discovery</div>
-      <div class="theory-card-title">What is Elliott Wave Theory?</div>
-      <div class="theory-card-body">
-        Developed by Ralph Nelson Elliott in the 1930s, Elliott Wave Theory proposes that financial markets move in recognizable, repetitive patterns driven by collective investor psychology. Elliott observed that price action unfolds in a series of waves — impulse waves that move in the direction of the main trend, and corrective waves that move against it.<br><br>
-        The theory is grounded in the principle of <strong style="color:var(--ink)">fractal self-similarity</strong>: the same wave patterns appear across all timeframes, from minute charts to century-long market cycles. A complete market cycle consists of 8 waves: 5 impulse (motive) waves followed by 3 corrective waves.
+  <!-- SECTION 2: THREE INVIOLABLE RULES -->
+  <div class="ew-section">
+    <div class="ew-section-header">
+      <span class="ew-section-num">02 — The Three Rules</span>
+      <div class="ew-section-line"></div>
+    </div>
+    <h2 class="ew-section-title">Inviolable Rules</h2>
+    <p class="ew-prose">These rules are <strong>absolute</strong>. If a wave count violates any of them, the count is wrong — no exceptions.</p>
+    <div class="rules-grid">
+      <div class="rule-card">
+        <div class="rule-num">Rule I</div>
+        <div class="rule-title">Wave 2 Never Retraces Wave 1 Completely</div>
+        <div class="rule-body">Wave 2 cannot retrace 100% or more of Wave 1. It must end above the start of Wave 1 in a bull market. Typical retracements: 50%, 61.8%, 76.4%.</div>
+        <span class="rule-law">W2 bottom &gt; W1 origin</span>
+      </div>
+      <div class="rule-card">
+        <div class="rule-num">Rule II</div>
+        <div class="rule-title">Wave 3 Is Never the Shortest Impulse Wave</div>
+        <div class="rule-body">Wave 3 must be longer than at least one of Wave 1 or Wave 5. It is most commonly the longest and strongest wave, extending 161.8% of Wave 1 or more.</div>
+        <span class="rule-law">W3 &gt; min(W1, W5)</span>
+      </div>
+      <div class="rule-card">
+        <div class="rule-num">Rule III</div>
+        <div class="rule-title">Wave 4 Does Not Overlap Wave 1</div>
+        <div class="rule-body">In an impulse wave, the price territory of Wave 4 cannot overlap with the price territory of Wave 1 (except in diagonal triangles).</div>
+        <span class="rule-law">W4 low &gt; W1 high</span>
       </div>
     </div>
-    <div class="theory-card">
-      <div class="theory-card-num">Core Concept</div>
-      <div class="theory-card-title">The 5-3 Wave Structure</div>
-      <div class="theory-card-body">
-        Every complete Elliott Wave cycle consists of two phases:<br><br>
-        <strong style="color:var(--green2)">Motive Phase (5 waves)</strong> — Waves 1, 2, 3, 4, 5. Waves 1, 3, and 5 move in the direction of the main trend (impulse waves). Waves 2 and 4 are corrections against the trend.<br><br>
-        <strong style="color:var(--red2)">Corrective Phase (3 waves)</strong> — Waves A, B, C. Wave A moves against the prior trend, Wave B is a partial recovery, Wave C completes the correction and typically extends to match or exceed Wave A.
-        <div class="rule-box green">The complete cycle: 8 waves total — 5 up + 3 down (in a bull market)</div>
+  </div>
+
+  <!-- SECTION 3: WAVE CHARACTERISTICS -->
+  <div class="ew-section">
+    <div class="ew-section-header">
+      <span class="ew-section-num">03 — Wave Characteristics</span>
+      <div class="ew-section-line"></div>
+    </div>
+    <h2 class="ew-section-title">Each Wave Has a Personality</h2>
+    <div class="wave-tabs">
+      <button class="wave-tab active" onclick="showWave('w1',this)">Wave 1</button>
+      <button class="wave-tab" onclick="showWave('w2',this)">Wave 2</button>
+      <button class="wave-tab" onclick="showWave('w3',this)">Wave 3</button>
+      <button class="wave-tab" onclick="showWave('w4',this)">Wave 4</button>
+      <button class="wave-tab" onclick="showWave('w5',this)">Wave 5</button>
+      <button class="wave-tab" onclick="showWave('wa',this)">Wave A</button>
+      <button class="wave-tab" onclick="showWave('wb',this)">Wave B</button>
+      <button class="wave-tab" onclick="showWave('wc',this)">Wave C</button>
+    </div>
+    <div class="wave-panels">
+      <div class="wave-panel active" id="panel-w1">
+        <div class="wave-panel-text">
+          <h3>Wave 1 — The Birth</h3>
+          <p>Wave 1 is typically the hardest to identify in real time. It often appears as a routine countertrend rally against the previous downtrend. Volume is modest, and the news is still negative.</p>
+          <p>Analysts typically still bearish. Smart money accumulates quietly. Wave 1 is often short and choppy.</p>
+          <div class="wave-fib">
+            <span class="fib-badge">No prior Fibonacci ref</span>
+            <span class="fib-badge key">Length baseline for W3, W5</span>
+          </div>
+        </div>
+        <div class="diagram-wrap"><canvas id="c-w1" width="280" height="180"></canvas><div class="diagram-label">Wave 1 Context</div></div>
+      </div>
+      <div class="wave-panel" id="panel-w2">
+        <div class="wave-panel-text">
+          <h3>Wave 2 — The Shakeout</h3>
+          <p>Wave 2 retraces deeply but cannot exceed Wave 1's origin. The crowd believes the prior downtrend has resumed. Pessimism returns. Volume is lower than Wave 1's peak.</p>
+          <p>This is where weak hands are shaken out before the powerful Wave 3 begins.</p>
+          <div class="wave-fib">
+            <span class="fib-badge">50% retrace</span>
+            <span class="fib-badge key">61.8% retrace ★</span>
+            <span class="fib-badge">76.4% retrace</span>
+          </div>
+        </div>
+        <div class="diagram-wrap"><canvas id="c-w2" width="280" height="180"></canvas><div class="diagram-label">Wave 2 Context</div></div>
+      </div>
+      <div class="wave-panel" id="panel-w3">
+        <div class="wave-panel-text">
+          <h3>Wave 3 — The Power Move</h3>
+          <p>Wave 3 is almost always the longest and most powerful impulse wave. Breakouts occur, fundamentals confirm, the news turns positive. Volume expands significantly.</p>
+          <p>This is where the majority of traders enter and where the most money is made. Never the shortest impulse wave.</p>
+          <div class="wave-fib">
+            <span class="fib-badge">138.2% of W1</span>
+            <span class="fib-badge key">161.8% of W1 ★</span>
+            <span class="fib-badge">261.8% of W1</span>
+            <span class="fib-badge">423.6% of W1</span>
+          </div>
+        </div>
+        <div class="diagram-wrap"><canvas id="c-w3" width="280" height="180"></canvas><div class="diagram-label">Wave 3 Context</div></div>
+      </div>
+      <div class="wave-panel" id="panel-w4">
+        <div class="wave-panel-text">
+          <h3>Wave 4 — The Consolidation</h3>
+          <p>Wave 4 is typically sideways and complex — a flat, triangle, or zigzag. It corrects Wave 3's advance but must not enter Wave 1's territory. It alternates in character with Wave 2.</p>
+          <p><strong>Guideline of alternation</strong>: if Wave 2 was a sharp correction, Wave 4 tends to be flat/sideways, and vice versa.</p>
+          <div class="wave-fib">
+            <span class="fib-badge key">38.2% of W3 ★</span>
+            <span class="fib-badge">23.6% of W3</span>
+            <span class="fib-badge">50% of W3</span>
+          </div>
+        </div>
+        <div class="diagram-wrap"><canvas id="c-w4" width="280" height="180"></canvas><div class="diagram-label">Wave 4 Context</div></div>
+      </div>
+      <div class="wave-panel" id="panel-w5">
+        <div class="wave-panel-text">
+          <h3>Wave 5 — The Final Push</h3>
+          <p>Wave 5 is the final leg in the direction of trend. Breadth often narrows — fewer stocks participating. Divergences appear on momentum indicators (RSI, MACD). Public sentiment is extremely bullish.</p>
+          <p>Wave 5 is often the setup for the best short trade as the corrective A-B-C follows.</p>
+          <div class="wave-fib">
+            <span class="fib-badge">Equal to W1</span>
+            <span class="fib-badge key">61.8% of W1+W3 ★</span>
+            <span class="fib-badge">161.8% of W1</span>
+          </div>
+        </div>
+        <div class="diagram-wrap"><canvas id="c-w5" width="280" height="180"></canvas><div class="diagram-label">Wave 5 Context</div></div>
+      </div>
+      <div class="wave-panel" id="panel-wa">
+        <div class="wave-panel-text">
+          <h3>Wave A — First Corrective Leg</h3>
+          <p>Wave A is the initial counter-trend move. Most analysts still view it as a temporary pullback within the uptrend. Volume begins to pick up to the downside.</p>
+          <p>Wave A can subdivide into 5 waves (zigzag) or 3 waves (flat). The structure of Wave A identifies the corrective pattern type.</p>
+          <div class="wave-fib">
+            <span class="fib-badge">38.2% retrace of impulse</span>
+            <span class="fib-badge key">50% retrace ★</span>
+            <span class="fib-badge">61.8% retrace</span>
+          </div>
+        </div>
+        <div class="diagram-wrap"><canvas id="c-wa" width="280" height="180"></canvas><div class="diagram-label">Wave A Context</div></div>
+      </div>
+      <div class="wave-panel" id="panel-wb">
+        <div class="wave-panel-text">
+          <h3>Wave B — The Bull Trap</h3>
+          <p>Wave B is a counter-rally against Wave A. This is the classic bull trap — the crowd believes the uptrend has resumed. Volume is typically lower and the move lacks conviction.</p>
+          <p>Wave B rarely retraces more than 100% of Wave A. If it does, re-evaluate the entire count.</p>
+          <div class="wave-fib">
+            <span class="fib-badge">38.2% of A</span>
+            <span class="fib-badge key">61.8% of A ★</span>
+            <span class="fib-badge">76.4% of A</span>
+          </div>
+        </div>
+        <div class="diagram-wrap"><canvas id="c-wb" width="280" height="180"></canvas><div class="diagram-label">Wave B Context</div></div>
+      </div>
+      <div class="wave-panel" id="panel-wc">
+        <div class="wave-panel-text">
+          <h3>Wave C — The Decisive Decline</h3>
+          <p>Wave C is almost always a 5-wave structure and is the most devastating corrective wave. It confirms the correction is real. Panic selling emerges, fundamentals turn negative.</p>
+          <p>Wave C typically equals Wave A in length, or extends to 161.8% of Wave A.</p>
+          <div class="wave-fib">
+            <span class="fib-badge key">Equal to A ★</span>
+            <span class="fib-badge">61.8% of A</span>
+            <span class="fib-badge">161.8% of A</span>
+          </div>
+        </div>
+        <div class="diagram-wrap"><canvas id="c-wc" width="280" height="180"></canvas><div class="diagram-label">Wave C Context</div></div>
       </div>
     </div>
   </div>
 
-  <!-- MASTER DIAGRAM -->
-  <div class="diagram-wrap">
-    <div class="diagram-header">
-      <span>Complete Elliott Wave Cycle — 5 Impulse + 3 Corrective</span>
-      <span style="color:var(--muted);font-size:9px">Interactive · Hover for details</span>
+  <!-- SECTION 4: CORRECTIVE PATTERNS -->
+  <div class="ew-section">
+    <div class="ew-section-header">
+      <span class="ew-section-num">04 — Corrective Patterns</span>
+      <div class="ew-section-line"></div>
     </div>
-    <div class="diagram-body">
-      <canvas id="masterDiagram" class="diagram" height="320"></canvas>
+    <h2 class="ew-section-title">The Four Corrective Structures</h2>
+    <div class="corr-grid">
+      <div class="corr-card">
+        <div class="corr-title">Zigzag (5-3-5)</div>
+        <div class="corr-body">Sharp correction. Wave A and C each subdivide into 5 waves; Wave B into 3. Most common corrective pattern. Wave C typically equals or exceeds Wave A. Used in Wave 2 positions most frequently.</div>
+      </div>
+      <div class="corr-card">
+        <div class="corr-title">Flat (3-3-5)</div>
+        <div class="corr-body">Sideways correction. All three subwaves (A, B, C) are roughly equal in size. Wave B retraces nearly 100% of Wave A. Common in Wave 4 positions. Three sub-variants: regular, expanded, running.</div>
+      </div>
+      <div class="corr-card">
+        <div class="corr-title">Triangle (3-3-3-3-3)</div>
+        <div class="corr-body">Five overlapping waves (A-B-C-D-E) that contract within converging trendlines. Almost always in Wave 4 or Wave B positions. The thrust out of the triangle often equals the widest part of the triangle.</div>
+      </div>
+      <div class="corr-card">
+        <div class="corr-title">Double/Triple Zigzag</div>
+        <div class="corr-body">Complex corrections joining two or three simple patterns via connector waves labeled X. More common in Wave 4 and large Wave 2 corrections. Signals a strong underlying trend when complete.</div>
+      </div>
+    </div>
+
+    <div class="diagram-wrap">
+      <canvas id="canvas-corrective" width="680" height="220"></canvas>
+      <div class="diagram-label">Zigzag · Flat · Triangle — Side by Side</div>
     </div>
   </div>
 
-  <!-- ════ SECTION 2: THREE INVIOLABLE RULES ════ -->
-  <div class="section-head">
-    <div class="section-head-label">02 · The Three Inviolable Rules</div>
-    <div class="section-head-line"></div>
-  </div>
-
-  <div style="background:var(--bg2);border:1px solid var(--border);margin-bottom:32px;">
-    <table class="rules-table">
+  <!-- SECTION 5: FIBONACCI -->
+  <div class="ew-section">
+    <div class="ew-section-header">
+      <span class="ew-section-num">05 — Fibonacci Relationships</span>
+      <div class="ew-section-line"></div>
+    </div>
+    <h2 class="ew-section-title">Key Fibonacci Ratios</h2>
+    <p class="ew-prose">Fibonacci ratios are the mathematical foundation of Elliott Wave analysis. Every wave has predictable relationships to adjacent waves.</p>
+    <table class="fib-table">
       <thead>
-        <tr>
-          <th>Rule</th>
-          <th>Description</th>
-          <th>Why it matters</th>
-          <th>If violated</th>
-        </tr>
+        <tr><th>Wave</th><th>Retracement of</th><th>Common Ratios</th><th>Key Level</th></tr>
       </thead>
       <tbody>
-        <tr>
-          <td><span class="badge badge-red">Rule 1</span><br><br><strong style="color:var(--ink)">Wave 2 cannot retrace more than 100% of Wave 1</strong></td>
-          <td>Wave 2 must end above the starting point of Wave 1. If price falls below the origin of Wave 1, the count is invalid.</td>
-          <td>Confirms the motive structure is still intact. A full retracement means Wave 1 was actually part of a larger correction.</td>
-          <td>The wave count must be abandoned. Relabel — what you called Wave 1 was likely part of Wave A or C.</td>
-        </tr>
-        <tr>
-          <td><span class="badge badge-red">Rule 2</span><br><br><strong style="color:var(--ink)">Wave 3 cannot be the shortest impulse wave</strong></td>
-          <td>Wave 3 must be longer than at least one of Wave 1 or Wave 5. Wave 3 is typically the most powerful and extended wave.</td>
-          <td>Wave 3 is driven by broad participation and strong fundamentals — it reflects the core of the trend's momentum.</td>
-          <td>If Wave 3 appears shortest, the count is wrong. Often means waves are mislabeled or you're in a corrective pattern.</td>
-        </tr>
-        <tr>
-          <td><span class="badge badge-red">Rule 3</span><br><br><strong style="color:var(--ink)">Wave 4 cannot overlap Wave 1's price territory</strong></td>
-          <td>The low of Wave 4 must remain above the high of Wave 1. Any overlap invalidates the impulse structure (except in diagonal triangles).</td>
-          <td>Ensures the motive wave maintains a clear directional structure. Overlap suggests a corrective or diagonal pattern instead.</td>
-          <td>Re-examine — you may be in a leading diagonal, ending diagonal, or a completely different corrective structure.</td>
-        </tr>
+        <tr><td>Wave 2</td><td>Wave 1</td><td>50%, 61.8%, 76.4%</td><td class="key-row">61.8%</td></tr>
+        <tr class="key-row"><td>Wave 3</td><td>Wave 1 extension</td><td>138.2%, 161.8%, 261.8%</td><td>161.8%</td></tr>
+        <tr><td>Wave 4</td><td>Wave 3</td><td>23.6%, 38.2%, 50%</td><td class="key-row">38.2%</td></tr>
+        <tr><td>Wave 5</td><td>= Wave 1 or ext.</td><td>61.8%, 100%, 161.8%</td><td class="key-row">= W1</td></tr>
+        <tr><td>Wave A</td><td>Prior impulse</td><td>38.2%, 50%, 61.8%</td><td class="key-row">50%</td></tr>
+        <tr><td>Wave B</td><td>Wave A</td><td>38.2%, 61.8%, 76.4%</td><td class="key-row">61.8%</td></tr>
+        <tr class="key-row"><td>Wave C</td><td>= Wave A or ext.</td><td>61.8%, 100%, 161.8%</td><td>= A</td></tr>
       </tbody>
     </table>
   </div>
 
-  <!-- ════ SECTION 3: WAVE CHARACTERISTICS ════ -->
-  <div class="section-head">
-    <div class="section-head-label">03 · Wave Characteristics & Guidelines</div>
-    <div class="section-head-line"></div>
+  <!-- SECTION 6: WAVE DEGREES -->
+  <div class="ew-section">
+    <div class="ew-section-header">
+      <span class="ew-section-num">06 — Wave Degrees</span>
+      <div class="ew-section-line"></div>
+    </div>
+    <h2 class="ew-section-title">The Fractal Hierarchy</h2>
+    <p class="ew-prose">Elliott Wave operates simultaneously at all timeframes. A Wave 3 on a monthly chart contains 5 waves on a weekly chart, each of which contains 5 waves on a daily chart.</p>
+    <div class="degrees-list">
+      <div class="degree-item"><div class="degree-name">Grand Supercycle</div><div class="degree-time">Multi-century</div></div>
+      <div class="degree-item"><div class="degree-name">Supercycle</div><div class="degree-time">Multi-decade</div></div>
+      <div class="degree-item"><div class="degree-name">Cycle</div><div class="degree-time">1–10 years</div></div>
+      <div class="degree-item"><div class="degree-name">Primary</div><div class="degree-time">Months–Years</div></div>
+      <div class="degree-item"><div class="degree-name">Intermediate</div><div class="degree-time">Weeks–Months</div></div>
+      <div class="degree-item"><div class="degree-name">Minor</div><div class="degree-time">Weeks</div></div>
+      <div class="degree-item"><div class="degree-name">Minute</div><div class="degree-time">Days</div></div>
+      <div class="degree-item"><div class="degree-name">Minuette</div><div class="degree-time">Hours</div></div>
+    </div>
   </div>
 
-  <div class="diagram-wrap" style="margin-bottom:32px;">
-    <div class="tab-bar" id="waveTabs">
-      <div class="tab active" onclick="setTab('w1')">Wave 1</div>
-      <div class="tab" onclick="setTab('w2')">Wave 2</div>
-      <div class="tab" onclick="setTab('w3')">Wave 3</div>
-      <div class="tab" onclick="setTab('w4')">Wave 4</div>
-      <div class="tab" onclick="setTab('w5')">Wave 5</div>
-      <div class="tab" onclick="setTab('wa')">Wave A</div>
-      <div class="tab" onclick="setTab('wb')">Wave B</div>
-      <div class="tab" onclick="setTab('wc')">Wave C</div>
+  <!-- SECTION 7: QUIZ -->
+  <div class="ew-section">
+    <div class="ew-section-header">
+      <span class="ew-section-num">07 — Test Your Knowledge</span>
+      <div class="ew-section-line"></div>
     </div>
+    <h2 class="ew-section-title">Elliott Wave Quiz</h2>
+    <div class="quiz-wrap">
+      <div class="quiz-q" id="qq1">
+        <div class="quiz-question"><span>Q1.</span> Which of the three inviolable rules states that Wave 4 cannot enter Wave 1's territory?</div>
+        <div class="quiz-options">
+          <label class="quiz-opt"><input type="radio" name="q1" value="a"> The Wave 2 Rule</label>
+          <label class="quiz-opt"><input type="radio" name="q1" value="b"> The Wave 3 Rule</label>
+          <label class="quiz-opt"><input type="radio" name="q1" value="c"> The Wave 4 Overlap Rule</label>
+          <label class="quiz-opt"><input type="radio" name="q1" value="d"> The Alternation Guideline</label>
+        </div>
+        <div class="quiz-explanation" id="exp1">Rule III: Wave 4 cannot overlap with Wave 1's price territory (except in diagonal triangles). This is one of three absolute rules — if violated, the wave count is incorrect.</div>
+      </div>
+      <div class="quiz-q" id="qq2">
+        <div class="quiz-question"><span>Q2.</span> Wave 3 is characterised by which of the following?</div>
+        <div class="quiz-options">
+          <label class="quiz-opt"><input type="radio" name="q2" value="a"> It is always the shortest impulse wave</label>
+          <label class="quiz-opt"><input type="radio" name="q2" value="b"> It is never the shortest impulse wave and usually the most powerful</label>
+          <label class="quiz-opt"><input type="radio" name="q2" value="c"> It always retraces 61.8% of Wave 2</label>
+          <label class="quiz-opt"><input type="radio" name="q2" value="d"> It must equal Wave 1 in length</label>
+        </div>
+        <div class="quiz-explanation" id="exp2">Wave 3 is NEVER the shortest impulse wave (Rule II). It is typically the longest and strongest, commonly extending to 161.8% of Wave 1. Volume expands and breakouts occur.</div>
+      </div>
+      <div class="quiz-q" id="qq3">
+        <div class="quiz-question"><span>Q3.</span> What is the most common Fibonacci retracement level for Wave 2?</div>
+        <div class="quiz-options">
+          <label class="quiz-opt"><input type="radio" name="q3" value="a"> 23.6%</label>
+          <label class="quiz-opt"><input type="radio" name="q3" value="b"> 38.2%</label>
+          <label class="quiz-opt"><input type="radio" name="q3" value="c"> 61.8%</label>
+          <label class="quiz-opt"><input type="radio" name="q3" value="d"> 100%</label>
+        </div>
+        <div class="quiz-explanation" id="exp3">Wave 2 most commonly retraces 61.8% of Wave 1 — the golden ratio. However it can retrace 50% or 76.4%. The key rule: it must NOT retrace 100% or more of Wave 1.</div>
+      </div>
+      <div class="quiz-q" id="qq4">
+        <div class="quiz-question"><span>Q4.</span> The Guideline of Alternation suggests that if Wave 2 is a sharp correction, Wave 4 will tend to be:</div>
+        <div class="quiz-options">
+          <label class="quiz-opt"><input type="radio" name="q4" value="a"> Also sharp and deep</label>
+          <label class="quiz-opt"><input type="radio" name="q4" value="b"> Flat or sideways</label>
+          <label class="quiz-opt"><input type="radio" name="q4" value="c"> A triple zigzag</label>
+          <label class="quiz-opt"><input type="radio" name="q4" value="d"> Longer than Wave 2</label>
+        </div>
+        <div class="quiz-explanation" id="exp4">The Guideline of Alternation: corrective waves tend to alternate in character. A sharp Wave 2 is followed by a flat/sideways Wave 4, and vice versa. This is a guideline, not a rule.</div>
+      </div>
+      <div class="quiz-q" id="qq5">
+        <div class="quiz-question"><span>Q5.</span> In a corrective ABC structure, Wave B is often called a "bull trap" because:</div>
+        <div class="quiz-options">
+          <label class="quiz-opt"><input type="radio" name="q5" value="a"> It always makes new all-time highs</label>
+          <label class="quiz-opt"><input type="radio" name="q5" value="b"> It is a 5-wave rally that fools traders into thinking the uptrend resumed</label>
+          <label class="quiz-opt"><input type="radio" name="q5" value="c"> It is a counter-rally on low volume that fools traders into thinking the uptrend resumed</label>
+          <label class="quiz-opt"><input type="radio" name="q5" value="d"> It retraces 100% of Wave A</label>
+        </div>
+        <div class="quiz-explanation" id="exp5">Wave B counter-rallies against Wave A on declining volume and conviction. Traders mistake it for a continuation of the prior bull trend and buy — only to be hit by the devastating Wave C decline that follows.</div>
+      </div>
+      <div class="quiz-q" id="qq6">
+        <div class="quiz-question"><span>Q6.</span> Which corrective pattern is described as 5-3-5 in its internal wave structure?</div>
+        <div class="quiz-options">
+          <label class="quiz-opt"><input type="radio" name="q6" value="a"> Flat</label>
+          <label class="quiz-opt"><input type="radio" name="q6" value="b"> Triangle</label>
+          <label class="quiz-opt"><input type="radio" name="q6" value="c"> Zigzag</label>
+          <label class="quiz-opt"><input type="radio" name="q6" value="d"> Double Three</label>
+        </div>
+        <div class="quiz-explanation" id="exp6">A Zigzag is structured 5-3-5: Wave A has 5 subwaves, Wave B has 3, Wave C has 5. This makes it a sharp, steep correction. A Flat is 3-3-5 while a Triangle is 3-3-3-3-3.</div>
+      </div>
+      <div class="quiz-q" id="qq7">
+        <div class="quiz-question"><span>Q7.</span> Elliott Wave Theory is described as "fractal" because:</div>
+        <div class="quiz-options">
+          <label class="quiz-opt"><input type="radio" name="q7" value="a"> It only works on daily charts</label>
+          <label class="quiz-opt"><input type="radio" name="q7" value="b"> Each wave subdivides into smaller waves of the same pattern at every timeframe</label>
+          <label class="quiz-opt"><input type="radio" name="q7" value="c"> It requires complex mathematical formulas</label>
+          <label class="quiz-opt"><input type="radio" name="q7" value="d"> Wave 3 is always 161.8% of Wave 1</label>
+        </div>
+        <div class="quiz-explanation" id="exp7">Fractal nature: a Wave 3 on a monthly chart contains a complete 5-wave impulse on the weekly chart, which itself contains 5-wave impulses on the daily chart. The same structure repeats at every degree of trend simultaneously.</div>
+      </div>
+      <div class="quiz-q" id="qq8">
+        <div class="quiz-question"><span>Q8.</span> Wave 5 compared to Wave 3 typically shows:</div>
+        <div class="quiz-options">
+          <label class="quiz-opt"><input type="radio" name="q8" value="a"> Higher volume and stronger breadth</label>
+          <label class="quiz-opt"><input type="radio" name="q8" value="b"> Momentum divergence — fewer stocks participating, RSI diverging</label>
+          <label class="quiz-opt"><input type="radio" name="q8" value="c"> It is always the longest wave</label>
+          <label class="quiz-opt"><input type="radio" name="q8" value="d"> It retraces 38.2% of Wave 4</label>
+        </div>
+        <div class="quiz-explanation" id="exp8">Wave 5 commonly shows bearish momentum divergence: price makes a new high but RSI/MACD fail to confirm. Market breadth narrows (fewer stocks participating). This divergence is a key signal that the impulse is exhausted and a corrective ABC is imminent.</div>
+      </div>
 
-    <div id="tab-w1" class="tab-panel active">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
-        <div>
-          <div style="font-size:9px;letter-spacing:3px;color:var(--gold);text-transform:uppercase;margin-bottom:12px;">Characteristics</div>
-          <div style="font-size:12px;color:var(--ink2);line-height:1.9;">
-            Wave 1 is often the <strong style="color:var(--ink)">hardest to identify in real time</strong>. It emerges from the final stages of a prior trend and frequently appears as a simple counter-trend move. Volume may increase but not dramatically.<br><br>
-            It subdivides into 5 smaller waves (impulse). Wave 1 is usually the shortest of waves 1, 3, and 5. Often retraced deeply by Wave 2 (50–61.8% Fibonacci).
+      <button class="quiz-btn" onclick="checkQuiz()">Check Answers</button>
+      <div class="quiz-score" id="quiz-score"></div>
+    </div>
+  </div>
+
+  <!-- SECTION 8: ADMIN AI ANALYSIS -->
+  <div class="ew-section">
+    <div class="ew-section-header">
+      <span class="ew-section-num">08 — Live Analysis</span>
+      <div class="ew-section-line"></div>
+    </div>
+    <h2 class="ew-section-title">AI Wave Analysis</h2>
+    <p class="ew-prose">Institutional-grade Elliott Wave analysis generated in real-time. Admin access only.</p>
+
+    <div class="admin-gate">
+      <div class="admin-gate-title">⬡ Admin Access Required</div>
+      <div id="admin-login-area">
+        <div class="admin-login-row">
+          <input class="admin-pw-input" type="password" id="adminPw" placeholder="Password" onkeydown="if(event.key==='Enter')adminLogin()">
+          <button class="admin-btn" onclick="adminLogin()">Unlock</button>
+        </div>
+        <div class="admin-err" id="adminErr"></div>
+      </div>
+      <div class="admin-panel" id="adminPanel">
+        <div class="admin-controls">
+          <div>
+            <div class="admin-label">Instrument</div>
+            <input class="admin-input" id="aiSymbol" placeholder="e.g. EUR/USD, Gold, BTC/USD" value="EUR/USD">
+          </div>
+          <div>
+            <div class="admin-label">Timeframe</div>
+            <select class="admin-select" id="aiTf">
+              <option>M1 (Monthly)</option>
+              <option>W1 (Weekly)</option>
+              <option selected>D1 (Daily)</option>
+              <option>H4 (4-Hour)</option>
+              <option>H1 (1-Hour)</option>
+            </select>
+          </div>
+          <div>
+            <div class="admin-label">Current Wave Position</div>
+            <select class="admin-select" id="aiWave">
+              <option>Unknown — Identify</option>
+              <option>Wave 1 in progress</option>
+              <option>Wave 2 correction</option>
+              <option>Wave 3 in progress</option>
+              <option>Wave 4 correction</option>
+              <option>Wave 5 final push</option>
+              <option>Wave A correction</option>
+              <option>Wave B retracement</option>
+              <option>Wave C decline</option>
+            </select>
           </div>
         </div>
-        <div>
-          <div style="font-size:9px;letter-spacing:3px;color:var(--gold);text-transform:uppercase;margin-bottom:12px;">Key Levels</div>
-          <div class="rule-box amber" style="margin-bottom:10px;">Typical length: Shortest of the three impulse waves</div>
-          <div class="rule-box green">Fibonacci target: 100% of prior move from bottom</div>
-          <div style="margin-top:12px;font-size:11px;color:var(--muted);">Volume: Increasing but moderate · Sentiment: Still bearish/skeptical</div>
+        <div class="admin-label">Additional Context (optional)</div>
+        <textarea class="admin-textarea" id="aiContext" placeholder="e.g. Price at 1.0850, broke above 1.0800 resistance, RSI 58, last pivot high 1.1200..."></textarea>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+          <button class="admin-run-btn" id="aiRunBtn" onclick="runAIAnalysis()">⚡ Generate Analysis</button>
+          <button class="admin-tg-btn" id="tgBtn" onclick="sendToTelegram()">✈ Send to Telegram</button>
         </div>
-      </div>
-    </div>
-
-    <div id="tab-w2" class="tab-panel">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
-        <div>
-          <div style="font-size:9px;letter-spacing:3px;color:var(--gold);text-transform:uppercase;margin-bottom:12px;">Characteristics</div>
-          <div style="font-size:12px;color:var(--ink2);line-height:1.9;">
-            Wave 2 is a <strong style="color:var(--ink)">corrective wave</strong> that retraces much of Wave 1. It can be a simple zigzag or a complex flat/combination. Sentiment often returns to near-bearish levels.<br><br>
-            Crucially, Wave 2 <strong style="color:var(--red2)">cannot retrace 100% of Wave 1</strong>. It typically retraces 50–61.8%, creating a buying opportunity near support.
-          </div>
-        </div>
-        <div>
-          <div style="font-size:9px;letter-spacing:3px;color:var(--gold);text-transform:uppercase;margin-bottom:12px;">Key Levels</div>
-          <div class="rule-box red" style="margin-bottom:10px;">Hard floor: Start of Wave 1 (Rule 1)</div>
-          <div class="rule-box amber">Common retracement: 50% – 61.8% Fibonacci</div>
-          <div style="margin-top:12px;font-size:11px;color:var(--muted);">Pattern: Zigzag (sharp) most common · Volume: Declining</div>
-        </div>
-      </div>
-    </div>
-
-    <div id="tab-w3" class="tab-panel">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
-        <div>
-          <div style="font-size:9px;letter-spacing:3px;color:var(--gold);text-transform:uppercase;margin-bottom:12px;">Characteristics</div>
-          <div style="font-size:12px;color:var(--ink2);line-height:1.9;">
-            Wave 3 is typically the <strong style="color:var(--ink)">strongest and longest wave</strong>. It represents the core of the trend — driven by fundamental confirmation, broad participation, and strong momentum. Breakouts occur here.<br><br>
-            Often extends to 1.618× or 2.618× the length of Wave 1 (Fibonacci extension). Volume is highest during Wave 3. Cannot be the shortest impulse wave.
-          </div>
-        </div>
-        <div>
-          <div style="font-size:9px;letter-spacing:3px;color:var(--gold);text-transform:uppercase;margin-bottom:12px;">Key Levels</div>
-          <div class="rule-box red" style="margin-bottom:10px;">Minimum: Must exceed the end of Wave 1</div>
-          <div class="rule-box green">Typical target: 1.618× Wave 1 from Wave 2 bottom</div>
-          <div style="margin-top:12px;font-size:11px;color:var(--muted);">Volume: Highest of all waves · Sentiment: Increasingly bullish</div>
-        </div>
-      </div>
-    </div>
-
-    <div id="tab-w4" class="tab-panel">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
-        <div>
-          <div style="font-size:9px;letter-spacing:3px;color:var(--gold);text-transform:uppercase;margin-bottom:12px;">Characteristics</div>
-          <div style="font-size:12px;color:var(--ink2);line-height:1.9;">
-            Wave 4 is a <strong style="color:var(--ink)">sideways-to-down correction</strong> after the explosive Wave 3. It tends to be complex — often forming triangles, flats, or combinations. Alternation with Wave 2 is common.<br><br>
-            <strong style="color:var(--amber)">Alternation guideline</strong>: If Wave 2 was a sharp zigzag, Wave 4 tends to be a flat or triangle — and vice versa. This is not a rule, but holds in most cases.
-          </div>
-        </div>
-        <div>
-          <div style="font-size:9px;letter-spacing:3px;color:var(--gold);text-transform:uppercase;margin-bottom:12px;">Key Levels</div>
-          <div class="rule-box red" style="margin-bottom:10px;">Hard floor: High of Wave 1 (Rule 3 — no overlap)</div>
-          <div class="rule-box amber">Common retracement: 38.2% of Wave 3</div>
-          <div style="margin-top:12px;font-size:11px;color:var(--muted);">Pattern: Often complex (triangle, flat) · Alternation with Wave 2</div>
-        </div>
-      </div>
-    </div>
-
-    <div id="tab-w5" class="tab-panel">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
-        <div>
-          <div style="font-size:9px;letter-spacing:3px;color:var(--gold);text-transform:uppercase;margin-bottom:12px;">Characteristics</div>
-          <div style="font-size:12px;color:var(--ink2);line-height:1.9;">
-            Wave 5 is the <strong style="color:var(--ink)">final impulse wave</strong>. It typically shows weakening momentum despite making new highs. Divergence on RSI and MACD is common. Sentiment is often at peak optimism (or pessimism in a bear market).<br><br>
-            Wave 5 often equals Wave 1 in length, or targets the 0.618× extension of Waves 1+3. After Wave 5 completes, a full ABC correction begins.
-          </div>
-        </div>
-        <div>
-          <div style="font-size:9px;letter-spacing:3px;color:var(--gold);text-transform:uppercase;margin-bottom:12px;">Key Levels</div>
-          <div class="rule-box amber" style="margin-bottom:10px;">Common length: Equal to Wave 1, or 0.618× (W1+W3)</div>
-          <div class="rule-box red">Warning: RSI divergence = Wave 5 exhaustion signal</div>
-          <div style="margin-top:12px;font-size:11px;color:var(--muted);">Volume: Often lower than Wave 3 · Sentiment: Extreme optimism</div>
-        </div>
-      </div>
-    </div>
-
-    <div id="tab-wa" class="tab-panel">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
-        <div>
-          <div style="font-size:9px;letter-spacing:3px;color:var(--gold);text-transform:uppercase;margin-bottom:12px;">Characteristics</div>
-          <div style="font-size:12px;color:var(--ink2);line-height:1.9;">
-            Wave A is the <strong style="color:var(--ink)">first wave of the corrective sequence</strong>. In a bull market, it is the initial decline after the 5-wave advance. Many participants interpret it as a buying dip.<br><br>
-            Wave A subdivides into 5 waves (in a zigzag) or 3 waves (in a flat). The subdivision helps identify which corrective pattern is forming.
-          </div>
-        </div>
-        <div>
-          <div style="font-size:9px;letter-spacing:3px;color:var(--gold);text-transform:uppercase;margin-bottom:12px;">Pattern Identification</div>
-          <div class="rule-box green" style="margin-bottom:10px;">5-sub-waves → Likely a Zigzag forming</div>
-          <div class="rule-box amber">3-sub-waves → Likely a Flat or Triangle forming</div>
-          <div style="margin-top:12px;font-size:11px;color:var(--muted);">Sentiment: Disbelief — "just a pullback" narrative dominates</div>
-        </div>
-      </div>
-    </div>
-
-    <div id="tab-wb" class="tab-panel">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
-        <div>
-          <div style="font-size:9px;letter-spacing:3px;color:var(--gold);text-transform:uppercase;margin-bottom:12px;">Characteristics</div>
-          <div style="font-size:12px;color:var(--ink2);line-height:1.9;">
-            Wave B is a <strong style="color:var(--ink)">counter-trend recovery</strong> within the corrective phase. It retraces part of Wave A, tempting traders into thinking the uptrend has resumed. Wave B is often the most deceptive wave.<br><br>
-            In a flat, Wave B may retrace 90–100%+ of Wave A (expanded flat). In a zigzag, it typically retraces 38–61.8%. Never goes beyond the start of Wave A in a zigzag.
-          </div>
-        </div>
-        <div>
-          <div style="font-size:9px;letter-spacing:3px;color:var(--gold);text-transform:uppercase;margin-bottom:12px;">Key Levels</div>
-          <div class="rule-box amber" style="margin-bottom:10px;">Zigzag: B retraces 38.2%–61.8% of A</div>
-          <div class="rule-box red">Flat: B retraces 81%–100%+ of A (expanded)</div>
-          <div style="margin-top:12px;font-size:11px;color:var(--muted);">Volume: Low — a weak recovery. Sentiment: False optimism returns</div>
-        </div>
-      </div>
-    </div>
-
-    <div id="tab-wc" class="tab-panel">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
-        <div>
-          <div style="font-size:9px;letter-spacing:3px;color:var(--gold);text-transform:uppercase;margin-bottom:12px;">Characteristics</div>
-          <div style="font-size:12px;color:var(--ink2);line-height:1.9;">
-            Wave C is the <strong style="color:var(--ink)">final and most destructive corrective wave</strong>. It moves in the same direction as Wave A and typically equals Wave A in length, or extends to 1.618× Wave A. Always subdivides into 5 waves.<br><br>
-            Wave C completes the full ABC corrective structure and sets up the next larger-degree impulse wave. This is the prime entry zone for position building.
-          </div>
-        </div>
-        <div>
-          <div style="font-size:9px;letter-spacing:3px;color:var(--gold);text-transform:uppercase;margin-bottom:12px;">Key Levels</div>
-          <div class="rule-box green" style="margin-bottom:10px;">Target: Equal to Wave A, or 1.618× Wave A</div>
-          <div class="rule-box amber">Always 5 sub-waves — confirms corrective end</div>
-          <div style="margin-top:12px;font-size:11px;color:var(--muted);">Sentiment: Maximum pessimism — best buying opportunity in the cycle</div>
+        <div class="analysis-output" id="analysisOutput">
+          <pre id="analysisText"></pre>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- ════ SECTION 4: CORRECTIVE PATTERNS ════ -->
-  <div class="section-head">
-    <div class="section-head-label">04 · Corrective Patterns</div>
-    <div class="section-head-line"></div>
+</div><!-- end page-wrap -->
+
+<div class="page-footer">
+  <span>© XenosFinance 2026</span>
+  <div class="footer-links">
+    <a href="https://xenosfinance.com">News</a>
+    <a href="https://xenosfinance.com/xenoswaves_charts.html">Charts</a>
+    <a href="https://xenosfinance.com/signals.html">Signals</a>
+    <a href="https://t.me/xenosfin" target="_blank">Telegram</a>
   </div>
-
-  <div class="theory-grid" style="margin-bottom:16px;">
-    <div class="theory-card">
-      <div class="theory-card-num">Pattern A</div>
-      <div class="theory-card-title">Zigzag (5-3-5)</div>
-      <div class="theory-card-body">
-        The sharpest corrective pattern. Wave A subdivides into 5 waves, Wave B retraces only 38–61.8% of A, and Wave C subdivides into 5 waves, typically equaling Wave A in length.<br><br>
-        Most common in Wave 2 corrections. Zigzags create deep, fast retracements that look like strong counter-trend moves.
-        <div class="rule-box amber">Structure: 5-3-5 · B retraces &lt;61.8% of A · C ≈ A or 1.618A</div>
-      </div>
-    </div>
-    <div class="theory-card">
-      <div class="theory-card-num">Pattern B</div>
-      <div class="theory-card-title">Flat (3-3-5)</div>
-      <div class="theory-card-body">
-        A sideways correction. Wave A subdivides into 3 waves, Wave B retraces 81–100%+ of Wave A, and Wave C subdivides into 5 waves, ending near (regular flat) or beyond (expanded flat) the start of Wave A.<br><br>
-        Most common in Wave 4 corrections. Flats are less steep and often misidentified as continuation patterns.
-        <div class="rule-box amber">Structure: 3-3-5 · B retraces 81–100%+ of A · Expanded: C exceeds A start</div>
-      </div>
-    </div>
-    <div class="theory-card">
-      <div class="theory-card-num">Pattern C</div>
-      <div class="theory-card-title">Triangle (3-3-3-3-3)</div>
-      <div class="theory-card-body">
-        A contracting or expanding sideways pattern with 5 sub-waves (A-B-C-D-E), each subdividing into 3 waves. Price oscillates between converging (or diverging) trendlines.<br><br>
-        Typically appears in Wave 4 or Wave B. After the triangle completes, the breakout wave (Wave 5 or Wave C) tends to be swift and equal to the widest part of the triangle.
-        <div class="rule-box green">After triangle: Thrust = widest part of the triangle · Fast move</div>
-      </div>
-    </div>
-    <div class="theory-card">
-      <div class="theory-card-num">Pattern D</div>
-      <div class="theory-card-title">Double & Triple Zigzag</div>
-      <div class="theory-card-body">
-        Complex corrections linking two or three zigzags with connecting waves (labeled X). These are the most difficult patterns to identify in real time and can last much longer than simple corrections.<br><br>
-        Common when markets need to correct a powerful Wave 3 move. Often seen in Wave 4 or Wave 2 of higher-degree wave counts.
-        <div class="rule-box amber">W-X-Y (double) or W-X-Y-X-Z (triple) · Time-consuming corrections</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- PATTERN DIAGRAMS -->
-  <div class="diagram-wrap" style="margin-bottom:32px;">
-    <div class="diagram-header">
-      <span>Corrective Pattern Diagrams</span>
-    </div>
-    <canvas id="correctiveDiagram" class="diagram" height="260"></canvas>
-  </div>
-
-  <!-- ════ SECTION 5: FIBONACCI ════ -->
-  <div class="section-head">
-    <div class="section-head-label">05 · Fibonacci Relationships</div>
-    <div class="section-head-line"></div>
-  </div>
-
-  <div style="background:var(--bg2);border:1px solid var(--border);margin-bottom:32px;">
-    <table class="rules-table">
-      <thead>
-        <tr><th>Wave</th><th>Common Retracement / Extension</th><th>Fibonacci Ratio</th><th>Notes</th></tr>
-      </thead>
-      <tbody>
-        <tr><td><strong style="color:var(--ink)">Wave 2</strong></td><td>Retraces Wave 1</td><td><span class="badge badge-amber">50% · 61.8%</span></td><td>Deep retracements are common. Never below Wave 1 start.</td></tr>
-        <tr><td><strong style="color:var(--ink)">Wave 3</strong></td><td>Extension of Wave 1</td><td><span class="badge badge-green">161.8% · 261.8%</span></td><td>Most powerful wave. 1.618× Wave 1 is the most common target.</td></tr>
-        <tr><td><strong style="color:var(--ink)">Wave 4</strong></td><td>Retraces Wave 3</td><td><span class="badge badge-amber">38.2% · 50%</span></td><td>Shallower than Wave 2. Triangle patterns common.</td></tr>
-        <tr><td><strong style="color:var(--ink)">Wave 5</strong></td><td>Equals Wave 1, or extension</td><td><span class="badge badge-amber">100% W1 · 61.8% (W1+W3)</span></td><td>Weakening momentum. Watch for RSI divergence.</td></tr>
-        <tr><td><strong style="color:var(--ink)">Wave A</strong></td><td>Retraces 5-wave advance</td><td><span class="badge badge-red">38.2% · 61.8%</span></td><td>In zigzag: 5 sub-waves. In flat: 3 sub-waves.</td></tr>
-        <tr><td><strong style="color:var(--ink)">Wave B</strong></td><td>Retraces Wave A</td><td><span class="badge badge-amber">38.2% – 100%+</span></td><td>Variable. Expanded flat: B exceeds Wave A start.</td></tr>
-        <tr><td><strong style="color:var(--ink)">Wave C</strong></td><td>Equals or extends Wave A</td><td><span class="badge badge-red">100% A · 161.8% A</span></td><td>Always 5 sub-waves. Best entry point after completion.</td></tr>
-      </tbody>
-    </table>
-  </div>
-
-  <!-- ════ SECTION 6: WAVE DEGREES ════ -->
-  <div class="section-head">
-    <div class="section-head-label">06 · Wave Degrees</div>
-    <div class="section-head-line"></div>
-  </div>
-
-  <div style="font-size:12px;color:var(--ink2);margin-bottom:20px;line-height:1.8;">
-    Elliott Wave patterns occur at every degree of trend — from 1-minute charts to century-long supercycles. Each degree has its own label notation and typical duration.
-  </div>
-
-  <div class="degree-grid" style="margin-bottom:32px;">
-    <div class="degree-cell"><div class="degree-name">Grand Supercycle</div><div class="degree-val" style="color:var(--ink);">[I] [II] [III]</div><div style="font-size:10px;color:var(--muted);margin-top:4px;">Centuries</div></div>
-    <div class="degree-cell"><div class="degree-name">Supercycle</div><div class="degree-val" style="color:var(--ink);">(I) (II) (III)</div><div style="font-size:10px;color:var(--muted);margin-top:4px;">Decades</div></div>
-    <div class="degree-cell"><div class="degree-name">Cycle</div><div class="degree-val" style="color:var(--ink);">I II III IV V</div><div style="font-size:10px;color:var(--muted);margin-top:4px;">Years</div></div>
-    <div class="degree-cell"><div class="degree-name">Primary</div><div class="degree-val" style="color:var(--ink);">① ② ③ ④ ⑤</div><div style="font-size:10px;color:var(--muted);margin-top:4px;">Months–Years</div></div>
-    <div class="degree-cell"><div class="degree-name">Intermediate</div><div class="degree-val" style="color:var(--ink);">(1) (2) (3)</div><div style="font-size:10px;color:var(--muted);margin-top:4px;">Weeks–Months</div></div>
-    <div class="degree-cell"><div class="degree-name">Minor</div><div class="degree-val" style="color:var(--ink);">1 2 3 4 5</div><div style="font-size:10px;color:var(--muted);margin-top:4px;">Days–Weeks</div></div>
-    <div class="degree-cell"><div class="degree-name">Minute</div><div class="degree-val" style="color:var(--ink);">i ii iii iv v</div><div style="font-size:10px;color:var(--muted);margin-top:4px;">Hours–Days</div></div>
-    <div class="degree-cell"><div class="degree-name">Minuette</div><div class="degree-val" style="color:var(--ink);">(i) (ii) (iii)</div><div style="font-size:10px;color:var(--muted);margin-top:4px;">Minutes–Hours</div></div>
-  </div>
-
-  <!-- ════ SECTION 7: QUIZ ════ -->
-  <div class="section-head">
-    <div class="section-head-label">07 · Knowledge Quiz</div>
-    <div class="section-head-line"></div>
-  </div>
-
-  <div id="quizContainer"></div>
-
-  <!-- ════ SECTION 8: AI ANALYSIS (ADMIN ONLY) ════ -->
-  <div class="section-head">
-    <div class="section-head-label">08 · AI Wave Analysis</div>
-    <div class="section-head-line"></div>
-  </div>
-
-  <div class="ai-section">
-    <div class="ai-section-header">
-      <span class="ai-section-title">⚡ Institutional Elliott Wave Analysis · AI Powered</span>
-      <button class="btn" id="adminLoginBtn" onclick="openAdminLogin()">🔒 Admin Access</button>
-    </div>
-
-    <!-- LOCKED VIEW -->
-    <div class="ai-locked" id="aiLocked">
-      <div class="ai-locked-icon">〜</div>
-      <div style="font-family:var(--serif);font-size:20px;color:var(--ink);margin-bottom:8px;">Wave Analysis Engine</div>
-      <div class="ai-locked-text">Real-time Elliott Wave analysis is available to administrators only.<br>Public users can access the full educational content above.</div>
-      <button class="btn" onclick="openAdminLogin()">Request Access</button>
-    </div>
-
-    <!-- ADMIN PANEL -->
-    <div class="ai-admin-panel" id="aiAdminPanel">
-      <div style="font-size:9px;letter-spacing:2px;color:var(--gold);text-transform:uppercase;margin-bottom:16px;">Generate Wave Analysis</div>
-      <div class="ai-inputs">
-        <select class="ai-input" id="aiPair">
-          <option value="EUR/USD">EUR/USD</option>
-          <option value="GBP/USD">GBP/USD</option>
-          <option value="USD/JPY">USD/JPY</option>
-          <option value="AUD/USD">AUD/USD</option>
-          <option value="USD/CHF">USD/CHF</option>
-          <option value="XAU/USD (Gold)">XAU/USD (Gold)</option>
-          <option value="WTI Crude Oil">WTI Crude Oil</option>
-          <option value="Natural Gas">Natural Gas</option>
-          <option value="S&P 500">S&P 500</option>
-          <option value="Nasdaq 100">Nasdaq 100</option>
-          <option value="BTC/USD">BTC/USD</option>
-          <option value="ETH/USD">ETH/USD</option>
-          <option value="Custom">Custom...</option>
-        </select>
-        <input class="ai-input" id="aiCustomPair" placeholder="Custom pair..." style="display:none;">
-        <select class="ai-input" id="aiTimeframe">
-          <option value="1H">1H</option>
-          <option value="4H" selected>4H</option>
-          <option value="Daily">Daily</option>
-          <option value="Weekly">Weekly</option>
-          <option value="Monthly">Monthly</option>
-        </select>
-        <select class="ai-input" id="aiWavePos">
-          <option value="unknown">Wave Position Unknown</option>
-          <option value="wave1">Possible Wave 1</option>
-          <option value="wave2">Possible Wave 2</option>
-          <option value="wave3">Possible Wave 3</option>
-          <option value="wave4">Possible Wave 4</option>
-          <option value="wave5">Possible Wave 5</option>
-          <option value="waveA">Possible Wave A</option>
-          <option value="waveB">Possible Wave B</option>
-          <option value="waveC">Possible Wave C</option>
-        </select>
-        <button class="btn btn-primary" onclick="generateAnalysis()">⚡ Analyze</button>
-      </div>
-      <textarea class="ai-input" id="aiContext" placeholder="Optional: add price levels, recent structure, key support/resistance, current indicators... (e.g. 'EUR/USD at 1.0850, broke above 1.0820 resistance, RSI 62, prior low at 1.0760')" style="width:100%;height:80px;resize:vertical;margin-bottom:8px;"></textarea>
-
-      <div class="ai-result" id="aiResult"></div>
-      <div class="ai-status" id="aiStatus"></div>
-
-      <!-- TELEGRAM SEND -->
-      <div id="tgSendRow" style="display:none;margin-top:16px;border-top:1px solid var(--border);padding-top:16px;">
-        <div style="font-size:9px;letter-spacing:2px;color:var(--gold);text-transform:uppercase;margin-bottom:10px;">Send to Telegram Channel</div>
-        <div class="tg-row">
-          <input class="tg-input" id="tgToken" placeholder="Bot Token" type="password">
-          <input class="tg-input" id="tgChannel" placeholder="Channel ID (e.g. @xenosfin)">
-          <button class="btn btn-primary" onclick="sendAnalysisToTelegram()">📡 Send</button>
-        </div>
-        <div class="ai-status" id="tgStatus"></div>
-      </div>
-    </div>
-  </div>
-
-  <div class="bottom-bar">
-    <span>© XENOSFINANCE 2026</span>
-    <span>Elliott Wave Theory · Educational Content</span>
-    <span>⚠ Not investment advice</span>
-  </div>
-</div>
-
-<!-- ADMIN LOGIN MODAL -->
-<div class="modal-overlay" id="adminModal">
-  <div class="modal-box">
-    <div class="modal-accent"></div>
-    <div class="modal-logo">XENOS<span>FINANCE</span></div>
-    <div class="modal-sub">Admin Access — Wave Analysis</div>
-    <div class="modal-label">Password</div>
-    <input class="modal-input" id="adminPw" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter') doAdminLogin()">
-    <button class="btn btn-primary" onclick="doAdminLogin()" style="width:100%;padding:13px;">Access Admin</button>
-    <div class="modal-err" id="adminErr"></div>
-  </div>
+  <span>Not investment advice</span>
 </div>
 
 <script>
-// ── DATE/TIME ──
+// ── DATE ──
 (function(){
-  const months=['JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE','JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'];
-  const n=new Date();
-  const ld=document.getElementById('live-date');
-  if(ld) ld.textContent=months[n.getMonth()]+' '+n.getDate()+', '+n.getFullYear();
-  function tick(){
-    const t=new Date(), hm=t.getHours().toString().padStart(2,'0')+':'+t.getMinutes().toString().padStart(2,'0');
-    const lt=document.getElementById('live-time'); if(lt) lt.textContent='UPDATED AT '+hm+' CET';
-  }
-  tick(); setInterval(tick,60000);
+  const d=new Date();
+  document.getElementById('live-date').textContent=
+    d.toLocaleDateString('en-GB',{day:'2-digit',month:'long',year:'numeric'}).toUpperCase();
 })();
 
-// ── TABS ──
-function setTab(id){
-  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
-  document.querySelectorAll('#waveTabs .tab').forEach(t=>t.classList.remove('active'));
-  document.getElementById('tab-'+id).classList.add('active');
-  const idx=['w1','w2','w3','w4','w5','wa','wb','wc'].indexOf(id);
-  document.querySelectorAll('#waveTabs .tab')[idx].classList.add('active');
+// ── WAVE TABS ──
+function showWave(id, btn){
+  document.querySelectorAll('.wave-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.wave-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('panel-'+id).classList.add('active');
+  btn.classList.add('active');
+  // redraw mini canvas for that wave
+  drawMiniWave(id);
 }
-
-// ── MASTER WAVE DIAGRAM ──
-(function(){
-  const canvas=document.getElementById('masterDiagram');
-  if(!canvas) return;
-  const W=canvas.offsetWidth||900, H=320;
-  canvas.width=W*2; canvas.height=H*2; canvas.style.height=H+'px';
-  const ctx=canvas.getContext('2d'); ctx.scale(2,2);
-
-  const BG='#0f1724', BULL='#10b981', BEAR='#ef4444', TREND='#3b82f6', TEXT='#5a7a9a', BRIGHT='#e2eaf4';
-  ctx.fillStyle=BG; ctx.fillRect(0,0,W,H);
-
-  // Wave points for impulse + corrective
-  const pts={
-    0:[50,220], 1:[120,140], 2:[180,190], 3:[290,60], 4:[360,120], 5:[440,40],
-    A:[520,140], B:[580,90], C:[680,180]
-  };
-
-  function line(x1,y1,x2,y2,col,w=2,dash=[]){
-    ctx.save(); ctx.strokeStyle=col; ctx.lineWidth=w; ctx.setLineDash(dash);
-    ctx.lineCap='round'; ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); ctx.restore();
-  }
-  function dot(x,y,col,r=5){
-    ctx.save(); ctx.shadowColor=col; ctx.shadowBlur=8;
-    ctx.fillStyle=col; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill(); ctx.restore();
-  }
-  function lbl(text,x,y,col,align='center'){
-    ctx.fillStyle=col; ctx.font='bold 11px "IBM Plex Mono",monospace'; ctx.textAlign=align; ctx.fillText(text,x,y);
-  }
-
-  // Grid lines
-  for(let i=0;i<8;i++){
-    const x=50+i*(W-100)/7;
-    line(x,30,x,H-20,TREND,0.3,[4,4]);
-  }
-
-  // Baseline
-  line(40,240,W-20,240,TEXT,0.5,[6,4]);
-
-  // Impulse waves (0→5)
-  const impulseKeys=[0,1,2,3,4,5];
-  for(let i=0;i<impulseKeys.length-1;i++){
-    const from=pts[impulseKeys[i]], to=pts[impulseKeys[i+1]];
-    const isUp=to[1]<from[1];
-    // Fill zone
-    ctx.save(); ctx.globalAlpha=0.06; ctx.fillStyle=isUp?BULL:BEAR;
-    ctx.fillRect(Math.min(from[0],to[0]),Math.min(from[1],to[1]),Math.abs(to[0]-from[0]),Math.abs(to[1]-from[1]));
-    ctx.restore();
-    line(from[0],from[1],to[0],to[1],isUp?BULL:BEAR,2.5);
-  }
-
-  // Corrective waves (5→A→B→C)
-  const corrKeys=[5,'A','B','C'];
-  for(let i=0;i<corrKeys.length-1;i++){
-    const from=pts[corrKeys[i]], to=pts[corrKeys[i+1]];
-    const isUp=to[1]<from[1];
-    ctx.save(); ctx.globalAlpha=0.05; ctx.fillStyle=isUp?BULL:BEAR;
-    ctx.fillRect(Math.min(from[0],to[0]),Math.min(from[1],to[1]),Math.abs(to[0]-from[0]),Math.abs(to[1]-from[1]));
-    ctx.restore();
-    line(from[0],from[1],to[0],to[1],isUp?BULL:BEAR,2,[8,4]);
-  }
-
-  // Dots and labels
-  const waveLabels={0:['0',pts[0],'bottom'],1:['1',pts[1],'top'],2:['2',pts[2],'bottom'],3:['3',pts[3],'top'],4:['4',pts[4],'bottom'],5:['5',pts[5],'top'],'A':['A',pts['A'],'top'],'B':['B',pts['B'],'bottom'],'C':['C',pts['C'],'bottom']};
-  Object.entries(waveLabels).forEach(([k,[ltext,[x,y],pos]])=>{
-    const isCorrective=['A','B','C'].includes(k);
-    const col=isCorrective?BEAR:BULL;
-    dot(x,y,col,k==='0'?3:4);
-    const labelY=pos==='top'?y-14:y+20;
-    // Badge
-    const bw=22, bh=16;
-    ctx.fillStyle='rgba(11,20,32,0.9)'; ctx.strokeStyle=col; ctx.lineWidth=1;
-    ctx.beginPath(); ctx.roundRect(x-bw/2,labelY-10,bw,bh,2); ctx.fill(); ctx.stroke();
-    lbl(ltext,x,labelY+2,col);
-  });
-
-  // Section labels
-  ctx.fillStyle=BULL; ctx.font='9px "IBM Plex Mono",monospace'; ctx.textAlign='center';
-  ctx.fillText('MOTIVE PHASE (5 WAVES)',240,H-8);
-  ctx.fillStyle=BEAR;
-  ctx.fillText('CORRECTIVE (A-B-C)',590,H-8);
-
-  // Vertical divider
-  line(pts[5][0],25,pts[5][0],H-20,TEXT,0.8,[4,4]);
-})();
-
-// ── CORRECTIVE DIAGRAMS ──
-(function(){
-  const canvas=document.getElementById('correctiveDiagram');
-  if(!canvas) return;
-  const W=canvas.offsetWidth||900, H=260;
-  canvas.width=W*2; canvas.height=H*2; canvas.style.height=H+'px';
-  const ctx=canvas.getContext('2d'); ctx.scale(2,2);
-
-  const BG='#0f1724'; ctx.fillStyle=BG; ctx.fillRect(0,0,W,H);
-  const BULL='#10b981', BEAR='#ef4444', TEXT='#5a7a9a', BRIGHT='#e2eaf4', AMBER='#f59e0b', TREND='#3b82f6';
-
-  function line(x1,y1,x2,y2,col,w=2,dash=[]){
-    ctx.save(); ctx.strokeStyle=col; ctx.lineWidth=w; ctx.setLineDash(dash);
-    ctx.lineCap='round'; ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); ctx.restore();
-  }
-  function lbl(t,x,y,col='#5a7a9a',size='9px'){
-    ctx.fillStyle=col; ctx.font=size+' "IBM Plex Mono",monospace'; ctx.textAlign='center'; ctx.fillText(t,x,y);
-  }
-  function dot(x,y,col,r=3.5){
-    ctx.fillStyle=col; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
-  }
-
-  const pw=W/4;
-
-  // ── ZIGZAG ──
-  const zx=pw*0+30;
-  lbl('ZIGZAG  5-3-5',zx+pw/2-20,18,BRIGHT,'10px');
-  const zpts=[[zx+10,200],[zx+50,80],[zx+80,140],[zx+pw-20,50]];
-  [[0,1,BEAR],[1,2,BULL],[2,3,BEAR]].forEach(([a,b,c])=>{
-    line(zpts[a][0],zpts[a][1],zpts[b][0],zpts[b][1],c,2);
-    dot(zpts[b][0],zpts[b][1],c);
-  });
-  dot(zpts[0][0],zpts[0][1],TEXT);
-  ['A','B','C'].forEach((l,i)=>lbl(l,zpts[i+1][0],zpts[i+1][1]-10,['#ef4444','#10b981','#ef4444'][i],'bold 10px'));
-
-  // ── FLAT ──
-  const fx=pw*1+20;
-  lbl('FLAT  3-3-5',fx+pw/2-10,18,BRIGHT,'10px');
-  const fpts=[[fx+10,200],[fx+60,100],[fx+100,190],[fx+pw-10,90]];
-  [[0,1,BEAR],[1,2,BULL],[2,3,BEAR]].forEach(([a,b,c])=>{
-    line(fpts[a][0],fpts[a][1],fpts[b][0],fpts[b][1],c,2);
-    dot(fpts[b][0],fpts[b][1],c);
-  });
-  dot(fpts[0][0],fpts[0][1],TEXT);
-  ['A','B','C'].forEach((l,i)=>lbl(l,fpts[i+1][0],fpts[i+1][1]-10,['#ef4444','#10b981','#ef4444'][i],'bold 10px'));
-
-  // ── TRIANGLE ──
-  const tx=pw*2+10;
-  lbl('TRIANGLE  3-3-3-3-3',tx+pw/2,18,BRIGHT,'10px');
-  const tpts=[[tx+10,80],[tx+40,180],[tx+70,100],[tx+100,165],[tx+pw-10,120]];
-  // Converging trendlines
-  line(tx+10,80,tx+pw-10,120,TREND,1,[6,3]);
-  line(tx+10,200,tx+pw-10,140,TREND,1,[6,3]);
-  tpts.forEach((p,i)=>{ if(i>0) line(tpts[i-1][0],tpts[i-1][1],p[0],p[1],AMBER,2); dot(p[0],p[1],AMBER,3); });
-  dot(tpts[0][0],tpts[0][1],TEXT);
-  ['A','B','C','D','E'].forEach((l,i)=>lbl(l,tpts[i][0]+(i%2===0?-12:12),tpts[i][1],AMBER,'bold 9px'));
-
-  // ── DOUBLE ZIGZAG ──
-  const dx=pw*3+5;
-  lbl('DOUBLE ZIGZAG  W-X-Y',dx+pw/2,18,BRIGHT,'10px');
-  const dpts=[[dx+5,200],[dx+35,100],[dx+60,155],[dx+90,70],[dx+pw-10,180]];
-  [[0,1,BEAR],[1,2,BULL],[2,3,BEAR],[3,4,BULL]].forEach(([a,b,c])=>{
-    line(dpts[a][0],dpts[a][1],dpts[b][0],dpts[b][1],c,2);
-    dot(dpts[b][0],dpts[b][1],c);
-  });
-  dot(dpts[0][0],dpts[0][1],TEXT);
-  ['W','X','Y','X'].forEach((l,i)=>lbl(l,dpts[i+1][0],dpts[i+1][1]-10,['#ef4444','#10b981','#ef4444','#10b981'][i],'bold 10px'));
-
-  // Dividers
-  [1,2,3].forEach(i=>line(pw*i,20,pw*i,H-10,TEXT,0.5,[4,4]));
-})();
 
 // ── QUIZ ──
-const QUIZ=[
-  {q:"Which of the three Elliott Wave rules states that Wave 3 cannot be the shortest impulse wave?",opts:["Rule 1","Rule 2","Rule 3","Wave Alternation Guideline"],ans:1,exp:"Rule 2 states that Wave 3 cannot be the shortest of waves 1, 3, and 5. Wave 3 is typically the most powerful and extended impulse wave."},
-  {q:"Wave 2 retraces 50% of Wave 1 and then price continues higher. This is:",opts:["A violation of Rule 1","A violation of Rule 2","Normal — Wave 2 can retrace up to 99.9% of Wave 1","An automatic Wave 3 confirmation"],ans:2,exp:"Wave 2 can retrace any amount of Wave 1 as long as it doesn't reach 100% (below Wave 1's start). A 50% retracement is perfectly valid and actually very common."},
-  {q:"In a corrective ABC zigzag, Wave C always subdivides into:",opts:["3 waves","5 waves","Any number of waves","2 waves"],ans:1,exp:"Wave C in a zigzag always subdivides into 5 waves. This is one of the key rules — Wave A is also 5 waves, and Wave B is 3 waves, giving the zigzag its 5-3-5 structure."},
-  {q:"Wave 4 overlaps the price territory of Wave 1 on a standard impulse. This means:",opts:["The count is invalid (Rule 3 violated)","Wave 3 was actually a diagonal","It's acceptable if Wave 4 is complex","The Fibonacci extension was too large"],ans:0,exp:"Rule 3 states that Wave 4 cannot overlap Wave 1's price territory in a standard impulse. Overlap invalidates the count — you're either in a diagonal triangle or the wave labeling is incorrect."},
-  {q:"Which Fibonacci extension is most commonly associated with Wave 3 targets?",opts:["38.2% of Wave 1","100% of Wave 1","161.8% of Wave 1","261.8% of Wave 2"],ans:2,exp:"Wave 3 most commonly extends to 161.8% (1.618×) of Wave 1, measured from the end of Wave 2. This golden ratio relationship is one of the most reliable targets in Elliott Wave analysis."},
-  {q:"The 'alternation guideline' suggests that if Wave 2 was a sharp zigzag, Wave 4 will most likely be:",opts:["Another sharp zigzag","A flat or triangle (complex)","Equal in price to Wave 2","A truncated wave"],ans:1,exp:"The alternation guideline states that if Wave 2 is sharp (zigzag), Wave 4 tends to be sideways/complex (flat or triangle), and vice versa. This is not an absolute rule but holds in the majority of cases."},
-  {q:"An 'expanded flat' corrective pattern is characterized by:",opts:["Wave B not retracing Wave A at all","Wave B retracing more than 100% of Wave A","Wave C being shorter than Wave A","Wave A subdividing into 5 waves"],ans:1,exp:"In an expanded flat, Wave B exceeds the start of Wave A (retraces more than 100%), and Wave C extends beyond the end of Wave A. This creates an 'expanded' appearance compared to a regular flat."},
-  {q:"RSI divergence during Wave 5 is considered:",opts:["A signal to add to the position","A warning of potential exhaustion and trend reversal","Irrelevant in Elliott Wave analysis","A confirmation of Wave 3 extension"],ans:1,exp:"RSI divergence during Wave 5 — where price makes a new high but RSI makes a lower high — is a classic warning signal that Wave 5 may be nearing completion and a full ABC correction is approaching."},
-];
-
-let qIdx=0, score=0, answered=false;
-
-function renderQuiz(){
-  const q=QUIZ[qIdx];
-  const c=document.getElementById('quizContainer');
-  c.innerHTML=`
-    <div class="quiz-box">
-      <div style="font-size:9px;letter-spacing:3px;color:var(--gold);text-transform:uppercase;margin-bottom:12px;">Question ${qIdx+1} of ${QUIZ.length}</div>
-      <div class="quiz-q">${q.q}</div>
-      <div class="quiz-options">${q.opts.map((o,i)=>`<button class="quiz-opt" id="opt${i}" onclick="answerQuiz(${i})">${String.fromCharCode(65+i)}. ${o}</button>`).join('')}</div>
-      <div class="quiz-feedback" id="feedback"></div>
-      <div class="quiz-nav">
-        <span class="quiz-score">Score: ${score}/${qIdx} correct</span>
-        <button class="btn btn-primary" id="nextBtn" onclick="nextQuestion()" style="display:none;">Next Question →</button>
-      </div>
-    </div>`;
-  answered=false;
-}
-
-function answerQuiz(idx){
-  if(answered) return;
-  answered=true;
-  const q=QUIZ[qIdx];
-  const correct=idx===q.ans;
-  if(correct) score++;
-  document.querySelectorAll('.quiz-opt').forEach((b,i)=>{
-    if(i===q.ans) b.classList.add('correct');
-    else if(i===idx&&!correct) b.classList.add('wrong');
-    b.disabled=true;
-  });
-  const fb=document.getElementById('feedback');
-  fb.textContent=(correct?'✓ Correct! ':'✗ Incorrect. ')+q.exp;
-  fb.classList.add('show');
-  const nb=document.getElementById('nextBtn');
-  if(nb) nb.style.display='block';
-}
-
-function nextQuestion(){
-  qIdx++;
-  if(qIdx>=QUIZ.length){
-    const c=document.getElementById('quizContainer');
-    const pct=Math.round(score/QUIZ.length*100);
-    c.innerHTML=`<div class="quiz-box" style="text-align:center;">
-      <div style="font-family:var(--serif);font-size:28px;color:var(--ink);margin-bottom:12px;">Quiz Complete</div>
-      <div style="font-size:48px;font-weight:bold;color:${pct>=75?'var(--green2)':pct>=50?'var(--amber)':'var(--red2)'};margin-bottom:12px;">${pct}%</div>
-      <div style="font-size:12px;color:var(--ink2);margin-bottom:24px;">${score} correct out of ${QUIZ.length} questions</div>
-      <div style="font-size:11px;color:var(--muted);margin-bottom:24px;">${pct>=75?'Excellent! You have a solid understanding of Elliott Wave Theory.':pct>=50?'Good effort. Review the sections above to strengthen weak areas.':'Keep studying — re-read the theory sections and try again.'}</div>
-      <button class="btn btn-primary" onclick="qIdx=0;score=0;renderQuiz()">Retry Quiz</button>
-    </div>`;
-    return;
+const ANSWERS = {q1:'c',q2:'b',q3:'c',q4:'b',q5:'c',q6:'c',q7:'b',q8:'b'};
+function checkQuiz(){
+  let score=0;
+  for(let q in ANSWERS){
+    const sel=document.querySelector(`input[name="${q}"]:checked`);
+    const opts=document.querySelectorAll(`input[name="${q}"]`);
+    const exp=document.getElementById('exp'+q.slice(1));
+    opts.forEach(o=>{
+      const lbl=o.closest('.quiz-opt');
+      lbl.classList.remove('correct','wrong');
+      if(o.value===ANSWERS[q]) lbl.classList.add('correct');
+      else if(o.checked) lbl.classList.add('wrong');
+    });
+    if(sel && sel.value===ANSWERS[q]) score++;
+    if(exp) exp.style.display='block';
   }
-  renderQuiz();
+  const sc=document.getElementById('quiz-score');
+  sc.style.display='block';
+  sc.textContent=`Score: ${score}/${Object.keys(ANSWERS).length} — ${score>=7?'Excellent':score>=5?'Good — review the sections above':'Keep studying the theory above'}`;
 }
 
-renderQuiz();
-
-// ── ADMIN LOGIN ──
-let isAdmin=false;
-function openAdminLogin(){ document.getElementById('adminModal').classList.add('open'); setTimeout(()=>document.getElementById('adminPw').focus(),100); }
-function closeAdminModal(){ document.getElementById('adminModal').classList.remove('open'); }
-document.getElementById('adminModal').addEventListener('click',function(e){ if(e.target===this) closeAdminModal(); });
-
-function doAdminLogin(){
+// ── ADMIN ──
+function adminLogin(){
   const pw=document.getElementById('adminPw').value;
   if(pw==='xenosfinance2026'){
-    isAdmin=true;
-    closeAdminModal();
-    document.getElementById('aiLocked').style.display='none';
-    document.getElementById('aiAdminPanel').style.display='block';
-    document.getElementById('adminLoginBtn').style.display='none';
+    document.getElementById('admin-login-area').style.display='none';
+    document.getElementById('adminPanel').style.display='block';
   } else {
     document.getElementById('adminErr').textContent='⚠ Wrong password';
     document.getElementById('adminPw').value='';
   }
 }
 
-// ── AI ANALYSIS ──
-document.getElementById('aiPair').addEventListener('change',function(){
-  document.getElementById('aiCustomPair').style.display=this.value==='Custom'?'block':'none';
-});
-
 let lastAnalysis='';
 
-async function generateAnalysis(){
-  if(!isAdmin) return;
-  const pair=document.getElementById('aiPair').value==='Custom'?document.getElementById('aiCustomPair').value:document.getElementById('aiPair').value;
-  const tf=document.getElementById('aiTimeframe').value;
-  const pos=document.getElementById('aiWavePos').value;
+async function runAIAnalysis(){
+  const symbol=document.getElementById('aiSymbol').value||'EUR/USD';
+  const tf=document.getElementById('aiTf').value;
+  const wave=document.getElementById('aiWave').value;
   const ctx=document.getElementById('aiContext').value;
-  const status=document.getElementById('aiStatus');
-  const result=document.getElementById('aiResult');
+  const btn=document.getElementById('aiRunBtn');
+  const out=document.getElementById('analysisOutput');
+  const txt=document.getElementById('analysisText');
 
-  status.textContent='⟳ Generating institutional wave analysis...';
-  result.classList.remove('show');
+  btn.disabled=true;
+  btn.textContent='Analysing...';
+  out.style.display='block';
+  txt.innerHTML='<span class="analysis-loading">⬡ GENERATING ANALYSIS...</span>';
+  document.getElementById('tgBtn').style.display='none';
 
-  const posLabels={unknown:'wave position uncertain',wave1:'currently in Wave 1',wave2:'currently in Wave 2',wave3:'currently in Wave 3',wave4:'currently in Wave 4',wave5:'currently in Wave 5',waveA:'currently in Wave A',waveB:'currently in Wave B',waveC:'currently in Wave C'};
-  const prompt=`You are a senior Elliott Wave analyst at an institutional trading desk. Generate a comprehensive Elliott Wave analysis for the following:
+  const prompt=`You are a senior Elliott Wave analyst at a top-tier institutional trading desk. Generate a precise, professional Elliott Wave analysis for ${symbol} on the ${tf} timeframe.
 
-Instrument: ${pair}
-Timeframe: ${tf}
-Current Wave Position: ${posLabels[pos]||pos}
-${ctx?'Additional Context: '+ctx:''}
+Current wave context: ${wave}
+${ctx?'Additional context: '+ctx:''}
 
-Provide a structured institutional-grade analysis covering:
+Structure your analysis EXACTLY as follows (use these headers verbatim):
 
-1. WAVE COUNT — Current wave position and degree. Describe the probable primary and sub-wave structure. Be specific about wave labels.
+WAVE COUNT
+[Identify the current wave position and recent completed waves. Be specific about price levels if context provided.]
 
-2. KEY LEVELS — Critical price levels: end of prior wave, invalidation level (where the count would be wrong), and Fibonacci projection targets for the next wave.
+KEY LEVELS
+[Entry zone, stop loss, take profit 1, take profit 2 with Fibonacci justification]
 
-3. SCENARIO A (Primary) — The most probable next move based on the wave count. Entry zone, target, and what confirms the count.
+SCENARIO A — PRIMARY (probability %)
+[Most likely next move based on wave count. Include target and invalidation level.]
 
-4. SCENARIO B (Alternate) — The alternative count if Scenario A fails. What would invalidate the primary count and what the alternate structure implies.
+SCENARIO B — ALTERNATE (probability %)
+[Alternative count if primary is invalidated. What would trigger this scenario.]
 
-5. TRADING SIGNAL — Specific actionable guidance: direction, entry zone, stop loss, target, and risk:reward ratio.
+SIGNAL
+[Clear actionable conclusion: LONG / SHORT / WAIT with specific conditions]
 
-Write in Bloomberg terminal style — precise, institutional, no filler. Use wave notation (W1, W2, W3, A, B, C) throughout.`;
+Keep the tone institutional. No disclaimers. Concise, precise, Bloomberg-style.`;
 
-  try {
+  try{
     const res=await fetch('https://xenos-ai-proxy.xenosfinance.workers.dev',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1500,messages:[{role:'user',content:prompt}]})
-    });
-    const data=await res.json();
-    const text=data.content?.[0]?.text||'Analysis failed.';
-    lastAnalysis=text;
-    result.textContent=text;
-    result.classList.add('show');
-    status.textContent='✓ Analysis generated · '+new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})+' CET';
-    document.getElementById('tgSendRow').style.display='block';
-  } catch(e){
-    status.textContent='⚠ Error: '+e.message;
-  }
-}
-
-async function sendAnalysisToTelegram(){
-  const token=document.getElementById('tgToken').value.trim();
-  const channel=document.getElementById('tgChannel').value.trim();
-  const tgStatus=document.getElementById('tgStatus');
-  if(!token||!channel){tgStatus.textContent='⚠ Enter bot token and channel ID';return;}
-  if(!lastAnalysis){tgStatus.textContent='⚠ Generate analysis first';return;}
-
-  const pair=document.getElementById('aiPair').value==='Custom'?document.getElementById('aiCustomPair').value:document.getElementById('aiPair').value;
-  const tf=document.getElementById('aiTimeframe').value;
-  const msg=`〜 *ELLIOTT WAVE ANALYSIS — ${pair} ${tf}*\n_XenosFinance · Institutional Research_\n\n${lastAnalysis}\n\n━━━━━━━━━━━━━━━\n📊 [Charts](https://xenosfinance.com/xenoswaves_charts.html) · [Signals](https://xenosfinance.com/signals.html) · [Education](https://xenosfinance.com/elliottwave.html)\n🔔 @xenosfin`;
-
-  tgStatus.textContent='Sending...';
-  try{
-    const res=await fetch('https://api.telegram.org/bot'+token+'/sendMessage',{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({chat_id:channel,text:msg,parse_mode:'Markdown',disable_web_page_preview:true,
-        reply_markup:{inline_keyboard:[[{text:'〜 Elliott Wave',url:'https://xenosfinance.com/elliottwave.html'},{text:'📊 Charts',url:'https://xenosfinance.com/xenoswaves_charts.html'},{text:'⚡ Signals',url:'https://xenosfinance.com/signals.html'}]]}
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:1000,
+        messages:[{role:'user',content:prompt}]
       })
     });
-    const d=await res.json();
-    if(d.ok) tgStatus.textContent='✓ Sent to channel!';
-    else tgStatus.textContent='⚠ '+(d.description||'Check token');
-  }catch(e){tgStatus.textContent='⚠ Connection error';}
-  setTimeout(()=>{tgStatus.textContent='';},5000);
+    const data=await res.json();
+    const text=data.content?.[0]?.text||'Error: no response';
+    txt.textContent=text;
+    lastAnalysis=`Elliott Wave Analysis — ${symbol} ${tf}\n\n${text}`;
+    document.getElementById('tgBtn').style.display='inline-block';
+  }catch(e){
+    txt.textContent='Error: '+e.message;
+  }
+  btn.disabled=false;
+  btn.textContent='⚡ Generate Analysis';
 }
+
+async function sendToTelegram(){
+  if(!lastAnalysis) return;
+  const WORKER='https://xenos-ai-proxy.xenosfinance.workers.dev';
+  const msg=`📊 *ELLIOTT WAVE ANALYSIS*\n\n${lastAnalysis.replace(/\*/g,'').replace(/[_[\]()~`>#+\-=|{}.!]/g,'\\$&')}`;
+  try{
+    const res=await fetch(WORKER,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({type:'telegram',text:msg,parse_mode:'MarkdownV2'})
+    });
+    const d=await res.json();
+    if(d.ok||d.result) alert('Sent to Telegram ✓');
+    else alert('Error sending: '+JSON.stringify(d));
+  }catch(e){ alert('Error: '+e.message); }
+}
+
+// ── CANVAS DIAGRAMS ──
+function drawBasicWave(){
+  const c=document.getElementById('canvas-basic');
+  const ctx=c.getContext('2d');
+  const W=c.width,H=c.height;
+  ctx.clearRect(0,0,W,H);
+
+  // Points for 5-3 wave
+  const pts=[
+    {x:40,y:200},{x:120,y:120},{x:160,y:155},{x:280,y:50},{x:330,y:90},
+    {x:430,y:30},{x:500,y:80},{x:560,y:55},{x:620,y:130},{x:640,y:100}
+  ];
+  // Labels
+  const labels=['0','1','2','3','4','5','A','B','C'];
+  const labelPts=[
+    {x:40,y:200},{x:120,y:120},{x:160,y:155},{x:280,y:50},{x:330,y:90},
+    {x:430,y:30},{x:500,y:80},{x:560,y:55},{x:620,y:130}
+  ];
+
+  // Draw divider
+  ctx.strokeStyle='#1e3050';
+  ctx.lineWidth=1;
+  ctx.setLineDash([4,4]);
+  ctx.beginPath();ctx.moveTo(430,20);ctx.lineTo(430,240);ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Labels for sections
+  ctx.font='9px IBM Plex Mono';
+  ctx.fillStyle='#5a7a9a';
+  ctx.letterSpacing='3px';
+  ctx.fillText('IMPULSE',100,240);
+  ctx.fillText('CORRECTIVE',490,240);
+
+  // Draw impulse waves (blue)
+  ctx.strokeStyle='#3b82f6';
+  ctx.lineWidth=2.5;
+  ctx.beginPath();
+  for(let i=0;i<6;i++){
+    if(i===0) ctx.moveTo(pts[i].x,pts[i].y);
+    else ctx.lineTo(pts[i].x,pts[i].y);
+  }
+  ctx.stroke();
+
+  // Draw corrective waves (orange)
+  ctx.strokeStyle='#f59e0b';
+  ctx.lineWidth=2.5;
+  ctx.beginPath();
+  for(let i=5;i<10;i++){
+    if(i===5) ctx.moveTo(pts[i].x,pts[i].y);
+    else ctx.lineTo(pts[i].x,pts[i].y);
+  }
+  ctx.stroke();
+
+  // Draw dots and labels
+  labelPts.forEach((p,i)=>{
+    ctx.fillStyle=i<6?'#60a5fa':'#fbbf24';
+    ctx.beginPath();ctx.arc(p.x,p.y,5,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle=i<6?'#60a5fa':'#fbbf24';
+    ctx.font='bold 13px IBM Plex Mono';
+    const lbl=labels[i];
+    ctx.fillText(lbl,p.x-5,p.y-(i%2===0?15:15));
+  });
+}
+
+function drawCorrectivePatterns(){
+  const c=document.getElementById('canvas-corrective');
+  const ctx=c.getContext('2d');
+  const W=c.width,H=c.height;
+  ctx.clearRect(0,0,W,H);
+
+  function drawPattern(startX, pts, color, label, subLabels){
+    ctx.strokeStyle=color;
+    ctx.lineWidth=2;
+    ctx.beginPath();
+    pts.forEach((p,i)=>i===0?ctx.moveTo(startX+p[0],p[1]):ctx.lineTo(startX+p[0],p[1]));
+    ctx.stroke();
+    pts.forEach((p,i)=>{
+      ctx.fillStyle=color;
+      ctx.beginPath();ctx.arc(startX+p[0],p[1],4,0,Math.PI*2);ctx.fill();
+      ctx.font='bold 11px IBM Plex Mono';
+      ctx.fillText(subLabels[i],startX+p[0]-5,p[1]-10);
+    });
+    ctx.font='9px IBM Plex Mono';
+    ctx.fillStyle='#5a7a9a';
+    ctx.fillText(label,startX+20,H-8);
+  }
+
+  // Zigzag
+  drawPattern(20,[
+    [0,40],[60,130],[100,80],[160,180]
+  ],'#3b82f6','ZIGZAG (5-3-5)',['','A','B','C']);
+
+  // Flat
+  drawPattern(240,[
+    [0,40],[60,130],[110,50],[170,140]
+  ],'#10b981','FLAT (3-3-5)',['','A','B','C']);
+
+  // Triangle
+  drawPattern(460,[
+    [0,40],[45,130],[90,70],[135,120],[175,85],[210,105]
+  ],'#f59e0b','TRIANGLE (3-3-3-3-3)',['','A','B','C','D','E']);
+}
+
+function drawMiniWave(id){
+  const canvasId='c-'+id;
+  const c=document.getElementById(canvasId);
+  if(!c) return;
+  const ctx=c.getContext('2d');
+  const W=c.width,H=c.height;
+  ctx.clearRect(0,0,W,H);
+
+  const schemes={
+    w1:{pts:[[20,140],[100,80],[140,110],[240,40]],highlight:[0,1],color:'#3b82f6',label:'W1'},
+    w2:{pts:[[20,60],[80,120],[120,90],[200,150]],highlight:[2,3],color:'#f87171',label:'W2'},
+    w3:{pts:[[20,150],[40,130],[80,160],[180,40]],highlight:[0,3],color:'#3b82f6',label:'W3'},
+    w4:{pts:[[20,60],[80,80],[130,65],[200,90]],highlight:[0,3],color:'#f59e0b',label:'W4'},
+    w5:{pts:[[20,110],[60,80],[100,100],[180,50]],highlight:[0,3],color:'#3b82f6',label:'W5'},
+    wa:{pts:[[20,50],[100,130],[150,100],[240,160]],highlight:[0,3],color:'#f87171',label:'A'},
+    wb:{pts:[[20,150],[80,110],[130,130],[200,100]],highlight:[0,3],color:'#f59e0b',label:'B'},
+    wc:{pts:[[20,80],[60,100],[120,80],[220,160]],highlight:[0,3],color:'#f87171',label:'C'},
+  };
+
+  const s=schemes[id];
+  if(!s) return;
+
+  ctx.strokeStyle=s.color+'88';
+  ctx.lineWidth=1.5;
+  ctx.setLineDash([4,4]);
+  ctx.beginPath();
+  s.pts.forEach((p,i)=>i===0?ctx.moveTo(p[0],p[1]):ctx.lineTo(p[0],p[1]));
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Highlight main wave segment
+  ctx.strokeStyle=s.color;
+  ctx.lineWidth=2.5;
+  ctx.beginPath();
+  const [si,ei]=s.highlight;
+  ctx.moveTo(s.pts[si][0],s.pts[si][1]);
+  ctx.lineTo(s.pts[ei][0],s.pts[ei][1]);
+  ctx.stroke();
+
+  s.pts.forEach((p,i)=>{
+    const isHL=i===s.highlight[0]||i===s.highlight[1];
+    ctx.fillStyle=isHL?s.color:'#2d4a78';
+    ctx.beginPath();ctx.arc(p[0],p[1],isHL?5:3,0,Math.PI*2);ctx.fill();
+  });
+
+  ctx.fillStyle=s.color;
+  ctx.font='bold 14px IBM Plex Mono';
+  ctx.fillText(s.label,s.pts[s.highlight[1]][0]+6,s.pts[s.highlight[1]][1]-8);
+}
+
+// Init all drawings on load
+window.addEventListener('load',()=>{
+  drawBasicWave();
+  drawCorrectivePatterns();
+  drawMiniWave('w1');
+});
 </script>
 </body>
 </html>
-'''
-
-open('/home/claude/elliottwave.html', 'w').write(content)
-print(f"Done: {len(content)} chars")
-PYEOF
-python3 /home/claude/build_ew.py
