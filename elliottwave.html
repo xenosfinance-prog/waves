@@ -124,22 +124,33 @@ canvas { display: block; }
 .degree-name { font-size: 11px; color: var(--gold2); letter-spacing: 1px; margin-bottom: 4px; }
 .degree-time { font-size: 10px; color: var(--muted); }
 
-/* ── QUIZ ── */
-.quiz-wrap { background: var(--bg2); border: 1px solid var(--border); padding: 32px; }
-.quiz-q { margin-bottom: 28px; padding-bottom: 28px; border-bottom: 1px solid var(--border); }
-.quiz-q:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
-.quiz-question { font-size: 13px; color: var(--ink); margin-bottom: 14px; line-height: 1.6; }
-.quiz-question span { color: var(--gold2); }
-.quiz-options { display: flex; flex-direction: column; gap: 8px; }
-.quiz-opt { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border: 1px solid var(--border); cursor: pointer; font-size: 12px; color: var(--ink2); transition: all 0.2s; background: var(--bg); }
-.quiz-opt:hover { border-color: var(--border2); background: var(--bg3); }
-.quiz-opt.correct { border-color: var(--green); background: rgba(16,185,129,0.08); color: var(--green2); }
-.quiz-opt.wrong { border-color: var(--red); background: rgba(239,68,68,0.08); color: var(--red2); }
-.quiz-opt input { accent-color: var(--gold); }
-.quiz-explanation { display: none; margin-top: 10px; padding: 10px 14px; background: rgba(59,130,246,0.06); border-left: 2px solid var(--gold); font-size: 11px; color: var(--ink2); line-height: 1.7; }
-.quiz-btn { margin-top: 28px; padding: 12px 32px; background: var(--gold3); color: var(--ink); border: none; font-family: var(--mono); font-size: 11px; letter-spacing: 3px; text-transform: uppercase; cursor: pointer; transition: background 0.2s; }
-.quiz-btn:hover { background: var(--gold); }
-.quiz-score { display: none; margin-top: 20px; padding: 16px 20px; background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.3); font-size: 13px; color: var(--gold2); text-align: center; }
+/* ── GLOSSARY ── */
+.gloss-search-wrap { position: relative; margin-bottom: 20px; }
+.gloss-search { width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--ink); font-family: var(--mono); font-size: 13px; padding: 12px 16px 12px 40px; outline: none; transition: border-color 0.2s; }
+.gloss-search:focus { border-color: var(--border2); }
+.gloss-search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 14px; pointer-events: none; }
+.gloss-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 20px; }
+.gloss-tag { padding: 4px 12px; font-size: 10px; letter-spacing: 2px; text-transform: uppercase; border: 1px solid var(--border); color: var(--muted); cursor: pointer; transition: all 0.2s; background: none; font-family: var(--mono); }
+.gloss-tag:hover, .gloss-tag.active { border-color: var(--gold); color: var(--gold); background: rgba(59,130,246,0.08); }
+.gloss-count { font-size: 10px; color: var(--muted); letter-spacing: 2px; margin-bottom: 16px; }
+.gloss-grid { display: flex; flex-direction: column; gap: 1px; background: var(--border); border: 1px solid var(--border); }
+.gloss-item { background: var(--bg2); cursor: pointer; transition: background 0.15s; }
+.gloss-item:hover { background: var(--bg3); }
+.gloss-item.hidden { display: none; }
+.gloss-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; }
+.gloss-term { font-size: 13px; color: var(--ink); letter-spacing: 1px; }
+.gloss-cat { font-size: 9px; letter-spacing: 3px; text-transform: uppercase; padding: 3px 8px; border: 1px solid var(--border2); color: var(--muted); }
+.gloss-cat.cat-wave { border-color: rgba(59,130,246,0.4); color: var(--gold2); }
+.gloss-cat.cat-rule { border-color: rgba(239,68,68,0.4); color: var(--red2); }
+.gloss-cat.cat-pattern { border-color: rgba(245,158,11,0.4); color: var(--yellow); }
+.gloss-cat.cat-fib { border-color: rgba(16,185,129,0.4); color: var(--green2); }
+.gloss-cat.cat-concept { border-color: rgba(96,165,250,0.3); color: var(--ink2); }
+.gloss-arrow { color: var(--muted); font-size: 11px; transition: transform 0.2s; }
+.gloss-item.open .gloss-arrow { transform: rotate(90deg); }
+.gloss-body { display: none; padding: 0 18px 16px; font-size: 12px; color: var(--ink2); line-height: 1.8; border-top: 1px solid var(--border); padding-top: 14px; margin-top: 0; }
+.gloss-item.open .gloss-body { display: block; }
+.gloss-body strong { color: var(--gold2); }
+.gloss-empty { display: none; padding: 32px; text-align: center; font-size: 12px; color: var(--muted); background: var(--bg2); border: 1px solid var(--border); }
 
 /* ── ADMIN SECTION ── */
 .admin-gate { background: var(--bg2); border: 1px solid var(--border); padding: 32px; margin-top: 40px; }
@@ -464,98 +475,218 @@ canvas { display: block; }
     </div>
   </div>
 
-  <!-- SECTION 7: QUIZ -->
+  <!-- SECTION 7: GLOSSARY -->
   <div class="ew-section">
     <div class="ew-section-header">
-      <span class="ew-section-num">07 — Test Your Knowledge</span>
+      <span class="ew-section-num">07 — Glossary</span>
       <div class="ew-section-line"></div>
     </div>
-    <h2 class="ew-section-title">Elliott Wave Quiz</h2>
-    <div class="quiz-wrap">
-      <div class="quiz-q" id="qq1">
-        <div class="quiz-question"><span>Q1.</span> Which of the three inviolable rules states that Wave 4 cannot enter Wave 1's territory?</div>
-        <div class="quiz-options">
-          <label class="quiz-opt"><input type="radio" name="q1" value="a"> The Wave 2 Rule</label>
-          <label class="quiz-opt"><input type="radio" name="q1" value="b"> The Wave 3 Rule</label>
-          <label class="quiz-opt"><input type="radio" name="q1" value="c"> The Wave 4 Overlap Rule</label>
-          <label class="quiz-opt"><input type="radio" name="q1" value="d"> The Alternation Guideline</label>
-        </div>
-        <div class="quiz-explanation" id="exp1">Rule III: Wave 4 cannot overlap with Wave 1's price territory (except in diagonal triangles). This is one of three absolute rules — if violated, the wave count is incorrect.</div>
-      </div>
-      <div class="quiz-q" id="qq2">
-        <div class="quiz-question"><span>Q2.</span> Wave 3 is characterised by which of the following?</div>
-        <div class="quiz-options">
-          <label class="quiz-opt"><input type="radio" name="q2" value="a"> It is always the shortest impulse wave</label>
-          <label class="quiz-opt"><input type="radio" name="q2" value="b"> It is never the shortest impulse wave and usually the most powerful</label>
-          <label class="quiz-opt"><input type="radio" name="q2" value="c"> It always retraces 61.8% of Wave 2</label>
-          <label class="quiz-opt"><input type="radio" name="q2" value="d"> It must equal Wave 1 in length</label>
-        </div>
-        <div class="quiz-explanation" id="exp2">Wave 3 is NEVER the shortest impulse wave (Rule II). It is typically the longest and strongest, commonly extending to 161.8% of Wave 1. Volume expands and breakouts occur.</div>
-      </div>
-      <div class="quiz-q" id="qq3">
-        <div class="quiz-question"><span>Q3.</span> What is the most common Fibonacci retracement level for Wave 2?</div>
-        <div class="quiz-options">
-          <label class="quiz-opt"><input type="radio" name="q3" value="a"> 23.6%</label>
-          <label class="quiz-opt"><input type="radio" name="q3" value="b"> 38.2%</label>
-          <label class="quiz-opt"><input type="radio" name="q3" value="c"> 61.8%</label>
-          <label class="quiz-opt"><input type="radio" name="q3" value="d"> 100%</label>
-        </div>
-        <div class="quiz-explanation" id="exp3">Wave 2 most commonly retraces 61.8% of Wave 1 — the golden ratio. However it can retrace 50% or 76.4%. The key rule: it must NOT retrace 100% or more of Wave 1.</div>
-      </div>
-      <div class="quiz-q" id="qq4">
-        <div class="quiz-question"><span>Q4.</span> The Guideline of Alternation suggests that if Wave 2 is a sharp correction, Wave 4 will tend to be:</div>
-        <div class="quiz-options">
-          <label class="quiz-opt"><input type="radio" name="q4" value="a"> Also sharp and deep</label>
-          <label class="quiz-opt"><input type="radio" name="q4" value="b"> Flat or sideways</label>
-          <label class="quiz-opt"><input type="radio" name="q4" value="c"> A triple zigzag</label>
-          <label class="quiz-opt"><input type="radio" name="q4" value="d"> Longer than Wave 2</label>
-        </div>
-        <div class="quiz-explanation" id="exp4">The Guideline of Alternation: corrective waves tend to alternate in character. A sharp Wave 2 is followed by a flat/sideways Wave 4, and vice versa. This is a guideline, not a rule.</div>
-      </div>
-      <div class="quiz-q" id="qq5">
-        <div class="quiz-question"><span>Q5.</span> In a corrective ABC structure, Wave B is often called a "bull trap" because:</div>
-        <div class="quiz-options">
-          <label class="quiz-opt"><input type="radio" name="q5" value="a"> It always makes new all-time highs</label>
-          <label class="quiz-opt"><input type="radio" name="q5" value="b"> It is a 5-wave rally that fools traders into thinking the uptrend resumed</label>
-          <label class="quiz-opt"><input type="radio" name="q5" value="c"> It is a counter-rally on low volume that fools traders into thinking the uptrend resumed</label>
-          <label class="quiz-opt"><input type="radio" name="q5" value="d"> It retraces 100% of Wave A</label>
-        </div>
-        <div class="quiz-explanation" id="exp5">Wave B counter-rallies against Wave A on declining volume and conviction. Traders mistake it for a continuation of the prior bull trend and buy — only to be hit by the devastating Wave C decline that follows.</div>
-      </div>
-      <div class="quiz-q" id="qq6">
-        <div class="quiz-question"><span>Q6.</span> Which corrective pattern is described as 5-3-5 in its internal wave structure?</div>
-        <div class="quiz-options">
-          <label class="quiz-opt"><input type="radio" name="q6" value="a"> Flat</label>
-          <label class="quiz-opt"><input type="radio" name="q6" value="b"> Triangle</label>
-          <label class="quiz-opt"><input type="radio" name="q6" value="c"> Zigzag</label>
-          <label class="quiz-opt"><input type="radio" name="q6" value="d"> Double Three</label>
-        </div>
-        <div class="quiz-explanation" id="exp6">A Zigzag is structured 5-3-5: Wave A has 5 subwaves, Wave B has 3, Wave C has 5. This makes it a sharp, steep correction. A Flat is 3-3-5 while a Triangle is 3-3-3-3-3.</div>
-      </div>
-      <div class="quiz-q" id="qq7">
-        <div class="quiz-question"><span>Q7.</span> Elliott Wave Theory is described as "fractal" because:</div>
-        <div class="quiz-options">
-          <label class="quiz-opt"><input type="radio" name="q7" value="a"> It only works on daily charts</label>
-          <label class="quiz-opt"><input type="radio" name="q7" value="b"> Each wave subdivides into smaller waves of the same pattern at every timeframe</label>
-          <label class="quiz-opt"><input type="radio" name="q7" value="c"> It requires complex mathematical formulas</label>
-          <label class="quiz-opt"><input type="radio" name="q7" value="d"> Wave 3 is always 161.8% of Wave 1</label>
-        </div>
-        <div class="quiz-explanation" id="exp7">Fractal nature: a Wave 3 on a monthly chart contains a complete 5-wave impulse on the weekly chart, which itself contains 5-wave impulses on the daily chart. The same structure repeats at every degree of trend simultaneously.</div>
-      </div>
-      <div class="quiz-q" id="qq8">
-        <div class="quiz-question"><span>Q8.</span> Wave 5 compared to Wave 3 typically shows:</div>
-        <div class="quiz-options">
-          <label class="quiz-opt"><input type="radio" name="q8" value="a"> Higher volume and stronger breadth</label>
-          <label class="quiz-opt"><input type="radio" name="q8" value="b"> Momentum divergence — fewer stocks participating, RSI diverging</label>
-          <label class="quiz-opt"><input type="radio" name="q8" value="c"> It is always the longest wave</label>
-          <label class="quiz-opt"><input type="radio" name="q8" value="d"> It retraces 38.2% of Wave 4</label>
-        </div>
-        <div class="quiz-explanation" id="exp8">Wave 5 commonly shows bearish momentum divergence: price makes a new high but RSI/MACD fail to confirm. Market breadth narrows (fewer stocks participating). This divergence is a key signal that the impulse is exhausted and a corrective ABC is imminent.</div>
+    <h2 class="ew-section-title">Elliott Wave Glossary</h2>
+    <p class="ew-prose">Search and explore every term in Elliott Wave Theory. Click any entry to expand.</p>
+
+    <div class="gloss-search-wrap">
+      <span class="gloss-search-icon">⌕</span>
+      <input class="gloss-search" id="glossSearch" type="text" placeholder="Search terms… e.g. impulse, zigzag, fibonacci" oninput="filterGloss()">
+    </div>
+    <div class="gloss-tags">
+      <button class="gloss-tag active" onclick="filterTag('all',this)">All</button>
+      <button class="gloss-tag" onclick="filterTag('wave',this)">Waves</button>
+      <button class="gloss-tag" onclick="filterTag('rule',this)">Rules</button>
+      <button class="gloss-tag" onclick="filterTag('pattern',this)">Patterns</button>
+      <button class="gloss-tag" onclick="filterTag('fib',this)">Fibonacci</button>
+      <button class="gloss-tag" onclick="filterTag('concept',this)">Concepts</button>
+    </div>
+    <div class="gloss-count" id="glossCount">40 terms</div>
+
+    <div class="gloss-grid" id="glossGrid">
+
+      <div class="gloss-item" data-cat="wave" onclick="toggleGloss(this)">
+        <div class="gloss-header"><span class="gloss-term">Impulse Wave (5-wave)</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-wave">Wave</span><span class="gloss-arrow">▶</span></span></div>
+        <div class="gloss-body">A five-wave structure that moves in the direction of the primary trend. Labelled 1-2-3-4-5. Waves 1, 3, and 5 are motive; waves 2 and 4 are corrective. The impulse is the building block of all trending markets. <strong>Rules: Wave 2 never retraces 100% of Wave 1; Wave 3 is never the shortest; Wave 4 never overlaps Wave 1.</strong></div>
       </div>
 
-      <button class="quiz-btn" onclick="checkQuiz()">Check Answers</button>
-      <div class="quiz-score" id="quiz-score"></div>
+      <div class="gloss-item" data-cat="wave" onclick="toggleGloss(this)">
+        <div class="gloss-header"><span class="gloss-term">Wave 1</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-wave">Wave</span><span class="gloss-arrow">▶</span></span></div>
+        <div class="gloss-body">The first wave of an impulse. Often hard to identify in real time as it looks like a counter-trend rally. Volume is modest, news still negative. Smart money accumulates. Sets the length baseline for Waves 3 and 5.</div>
+      </div>
+
+      <div class="gloss-item" data-cat="wave" onclick="toggleGloss(this)">
+        <div class="gloss-header"><span class="gloss-term">Wave 2</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-wave">Wave</span><span class="gloss-arrow">▶</span></span></div>
+        <div class="gloss-body">Corrective wave against Wave 1. Retraces 50–76.4% of Wave 1 but <strong>never 100% or more</strong> (inviolable rule). Creates the "shakeout" that removes weak hands before the powerful Wave 3. Typical retracements: 61.8% (most common), 50%, 76.4%.</div>
+      </div>
+
+      <div class="gloss-item" data-cat="wave" onclick="toggleGloss(this)">
+        <div class="gloss-header"><span class="gloss-term">Wave 3</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-wave">Wave</span><span class="gloss-arrow">▶</span></span></div>
+        <div class="gloss-body">The most powerful and typically the longest impulse wave. <strong>Never the shortest impulse wave</strong> (inviolable rule). Breakouts occur, volume surges, fundamentals confirm, public enters. Most commonly extends to 161.8% of Wave 1. The best wave to be positioned for.</div>
+      </div>
+
+      <div class="gloss-item" data-cat="wave" onclick="toggleGloss(this)">
+        <div class="gloss-header"><span class="gloss-term">Wave 4</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-wave">Wave</span><span class="gloss-arrow">▶</span></span></div>
+        <div class="gloss-body">Corrective wave against Wave 3. Typically sideways and complex (flat or triangle). <strong>Cannot overlap Wave 1's price territory</strong> (inviolable rule). Guideline of Alternation: tends to contrast in character with Wave 2. Common retracement: 38.2% of Wave 3.</div>
+      </div>
+
+      <div class="gloss-item" data-cat="wave" onclick="toggleGloss(this)">
+        <div class="gloss-header"><span class="gloss-term">Wave 5</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-wave">Wave</span><span class="gloss-arrow">▶</span></span></div>
+        <div class="gloss-body">The final impulse wave in the direction of trend. Market breadth narrows. RSI and MACD often diverge (price makes new high, momentum does not). The public is extremely bullish. Often sets up the best short trade of the cycle as corrective A-B-C follows.</div>
+      </div>
+
+      <div class="gloss-item" data-cat="wave" onclick="toggleGloss(this)">
+        <div class="gloss-header"><span class="gloss-term">Wave A</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-wave">Wave</span><span class="gloss-arrow">▶</span></span></div>
+        <div class="gloss-body">First wave of the corrective ABC sequence. Looks like a routine pullback in the uptrend. Volume begins to increase to the downside. Wave A's internal structure (5 waves = zigzag; 3 waves = flat/triangle) identifies the corrective pattern type.</div>
+      </div>
+
+      <div class="gloss-item" data-cat="wave" onclick="toggleGloss(this)">
+        <div class="gloss-header"><span class="gloss-term">Wave B</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-wave">Wave</span><span class="gloss-arrow">▶</span></span></div>
+        <div class="gloss-body">Counter-rally against Wave A. The classic <strong>"bull trap"</strong> — the crowd believes the uptrend has resumed. Volume is lower and the move lacks conviction. Rarely retraces more than 100% of Wave A. Most common retracement: 61.8% of Wave A.</div>
+      </div>
+
+      <div class="gloss-item" data-cat="wave" onclick="toggleGloss(this)">
+        <div class="gloss-header"><span class="gloss-term">Wave C</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-wave">Wave</span><span class="gloss-arrow">▶</span></span></div>
+        <div class="gloss-body">The decisive, devastating corrective decline. Almost always a 5-wave structure internally. Panic selling emerges, news turns negative, fundamentals deteriorate. Typically equals Wave A in length or extends to 161.8% of Wave A.</div>
+      </div>
+
+      <div class="gloss-item" data-cat="rule" onclick="toggleGloss(this)">
+        <div class="gloss-header"><span class="gloss-term">Rule I — Wave 2 Never Retraces 100%</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-rule">Rule</span><span class="gloss-arrow">▶</span></span></div>
+        <div class="gloss-body"><strong>Inviolable.</strong> Wave 2 must end above the origin of Wave 1 (in a bull market). If price retraces 100% or more of Wave 1, the wave count is invalid and must be re-evaluated. No exceptions.</div>
+      </div>
+
+      <div class="gloss-item" data-cat="rule" onclick="toggleGloss(this)">
+        <div class="gloss-header"><span class="gloss-term">Rule II — Wave 3 Never Shortest</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-rule">Rule</span><span class="gloss-arrow">▶</span></span></div>
+        <div class="gloss-body"><strong>Inviolable.</strong> Wave 3 must be longer than at least one of Wave 1 or Wave 5. Wave 3 cannot be the shortest of the three impulse waves. If it is, the count is wrong.</div>
+      </div>
+
+      <div class="gloss-item" data-cat="rule" onclick="toggleGloss(this)">
+        <div class="gloss-header"><span class="gloss-term">Rule III — Wave 4 No Overlap</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-rule">Rule</span><span class="gloss-arrow">▶</span></span></div>
+        <div class="gloss-body"><strong>Inviolable.</strong> In an impulse wave, Wave 4 cannot enter the price territory of Wave 1. Exception: diagonal triangles. If overlap occurs in a standard impulse, the count is invalid.</div>
+      </div>
+
+      <div class="gloss-item" data-cat="rule" onclick="toggleGloss(this)">
+        <div class="gloss-header"><span class="gloss-term">Guideline of Alternation</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-rule">Rule</span><span class="gloss-arrow">▶</span></span></div>
+        <div class="gloss-body">A guideline (not a rule): corrective waves tend to alternate in character. If Wave 2 is a sharp, deep correction (zigzag), Wave 4 will tend to be a shallow, sideways correction (flat or triangle), and vice versa. Helps anticipate corrective structure.</div>
+      </div>
+
+      <div class="gloss-item" data-cat="pattern" onclick="toggleGloss(this)">
+        <div class="gloss-header"><span class="gloss-term">Zigzag (5-3-5)</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-pattern">Pattern</span><span class="gloss-arrow">▶</span></span></div>
+        <div class="gloss-body">The sharpest and most common corrective pattern. Internal structure: Wave A subdivides into 5, Wave B into 3, Wave C into 5. Wave C typically equals or exceeds Wave A. Most common in Wave 2 positions. Creates steep, clean retracements.</div>
+      </div>
+
+      <div class="gloss-item" data-cat="pattern" onclick="toggleGloss(this)">
+        <div class="gloss-header"><span class="gloss-term">Flat (3-3-5)</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-pattern">Pattern</span><span class="gloss-arrow">▶</span></span></div>
+        <div class="gloss-body">A sideways correction. All three waves (A, B, C) are roughly equal in size. Wave B retraces nearly 100% of Wave A. Three variants: <strong>Regular Flat</strong> (C ends near A's origin), <strong>Expanded Flat</strong> (C exceeds A's origin), <strong>Running Flat</strong> (C ends above A's origin). Common in Wave 4.</div>
+      </div>
+
+      <div class="gloss-item" data-cat="pattern" onclick="toggleGloss(this)">
+        <div class="gloss-header"><span class="gloss-term">Triangle (3-3-3-3-3)</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-pattern">Pattern</span><span class="gloss-arrow">▶</span></span></div>
+        <div class="gloss-body">Five overlapping corrective waves (A-B-C-D-E) within converging trendlines. Almost always appears in Wave 4 or Wave B positions — never in Wave 2. The "thrust" out of the triangle equals the widest part. Four types: contracting, expanding, ascending, descending.</div>
+      </div>
+
+      <div class="gloss-item" data-cat="pattern" onclick="toggleGloss(this)">
+        <div class="gloss-header"><span class="gloss-term">Double Zigzag / Triple Zigzag</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-pattern">Pattern</span><span class="gloss-arrow">▶</span></span></div>
+        <div class="gloss-body">Complex corrections joining two or three simple zigzag patterns via connector waves labelled X. Appear in strong trend markets where a single zigzag doesn't retrace enough. Signal a powerful underlying trend when complete. More common in large Wave 4 and Wave 2 corrections.</div>
+      </div>
+
+      <div class="gloss-item" data-cat="pattern" onclick="toggleGloss(this)">
+        <div class="gloss-header"><span class="gloss-term">Diagonal Triangle</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-pattern">Pattern</span><span class="gloss-arrow">▶</span></span></div>
+        <div class="gloss-body">A 5-wave structure where each subwave is a corrective (3-wave) structure. Appears only in Wave 1 or Wave 5 (leading diagonal) or Wave C (ending diagonal). Wave 4 CAN overlap Wave 1 — the only exception to Rule III. Signals exhaustion or a powerful new trend beginning.</div>
+      </div>
+
+      <div class="gloss-item" data-cat="pattern" onclick="toggleGloss(this)">
+        <div class="gloss-header"><span class="gloss-term">Corrective ABC</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-pattern">Pattern</span><span class="gloss-arrow">▶</span></span></div>
+        <div class="gloss-body">The three-wave counter-trend movement following a five-wave impulse. The basic corrective structure: Wave A down, Wave B up (partial retracement), Wave C down to completion. The ABC correction itself subdivides into smaller 5-3 patterns at lower degrees.</div>
+      </div>
+
+      <div class="gloss-item" data-cat="fib" onclick="toggleGloss(this)">
+        <div class="gloss-header"><span class="gloss-term">Golden Ratio (0.618 / 1.618)</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-fib">Fibonacci</span><span class="gloss-arrow">▶</span></span></div>
+        <div class="gloss-body">The most important Fibonacci ratio in Elliott Wave analysis. <strong>0.618</strong> is the key retracement for Wave 2. <strong>1.618</strong> is the key extension for Wave 3. Derived from the Fibonacci sequence where each number is the sum of the two preceding numbers: 1, 1, 2, 3, 5, 8, 13, 21…</div>
+      </div>
+
+      <div class="gloss-item" data-cat="fib" onclick="toggleGloss(this)">
+        <div class="gloss-header"><span class="gloss-term">Fibonacci Retracement</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-fib">Fibonacci</span><span class="gloss-arrow">▶</span></span></div>
+        <div class="gloss-body">Corrective waves retrace prior impulse waves at predictable Fibonacci levels. Key levels: <strong>23.6%, 38.2%, 50%, 61.8%, 76.4%</strong>. Wave 2 most commonly retraces 61.8% of Wave 1. Wave 4 most commonly retraces 38.2% of Wave 3.</div>
+      </div>
+
+      <div class="gloss-item" data-cat="fib" onclick="toggleGloss(this)">
+        <div class="gloss-header"><span class="gloss-term">Fibonacci Extension</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-fib">Fibonacci</span><span class="gloss-arrow">▶</span></span></div>
+        <div class="gloss-body">Impulse waves extend to Fibonacci multiples of prior waves. Key levels: <strong>138.2%, 161.8%, 261.8%, 423.6%</strong>. Wave 3 most commonly extends to 161.8% of Wave 1. Wave 5 often equals Wave 1 (100%) or extends to 161.8% of Wave 1.</div>
+      </div>
+
+      <div class="gloss-item" data-cat="fib" onclick="toggleGloss(this)">
+        <div class="gloss-header"><span class="gloss-term">38.2% Retracement</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-fib">Fibonacci</span><span class="gloss-arrow">▶</span></span></div>
+        <div class="gloss-body">Key Fibonacci level derived from 1 − 0.618. Most common retracement for Wave 4 against Wave 3. Also the minimum retracement expected in most corrective structures. In strong trends, Wave 4 may only retrace 23.6% of Wave 3.</div>
+      </div>
+
+      <div class="gloss-item" data-cat="fib" onclick="toggleGloss(this)">
+        <div class="gloss-header"><span class="gloss-term">Wave Equality</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-fib">Fibonacci</span><span class="gloss-arrow">▶</span></span></div>
+        <div class="gloss-body">A guideline stating that when Wave 3 is extended, Waves 1 and 5 tend to be equal in length (or relate by 0.618). Also applies to corrective waves: Wave C often equals Wave A in length. Useful for projecting price targets.</div>
+      </div>
+
+      <div class="gloss-item" data-cat="concept" onclick="toggleGloss(this)">
+        <div class="gloss-header"><span class="gloss-term">Fractal Nature</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-concept">Concept</span><span class="gloss-arrow">▶</span></span></div>
+        <div class="gloss-body">Elliott Wave patterns repeat at every timeframe simultaneously. A Wave 3 on a monthly chart contains a complete 5-wave impulse on the weekly, which contains 5-wave impulses on the daily, and so on. Every wave at every degree is simultaneously a subwave of a larger wave and contains smaller subwaves.</div>
+      </div>
+
+      <div class="gloss-item" data-cat="concept" onclick="toggleGloss(this)">
+        <div class="gloss-header"><span class="gloss-term">Wave Degree</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-concept">Concept</span><span class="gloss-arrow">▶</span></span></div>
+        <div class="gloss-body">The size or timeframe classification of a wave. From largest to smallest: Grand Supercycle (centuries), Supercycle (decades), Cycle (years), Primary (months–years), Intermediate (weeks–months), Minor (weeks), Minute (days), Minuette (hours). All degrees operate simultaneously.</div>
+      </div>
+
+      <div class="gloss-item" data-cat="concept" onclick="toggleGloss(this)">
+        <div class="gloss-header"><span class="gloss-term">Motive Wave</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-concept">Concept</span><span class="gloss-arrow">▶</span></span></div>
+        <div class="gloss-body">Any wave that moves in the direction of the primary trend. Motive waves subdivide into 5 subwaves. In an uptrend: Waves 1, 3, 5, and sub-waves within these are motive. Motive waves are more straightforward to trade as they offer clear directional momentum.</div>
+      </div>
+
+      <div class="gloss-item" data-cat="concept" onclick="toggleGloss(this)">
+        <div class="gloss-header"><span class="gloss-term">Corrective Wave</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-concept">Concept</span><span class="gloss-arrow">▶</span></span></div>
+        <div class="gloss-body">Any wave that moves against the direction of the primary trend. Corrective waves subdivide into 3 subwaves (or multiples of 3). In an uptrend: Waves 2 and 4 are corrective, as is the entire A-B-C sequence following the impulse. More complex and harder to trade than motive waves.</div>
+      </div>
+
+      <div class="gloss-item" data-cat="concept" onclick="toggleGloss(this)">
+        <div class="gloss-header"><span class="gloss-term">Bull Trap</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-concept">Concept</span><span class="gloss-arrow">▶</span></span></div>
+        <div class="gloss-body">A false signal where price appears to resume an uptrend, causing traders to go long — only to reverse sharply. In Elliott Wave, the classic bull trap is <strong>Wave B</strong> of a corrective ABC: a counter-rally that looks bullish but is followed by the devastating Wave C decline.</div>
+      </div>
+
+      <div class="gloss-item" data-cat="concept" onclick="toggleGloss(this)">
+        <div class="gloss-header"><span class="gloss-term">Momentum Divergence</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-concept">Concept</span><span class="gloss-arrow">▶</span></span></div>
+        <div class="gloss-body">A key confirmation signal for wave endings. In Wave 5: price makes a new high but RSI/MACD fail to confirm (bearish divergence) — signals impulse exhaustion. In Wave C: price makes a new low but RSI/MACD diverge (bullish divergence) — signals corrective exhaustion and potential trend reversal.</div>
+      </div>
+
+      <div class="gloss-item" data-cat="concept" onclick="toggleGloss(this)">
+        <div class="gloss-header"><span class="gloss-term">Invalidation Level</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-concept">Concept</span><span class="gloss-arrow">▶</span></span></div>
+        <div class="gloss-body">The price level at which a wave count is proven wrong. For a bullish count: the origin of Wave 1. For a Wave 2 long: if price breaks below Wave 1's starting point, the count is invalid. Always define the invalidation level before entering a trade — it is your stop loss anchor.</div>
+      </div>
+
+      <div class="gloss-item" data-cat="concept" onclick="toggleGloss(this)">
+        <div class="gloss-header"><span class="gloss-term">Extended Wave</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-concept">Concept</span><span class="gloss-arrow">▶</span></span></div>
+        <div class="gloss-body">When one impulse wave (usually Wave 3, sometimes Wave 1 or Wave 5) extends far beyond the typical 161.8% Fibonacci projection. An extended Wave 3 subdivides into 9 visible subwaves at the same degree. Extension in Wave 1 or Wave 5 leads to post-extension retracements to unusual depths.</div>
+      </div>
+
+      <div class="gloss-item" data-cat="concept" onclick="toggleGloss(this)">
+        <div class="gloss-header"><span class="gloss-term">Truncation</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-concept">Concept</span><span class="gloss-arrow">▶</span></span></div>
+        <div class="gloss-body">When Wave 5 fails to exceed the end of Wave 3 in price. Also called a "failure." Rare, but signals extreme weakness in the underlying trend. The subsequent corrective decline is often severe. Most common in highly volatile markets (crypto, leveraged instruments).</div>
+      </div>
+
+      <div class="gloss-item" data-cat="concept" onclick="toggleGloss(this)">
+        <div class="gloss-header"><span class="gloss-term">Channeling</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-concept">Concept</span><span class="gloss-arrow">▶</span></span></div>
+        <div class="gloss-body">A technique for projecting wave targets using parallel trendlines. Draw a baseline through Wave 1 and Wave 3 ends; a parallel through Wave 2 end projects Wave 4 target. Then draw a baseline through Wave 2 and Wave 4; a parallel through Wave 3 end projects Wave 5 target.</div>
+      </div>
+
+      <div class="gloss-item" data-cat="concept" onclick="toggleGloss(this)">
+        <div class="gloss-header"><span class="gloss-term">Throw-over</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-concept">Concept</span><span class="gloss-arrow">▶</span></span></div>
+        <div class="gloss-body">When Wave 5 briefly exceeds the upper channel line before reversing. Common in ending diagonal patterns. The "throw-over" is accompanied by high volume and euphoric sentiment, then a sharp reversal confirms the wave is complete and the corrective ABC begins.</div>
+      </div>
+
+      <div class="gloss-item" data-cat="concept" onclick="toggleGloss(this)">
+        <div class="gloss-header"><span class="gloss-term">Supercycle</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-concept">Concept</span><span class="gloss-arrow">▶</span></span></div>
+        <div class="gloss-body">A wave degree spanning multiple decades. The S&P 500's bull market from 1932 is considered a Grand Supercycle. Understanding higher-degree waves provides context for lower-degree counts — a Wave 2 correction within a Supercycle uptrend can be extremely deep and long-lasting.</div>
+      </div>
+
+      <div class="gloss-item" data-cat="concept" onclick="toggleGloss(this)">
+        <div class="gloss-header"><span class="gloss-term">Wave Count</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-concept">Concept</span><span class="gloss-arrow">▶</span></span></div>
+        <div class="gloss-body">The analyst's interpretation of where price currently sits within the Elliott Wave structure. Always maintain a primary count (most probable) and an alternate count (if the primary is invalidated). A good analyst always knows the exact price level that proves their count wrong.</div>
+      </div>
+
     </div>
+    <div class="gloss-empty" id="glossEmpty">No terms match your search.</div>
   </div>
 
   <!-- SECTION 8: ADMIN AI ANALYSIS -->
@@ -651,26 +782,35 @@ function showWave(id, btn){
   drawMiniWave(id);
 }
 
-// ── QUIZ ──
-const ANSWERS = {q1:'c',q2:'b',q3:'c',q4:'b',q5:'c',q6:'c',q7:'b',q8:'b'};
-function checkQuiz(){
-  let score=0;
-  for(let q in ANSWERS){
-    const sel=document.querySelector(`input[name="${q}"]:checked`);
-    const opts=document.querySelectorAll(`input[name="${q}"]`);
-    const exp=document.getElementById('exp'+q.slice(1));
-    opts.forEach(o=>{
-      const lbl=o.closest('.quiz-opt');
-      lbl.classList.remove('correct','wrong');
-      if(o.value===ANSWERS[q]) lbl.classList.add('correct');
-      else if(o.checked) lbl.classList.add('wrong');
-    });
-    if(sel && sel.value===ANSWERS[q]) score++;
-    if(exp) exp.style.display='block';
-  }
-  const sc=document.getElementById('quiz-score');
-  sc.style.display='block';
-  sc.textContent=`Score: ${score}/${Object.keys(ANSWERS).length} — ${score>=7?'Excellent':score>=5?'Good — review the sections above':'Keep studying the theory above'}`;
+// ── GLOSSARY ──
+let activeTag = 'all';
+
+function toggleGloss(el){
+  el.classList.toggle('open');
+}
+
+function filterGloss(){
+  const q = document.getElementById('glossSearch').value.toLowerCase().trim();
+  const items = document.querySelectorAll('.gloss-item');
+  let visible = 0;
+  items.forEach(item => {
+    const term = item.querySelector('.gloss-term').textContent.toLowerCase();
+    const body = item.querySelector('.gloss-body').textContent.toLowerCase();
+    const cat  = item.dataset.cat;
+    const matchSearch = !q || term.includes(q) || body.includes(q);
+    const matchTag = activeTag === 'all' || cat === activeTag;
+    if(matchSearch && matchTag){ item.classList.remove('hidden'); visible++; }
+    else { item.classList.add('hidden'); }
+  });
+  document.getElementById('glossCount').textContent = visible + ' term' + (visible!==1?'s':'');
+  document.getElementById('glossEmpty').style.display = visible === 0 ? 'block' : 'none';
+}
+
+function filterTag(tag, btn){
+  activeTag = tag;
+  document.querySelectorAll('.gloss-tag').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  filterGloss();
 }
 
 // ── ADMIN ──
