@@ -981,29 +981,45 @@ function drawCorrectivePatterns(){
     pts.forEach((p,i)=>i===0?ctx.moveTo(startX+p[0],p[1]):ctx.lineTo(startX+p[0],p[1]));
     ctx.stroke();
     pts.forEach((p,i)=>{
+      // dot
       ctx.fillStyle=color;
-      ctx.beginPath();ctx.arc(startX+p[0],p[1],4,0,Math.PI*2);ctx.fill();
-      ctx.font='bold 11px IBM Plex Mono';
-      ctx.fillText(subLabels[i],startX+p[0]-5,p[1]-10);
+      ctx.beginPath();ctx.arc(startX+p[0],p[1],5,0,Math.PI*2);ctx.fill();
+      if(!subLabels[i]) return;
+      // label: above if point is a peak (lower y = higher on screen), below if trough
+      const prev = pts[i-1], next = pts[i+1];
+      const isPeak = (prev&&p[1]<prev[1]) && (next&&p[1]<next[1]);
+      const isTrough = (prev&&p[1]>prev[1]) && (next&&p[1]>next[1]);
+      // first/last points: check only one neighbour
+      const isTop = pts[i][1] <= Math.min(...pts.map(p=>p[1])) + 20;
+      const offsetY = (isPeak||isTop) ? -14 : 16;
+      // background pill
+      ctx.font='bold 12px IBM Plex Mono';
+      const tw = ctx.measureText(subLabels[i]).width;
+      ctx.fillStyle='rgba(13,21,33,0.75)';
+      ctx.fillRect(startX+pts[i][0]-tw/2-4, pts[i][1]+offsetY-12, tw+8, 16);
+      // label text
+      ctx.fillStyle=color;
+      ctx.fillText(subLabels[i], startX+pts[i][0]-tw/2, pts[i][1]+offsetY);
     });
     ctx.font='9px IBM Plex Mono';
     ctx.fillStyle='#5a7a9a';
-    ctx.fillText(label,startX+20,H-8);
+    ctx.letterSpacing='2px';
+    ctx.fillText(label,startX+4,H-8);
   }
 
-  // Zigzag
+  // Zigzag — start high, A=bottom, B=mid, C=lowest
   drawPattern(20,[
-    [0,40],[60,130],[100,80],[160,180]
+    [0,35],[70,145],[115,85],[175,185]
   ],'#3b82f6','ZIGZAG (5-3-5)',['','A','B','C']);
 
-  // Flat
+  // Flat — sideways, A=bottom, B near top, C=bottom
   drawPattern(240,[
-    [0,40],[60,130],[110,50],[170,140]
+    [0,35],[65,135],[115,45],[178,140]
   ],'#10b981','FLAT (3-3-5)',['','A','B','C']);
 
-  // Triangle
-  drawPattern(460,[
-    [0,40],[45,130],[90,70],[135,120],[175,85],[210,105]
+  // Triangle — converging A-B-C-D-E
+  drawPattern(455,[
+    [0,35],[42,138],[85,65],[128,118],[168,82],[205,100]
   ],'#f59e0b','TRIANGLE (3-3-3-3-3)',['','A','B','C','D','E']);
 }
 
