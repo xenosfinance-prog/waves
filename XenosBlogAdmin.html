@@ -136,16 +136,16 @@
 <body>
 
 <!-- LOGIN -->
-<div id="loginScreen" style="display:none;align-items:center;justify-content:center;position:fixed;inset:0;z-index:9999;background:#FDF8EF;">
-  <div style="width:340px;background:#F5EDD8;border:1px solid #C9A96E;padding:44px 36px;">
-    <div style="font-family:'IBM Plex Mono',monospace;font-size:1.2rem;font-weight:500;color:#1C0F00;margin-bottom:4px;">XENOS<span style="color:#7A5200;">FINANCE</span></div>
-    <div style="font-family:'IBM Plex Mono',monospace;font-size:0.6rem;color:#8B6B3D;letter-spacing:.15em;text-transform:uppercase;margin-bottom:32px;">Admin · Accesso riservato</div>
-    <div style="font-family:'IBM Plex Mono',monospace;font-size:0.6rem;letter-spacing:.12em;text-transform:uppercase;color:#8B6B3D;margin-bottom:6px;">Password</div>
+<div id="loginScreen" style="display:none;align-items:center;justify-content:center;position:fixed;inset:0;z-index:9999;background:rgba(10,14,26,0.96);">
+  <div style="width:340px;background:#0f1724;border:1px solid #1e3050;padding:44px 36px;box-shadow:0 0 60px rgba(59,130,246,0.08);">
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:1.2rem;font-weight:500;color:#e2eaf4;margin-bottom:4px;">XENOS<span style="color:#3b82f6;">FINANCE</span></div>
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:0.6rem;color:#5a7a9a;letter-spacing:.15em;text-transform:uppercase;margin-bottom:32px;">Admin · Accesso riservato</div>
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:0.6rem;letter-spacing:.12em;text-transform:uppercase;color:#5a7a9a;margin-bottom:6px;">Password</div>
     <input id="loginPw" type="password" placeholder="••••••••"
-      style="width:100%;background:#FDF8EF;border:1px solid #C9A96E;color:#1C0F00;font-family:'IBM Plex Mono',monospace;font-size:13px;padding:11px 13px;outline:none;margin-bottom:14px;"
+      style="width:100%;background:#131f2e;border:1px solid #1e3050;color:#e2eaf4;font-family:'IBM Plex Mono',monospace;font-size:13px;padding:11px 13px;outline:none;margin-bottom:14px;"
       onkeydown="if(event.key==='Enter') doLogin()">
-    <button onclick="doLogin()" style="width:100%;background:#7A5200;color:#FDF8EF;border:none;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;padding:13px;cursor:pointer;">Accedi</button>
-    <div id="loginErr" style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#8B1A1A;margin-top:10px;min-height:16px;"></div>
+    <button onclick="doLogin()" style="width:100%;background:#1d4ed8;color:#e2eaf4;border:none;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;padding:13px;cursor:pointer;">Accedi</button>
+    <div id="loginErr" style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#f87171;margin-top:10px;min-height:16px;"></div>
   </div>
 </div>
 
@@ -332,9 +332,19 @@ function openLogin() {
   }
 }
 
+// Auto-login if coming from XenosBlog with valid session
+window.addEventListener('DOMContentLoaded', function() {
+  if (sessionStorage.getItem('xf_admin') === 'true') {
+    isAdmin = true;
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('adminPanel').style.display = 'block';
+  }
+});
+
 function doLogin() {
   if (document.getElementById('loginPw').value === 'xenosfinance2026') {
     isAdmin = true;
+    sessionStorage.setItem('xf_admin', 'true');
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('adminPanel').style.display = 'block';
     document.getElementById('adminPanel').scrollIntoView({ behavior:'smooth' });
