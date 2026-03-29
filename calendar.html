@@ -356,7 +356,7 @@ function renderHighlights() {
   const isWeekend = dow === 0 || dow === 6;
   // On weekends show next week's events; otherwise show this week
   const offset = isWeekend ? 1 : 0;
-  const weekLabel = isWeekend ? 'NEXT WEEK'S KEY EVENTS' : 'THIS WEEK'S KEY EVENTS';
+  const weekLabel = isWeekend ? 'NEXT WEEK KEY EVENTS' : 'THIS WEEK KEY EVENTS';
   // Update section label
   const lbl = document.querySelector('.section-head-label');
   if (lbl && lbl.textContent.includes('Key Events')) lbl.textContent = weekLabel;
@@ -408,7 +408,8 @@ async function loadTicker() {
     try {
       const u = `https://query1.finance.yahoo.com/v8/finance/chart/${s.yf}?range=2d&interval=1d`;
       const p = `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`;
-      const r = await fetch(p, {signal: AbortSignal.timeout(8000)});
+      const ctrl1 = new AbortController(); setTimeout(()=>ctrl1.abort(),8000);
+      const r = await fetch(p, {signal: ctrl1.signal});
       if (!r.ok) continue;
       const d = await r.json();
       const res = d.chart?.result?.[0];
@@ -535,7 +536,7 @@ async function fetchLiveCalendar(weekStr) {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({type: 'forexfactory', week: weekStr}),
-      signal: AbortSignal.timeout(12000)
+      signal: (()=>{const c=new AbortController();setTimeout(()=>c.abort(),12000);return c.signal;})()
     });
     if (!r.ok) return;
     const d = await r.json();
