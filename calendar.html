@@ -351,9 +351,26 @@ function renderCalendar() {
 function renderHighlights() {
   const grid = document.getElementById('highlights-grid');
   if (!grid) return;
-  const thisWeek = weekDates(0);
-  const highEvs = EVENTS.filter(e => thisWeek.includes(e.date) && e.impact === 'high').slice(0, 6);
   const today = dateKey(new Date());
+  const dow = new Date().getDay(); // 0=Sun, 6=Sat
+  const isWeekend = dow === 0 || dow === 6;
+  // On weekends show next week's events; otherwise show this week
+  const offset = isWeekend ? 1 : 0;
+  const weekLabel = isWeekend ? 'NEXT WEEK'S KEY EVENTS' : 'THIS WEEK'S KEY EVENTS';
+  // Update section label
+  const lbl = document.querySelector('.section-head-label');
+  if (lbl && lbl.textContent.includes('Key Events')) lbl.textContent = weekLabel;
+  const targetWeek = weekDates(offset);
+  let highEvs = EVENTS.filter(e => targetWeek.includes(e.date) && e.impact === 'high').slice(0, 6);
+  // Fallback: if still empty try next offset
+  if (!highEvs.length) {
+    const fallback = weekDates(offset + 1);
+    highEvs = EVENTS.filter(e => fallback.includes(e.date) && e.impact === 'high').slice(0, 6);
+  }
+  if (!highEvs.length) {
+    grid.innerHTML = '<div style="padding:24px;font-family:var(--mono);font-size:10px;color:var(--muted);text-align:center;grid-column:1/-1;">No upcoming high impact events found.</div>';
+    return;
+  }
   grid.innerHTML = highEvs.map(ev => `
     <div class="highlight-card high">
       <div class="hc-date">${friendlyDate(ev.date)} · ${ev.time} CET ${ev.date === today ? '· <span style="color:var(--red2)">TODAY</span>' : ''}</div>
