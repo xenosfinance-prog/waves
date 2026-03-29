@@ -77,6 +77,26 @@ body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:10
 .session-closed{color:var(--muted);}
 .bottom-bar{border-top:1px solid var(--border);margin-top:32px;padding:14px 0;display:flex;justify-content:space-between;font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:1px;}
 @media(max-width:900px){.cards-grid{grid-template-columns:repeat(2,1fr);}.two-col{grid-template-columns:1fr;}.sessions{grid-template-columns:repeat(2,1fr);}.masthead-name{font-size:40px;}.nav-btn{padding:10px 16px;font-size:10px;letter-spacing:2px;}}
+
+  /* ── KEY EVENTS WIDGET ── */
+  .events-widget { margin-bottom: 28px; }
+  .events-list { display: flex; flex-direction: column; gap: 1px; background: var(--border); border: 1px solid var(--border); }
+  .ev-row { background: var(--bg2); display: grid; grid-template-columns: 52px 44px 1fr auto auto; gap: 10px; align-items: center; padding: 10px 14px; font-size: 11px; }
+  .ev-row:hover { background: var(--bg3); }
+  .ev-time { font-family: var(--mono); color: var(--muted); font-size: 10px; letter-spacing: 1px; }
+  .ev-flag { font-size: 14px; text-align: center; }
+  .ev-name { font-family: var(--mono); color: var(--text); font-size: 11px; }
+  .ev-name small { display: block; color: var(--muted); font-size: 9px; letter-spacing: 1px; margin-top: 2px; }
+  .ev-forecast { font-family: var(--mono); color: var(--muted); font-size: 10px; text-align: right; }
+  .ev-impact { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .ev-impact.high { background: var(--red); box-shadow: 0 0 4px var(--red); }
+  .ev-impact.med  { background: var(--yellow); }
+  .ev-impact.low  { background: var(--muted); }
+  .ev-day-label { font-family: var(--mono); font-size: 9px; letter-spacing: 3px; color: var(--gold); text-transform: uppercase; padding: 6px 14px; background: var(--bg3); border-bottom: 1px solid var(--border); }
+  .events-empty { font-family: var(--mono); font-size: 10px; color: var(--muted); text-align: center; padding: 24px; background: var(--bg2); border: 1px solid var(--border); }
+  .ev-tabs { display: flex; gap: 0; margin-bottom: 0; border-bottom: 1px solid var(--border); }
+  .ev-tab { font-family: var(--mono); font-size: 9px; letter-spacing: 2px; text-transform: uppercase; padding: 8px 16px; cursor: pointer; color: var(--muted); border-bottom: 2px solid transparent; background: none; border-top: none; border-left: none; border-right: none; transition: all 0.2s; }
+  .ev-tab.active { color: var(--gold); border-bottom-color: var(--gold); }
 </style>
 </head>
 <body>
@@ -198,6 +218,23 @@ body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:10
       <div id="perf-rows">
         <div style="font-family:var(--mono);font-size:10px;color:var(--muted);text-align:center;padding:20px;">Loading...</div>
       </div>
+    </div>
+  </div>
+
+
+  <!-- KEY EVENTS WIDGET -->
+  <div class="section-head events-widget">
+    <div class="section-head-label">Key Events</div>
+    <div class="section-head-line"></div>
+  </div>
+  <div style="background:var(--bg2);border:1px solid var(--border);margin-bottom:28px;">
+    <div class="ev-tabs">
+      <button class="ev-tab active" onclick="showEvTab('today',this)">Today</button>
+      <button class="ev-tab" onclick="showEvTab('tomorrow',this)">Tomorrow</button>
+      <button class="ev-tab" onclick="showEvTab('week',this)">This Week</button>
+    </div>
+    <div id="ev-body">
+      <div class="events-empty">Loading events...</div>
     </div>
   </div>
 
@@ -431,11 +468,102 @@ async function updateAll() {
   if (status) status.textContent = `✓ Live · ${hm} CET`;
 }
 
+
+// ── KEY EVENTS ────────────────────────────────────────────────────────────────
+const WORKER_EV = 'https://xenos-ai-proxy.xenosfinance.workers.dev';
+let eventsData = [];
+let evTab = 'today';
+
+async function loadKeyEvents() {
+  try {
+    const [r1, r2] = await Promise.all([
+      fetch(WORKER_EV, {method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({type:'forexfactory', week:'thisweek'})}),
+      fetch(WORKER_EV, {method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({type:'forexfactory', week:'nextweek'})})
+    ]);
+    const d1 = r1.ok ? await r1.json() : {events:[]};
+    const d2 = r2.ok ? await r2.json() : {events:[]};
+    eventsData = [...(d1.events||[]), ...(d2.events||[])]
+      .filter(e => e.impact === 'High' || e.impact === 'Medium');
+    renderEvTab();
+  } catch(e) {
+    document.getElementById('ev-body').innerHTML =
+      '<div class="events-empty">Events unavailable</div>';
+  }
+}
+
+function showEvTab(tab, btn) {
+  evTab = tab;
+  document.querySelectorAll('.ev-tab').forEach(t => t.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  renderEvTab();
+}
+
+function renderEvTab() {
+  const now = new Date();
+  const toKey = d => d.toISOString().split('T')[0];
+  const todayKey = toKey(now);
+  const tom = new Date(now); tom.setDate(tom.getDate()+1);
+  const tomKey = toKey(tom);
+  // week: Mon-Fri of current week
+  const wd = now.getDay()||7;
+  const mon = new Date(now); mon.setDate(now.getDate()-wd+1);
+  const fri = new Date(mon); fri.setDate(mon.getDate()+4);
+  const monKey = toKey(mon), friKey = toKey(fri);
+
+  let filtered = eventsData.filter(e => {
+    const dt = e.time ? e.time.split('T')[0] : (e.date||'');
+    if (evTab==='today')    return dt === todayKey;
+    if (evTab==='tomorrow') return dt === tomKey;
+    if (evTab==='week')     return dt >= monKey && dt <= friKey;
+    return false;
+  });
+
+  if (!filtered.length) {
+    document.getElementById('ev-body').innerHTML =
+      '<div class="events-empty">No high/medium impact events for this period.</div>';
+    return;
+  }
+
+  // Group by date
+  const byDate = {};
+  filtered.forEach(e => {
+    const dt = e.time ? e.time.split('T')[0] : (e.date||'');
+    if (!byDate[dt]) byDate[dt] = [];
+    byDate[dt].push(e);
+  });
+
+  let html = '';
+  Object.keys(byDate).sort().forEach(dt => {
+    const label = new Date(dt+'T12:00:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'short'}).toUpperCase();
+    html += `<div class="ev-day-label">${label}</div>`;
+    byDate[dt].forEach(e => {
+      const imp = e.impact==='High'?'high':'med';
+      const time = e.time ? e.time.split('T')[1]?.slice(0,5)||'--:--' : '--:--';
+      const forecast = e.forecast ? `F: ${e.forecast}` : '—';
+      const flag = {USD:'🇺🇸',EUR:'🇪🇺',GBP:'🇬🇧',JPY:'🇯🇵',CHF:'🇨🇭',AUD:'🇦🇺',NZD:'🇳🇿',CAD:'🇨🇦',CNY:'🇨🇳',CNH:'🇨🇳'}[e.country]||'🌐';
+      const prev = e.previous ? `Prev: ${e.previous}` : '';
+      html += `<div class="ev-row">
+        <span class="ev-time">${time}</span>
+        <span class="ev-flag">${flag}</span>
+        <span class="ev-name">${e.event||e.name||'—'}<small>${prev}</small></span>
+        <span class="ev-forecast">${forecast}</span>
+        <span class="ev-impact ${imp}"></span>
+      </div>`;
+    });
+  });
+
+  document.getElementById('ev-body').innerHTML = html;
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   updateDateTime();
   updateSessions();
   updateAll();
+  loadKeyEvents();
   setInterval(updateAll, 60000);
+  setInterval(loadKeyEvents, 300000);
   setInterval(updateSessions, 30000);
 });
 </script>
