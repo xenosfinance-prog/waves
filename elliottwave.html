@@ -911,60 +911,52 @@ function drawBasicWave(){
   const W=c.width,H=c.height;
   ctx.clearRect(0,0,W,H);
 
-  // Points for 5-3 wave
+  // All 9 labelled points (0-5, A-B-C)
   const pts=[
-    {x:40,y:200},{x:120,y:120},{x:160,y:155},{x:280,y:50},{x:330,y:90},
-    {x:430,y:30},{x:500,y:80},{x:560,y:55},{x:620,y:130},{x:640,y:100}
+    {x:40, y:210},{x:130,y:120},{x:175,y:158},{x:300,y:45},{x:350,y:92},
+    {x:440,y:30}, {x:510,y:88},{x:568,y:52},{x:628,y:138}
   ];
-  // Labels
   const labels=['0','1','2','3','4','5','A','B','C'];
-  const labelPts=[
-    {x:40,y:200},{x:120,y:120},{x:160,y:155},{x:280,y:50},{x:330,y:90},
-    {x:430,y:30},{x:500,y:80},{x:560,y:55},{x:620,y:130}
-  ];
+  // true=above dot, false=below dot (based on wave direction)
+  const above=[false,true,false,true,false,true,false,true,false];
 
-  // Draw divider
-  ctx.strokeStyle='#1e3050';
-  ctx.lineWidth=1;
-  ctx.setLineDash([4,4]);
-  ctx.beginPath();ctx.moveTo(430,20);ctx.lineTo(430,240);ctx.stroke();
+  // Divider
+  ctx.strokeStyle='#1e3050';ctx.lineWidth=1;ctx.setLineDash([4,4]);
+  ctx.beginPath();ctx.moveTo(440,15);ctx.lineTo(440,235);ctx.stroke();
   ctx.setLineDash([]);
 
-  // Labels for sections
-  ctx.font='9px IBM Plex Mono';
-  ctx.fillStyle='#5a7a9a';
-  ctx.letterSpacing='3px';
-  ctx.fillText('IMPULSE',100,240);
-  ctx.fillText('CORRECTIVE',490,240);
+  // Section labels
+  ctx.font='9px IBM Plex Mono';ctx.fillStyle='#5a7a9a';ctx.letterSpacing='3px';
+  ctx.fillText('IMPULSE',90,248);
+  ctx.fillText('CORRECTIVE',468,248);
 
-  // Draw impulse waves (blue)
-  ctx.strokeStyle='#3b82f6';
-  ctx.lineWidth=2.5;
+  // Impulse line (blue) 0→5
+  ctx.strokeStyle='#3b82f6';ctx.lineWidth=2.5;
   ctx.beginPath();
-  for(let i=0;i<6;i++){
-    if(i===0) ctx.moveTo(pts[i].x,pts[i].y);
-    else ctx.lineTo(pts[i].x,pts[i].y);
-  }
+  for(let i=0;i<=5;i++) i===0?ctx.moveTo(pts[i].x,pts[i].y):ctx.lineTo(pts[i].x,pts[i].y);
   ctx.stroke();
 
-  // Draw corrective waves (orange)
-  ctx.strokeStyle='#f59e0b';
-  ctx.lineWidth=2.5;
+  // Corrective line (orange) 5→C
+  ctx.strokeStyle='#f59e0b';ctx.lineWidth=2.5;
   ctx.beginPath();
-  for(let i=5;i<10;i++){
-    if(i===5) ctx.moveTo(pts[i].x,pts[i].y);
-    else ctx.lineTo(pts[i].x,pts[i].y);
-  }
+  for(let i=5;i<=8;i++) i===5?ctx.moveTo(pts[i].x,pts[i].y):ctx.lineTo(pts[i].x,pts[i].y);
   ctx.stroke();
 
-  // Draw dots and labels
-  labelPts.forEach((p,i)=>{
-    ctx.fillStyle=i<6?'#60a5fa':'#fbbf24';
+  // Dots + labels
+  pts.forEach((p,i)=>{
+    const col=i<6?'#60a5fa':'#fbbf24';
+    // dot
+    ctx.fillStyle=col;
     ctx.beginPath();ctx.arc(p.x,p.y,5,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle=i<6?'#60a5fa':'#fbbf24';
+    // label background + text
     ctx.font='bold 13px IBM Plex Mono';
-    const lbl=labels[i];
-    ctx.fillText(lbl,p.x-5,p.y-(i%2===0?15:15));
+    const tw=ctx.measureText(labels[i]).width;
+    const offsetY=above[i]?-14:18;
+    const lx=p.x-tw/2, ly=p.y+offsetY;
+    ctx.fillStyle='rgba(10,16,28,0.8)';
+    ctx.fillRect(lx-3,ly-13,tw+6,17);
+    ctx.fillStyle=col;
+    ctx.fillText(labels[i],lx,ly);
   });
 }
 
@@ -1068,9 +1060,17 @@ function drawMiniWave(id){
     ctx.beginPath();ctx.arc(p[0],p[1],isHL?5:3,0,Math.PI*2);ctx.fill();
   });
 
-  ctx.fillStyle=s.color;
+  // Label: position based on whether highlight end is a peak or trough
+  const hlEnd=s.pts[s.highlight[1]];
+  const hlStart=s.pts[s.highlight[0]];
+  const goingUp=hlEnd[1]<hlStart[1]; // lower y = higher on canvas
+  const lOffY=goingUp?-12:18;
   ctx.font='bold 14px IBM Plex Mono';
-  ctx.fillText(s.label,s.pts[s.highlight[1]][0]+6,s.pts[s.highlight[1]][1]-8);
+  const ltw=ctx.measureText(s.label).width;
+  ctx.fillStyle='rgba(10,16,28,0.8)';
+  ctx.fillRect(hlEnd[0]-ltw/2-3,hlEnd[1]+lOffY-13,ltw+6,17);
+  ctx.fillStyle=s.color;
+  ctx.fillText(s.label,hlEnd[0]-ltw/2,hlEnd[1]+lOffY);
 }
 
 // Init all drawings on load
