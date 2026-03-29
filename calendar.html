@@ -206,10 +206,10 @@ const EVENTS = [
   {date:'2026-03-26', time:'14:30', country:'USD', flag:'🇺🇸', name:'US Initial Jobless Claims', desc:'Week ending Mar 21', impact:'high', forecast:'225K', prev:'223K', actual:''},
   {date:'2026-03-27', time:'08:00', country:'EUR', flag:'🇩🇪', name:'German Retail Sales m/m', desc:'Feb 2026', impact:'med', forecast:'0.5%', prev:'-0.4%', actual:''},
   {date:'2026-03-27', time:'10:00', country:'EUR', flag:'🇪🇺', name:'Eurozone Business Climate', desc:'Mar 2026', impact:'med', forecast:'-0.40', prev:'-0.59', actual:''},
-  {date:'2026-03-27', time:'14:30', country:'USD', flag:'🇺🇸', name:'US Core PCE Price Index m/m', desc:'Feb 2026', impact:'high', forecast:'0.3%', prev:'0.3%', actual:'— TODAY'},
-  {date:'2026-03-27', time:'14:30', country:'USD', flag:'🇺🇸', name:'US Personal Income m/m', desc:'Feb 2026', impact:'med', forecast:'0.4%', prev:'0.9%', actual:'— TODAY'},
-  {date:'2026-03-27', time:'14:30', country:'USD', flag:'🇺🇸', name:'US Personal Spending m/m', desc:'Feb 2026', impact:'med', forecast:'0.5%', prev:'-0.2%', actual:'— TODAY'},
-  {date:'2026-03-27', time:'16:00', country:'USD', flag:'🇺🇸', name:'US Michigan Consumer Sentiment (Final)', desc:'Mar 2026', impact:'high', forecast:'57.9', prev:'64.7', actual:'— TODAY'},
+  {date:'2026-03-27', time:'14:30', country:'USD', flag:'🇺🇸', name:'US Core PCE Price Index m/m', desc:'Feb 2026', impact:'high', forecast:'0.3%', prev:'0.3%', actual:''},
+  {date:'2026-03-27', time:'14:30', country:'USD', flag:'🇺🇸', name:'US Personal Income m/m', desc:'Feb 2026', impact:'med', forecast:'0.4%', prev:'0.9%', actual:''},
+  {date:'2026-03-27', time:'14:30', country:'USD', flag:'🇺🇸', name:'US Personal Spending m/m', desc:'Feb 2026', impact:'med', forecast:'0.5%', prev:'-0.2%', actual:''},
+  {date:'2026-03-27', time:'16:00', country:'USD', flag:'🇺🇸', name:'US Michigan Consumer Sentiment (Final)', desc:'Mar 2026', impact:'high', forecast:'57.9', prev:'64.7', actual:''},
   {date:'2026-03-28', time:'--:--', country:'USD', flag:'🇺🇸', name:'Good Friday — US Markets Closed', desc:'Market Holiday', impact:'high', forecast:'—', prev:'—', actual:''},
 
   // WEEK OF MARCH 31 — APRIL 4 (next week — key NFP week)
@@ -241,6 +241,7 @@ function toggleFilter(key) {
   const btn = document.getElementById('f-' + key);
   if (btn) btn.classList.toggle('on', activeFilters[key]);
   renderCalendar();
+  renderKeyEventsCards();
 }
 
 // ─── WEEK HELPERS ──────────────────────────────────────────────────────────
@@ -538,9 +539,46 @@ function getLiveActual(ev) {
 }
 
 // Patch EVENTS array with live actuals and re-render
+
+// ── Populate "This Week's Key Events" cards dynamically ───────────────────
+function renderKeyEventsCards() {
+  const grid = document.getElementById('key-events-grid');
+  if (!grid) return;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const wd = today.getDay()||7;
+  const mon = new Date(today); mon.setDate(today.getDate()-wd+1);
+  const fri = new Date(mon); fri.setDate(mon.getDate()+4);
+  const monKey = mon.toISOString().split('T')[0];
+  const friKey = fri.toISOString().split('T')[0];
+
+  const topEvents = EVENTS
+    .filter(e => e.date >= monKey && e.date <= friKey && e.impact === 'high')
+    .slice(0, 6);
+
+  if (!topEvents.length) {
+    grid.innerHTML = '<div style="padding:24px;background:var(--bg2);font-family:var(--mono);font-size:10px;color:var(--muted);text-align:center;grid-column:1/-1;">No high impact events this week.</div>';
+    return;
+  }
+
+  const impColor = {high:'var(--red)',med:'var(--yellow)',low:'var(--muted)'};
+  grid.innerHTML = topEvents.map(e => {
+    const dt = new Date(e.date+'T12:00:00');
+    const dayStr = dt.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'}).toUpperCase();
+    const timeStr = e.time !== '--:--' ? ` · ${e.time} CET` : '';
+    const actual = getLiveActual(e);
+    return `<div style="background:var(--bg2);padding:22px 20px;border-left:2px solid ${impColor[e.impact]||'var(--border)'};">
+      <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--muted);margin-bottom:6px;">${e.flag} ${dayStr}${timeStr}</div>
+      <div style="font-family:var(--serif);font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px;">${e.name}</div>
+      <div style="font-family:var(--mono);font-size:10px;color:var(--muted);">${e.desc}</div>
+      ${e.forecast!=='—'?`<div style="font-family:var(--mono);font-size:11px;color:var(--gold);margin-top:8px;">Forecast: ${e.forecast}${actual?' &nbsp;|&nbsp; <span style=color:var(--green)>Actual: '+actual+'</span>':''}</div>`:''}
+    </div>`;
+  }).join('');
+}
+
 async function refreshActuals() {
   await fetchLiveCalendar('thisweek');
   await fetchLiveCalendar('nextweek');
+  setInterval(refreshActuals, 300000); // auto-refresh every 5min
   // Patch static EVENTS array
   EVENTS.forEach(ev => {
     const live = getLiveActual(ev);
