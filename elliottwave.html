@@ -147,7 +147,7 @@ canvas { display: block; }
 .gloss-cat.cat-concept { border-color: rgba(96,165,250,0.3); color: var(--ink2); }
 .gloss-arrow { color: var(--muted); font-size: 11px; transition: transform 0.2s; }
 .gloss-item.open .gloss-arrow { transform: rotate(90deg); }
-.gloss-body { display: none; padding: 0 18px 16px; font-size: 12px; color: var(--ink2); line-height: 1.8; border-top: 1px solid var(--border); padding-top: 14px; margin-top: 0; }
+.gloss-body { display: none; padding: 14px 18px 16px; font-size: 12px; color: var(--ink2); line-height: 1.8; border-top: 1px solid var(--border); margin-top: 0; }
 .gloss-item.open .gloss-body { display: block; }
 .gloss-body strong { color: var(--gold2); }
 .gloss-empty { display: none; padding: 32px; text-align: center; font-size: 12px; color: var(--muted); background: var(--bg2); border: 1px solid var(--border); }
@@ -871,7 +871,7 @@ FORMATTING RULES — follow exactly:
 - Separate sections with a blank line
 - Use plain numbers and colons for structure, e.g. "Entry: 1.0850  TP1: 1.0920  SL: 1.0780"
 - Probability in parentheses: (65%)
-- The result must look clean and readable as plain text, like a Bloomberg terminal printout\`;
+- The result must look clean and readable as plain text, like a Bloomberg terminal printout`;
 
   try{
     const res=await fetch('https://xenos-ai-proxy.xenosfinance.workers.dev',{
@@ -898,7 +898,8 @@ FORMATTING RULES — follow exactly:
 async function sendToTelegram(){
   if(!lastAnalysis) return;
   const WORKER='https://xenos-ai-proxy.xenosfinance.workers.dev';
-  const msg=`📊 *ELLIOTT WAVE ANALYSIS*\n\n${lastAnalysis.replace(/\*/g,'').replace(/[_[\]()~`>#+\-=|{}.!]/g,'\\$&')}`;
+  const clean = lastAnalysis.replace(/\*/g,'').replace(/[_\[\]()~`>#+\-=|{}.!]/g,'\\$&');
+  const msg='📊 *ELLIOTT WAVE ANALYSIS*\n\n' + clean;
   try{
     const res=await fetch(WORKER,{
       method:'POST',
@@ -933,7 +934,7 @@ function drawBasicWave(){
   ctx.setLineDash([]);
 
   // Section labels
-  ctx.font='9px IBM Plex Mono';ctx.fillStyle='#5a7a9a';ctx.fillText('IMPULSE',90,248);
+  ctx.font='9px monospace';ctx.fillStyle='#5a7a9a';ctx.fillText('IMPULSE',90,248);
   ctx.fillText('CORRECTIVE',468,248);
 
   // Impulse line (blue) 0→5
@@ -955,7 +956,7 @@ function drawBasicWave(){
     ctx.fillStyle=col;
     ctx.beginPath();ctx.arc(p.x,p.y,5,0,Math.PI*2);ctx.fill();
     // label background + text
-    ctx.font='bold 13px IBM Plex Mono';
+    ctx.font='bold 13px monospace';
     const tw=ctx.measureText(labels[i]).width;
     const offsetY=above[i]?-14:18;
     const lx=p.x-tw/2, ly=p.y+offsetY;
@@ -991,7 +992,7 @@ function drawCorrectivePatterns(){
       const isTop = pts[i][1] <= Math.min(...pts.map(p=>p[1])) + 20;
       const offsetY = (isPeak||isTop) ? -14 : 16;
       // background pill
-      ctx.font='bold 12px IBM Plex Mono';
+      ctx.font='bold 12px monospace';
       const tw = ctx.measureText(subLabels[i]).width;
       ctx.fillStyle='rgba(13,21,33,0.75)';
       ctx.fillRect(startX+pts[i][0]-tw/2-4, pts[i][1]+offsetY-12, tw+8, 16);
@@ -999,7 +1000,7 @@ function drawCorrectivePatterns(){
       ctx.fillStyle=color;
       ctx.fillText(subLabels[i], startX+pts[i][0]-tw/2, pts[i][1]+offsetY);
     });
-    ctx.font='9px IBM Plex Mono';
+    ctx.font='9px monospace';
     ctx.fillStyle='#5a7a9a';
     ctx.fillText(label,startX+4,H-8);
   }
@@ -1070,7 +1071,7 @@ function drawMiniWave(id){
   const hlStart=s.pts[s.highlight[0]];
   const goingUp=hlEnd[1]<hlStart[1]; // lower y = higher on canvas
   const lOffY=goingUp?-12:18;
-  ctx.font='bold 14px IBM Plex Mono';
+  ctx.font='bold 14px monospace';
   const ltw=ctx.measureText(s.label).width;
   ctx.fillStyle='rgba(10,16,28,0.8)';
   ctx.fillRect(hlEnd[0]-ltw/2-3,hlEnd[1]+lOffY-13,ltw+6,17);
@@ -1080,19 +1081,15 @@ function drawMiniWave(id){
 
 // Init all drawings on load
 window.addEventListener('load',()=>{
-  // Wait for Google Fonts to load before drawing canvas
-  if (document.fonts && document.fonts.ready) {
-    document.fonts.ready.then(()=>{
-      drawBasicWave();
-      drawCorrectivePatterns();
-      drawMiniWave('w1');
-    });
+  function initCanvases(){
+    try { drawBasicWave(); } catch(e){ console.error('drawBasicWave:', e); }
+    try { drawCorrectivePatterns(); } catch(e){ console.error('drawCorrectivePatterns:', e); }
+    try { drawMiniWave('w1'); } catch(e){ console.error('drawMiniWave:', e); }
+  }
+  if(document.fonts && document.fonts.ready){
+    document.fonts.ready.then(initCanvases).catch(()=>setTimeout(initCanvases,400));
   } else {
-    setTimeout(()=>{
-      drawBasicWave();
-      drawCorrectivePatterns();
-      drawMiniWave('w1');
-    }, 500);
+    setTimeout(initCanvases, 400);
   }
 });
 </script>
