@@ -827,62 +827,56 @@ function adminLogin(){
 
 let lastAnalysis='';
 
-// ── SYMBOL MAP: user input → Yahoo Finance ticker ──
-const YAHOO_SYMBOL_MAP = {
-  // Forex
-  'eurusd':'EURUSD=X','eur/usd':'EURUSD=X',
-  'gbpusd':'GBPUSD=X','gbp/usd':'GBPUSD=X',
-  'usdjpy':'USDJPY=X','usd/jpy':'USDJPY=X',
-  'audusd':'AUDUSD=X','aud/usd':'AUDUSD=X',
-  'usdchf':'USDCHF=X','usd/chf':'USDCHF=X',
-  'usdcad':'USDCAD=X','usd/cad':'USDCAD=X',
-  'nzdusd':'NZDUSD=X','nzd/usd':'NZDUSD=X',
-  'eurgbp':'EURGBP=X','eur/gbp':'EURGBP=X',
-  'eurjpy':'EURJPY=X','eur/jpy':'EURJPY=X',
-  'gbpjpy':'GBPJPY=X','gbp/jpy':'GBPJPY=X',
-  // Commodities
-  'gold':'GC=F','xauusd':'GC=F','xau/usd':'GC=F',
-  'silver':'SI=F','xagusd':'SI=F','xag/usd':'SI=F',
-  'oil':'CL=F','wti':'CL=F','crude':'CL=F','wti crude':'CL=F','wti oil':'CL=F',
-  'brent':'BZ=F','brent oil':'BZ=F',
-  'natgas':'NG=F','natural gas':'NG=F',
-  'copper':'HG=F',
-  // Crypto
-  'btc':'BTC-USD','bitcoin':'BTC-USD','btc/usd':'BTC-USD',
-  'eth':'ETH-USD','ethereum':'ETH-USD','eth/usd':'ETH-USD',
-  'sol':'SOL-USD','solana':'SOL-USD',
-  'xrp':'XRP-USD','ripple':'XRP-USD',
-  // Indices
-  'sp500':'%5EGSPC','s&p500':'%5EGSPC','s&p 500':'%5EGSPC',
-  'nasdaq':'%5EIXIC','nas100':'%5EIXIC',
-  'dow':'%5EDJI','dji':'%5EDJI',
-  'dax':'%5EGDAXI',
-  'ftse':'%5EFTSE',
+// ── SYMBOL MAP: user input → Worker "prices" pair key ──
+const EW_SYMBOL_MAP = {
+  'eurusd':'EURUSD','eur/usd':'EURUSD',
+  'gbpusd':'GBPUSD','gbp/usd':'GBPUSD',
+  'usdjpy':'USDJPY','usd/jpy':'USDJPY',
+  'audusd':'AUDUSD','aud/usd':'AUDUSD',
+  'usdchf':'USDCHF','usd/chf':'USDCHF',
+  'usdcad':'USDCAD','usd/cad':'USDCAD',
+  'nzdusd':'NZDUSD','nzd/usd':'NZDUSD',
+  'eurgbp':'EURGBP','eur/gbp':'EURGBP',
+  'eurjpy':'EURJPY','eur/jpy':'EURJPY',
+  'gbpjpy':'GBPJPY','gbp/jpy':'GBPJPY',
+  'cadjpy':'CADJPY','cad/jpy':'CADJPY',
+  'audnzd':'AUDNZD','aud/nzd':'AUDNZD',
+  'eurchf':'EURCHF','eur/chf':'EURCHF',
+  'gold':'XAUUSD','xauusd':'XAUUSD','xau/usd':'XAUUSD',
+  'silver':'XAGUSD','xagusd':'XAGUSD','xag/usd':'XAGUSD',
+  'oil':'USOIL','wti':'USOIL','crude':'USOIL','wti crude':'USOIL','wti oil':'USOIL','usoil':'USOIL',
+  'brent':'UKOIL','brent oil':'UKOIL','ukoil':'UKOIL',
+  'natgas':'NGAS','natural gas':'NGAS','ngas':'NGAS',
+  'copper':'COPPER',
+  'sp500':'US500','s&p500':'US500','s&p 500':'US500','us500':'US500',
+  'nasdaq':'NAS100','nas100':'NAS100',
+  'dow':'US30','dji':'US30','us30':'US30',
+  'dax':'GER40','ger40':'GER40',
+  'ftse':'UK100','uk100':'UK100',
+  'btc':'BTCUSD','bitcoin':'BTCUSD','btc/usd':'BTCUSD','btcusd':'BTCUSD',
+  'eth':'ETHUSD','ethereum':'ETHUSD','eth/usd':'ETHUSD','ethusd':'ETHUSD',
+  'sol':'SOLUSD','solana':'SOLUSD','solusd':'SOLUSD',
+  'xrp':'XRPUSD','ripple':'XRPUSD','xrpusd':'XRPUSD',
+  'doge':'DOGEUSD','dogecoin':'DOGEUSD','dogeusd':'DOGEUSD',
 };
 
-function resolveYahooTicker(input){
-  const key = input.trim().toLowerCase();
-  return YAHOO_SYMBOL_MAP[key] || null;
-}
-
-async function fetchLivePrice(symbol){
-  const ticker = resolveYahooTicker(symbol);
-  if(!ticker) return null;
-  try{
-    const res = await fetch(
-      `https://xenos-ai-proxy.xenosfinance.workers.dev?type=price&symbol=${ticker}`,
-      {method:'GET'}
-    );
-    if(!res.ok) return null;
+async function fetchLivePrice(symbolInput) {
+  const key = symbolInput.trim().toLowerCase();
+  const workerSym = EW_SYMBOL_MAP[key];
+  if (!workerSym) return null;
+  try {
+    const res = await fetch('https://xenos-ai-proxy.xenosfinance.workers.dev', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'prices', pairs: [workerSym] })
+    });
+    if (!res.ok) return null;
     const data = await res.json();
-    // Worker returns {price, change, changePct, symbol} or {regularMarketPrice}
-    const price = data.price ?? data.regularMarketPrice ?? null;
-    const change = data.change ?? data.regularMarketChange ?? null;
-    const changePct = data.changePct ?? data.regularMarketChangePercent ?? null;
-    if(price == null) return null;
-    return { price, change, changePct };
-  }catch(e){
-    console.warn('fetchLivePrice failed:', e);
+    const p = data?.prices?.[workerSym];
+    if (!p || !p.price) return null;
+    return { price: p.price, change: p.change ?? null, changePct: p.change_pct ?? null };
+  } catch(e) {
+    console.warn('fetchLivePrice error:', e.message);
     return null;
   }
 }
@@ -902,15 +896,16 @@ async function runAIAnalysis(){
   txt.innerHTML='<span class="analysis-loading">⬡ FETCHING LIVE PRICE...</span>';
   document.getElementById('tgBtn').style.display='none';
 
-  // ── Fetch live price before building prompt ──
+  // ── Fetch live price via Worker (type=prices) ──
   const liveData = await fetchLivePrice(symbol);
   let livePriceLine = '';
   if(liveData && liveData.price != null){
-    const sign = liveData.change >= 0 ? '+' : '';
-    const pct  = liveData.changePct != null ? ` (${sign}${Number(liveData.changePct).toFixed(2)}%)` : '';
-    livePriceLine = `LIVE MARKET DATA: Current price = ${Number(liveData.price).toFixed(5).replace(/\.?0+$/,'')}  Change: ${sign}${Number(liveData.change).toFixed(5).replace(/\.?0+$/,'')}${pct}`;
+    const sign = (liveData.change ?? 0) >= 0 ? '+' : '';
+    const pctStr = liveData.changePct != null ? ` (${sign}${Number(liveData.changePct).toFixed(2)}%)` : '';
+    const chgStr = liveData.change != null ? `  Change: ${sign}${Number(liveData.change).toFixed(5).replace(/\.?0+$/,'')}${pctStr}` : '';
+    livePriceLine = `LIVE MARKET DATA: Current price = ${liveData.price}${chgStr}`;
   } else {
-    livePriceLine = `(Live price unavailable for "${symbol}" — use context field for manual price input)`;
+    livePriceLine = `(Live price unavailable for "${symbol}" — use the Additional Context field to provide current price manually)`;
   }
 
   btn.textContent='Analysing...';
@@ -922,7 +917,8 @@ ${livePriceLine}
 Current wave context: ${wave}
 ${ctx?'Additional context: '+ctx:''}
 
-IMPORTANT: Base all price levels, entries, stops, and targets on the LIVE MARKET DATA provided above. Do not use placeholder or generic prices — all levels must be derived from or relative to the current live price.
+IMPORTANT: If live market data is provided above, you MUST anchor all price levels (entries, stops, targets) to that current price. Do not invent or use generic placeholder prices. All Fibonacci levels must be calculated relative to the live price and recent swing structure.
+If live data is unavailable, explicitly state you are working from limited context and use the information provided in "Additional context" only.
 
 Structure your analysis EXACTLY as follows (use these headers verbatim):
 
@@ -962,8 +958,7 @@ FORMATTING RULES — follow exactly:
     });
     const data=await res.json();
     const text=data.content?.[0]?.text||'Error: no response';
-    // Prepend live price info to output for transparency
-    const priceHeader = liveData ? `[ Live price at generation: ${Number(liveData.price).toFixed(5).replace(/\.?0+$/,'')} ]\n\n` : '';
+    const priceHeader = liveData ? `[ Live price at generation: ${liveData.price} ]\n\n` : '';
     txt.textContent=priceHeader+text;
     lastAnalysis=`Elliott Wave Analysis — ${symbol} ${tf}\n\n${priceHeader}${text}`;
     document.getElementById('tgBtn').style.display='inline-block';
