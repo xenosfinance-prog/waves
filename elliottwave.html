@@ -933,8 +933,7 @@ function drawBasicWave(){
   ctx.setLineDash([]);
 
   // Section labels
-  ctx.font='9px IBM Plex Mono';ctx.fillStyle='#5a7a9a';
-  ctx.fillText('IMPULSE',90,248);
+  ctx.font='9px IBM Plex Mono';ctx.fillStyle='#5a7a9a';ctx.fillText('IMPULSE',90,248);
   ctx.fillText('CORRECTIVE',468,248);
 
   // Impulse line (blue) 0→5
@@ -1081,9 +1080,20 @@ function drawMiniWave(id){
 
 // Init all drawings on load
 window.addEventListener('load',()=>{
-  drawBasicWave();
-  drawCorrectivePatterns();
-  drawMiniWave('w1');
+  // Wait for Google Fonts to load before drawing canvas
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(()=>{
+      drawBasicWave();
+      drawCorrectivePatterns();
+      drawMiniWave('w1');
+    });
+  } else {
+    setTimeout(()=>{
+      drawBasicWave();
+      drawCorrectivePatterns();
+      drawMiniWave('w1');
+    }, 500);
+  }
 });
 </script>
 </body>
