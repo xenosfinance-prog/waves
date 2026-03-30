@@ -228,11 +228,21 @@ body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:10
     <div class="section-head-line"></div>
   </div>
   <div style="background:var(--bg2);border:1px solid var(--border);margin-bottom:28px;">
-    <div class="ev-tabs">
-      <button class="ev-tab active" onclick="showEvTab('today',this)">Today</button>
-      <button class="ev-tab" onclick="showEvTab('tomorrow',this)">Tomorrow</button>
-      <button class="ev-tab" onclick="showEvTab('week',this)">This Week</button>
+    <div class="ev-tabs" id="ev-tabs">
+      <button class="ev-tab" id="evtab-today" onclick="showEvTab('today',this)">Today</button>
+      <button class="ev-tab" id="evtab-tomorrow" onclick="showEvTab('tomorrow',this)">Tomorrow</button>
+      <button class="ev-tab" id="evtab-week" onclick="showEvTab('week',this)">This Week</button>
     </div>
+    <script>
+    (function(){
+      const d=new Date().getDay();
+      const def = (d===0||d===6) ? 'evtab-week' : 'evtab-today';
+      document.addEventListener('DOMContentLoaded',()=>{
+        const btn=document.getElementById(def);
+        if(btn) btn.classList.add('active');
+      });
+    })();
+    </script>
     <div id="ev-body">
       <div class="events-empty">Loading events...</div>
     </div>
@@ -240,7 +250,7 @@ body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:10
 
   <div class="bottom-bar">
     <span>© XENOSFINANCE 2026</span>
-    <span>Sources: Yahoo Finance · Finnhub · Cloudflare Workers</span>
+    
     <span>⚠ Not investment advice</span>
   </div>
 </div>
@@ -473,6 +483,8 @@ async function updateAll() {
 const WORKER_EV = 'https://xenos-ai-proxy.xenosfinance.workers.dev';
 let eventsData = [];
 let evTab = 'today';
+// On weekends default to 'week'
+(function(){ const d=new Date().getDay(); if(d===0||d===6) evTab='week'; })();
 
 async function loadKeyEvents() {
   try {
@@ -513,12 +525,36 @@ function renderEvTab() {
   const monKey = toKey(mon), friKey = toKey(fri);
 
   let filtered = eventsData.filter(e => {
-    const dt = e.time ? e.time.split('T')[0] : (e.date||'');
+    // FF returns separate date and time fields
+    const dt = e.date || (e.time && e.time.includes('T') ? e.time.split('T')[0] : '');
     if (evTab==='today')    return dt === todayKey;
     if (evTab==='tomorrow') return dt === tomKey;
     if (evTab==='week')     return dt >= monKey && dt <= friKey;
+    // On weekend default: show next week too
     return false;
   });
+
+  // If today/tomorrow empty on weekend, auto-switch to week
+  const isWeekend = now.getDay()===0 || now.getDay()===6;
+  if (!filtered.length && isWeekend && evTab !== 'week') {
+    evTab = 'week';
+    document.querySelectorAll('.ev-tab').forEach(t=>t.classList.remove('active'));
+    const wTab = document.querySelector('.ev-tab:last-child');
+    if(wTab) wTab.classList.add('active');
+    filtered = eventsData.filter(e => {
+      const dt = e.date || (e.time && e.time.includes('T') ? e.time.split('T')[0] : '');
+      return dt >= monKey && dt <= friKey;
+    });
+    // Also check next week
+    if (!filtered.length) {
+      const nxtMon = new Date(mon); nxtMon.setDate(mon.getDate()+7);
+      const nxtFri = new Date(fri); nxtFri.setDate(fri.getDate()+7);
+      filtered = eventsData.filter(e => {
+        const dt = e.date || '';
+        return dt >= toKey(nxtMon) && dt <= toKey(nxtFri);
+      });
+    }
+  }
 
   if (!filtered.length) {
     document.getElementById('ev-body').innerHTML =
@@ -540,7 +576,7 @@ function renderEvTab() {
     html += `<div class="ev-day-label">${label}</div>`;
     byDate[dt].forEach(e => {
       const imp = e.impact==='High'?'high':'med';
-      const time = e.time ? e.time.split('T')[1]?.slice(0,5)||'--:--' : '--:--';
+      const time = e.time && !e.time.includes('T') ? e.time.slice(0,5) : (e.time ? e.time.split('T')[1]?.slice(0,5)||'--:--' : '--:--');
       const forecast = e.forecast ? `F: ${e.forecast}` : '—';
       const flag = {USD:'🇺🇸',EUR:'🇪🇺',GBP:'🇬🇧',JPY:'🇯🇵',CHF:'🇨🇭',AUD:'🇦🇺',NZD:'🇳🇿',CAD:'🇨🇦',CNY:'🇨🇳',CNH:'🇨🇳'}[e.country]||'🌐';
       const prev = e.previous ? `Prev: ${e.previous}` : '';
