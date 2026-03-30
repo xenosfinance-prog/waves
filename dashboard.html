@@ -220,27 +220,19 @@ body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:10
   </div>
 
 
-  <!-- US STOCK SCREENER -->
+  <!-- US STOCKS WIDGET -->
   <div class="section-head" style="margin-bottom:12px;">
-    <div class="section-head-label">US Stocks — Volume Leaders</div>
+    <div class="section-head-label">US Stocks</div>
     <div class="section-head-line"></div>
   </div>
-  <div style="margin-bottom:28px;height:400px;">
-    <div class="tradingview-widget-container" style="height:100%;">
-      <div class="tradingview-widget-container__widget" style="height:100%;"></div>
-      <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-screener.js" async>
-      {
-        "width": "100%",
-        "height": "100%",
-        "defaultColumn": "overview",
-        "defaultScreen": "most_active",
-        "market": "america",
-        "showToolbar": true,
-        "colorTheme": "dark",
-        "locale": "en",
-        "isTransparent": true
-      }
-      </script>
+  <div class="two-col" style="margin-bottom:28px;">
+    <div class="col-box">
+      <div class="col-head"><span>Top Technology</span><span id="stocks-time" style="color:var(--muted)">--:-- CET</span></div>
+      <div id="stocks-tech"></div>
+    </div>
+    <div class="col-box">
+      <div class="col-head"><span>Finance &amp; Energy</span><span style="color:var(--muted)">Live</span></div>
+      <div id="stocks-fin"></div>
     </div>
   </div>
 
@@ -476,13 +468,88 @@ async function updateAll() {
 
 
 
+
+// ── US STOCKS ──────────────────────────────────────────────────────────────
+const US_STOCKS = [
+  {id:'AAPL',  yf:'AAPL',  label:'AAPL',  name:'Apple',         col:'tech'},
+  {id:'MSFT',  yf:'MSFT',  label:'MSFT',  name:'Microsoft',     col:'tech'},
+  {id:'NVDA',  yf:'NVDA',  label:'NVDA',  name:'Nvidia',        col:'tech'},
+  {id:'AMZN',  yf:'AMZN',  label:'AMZN',  name:'Amazon',        col:'tech'},
+  {id:'GOOGL', yf:'GOOGL', label:'GOOGL', name:'Alphabet',      col:'tech'},
+  {id:'META',  yf:'META',  label:'META',  name:'Meta',          col:'tech'},
+  {id:'TSLA',  yf:'TSLA',  label:'TSLA',  name:'Tesla',         col:'tech'},
+  {id:'NFLX',  yf:'NFLX',  label:'NFLX',  name:'Netflix',       col:'tech'},
+  {id:'JPM',   yf:'JPM',   label:'JPM',   name:'JPMorgan',      col:'fin'},
+  {id:'GS',    yf:'GS',    label:'GS',    name:'Goldman Sachs', col:'fin'},
+  {id:'BAC',   yf:'BAC',   label:'BAC',   name:'Bank of America',col:'fin'},
+  {id:'XOM',   yf:'XOM',   label:'XOM',   name:'Exxon Mobil',   col:'fin'},
+  {id:'CVX',   yf:'CVX',   label:'CVX',   name:'Chevron',       col:'fin'},
+  {id:'WMT',   yf:'WMT',   label:'WMT',   name:'Walmart',       col:'fin'},
+  {id:'JNJ',   yf:'JNJ',   label:'JNJ',   name:'Johnson & J.',  col:'fin'},
+  {id:'V',     yf:'V',     label:'V',     name:'Visa',          col:'fin'},
+];
+
+function stockRow(label, name, price, chg) {
+  const up = chg >= 0;
+  const col = up ? 'var(--green2)' : 'var(--red2)';
+  const arrow = up ? '▲' : '▼';
+  const pStr = price ? '$' + price.toFixed(2) : '--';
+  const cStr = price ? (up?'+':'') + chg.toFixed(2) + '%' : '--';
+  const barW = Math.min(Math.abs(chg) * 8 + 10, 100);
+  return `<div class="sent-row">
+    <span class="sent-sym">${label}</span>
+    <span class="sent-name">${name}</span>
+    <span class="sent-price" style="color:var(--text);font-family:var(--mono);font-size:11px;min-width:60px;text-align:right;">${pStr}</span>
+    <div class="sent-bar" style="margin:0 8px;"><div class="sent-fill" style="width:${barW}%;background:${col};"></div></div>
+    <span class="sent-val" style="color:${col};min-width:52px;text-align:right;">${arrow} ${cStr}</span>
+  </div>`;
+}
+
+async function loadUSStocks() {
+  const allYf = US_STOCKS.map(s => s.yf);
+  try {
+    const r = await fetch(WORKER_URL, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({type: 'prices', pairs: allYf})
+    });
+    if (!r.ok) throw new Error('fetch failed');
+    const d = await r.json();
+    const prices = d.prices || {};
+
+    let techHtml = '', finHtml = '';
+    US_STOCKS.forEach(s => {
+      const p = prices[s.yf];
+      const price = p?.price || 0;
+      const chg = p?.change_pct || 0;
+      const row = stockRow(s.label, s.name, price, chg);
+      if (s.col === 'tech') techHtml += row;
+      else finHtml += row;
+    });
+
+    const techEl = document.getElementById('stocks-tech');
+    const finEl = document.getElementById('stocks-fin');
+    if (techEl) techEl.innerHTML = techHtml || '<div style="padding:16px;color:var(--muted);font-size:10px;font-family:var(--mono);">Loading...</div>';
+    if (finEl) finEl.innerHTML = finHtml || '<div style="padding:16px;color:var(--muted);font-size:10px;font-family:var(--mono);">Loading...</div>';
+
+    const t = document.getElementById('stocks-time');
+    if (t) {
+      const n = new Date();
+      t.textContent = n.getHours().toString().padStart(2,'0') + ':' + n.getMinutes().toString().padStart(2,'0') + ' CET';
+    }
+  } catch(e) {
+    const techEl = document.getElementById('stocks-tech');
+    if (techEl) techEl.innerHTML = '<div style="padding:16px;color:var(--muted);font-size:10px;font-family:var(--mono);">Temporarily unavailable</div>';
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   updateDateTime();
   updateSessions();
   updateAll();
-  loadKeyEvents();
+  loadUSStocks();
   setInterval(updateAll, 60000);
-  setInterval(loadKeyEvents, 300000);
+  setInterval(loadUSStocks, 60000);
   setInterval(updateSessions, 30000);
 });
 </script>
