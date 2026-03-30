@@ -78,8 +78,6 @@ body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:10
 .bottom-bar{border-top:1px solid var(--border);margin-top:32px;padding:14px 0;display:flex;justify-content:space-between;font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:1px;}
 @media(max-width:900px){.cards-grid{grid-template-columns:repeat(2,1fr);}.two-col{grid-template-columns:1fr;}.sessions{grid-template-columns:repeat(2,1fr);}.masthead-name{font-size:40px;}.nav-btn{padding:10px 16px;font-size:10px;letter-spacing:2px;}}
 
-  /* ── KEY EVENTS WIDGET ── */
-  .events-widget { margin-bottom: 28px; }
   .events-list { display: flex; flex-direction: column; gap: 1px; background: var(--border); border: 1px solid var(--border); }
   .ev-row { background: var(--bg2); display: grid; grid-template-columns: 52px 44px 1fr auto auto; gap: 10px; align-items: center; padding: 10px 14px; font-size: 11px; }
   .ev-row:hover { background: var(--bg3); }
@@ -222,29 +220,40 @@ body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:10
   </div>
 
 
-  <!-- KEY EVENTS WIDGET -->
-  <div class="section-head events-widget">
-    <div class="section-head-label">Key Events</div>
+  <!-- TICKER TAPE WIDGET -->
+  <div class="section-head" style="margin-bottom:12px;">
+    <div class="section-head-label">US Markets</div>
     <div class="section-head-line"></div>
   </div>
-  <div style="background:var(--bg2);border:1px solid var(--border);margin-bottom:28px;">
-    <div class="ev-tabs" id="ev-tabs">
-      <button class="ev-tab" id="evtab-today" onclick="showEvTab('today',this)">Today</button>
-      <button class="ev-tab" id="evtab-tomorrow" onclick="showEvTab('tomorrow',this)">Tomorrow</button>
-      <button class="ev-tab" id="evtab-week" onclick="showEvTab('week',this)">This Week</button>
-    </div>
-    <script>
-    (function(){
-      const d=new Date().getDay();
-      const def = (d===0||d===6) ? 'evtab-week' : 'evtab-today';
-      document.addEventListener('DOMContentLoaded',()=>{
-        const btn=document.getElementById(def);
-        if(btn) btn.classList.add('active');
-      });
-    })();
-    </script>
-    <div id="ev-body">
-      <div class="events-empty">Loading events...</div>
+  <div style="margin-bottom:28px;">
+    <div class="tradingview-widget-container">
+      <div class="tradingview-widget-container__widget"></div>
+      <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js" async>
+      {
+        "symbols": [
+          {"proName":"FOREXCOM:SPXUSD","title":"S&P 500"},
+          {"proName":"NASDAQ:AAPL","title":"Apple"},
+          {"proName":"NASDAQ:MSFT","title":"Microsoft"},
+          {"proName":"NASDAQ:NVDA","title":"Nvidia"},
+          {"proName":"NASDAQ:AMZN","title":"Amazon"},
+          {"proName":"NASDAQ:GOOGL","title":"Alphabet"},
+          {"proName":"NASDAQ:META","title":"Meta"},
+          {"proName":"NASDAQ:TSLA","title":"Tesla"},
+          {"proName":"NASDAQ:NFLX","title":"Netflix"},
+          {"proName":"NYSE:JPM","title":"JPMorgan"},
+          {"proName":"NYSE:GS","title":"Goldman Sachs"},
+          {"proName":"NYSE:BAC","title":"Bank of America"},
+          {"proName":"NYSE:XOM","title":"Exxon"},
+          {"proName":"NASDAQ:QQQ","title":"Nasdaq ETF"},
+          {"proName":"AMEX:DIA","title":"Dow Jones ETF"}
+        ],
+        "showSymbolLogo": true,
+        "isTransparent": true,
+        "displayMode": "adaptive",
+        "colorTheme": "dark",
+        "locale": "en"
+      }
+      </script>
     </div>
   </div>
 
@@ -479,119 +488,6 @@ async function updateAll() {
 }
 
 
-// ── KEY EVENTS ────────────────────────────────────────────────────────────────
-const WORKER_EV = 'https://xenos-ai-proxy.xenosfinance.workers.dev';
-let eventsData = [];
-let evTab = 'today';
-// On weekends default to 'week'
-(function(){ const d=new Date().getDay(); if(d===0||d===6) evTab='week'; })();
-
-async function loadKeyEvents() {
-  try {
-    const [r1, r2] = await Promise.all([
-      fetch(WORKER_EV, {method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({type:'forexfactory', week:'thisweek'})}),
-      fetch(WORKER_EV, {method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({type:'forexfactory', week:'nextweek'})})
-    ]);
-    const d1 = r1.ok ? await r1.json() : {events:[]};
-    const d2 = r2.ok ? await r2.json() : {events:[]};
-    eventsData = [...(d1.events||[]), ...(d2.events||[])]
-      .filter(e => e.impact === 'High' || e.impact === 'Medium');
-    renderEvTab();
-  } catch(e) {
-    document.getElementById('ev-body').innerHTML =
-      '<div class="events-empty">Events unavailable</div>';
-  }
-}
-
-function showEvTab(tab, btn) {
-  evTab = tab;
-  document.querySelectorAll('.ev-tab').forEach(t => t.classList.remove('active'));
-  if (btn) btn.classList.add('active');
-  renderEvTab();
-}
-
-function renderEvTab() {
-  const now = new Date();
-  const toKey = d => d.toISOString().split('T')[0];
-  const todayKey = toKey(now);
-  const tom = new Date(now); tom.setDate(tom.getDate()+1);
-  const tomKey = toKey(tom);
-  // week: Mon-Fri of current week
-  const wd = now.getDay()||7;
-  const mon = new Date(now); mon.setDate(now.getDate()-wd+1);
-  const fri = new Date(mon); fri.setDate(mon.getDate()+4);
-  const monKey = toKey(mon), friKey = toKey(fri);
-
-  let filtered = eventsData.filter(e => {
-    // FF returns separate date and time fields
-    const dt = e.date || (e.time && e.time.includes('T') ? e.time.split('T')[0] : '');
-    if (evTab==='today')    return dt === todayKey;
-    if (evTab==='tomorrow') return dt === tomKey;
-    if (evTab==='week')     return dt >= monKey && dt <= friKey;
-    // On weekend default: show next week too
-    return false;
-  });
-
-  // If today/tomorrow empty on weekend, auto-switch to week
-  const isWeekend = now.getDay()===0 || now.getDay()===6;
-  if (!filtered.length && isWeekend && evTab !== 'week') {
-    evTab = 'week';
-    document.querySelectorAll('.ev-tab').forEach(t=>t.classList.remove('active'));
-    const wTab = document.querySelector('.ev-tab:last-child');
-    if(wTab) wTab.classList.add('active');
-    filtered = eventsData.filter(e => {
-      const dt = e.date || (e.time && e.time.includes('T') ? e.time.split('T')[0] : '');
-      return dt >= monKey && dt <= friKey;
-    });
-    // Also check next week
-    if (!filtered.length) {
-      const nxtMon = new Date(mon); nxtMon.setDate(mon.getDate()+7);
-      const nxtFri = new Date(fri); nxtFri.setDate(fri.getDate()+7);
-      filtered = eventsData.filter(e => {
-        const dt = e.date || '';
-        return dt >= toKey(nxtMon) && dt <= toKey(nxtFri);
-      });
-    }
-  }
-
-  if (!filtered.length) {
-    document.getElementById('ev-body').innerHTML =
-      '<div class="events-empty">No high/medium impact events for this period.</div>';
-    return;
-  }
-
-  // Group by date
-  const byDate = {};
-  filtered.forEach(e => {
-    const dt = e.time ? e.time.split('T')[0] : (e.date||'');
-    if (!byDate[dt]) byDate[dt] = [];
-    byDate[dt].push(e);
-  });
-
-  let html = '';
-  Object.keys(byDate).sort().forEach(dt => {
-    const label = new Date(dt+'T12:00:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'short'}).toUpperCase();
-    html += `<div class="ev-day-label">${label}</div>`;
-    byDate[dt].forEach(e => {
-      const imp = e.impact==='High'?'high':'med';
-      const time = e.time && !e.time.includes('T') ? e.time.slice(0,5) : (e.time ? e.time.split('T')[1]?.slice(0,5)||'--:--' : '--:--');
-      const forecast = e.forecast ? `F: ${e.forecast}` : '—';
-      const flag = {USD:'🇺🇸',EUR:'🇪🇺',GBP:'🇬🇧',JPY:'🇯🇵',CHF:'🇨🇭',AUD:'🇦🇺',NZD:'🇳🇿',CAD:'🇨🇦',CNY:'🇨🇳',CNH:'🇨🇳'}[e.country]||'🌐';
-      const prev = e.previous ? `Prev: ${e.previous}` : '';
-      html += `<div class="ev-row">
-        <span class="ev-time">${time}</span>
-        <span class="ev-flag">${flag}</span>
-        <span class="ev-name">${e.event||e.name||'—'}<small>${prev}</small></span>
-        <span class="ev-forecast">${forecast}</span>
-        <span class="ev-impact ${imp}"></span>
-      </div>`;
-    });
-  });
-
-  document.getElementById('ev-body').innerHTML = html;
-}
 
 document.addEventListener('DOMContentLoaded', () => {
   updateDateTime();
