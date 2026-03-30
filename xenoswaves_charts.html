@@ -355,7 +355,7 @@ body { background: var(--bg); color: var(--ink); font-family: var(--mono); min-h
       <div class="chart-card-body">
         <div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
         <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
-        {"autosize":true,"symbol":"ACTIVTRADES:NATURALGAS","interval":"D","timezone":"Europe/London","theme":"dark","style":"3","locale":"en","allow_symbol_change":false,"studies":["RSI@tv-basicstudies"],"support_host":"https://www.tradingview.com","hide_volume":true}
+        {"autosize":true,"symbol":"CAPITALCOM:NATURALGAS","interval":"D","timezone":"Europe/London","theme":"dark","style":"3","locale":"en","allow_symbol_change":false,"studies":["RSI@tv-basicstudies"],"support_host":"https://www.tradingview.com","hide_volume":true}
           
         </script></div>
       </div>
@@ -693,13 +693,13 @@ let macroCache = {};
 
 async function fetchMacroData() {
   // Fetch standard prices via Worker
-  const workerPairs = ['XAUUSD','USOIL','BTC-USD','SPY','VIX'];
+  const workerPairs = ['XAUUSD','USOIL','BTC-USD','SPY','VIX','EURUSD','USDJPY','CAPITALCOM:DXY'];
   try {
     const r = await fetch(MACRO_WORKER, {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify({type:'prices', pairs: workerPairs}),
-      signal: AbortSignal.timeout(15000)
+      signal: (()=>{const c=new AbortController();setTimeout(()=>c.abort(),15000);return c.signal;})()
     });
     if (r.ok) {
       const d = await r.json();
@@ -709,17 +709,17 @@ async function fetchMacroData() {
 
   // Fetch bonds + DXY via Yahoo Finance proxy
   const yfSyms = {
-    'DXY=F': 'DX-Y.NYB',
     'US10Y': '%5ETNX',
-    'US02Y': '%5EIRX',  // use 13-week as proxy for 2Y
+    'US02Y': '%5EIRX',
     'US30Y': '%5ETYX',
+    'US3M':  '%5EIRX',
     'VIX':   '%5EVIX',
   };
   await Promise.all(Object.entries(yfSyms).map(async ([key, yf]) => {
     try {
       const u = `https://query1.finance.yahoo.com/v8/finance/chart/${yf}?range=2d&interval=1d`;
       const proxy = `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`;
-      const r = await fetch(proxy, {signal: AbortSignal.timeout(8000)});
+      const r = await fetch(proxy, {signal: (()=>{const c=new AbortController();setTimeout(()=>c.abort(),8000);return c.signal;})()});
       if (!r.ok) return;
       const d = await r.json();
       const res = d.chart?.result?.[0];
@@ -762,7 +762,18 @@ function renderMacroKPI() {
     if (box) { box.className = 'mkpi ' + (parseFloat(chg)>=0?'up':'dn'); }
   };
   const g = (sym) => macroCache[sym] || {};
-  set('dxy',  fmt(g('DXY=F').price, 2), g('DXY=F').change_pct);
+  // DXY from CAPITALCOM via Worker
+  const dxyData = g('CAPITALCOM:DXY') || g('DXY=F');
+  if (dxyData.price) {
+    set('dxy', fmt(dxyData.price, 2), dxyData.change_pct);
+  } else {
+    const eurUsd = g('EURUSD').price;
+    if (eurUsd) {
+      set('dxy', fmt((1/eurUsd)*62.5, 2)+'*', g('EURUSD').change_pct ? -g('EURUSD').change_pct : 0);
+    } else {
+      set('dxy', '--', 0);
+    }
+  }
   set('10y',  fmt(g('US10Y').price, 3)+'%', g('US10Y').change_pct);
   set('vix',  fmt(g('VIX').price, 2), g('VIX').change_pct);
   set('gold', '$'+Math.round(g('XAUUSD').price||0).toLocaleString(), g('XAUUSD').change_pct);
@@ -773,11 +784,11 @@ function renderMacroKPI() {
 
 function renderYieldCurve() {
   const yields = {
-    '3m': parseFloat(macroCache['US02Y']?.price || 4.3),
-    '2y': parseFloat(macroCache['US02Y']?.price || 4.2),
-    '5y': parseFloat(macroCache['US10Y']?.price * 0.96 || 4.3),
-    '10y': parseFloat(macroCache['US10Y']?.price || 4.5),
-    '30y': parseFloat(macroCache['US30Y']?.price || 4.7),
+    '3m': parseFloat(macroCache['US3M']?.price || macroCache['US02Y']?.price * 0.85 || 4.2),
+    '2y': parseFloat(macroCache['US02Y']?.price || 4.0),
+    '5y': parseFloat(macroCache['US10Y']?.price ? macroCache['US10Y'].price * 0.97 : 4.2),
+    '10y': parseFloat(macroCache['US10Y']?.price || 4.3),
+    '30y': parseFloat(macroCache['US30Y']?.price || 4.6),
   };
 
   const maxY = Math.max(...Object.values(yields));
@@ -855,8 +866,8 @@ function renderFearGreed() {
 
 function renderRegime() {
   const vix = parseFloat(macroCache['VIX']?.price || 20);
-  const dxy = parseFloat(macroCache['DXY=F']?.price || 104);
-  const dxyChg = parseFloat(macroCache['DXY=F']?.change_pct || 0);
+  const dxy = parseFloat((macroCache['CAPITALCOM:DXY'] || macroCache['DXY=F'])?.price || 104);
+  const dxyChg = parseFloat((macroCache['CAPITALCOM:DXY'] || macroCache['DXY=F'])?.change_pct || 0);
   const goldChg = parseFloat(macroCache['XAUUSD']?.change_pct || 0);
   const goldP = parseFloat(macroCache['XAUUSD']?.price || 2000);
   const us10y = parseFloat(macroCache['US10Y']?.price || 4.5);
@@ -964,7 +975,7 @@ async function fetchTick(s) {
     const r = await fetch('https://xenos-ai-proxy.xenosfinance.workers.dev', {
       method: 'POST', headers: {'Content-Type':'application/json'},
       body: JSON.stringify({type:'prices', pairs:[wsym]}),
-      signal: AbortSignal.timeout(10000)
+      signal: (()=>{const c=new AbortController();setTimeout(()=>c.abort(),10000);return c.signal;})()
     });
     if (!r.ok) return null;
     const d = await r.json();
