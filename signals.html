@@ -2601,18 +2601,18 @@ function drawPatternChart(canvas, sig) {
   // ── NOW line at 62% ──
   const nowX = toX(0.62);
 
-  // ── Colors: clean professional ──
-  const C_BG      = '#FFFFFF';
-  const C_GRID    = '#E8E8E8';
-  const C_AXIS    = '#333333';
-  const C_PRICE   = '#111111';     // price line (black)
-  const C_TREND   = '#1565C0';     // trendlines (blue)
-  const C_BULL    = '#2E7D32';     // green arrow/zones
-  const C_BEAR    = '#C62828';     // red arrow/zones
-  const C_ENTRY   = '#1565C0';     // entry level (blue)
-  const C_SL      = '#C62828';     // stop loss (red)
-  const C_TP      = '#2E7D32';     // take profit (green)
-  const C_NOW     = '#555555';
+  // ── Colors: dark navy theme ──
+  const C_BG      = '#0d1521';
+  const C_GRID    = '#1a2a3d';
+  const C_AXIS    = '#2d4a78';
+  const C_PRICE   = '#c8d8ea';     // price line
+  const C_TREND   = '#3b82f6';     // trendlines (blue)
+  const C_BULL    = '#10b981';     // green
+  const C_BEAR    = '#ef4444';     // red
+  const C_ENTRY   = '#60a5fa';     // entry level (blue)
+  const C_SL      = '#f87171';     // stop loss (red)
+  const C_TP      = '#34d399';     // take profit (green)
+  const C_NOW     = '#5a7a9a';
 
   const dirCol = isBull ? C_BULL : C_BEAR;
 
@@ -2684,7 +2684,7 @@ function drawPatternChart(canvas, sig) {
     ctx.restore();
   }
 
-  // ── 1. WHITE BACKGROUND ──
+  // ── 1. DARK BACKGROUND ──
   ctx.fillStyle = C_BG;
   ctx.fillRect(0, 0, W, H);
 
@@ -2696,7 +2696,7 @@ function drawPatternChart(canvas, sig) {
     ctx.beginPath(); ctx.moveTo(ML, y); ctx.lineTo(ML+CW, y); ctx.stroke();
     // Y-axis price label
     const price = pMax - (i/6)*(pMax-pMin);
-    ctx.fillStyle = '#888';
+    ctx.fillStyle = '#5a7a9a';
     ctx.font = '9px monospace';
     ctx.textAlign = 'right';
     const fmtP = p => p > 1000 ? p.toFixed(0) : p > 10 ? p.toFixed(2) : p.toFixed(4);
@@ -2708,7 +2708,7 @@ function drawPatternChart(canvas, sig) {
   }
 
   // ── 3. AXIS BORDER ──
-  ctx.strokeStyle = '#CCCCCC';
+  ctx.strokeStyle = '#1e3050';
   ctx.lineWidth = 1;
   ctx.strokeRect(ML, MT, CW, CH);
 
@@ -2743,15 +2743,15 @@ function drawPatternChart(canvas, sig) {
 
   // ── 7. NOW vertical line ──
   line(nowX, MT, nowX, MT+CH, C_NOW, 1, [5,4]);
-  ctx.fillStyle = C_NOW;
+  ctx.fillStyle = '#5a7a9a';
   ctx.font = 'bold 9px monospace';
   ctx.textAlign = 'center';
   ctx.fillText('NOW', nowX, MT+CH+14);
 
   // ── 8. HEADER ──
-  ctx.fillStyle = '#F8F8F8';
+  ctx.fillStyle = '#0a1220';
   ctx.fillRect(0, 0, W, MT);
-  ctx.strokeStyle = '#DDDDDD';
+  ctx.strokeStyle = '#1e3050';
   ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(0,MT); ctx.lineTo(W,MT); ctx.stroke();
 
@@ -2760,18 +2760,18 @@ function drawPatternChart(canvas, sig) {
   ctx.fillRect(0, 0, 4, MT);
 
   // Pair + pattern
-  ctx.fillStyle = '#111';
+  ctx.fillStyle = '#e2eaf4';
   ctx.font = 'bold 15px Arial, sans-serif';
   ctx.textAlign = 'left';
   ctx.fillText(sig.pair, 14, 24);
 
-  ctx.fillStyle = '#555';
+  ctx.fillStyle = '#7a9abf';
   ctx.font = '11px Arial, sans-serif';
   ctx.fillText(sig.pattern, 14, 42);
 
   // RIGHT: BUY/SELL badge
   const bx = W - 210, by = 10, bw = 68, bh = 28;
-  ctx.fillStyle = isBull ? '#E8F5E9' : '#FFEBEE';
+  ctx.fillStyle = isBull ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)';
   ctx.strokeStyle = dirCol;
   ctx.lineWidth = 1.5;
   ctx.beginPath(); ctx.roundRect(bx, by, bw, bh, 4); ctx.fill(); ctx.stroke();
@@ -2783,7 +2783,7 @@ function drawPatternChart(canvas, sig) {
   // Confidence
   const cx2 = bx + bw + 8;
   const cCol = sig.confidence >= 80 ? '#1B5E20' : sig.confidence >= 65 ? '#E65100' : '#1565C0';
-  const cBg  = sig.confidence >= 80 ? '#E8F5E9' : sig.confidence >= 65 ? '#FFF3E0' : '#E3F2FD';
+  const cBg  = sig.confidence >= 80 ? 'rgba(16,185,129,0.15)' : sig.confidence >= 65 ? 'rgba(245,158,11,0.15)' : 'rgba(59,130,246,0.15)';
   ctx.fillStyle = cBg; ctx.strokeStyle = cCol;
   ctx.beginPath(); ctx.roundRect(cx2, by, 56, bh, 4); ctx.fill(); ctx.stroke();
   ctx.fillStyle = cCol;
@@ -2792,21 +2792,21 @@ function drawPatternChart(canvas, sig) {
 
   // RR
   const rx2 = cx2 + 64;
-  ctx.fillStyle = '#FFF9C4'; ctx.strokeStyle = '#F57F17';
+  ctx.fillStyle = 'rgba(245,158,11,0.15)'; ctx.strokeStyle = '#f59e0b';
   ctx.beginPath(); ctx.roundRect(rx2, by, 60, bh, 4); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = '#E65100';
+  ctx.fillStyle = '#f59e0b';
   ctx.font = 'bold 11px Arial, sans-serif';
   ctx.fillText(sig.rr || '—', rx2+30, by+19);
 
   // TF badge
-  ctx.fillStyle = '#EEE'; ctx.strokeStyle = '#AAA';
+  ctx.fillStyle = 'rgba(90,122,154,0.2)'; ctx.strokeStyle = '#2d4a78';
   ctx.beginPath(); ctx.roundRect(rx2+68, by, 40, bh, 4); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = '#444';
+  ctx.fillStyle = '#c8d8ea';
   ctx.font = 'bold 11px Arial, sans-serif';
   ctx.fillText(selectedTF, rx2+88, by+19);
 
   // ── 9. BOTTOM LABELS ──
-  ctx.fillStyle = '#888';
+  ctx.fillStyle = '#5a7a9a';
   ctx.font = '9px monospace';
   ctx.textAlign = 'left';
   ctx.fillText('◀ HISTORY', ML+4, MT+CH+30);
@@ -2825,7 +2825,7 @@ function drawPatternShape(ctx, pat, isBull, entry, sl, tp,
   const entryY = toY(entry);
   const slY    = toY(sl);
   const tpY    = toY(tp);
-  const black  = '#111111';
+  const black  = '#c8d8ea';
 
   // Final arrow after NOW
   function dirArrow() {
@@ -2858,7 +2858,7 @@ function drawPatternShape(ctx, pat, isBull, entry, sl, tp,
     });
     dot(lsX,lsY,C_TREND); dot(hdX,hdY,black,6); dot(rsX,rsY,C_TREND);
     const lo = inv ? -16 : 16;
-    ctx.fillStyle = '#333'; ctx.font = 'bold 10px Arial'; ctx.textAlign = 'center';
+    ctx.fillStyle = '#e2eaf4'; ctx.font = 'bold 10px Arial'; ctx.textAlign = 'center';
     ctx.fillText('LS', lsX, lsY+lo); ctx.fillText('HEAD', hdX, hdY+lo); ctx.fillText('RS', rsX, rsY+lo);
     ctx.fillStyle = C_TREND; ctx.font = '9px Arial';
     ctx.fillText('— NECKLINE —', toX(0.35), nkY+(inv?12:-8));
@@ -2888,7 +2888,7 @@ function drawPatternShape(ctx, pat, isBull, entry, sl, tp,
     ctx.fillText('— NECKLINE —', toX(0.38), nkY+(isBull?12:-8));
     const labels = isTriple ? ['A','C','E'] : ['A','C'];
     const lo = isBull ? -14 : 14;
-    ctx.fillStyle = '#333'; ctx.font = 'bold 10px Arial';
+    ctx.fillStyle = '#60a5fa'; ctx.font = 'bold 10px Arial';
     peaks.forEach((x,i) => ctx.fillText(labels[i], x, peakY+lo));
     dirArrow();
   }
@@ -2903,7 +2903,7 @@ function drawPatternShape(ctx, pat, isBull, entry, sl, tp,
     // Zigzag bounces inside
     [[toX(0.04),supSY],[toX(0.18),resY],[toX(0.30),toY(entry-spread*0.5)],
      [toX(0.44),resY],[toX(0.56),toY(entry-spread*0.1)],[nowX,resY]].reduce((a,b)=>{ line(a[0],a[1],b[0],b[1],black,2); return b; });
-    ctx.fillStyle = '#1565C0'; ctx.font = '9px Arial'; ctx.textAlign = 'center';
+    ctx.fillStyle = '#60a5fa'; ctx.font = '9px Arial'; ctx.textAlign = 'center';
     ctx.fillText('Resistance', toX(0.30), resY-10);
     ctx.fillText('Rising Support', toX(0.25), supSY+14);
     dirArrow();
@@ -2918,7 +2918,7 @@ function drawPatternShape(ctx, pat, isBull, entry, sl, tp,
     line(toX(0.04), resSY, nowX, resEY, C_TREND, 2.5);  // falling resistance
     [[toX(0.04),resSY],[toX(0.18),supY],[toX(0.30),toY(entry+spread*0.5)],
      [toX(0.44),supY],[toX(0.56),toY(entry+spread*0.1)],[nowX,supY]].reduce((a,b)=>{ line(a[0],a[1],b[0],b[1],black,2); return b; });
-    ctx.fillStyle = '#1565C0'; ctx.font = '9px Arial'; ctx.textAlign = 'center';
+    ctx.fillStyle = '#60a5fa'; ctx.font = '9px Arial'; ctx.textAlign = 'center';
     ctx.fillText('Support', toX(0.30), supY+12);
     ctx.fillText('Falling Resistance', toX(0.28), resSY-10);
     dirArrow();
@@ -3222,7 +3222,7 @@ async function doSendToTelegram(idx, token, chatId) {
     combined.width  = OUT_W;
     combined.height = OUT_H * 2 + gap;
     const cctx = combined.getContext('2d');
-    cctx.fillStyle = '#FAFAF7';
+    cctx.fillStyle = '#0d1521';
     cctx.fillRect(0, 0, combined.width, combined.height);
     cctx.drawImage(patternC, 0, 0, OUT_W, OUT_H);
     if (liveC) cctx.drawImage(liveC, 0, OUT_H + gap, OUT_W, OUT_H);
@@ -3266,10 +3266,19 @@ async function doSendToTelegram(idx, token, chatId) {
     captionParts.push(``);
     captionParts.push(`<i>Generated by XenosFinance Signal Engine</i>`);
     const caption = captionParts.join('\n');
-    const res = await fetch(WORKER, {
+    // Convert base64 to blob for multipart upload
+    const byteChars = atob(imageData);
+    const byteArr = new Uint8Array(byteChars.length);
+    for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
+    const blob = new Blob([byteArr], {type: 'image/png'});
+    const formData = new FormData();
+    formData.append('chat_id', chatId);
+    formData.append('photo', blob, 'signal.png');
+    formData.append('caption', caption.slice(0, 1024)); // TG caption limit
+    formData.append('parse_mode', 'HTML');
+    const res = await fetch('https://api.telegram.org/bot' + token + '/sendPhoto', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'telegram_photo', token, chat_id: chatId, image_base64: imageData, caption, parse_mode: 'HTML' })
+      body: formData
     });
     const data = await res.json();
     if (data.ok) {
