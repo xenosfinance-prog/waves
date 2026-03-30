@@ -827,6 +827,66 @@ function adminLogin(){
 
 let lastAnalysis='';
 
+// ── SYMBOL MAP: user input → Yahoo Finance ticker ──
+const YAHOO_SYMBOL_MAP = {
+  // Forex
+  'eurusd':'EURUSD=X','eur/usd':'EURUSD=X',
+  'gbpusd':'GBPUSD=X','gbp/usd':'GBPUSD=X',
+  'usdjpy':'USDJPY=X','usd/jpy':'USDJPY=X',
+  'audusd':'AUDUSD=X','aud/usd':'AUDUSD=X',
+  'usdchf':'USDCHF=X','usd/chf':'USDCHF=X',
+  'usdcad':'USDCAD=X','usd/cad':'USDCAD=X',
+  'nzdusd':'NZDUSD=X','nzd/usd':'NZDUSD=X',
+  'eurgbp':'EURGBP=X','eur/gbp':'EURGBP=X',
+  'eurjpy':'EURJPY=X','eur/jpy':'EURJPY=X',
+  'gbpjpy':'GBPJPY=X','gbp/jpy':'GBPJPY=X',
+  // Commodities
+  'gold':'GC=F','xauusd':'GC=F','xau/usd':'GC=F',
+  'silver':'SI=F','xagusd':'SI=F','xag/usd':'SI=F',
+  'oil':'CL=F','wti':'CL=F','crude':'CL=F','wti crude':'CL=F','wti oil':'CL=F',
+  'brent':'BZ=F','brent oil':'BZ=F',
+  'natgas':'NG=F','natural gas':'NG=F',
+  'copper':'HG=F',
+  // Crypto
+  'btc':'BTC-USD','bitcoin':'BTC-USD','btc/usd':'BTC-USD',
+  'eth':'ETH-USD','ethereum':'ETH-USD','eth/usd':'ETH-USD',
+  'sol':'SOL-USD','solana':'SOL-USD',
+  'xrp':'XRP-USD','ripple':'XRP-USD',
+  // Indices
+  'sp500':'%5EGSPC','s&p500':'%5EGSPC','s&p 500':'%5EGSPC',
+  'nasdaq':'%5EIXIC','nas100':'%5EIXIC',
+  'dow':'%5EDJI','dji':'%5EDJI',
+  'dax':'%5EGDAXI',
+  'ftse':'%5EFTSE',
+};
+
+function resolveYahooTicker(input){
+  const key = input.trim().toLowerCase();
+  return YAHOO_SYMBOL_MAP[key] || null;
+}
+
+async function fetchLivePrice(symbol){
+  const ticker = resolveYahooTicker(symbol);
+  if(!ticker) return null;
+  try{
+    const res = await fetch(
+      `https://xenos-ai-proxy.xenosfinance.workers.dev?type=price&symbol=${ticker}`,
+      {method:'GET'}
+    );
+    if(!res.ok) return null;
+    const data = await res.json();
+    // Worker returns {price, change, changePct, symbol} or {regularMarketPrice}
+    const price = data.price ?? data.regularMarketPrice ?? null;
+    const change = data.change ?? data.regularMarketChange ?? null;
+    const changePct = data.changePct ?? data.regularMarketChangePercent ?? null;
+    if(price == null) return null;
+    return { price, change, changePct };
+  }catch(e){
+    console.warn('fetchLivePrice failed:', e);
+    return null;
+  }
+}
+
 async function runAIAnalysis(){
   const symbol=document.getElementById('aiSymbol').value||'EUR/USD';
   const tf=document.getElementById('aiTf').value;
@@ -837,23 +897,40 @@ async function runAIAnalysis(){
   const txt=document.getElementById('analysisText');
 
   btn.disabled=true;
-  btn.textContent='Analysing...';
+  btn.textContent='Fetching price...';
   out.style.display='block';
-  txt.innerHTML='<span class="analysis-loading">⬡ GENERATING ANALYSIS...</span>';
+  txt.innerHTML='<span class="analysis-loading">⬡ FETCHING LIVE PRICE...</span>';
   document.getElementById('tgBtn').style.display='none';
+
+  // ── Fetch live price before building prompt ──
+  const liveData = await fetchLivePrice(symbol);
+  let livePriceLine = '';
+  if(liveData && liveData.price != null){
+    const sign = liveData.change >= 0 ? '+' : '';
+    const pct  = liveData.changePct != null ? ` (${sign}${Number(liveData.changePct).toFixed(2)}%)` : '';
+    livePriceLine = `LIVE MARKET DATA: Current price = ${Number(liveData.price).toFixed(5).replace(/\.?0+$/,'')}  Change: ${sign}${Number(liveData.change).toFixed(5).replace(/\.?0+$/,'')}${pct}`;
+  } else {
+    livePriceLine = `(Live price unavailable for "${symbol}" — use context field for manual price input)`;
+  }
+
+  btn.textContent='Analysing...';
+  txt.innerHTML='<span class="analysis-loading">⬡ GENERATING ANALYSIS...</span>';
 
   const prompt=`You are a senior Elliott Wave analyst at a top-tier institutional trading desk. Generate a precise, professional Elliott Wave analysis for ${symbol} on the ${tf} timeframe.
 
+${livePriceLine}
 Current wave context: ${wave}
 ${ctx?'Additional context: '+ctx:''}
+
+IMPORTANT: Base all price levels, entries, stops, and targets on the LIVE MARKET DATA provided above. Do not use placeholder or generic prices — all levels must be derived from or relative to the current live price.
 
 Structure your analysis EXACTLY as follows (use these headers verbatim):
 
 WAVE COUNT
-[Identify the current wave position and recent completed waves. Be specific about price levels if context provided.]
+[Identify the current wave position and recent completed waves. Be specific about price levels anchored to the live price.]
 
 KEY LEVELS
-[Entry zone, stop loss, take profit 1, take profit 2 with Fibonacci justification]
+[Entry zone, stop loss, take profit 1, take profit 2 with Fibonacci justification — all derived from live price]
 
 SCENARIO A — PRIMARY (probability %)
 [Most likely next move based on wave count. Include target and invalidation level.]
@@ -885,8 +962,10 @@ FORMATTING RULES — follow exactly:
     });
     const data=await res.json();
     const text=data.content?.[0]?.text||'Error: no response';
-    txt.textContent=text;
-    lastAnalysis=`Elliott Wave Analysis — ${symbol} ${tf}\n\n${text}`;
+    // Prepend live price info to output for transparency
+    const priceHeader = liveData ? `[ Live price at generation: ${Number(liveData.price).toFixed(5).replace(/\.?0+$/,'')} ]\n\n` : '';
+    txt.textContent=priceHeader+text;
+    lastAnalysis=`Elliott Wave Analysis — ${symbol} ${tf}\n\n${priceHeader}${text}`;
     document.getElementById('tgBtn').style.display='inline-block';
   }catch(e){
     txt.textContent='Error: '+e.message;
