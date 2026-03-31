@@ -1,689 +1,854 @@
-<!DOCTYPE html>
+<!DOCTYPE html> 
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<title>XenosFinance — Economic Calendar</title>
+<title>XenosFinance — Trading Signals</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=PT+Serif:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#0f1724;--bg2:#131f2e;--bg3:#172032;--ink:#e2eaf4;--ink2:#b8cce0;--muted:#5a7a9a;--border:#1e3050;--border2:#243a5e;--red:#ef4444;--red2:#f87171;--green:#10b981;--green2:#34d399;--gold:#3b82f6;--gold2:#60a5fa;--blue2:#60a5fa;--serif:'Playfair Display',Georgia,serif;--body:'PT Serif',Georgia,serif;--mono:'IBM Plex Mono','PT Mono',monospace;}
+:root {
+  --bg:#0f1724;--bg2:#131f2e;--bg3:#172032;--bg4:#1c2840;
+  --border:#1e3050;--border2:#243a5e;--border-bright:#2d4a78;
+  --gold:#3b82f6;--gold2:#60a5fa;--gold3:#1d4ed8;
+  --text:#c8d8ea;--dim:#6b8aaa;--muted:#5a7a9a;--ink:#e2eaf4;--ink2:#b8cce0;
+  --red:#ef4444;--red2:#f87171;--green:#10b981;--green2:#34d399;--yellow:#f59e0b;
+  --serif:'Playfair Display',Georgia,serif;
+  --body:'PT Serif',Georgia,serif;
+  --mono:'IBM Plex Mono','PT Mono',monospace;
+}
 *{box-sizing:border-box;margin:0;padding:0;}
-body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:100vh;line-height:1.6;}
-.masthead{background:var(--bg);border-bottom:1px solid var(--border);}
-.masthead-top{display:flex;justify-content:space-between;align-items:center;padding:8px 32px;font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:2px;border-bottom:1px solid var(--border2);}
-.masthead-center{text-align:center;padding:28px 32px 20px;border-bottom:3px double var(--gold);}
-.masthead-eyebrow{font-family:var(--mono);font-size:9px;letter-spacing:6px;color:var(--gold);text-transform:uppercase;margin-bottom:10px;}
-.masthead-name{font-family:var(--serif);font-size:64px;font-weight:900;letter-spacing:-2px;line-height:1;color:var(--ink);text-transform:uppercase;}
+body{background:var(--bg);color:var(--ink);font-family:var(--mono);min-height:100vh;}
+
+/* ── MASTHEAD ── */
+.masthead{border-bottom:3px double var(--gold);}
+.masthead-top{display:flex;justify-content:space-between;align-items:center;padding:6px 32px;font-size:9px;letter-spacing:3px;color:var(--muted);border-bottom:1px solid var(--border);text-transform:uppercase;}
+.masthead-center{text-align:center;padding:24px 0 16px;}
+.masthead-eyebrow{font-size:9px;letter-spacing:6px;color:var(--gold);text-transform:uppercase;margin-bottom:8px;}
+.masthead-name{font-family:var(--serif);font-size:56px;font-weight:900;letter-spacing:-2px;line-height:1;text-transform:uppercase;}
 .masthead-name span{color:var(--gold);}
-.masthead-sub{font-family:var(--mono);font-size:10px;letter-spacing:5px;color:var(--muted);margin-top:8px;text-transform:uppercase;}
-.masthead-nav{display:flex;justify-content:center;gap:0;border-top:1px solid var(--border);background:var(--bg2);}
-.nav-btn{font-family:var(--mono);font-size:11px;letter-spacing:3px;text-transform:uppercase;padding:12px 36px;color:var(--muted);text-decoration:none;border-bottom:3px solid transparent;transition:all 0.2s;display:inline-block;}
-.nav-btn:hover,.nav-btn.active{color:var(--gold);border-bottom-color:var(--gold);}
-.ticker-bar{background:var(--bg2);border-bottom:1px solid var(--border);padding:7px 0;overflow:hidden;font-family:var(--mono);font-size:11px;}
-.ticker-inner{display:flex;gap:0;white-space:nowrap;animation:ticker 70s linear infinite;}
-.ticker-inner:hover{animation-play-state:paused;}
-@keyframes ticker{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
-.t-item{display:inline-flex;gap:10px;padding:0 20px;border-right:1px solid var(--border);}
-.t-sym{color:var(--gold);font-weight:bold;}
-.t-up{color:var(--green2);}.t-dn{color:var(--red2);}
-.wrap{max-width:1280px;margin:0 auto;padding:24px 24px 80px;}
-.page-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;padding-bottom:12px;border-bottom:1px solid var(--border);}
-.page-title{font-family:var(--serif);font-size:28px;font-weight:700;color:var(--ink);}
-.page-sub{font-family:var(--mono);font-size:9px;letter-spacing:3px;color:var(--muted);text-transform:uppercase;margin-top:4px;}
-.section-head{display:flex;align-items:center;gap:12px;margin:28px 0 16px;}
-.section-head-label{font-family:var(--mono);font-size:9px;letter-spacing:4px;text-transform:uppercase;color:var(--gold);white-space:nowrap;}
-.section-head-line{flex:1;height:1px;background:var(--border);}
-/* Filter bar */
-.filter-bar{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;align-items:center;}
-.filter-btn{font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;padding:6px 14px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all 0.2s;}
-.filter-btn:hover,.filter-btn.on{border-color:var(--gold);color:var(--gold);background:rgba(59,130,246,0.1);}
-.filter-btn.high{border-color:var(--red2);color:var(--red2);}
-.filter-btn.high.on{background:rgba(239,68,68,0.1);}
-.filter-label{font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-right:4px;}
-/* Week tabs */
-.week-tabs{display:flex;gap:0;margin-bottom:0;border-bottom:1px solid var(--border);}
-.week-tab{font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;padding:10px 20px;cursor:pointer;color:var(--muted);border-bottom:3px solid transparent;transition:all 0.2s;}
-.week-tab:hover,.week-tab.on{color:var(--gold);border-bottom-color:var(--gold);}
-/* Calendar table */
-.cal-table{width:100%;border-collapse:collapse;}
-.cal-table th{text-align:left;font-family:var(--mono);font-size:9px;letter-spacing:3px;color:var(--gold);text-transform:uppercase;padding:10px 12px;border-bottom:1px solid var(--border);background:var(--bg2);}
-.cal-table td{padding:11px 12px;border-bottom:1px solid var(--border2);vertical-align:middle;}
-.cal-table tr:hover td{background:var(--bg3);}
-.cal-table .day-sep td{background:var(--bg2);font-family:var(--mono);font-size:10px;letter-spacing:3px;color:var(--gold);text-transform:uppercase;padding:8px 12px;border-top:1px solid var(--border);}
-/* Impact dots */
-.impact{display:inline-flex;align-items:center;gap:3px;font-family:var(--mono);font-size:9px;letter-spacing:1px;}
-.impact-dot{width:8px;height:8px;border-radius:50%;display:inline-block;}
-.dot-high{background:var(--red2);}
-.dot-med{background:#f59e0b;}
-.dot-low{background:var(--muted);}
-/* Country flag label */
-.country-tag{font-family:var(--mono);font-size:10px;letter-spacing:1px;color:var(--ink2);display:flex;align-items:center;gap:4px;}
-.ev-name{font-family:var(--serif);font-size:14px;color:var(--ink);line-height:1.3;cursor:pointer;}
-.ev-name:hover{color:var(--gold2);}
-.ev-desc{font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:2px;}
-.ev-val{font-family:var(--mono);font-size:12px;text-align:right;}
-.val-actual{color:var(--ink);}
-.val-forecast{color:var(--muted);}
-.val-prev{color:var(--muted);}
-.val-beat{color:var(--green2);}
-.val-miss{color:var(--red2);}
-.ev-time{font-family:var(--mono);font-size:11px;color:var(--muted);}
-.ev-info-panel{background:var(--bg3);border-left:3px solid #f59e0b;padding:14px 18px;font-family:var(--mono);font-size:11px;line-height:1.7;}
-.ev-info-title{font-size:9px;letter-spacing:3px;color:#f59e0b;text-transform:uppercase;margin-bottom:10px;}
-.ev-info-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:10px;}
-.ev-info-block{background:rgba(255,255,255,0.03);padding:10px 12px;border:1px solid var(--border2);}
-.ev-info-label{font-size:8px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:4px;}
-.ev-info-text{font-size:11px;color:var(--ink2);line-height:1.5;}
-/* Upcoming highlight cards */
-.highlight-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);margin-bottom:24px;}
-.highlight-card{background:var(--bg2);padding:16px 20px;border-left:3px solid var(--border);}
-.highlight-card.high{border-left-color:var(--red2);}
-.highlight-card.med{border-left-color:#f59e0b;}
-.hc-date{font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:6px;}
-.hc-name{font-family:var(--serif);font-size:15px;color:var(--ink);margin-bottom:4px;}
-.hc-meta{font-family:var(--mono);font-size:10px;color:var(--muted);}
-.hc-impact{font-family:var(--mono);font-size:9px;margin-top:6px;}
-.hc-forecast{font-family:var(--mono);font-size:12px;color:var(--gold2);margin-top:4px;}
-/* Legend */
-.legend{display:flex;gap:20px;font-family:var(--mono);font-size:10px;color:var(--muted);}
-.legend-item{display:flex;align-items:center;gap:6px;}
-.bottom-bar{border-top:1px solid var(--border);margin-top:32px;padding:14px 0;display:flex;justify-content:space-between;font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:1px;}
-.ai-btn{font-family:var(--mono);font-size:9px;letter-spacing:1px;text-transform:uppercase;padding:3px 8px;border:1px solid var(--gold);color:var(--gold);background:transparent;cursor:pointer;transition:all 0.2s;white-space:nowrap;}
-.ai-btn:hover{background:rgba(59,130,246,0.15);}
-.ai-btn:disabled{opacity:0.4;cursor:not-allowed;}
-.ai-panel td{padding:0 !important;border-bottom:1px solid var(--border) !important;}
-.ai-panel-inner{background:var(--bg3);border-left:3px solid var(--gold);padding:14px 18px;font-family:var(--mono);font-size:11px;line-height:1.7;}
-.ai-panel-header{font-size:9px;letter-spacing:3px;color:var(--gold);text-transform:uppercase;margin-bottom:8px;}
-.ai-panel-text{color:var(--ink2);white-space:pre-wrap;}
-.ai-loading{color:var(--muted);font-style:italic;}
-@media(max-width:900px){.highlight-grid{grid-template-columns:1fr;}.masthead-name{font-size:40px;}.nav-btn{padding:10px 16px;font-size:10px;letter-spacing:2px;}.cal-table th:nth-child(4),.cal-table td:nth-child(4){display:none;}}
+.masthead-sub{font-size:10px;letter-spacing:5px;color:var(--muted);margin-top:6px;text-transform:uppercase;}
+.masthead-nav{border-top:1px solid var(--border);background:var(--bg2);display:flex;justify-content:center;flex-wrap:wrap;}
+.masthead-nav a{display:inline-block;padding:12px 20px;font-size:10px;letter-spacing:2px;text-transform:uppercase;text-decoration:none;color:var(--muted);border-bottom:2px solid transparent;transition:all 0.2s;}
+.masthead-nav a:hover,.masthead-nav a.active{color:var(--gold);border-bottom-color:var(--gold);}
+
+/* ── HERO ── */
+.page-hero{text-align:center;padding:48px 24px 40px;border-bottom:1px solid var(--border);margin-bottom:40px;}
+.hero-label{font-size:9px;letter-spacing:6px;color:var(--gold);text-transform:uppercase;margin-bottom:14px;}
+.hero-title{font-family:var(--serif);font-size:42px;font-weight:900;line-height:1.1;margin-bottom:12px;}
+.hero-title em{color:var(--gold);font-style:normal;}
+.hero-sub{font-size:11px;color:var(--muted);letter-spacing:2px;max-width:520px;margin:0 auto;line-height:1.8;}
+.hero-disclaimer{margin-top:16px;font-size:10px;color:var(--muted);letter-spacing:1px;opacity:0.7;}
+
+/* ── LAYOUT ── */
+.page-wrap{max-width:1200px;margin:0 auto;padding:0 24px 80px;}
+
+/* ── LIVE BADGE ── */
+.live-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);font-size:9px;letter-spacing:2px;color:var(--green2);text-transform:uppercase;margin-bottom:24px;}
+.live-dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.3;}}
+
+/* ── TYPE TABS ── */
+.type-tabs{display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:0;}
+.type-tab{padding:13px 28px;font-size:11px;letter-spacing:3px;text-transform:uppercase;cursor:pointer;color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-2px;background:none;border-top:none;border-left:none;border-right:none;font-family:var(--mono);transition:all 0.2s;}
+.type-tab.active{color:var(--gold);border-bottom-color:var(--gold);}
+.type-tab.active-opt{color:var(--yellow);border-bottom-color:var(--yellow);}
+.type-tab.active-closed{color:#a78bfa;border-bottom-color:#a78bfa;}
+.tab-count{display:inline-block;margin-left:8px;padding:2px 7px;background:rgba(59,130,246,0.12);border:1px solid rgba(59,130,246,0.25);font-size:9px;}
+/* ── CLOSED POSITIONS ── */
+.closed-header{display:grid;grid-template-columns:110px 80px 100px 100px 100px 100px 90px 1fr;gap:8px;padding:9px 16px;font-size:9px;letter-spacing:3px;color:var(--muted);text-transform:uppercase;border-bottom:1px solid var(--border);background:var(--bg2);}
+.closed-row{display:grid;grid-template-columns:110px 80px 100px 100px 100px 100px 90px 1fr;gap:8px;align-items:center;padding:13px 16px;border-bottom:1px solid var(--border);font-size:11px;font-family:var(--mono);transition:background 0.15s;}
+.closed-row:hover{background:rgba(255,255,255,0.02);}
+.outcome-badge{display:inline-block;padding:3px 9px;font-size:9px;letter-spacing:2px;text-transform:uppercase;border-radius:2px;}
+.outcome-badge.win{background:rgba(0,230,118,0.12);border:1px solid rgba(0,230,118,0.3);color:#00e676;}
+.outcome-badge.loss{background:rgba(255,61,90,0.12);border:1px solid rgba(255,61,90,0.3);color:#ff3d5a;}
+.outcome-badge.breakeven{background:rgba(200,200,200,0.08);border:1px solid rgba(200,200,200,0.2);color:#94a3b8;}
+.outcome-badge.pending{background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.2);color:#fbbf24;}
+.closed-stats{display:flex;gap:16px;flex-wrap:wrap;padding:16px;background:var(--bg2);border:1px solid var(--border);margin-bottom:16px;}
+.closed-stat{text-align:center;min-width:80px;}
+.closed-stat-val{font-size:20px;font-weight:700;font-family:var(--mono);}
+.closed-stat-label{font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-top:3px;}
+.closed-empty{text-align:center;padding:60px 20px;font-size:11px;color:var(--muted);letter-spacing:2px;background:var(--bg2);border:1px solid var(--border);}
+@media(max-width:700px){.closed-header{display:none;}.closed-row{grid-template-columns:1fr 1fr 1fr;grid-template-rows:auto auto;}}
+
+/* ── FILTERS ── */
+.filters-bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:16px 0;border-bottom:1px solid var(--border);margin-bottom:24px;}
+.filter-label{font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;}
+.filter-select,.filter-input{background:var(--bg2);border:1px solid var(--border);color:var(--ink);font-family:var(--mono);font-size:11px;padding:7px 12px;outline:none;}
+.filter-select:focus,.filter-input:focus{border-color:var(--border2);}
+.filter-btn{padding:6px 14px;background:transparent;border:1px solid var(--border);color:var(--muted);font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;cursor:pointer;transition:all 0.2s;}
+.filter-btn:hover,.filter-btn.on{border-color:var(--gold);color:var(--gold);background:rgba(59,130,246,0.08);}
+.filter-btn.bull.on{border-color:var(--green);color:var(--green);background:rgba(16,185,129,0.08);}
+.filter-btn.bear.on{border-color:var(--red);color:var(--red);background:rgba(239,68,68,0.08);}
+
+/* ── STATS ROW ── */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border:1px solid var(--border);margin-bottom:28px;}
+.stat-box{background:var(--bg2);padding:16px 20px;}
+.stat-label{font-size:9px;letter-spacing:3px;color:var(--muted);text-transform:uppercase;margin-bottom:6px;}
+.stat-val{font-size:22px;font-weight:700;}
+.stat-val.green{color:var(--green2);}
+.stat-val.red{color:var(--red2);}
+.stat-val.gold{color:var(--gold2);}
+.stat-val.yellow{color:var(--yellow);}
+
+/* ── SIGNAL CARDS (CFD) ── */
+.signal-card{background:var(--bg2);border:1px solid var(--border);border-left:3px solid var(--border);margin-bottom:8px;cursor:pointer;transition:border-color 0.2s;}
+.signal-card:hover{border-color:var(--border-bright);}
+.signal-card.bull{border-left-color:var(--green);}
+.signal-card.bear{border-left-color:var(--red);}
+.signal-card-row{display:grid;grid-template-columns:110px 80px 170px 100px 100px 100px 80px 1fr;gap:8px;padding:13px 16px;align-items:center;font-size:11px;}
+.sc-pair{color:var(--ink);font-weight:700;letter-spacing:1px;}
+.sc-dir{font-size:10px;font-weight:700;}
+.sc-dir.BUY{color:var(--green2);}
+.sc-dir.SELL{color:var(--red2);}
+.sc-pattern{font-size:10px;color:var(--gold2);}
+.sc-entry{color:var(--ink);}
+.sc-sl{color:var(--red2);}
+.sc-tp{color:var(--green2);}
+.sc-rr{color:var(--yellow);font-size:10px;}
+.conf-wrap{display:flex;align-items:center;gap:6px;}
+.conf-bar{width:50px;height:3px;background:var(--border);border-radius:2px;overflow:hidden;}
+.conf-fill{height:100%;background:var(--gold);border-radius:2px;}
+
+/* Signal detail */
+.signal-detail{display:none;padding:20px 24px;border-top:1px solid var(--border);background:var(--bg3);animation:fadeIn 0.2s ease;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-4px);}to{opacity:1;transform:translateY(0);}}
+.signal-detail.open{display:block;}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:16px;}
+.detail-block{background:var(--bg2);padding:14px 16px;border:1px solid var(--border);}
+.detail-block-label{font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:6px;}
+.detail-block-text{font-size:11px;color:var(--ink2);line-height:1.75;font-family:var(--body);}
+.detail-levels{display:flex;gap:12px;margin-bottom:14px;}
+.level-pill{flex:1;background:var(--bg2);border:1px solid var(--border);padding:10px 14px;text-align:center;}
+.level-pill-label{font-size:8px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:4px;}
+.level-pill-val{font-size:15px;font-weight:700;}
+.level-pill-val.entry{color:var(--gold2);}
+.level-pill-val.sl{color:var(--red2);}
+.level-pill-val.tp{color:var(--green2);}
+.detail-tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px;}
+.tag{padding:3px 10px;font-size:9px;letter-spacing:1px;background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);color:var(--gold2);}
+.detail-meta{font-size:10px;color:var(--muted);margin-top:12px;padding-top:12px;border-top:1px solid var(--border);display:flex;gap:16px;flex-wrap:wrap;}
+
+/* ── OPTIONS CARDS ── */
+.opt-card{background:var(--bg2);border:1px solid var(--border);border-left:3px solid var(--yellow);margin-bottom:8px;cursor:pointer;transition:border-color 0.2s;}
+.opt-card:hover{border-color:var(--border-bright);}
+.opt-card.call{border-left-color:var(--green);}
+.opt-card.put{border-left-color:var(--red);}
+.opt-card-row{display:grid;grid-template-columns:110px 160px 130px 130px 80px 1fr;gap:8px;padding:13px 16px;align-items:center;font-size:11px;}
+.oc-pair{color:var(--ink);font-weight:700;letter-spacing:1px;}
+.oc-action{font-size:11px;font-weight:700;padding:3px 12px;letter-spacing:1px;}
+.oc-action.CALL{color:var(--green2);background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);}
+.oc-action.PUT{color:var(--red2);background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);}
+.oc-entry{color:var(--gold2);}
+.oc-expiry{color:var(--yellow);font-size:10px;}
+.oc-conf{color:var(--muted);font-size:10px;}
+
+/* Options detail */
+.opt-detail{display:none;padding:18px 24px;border-top:1px solid var(--border);background:var(--bg3);animation:fadeIn 0.2s ease;}
+.opt-detail.open{display:block;}
+.opt-detail-analysis{font-size:12px;color:var(--ink2);line-height:1.8;font-family:var(--body);padding:14px 16px;background:var(--bg2);border-left:2px solid var(--yellow);margin-bottom:12px;}
+
+/* ── TABLE HEADER ── */
+.table-header{display:grid;grid-template-columns:110px 80px 170px 100px 100px 100px 80px 1fr;gap:8px;padding:9px 16px;font-size:9px;letter-spacing:3px;color:var(--muted);text-transform:uppercase;border-bottom:1px solid var(--border);background:var(--bg2);}
+.table-header-opt{display:grid;grid-template-columns:110px 160px 130px 130px 80px 1fr;gap:8px;padding:9px 16px;font-size:9px;letter-spacing:3px;color:var(--muted);text-transform:uppercase;border-bottom:1px solid var(--border);background:var(--bg2);}
+
+/* ── EMPTY / LOADING ── */
+.empty-msg{text-align:center;padding:60px 20px;font-size:11px;color:var(--muted);letter-spacing:2px;background:var(--bg2);border:1px solid var(--border);}
+.loading-msg{text-align:center;padding:40px;font-size:11px;color:var(--muted);letter-spacing:3px;text-transform:uppercase;}
+.loading-dot{display:inline-block;animation:blink 1.2s infinite;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:0.2;}}
+
+/* ── DISCLAIMER ── */
+.disclaimer{background:var(--bg2);border:1px solid var(--border);border-left:3px solid var(--muted);padding:16px 20px;font-size:10px;color:var(--muted);line-height:1.7;margin-top:32px;letter-spacing:0.5px;}
+
+/* ── FOOTER ── */
+.page-footer{border-top:1px solid var(--border);padding:20px 32px;display:flex;justify-content:space-between;font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-top:60px;}
+.page-footer a{color:var(--muted);text-decoration:none;}
+.page-footer a:hover{color:var(--gold);}
+
+@media(max-width:768px){
+  .masthead-name{font-size:36px;}
+  .stats-row{grid-template-columns:1fr 1fr;}
+  .signal-card-row{grid-template-columns:90px 60px 1fr;gap:6px;}
+  .signal-card-row > *:nth-child(n+4){display:none;}
+  .opt-card-row{grid-template-columns:90px 120px 1fr;gap:6px;}
+  .opt-card-row > *:nth-child(n+4){display:none;}
+  .table-header,.table-header-opt{display:none;}
+  .detail-grid{grid-template-columns:1fr;}
+  .detail-levels{flex-wrap:wrap;}
+}
 </style>
 </head>
 <body>
+
+<!-- MASTHEAD -->
 <div class="masthead">
   <div class="masthead-top">
-    <span id="live-date">MARCH 27, 2026</span>
-    <span>XENOSFINANCE · ECONOMIC CALENDAR</span>
-    <span id="live-time">UPDATED AT --:-- CET</span>
+    <span>LIVE SIGNALS · INSTITUTIONAL GRADE</span>
+    <span id="live-date">—</span>
+    <span>XENOS ENGINE v2</span>
   </div>
   <div class="masthead-center">
-    <div class="masthead-eyebrow">Financial Intelligence · Global Markets</div>
-    <div class="masthead-name">XENOS<span>FINANCE</span></div>
-    <div class="masthead-sub">Elliott Waves · Geopolitics · Macroeconomics</div>
+    <div class="masthead-eyebrow">Financial Analytics · Signal Intelligence</div>
+    <div class="masthead-name" onclick="openAdminLogin()" style="cursor:pointer;" title="Admin access">XENOS<span>FINANCE</span></div>
+    <div class="masthead-sub">Trading Signals — CFD & Options</div>
   </div>
-  <div class="masthead-nav">
-    <a class="nav-btn" href="https://xenosfinance.com">📰 News</a>
-    <a class="nav-btn" href="https://xenosfinance.com/dashboard">📊 Dashboard</a>
-    <a class="nav-btn" href="https://xenosfinance.com/xenoswaves_charts">◈ Charts</a>
-    <a class="nav-btn" href="https://xenosfinance.com/XenosBlog">✦ AI Blog</a>
-    <a class="nav-btn" href="https://xenosfinance.com/trading-signals">📡 Live Signals</a>
-    <a class="nav-btn active" href="https://xenosfinance.com/calendar">🗓 Calendar</a>
-    <a class="nav-btn" href="https://xenosfinance.com/elliottwave">〜 Elliott Wave</a>
-  </div>
-</div>
-<div class="ticker-bar">
-  <div class="ticker-inner" id="ticker-inner">
-    <span class="t-item"><span class="t-sym">LOADING...</span></span>
-  </div>
+  <nav class="masthead-nav">
+    <a href="https://xenosfinance.com">📰 News</a>
+    <a href="https://xenosfinance.com/dashboard">📊 Dashboard</a>
+    <a href="https://xenosfinance.com/xenoswaves_charts">◈ Charts</a>
+    <a href="https://xenosfinance.com/XenosBlog">✦ AI Blog</a>
+    <a href="https://xenosfinance.com/trading-signals" class="active">📡 Live Signals</a>
+    <a href="https://xenosfinance.com/calendar">🗓 Calendar</a>
+    <a href="https://xenosfinance.com/elliottwave">〜 Elliott Wave</a>
+  </nav>
 </div>
 
-<div class="wrap">
-  <div class="page-head">
-    <div>
-      <div class="page-title">🗓 Economic Calendar</div>
-      <div class="page-sub">Central Banks · Macro Data · Key Events · Earnings</div>
-    </div>
-    <div class="legend">
-      <div class="legend-item"><span class="impact-dot dot-high"></span> High Impact</div>
-      <div class="legend-item"><span class="impact-dot dot-med"></span> Medium</div>
-      <div class="legend-item"><span class="impact-dot dot-low"></span> Low</div>
-    </div>
+<div class="page-wrap">
+
+  <!-- HERO -->
+  <div class="page-hero">
+    <div class="hero-label">Live Signal Feed · Updated in Real Time</div>
+    <h1 class="hero-title">Institutional <em>Trading Signals</em></h1>
+    <p class="hero-sub">AI-powered pattern recognition across FX, Crypto, Commodities and Indices. CFD setups and Options signals generated by the XenosFinance engine.</p>
+    <p class="hero-disclaimer">⚠ Educational purposes only. Not financial advice. Always manage your risk.</p>
   </div>
 
-  <!-- Upcoming highlights -->
-  <div class="section-head">
-    <div class="section-head-label">This Week's Key Events</div>
-    <div class="section-head-line"></div>
-  </div>
-  <div class="highlight-grid" id="highlights-grid">
-    <!-- populated by JS -->
+  <!-- LIVE BADGE + TABS -->
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+    <div class="live-badge"><span class="live-dot"></span> Live Feed — Auto Refresh</div>
+    <div style="font-size:10px;color:var(--muted);letter-spacing:1px;" id="last-updated">—</div>
   </div>
 
-  <!-- Filter bar -->
-  <div class="filter-bar">
+  <!-- ADMIN BAR -->
+  <div class="admin-bar" id="admin-bar" style="display:none;background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.3);padding:8px 16px;margin-bottom:16px;font-size:10px;color:var(--gold2);letter-spacing:2px;text-transform:uppercase;align-items:center;gap:12px;">
+    <span class="admin-bar-dot"></span>
+    <span>ADMIN MODE ACTIVE — Click outcome to update signals</span>
+    <button class="admin-logout" onclick="adminLogout()">✕ Exit Admin</button>
+  </div>
+
+  <div class="type-tabs">
+    <button class="type-tab active" id="tab-cfd" onclick="switchTab('cfd')">
+      ⚡ CFD SIGNALS <span class="tab-count" id="count-cfd">—</span>
+    </button>
+    <button class="type-tab" id="tab-options" onclick="switchTab('options')">
+      ◎ OPTIONS SIGNALS <span class="tab-count" id="count-options">—</span>
+    </button>
+    <button class="type-tab" id="tab-closed" onclick="switchTab('closed')">
+      ✓ CLOSED POSITIONS <span class="tab-count" id="count-closed">—</span>
+    </button>
+  </div>
+
+  <!-- FILTERS -->
+  <div class="filters-bar">
     <span class="filter-label">Filter:</span>
-    <button class="filter-btn high on" id="f-high" onclick="toggleFilter('high')">● High Impact</button>
-    <button class="filter-btn on" id="f-med" onclick="toggleFilter('med')">● Medium</button>
-    <button class="filter-btn on" id="f-low" onclick="toggleFilter('low')">● Low</button>
-    <span style="width:1px;height:20px;background:var(--border);display:inline-block;margin:0 4px;"></span>
-    <button class="filter-btn on" id="f-USD" onclick="toggleFilter('USD')">🇺🇸 USD</button>
-    <button class="filter-btn on" id="f-EUR" onclick="toggleFilter('EUR')">🇪🇺 EUR</button>
-    <button class="filter-btn on" id="f-GBP" onclick="toggleFilter('GBP')">🇬🇧 GBP</button>
-    <button class="filter-btn on" id="f-JPY" onclick="toggleFilter('JPY')">🇯🇵 JPY</button>
-    <button class="filter-btn on" id="f-OTHER" onclick="toggleFilter('OTHER')">🌐 Other</button>
+    <input class="filter-input" id="f-pair" placeholder="Pair (e.g. EURUSD)" oninput="applyFilters()" style="width:130px;">
+    <select class="filter-select" id="f-tf" onchange="applyFilters()" style="width:90px;">
+      <option value="">All TF</option>
+      <option>M15</option><option>H1</option><option>H4</option><option>D1</option>
+    </select>
+    <button class="filter-btn bull" id="f-buy" onclick="toggleDir('BUY')">▲ BUY / CALL</button>
+    <button class="filter-btn bear" id="f-sell" onclick="toggleDir('SELL')">▼ SELL / PUT</button>
+    <button class="filter-btn" onclick="clearFilters()">✕ Clear</button>
   </div>
 
-  <!-- Week tabs -->
-  <div class="week-tabs" id="week-tabs"></div>
-
-  <!-- Calendar table -->
-  <table class="cal-table">
-    <thead>
-      <tr>
-        <th style="width:90px">Time (CET)</th>
-        <th style="width:80px">Country</th>
-        <th>Event</th>
-        <th style="width:90px">Forecast</th>
-        <th style="width:90px">Previous</th>
-        <th style="width:90px">Actual</th>
-        <th style="width:80px">Impact</th>
-      </tr>
-    </thead>
-    <tbody id="cal-tbody">
-    </tbody>
-  </table>
-
-  <div class="bottom-bar">
-    <span>© XENOSFINANCE 2026</span>
-    <span>Data: Curated macro calendar · All times CET</span>
-    <span>⚠ Not investment advice</span>
+  <!-- STATS -->
+  <div class="stats-row" id="stats-row">
+    <div class="stat-box"><div class="stat-label">Total Signals</div><div class="stat-val gold" id="s-total">—</div></div>
+    <div class="stat-box"><div class="stat-label">Bullish / CALL</div><div class="stat-val green" id="s-bull">—</div></div>
+    <div class="stat-box"><div class="stat-label">Bearish / PUT</div><div class="stat-val red" id="s-bear">—</div></div>
+    <div class="stat-box"><div class="stat-label">Avg Confidence</div><div class="stat-val gold" id="s-conf">—</div></div>
   </div>
+
+  <!-- CFD TABLE -->
+  <div id="cfd-section">
+    <div class="table-header">
+      <div>PAIR</div><div>DIR</div><div>PATTERN</div>
+      <div>ENTRY</div><div>STOP LOSS</div><div>TAKE PROFIT</div>
+      <div>CONF</div><div>R:R</div>
+    </div>
+    <div id="cfd-list">
+      <div class="loading-msg">⬡ LOADING SIGNALS <span class="loading-dot">...</span></div>
+    </div>
+  </div>
+
+  <!-- OPTIONS TABLE -->
+  <div id="options-section" style="display:none;">
+    <div class="table-header-opt">
+      <div>PAIR</div><div>ACTION</div><div>ENTRY</div>
+      <div>EXPIRY</div><div>CONF</div><div>ANALYSIS</div>
+    </div>
+    <div id="options-list">
+      <div class="loading-msg">⬡ LOADING OPTIONS <span class="loading-dot">...</span></div>
+    </div>
+  </div>
+
+  <!-- CLOSED POSITIONS REPORT -->
+  <div id="closed-section" style="display:none;">
+    <div class="closed-stats" id="closed-stats-row">
+      <div class="closed-stat"><div class="closed-stat-val green" id="cs-wins">—</div><div class="closed-stat-label">Wins</div></div>
+      <div class="closed-stat"><div class="closed-stat-val red" id="cs-losses">—</div><div class="closed-stat-label">Losses</div></div>
+      <div class="closed-stat"><div class="closed-stat-val" id="cs-be">—</div><div class="closed-stat-label">Breakeven</div></div>
+      <div class="closed-stat"><div class="closed-stat-val gold" id="cs-wr">—</div><div class="closed-stat-label">Win Rate</div></div>
+      <div class="closed-stat"><div class="closed-stat-val gold" id="cs-total">—</div><div class="closed-stat-label">Total Closed</div></div>
+    </div>
+    <div class="closed-header">
+      <div>PAIR</div><div>DIR</div><div>ENTRY</div><div>SL</div><div>TP</div><div>TF</div><div>OUTCOME</div><div>PATTERN / NOTE</div>
+    </div>
+    <div id="closed-list">
+      <div class="loading-msg">⬡ LOADING CLOSED POSITIONS <span class="loading-dot">...</span></div>
+    </div>
+  </div>
+
+  <!-- DISCLAIMER -->
+  <div class="disclaimer">
+    <strong>Risk Disclosure:</strong> Trading CFDs and options involves significant risk of loss and is not suitable for all investors. The signals provided on this page are generated by an algorithmic AI system for educational and informational purposes only. Past performance is not indicative of future results. XenosFinance does not provide investment advice. Always conduct your own research and consult a qualified financial advisor before trading.
+  </div>
+
+</div><!-- end page-wrap -->
+
+<div class="page-footer">
+  <span>© XenosFinance 2026</span>
+  <div style="display:flex;gap:24px;">
+    <a href="https://xenosfinance.com/XenosBlog">AI Blog</a>
+    <a href="https://xenosfinance.com/dashboard">Dashboard</a>
+    <a href="https://xenosfinance.com/elliottwave">Elliott Wave</a>
+    <a href="https://t.me/xenosfin" target="_blank">Telegram</a>
+  </div>
+  <span>Not investment advice</span>
 </div>
 
 <script>
-// ─── CALENDAR DATA ─────────────────────────────────────────────────────────────
-// Static curated calendar for current period. Can be extended via API.
-const EVENTS = [
-  // WEEK OF MARCH 24–28
-  {date:'2026-03-31', time:'09:00', country:'EUR', flag:'🇩🇪', name:'German Ifo Business Climate', desc:'Mar 2026', impact:'high', forecast:'86.5', prev:'85.2', actual:''},
-  {date:'2026-04-01', time:'15:00', country:'USD', flag:'🇺🇸', name:'US CB Consumer Confidence', desc:'Apr 2026', impact:'high', forecast:'93.5', prev:'92.9', actual:''},
-  {date:'2026-04-01', time:'10:00', country:'EUR', flag:'🇪🇺', name:'Eurozone Manufacturing PMI', desc:'Mar 2026', impact:'med', forecast:'48.7', prev:'47.6', actual:''},
-  {date:'2026-04-01', time:'15:00', country:'USD', flag:'🇺🇸', name:'US ISM Manufacturing PMI', desc:'Mar 2026', impact:'high', forecast:'49.7', prev:'50.3', actual:''},
-  {date:'2026-04-02', time:'14:30', country:'USD', flag:'🇺🇸', name:'US Durable Goods Orders m/m', desc:'Feb 2026', impact:'med', forecast:'-1.0%', prev:'3.2%', actual:''},
-  {date:'2026-04-02', time:'08:00', country:'EUR', flag:'🇩🇪', name:'German GfK Consumer Climate', desc:'Apr 2026', impact:'med', forecast:'-24.0', prev:'-24.7', actual:''},
-  {date:'2026-04-02', time:'14:30', country:'USD', flag:'🇺🇸', name:'US GDP q/q (Final)', desc:'Q4 2025', impact:'high', forecast:'2.3%', prev:'2.3%', actual:''},
-  {date:'2026-04-02', time:'14:30', country:'USD', flag:'🇺🇸', name:'US Initial Jobless Claims', desc:'Week ending Mar 21', impact:'high', forecast:'225K', prev:'223K', actual:''},
-  {date:'2026-04-03', time:'08:00', country:'EUR', flag:'🇩🇪', name:'German Retail Sales m/m', desc:'Feb 2026', impact:'med', forecast:'0.5%', prev:'-0.4%', actual:''},
-  {date:'2026-04-03', time:'10:00', country:'EUR', flag:'🇪🇺', name:'Eurozone Business Climate', desc:'Mar 2026', impact:'med', forecast:'-0.40', prev:'-0.59', actual:''},
-  {date:'2026-04-03', time:'14:30', country:'USD', flag:'🇺🇸', name:'US Core PCE Price Index m/m', desc:'Feb 2026', impact:'high', forecast:'0.3%', prev:'0.3%', actual:''},
-  {date:'2026-04-03', time:'14:30', country:'USD', flag:'🇺🇸', name:'US Personal Income m/m', desc:'Feb 2026', impact:'med', forecast:'0.4%', prev:'0.9%', actual:''},
-  {date:'2026-04-03', time:'14:30', country:'USD', flag:'🇺🇸', name:'US Personal Spending m/m', desc:'Feb 2026', impact:'med', forecast:'0.5%', prev:'-0.2%', actual:''},
-  {date:'2026-04-03', time:'16:00', country:'USD', flag:'🇺🇸', name:'US Michigan Consumer Sentiment (Final)', desc:'Mar 2026', impact:'high', forecast:'57.9', prev:'64.7', actual:''},
-  {date:'2026-04-04', time:'--:--', country:'USD', flag:'🇺🇸', name:'Good Friday — US Markets Closed', desc:'Market Holiday', impact:'high', forecast:'—', prev:'—', actual:''},
+const WORKER = 'https://xenos-ai-proxy.xenosfinance.workers.dev';
+const REPO   = 'xenosfinance-prog/waves';
 
-  // WEEK OF MARCH 31 — APRIL 4 (next week — key NFP week)
-  {date:'2026-03-31', time:'09:30', country:'GBP', flag:'🇬🇧', name:'UK Final GDP q/q', desc:'Q4 2025', impact:'high', forecast:'0.1%', prev:'0.1%', actual:''},
-  {date:'2026-03-31', time:'10:00', country:'EUR', flag:'🇪🇺', name:'Eurozone CPI Flash y/y', desc:'Mar 2026', impact:'high', forecast:'2.2%', prev:'2.3%', actual:''},
-  {date:'2026-03-31', time:'14:30', country:'USD', flag:'🇺🇸', name:'US Chicago PMI', desc:'Mar 2026', impact:'med', forecast:'46.0', prev:'45.5', actual:''},
-  {date:'2026-04-01', time:'03:45', country:'OTHER', flag:'🇨🇳', name:'China Caixin Manufacturing PMI', desc:'Mar 2026', impact:'high', forecast:'51.1', prev:'50.8', actual:''},
-  {date:'2026-04-01', time:'10:00', country:'EUR', flag:'🇪🇺', name:'Eurozone Manufacturing PMI (Final)', desc:'Mar 2026', impact:'med', forecast:'48.7', prev:'47.6', actual:''},
-  {date:'2026-04-01', time:'15:00', country:'USD', flag:'🇺🇸', name:'US ISM Manufacturing PMI', desc:'Mar 2026', impact:'high', forecast:'49.7', prev:'50.3', actual:''},
-  {date:'2026-04-02', time:'14:15', country:'USD', flag:'🇺🇸', name:'US ADP Non-Farm Employment Change', desc:'Mar 2026', impact:'high', forecast:'118K', prev:'77K', actual:''},
-  {date:'2026-04-03', time:'14:30', country:'USD', flag:'🇺🇸', name:'US Initial Jobless Claims', desc:'Week ending Mar 28', impact:'high', forecast:'225K', prev:'224K', actual:''},
-  {date:'2026-04-03', time:'15:00', country:'USD', flag:'🇺🇸', name:'US ISM Services PMI', desc:'Mar 2026', impact:'high', forecast:'53.0', prev:'53.5', actual:''},
-  {date:'2026-04-03', time:'14:30', country:'USD', flag:'🇺🇸', name:'US Non-Farm Payrolls', desc:'Mar 2026', impact:'high', forecast:'137K', prev:'151K', actual:''},
-  {date:'2026-04-03', time:'14:30', country:'USD', flag:'🇺🇸', name:'US Unemployment Rate', desc:'Mar 2026', impact:'high', forecast:'4.1%', prev:'4.1%', actual:''},
-  {date:'2026-04-03', time:'14:30', country:'USD', flag:'🇺🇸', name:'US Average Hourly Earnings m/m', desc:'Mar 2026', impact:'high', forecast:'0.3%', prev:'0.3%', actual:''},
+let currentTab = 'cfd';
+let allSignals = { cfd: [], options: [], closed: [] };
+let filtered   = [];
+let dirFilter  = { BUY: false, SELL: false };
 
-  // Central Bank events
-  {date:'2026-04-09', time:'20:00', country:'USD', flag:'🇺🇸', name:'FOMC Meeting Minutes', desc:'Mar 18-19 meeting', impact:'high', forecast:'—', prev:'—', actual:''},
-  {date:'2026-04-10', time:'12:45', country:'EUR', flag:'🇪🇺', name:'ECB Interest Rate Decision', desc:'Apr 2026', impact:'high', forecast:'2.40%', prev:'2.65%', actual:''},
-  {date:'2026-04-10', time:'13:30', country:'EUR', flag:'🇪🇺', name:'ECB Press Conference', desc:'Lagarde speaks', impact:'high', forecast:'—', prev:'—', actual:''},
-];
-
-// ─── STATE ──────────────────────────────────────────────────────────────────
-const activeFilters = {high:true, med:true, low:true, USD:true, EUR:true, GBP:true, JPY:true, OTHER:true};
-let currentWeek = 0; // 0 = this week, 1 = next week
-
-function toggleFilter(key) {
-  activeFilters[key] = !activeFilters[key];
-  const btn = document.getElementById('f-' + key);
-  if (btn) btn.classList.toggle('on', activeFilters[key]);
-  renderCalendar();
-  renderKeyEventsCards();
-}
-
-// ─── WEEK HELPERS ──────────────────────────────────────────────────────────
-function getWeekStart(offset) {
+// ── DATE ──
+(function(){
   const d = new Date();
-  d.setHours(0,0,0,0);
-  const day = d.getDay() || 7; // Mon=1
-  d.setDate(d.getDate() - day + 1 + offset * 7);
-  return d;
+  document.getElementById('live-date').textContent =
+    d.toLocaleDateString('en-GB',{day:'2-digit',month:'long',year:'numeric'}).toUpperCase();
+})();
+
+// ── FORMAT HELPERS ──
+function fmtPrice(v, pair) {
+  const n = parseFloat(v);
+  if (isNaN(n) || v == null) return '—';
+  pair = pair || '';
+  if (pair.includes('JPY') || pair.includes('225')) return n.toFixed(3);
+  if (pair.includes('BTC') || pair.includes('ETH') || n > 1000) return n.toFixed(0);
+  if (n > 10) return n.toFixed(2);
+  return n.toFixed(4);
 }
 
-function dateKey(d) {
-  return d.toISOString().split('T')[0];
+function fmtDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short'}) + ' ' +
+         d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
 }
 
-function weekDates(offset) {
-  const start = getWeekStart(offset);
-  const days = [];
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(start);
-    d.setDate(start.getDate() + i);
-    days.push(dateKey(d));
-  }
-  return days;
+// ── LOAD SIGNALS ─────────────────────────────────────────────
+async function loadSignals() {
+  await Promise.all([
+    loadFolder('signals_cfd',     'cfd'),
+    loadFolder('signals_options', 'options'),
+  ]);
+  // Closed = signals with outcome set (win/loss/breakeven) from both folders
+  allSignals.closed = [
+    ...allSignals.cfd.filter(s => s.outcome && s.outcome !== 'pending'),
+    ...allSignals.options.filter(s => s.outcome && s.outcome !== 'pending'),
+  ].sort((a, b) => new Date(b.timestamp||0) - new Date(a.timestamp||0));
+  document.getElementById('count-cfd').textContent     = allSignals.cfd.filter(s => !s.outcome || s.outcome === 'pending').length;
+  document.getElementById('count-options').textContent = allSignals.options.filter(s => !s.outcome || s.outcome === 'pending').length;
+  document.getElementById('count-closed').textContent  = allSignals.closed.length;
+  document.getElementById('last-updated').textContent  =
+    'Updated ' + new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) + ' · Auto-refresh every 5 min';
+  if (currentTab === 'closed') renderClosed();
+  else applyFilters();
 }
 
-const DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-
-function friendlyDate(iso) {
-  const d = new Date(iso + 'T12:00:00');
-  return DAY_NAMES[d.getDay()] + ' ' + d.getDate() + ' ' + MONTH_NAMES[d.getMonth()];
-}
-
-// ─── RENDER ───────────────────────────────────────────────────────────────
-function renderWeekTabs() {
-  const tabs = document.getElementById('week-tabs');
-  if (!tabs) return;
-  const labels = ['This Week', 'Next Week', 'Week +2', 'Week +3'];
-  tabs.innerHTML = labels.map((l, i) =>
-    `<div class="week-tab ${i === currentWeek ? 'on' : ''}" onclick="setWeek(${i})">${l}</div>`
-  ).join('');
-}
-
-function setWeek(n) {
-  currentWeek = n;
-  renderWeekTabs();
-  renderCalendar();
-}
-
-function impactHtml(impact) {
-  if (impact === 'high') return `<span class="impact"><span class="impact-dot dot-high"></span> HIGH</span>`;
-  if (impact === 'med')  return `<span class="impact"><span class="impact-dot dot-med"></span> MED</span>`;
-  return `<span class="impact"><span class="impact-dot dot-low"></span> LOW</span>`;
-}
-
-function matchesFilter(ev) {
-  if (!activeFilters[ev.impact]) return false;
-  const cur = ev.country;
-  if (['USD','EUR','GBP','JPY'].includes(cur)) {
-    return activeFilters[cur];
-  }
-  return activeFilters['OTHER'];
-}
-
-function renderCalendar() {
-  const tbody = document.getElementById('cal-tbody');
-  if (!tbody) return;
-  const days = weekDates(currentWeek);
-  const today = dateKey(new Date());
-  let html = '';
-  days.forEach(day => {
-    const evs = EVENTS.filter(e => e.date === day && matchesFilter(e));
-    if (!evs.length) return;
-    const isToday = day === today;
-    html += `<tr class="day-sep"><td colspan="7">${friendlyDate(day)}${isToday ? ' <span style="color:var(--red2);margin-left:8px">● TODAY</span>' : ''}</td></tr>`;
-    evs.forEach(ev => {
-      const hasActual = ev.actual && ev.actual !== '' && ev.actual !== '—';
-      const actualHtml = ev.actual
-        ? `<span class="val-actual" style="color:${ev.actual.includes('TODAY') ? 'var(--gold2)' : 'var(--ink)'}">${ev.actual}</span>`
-        : '<span style="color:var(--border2)">—</span>';
-      const isToday2 = ev.date === today;
-      const evIdx = day + '-' + evs.indexOf(ev);
-      const hasReal = hasActual && !ev.actual.includes('TODAY');
-      const aiBtn = hasReal ? `<button class="ai-btn" id="btn-${evIdx}" onclick="analyzeEvent('${evIdx}')">⚡ AI</button>` : '';
-      window._evData = window._evData || {};
-      window._evData[evIdx] = ev;
-      html += `<tr style="${isToday2 ? 'background:rgba(59,130,246,0.04)' : ''}" id="row-${evIdx}">
-        <td class="ev-time">${ev.time}</td>
-        <td><div class="country-tag">${ev.flag} ${ev.country}</div></td>
-        <td><div class="ev-name" onclick="toggleInfo('${evIdx}')" title="Click for details">📋 ${ev.name}</div><div class="ev-desc">${ev.desc}</div></td>
-        <td class="ev-val val-forecast">${ev.forecast}</td>
-        <td class="ev-val val-prev">${ev.prev}</td>
-        <td class="ev-val">${actualHtml}</td>
-        <td>${impactHtml(ev.impact)} ${aiBtn}</td>
-      </tr>`;
-      html += `<tr id="info-${evIdx}" style="display:none"><td colspan="7" style="padding:0;border-bottom:1px solid var(--border)"><div class="ev-info-panel"><div class="ev-info-title">📋 ${ev.name} — Guide</div><div class="ev-info-grid"><div class="ev-info-block"><div class="ev-info-label">What it measures</div><div class="ev-info-text">${getEvInfo(ev).what}</div></div><div class="ev-info-block"><div class="ev-info-label">How to interpret</div><div class="ev-info-text">${getEvInfo(ev).how}</div></div><div class="ev-info-block"><div class="ev-info-label">Beat expectations →</div><div class="ev-info-text">${getEvInfo(ev).beat}</div></div><div class="ev-info-block"><div class="ev-info-label">Miss expectations →</div><div class="ev-info-text">${getEvInfo(ev).miss}</div></div></div><div style="font-size:9px;color:var(--muted);">Impact: <strong style="color:${ev.impact==='high'?'#f87171':ev.impact==='med'?'#f59e0b':'#5a7a9a'}">${ev.impact.toUpperCase()}</strong> · Markets most affected: ${getEvInfo(ev).markets}</div></div></td></tr>`;
-      html += `<tr id="ai-${evIdx}" style="display:none"><td colspan="7" style="padding:0;border-bottom:1px solid var(--border)"><div id="ai-inner-${evIdx}" class="ai-panel-inner"></div></td></tr>`;
-    });
-  });
-  if (!html) {
-    html = `<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:40px;font-family:var(--mono);font-size:11px;">No events match the current filter for this week.</td></tr>`;
-  }
-  tbody.innerHTML = html;
-}
-
-function renderHighlights() {
-  const grid = document.getElementById('highlights-grid');
-  if (!grid) return;
-  const today = dateKey(new Date());
-  const dow = new Date().getDay(); // 0=Sun, 6=Sat
-  const isWeekend = dow === 0 || dow === 6;
-  // On weekends show next week's events; otherwise show this week
-  const offset = isWeekend ? 1 : 0;
-  const weekLabel = isWeekend ? 'NEXT WEEK KEY EVENTS' : 'THIS WEEK KEY EVENTS';
-  // Update section label
-  const lbl = document.querySelector('.section-head-label');
-  if (lbl && lbl.textContent.includes('Key Events')) lbl.textContent = weekLabel;
-  const targetWeek = weekDates(offset);
-  let highEvs = EVENTS.filter(e => targetWeek.includes(e.date) && e.impact === 'high').slice(0, 6);
-  // Fallback: if still empty try next offset
-  if (!highEvs.length) {
-    const fallback = weekDates(offset + 1);
-    highEvs = EVENTS.filter(e => fallback.includes(e.date) && e.impact === 'high').slice(0, 6);
-  }
-  if (!highEvs.length) {
-    grid.innerHTML = '<div style="padding:24px;font-family:var(--mono);font-size:10px;color:var(--muted);text-align:center;grid-column:1/-1;">No upcoming high impact events found.</div>';
-    return;
-  }
-  grid.innerHTML = highEvs.map(ev => `
-    <div class="highlight-card high">
-      <div class="hc-date">${friendlyDate(ev.date)} · ${ev.time} CET ${ev.date === today ? '· <span style="color:var(--red2)">TODAY</span>' : ''}</div>
-      <div class="hc-name">${ev.flag} ${ev.name}</div>
-      <div class="hc-meta">${ev.desc}</div>
-      ${ev.forecast !== '—' ? `<div class="hc-forecast">Forecast: ${ev.forecast}</div>` : ''}
-    </div>
-  `).join('');
-}
-
-// ─── DATE/TIME ─────────────────────────────────────────────────────────────
-function updateDateTime() {
-  const n = new Date();
-  const months = ['JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE','JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'];
-  const ld = document.getElementById('live-date');
-  if (ld) ld.textContent = months[n.getMonth()] + ' ' + n.getDate() + ', ' + n.getFullYear();
-  const hm = n.getHours().toString().padStart(2,'0') + ':' + n.getMinutes().toString().padStart(2,'0');
-  const lt = document.getElementById('live-time');
-  if (lt) lt.textContent = 'UPDATED AT ' + hm + ' CET';
-}
-
-// ─── QUICK MARKET TICKER ───────────────────────────────────────────────────
-// Ticker uses Worker — no allorigins needed
-const TICKER_PAIRS = ['USOIL','XAUUSD','EURUSD=X','BTC-USD','SPY','USDJPY=X'];
-const TICKER_META  = {
-  'USOIL':    {label:'OIL WTI', dec:2,  prefix:'$'},
-  'XAUUSD':   {label:'GOLD',    dec:2,  prefix:'$'},
-  'EURUSD=X': {label:'EUR/USD', dec:4,  prefix:''},
-  'BTC-USD':  {label:'BTC/USD', dec:0,  prefix:'$', comma:true},
-  'SPY':      {label:'S&P 500', dec:2,  prefix:'$'},
-  'USDJPY=X': {label:'USD/JPY', dec:4,  prefix:''},
-};
-
-async function loadTicker() {
+async function loadFolder(folder, type) {
   try {
-    const res = await fetch(WORKER_URL, {
+    const res = await fetch(WORKER, {
       method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({type: 'prices', pairs: TICKER_PAIRS}),
-      signal: AbortSignal.timeout(10000)
-    });
-    if (!res.ok) return;
-    const data = await res.json();
-    const prices = data.prices || {};
-    let th = '';
-    TICKER_PAIRS.forEach(sym => {
-      const p = prices[sym];
-      if (!p || !p.price) return;
-      const meta = TICKER_META[sym];
-      const up  = (p.change_pct || 0) >= 0;
-      const ps  = meta.comma
-        ? meta.prefix + Math.round(p.price).toLocaleString('en-US')
-        : meta.prefix + p.price.toFixed(meta.dec);
-      const cs  = (p.change_pct || 0).toFixed(2);
-      th += `<span class="t-item"><span class="t-sym">${meta.label}</span><span class="${up?'t-up':'t-dn'}">${ps}</span><span class="${up?'t-up':'t-dn'}">${up?'▲ +':'▼ '}${cs}%</span></span>`;
-    });
-    if (th) { const ti = document.getElementById('ticker-inner'); if (ti) ti.innerHTML = th + th; }
-  } catch(e) { console.warn('Ticker error:', e.message); }
-}
-
-// ─── INIT ──────────────────────────────────────────────────────────────────
-// ─── EVENT INFO PANEL ──────────────────────────────────────────────────────
-function toggleInfo(evIdx) {
-  const panel = document.getElementById('info-' + evIdx);
-  if (!panel) return;
-  panel.style.display = panel.style.display === 'none' ? '' : 'none';
-}
-
-const EV_INFO_DB = {
-  'cpi':      { what:'Consumer Price Index — measures the change in prices paid by consumers for goods and services.', how:'Higher = more inflation. Core CPI strips out food & energy volatility.', beat:'USD strengthens, bonds sell off (yields rise), Gold may dip short-term, rate hike expectations increase.', miss:'USD weakens, bonds rally (yields fall), Gold rises, rate cut expectations increase.', markets:'USD, Bonds (TNX), Gold, Equities' },
-  'pce':      { what:'Personal Consumption Expenditures — the Fed\'s preferred inflation gauge, covers broader spending than CPI.', how:'Core PCE above 2% = Fed hawkish. Below 2% = Fed dovish. Most important inflation print.', beat:'USD up, bonds down, equities volatile. Markets price fewer rate cuts.', miss:'USD down, bonds rally, equities may rise on rate cut hopes.', markets:'USD, Bonds, S&P 500, Gold' },
-  'nfp':      { what:'Non-Farm Payrolls — monthly count of new jobs added in the US economy, excluding farm workers.', how:'Above 200K = strong economy. Below 100K = weakening labor market. Revision often matters as much as headline.', beat:'USD strengthens, bonds sell off, equities mixed (good economy but fewer cuts).', miss:'USD weakens, bonds rally, equities may fall on recession fears.', markets:'USD, Bonds, S&P 500, all major pairs' },
-  'gdp':      { what:'Gross Domestic Product — total monetary value of all goods and services produced. Measures economic growth.', how:'Positive = expansion. Negative two quarters in a row = recession. Final reading most reliable.', beat:'Risk-on: equities up, USD up, bonds neutral.', miss:'Risk-off: equities down, Gold up, bonds rally, USD volatile.', markets:'Equities, USD, Gold, Bonds' },
-  'fomc':     { what:'Federal Open Market Committee — the Fed\'s policy-setting body. Decisions on interest rates and monetary policy.', how:'Rate hike = hawkish (fights inflation). Rate cut = dovish (supports growth). Statement tone matters greatly.', beat:'Hawkish surprise: USD surges, bonds sell off, Gold drops, equities fall.', miss:'Dovish surprise: USD drops, bonds rally, Gold surges, equities rise.', markets:'ALL markets — highest impact event' },
-  'ecb':      { what:'European Central Bank interest rate decision — sets borrowing costs for the Eurozone.', how:'Rate hike = EUR bullish. Rate cut = EUR bearish. Lagarde press conference tone often more important than decision.', beat:'EUR/USD up, Eurozone equities mixed, bonds sell off.', miss:'EUR/USD down, bonds rally, Gold may rise.', markets:'EUR pairs, Eurozone equities, Bonds' },
-  'pmi':      { what:'Purchasing Managers Index — survey of business conditions. Above 50 = expansion, below 50 = contraction.', how:'Manufacturing PMI shows factory activity. Services PMI shows services sector health. Composite = both combined.', beat:'Risk-on if above 50: equities up, currency strengthens.', miss:'Risk-off if below 50: equities down, safe havens rise.', markets:'Currency pairs, Equities, Bonds' },
-  'retail':   { what:'Retail Sales — measures the total receipts of retail stores. Key indicator of consumer spending and economic health.', how:'Strong retail = consumers spending = economy healthy. Weak retail = consumers cautious = slowdown signal.', beat:'Currency strengthens, equities up, bonds neutral.', miss:'Currency weakens, defensive stocks outperform, bonds rally.', markets:'Currency pairs, Consumer stocks, Bonds' },
-  'jobs':     { what:'Initial Jobless Claims — weekly count of people filing for unemployment benefits for the first time.', how:'Lower = fewer layoffs = healthy labor market. Above 300K = labor market weakening. Watch 4-week average.', beat:'(Lower claims) USD up, equities up, bonds neutral.', miss:'(Higher claims) USD down, bonds rally, Gold may rise.', markets:'USD, Equities, Bonds' },
-  'ifo':      { what:'Ifo Business Climate Index — monthly survey of ~9,000 German firms on current conditions and expectations.', how:'Germany is Europe\'s largest economy. Above 100 = optimism. Key leading indicator for Eurozone growth.', beat:'EUR/USD up, DAX up, risk-on for Europe.', miss:'EUR/USD down, DAX down, Eurozone concerns rise.', markets:'EUR pairs, DAX, European equities' },
-  'michigan': { what:'University of Michigan Consumer Sentiment — monthly survey measuring US consumer confidence and inflation expectations.', how:'Higher = confident consumers = more spending ahead. Inflation expectations component watched by the Fed closely.', beat:'USD up, equities rise, rate cut expectations may fall if inflation expectations high.', miss:'USD down, equities fall, Gold may rise as recession fears grow.', markets:'USD, Equities, Gold, Bonds' },
-  'default':  { what:'Key macroeconomic indicator tracked by institutional investors and central banks.', how:'Compare actual vs forecast. A significant beat or miss relative to consensus drives the initial market reaction.', beat:'Risk assets (equities, growth currencies) typically benefit. Safe havens may sell off.', miss:'Safe havens (Gold, JPY, Bonds) typically benefit. Risk assets may sell off.', markets:'Varies by indicator — check impact rating' },
-};
-
-function getEvInfo(ev) {
-  const name = ev.name.toLowerCase();
-  if (name.includes('pce')) return EV_INFO_DB.pce;
-  if (name.includes('cpi')) return EV_INFO_DB.cpi;
-  if (name.includes('non-farm') || name.includes('payroll')) return EV_INFO_DB.nfp;
-  if (name.includes('gdp')) return EV_INFO_DB.gdp;
-  if (name.includes('fomc') || name.includes('federal reserve') || name.includes('fed rate')) return EV_INFO_DB.fomc;
-  if (name.includes('ecb')) return EV_INFO_DB.ecb;
-  if (name.includes('pmi')) return EV_INFO_DB.pmi;
-  if (name.includes('retail')) return EV_INFO_DB.retail;
-  if (name.includes('jobless') || name.includes('claims') || name.includes('unemployment')) return EV_INFO_DB.jobs;
-  if (name.includes('ifo')) return EV_INFO_DB.ifo;
-  if (name.includes('michigan') || name.includes('sentiment')) return EV_INFO_DB.michigan;
-  return EV_INFO_DB.default;
-}
-
-// ─── AI ANALYSIS ───────────────────────────────────────────────────────────
-async function analyzeEvent(evIdx) {
-  const ev = window._evData && window._evData[evIdx];
-  if (!ev) return;
-  const panel = document.getElementById('ai-' + evIdx);
-  const inner = document.getElementById('ai-inner-' + evIdx);
-  const btn = document.getElementById('btn-' + evIdx);
-  if (!panel || !inner) return;
-
-  // Toggle off if already open
-  if (panel.style.display !== 'none') {
-    panel.style.display = 'none';
-    if (btn) btn.textContent = '⚡ AI';
-    return;
-  }
-
-  panel.style.display = '';
-  if (btn) { btn.textContent = '✕ Close'; }
-  inner.innerHTML = `<div class="ai-panel-header">⚡ AI Market Analysis</div><div class="ai-loading">Analyzing ${ev.name}...</div>`;
-
-  const beat = ev.actual && ev.forecast && ev.actual !== '—' && ev.forecast !== '—'
-    ? (parseFloat(ev.actual) > parseFloat(ev.forecast) ? 'beat' : parseFloat(ev.actual) < parseFloat(ev.forecast) ? 'missed' : 'met')
-    : 'released';
-
-  const prompt = `You are a senior macro analyst at an institutional trading desk. A key economic data point just released.
-
-Event: ${ev.name} (${ev.desc})
-Country: ${ev.flag} ${ev.country}
-Actual: ${ev.actual}
-Forecast: ${ev.forecast}
-Previous: ${ev.prev}
-Result: Data ${beat} expectations
-
-Write a concise institutional-grade market impact analysis (4-6 sentences). Cover:
-1. What the number means vs expectations
-2. Immediate market reaction expected (forex, bonds, equities)
-3. Central bank implications
-4. Key risk or tail scenario to watch
-
-Write in Bloomberg terminal style. No bullet points. No headers. Direct and precise.`;
-
-  try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        messages: [{role: 'user', content: prompt}]
+        type: 'github', method: 'GET',
+        url: `https://api.github.com/repos/${REPO}/contents/${folder}`
       })
     });
-    const data = await res.json();
-    const text = data.content?.[0]?.text || 'Analysis unavailable.';
-    inner.innerHTML = `<div class="ai-panel-header">⚡ AI Market Analysis · ${ev.name}</div><div class="ai-panel-text">${text}</div>`;
+    const d = await res.json();
+    const files = Array.isArray(d.data) ? d.data : [];
+    const jsonFiles = files.filter(f => f.name.endsWith('.json')).slice(-50); // last 50
+
+    const results = await Promise.all(jsonFiles.map(async f => {
+      try {
+        const r = await fetch(WORKER, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'github', method: 'GET',
+            url: `https://api.github.com/repos/${REPO}/contents/${folder}/${f.name}`
+          })
+        });
+        const fd = await r.json();
+        if (!fd.data?.content) return null;
+        const sig = JSON.parse(decodeURIComponent(escape(atob(fd.data.content.replace(/\n/g,'')))));
+        sig._filename = f.name;
+        return sig;
+      } catch(e) { return null; }
+    }));
+
+    // Sort by saved_at descending (newest first)
+    allSignals[type] = results
+      .filter(Boolean)
+      .sort((a,b) => (b.saved_at||'').localeCompare(a.saved_at||''));
   } catch(e) {
-    inner.innerHTML = `<div class="ai-panel-header">⚡ AI Market Analysis</div><div class="ai-panel-text" style="color:var(--red2)">Analysis failed. Check connection.</div>`;
+    console.warn('loadFolder:', folder, e.message);
+    allSignals[type] = [];
   }
 }
 
-// ── LIVE ACTUALS via Worker (RapidAPI Economic Calendar) ──
-const WORKER_URL = 'https://xenos-ai-proxy.xenosfinance.workers.dev';
-let liveByNameDate = {};  // "normalizedname|date" -> actual
-
-function normalizeEventName(s) {
-  return s.toLowerCase().replace(/\s+/g,' ').replace(/[^a-z0-9 ]/g,'').trim().slice(0,30);
+// ── TAB ──────────────────────────────────────────────────────
+function switchTab(tab) {
+  currentTab = tab;
+  const isCFD     = tab === 'cfd';
+  const isOptions = tab === 'options';
+  const isClosed  = tab === 'closed';
+  document.getElementById('tab-cfd').className     = 'type-tab' + (isCFD     ? ' active'        : '');
+  document.getElementById('tab-options').className = 'type-tab' + (isOptions  ? ' active-opt'    : '');
+  document.getElementById('tab-closed').className  = 'type-tab' + (isClosed   ? ' active-closed' : '');
+  document.getElementById('cfd-section').style.display     = isCFD    ? '' : 'none';
+  document.getElementById('options-section').style.display = isOptions ? '' : 'none';
+  document.getElementById('closed-section').style.display  = isClosed  ? '' : 'none';
+  if (isClosed) { renderClosed(); return; }
+  applyFilters();
 }
 
-function isoWeekRange(offsetWeeks) {
-  const now = new Date();
-  const day = now.getDay() || 7;
-  const mon = new Date(now); mon.setHours(0,0,0,0); mon.setDate(now.getDate() - day + 1 + offsetWeeks * 7);
-  const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
-  const fmt = d => d.toISOString().split('T')[0];
-  return { from: fmt(mon), to: fmt(sun) };
+// ── FILTERS ──────────────────────────────────────────────────
+function toggleDir(dir) {
+  dirFilter[dir] = !dirFilter[dir];
+  document.getElementById('f-buy').classList.toggle('on',  dirFilter.BUY);
+  document.getElementById('f-sell').classList.toggle('on', dirFilter.SELL);
+  applyFilters();
 }
 
-async function fetchLiveCalendar(weekStr) {
-  const offsetWeeks = weekStr === 'nextweek' ? 1 : 0;
-  const { from, to } = isoWeekRange(offsetWeeks);
+function clearFilters() {
+  document.getElementById('f-pair').value = '';
+  document.getElementById('f-tf').value   = '';
+  dirFilter = { BUY: false, SELL: false };
+  document.getElementById('f-buy').classList.remove('on');
+  document.getElementById('f-sell').classList.remove('on');
+  applyFilters();
+}
 
-  function ingestEvents(events, source) {
-    let withActuals = 0;
-    events.forEach(ev => {
-      if (!ev.actual) return;
-      withActuals++;
-      const date = (ev.time || '').slice(0, 10);
-      const name = normalizeEventName(ev.event || '');
-      liveByNameDate[name + '|' + date] = ev.actual;
-      const k2 = name.slice(0, 15) + '|' + date;
-      if (!liveByNameDate[k2]) liveByNameDate[k2] = ev.actual;
-    });
-    console.log('[Calendar] ' + source + ' ' + weekStr + ': ' + events.length + ' events, ' + withActuals + ' actuals');
-    return withActuals;
-  }
+function applyFilters() {
+  const pair   = document.getElementById('f-pair').value.trim().toUpperCase();
+  const tf     = document.getElementById('f-tf').value;
+  const anyDir = dirFilter.BUY || dirFilter.SELL;
 
-  // 1. ForexFactory
-  try {
-    const r = await fetch(WORKER_URL, {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ type: 'forexfactory', week: weekStr }),
-      signal: (()=>{ const c = new AbortController(); setTimeout(()=>c.abort(), 8000); return c.signal; })()
-    });
-    if (r.ok) {
-      const d = await r.json();
-      const events = d.events || [];
-      if (events.length > 0 && !d.error) {
-        ingestEvents(events, 'ForexFactory');
-        return; // FF worked — no need for fallback
-      }
+  // Only show open/pending signals in CFD and Options tabs
+  const openOnly = allSignals[currentTab].filter(s => !s.outcome || s.outcome === 'pending');
+
+  filtered = openOnly.filter(s => {
+    if (pair && !( s.pair||'').includes(pair)) return false;
+    if (tf   && s.timeframe !== tf)            return false;
+    if (anyDir) {
+      const dir = currentTab === 'options'
+        ? (s.action === 'CALL' ? 'BUY' : 'SELL')
+        : s.direction;
+      if (!dirFilter[dir]) return false;
     }
-  } catch(e) { console.warn('ForexFactory failed:', e.message); }
+    return true;
+  });
 
-  // 2. Finnhub fallback
-  try {
-    const r2 = await fetch(WORKER_URL, {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ type: 'finnhub', action: 'economic_calendar', from, to }),
-      signal: (()=>{ const c = new AbortController(); setTimeout(()=>c.abort(), 10000); return c.signal; })()
-    });
-    if (r2.ok) {
-      const d2 = await r2.json();
-      const events2 = d2.economicCalendar || [];
-      ingestEvents(events2, 'Finnhub');
-    }
-  } catch(e) { console.warn('Finnhub calendar failed:', e.message); }
+  updateStats();
+  currentTab === 'cfd' ? renderCFD() : renderOptions();
 }
 
-function getLiveActual(ev) {
-  const name = normalizeEventName(ev.name);
-  const date = ev.date;
-  // 1. Exact name + date
-  const v1 = liveByNameDate[name + '|' + date];
-  if (v1) return v1;
-  // 2. 15-char prefix + date
-  const v2 = liveByNameDate[name.slice(0, 15) + '|' + date];
-  if (v2) return v2;
-  // 3. Word-by-word: all words >3 chars must match a cached name for same date
-  const words = name.split(' ').filter(w => w.length > 3);
-  for (const [k, actual] of Object.entries(liveByNameDate)) {
-    if (!k.endsWith('|' + date)) continue;
-    const cachedName = k.replace('|' + date, '');
-    if (words.length > 0 && words.every(w => cachedName.includes(w))) return actual;
-  }
-  return ev.actual || '';
+// ── STATS ─────────────────────────────────────────────────────
+function updateStats() {
+  const total = filtered.length;
+  let bull = 0, bear = 0, confSum = 0;
+  filtered.forEach(s => {
+    const dir = currentTab === 'options'
+      ? (s.action === 'CALL' ? 'BUY' : 'SELL')
+      : s.direction;
+    if (dir === 'BUY')  bull++;
+    else                bear++;
+    confSum += s.confidence || 0;
+  });
+  document.getElementById('s-total').textContent = total || '—';
+  document.getElementById('s-bull').textContent  = bull  || '—';
+  document.getElementById('s-bear').textContent  = bear  || '—';
+  document.getElementById('s-conf').textContent  = total ? Math.round(confSum/total) + '%' : '—';
 }
 
-// Patch EVENTS array with live actuals and re-render
-
-// ── Populate "This Week's Key Events" cards dynamically ───────────────────
-function renderKeyEventsCards() {
-  const grid = document.getElementById('key-events-grid');
-  if (!grid) return;
-  const today = new Date(); today.setHours(0,0,0,0);
-  const wd = today.getDay()||7;
-  const mon = new Date(today); mon.setDate(today.getDate()-wd+1);
-  const fri = new Date(mon); fri.setDate(mon.getDate()+4);
-  const monKey = mon.toISOString().split('T')[0];
-  const friKey = fri.toISOString().split('T')[0];
-
-  const topEvents = EVENTS
-    .filter(e => e.date >= monKey && e.date <= friKey && e.impact === 'high')
-    .slice(0, 6);
-
-  if (!topEvents.length) {
-    grid.innerHTML = '<div style="padding:24px;background:var(--bg2);font-family:var(--mono);font-size:10px;color:var(--muted);text-align:center;grid-column:1/-1;">No high impact events this week.</div>';
+// ── RENDER CFD ────────────────────────────────────────────────
+function renderCFD() {
+  const container = document.getElementById('cfd-list');
+  if (!filtered.length) {
+    container.innerHTML = '<div class="empty-msg">No CFD signals available yet — check back soon</div>';
     return;
   }
+  container.innerHTML = filtered.map((sig, i) => {
+    const isBull  = sig.direction === 'BUY';
+    const confW   = Math.round((sig.confidence||0) / 100 * 50);
+    const outcome = sig.outcome || 'open';
+    const outcomeColor = outcome === 'win' ? 'var(--green2)' : outcome === 'loss' ? 'var(--red2)' : 'var(--muted)';
+    const outcomeLabel = outcome === 'win' ? '✓ WIN' : outcome === 'loss' ? '✗ LOSS' : '● OPEN';
 
-  const impColor = {high:'var(--red)',med:'var(--yellow)',low:'var(--muted)'};
-  grid.innerHTML = topEvents.map(e => {
-    const dt = new Date(e.date+'T12:00:00');
-    const dayStr = dt.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'}).toUpperCase();
-    const timeStr = e.time !== '--:--' ? ` · ${e.time} CET` : '';
-    const actual = getLiveActual(e);
-    return `<div style="background:var(--bg2);padding:22px 20px;border-left:2px solid ${impColor[e.impact]||'var(--border)'};">
-      <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--muted);margin-bottom:6px;">${e.flag} ${dayStr}${timeStr}</div>
-      <div style="font-family:var(--serif);font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px;">${e.name}</div>
-      <div style="font-family:var(--mono);font-size:10px;color:var(--muted);">${e.desc}</div>
-      ${e.forecast!=='—'?`<div style="font-family:var(--mono);font-size:11px;color:var(--gold);margin-top:8px;">Forecast: ${e.forecast}${actual?' &nbsp;|&nbsp; <span style=color:var(--green)>Actual: '+actual+'</span>':''}</div>`:''}
+    return `
+    <div class="signal-card ${isBull?'bull':'bear'}" onclick="toggleCFDDetail(${i})">
+      <div class="signal-card-row">
+        <div class="sc-pair">${sig.pair||'—'}</div>
+        <div class="sc-dir ${sig.direction||''}">${isBull?'▲ BUY':'▼ SELL'}</div>
+        <div class="sc-pattern">${sig.pattern||'—'}</div>
+        <div class="sc-entry">${fmtPrice(sig.entry, sig.pair)}</div>
+        <div class="sc-sl">${fmtPrice(sig.sl, sig.pair)}</div>
+        <div class="sc-tp">${fmtPrice(sig.tp, sig.pair)}</div>
+        <div class="conf-wrap">
+          <div class="conf-bar"><div class="conf-fill" style="width:${confW}px"></div></div>
+          <span style="color:var(--ink2)">${sig.confidence||'—'}%</span>
+        </div>
+        <div class="sc-rr">${sig.rr||'—'}</div>
+      </div>
+      <div class="signal-detail" id="cfd-detail-${i}">
+        <div class="detail-levels">
+          <div class="level-pill"><div class="level-pill-label">Entry</div><div class="level-pill-val entry">${fmtPrice(sig.entry, sig.pair)}</div></div>
+          <div class="level-pill"><div class="level-pill-label">Stop Loss</div><div class="level-pill-val sl">${fmtPrice(sig.sl, sig.pair)}</div></div>
+          <div class="level-pill"><div class="level-pill-label">Take Profit</div><div class="level-pill-val tp">${fmtPrice(sig.tp, sig.pair)}</div></div>
+          <div class="level-pill"><div class="level-pill-label">R:R</div><div class="level-pill-val" style="color:var(--yellow)">${sig.rr||'—'}</div></div>
+          <div class="level-pill"><div class="level-pill-label">Outcome</div><div class="level-pill-val" style="color:${outcomeColor}">${outcomeLabel}</div></div>
+        </div>
+        <div class="detail-grid">
+          <div class="detail-block">
+            <div class="detail-block-label">Elliott Wave Context</div>
+            <div class="detail-block-text">${sig.ew_context||'—'}</div>
+          </div>
+          <div class="detail-block">
+            <div class="detail-block-label">Pattern Analysis</div>
+            <div class="detail-block-text">${sig.pattern_desc||'—'}</div>
+          </div>
+          <div class="detail-block">
+            <div class="detail-block-label">Market Context</div>
+            <div class="detail-block-text">${sig.market_context||'—'}</div>
+          </div>
+          <div class="detail-block">
+            <div class="detail-block-label">Key Levels</div>
+            <div class="detail-block-text">${sig.key_levels||'—'}</div>
+          </div>
+          <div class="detail-block" style="grid-column:span 2;">
+            <div class="detail-block-label">Invalidation</div>
+            <div class="detail-block-text" style="color:var(--red2)">${sig.invalidation||'—'}</div>
+          </div>
+        </div>
+        <div class="detail-tags">${(sig.tags||[]).map(t=>`<span class="tag">#${t}</span>`).join('')}</div>
+        <div class="detail-meta">
+          <span>TF: <strong>${sig.timeframe||'—'}</strong></span>
+          <span>Saved: <strong>${fmtDate(sig.saved_at)}</strong></span>
+          <span>Confidence: <strong>${sig.confidence||'—'}%</strong></span>
+        </div>
+        <div class="outcome-ctrl ${isAdmin ? 'admin-visible' : ''}">
+          <span style="font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;">Outcome:</span>
+          <select id="cfd-oc-${i}" onclick="event.stopPropagation()">
+            <option value="open" ${outcome==='open'?'selected':''}>● Open</option>
+            <option value="win"  ${outcome==='win' ?'selected':''}>✓ Win</option>
+            <option value="loss" ${outcome==='loss'?'selected':''}>✗ Loss</option>
+          </select>
+          <button onclick="saveOutcome(event,${i},'cfd')">Save</button>
+          <button class="del-btn" onclick="deleteSignal(event,${i},'cfd')">🗑 Delete</button>
+        </div>
+      </div>
     </div>`;
   }).join('');
 }
 
-async function refreshActuals() {
-  await fetchLiveCalendar('thisweek');
-  await fetchLiveCalendar('nextweek');
-  // Patch static EVENTS array with live actuals
-  EVENTS.forEach(ev => {
-    const live = getLiveActual(ev);
-    if (live && live !== ev.actual) ev.actual = live;
+function toggleCFDDetail(i) {
+  const d = document.getElementById('cfd-detail-' + i);
+  if (!d) return;
+  const isOpen = d.classList.contains('open');
+  document.querySelectorAll('.signal-detail.open').forEach(el => el.classList.remove('open'));
+  if (!isOpen) d.classList.add('open');
+}
+
+// ── RENDER OPTIONS ────────────────────────────────────────────
+function renderOptions() {
+  const container = document.getElementById('options-list');
+  if (!filtered.length) {
+    container.innerHTML = '<div class="empty-msg">No options signals available yet — check back soon</div>';
+    return;
+  }
+  container.innerHTML = filtered.map((sig, i) => {
+    const isCall  = sig.action === 'CALL';
+    const confW   = Math.round((sig.confidence||0) / 100 * 50);
+
+    return `
+    <div class="opt-card ${isCall?'call':'put'}" onclick="toggleOptDetail(${i})">
+      <div class="opt-card-row">
+        <div class="oc-pair">${sig.pair||'—'}</div>
+        <div class="oc-action ${sig.action||''}">${isCall?'▲ CALL — Acquisto':'▼ PUT — Vendita'}</div>
+        <div class="oc-entry">${fmtPrice(sig.entry, sig.pair)}</div>
+        <div class="oc-expiry">⏱ ${sig.expiry||'—'}</div>
+        <div class="conf-wrap">
+          <div class="conf-bar"><div class="conf-fill" style="width:${confW}px;background:${isCall?'var(--green)':'var(--red)'}"></div></div>
+          <span style="color:var(--ink2)">${sig.confidence||'—'}%</span>
+        </div>
+        <div style="font-size:10px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${(sig.analysis||'').slice(0,80)}${(sig.analysis||'').length>80?'…':''}</div>
+      </div>
+      <div class="opt-detail" id="opt-detail-${i}">
+        <div class="detail-levels" style="margin-bottom:14px;">
+          <div class="level-pill"><div class="level-pill-label">Asset</div><div class="level-pill-val" style="color:var(--ink)">${sig.pair||'—'}</div></div>
+          <div class="level-pill"><div class="level-pill-label">Azione</div><div class="level-pill-val ${isCall?'tp':'sl'}">${isCall?'CALL — Acquisto':'PUT — Vendita'}</div></div>
+          <div class="level-pill"><div class="level-pill-label">Prezzo Ingresso</div><div class="level-pill-val entry">${fmtPrice(sig.entry, sig.pair)}</div></div>
+          <div class="level-pill"><div class="level-pill-label">Scadenza</div><div class="level-pill-val" style="color:var(--yellow)">${sig.expiry||'—'}</div></div>
+        </div>
+        <div class="opt-detail-analysis">${sig.analysis||'—'}</div>
+        <div class="detail-tags">${(sig.tags||[]).map(t=>`<span class="tag">#${t}</span>`).join('')}</div>
+        <div class="detail-meta">
+          <span>Saved: <strong>${fmtDate(sig.saved_at)}</strong></span>
+          <span>Confidence: <strong>${sig.confidence||'—'}%</strong></span>
+        </div>
+        <div class="outcome-ctrl ${isAdmin ? 'admin-visible' : ''}">
+          <span style="font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;">Outcome:</span>
+          <select id="options-oc-${i}" onclick="event.stopPropagation()">
+            <option value="open" ${(sig.outcome||'open')==='open'?'selected':''}>● Open</option>
+            <option value="win"  ${sig.outcome==='win' ?'selected':''}>✓ Win</option>
+            <option value="loss" ${sig.outcome==='loss'?'selected':''}>✗ Loss</option>
+          </select>
+          <button onclick="saveOutcome(event,${i},'options')">Save</button>
+          <button class="del-btn" onclick="deleteSignal(event,${i},'options')">🗑 Delete</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleOptDetail(i) {
+  const d = document.getElementById('opt-detail-' + i);
+  if (!d) return;
+  const isOpen = d.classList.contains('open');
+  document.querySelectorAll('.opt-detail.open').forEach(el => el.classList.remove('open'));
+  if (!isOpen) d.classList.add('open');
+}
+
+// ── RENDER CLOSED POSITIONS ───────────────────────────────────
+function renderClosed() {
+  const list = document.getElementById('closed-list');
+  const data = allSignals.closed;
+  if (!data || data.length === 0) {
+    list.innerHTML = '<div class="closed-empty">⬡ No closed positions yet — outcomes will appear here once signals are resolved</div>';
+    document.getElementById('cs-wins').textContent    = '0';
+    document.getElementById('cs-losses').textContent  = '0';
+    document.getElementById('cs-be').textContent      = '0';
+    document.getElementById('cs-wr').textContent      = '—';
+    document.getElementById('cs-total').textContent   = '0';
+    return;
+  }
+  let wins = 0, losses = 0, be = 0;
+  data.forEach(s => {
+    const o = (s.outcome||'').toLowerCase();
+    if (o === 'win' || o === 'tp1' || o === 'tp2') wins++;
+    else if (o === 'loss' || o === 'sl') losses++;
+    else if (o === 'breakeven' || o === 'be') be++;
   });
-  renderCalendar();
-  renderHighlights();
-  renderKeyEventsCards();
-  const st = document.getElementById('live-time');
-  if (st) {
-    const n = new Date();
-    const hm = n.getHours().toString().padStart(2,'0') + ':' + n.getMinutes().toString().padStart(2,'0');
-    st.textContent = 'UPDATED AT ' + hm + ' CET';
+  const total = wins + losses + be;
+  const wr = total > 0 ? ((wins / total) * 100).toFixed(1) + '%' : '—';
+  document.getElementById('cs-wins').textContent   = wins;
+  document.getElementById('cs-losses').textContent = losses;
+  document.getElementById('cs-be').textContent     = be;
+  document.getElementById('cs-wr').textContent     = wr;
+  document.getElementById('cs-total').textContent  = total;
+
+  list.innerHTML = data.map(s => {
+    const o = (s.outcome||'').toLowerCase();
+    let badgeClass = 'pending';
+    if (o === 'win' || o === 'tp1' || o === 'tp2') badgeClass = 'win';
+    else if (o === 'loss' || o === 'sl')            badgeClass = 'loss';
+    else if (o === 'breakeven' || o === 'be')       badgeClass = 'breakeven';
+    const dir = s.direction || s.action || '—';
+    const dirColor = (dir === 'BUY' || dir === 'CALL') ? 'color:var(--green)' : 'color:var(--red)';
+    const typeTag = s.signal_type === 'options' ? '<span style="font-size:9px;color:var(--yellow);margin-left:4px;">OPT</span>' : '';
+    return `<div class="closed-row">
+      <div style="font-weight:600;color:var(--text-bright)">${s.pair||'—'}${typeTag}</div>
+      <div style="${dirColor};font-weight:600;">${dir}</div>
+      <div>${fmtPrice(s.entry, s.pair)}</div>
+      <div style="color:var(--red)">${fmtPrice(s.sl, s.pair)}</div>
+      <div style="color:var(--green)">${fmtPrice(s.tp, s.pair)}</div>
+      <div style="color:var(--muted)">${s.timeframe||'—'}</div>
+      <div><span class="outcome-badge ${badgeClass}">${s.outcome||'—'}</span></div>
+      <div style="color:var(--muted);font-size:10px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">${s.pattern||s.analysis||'—'}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── INIT ─────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  loadSignals();
+  // Auto-refresh every 5 minutes
+  setInterval(loadSignals, 300000);
+});
+
+// ── ADMIN STATE ───────────────────────────────────────────────
+let isAdmin = false;
+
+function openAdminLogin() {
+  document.getElementById('admin-popup').style.display = 'block';
+  document.getElementById('admin-overlay').style.display = 'block';
+  setTimeout(() => document.getElementById('admin-pw').focus(), 100);
+}
+
+function closeAdminLogin() {
+  document.getElementById('admin-popup').style.display = 'none';
+  document.getElementById('admin-overlay').style.display = 'none';
+  document.getElementById('admin-pw').value = '';
+  document.getElementById('admin-err').textContent = '';
+}
+
+function doAdminLogin() {
+  const pw = document.getElementById('admin-pw').value;
+  if (pw === 'xenosfinance2026') {
+    isAdmin = true;
+    closeAdminLogin();
+    document.getElementById('admin-bar').style.display = 'flex';
+    applyFilters(); // re-render with admin controls
+  } else {
+    document.getElementById('admin-err').textContent = '⚠ Password errata';
+    document.getElementById('admin-pw').value = '';
   }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-  updateDateTime();
-  renderHighlights();
-  renderWeekTabs();
-  renderCalendar();
-  renderKeyEventsCards();
-  loadTicker();
-  setInterval(updateDateTime, 60000);
-  // Fetch live actuals immediately, then every 5 minutes
-  refreshActuals();
-  setInterval(refreshActuals, 300000);
-});
+function adminLogout() {
+  isAdmin = false;
+  document.getElementById('admin-bar').style.display = 'none';
+  applyFilters();
+}
+
+// ── TOAST ─────────────────────────────────────────────────────
+function showToast(msg) {
+  let t = document.getElementById('xf-toast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'xf-toast';
+    t.style.cssText = 'position:fixed;bottom:24px;right:24px;background:#131f2e;border:1px solid #243a5e;padding:12px 20px;font-family:monospace;font-size:11px;color:#e2eaf4;z-index:9999;opacity:0;transition:opacity 0.3s;max-width:300px;pointer-events:none;';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.style.opacity = '1';
+  setTimeout(() => { t.style.opacity = '0'; }, 3000);
+}
+
+// ── SAVE OUTCOME ──────────────────────────────────────────────
+async function saveOutcome(event, i, type) {
+  event.stopPropagation();
+  const sig = filtered[i];
+  if (!sig) return;
+  const selId = type + '-oc-' + i;
+  const outcome = document.getElementById(selId)?.value;
+  if (!outcome) return;
+  const btn = event.currentTarget;
+  const origText = btn.textContent;
+  btn.disabled = true; btn.textContent = '⏳';
+
+  const folder = type === 'options' ? 'signals_options' : 'signals_cfd';
+  const updated = {};
+  Object.keys(sig).forEach(k => { if (!k.startsWith('_')) updated[k] = sig[k]; });
+  updated.outcome = outcome;
+
+  try {
+    // Get current SHA
+    const getRes = await fetch(WORKER, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ type:'github', method:'GET',
+        url:`https://api.github.com/repos/${REPO}/contents/${folder}/${sig._filename}` })
+    });
+    const gd = await getRes.json();
+    const sha = gd.data?.sha;
+    if (!sha) throw new Error('Cannot get file SHA');
+
+    const saveRes = await fetch(WORKER, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ type:'github', method:'PUT',
+        url:`https://api.github.com/repos/${REPO}/contents/${folder}/${sig._filename}`,
+        payload: {
+          message: `outcome: ${sig.pair} ${sig.direction||sig.action} → ${outcome}`,
+          content: btoa(unescape(encodeURIComponent(JSON.stringify(updated, null, 2)))),
+          sha
+        }
+      })
+    });
+    const sd = await saveRes.json();
+    if (sd.status === 200 || sd.status === 201) {
+      sig.outcome = outcome;
+      showToast('✅ ' + (sig.pair||'') + ' → ' + outcome.toUpperCase());
+      applyFilters();
+    } else {
+      throw new Error('Save failed: ' + JSON.stringify(sd.data).slice(0,60));
+    }
+  } catch(e) {
+    showToast('❌ ' + e.message);
+  }
+  btn.disabled = false; btn.textContent = origText;
+}
+
+// ── DELETE SIGNAL ─────────────────────────────────────────────
+async function deleteSignal(event, i, type) {
+  event.stopPropagation();
+  const sig = filtered[i];
+  if (!sig) return;
+  if (!confirm('Delete signal ' + (sig.pair||'') + ' ' + (sig.direction||sig.action||'') + '?')) return;
+  const folder = type === 'options' ? 'signals_options' : 'signals_cfd';
+  const btn = event.currentTarget;
+  btn.disabled = true; btn.textContent = '⏳';
+  try {
+    const getRes = await fetch(WORKER, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({type:'github', method:'GET',
+        url:`https://api.github.com/repos/${REPO}/contents/${folder}/${sig._filename}`})
+    });
+    const gd = await getRes.json();
+    const sha = gd.data?.sha;
+    if (!sha) throw new Error('Cannot get file SHA');
+
+    const delRes = await fetch(WORKER, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({type:'github', method:'DELETE',
+        url:`https://api.github.com/repos/${REPO}/contents/${folder}/${sig._filename}`,
+        payload:{ message:`delete: ${sig.pair}`, sha }})
+    });
+    const dd = await delRes.json();
+    if (dd.status === 200) {
+      const arrType = type === 'options' ? 'options' : 'cfd';
+      allSignals[arrType] = allSignals[arrType].filter(s => s._filename !== sig._filename);
+      document.getElementById('count-' + arrType).textContent = allSignals[arrType].length;
+      showToast('🗑 Signal deleted');
+      applyFilters();
+    } else {
+      throw new Error('Delete failed');
+    }
+  } catch(e) {
+    showToast('❌ ' + e.message);
+    btn.disabled = false; btn.textContent = '🗑 Delete';
+  }
+}
+
 </script>
+<!-- ADMIN LOGIN POPUP -->
+<div id="admin-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9000;" onclick="closeAdminLogin()"></div>
+<div id="admin-popup" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9001;background:#0f1724;border:1px solid #1e3050;padding:40px 36px;width:320px;box-shadow:0 0 60px rgba(59,130,246,0.12);">
+  <div style="font-family:'IBM Plex Mono',monospace;font-size:0.7rem;letter-spacing:0.2em;text-transform:uppercase;color:#3b82f6;margin-bottom:6px;">XENOS<span style="color:#e2eaf4;">FINANCE</span></div>
+  <div style="font-family:'IBM Plex Mono',monospace;font-size:0.58rem;color:#5a7a9a;letter-spacing:0.12em;margin-bottom:28px;">ADMIN ACCESS — SIGNAL ENGINE</div>
+  <div style="font-family:'IBM Plex Mono',monospace;font-size:0.58rem;letter-spacing:0.1em;text-transform:uppercase;color:#5a7a9a;margin-bottom:6px;">Password</div>
+  <input id="admin-pw" type="password" placeholder="••••••••"
+    style="width:100%;background:#131f2e;border:1px solid #1e3050;color:#e2eaf4;font-family:'IBM Plex Mono',monospace;font-size:13px;padding:11px 13px;outline:none;margin-bottom:14px;box-sizing:border-box;"
+    onkeydown="if(event.key==='Enter') doAdminLogin()">
+  <button onclick="doAdminLogin()" style="width:100%;background:#1d4ed8;color:#e2eaf4;border:none;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;padding:13px;cursor:pointer;">Accedi</button>
+  <div id="admin-err" style="font-family:'IBM Plex Mono',monospace;font-size:0.6rem;color:#ef4444;margin-top:10px;min-height:16px;"></div>
+</div>
+
 </body>
 </html>
