@@ -230,6 +230,65 @@
   .btn-generate:hover { background: #00bbee; }
   .btn-generate:disabled { background: var(--border); color: var(--text-dim); cursor: not-allowed; }
 
+  /* ── ENGINE MODE TABS ── */
+  .mode-tabs {
+    display: flex; gap: 0; border-bottom: 2px solid var(--border);
+    margin-bottom: 0; margin-top: 0;
+  }
+  .mode-tab {
+    padding: 12px 28px; font-family: var(--mono); font-size: 11px;
+    letter-spacing: 3px; text-transform: uppercase; cursor: pointer;
+    color: var(--text-dim); border-bottom: 3px solid transparent;
+    margin-bottom: -2px; background: none; border-top: none;
+    border-left: none; border-right: none; transition: all 0.2s;
+  }
+  .mode-tab.active-cfd  { color: var(--accent);  border-bottom-color: var(--accent); }
+  .mode-tab.active-opt  { color: #f59e0b;          border-bottom-color: #f59e0b; }
+
+  /* OPTIONS signals */
+  .opt-signal-card {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-left: 3px solid #f59e0b; padding: 20px 24px;
+    margin-bottom: 8px; animation: slideDown 0.2s ease;
+  }
+  .opt-signal-card.call { border-left-color: var(--green); }
+  .opt-signal-card.put  { border-left-color: var(--red); }
+  .opt-header { display: flex; align-items: center; gap: 16px; margin-bottom: 14px; flex-wrap: wrap; }
+  .opt-pair   { font-size: 18px; font-weight: 700; color: var(--text-bright); letter-spacing: 1px; }
+  .opt-action {
+    padding: 5px 16px; font-size: 13px; font-weight: 700;
+    letter-spacing: 2px; border-radius: 2px;
+  }
+  .opt-action.CALL { background: rgba(16,185,129,0.15); color: var(--green2); border: 1px solid rgba(16,185,129,0.4); }
+  .opt-action.PUT  { background: rgba(239,68,68,0.15);  color: var(--red2);   border: 1px solid rgba(239,68,68,0.4); }
+  .opt-conf { font-size: 12px; color: var(--text-dim); margin-left: auto; }
+  .opt-conf span { color: var(--text-bright); font-weight: 700; }
+  .opt-fields { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+  .opt-field { background: var(--bg3); padding: 12px 14px; border: 1px solid var(--border); }
+  .opt-field-label { font-size: 9px; letter-spacing: 3px; color: var(--muted); text-transform: uppercase; margin-bottom: 5px; }
+  .opt-field-val { font-size: 15px; font-weight: 700; color: var(--text-bright); }
+  .opt-field-val.call { color: var(--green2); }
+  .opt-field-val.put  { color: var(--red2); }
+  .opt-field-val.gold { color: #f59e0b; }
+  .opt-analysis { font-size: 11px; color: var(--ink2); line-height: 1.7; margin-bottom: 14px; padding: 12px 14px; background: var(--bg3); border-left: 2px solid var(--border2); }
+  .opt-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+  .opt-tag { padding: 3px 10px; font-size: 9px; letter-spacing: 1px; background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.2); color: var(--gold2); }
+  .opt-actions { display: flex; gap: 8px; }
+  .opt-btn {
+    padding: 8px 18px; font-family: var(--mono); font-size: 10px;
+    letter-spacing: 2px; text-transform: uppercase; cursor: pointer; border: none;
+    transition: all 0.2s;
+  }
+  .opt-btn.tg  { background: rgba(42,130,200,0.15); border: 1px solid rgba(42,130,200,0.4); color: #5aabde; }
+  .opt-btn.save{ background: rgba(245,158,11,0.15); border: 1px solid rgba(245,158,11,0.4); color: #fbbf24; }
+  .opt-btn:hover { opacity: 0.8; }
+
+  /* Options stats bar */
+  .opt-stats { display: flex; gap: 24px; padding: 12px 0; border-bottom: 1px solid var(--border); margin-bottom: 16px; font-size: 11px; }
+  .opt-stat-val { font-weight: 700; color: var(--text-bright); }
+  .opt-stat-val.call { color: var(--green2); }
+  .opt-stat-val.put  { color: var(--red2); }
+
   .signals-header {
     display: grid;
     grid-template-columns: 100px 70px 160px 90px 90px 90px 60px 1fr;
@@ -531,11 +590,17 @@
     <div class="topbar">
       <div class="topbar-title">
         Signal Engine
-        <small>AI-POWERED CFD INTRADAY · PATTERN RECOGNITION</small>
+        <small id="engine-subtitle">AI-POWERED CFD INTRADAY · PATTERN RECOGNITION</small>
       </div>
     </div>
 
-    <div class="controls">
+    <!-- ENGINE MODE TABS -->
+    <div class="mode-tabs">
+      <button class="mode-tab active-cfd" id="tab-cfd" onclick="switchMode('cfd')">⚡ CFD SIGNALS</button>
+      <button class="mode-tab" id="tab-options" onclick="switchMode('options')">◎ OPTIONS SIGNALS</button>
+    </div>
+
+    <div class="controls" id="cfd-controls">
       <div class="ctrl-group">
         <div class="ctrl-label">Asset Class</div>
         <div class="toggle-group" id="class-toggle">
@@ -586,6 +651,65 @@
       <button class="btn-generate" id="gen-btn" onclick="generateSignals()">▶ GENERATE SIGNALS</button>
     </div>
 
+    <!-- OPTIONS CONTROLS -->
+    <div class="controls" id="opt-controls" style="display:none;">
+      <div class="ctrl-group">
+        <div class="ctrl-label">Asset</div>
+        <div class="toggle-group" id="opt-class-toggle">
+          <button class="toggle-btn active" onclick="toggleOptClass(this,'ALL')">ALL</button>
+          <button class="toggle-btn" onclick="toggleOptClass(this,'FX')">FX</button>
+          <button class="toggle-btn" onclick="toggleOptClass(this,'CRYPTO')">CRYPTO</button>
+        </div>
+      </div>
+      <div class="ctrl-group">
+        <div class="ctrl-label">Expiry</div>
+        <div class="toggle-group" id="opt-expiry-toggle">
+          <button class="toggle-btn active" onclick="toggleOptExpiry(this,'5min')">5 MIN</button>
+          <button class="toggle-btn" onclick="toggleOptExpiry(this,'15min')">15 MIN</button>
+          <button class="toggle-btn" onclick="toggleOptExpiry(this,'end_hour')">FINE ORA</button>
+        </div>
+      </div>
+      <div class="ctrl-group">
+        <div class="ctrl-label">Direction</div>
+        <div class="toggle-group" id="opt-dir-toggle">
+          <button class="toggle-btn active" onclick="toggleOptDir(this,'BOTH')">BOTH</button>
+          <button class="toggle-btn" onclick="toggleOptDir(this,'CALL')">CALL ONLY</button>
+          <button class="toggle-btn" onclick="toggleOptDir(this,'PUT')">PUT ONLY</button>
+        </div>
+      </div>
+      <div class="ctrl-group">
+        <div class="ctrl-label">Min Confidence</div>
+        <select id="opt-conf-min">
+          <option value="0" selected>All signals</option>
+          <option value="60">60%+</option>
+          <option value="70">70%+</option>
+          <option value="80">80%+</option>
+        </select>
+      </div>
+      <button class="btn-generate" id="opt-gen-btn" style="background:#f59e0b;color:#000;" onclick="generateOptionsSignals()">◎ GENERATE OPTIONS</button>
+    </div>
+
+    <!-- OPTIONS OUTPUT -->
+    <div id="opt-output" style="display:none; margin-top:8px;">
+      <div class="loader-wrap" id="opt-loader" style="display:none;">
+        <div class="loader"></div>
+        <div class="loader-text">SCANNING OPTIONS MARKETS</div>
+        <div class="loader-sub" id="opt-loader-sub">Analysing price action...</div>
+      </div>
+      <div class="empty-state" id="opt-empty" style="display:block;">
+        <div class="empty-icon">◎</div>
+        <div class="empty-text">Seleziona asset e expiry, poi premi GENERATE OPTIONS</div>
+      </div>
+      <div id="opt-stats" class="opt-stats" style="display:none;">
+        <div>Segnali: <span class="opt-stat-val" id="os-total">—</span></div>
+        <div>CALL: <span class="opt-stat-val call" id="os-calls">—</span></div>
+        <div>PUT: <span class="opt-stat-val put" id="os-puts">—</span></div>
+        <div>Avg Conf: <span class="opt-stat-val" id="os-conf">—</span></div>
+        <div style="margin-left:auto;color:var(--text-dim);font-size:10px;" id="os-time">—</div>
+      </div>
+      <div id="opt-signals-list"></div>
+    </div>
+
     <div class="stats-bar" id="stats-bar" style="display:none">
       <div class="stat"><div class="stat-val" id="s-total">—</div><div class="stat-label">Signals</div></div>
       <div class="stat"><div class="stat-val green" id="s-bull">—</div><div class="stat-label">Bullish</div></div>
@@ -595,7 +719,7 @@
       <div class="stat" style="margin-left:auto"><div class="stat-val" style="font-size:12px;color:var(--text-dim)" id="s-time">—</div><div class="stat-label">Generated At</div></div>
     </div>
 
-    <div class="signals-header">
+    <div class="signals-header" id="signals-header">
       <div>PAIR</div><div>DIR</div><div>PATTERN</div><div>ENTRY</div><div>STOP LOSS</div><div>TAKE PROFIT</div><div>CONF</div><div>R:R</div>
     </div>
 
@@ -638,6 +762,296 @@ let selectedClass = 'ALL';
 let selectedTF = 'H1';
 let selectedDir = 'BOTH';
 let signals = [];
+
+// ── OPTIONS ENGINE STATE ──
+let engineMode     = 'cfd';      // 'cfd' | 'options'
+let optClass       = 'ALL';
+let optExpiry      = '5min';
+let optDir         = 'BOTH';
+let optSignals     = [];
+
+const OPTIONS_PAIRS = {
+  FX: ['EURUSD','GBPUSD','USDJPY','AUDUSD','USDCHF','USDCAD','EURGBP','EURJPY','GBPJPY'],
+  CRYPTO: ['BTCUSD','ETHUSD','XRPUSD','SOLUSD'],
+};
+const OPTIONS_ALL = [...OPTIONS_PAIRS.FX, ...OPTIONS_PAIRS.CRYPTO];
+
+function switchMode(mode) {
+  engineMode = mode;
+  const isCFD = mode === 'cfd';
+  document.getElementById('tab-cfd').className     = 'mode-tab' + (isCFD ? ' active-cfd' : '');
+  document.getElementById('tab-options').className = 'mode-tab' + (!isCFD ? ' active-opt' : '');
+  document.getElementById('cfd-controls').style.display   = isCFD ? '' : 'none';
+  document.getElementById('opt-controls').style.display   = isCFD ? 'none' : '';
+  document.getElementById('opt-output').style.display     = isCFD ? 'none' : '';
+  document.getElementById('stats-bar').style.display      = isCFD && signals.length ? 'flex' : 'none';
+  document.getElementById('signals-header') && (document.getElementById('signals-header').style.display = isCFD ? '' : 'none');
+  document.getElementById('signals-list').style.display   = isCFD ? '' : 'none';
+  document.getElementById('empty-state').style.display    = isCFD && !signals.length ? '' : 'none';
+  document.getElementById('loader').style.display         = 'none';
+  document.getElementById('engine-subtitle').textContent  = isCFD
+    ? 'AI-POWERED CFD INTRADAY · PATTERN RECOGNITION'
+    : 'AI-POWERED OPTIONS · CALL / PUT SIGNALS';
+}
+
+function toggleOptClass(btn, val) {
+  optClass = val;
+  document.querySelectorAll('#opt-class-toggle .toggle-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+function toggleOptExpiry(btn, val) {
+  optExpiry = val;
+  document.querySelectorAll('#opt-expiry-toggle .toggle-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+function toggleOptDir(btn, val) {
+  optDir = val;
+  document.querySelectorAll('#opt-dir-toggle .toggle-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function getExpiryLabel(expiry) {
+  const now = new Date();
+  if (expiry === '5min') {
+    const t = new Date(now.getTime() + 5 * 60000);
+    return '5 minuti (' + t.getUTCHours().toString().padStart(2,'0') + ':' + t.getUTCMinutes().toString().padStart(2,'0') + ' UTC)';
+  }
+  if (expiry === '15min') {
+    const t = new Date(now.getTime() + 15 * 60000);
+    return '15 minuti (' + t.getUTCHours().toString().padStart(2,'0') + ':' + t.getUTCMinutes().toString().padStart(2,'0') + ' UTC)';
+  }
+  if (expiry === 'end_hour') {
+    const t = new Date(now);
+    t.setUTCMinutes(59, 59, 0);
+    return 'Fine ora (' + t.getUTCHours().toString().padStart(2,'0') + ':59 UTC)';
+  }
+  return expiry;
+}
+
+// ── GENERATE OPTIONS SIGNALS ─────────────────────────────────
+async function generateOptionsSignals() {
+  const btn = document.getElementById('opt-gen-btn');
+  btn.disabled = true;
+  const loader    = document.getElementById('opt-loader');
+  const emptyDiv  = document.getElementById('opt-empty');
+  const listDiv   = document.getElementById('opt-signals-list');
+  const statsDiv  = document.getElementById('opt-stats');
+  const subTxt    = document.getElementById('opt-loader-sub');
+  document.getElementById('opt-output').style.display = '';
+  loader.style.display = 'flex';
+  emptyDiv.style.display = 'none';
+  statsDiv.style.display = 'none';
+  listDiv.innerHTML = '';
+
+  const pairs = optClass === 'ALL' ? OPTIONS_ALL
+    : OPTIONS_PAIRS[optClass] || OPTIONS_ALL;
+  const minConf = parseInt(document.getElementById('opt-conf-min').value) || 0;
+
+  subTxt.textContent = 'Fetching live prices...';
+  const livePrices = await fetchLivePrices(pairs).catch(() => ({}));
+
+  subTxt.textContent = 'Fetching candle data...';
+  // Use M15 timeframe for options analysis
+  const savedTF = selectedTF;
+  selectedTF = 'M15';
+
+  const analyses = await Promise.all(
+    pairs.map(pair => analyzePair(pair, livePrices).catch(() => null))
+  );
+  selectedTF = savedTF;
+
+  const valid = analyses.filter(Boolean);
+  if (!valid.length) {
+    loader.style.display = 'none';
+    emptyDiv.style.display = 'block';
+    emptyDiv.querySelector('.empty-text').textContent = 'Nessun pattern rilevato — riprova tra qualche minuto';
+    btn.disabled = false;
+    return;
+  }
+
+  subTxt.textContent = 'AI validating options setups...';
+  const expiryLabel = getExpiryLabel(optExpiry);
+  const prompt = buildOptionsPrompt(valid, livePrices, expiryLabel);
+  const raw = await callClaudeAPI(prompt).catch(() => '[]');
+
+  loader.style.display = 'none';
+
+  let parsed = [];
+  try {
+    const clean = raw.trim().replace(/^```json
+?/,'').replace(/```$/,'').trim();
+    const s = clean.indexOf('['), e = clean.lastIndexOf(']');
+    if (s !== -1 && e !== -1) parsed = JSON.parse(clean.slice(s, e+1));
+  } catch(err) {
+    // fallback: build from algo data
+    parsed = valid.map(a => ({
+      pair: a.pair,
+      action: a.direction === 'BUY' ? 'CALL' : 'PUT',
+      entry: a.entry,
+      expiry: expiryLabel,
+      confidence: a.confidence,
+      analysis: a.pattern + ' pattern detected on M15. ' + (a.direction === 'BUY' ? 'Bullish momentum.' : 'Bearish momentum.'),
+      tags: [a.pattern.toLowerCase().replace(/ /g,'_')]
+    }));
+  }
+
+  // Filter by direction and confidence
+  let result = parsed.filter(s => {
+    if (optDir === 'CALL' && s.action !== 'CALL') return false;
+    if (optDir === 'PUT'  && s.action !== 'PUT')  return false;
+    if (s.confidence < minConf) return false;
+    return true;
+  });
+
+  if (!result.length) {
+    emptyDiv.style.display = 'block';
+    emptyDiv.querySelector('.empty-text').textContent = 'Nessun segnale con i filtri correnti';
+    btn.disabled = false;
+    return;
+  }
+
+  optSignals = result;
+  result.sort((a,b) => b.confidence - a.confidence);
+  renderOptionsSignals(result, expiryLabel);
+
+  // Stats
+  const calls = result.filter(s => s.action === 'CALL').length;
+  const puts  = result.filter(s => s.action === 'PUT').length;
+  const avgC  = Math.round(result.reduce((s,a) => s + (a.confidence||0), 0) / result.length);
+  document.getElementById('os-total').textContent = result.length;
+  document.getElementById('os-calls').textContent = calls;
+  document.getElementById('os-puts').textContent  = puts;
+  document.getElementById('os-conf').textContent  = avgC + '%';
+  document.getElementById('os-time').textContent  = 'Generated ' + new Date().toUTCString().split(' ').slice(4,5)[0] + ' UTC';
+  statsDiv.style.display = '';
+
+  btn.disabled = false;
+}
+
+function buildOptionsPrompt(analyses, livePrices, expiryLabel) {
+  const lines = analyses.map(a => {
+    const price = livePrices[a.pair] || a.entry;
+    const fmt = v => { const n=parseFloat(v); return isFinite(n) ? (a.pair.includes('JPY')?n.toFixed(3):n>500?n.toFixed(2):n.toFixed(5)) : 'N/A'; };
+    return `${a.pair}: price=${fmt(price)} | pattern=${a.pattern} | direction=${a.direction} | RSI=${a.rsi?a.rsi.toFixed(1):'N/A'} | EMA20=${fmt(a.ema20)} | EMA50=${fmt(a.ema50)} | conf=${a.confidence}%`;
+  }).join('
+');
+
+  return `You are an options trading signal generator. Based on the M15 technical analysis below, generate binary/short-term options signals.
+
+Assets and technical data:
+${lines}
+
+Expiry for all signals: ${expiryLabel}
+
+Rules:
+- BUY direction = CALL option (price expected to rise)
+- SELL direction = PUT option (price expected to fall)
+- Only include high-confidence setups (confidence >= 65%)
+- Be concise — max 2 sentences of analysis per signal
+
+Return ONLY a raw JSON array. Each object:
+{
+  "pair": "EURUSD",
+  "action": "CALL",
+  "entry": 1.08423,
+  "expiry": "${expiryLabel}",
+  "confidence": 74,
+  "analysis": "Bullish engulfing on M15 with RSI turning up from 42. EMA20 providing support — momentum favors upside.",
+  "tags": ["engulfing","ema_support","bullish_momentum"]
+}
+
+Return empty array [] if no quality setups found.
+Output ONLY the JSON array, no markdown.`;
+}
+
+function renderOptionsSignals(list, expiryLabel) {
+  const container = document.getElementById('opt-signals-list');
+  container.innerHTML = '';
+  list.forEach((sig, idx) => {
+    const isCall = sig.action === 'CALL';
+    const card   = document.createElement('div');
+    card.className = 'opt-signal-card ' + (isCall ? 'call' : 'put');
+    card.innerHTML = `
+      <div class="opt-header">
+        <div class="opt-pair">${sig.pair}</div>
+        <div class="opt-action ${sig.action}">${isCall ? '▲ CALL' : '▼ PUT'} (${isCall ? 'Acquisto' : 'Vendita'})</div>
+        <div class="opt-conf">Confidence: <span>${sig.confidence}%</span></div>
+      </div>
+      <div class="opt-fields">
+        <div class="opt-field">
+          <div class="opt-field-label">Prezzo di Ingresso</div>
+          <div class="opt-field-val">${fmtPrice(sig.entry, sig.pair)}</div>
+        </div>
+        <div class="opt-field">
+          <div class="opt-field-label">Azione</div>
+          <div class="opt-field-val ${isCall?'call':'put'}">${isCall ? 'CALL — Acquisto' : 'PUT — Vendita'}</div>
+        </div>
+        <div class="opt-field">
+          <div class="opt-field-label">Scadenza (Expiry)</div>
+          <div class="opt-field-val gold">${sig.expiry || expiryLabel}</div>
+        </div>
+      </div>
+      <div class="opt-analysis">${sig.analysis || '—'}</div>
+      <div class="opt-tags">${(sig.tags||[]).map(t=>`<span class="opt-tag">#${t}</span>`).join('')}</div>
+      <div class="opt-actions">
+        <button class="opt-btn tg" onclick="sendOptionToTelegram(event,${idx})">
+          ✈ SEND TO TELEGRAM
+        </button>
+        <button class="opt-btn save" onclick="saveSignal(event,${idx},'options',true)">
+          💾 SAVE OPTIONS
+        </button>
+      </div>
+    `;
+    container.appendChild(card);
+  });
+}
+
+async function sendOptionToTelegram(event, idx) {
+  event.stopPropagation();
+  const sig = optSignals[idx];
+  if (!sig) return;
+  const token  = localStorage.getItem('tg_token');
+  const chatId = localStorage.getItem('tg_chat_id');
+  if (!token || !chatId) {
+    document.getElementById('tg-bot-token').value = token || '';
+    document.getElementById('tg-chat-id').value   = chatId || '';
+    document.getElementById('tg-config').classList.add('open');
+    document.getElementById('tg-overlay').classList.add('open');
+    return;
+  }
+  const btn = event.currentTarget;
+  btn.disabled = true; btn.textContent = '⏳ SENDING...';
+  const isCall = sig.action === 'CALL';
+  const icon   = isCall ? '🟢' : '🔴';
+  const msg = [
+    `${icon} <b>OPTIONS SIGNAL — ${sig.pair}</b>`,
+    ``,
+    `📊 <b>Azione:</b> ${isCall ? 'CALL (Acquisto)' : 'PUT (Vendita)'}`,
+    `💰 <b>Prezzo di Ingresso:</b> <code>${fmtPrice(sig.entry, sig.pair)}</code>`,
+    `⏱ <b>Scadenza:</b> ${sig.expiry}`,
+    `📈 <b>Confidence:</b> ${sig.confidence}%`,
+    ``,
+    `📝 ${sig.analysis || ''}`,
+    ``,
+    `🏷 ${(sig.tags||[]).map(t=>'#'+t).join(' ')}`,
+    ``,
+    `<i>XenosFinance Options Engine</i>`
+  ].join('
+');
+  try {
+    const res = await fetch('https://api.telegram.org/bot' + token + '/sendMessage', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, text: msg, parse_mode: 'HTML', disable_web_page_preview: true })
+    });
+    const d = await res.json();
+    if (d.ok) { showToast('✅ Options signal inviato!'); btn.textContent = '✅ SENT'; }
+    else throw new Error(d.description);
+  } catch(e) {
+    showToast('❌ ' + e.message);
+    btn.disabled = false; btn.textContent = '✈ SEND TO TELEGRAM';
+  }
+}
 
 const CFD_PAIRS = {
   FX: ['EURUSD','GBPUSD','USDJPY','USDCHF','AUDUSD','NZDUSD','USDCAD','EURGBP','EURJPY','GBPJPY','CADJPY','AUDNZD','EURCHF','GBPCHF','AUDCAD','AUDCHF','AUDJPY','CADCHF','CHFJPY','EURNZD','EURAUD','EURCAD','GBPAUD','GBPCAD','GBPNZD','NZDCAD','NZDCHF','NZDJPY','USDMXN','USDNOK','USDSEK','USDTRY','USDZAR'],
@@ -3399,9 +3813,9 @@ async function doSendToTelegram(idx, token, chatId) {
 }
 
 // ── SAVE SIGNAL TO GITHUB ARCHIVE ────────────────────────────
-async function saveSignal(event, idx, signalType) {
+async function saveSignal(event, idx, signalType, isOptions) {
   event.stopPropagation();
-  const sig = signals[idx];
+  const sig = isOptions ? optSignals[idx] : signals[idx];
   if (!sig) return;
 
   const btn = event.currentTarget;
