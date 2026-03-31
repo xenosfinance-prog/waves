@@ -543,32 +543,29 @@ function isoWeekRange(offsetWeeks) {
   return { from: fmt(mon), to: fmt(sun) };
 }
 
-async function fetchLiveCalendar(offsetWeeks) {
-  const { from, to } = isoWeekRange(offsetWeeks);
+async function fetchLiveCalendar(weekStr) {
   try {
     const r = await fetch(WORKER_URL, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ type: 'finnhub', action: 'economic_calendar', from, to }),
+      body: JSON.stringify({ type: 'forexfactory', week: weekStr }),
       signal: (()=>{ const c = new AbortController(); setTimeout(()=>c.abort(), 12000); return c.signal; })()
     });
     if (!r.ok) return;
     const d = await r.json();
-    const events = d.economicCalendar || [];
+    const events = d.events || [];
     let withActuals = 0;
     events.forEach(ev => {
       if (!ev.actual) return;
       withActuals++;
       const date = (ev.time || '').slice(0, 10);
       const name = normalizeEventName(ev.event || '');
-      // Cache by full name + date
       liveByNameDate[name + '|' + date] = ev.actual;
-      // Cache by 15-char prefix + date (partial match fallback)
       const k2 = name.slice(0, 15) + '|' + date;
       if (!liveByNameDate[k2]) liveByNameDate[k2] = ev.actual;
     });
-    console.log('[Calendar] RapidAPI week+' + offsetWeeks + ': ' + events.length + ' events, ' + withActuals + ' with actuals');
-  } catch(e) { console.warn('RapidAPI calendar fetch:', e.message); }
+    console.log('[Calendar] ForexFactory ' + weekStr + ': ' + events.length + ' events, ' + withActuals + ' with actuals');
+  } catch(e) { console.warn('ForexFactory calendar fetch:', e.message); }
 }
 
 function getLiveActual(ev) {
@@ -628,8 +625,8 @@ function renderKeyEventsCards() {
 }
 
 async function refreshActuals() {
-  await fetchLiveCalendar(0);  // this week
-  await fetchLiveCalendar(1);  // next week
+  await fetchLiveCalendar('thisweek');
+  await fetchLiveCalendar('nextweek');
   // Patch static EVENTS array with live actuals
   EVENTS.forEach(ev => {
     const live = getLiveActual(ev);
