@@ -189,7 +189,7 @@ body{background:var(--bg);color:var(--ink);font-family:var(--mono);min-height:10
   </div>
   <div class="masthead-center">
     <div class="masthead-eyebrow">Financial Analytics · Signal Intelligence</div>
-    <div class="masthead-name">XENOS<span>FINANCE</span></div>
+    <div class="masthead-name" onclick="openAdminLogin()" style="cursor:pointer;" title="Admin access">XENOS<span>FINANCE</span></div>
     <div class="masthead-sub">Trading Signals — CFD & Options</div>
   </div>
   <nav class="masthead-nav">
@@ -697,14 +697,14 @@ document.addEventListener('DOMContentLoaded', () => {
 let isAdmin = false;
 
 function openAdminLogin() {
-  document.getElementById('admin-popup').classList.add('open');
-  document.getElementById('admin-overlay').classList.add('open');
+  document.getElementById('admin-popup').style.display = 'block';
+  document.getElementById('admin-overlay').style.display = 'block';
   setTimeout(() => document.getElementById('admin-pw').focus(), 100);
 }
 
 function closeAdminLogin() {
-  document.getElementById('admin-popup').classList.remove('open');
-  document.getElementById('admin-overlay').classList.remove('open');
+  document.getElementById('admin-popup').style.display = 'none';
+  document.getElementById('admin-overlay').style.display = 'none';
   document.getElementById('admin-pw').value = '';
   document.getElementById('admin-err').textContent = '';
 }
@@ -837,5 +837,18 @@ async function deleteSignal(event, i, type) {
 }
 
 </script>
+<!-- ADMIN LOGIN POPUP -->
+<div id="admin-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9000;" onclick="closeAdminLogin()"></div>
+<div id="admin-popup" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9001;background:#0f1724;border:1px solid #1e3050;padding:40px 36px;width:320px;box-shadow:0 0 60px rgba(59,130,246,0.12);">
+  <div style="font-family:'IBM Plex Mono',monospace;font-size:0.7rem;letter-spacing:0.2em;text-transform:uppercase;color:#3b82f6;margin-bottom:6px;">XENOS<span style="color:#e2eaf4;">FINANCE</span></div>
+  <div style="font-family:'IBM Plex Mono',monospace;font-size:0.58rem;color:#5a7a9a;letter-spacing:0.12em;margin-bottom:28px;">ADMIN ACCESS — SIGNAL ENGINE</div>
+  <div style="font-family:'IBM Plex Mono',monospace;font-size:0.58rem;letter-spacing:0.1em;text-transform:uppercase;color:#5a7a9a;margin-bottom:6px;">Password</div>
+  <input id="admin-pw" type="password" placeholder="••••••••"
+    style="width:100%;background:#131f2e;border:1px solid #1e3050;color:#e2eaf4;font-family:'IBM Plex Mono',monospace;font-size:13px;padding:11px 13px;outline:none;margin-bottom:14px;box-sizing:border-box;"
+    onkeydown="if(event.key==='Enter') doAdminLogin()">
+  <button onclick="doAdminLogin()" style="width:100%;background:#1d4ed8;color:#e2eaf4;border:none;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;padding:13px;cursor:pointer;">Accedi</button>
+  <div id="admin-err" style="font-family:'IBM Plex Mono',monospace;font-size:0.6rem;color:#ef4444;margin-top:10px;min-height:16px;"></div>
+</div>
+
 </body>
 </html>
