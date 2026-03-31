@@ -544,18 +544,51 @@ function isoWeekRange(offsetWeeks) {
 }
 
 async function fetchLiveCalendar(weekStr) {
+  // Calculate date range for this/next week
+  const offsetWeeks = weekStr === 'nextweek' ? 1 : 0;
+  const { from, to } = isoWeekRange(offsetWeeks);
+
+  // Try ForexFactory first
   try {
     const r = await fetch(WORKER_URL, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({ type: 'forexfactory', week: weekStr }),
-      signal: (()=>{ const c = new AbortController(); setTimeout(()=>c.abort(), 12000); return c.signal; })()
+      signal: (()=>{ const c = new AbortController(); setTimeout(()=>c.abort(), 8000); return c.signal; })()
     });
-    if (!r.ok) return;
-    const d = await r.json();
-    const events = d.events || [];
+    if (r.ok) {
+      const d = await r.json();
+      const events = d.events || [];
+      if (events.length > 0 && !d.error) {
+        let withActuals = 0;
+        events.forEach(ev => {
+          if (!ev.actual) return;
+          withActuals++;
+          const date = (ev.time || '').slice(0, 10);
+          const name = normalizeEventName(ev.event || '');
+          liveByNameDate[name + '|' + date] = ev.actual;
+          const k2 = name.slice(0, 15) + '|' + date;
+          if (!liveByNameDate[k2]) liveByNameDate[k2] = ev.actual;
+        });
+        console.log('[Calendar] ForexFactory ' + weekStr + ': ' + events.length + ' events, ' + withActuals + ' actuals');
+        return;
+      }
+    }
+  } catch(e) { console.warn('ForexFactory failed:', e.message); }
+
+  // Fallback: Investing.com
+  try {
+    const r2 = await fetch(WORKER_URL, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ type: 'investing', from, to }),
+      signal: (()=>{ const c = new AbortController(); setTimeout(()=>c.abort(), 10000); return c.signal; })()
+    });
+    if (!r2.ok) return;
+    const d2 = await r2.json();
+    const events2 = d2.events || [];
     let withActuals = 0;
-    events.forEach(ev => {
+    events2.forEach(ev => {
       if (!ev.actual) return;
       withActuals++;
       const date = (ev.time || '').slice(0, 10);
@@ -564,8 +597,8 @@ async function fetchLiveCalendar(weekStr) {
       const k2 = name.slice(0, 15) + '|' + date;
       if (!liveByNameDate[k2]) liveByNameDate[k2] = ev.actual;
     });
-    console.log('[Calendar] ForexFactory ' + weekStr + ': ' + events.length + ' events, ' + withActuals + ' with actuals');
-  } catch(e) { console.warn('ForexFactory calendar fetch:', e.message); }
+    console.log('[Calendar] Investing.com ' + weekStr + ': ' + events2.length + ' events, ' + withActuals + ' actuals');
+  } catch(e) { console.warn('Investing.com fetch:', e.message); }
 }
 
 function getLiveActual(ev) {
