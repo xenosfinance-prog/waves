@@ -880,8 +880,7 @@ async function generateOptionsSignals() {
 
   let parsed = [];
   try {
-    const clean = raw.trim().replace(/^```json
-?/,'').replace(/```$/,'').trim();
+    const clean = raw.trim().replace(/^```json\n?/,'').replace(/^```\n?/,'').replace(/```$/,'').trim();
     const s = clean.indexOf('['), e = clean.lastIndexOf(']');
     if (s !== -1 && e !== -1) parsed = JSON.parse(clean.slice(s, e+1));
   } catch(err) {
@@ -935,8 +934,7 @@ function buildOptionsPrompt(analyses, livePrices, expiryLabel) {
     const price = livePrices[a.pair] || a.entry;
     const fmt = v => { const n=parseFloat(v); return isFinite(n) ? (a.pair.includes('JPY')?n.toFixed(3):n>500?n.toFixed(2):n.toFixed(5)) : 'N/A'; };
     return `${a.pair}: price=${fmt(price)} | pattern=${a.pattern} | direction=${a.direction} | RSI=${a.rsi?a.rsi.toFixed(1):'N/A'} | EMA20=${fmt(a.ema20)} | EMA50=${fmt(a.ema50)} | conf=${a.confidence}%`;
-  }).join('
-');
+  }).join('\n');
 
   return `You are an options trading signal generator. Based on the M15 technical analysis below, generate binary/short-term options signals.
 
@@ -1038,8 +1036,7 @@ async function sendOptionToTelegram(event, idx) {
     `🏷 ${(sig.tags||[]).map(t=>'#'+t).join(' ')}`,
     ``,
     `<i>XenosFinance Options Engine</i>`
-  ].join('
-');
+  ].join('\n');
   try {
     const res = await fetch('https://api.telegram.org/bot' + token + '/sendMessage', {
       method: 'POST',
