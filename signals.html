@@ -787,7 +787,9 @@ function switchMode(mode) {
   document.getElementById('stats-bar').style.display      = isCFD && signals.length ? 'flex' : 'none';
   document.getElementById('signals-header') && (document.getElementById('signals-header').style.display = isCFD ? '' : 'none');
   document.getElementById('signals-list').style.display   = isCFD ? '' : 'none';
-  document.getElementById('empty-state').style.display    = isCFD && !signals.length ? '' : 'none';
+  const es = document.getElementById('empty-state');
+  if (isCFD && !signals.length) { es.classList.add('active'); }
+  else { es.classList.remove('active'); }
   document.getElementById('loader').style.display         = 'none';
   document.getElementById('engine-subtitle').textContent  = isCFD
     ? 'AI-POWERED CFD INTRADAY · PATTERN RECOGNITION'
