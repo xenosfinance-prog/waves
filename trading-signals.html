@@ -160,23 +160,6 @@ body{background:var(--bg);color:var(--ink);font-family:var(--mono);min-height:10
   .detail-grid{grid-template-columns:1fr;}
   .detail-levels{flex-wrap:wrap;}
 }
-
-/* ── ADMIN LOGIN POPUP ── */
-#admin-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9998;}
-#admin-overlay.open{display:block;}
-#admin-popup{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
-  background:#131f2e;border:1px solid #2d4a78;padding:32px 36px;z-index:9999;min-width:300px;text-align:center;}
-#admin-popup.open{display:block;}
-.admin-popup-title{font-family:var(--serif);font-size:20px;font-weight:700;margin-bottom:6px;}
-.admin-popup-sub{font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:24px;}
-.admin-popup-input{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--ink);
-  font-family:var(--mono);font-size:13px;padding:10px 14px;outline:none;margin-bottom:12px;text-align:center;letter-spacing:4px;}
-.admin-popup-btn{width:100%;padding:11px;background:var(--gold3);color:var(--ink);border:none;
-  font-family:var(--mono);font-size:11px;letter-spacing:3px;text-transform:uppercase;cursor:pointer;margin-bottom:8px;}
-.admin-popup-btn:hover{background:var(--gold);}
-.admin-popup-cancel{width:100%;padding:8px;background:transparent;border:1px solid var(--border);
-  color:var(--muted);font-family:var(--mono);font-size:10px;cursor:pointer;}
-.admin-popup-err{font-size:11px;color:var(--red2);min-height:16px;margin-bottom:8px;}
 </style>
 </head>
 <body>
@@ -190,7 +173,7 @@ body{background:var(--bg);color:var(--ink);font-family:var(--mono);min-height:10
   </div>
   <div class="masthead-center">
     <div class="masthead-eyebrow">Financial Analytics · Signal Intelligence</div>
-    <div class="masthead-name" onclick="openAdminLogin()" style="cursor:pointer;" title="Admin Access">XENOS<span>FINANCE</span></div>
+    <div class="masthead-name">XENOS<span>FINANCE</span></div>
     <div class="masthead-sub">Trading Signals — CFD & Options</div>
   </div>
   <nav class="masthead-nav">
@@ -205,6 +188,13 @@ body{background:var(--bg);color:var(--ink);font-family:var(--mono);min-height:10
 </div>
 
 <div class="page-wrap">
+
+  <!-- ADMIN BAR -->
+  <div class="admin-bar" id="admin-bar">
+    <span class="admin-bar-dot"></span>
+    <span>ADMIN MODE ACTIVE — Click outcome to update signals</span>
+    <button class="admin-logout" onclick="adminLogout()">✕ Exit Admin</button>
+  </div>
 
   <!-- HERO -->
   <div class="page-hero">
@@ -512,6 +502,16 @@ function renderCFD() {
           <span>Saved: <strong>${fmtDate(sig.saved_at)}</strong></span>
           <span>Confidence: <strong>${sig.confidence||'—'}%</strong></span>
         </div>
+        <div class="outcome-ctrl ${isAdmin ? 'admin-visible' : ''}">
+          <span style="font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;">Outcome:</span>
+          <select id="cfd-oc-${i}" onclick="event.stopPropagation()">
+            <option value="open" ${outcome==='open'?'selected':''}>● Open</option>
+            <option value="win"  ${outcome==='win' ?'selected':''}>✓ Win</option>
+            <option value="loss" ${outcome==='loss'?'selected':''}>✗ Loss</option>
+          </select>
+          <button onclick="saveOutcome(event,${i},'cfd')">Save</button>
+          <button class="del-btn" onclick="deleteSignal(event,${i},'cfd')">🗑 Delete</button>
+        </div>
       </div>
     </div>`;
   }).join('');
@@ -562,6 +562,16 @@ function renderOptions() {
           <span>Saved: <strong>${fmtDate(sig.saved_at)}</strong></span>
           <span>Confidence: <strong>${sig.confidence||'—'}%</strong></span>
         </div>
+        <div class="outcome-ctrl ${isAdmin ? 'admin-visible' : ''}">
+          <span style="font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;">Outcome:</span>
+          <select id="options-oc-${i}" onclick="event.stopPropagation()">
+            <option value="open" ${(sig.outcome||'open')==='open'?'selected':''}>● Open</option>
+            <option value="win"  ${sig.outcome==='win' ?'selected':''}>✓ Win</option>
+            <option value="loss" ${sig.outcome==='loss'?'selected':''}>✗ Loss</option>
+          </select>
+          <button onclick="saveOutcome(event,${i},'options')">Save</button>
+          <button class="del-btn" onclick="deleteSignal(event,${i},'options')">🗑 Delete</button>
+        </div>
       </div>
     </div>`;
   }).join('');
@@ -581,37 +591,6 @@ document.addEventListener('DOMContentLoaded', () => {
   // Auto-refresh every 5 minutes
   setInterval(loadSignals, 300000);
 });
-
-function openAdminLogin() {
-  document.getElementById('admin-popup').classList.add('open');
-  document.getElementById('admin-overlay').classList.add('open');
-  setTimeout(() => document.getElementById('admin-pw').focus(), 100);
-}
-function closeAdminLogin() {
-  document.getElementById('admin-popup').classList.remove('open');
-  document.getElementById('admin-overlay').classList.remove('open');
-  document.getElementById('admin-pw').value = '';
-  document.getElementById('admin-err').textContent = '';
-}
-function doAdminLogin() {
-  const pw = document.getElementById('admin-pw').value;
-  if (pw === 'xenosfinance2026') {
-    window.location.href = 'https://xenosfinance.com/signals';
-  } else {
-    document.getElementById('admin-err').textContent = '⚠ Password errata';
-    document.getElementById('admin-pw').value = '';
-  }
-}
 </script>
-<div id="admin-overlay" onclick="closeAdminLogin()"></div>
-<div id="admin-popup">
-  <div class="admin-popup-title">XENOS<span style="color:var(--gold)">FINANCE</span></div>
-  <div class="admin-popup-sub">Admin Access</div>
-  <input class="admin-popup-input" type="password" id="admin-pw" placeholder="••••••••"
-    onkeydown="if(event.key==='Enter')doAdminLogin()">
-  <div class="admin-popup-err" id="admin-err"></div>
-  <button class="admin-popup-btn" onclick="doAdminLogin()">ENTER ENGINE</button>
-  <button class="admin-popup-cancel" onclick="closeAdminLogin()">CANCEL</button>
-</div>
 </body>
 </html>
