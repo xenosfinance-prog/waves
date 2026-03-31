@@ -274,7 +274,7 @@ const WORKER_SYM_MAP = {
   'OIL':'USOIL','GOLD':'XAUUSD','SILVER':'XAGUSD','NGAS':'NGAS',
   'EURUSD':'EURUSD=X','GBPUSD':'GBPUSD=X','USDJPY':'USDJPY=X','USDCHF':'USDCHF=X',
   'BTCUSD':'BTC-USD','ETHUSD':'ETH-USD',
-  'SPY':'SPY','NASDAQ':'NAS100','DAX':'GER40','FTSE':'UK100',
+  'SPY':'SPY','NASDAQ':'%5EIXIC','DAX':'GER40','FTSE':'UK100',
 };
 async function fetchSym(s) {
   const wsym = WORKER_SYM_MAP[s.id] || s.id;
@@ -391,7 +391,7 @@ function buildTable(results) {
       <td class="price">${fmtP(sym, d.price)}</td>
       <td class="${up ? 'up' : 'dn'}">${up ? '+' : ''}${(d.price * d.chg / 100).toFixed(sym.dec)}</td>
       <td class="${up ? 'up' : 'dn'}">${up ? '▲ +' : '▼ '}${pct}%</td>
-      <td><span class="bar-wrap"><span class="bar-fill" style="width:${barW}%;background:${up ? 'var(--green2)' : 'var(--red2)'}"></span></span></td>
+      <td><div style="background:var(--bg3);border-radius:2px;overflow:hidden;width:100px;height:5px;"><div style="width:${barW}%;height:100%;background:${up ? 'var(--green2)' : 'var(--red2)'};border-radius:2px;"></div></div></td>
       <td style="color:var(--muted);font-size:10px">${sym.cat}</td>
     </tr>`;
   });
@@ -496,12 +496,12 @@ function stockRow(label, name, price, chg) {
   const pStr = price ? '$' + price.toFixed(2) : '--';
   const cStr = price ? (up?'+':'') + chg.toFixed(2) + '%' : '--';
   const barW = Math.min(Math.abs(chg) * 8 + 10, 100);
-  return `<div class="sent-row">
-    <span class="sent-sym">${label}</span>
-    <span class="sent-name">${name}</span>
-    <span class="sent-price" style="color:var(--text);font-family:var(--mono);font-size:11px;min-width:60px;text-align:right;">${pStr}</span>
-    <div class="sent-bar" style="margin:0 8px;"><div class="sent-fill" style="width:${barW}%;background:${col};"></div></div>
-    <span class="sent-val" style="color:${col};min-width:52px;text-align:right;">${arrow} ${cStr}</span>
+  return `<div class="sent-row" style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);">
+    <span class="sent-sym" style="min-width:52px;font-weight:700;color:var(--text);font-family:var(--mono);font-size:12px;">${label}</span>
+    <span class="sent-name" style="flex:1;color:var(--muted);font-size:11px;">${name}</span>
+    <span style="color:var(--text);font-family:var(--mono);font-size:12px;font-weight:700;min-width:64px;text-align:right;">${pStr}</span>
+    <div style="background:var(--bg3);border-radius:2px;overflow:hidden;width:70px;height:4px;flex-shrink:0;"><div style="width:${barW}%;height:100%;background:${col};border-radius:2px;"></div></div>
+    <span style="color:${col};font-family:var(--mono);font-size:11px;min-width:58px;text-align:right;font-weight:700;">${arrow} ${cStr}</span>
   </div>`;
 }
 
