@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>XenosFinance — Signals Archive</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=PT+Serif:wght@400;700&family=IBM+Plex+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#0f1724;--bg2:#131f2e;--bg3:#172032;--bg4:#1c2840;
+  --border:#1e3050;--border2:#243a5e;--border-bright:#2d4a78;
+  --gold:#3b82f6;--gold2:#60a5fa;--gold3:#1d4ed8;
+  --text:#c8d8ea;--dim:#6b8aaa;--muted:#5a7a9a;--ink:#e2eaf4;--ink2:#b8cce0;
+  --red:#ef4444;--red2:#f87171;--green:#10b981;--green2:#34d399;--yellow:#f59e0b;
+  --serif:'Playfair Display',Georgia,serif;
+  --mono:'IBM Plex Mono','PT Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--ink);font-family:var(--mono);min-height:100vh;}
+
+/* MASTHEAD */
+.masthead{border-bottom:3px double var(--gold);}
+.masthead-top{display:flex;justify-content:space-between;align-items:center;padding:6px 32px;font-size:9px;letter-spacing:3px;color:var(--muted);border-bottom:1px solid var(--border);text-transform:uppercase;}
+.masthead-center{text-align:center;padding:24px 0 16px;}
+.masthead-eyebrow{font-size:9px;letter-spacing:6px;color:var(--gold);text-transform:uppercase;margin-bottom:8px;}
+.masthead-name{font-family:var(--serif);font-size:56px;font-weight:900;letter-spacing:-2px;line-height:1;text-transform:uppercase;}
+.masthead-name span{color:var(--gold);}
+.masthead-sub{font-size:10px;letter-spacing:5px;color:var(--muted);margin-top:6px;text-transform:uppercase;}
+.masthead-nav{border-top:1px solid var(--border);background:var(--bg2);display:flex;justify-content:center;}
+.masthead-nav a{display:inline-block;padding:12px 20px;font-size:10px;letter-spacing:2px;text-transform:uppercase;text-decoration:none;color:var(--muted);border-bottom:2px solid transparent;transition:all 0.2s;}
+.masthead-nav a:hover,.masthead-nav a.active{color:var(--gold);border-bottom-color:var(--gold);}
+
+/* LAYOUT */
+.page-wrap{max-width:1200px;margin:0 auto;padding:40px 24px 80px;}
+
+/* TYPE TABS */
+.type-tabs{display:flex;gap:0;margin-bottom:0;border-bottom:2px solid var(--border);}
+.type-tab{padding:14px 32px;font-size:11px;letter-spacing:3px;text-transform:uppercase;cursor:pointer;color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-2px;background:none;border-top:none;border-left:none;border-right:none;font-family:var(--mono);transition:all 0.2s;}
+.type-tab.active{color:var(--gold);border-bottom-color:var(--gold);}
+.type-tab .tab-count{display:inline-block;margin-left:8px;padding:2px 7px;background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.3);font-size:9px;border-radius:2px;}
+
+/* FILTERS */
+.filters-bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:18px 0;border-bottom:1px solid var(--border);margin-bottom:24px;}
+.filter-group{display:flex;gap:6px;align-items:center;}
+.filter-label{font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;}
+.filter-select,.filter-input{background:var(--bg2);border:1px solid var(--border);color:var(--ink);font-family:var(--mono);font-size:11px;padding:7px 12px;outline:none;min-width:110px;}
+.filter-select:focus,.filter-input:focus{border-color:var(--border2);}
+.filter-btn{padding:7px 16px;background:transparent;border:1px solid var(--border);color:var(--muted);font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;cursor:pointer;transition:all 0.2s;}
+.filter-btn:hover,.filter-btn.on{border-color:var(--gold);color:var(--gold);background:rgba(59,130,246,0.08);}
+.filter-btn.bull.on{border-color:var(--green);color:var(--green);background:rgba(16,185,129,0.08);}
+.filter-btn.bear.on{border-color:var(--red);color:var(--red);background:rgba(239,68,68,0.08);}
+.refresh-btn{padding:7px 18px;background:var(--gold3);color:var(--ink);border:none;font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;cursor:pointer;margin-left:auto;}
+.refresh-btn:hover{background:var(--gold);}
+.refresh-btn:disabled{opacity:0.5;cursor:not-allowed;}
+
+/* STATS */
+.stats-row{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--border);border:1px solid var(--border);margin-bottom:28px;}
+.stat-box{background:var(--bg2);padding:16px 18px;}
+.stat-label{font-size:9px;letter-spacing:3px;color:var(--muted);text-transform:uppercase;margin-bottom:6px;}
+.stat-val{font-size:22px;font-weight:700;color:var(--ink);}
+.stat-val.green{color:var(--green2);}
+.stat-val.red{color:var(--red2);}
+.stat-val.gold{color:var(--gold2);}
+
+/* TABLE */
+.table-wrap{overflow-x:auto;}
+.arc-table{width:100%;border-collapse:collapse;font-size:11px;}
+.arc-table th{padding:10px 12px;text-align:left;font-size:9px;letter-spacing:3px;color:var(--gold);text-transform:uppercase;border-bottom:1px solid var(--border);background:var(--bg2);white-space:nowrap;cursor:pointer;user-select:none;}
+.arc-table th:hover{color:var(--gold2);}
+.arc-table th .sort-arrow{margin-left:4px;opacity:0.4;}
+.arc-table th.sorted .sort-arrow{opacity:1;}
+.arc-table td{padding:11px 12px;border-bottom:1px solid var(--border2);vertical-align:middle;white-space:nowrap;}
+.arc-table tr:hover td{background:var(--bg3);}
+.arc-table tr.expanded td{background:var(--bg3);}
+
+/* Direction badges */
+.dir-badge{display:inline-block;padding:3px 10px;font-size:9px;letter-spacing:2px;font-weight:700;}
+.dir-badge.BUY{background:rgba(16,185,129,0.15);color:var(--green2);border:1px solid rgba(16,185,129,0.3);}
+.dir-badge.SELL{background:rgba(239,68,68,0.15);color:var(--red2);border:1px solid rgba(239,68,68,0.3);}
+
+/* Confidence bar */
+.conf-wrap{display:flex;align-items:center;gap:8px;}
+.conf-bar{width:60px;height:4px;background:var(--border);border-radius:2px;overflow:hidden;}
+.conf-fill{height:100%;background:var(--gold);border-radius:2px;}
+
+/* Outcome badge */
+.outcome{display:inline-block;padding:2px 8px;font-size:9px;letter-spacing:1px;border-radius:2px;}
+.outcome.win{background:rgba(16,185,129,0.15);color:var(--green2);border:1px solid rgba(16,185,129,0.3);}
+.outcome.loss{background:rgba(239,68,68,0.15);color:var(--red2);border:1px solid rgba(239,68,68,0.3);}
+.outcome.open{background:rgba(59,130,246,0.1);color:var(--gold2);border:1px solid rgba(59,130,246,0.2);}
+
+/* Expanded detail row */
+.detail-row{display:none;}
+.detail-row.open{display:table-row;}
+.detail-cell{padding:16px 20px;background:var(--bg3);border-bottom:1px solid var(--border);}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;}
+.detail-block{background:var(--bg2);padding:14px 16px;border:1px solid var(--border);}
+.detail-block-label{font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:6px;}
+.detail-block-text{font-size:11px;color:var(--ink2);line-height:1.7;}
+.detail-actions{display:flex;gap:10px;margin-top:14px;padding-top:14px;border-top:1px solid var(--border);}
+.action-btn{padding:8px 18px;font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;cursor:pointer;border:none;transition:all 0.2s;}
+.action-btn.del{background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:var(--red2);}
+.action-btn.del:hover{background:rgba(239,68,68,0.2);}
+.action-btn.tg{background:rgba(42,130,200,0.1);border:1px solid rgba(42,130,200,0.3);color:#5aabde;}
+.action-btn.tg:hover{background:rgba(42,130,200,0.2);}
+.outcome-sel{background:var(--bg);border:1px solid var(--border);color:var(--ink);font-family:var(--mono);font-size:10px;padding:6px 10px;outline:none;}
+.save-outcome-btn{padding:8px 14px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);color:var(--green2);font-family:var(--mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;cursor:pointer;}
+
+/* Empty / loading */
+.empty-msg{text-align:center;padding:60px 20px;font-size:11px;color:var(--muted);letter-spacing:2px;}
+.loader-msg{text-align:center;padding:40px;font-size:11px;color:var(--muted);letter-spacing:3px;text-transform:uppercase;}
+
+/* Toast */
+.toast{position:fixed;bottom:28px;right:28px;background:var(--bg2);border:1px solid var(--border2);padding:12px 20px;font-size:11px;letter-spacing:1px;color:var(--ink);z-index:9999;opacity:0;pointer-events:none;transition:opacity 0.3s;max-width:320px;}
+.toast.show{opacity:1;}
+
+/* Page footer */
+.page-footer{border-top:1px solid var(--border);padding:20px 32px;display:flex;justify-content:space-between;font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-top:60px;}
+.page-footer a{color:var(--muted);text-decoration:none;}
+.page-footer a:hover{color:var(--gold);}
+
+@media(max-width:768px){
+  .masthead-name{font-size:36px;}
+  .stats-row{grid-template-columns:1fr 1fr;}
+  .detail-grid{grid-template-columns:1fr;}
+  .filters-bar{gap:6px;}
+}
+</style>
+</head>
+<body>
+
+<!-- MASTHEAD -->
+<div class="masthead">
+  <div class="masthead-top">
+    <span>VOL. I — SIGNAL ARCHIVE</span>
+    <span id="live-date">—</span>
+    <span>XENOS ENGINE</span>
+  </div>
+  <div class="masthead-center">
+    <div class="masthead-eyebrow">Financial Analytics · Signal Database</div>
+    <div class="masthead-name">XENOS<span>FINANCE</span></div>
+    <div class="masthead-sub">Signals Archive — CFD & Options</div>
+  </div>
+  <nav class="masthead-nav">
+    <a href="https://xenosfinance.com">📰 News</a>
+    <a href="https://xenosfinance.com/dashboard">📊 Dashboard</a>
+    <a href="https://xenosfinance.com/xenoswaves_charts">◈ Charts</a>
+    <a href="https://xenosfinance.com/XenosBlog">✦ AI Blog</a>
+    <a href="https://xenosfinance.com/signals" class="active">⚡ Signals</a>
+    <a href="https://xenosfinance.com/calendar">🗓 Calendar</a>
+    <a href="https://xenosfinance.com/elliottwave">〜 Elliott Wave</a>
+  </nav>
+</div>
+
+<div class="page-wrap">
+
+  <!-- TYPE TABS -->
+  <div class="type-tabs">
+    <button class="type-tab active" id="tab-cfd" onclick="switchTab('cfd')">
+      CFD SIGNALS <span class="tab-count" id="count-cfd">—</span>
+    </button>
+    <button class="type-tab" id="tab-options" onclick="switchTab('options')">
+      OPTIONS SIGNALS <span class="tab-count" id="count-options">—</span>
+    </button>
+  </div>
+
+  <!-- FILTERS -->
+  <div class="filters-bar">
+    <div class="filter-group">
+      <span class="filter-label">Pair</span>
+      <input class="filter-input" id="f-pair" placeholder="e.g. EURUSD" oninput="applyFilters()" style="width:110px;">
+    </div>
+    <div class="filter-group">
+      <span class="filter-label">TF</span>
+      <select class="filter-select" id="f-tf" onchange="applyFilters()" style="width:90px;">
+        <option value="">All</option>
+        <option>M15</option><option>H1</option><option>H4</option><option>D1</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <span class="filter-label">Dir</span>
+      <button class="filter-btn bull" id="f-buy" onclick="toggleDirFilter('BUY')">▲ BUY</button>
+      <button class="filter-btn bear" id="f-sell" onclick="toggleDirFilter('SELL')">▼ SELL</button>
+    </div>
+    <div class="filter-group">
+      <span class="filter-label">Outcome</span>
+      <select class="filter-select" id="f-outcome" onchange="applyFilters()" style="width:100px;">
+        <option value="">All</option>
+        <option value="open">Open</option>
+        <option value="win">Win</option>
+        <option value="loss">Loss</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <span class="filter-label">From</span>
+      <input class="filter-input" id="f-from" type="date" onchange="applyFilters()" style="width:130px;">
+    </div>
+    <button class="filter-btn" onclick="clearFilters()">✕ Clear</button>
+    <button class="refresh-btn" id="refresh-btn" onclick="loadArchive()">↻ Refresh</button>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats-row" id="stats-row">
+    <div class="stat-box"><div class="stat-label">Total Signals</div><div class="stat-val gold" id="s-total">—</div></div>
+    <div class="stat-box"><div class="stat-label">Win Rate</div><div class="stat-val green" id="s-winrate">—</div></div>
+    <div class="stat-box"><div class="stat-label">Wins</div><div class="stat-val green" id="s-wins">—</div></div>
+    <div class="stat-box"><div class="stat-label">Losses</div><div class="stat-val red" id="s-losses">—</div></div>
+    <div class="stat-box"><div class="stat-label">Avg Confidence</div><div class="stat-val gold" id="s-conf">—</div></div>
+  </div>
+
+  <!-- TABLE -->
+  <div class="table-wrap">
+    <table class="arc-table" id="arc-table">
+      <thead>
+        <tr>
+          <th onclick="sortBy('saved_at')" id="th-date">DATE <span class="sort-arrow">↕</span></th>
+          <th onclick="sortBy('pair')" id="th-pair">PAIR <span class="sort-arrow">↕</span></th>
+          <th>DIR</th>
+          <th onclick="sortBy('timeframe')" id="th-tf">TF <span class="sort-arrow">↕</span></th>
+          <th>PATTERN</th>
+          <th>ENTRY</th>
+          <th>SL</th>
+          <th>TP</th>
+          <th>R:R</th>
+          <th onclick="sortBy('confidence')" id="th-conf">CONF <span class="sort-arrow">↕</span></th>
+          <th>OUTCOME</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="arc-body">
+        <tr><td colspan="12" class="loader-msg" id="table-msg">⬡ LOADING ARCHIVE...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+<div class="page-footer">
+  <span>© XenosFinance 2026</span>
+  <div style="display:flex;gap:24px;">
+    <a href="https://xenosfinance.com/signals">Signal Engine</a>
+    <a href="https://xenosfinance.com/dashboard">Dashboard</a>
+    <a href="https://t.me/xenosfin" target="_blank">Telegram</a>
+  </div>
+  <span>Not investment advice</span>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const WORKER = 'https://xenos-ai-proxy.xenosfinance.workers.dev';
+const REPO   = 'xenosfinance-prog/waves';
+
+let currentTab    = 'cfd';
+let allSignals    = { cfd: [], options: [] };
+let filtered      = [];
+let sortKey       = 'saved_at';
+let sortDir       = -1; // -1 = desc
+let dirFilter     = { BUY: false, SELL: false };
+
+// ── DATE ──
+(function(){
+  const d = new Date();
+  document.getElementById('live-date').textContent =
+    d.toLocaleDateString('en-GB',{day:'2-digit',month:'long',year:'numeric'}).toUpperCase();
+})();
+
+// ── LOAD ARCHIVE ──────────────────────────────────────────────
+async function loadArchive() {
+  const btn = document.getElementById('refresh-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Loading...';
+  document.getElementById('table-msg') && (document.getElementById('table-msg').textContent = '⬡ LOADING ARCHIVE...');
+  document.getElementById('arc-body').innerHTML = '<tr><td colspan="12" class="loader-msg" id="table-msg">⬡ LOADING ARCHIVE...</td></tr>';
+
+  await Promise.all([
+    loadFolder('signals_cfd',     'cfd'),
+    loadFolder('signals_options', 'options'),
+  ]);
+
+  document.getElementById('count-cfd').textContent     = allSignals.cfd.length;
+  document.getElementById('count-options').textContent = allSignals.options.length;
+
+  applyFilters();
+  btn.disabled = false;
+  btn.textContent = '↻ Refresh';
+}
+
+async function loadFolder(folder, type) {
+  try {
+    const res = await fetch(WORKER, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'github',
+        method: 'GET',
+        url: `https://api.github.com/repos/${REPO}/contents/${folder}`
+      })
+    });
+    const d = await res.json();
+    const files = Array.isArray(d.data) ? d.data : [];
+    const jsonFiles = files.filter(f => f.name.endsWith('.json'));
+
+    // Fetch all files in parallel (max 30 at a time)
+    const chunks = [];
+    for (let i = 0; i < jsonFiles.length; i += 30) chunks.push(jsonFiles.slice(i, i+30));
+
+    const results = [];
+    for (const chunk of chunks) {
+      const fetched = await Promise.all(chunk.map(async f => {
+        try {
+          const r = await fetch(WORKER, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              type: 'github', method: 'GET',
+              url: `https://api.github.com/repos/${REPO}/contents/${folder}/${f.name}`
+            })
+          });
+          const fd = await r.json();
+          const content = fd.data?.content ? atob(fd.data.content.replace(/\n/g,'')) : null;
+          if (!content) return null;
+          const sig = JSON.parse(decodeURIComponent(escape(content)));
+          sig._filename = f.name;
+          sig._sha      = fd.data.sha;
+          sig._folder   = folder;
+          if (!sig.outcome) sig.outcome = 'open';
+          return sig;
+        } catch(e) { return null; }
+      }));
+      results.push(...fetched.filter(Boolean));
+    }
+    allSignals[type] = results;
+  } catch(e) {
+    console.warn('loadFolder failed:', folder, e.message);
+    allSignals[type] = [];
+  }
+}
+
+// ── TAB SWITCH ────────────────────────────────────────────────
+function switchTab(tab) {
+  currentTab = tab;
+  document.getElementById('tab-cfd').classList.toggle('active', tab === 'cfd');
+  document.getElementById('tab-options').classList.toggle('active', tab === 'options');
+  applyFilters();
+}
+
+// ── FILTERS ───────────────────────────────────────────────────
+function toggleDirFilter(dir) {
+  dirFilter[dir] = !dirFilter[dir];
+  document.getElementById('f-' + dir.toLowerCase()).classList.toggle('on', dirFilter[dir]);
+  applyFilters();
+}
+
+function clearFilters() {
+  document.getElementById('f-pair').value    = '';
+  document.getElementById('f-tf').value      = '';
+  document.getElementById('f-outcome').value = '';
+  document.getElementById('f-from').value    = '';
+  dirFilter = { BUY: false, SELL: false };
+  document.getElementById('f-buy').classList.remove('on');
+  document.getElementById('f-sell').classList.remove('on');
+  applyFilters();
+}
+
+function applyFilters() {
+  const pair    = document.getElementById('f-pair').value.trim().toUpperCase();
+  const tf      = document.getElementById('f-tf').value;
+  const outcome = document.getElementById('f-outcome').value;
+  const from    = document.getElementById('f-from').value;
+  const anyDir  = dirFilter.BUY || dirFilter.SELL;
+
+  filtered = allSignals[currentTab].filter(s => {
+    if (pair    && !s.pair?.includes(pair))        return false;
+    if (tf      && s.timeframe !== tf)              return false;
+    if (outcome && s.outcome !== outcome)           return false;
+    if (from    && (s.saved_at||'').slice(0,10) < from) return false;
+    if (anyDir  && !dirFilter[s.direction])         return false;
+    return true;
+  });
+
+  // Sort
+  filtered.sort((a,b) => {
+    let av = a[sortKey] ?? '', bv = b[sortKey] ?? '';
+    if (typeof av === 'number') return sortDir * (av - bv);
+    return sortDir * String(av).localeCompare(String(bv));
+  });
+
+  updateStats();
+  renderTable();
+}
+
+function sortBy(key) {
+  if (sortKey === key) sortDir *= -1;
+  else { sortKey = key; sortDir = -1; }
+  document.querySelectorAll('.arc-table th').forEach(th => th.classList.remove('sorted'));
+  const thMap = { saved_at:'th-date', pair:'th-pair', timeframe:'th-tf', confidence:'th-conf' };
+  if (thMap[key]) document.getElementById(thMap[key])?.classList.add('sorted');
+  applyFilters();
+}
+
+// ── STATS ─────────────────────────────────────────────────────
+function updateStats() {
+  const total  = filtered.length;
+  const wins   = filtered.filter(s => s.outcome === 'win').length;
+  const losses = filtered.filter(s => s.outcome === 'loss').length;
+  const closed = wins + losses;
+  const wr     = closed > 0 ? Math.round(wins / closed * 100) : 0;
+  const avgConf= total > 0 ? Math.round(filtered.reduce((s,a) => s + (a.confidence||0), 0) / total) : 0;
+
+  document.getElementById('s-total').textContent   = total;
+  document.getElementById('s-winrate').textContent = closed > 0 ? wr + '%' : '—';
+  document.getElementById('s-wins').textContent    = wins;
+  document.getElementById('s-losses').textContent  = losses;
+  document.getElementById('s-conf').textContent    = avgConf ? avgConf + '%' : '—';
+}
+
+// ── RENDER TABLE ──────────────────────────────────────────────
+function fmtPrice(v, pair) {
+  const n = parseFloat(v);
+  if (isNaN(n)) return '—';
+  if (pair?.includes('JPY') || pair?.includes('225') || pair?.includes('JPN')) return n.toFixed(3);
+  if (pair === 'BTCUSD' || pair === 'BTC') return Math.round(n).toLocaleString();
+  if (n > 1000) return n.toFixed(2);
+  return n.toFixed(4);
+}
+
+function fmtDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}) + ' ' +
+         d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+}
+
+function renderTable() {
+  const tbody = document.getElementById('arc-body');
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="12" class="empty-msg">No signals found — adjust filters or save signals from the Signal Engine</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filtered.map((sig, i) => {
+    const isBull  = sig.direction === 'BUY';
+    const oc      = sig.outcome || 'open';
+    const confW   = Math.round((sig.confidence||0) / 100 * 60);
+
+    return `
+    <tr class="sig-main-row" onclick="toggleDetail(${i})" style="cursor:pointer;">
+      <td style="color:var(--muted);font-size:10px;">${fmtDate(sig.saved_at)}</td>
+      <td style="font-weight:700;color:var(--ink);letter-spacing:1px;">${sig.pair||'—'}</td>
+      <td><span class="dir-badge ${sig.direction||''}">${sig.direction||'—'}</span></td>
+      <td style="color:var(--muted);">${sig.timeframe||'—'}</td>
+      <td style="color:var(--ink2);max-width:160px;overflow:hidden;text-overflow:ellipsis;">${sig.pattern||'—'}</td>
+      <td style="color:var(--gold2);">${fmtPrice(sig.entry, sig.pair)}</td>
+      <td style="color:var(--red2);">${fmtPrice(sig.sl, sig.pair)}</td>
+      <td style="color:var(--green2);">${fmtPrice(sig.tp, sig.pair)}</td>
+      <td style="color:var(--muted);">${sig.rr||'—'}</td>
+      <td>
+        <div class="conf-wrap">
+          <div class="conf-bar"><div class="conf-fill" style="width:${confW}px;"></div></div>
+          <span style="color:var(--ink2)">${sig.confidence||'—'}%</span>
+        </div>
+      </td>
+      <td><span class="outcome ${oc}">${oc.toUpperCase()}</span></td>
+      <td style="color:var(--muted);font-size:10px;">▶</td>
+    </tr>
+    <tr class="detail-row" id="detail-row-${i}">
+      <td colspan="12" class="detail-cell">
+        <div class="detail-grid">
+          <div class="detail-block">
+            <div class="detail-block-label">Elliott Wave Context</div>
+            <div class="detail-block-text">${sig.ew_context||'—'}</div>
+          </div>
+          <div class="detail-block">
+            <div class="detail-block-label">Pattern Description</div>
+            <div class="detail-block-text">${sig.pattern_desc||'—'}</div>
+          </div>
+          <div class="detail-block">
+            <div class="detail-block-label">Market Context</div>
+            <div class="detail-block-text">${sig.market_context||'—'}</div>
+          </div>
+          <div class="detail-block">
+            <div class="detail-block-label">Key Levels</div>
+            <div class="detail-block-text">${sig.key_levels||'—'}</div>
+          </div>
+          <div class="detail-block">
+            <div class="detail-block-label">Invalidation</div>
+            <div class="detail-block-text" style="color:var(--red2)">${sig.invalidation||'—'}</div>
+          </div>
+          <div class="detail-block">
+            <div class="detail-block-label">Tags</div>
+            <div class="detail-block-text">${(sig.tags||[]).map(t=>`<span style="display:inline-block;margin:2px 4px 2px 0;padding:2px 8px;background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.2);font-size:9px;color:var(--gold2);">${t}</span>`).join('')||'—'}</div>
+          </div>
+        </div>
+        <div class="detail-actions">
+          <span style="font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;align-self:center;">OUTCOME:</span>
+          <select class="outcome-sel" id="oc-sel-${i}">
+            <option value="open" ${oc==='open'?'selected':''}>Open</option>
+            <option value="win"  ${oc==='win'?'selected':''}>Win ✓</option>
+            <option value="loss" ${oc==='loss'?'selected':''}>Loss ✗</option>
+          </select>
+          <button class="save-outcome-btn" onclick="saveOutcome(event,${i})">Save Outcome</button>
+          <button class="action-btn del" onclick="deleteSignal(event,${i})">🗑 Delete</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function toggleDetail(i) {
+  const row = document.getElementById('detail-row-' + i);
+  if (!row) return;
+  const isOpen = row.classList.contains('open');
+  document.querySelectorAll('.detail-row.open').forEach(r => r.classList.remove('open'));
+  if (!isOpen) row.classList.add('open');
+}
+
+// ── SAVE OUTCOME ──────────────────────────────────────────────
+async function saveOutcome(event, i) {
+  event.stopPropagation();
+  const sig = filtered[i];
+  if (!sig) return;
+  const outcome = document.getElementById('oc-sel-' + i).value;
+  const btn = event.currentTarget;
+  btn.disabled = true; btn.textContent = '⏳';
+
+  const updated = { ...sig, outcome };
+  delete updated._filename; delete updated._sha; delete updated._folder;
+
+  try {
+    const res = await fetch(WORKER, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'github', method: 'PUT',
+        url: `https://api.github.com/repos/${REPO}/contents/${sig._folder}/${sig._filename}`,
+        payload: {
+          message: `outcome: ${sig.pair} ${sig.direction} → ${outcome}`,
+          content: btoa(unescape(encodeURIComponent(JSON.stringify(updated, null, 2)))),
+          sha: sig._sha
+        }
+      })
+    });
+    const d = await res.json();
+    if (d.status === 200 || d.status === 201) {
+      sig.outcome = outcome;
+      sig._sha    = d.data?.content?.sha || sig._sha;
+      showToast('✅ Outcome saved: ' + outcome.toUpperCase());
+      applyFilters();
+    } else {
+      throw new Error(JSON.stringify(d.data).slice(0,80));
+    }
+  } catch(e) {
+    showToast('❌ Error: ' + e.message);
+  }
+  btn.disabled = false; btn.textContent = 'Save Outcome';
+}
+
+// ── DELETE SIGNAL ─────────────────────────────────────────────
+async function deleteSignal(event, i) {
+  event.stopPropagation();
+  const sig = filtered[i];
+  if (!sig) return;
+  if (!confirm(`Delete signal ${sig.pair} ${sig.direction} ${sig.timeframe}?`)) return;
+  const btn = event.currentTarget;
+  btn.disabled = true; btn.textContent = '⏳';
+
+  try {
+    const res = await fetch(WORKER, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'github', method: 'DELETE',
+        url: `https://api.github.com/repos/${REPO}/contents/${sig._folder}/${sig._filename}`,
+        payload: {
+          message: `delete: ${sig.pair} ${sig.direction} ${sig.timeframe}`,
+          sha: sig._sha
+        }
+      })
+    });
+    const d = await res.json();
+    if (d.status === 200) {
+      showToast('🗑 Signal deleted');
+      // Remove from local arrays
+      const idx = allSignals[currentTab].findIndex(s => s._filename === sig._filename);
+      if (idx > -1) allSignals[currentTab].splice(idx, 1);
+      document.getElementById('count-' + currentTab).textContent = allSignals[currentTab].length;
+      applyFilters();
+    } else {
+      throw new Error(JSON.stringify(d.data).slice(0,80));
+    }
+  } catch(e) {
+    showToast('❌ Error: ' + e.message);
+    btn.disabled = false; btn.textContent = '🗑 Delete';
+  }
+}
+
+// ── TOAST ─────────────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+// ── INIT ──────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  loadArchive();
+});
+</script>
+</body>
+</html>
