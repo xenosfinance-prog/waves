@@ -1,42 +1,23 @@
-<!DOCTYPE html> 
-<html lang="en">
+<!DOCTYPE html>
+<html lang="ru"> 
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>XenosFinance — AI Blog</title>
+<title>XenosFinance — AI Блог Admin</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=IBM+Plex+Mono:wght@300;400;500&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
   :root {
-  --bg:            #0f1724;
-  --bg2:           #131f2e;
-  --bg3:           #172032;
-  --bg4:           #1c2840;
-  --border:        #1e3050;
-  --border2:       #243a5e;
-  --border-bright: #2d4a78;
-  --gold:          #3b82f6;
-  --gold2:         #60a5fa;
-  --gold3:         #1d4ed8;
-  --accent:        #3b82f6;
-  --accent2:       #60a5fa;
-  --text:          #c8d8ea;
-  --dim:           #6b8aaa;
-  --red:           #ef4444;
-  --red2:          #f87171;
-  --green:         #10b981;
-  --green2:        #34d399;
-  --blue:          #3b82f6;
-  --blue2:         #60a5fa;
-  --yellow:        #f59e0b;
-  --ink:           #e2eaf4;
-  --ink2:          #b8cce0;
-  --muted:         #5a7a9a;
-  --bright:        #e2eaf4;
-  --serif:         'Playfair Display', Georgia, serif;
-  --body:          'PT Serif', Georgia, serif;
-  --mono:          'IBM Plex Mono', 'PT Mono', monospace;
-  --sans:          'Inter', sans-serif;
-  --sidebar:       200px;
+  --bg:#0f1724;--bg2:#131f2e;--bg3:#172032;--bg4:#1c2840;
+  --border:#1e3050;--border2:#243a5e;--border-bright:#2d4a78;
+  --gold:#3b82f6;--gold2:#60a5fa;--gold3:#1d4ed8;
+  --accent:#3b82f6;--accent2:#60a5fa;
+  --text:#c8d8ea;--dim:#6b8aaa;--bright:#e2eaf4;
+  --red:#ef4444;--red2:#f87171;--green:#10b981;--green2:#34d399;
+  --ink:#e2eaf4;--ink2:#b8cce0;--muted:#5a7a9a;
+  --serif:'Playfair Display',Georgia,serif;
+  --body:'PT Serif',Georgia,serif;
+  --mono:'IBM Plex Mono','PT Mono',monospace;
+  --sans:'Inter',sans-serif;
 }
   * { margin:0; padding:0; box-sizing:border-box; }
   body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; font-weight:300; }
@@ -52,16 +33,53 @@
   nav a { font-family:'IBM Plex Mono',monospace; font-size:0.65rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--text-dim); text-decoration:none; transition:color 0.2s; }
   nav a:hover, nav a.active { color:var(--gold); }
   .hero { background:var(--bg2); border-bottom:1px solid var(--border); padding:48px 5vw; position:relative; overflow:hidden; }
-  .hero::before { content:''; position:absolute; top:-80px; right:-80px; width:500px; height:500px; background:radial-gradient(circle,rgba(59,130,246,0.05) 0%,transparent 70%); pointer-events:none; }
+  .hero::before { content:''; position:absolute; top:-80px; right:-80px; width:500px; height:500px; background:radial-gradient(circle, rgba(59,130,246,0.05) 0%, transparent 70%); pointer-events:none; }
   .hero-eyebrow { font-family:'IBM Plex Mono',monospace; font-size:0.62rem; letter-spacing:0.25em; text-transform:uppercase; color:var(--gold); margin-bottom:16px; }
   .hero-title { font-family:'Playfair Display',serif; font-size:clamp(2rem,4vw,3.2rem); font-weight:900; color:var(--text-bright); line-height:1.1; margin-bottom:14px; }
   .hero-title span { color:var(--gold); }
   .hero-sub { font-size:0.92rem; color:var(--text-dim); max-width:520px; line-height:1.7; }
-  #gridView { padding:48px 5vw; }
+  .section-wrap { padding:48px 5vw; border-bottom:1px solid var(--border); }
   .section-header { display:flex; align-items:center; gap:14px; margin-bottom:28px; padding-bottom:14px; border-bottom:1px solid var(--border); }
   .section-title { font-family:'IBM Plex Mono',monospace; font-size:0.65rem; letter-spacing:0.2em; text-transform:uppercase; color:var(--gold); white-space:nowrap; }
   .section-line { flex:1; height:1px; background:var(--border); }
-  .blog-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--border); border:1px solid var(--border); }
+  .gen-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:18px; margin-bottom:18px; }
+  .gen-field { display:flex; flex-direction:column; gap:7px; }
+  .gen-label { font-family:'IBM Plex Mono',monospace; font-size:0.6rem; letter-spacing:0.18em; text-transform:uppercase; color:var(--text-dim); }
+  .gen-select, .gen-input { background:var(--bg3); border:1px solid var(--border); color:var(--text); padding:11px 14px; font-family:'Inter',sans-serif; font-size:0.87rem; outline:none; transition:border-color 0.2s; appearance:none; }
+  .gen-select:focus, .gen-input:focus { border-color:var(--gold); }
+  .gen-select option { background:var(--bg3); }
+  .gen-input::placeholder { color:var(--text-dim); }
+  .gen-actions { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+  .btn-generate { background:var(--gold); color:#0f1724; border:none; padding:12px 26px; font-family:'IBM Plex Mono',monospace; font-size:0.7rem; font-weight:500; letter-spacing:0.15em; text-transform:uppercase; cursor:pointer; transition:background 0.2s,transform 0.15s; display:flex; align-items:center; gap:8px; }
+  .btn-generate:hover:not(:disabled) { background:var(--gold-light); transform:translateY(-1px); }
+  .btn-generate:disabled { opacity:0.4; cursor:not-allowed; }
+  .gen-status { font-family:'IBM Plex Mono',monospace; font-size:0.68rem; color:var(--gold); }
+  .article-display { display:none; padding:48px 5vw; border-bottom:1px solid var(--border); }
+  .article-display.visible { display:block; animation:fadeUp 0.4s ease forwards; }
+  @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+  .article-cat { font-family:'IBM Plex Mono',monospace; font-size:0.6rem; letter-spacing:0.22em; text-transform:uppercase; color:var(--gold); margin-bottom:14px; }
+  .article-title { font-family:'Playfair Display',serif; font-size:clamp(1.8rem,3.5vw,2.8rem); font-weight:900; color:var(--text-bright); line-height:1.12; margin-bottom:18px; }
+  .article-meta { display:flex; gap:20px; font-family:'IBM Plex Mono',monospace; font-size:0.62rem; color:var(--text-dim); border-top:1px solid var(--border); border-bottom:1px solid var(--border); padding:12px 0; margin-bottom:32px; }
+  .article-body { max-width:740px; }
+  .article-body p { font-size:0.98rem; line-height:1.85; color:var(--text); margin-bottom:20px; }
+  .article-body h2 { font-family:'Playfair Display',serif; font-size:1.35rem; font-weight:700; color:var(--text-bright); margin:32px 0 14px; }
+  .article-body h3 { font-family:'IBM Plex Mono',monospace; font-size:0.72rem; letter-spacing:0.15em; text-transform:uppercase; color:var(--gold); margin:26px 0 10px; }
+  .article-body blockquote { border-left:2px solid var(--gold); padding:12px 0 12px 20px; margin:26px 0; font-family:'Playfair Display',serif; font-size:1.05rem; font-style:italic; color:var(--text-dim); background:var(--bg2); }
+  .article-actions { margin-top:36px; padding-top:24px; border-top:1px solid var(--border); display:flex; gap:10px; flex-wrap:wrap; }
+  .btn-action { background:transparent; border:1px solid var(--border); color:var(--text); padding:10px 18px; font-family:'IBM Plex Mono',monospace; font-size:0.62rem; letter-spacing:0.12em; text-transform:uppercase; cursor:pointer; transition:border-color 0.2s,color 0.2s; }
+  .btn-action:hover { border-color:var(--gold); color:var(--gold); }
+  .btn-publish { background:rgba(59,130,246,0.1); border:1px solid rgba(59,130,246,0.4); color:var(--gold); padding:10px 18px; font-family:'IBM Plex Mono',monospace; font-size:0.62rem; letter-spacing:0.12em; text-transform:uppercase; cursor:pointer; transition:background 0.2s; display:flex; align-items:center; gap:7px; }
+  .btn-publish:hover { background:rgba(59,130,246,0.2); }
+  .btn-publish:disabled { opacity:0.4; cursor:not-allowed; }
+  .btn-telegram { background:rgba(42,130,200,0.1); border:1px solid rgba(42,130,200,0.3); color:#5aabde; padding:10px 18px; font-family:'IBM Plex Mono',monospace; font-size:0.62rem; letter-spacing:0.12em; text-transform:uppercase; cursor:pointer; transition:background 0.2s; display:flex; align-items:center; gap:7px; }
+  .btn-telegram:hover { background:rgba(42,130,200,0.2); }
+  .btn-telegram:disabled { opacity:0.4; cursor:not-allowed; }
+  .tg-config { background:var(--bg2); border:1px solid var(--border); padding:20px 24px; margin-top:16px; display:none; }
+  .tg-config.open { display:block; }
+  .tg-config-title { font-family:'IBM Plex Mono',monospace; font-size:0.62rem; letter-spacing:0.15em; text-transform:uppercase; color:var(--gold); margin-bottom:14px; }
+  .tg-fields { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px; }
+  .tg-note { font-family:'IBM Plex Mono',monospace; font-size:0.58rem; color:var(--text-dim); line-height:1.65; margin-top:10px; }
+  .blog-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--border); border:1px solid var(--border); margin-top:24px; }
   .blog-card { background:var(--bg2); padding:26px 22px; transition:background 0.2s; cursor:pointer; }
   .blog-card:hover { background:var(--bg3); }
   .card-num { font-family:'IBM Plex Mono',monospace; font-size:0.56rem; color:var(--text-dim); margin-bottom:12px; }
@@ -70,57 +88,63 @@
   .card-excerpt { font-size:0.8rem; color:var(--text-dim); line-height:1.65; margin-bottom:16px; }
   .card-footer { display:flex; justify-content:space-between; font-family:'IBM Plex Mono',monospace; font-size:0.58rem; color:var(--text-dim); }
   .card-read { color:var(--gold); }
-  .empty-state { text-align:center; padding:64px; color:var(--text-dim); font-family:'IBM Plex Mono',monospace; font-size:0.75rem; line-height:2; }
-  .loading { text-align:center; padding:48px; color:var(--gold); font-family:'IBM Plex Mono',monospace; font-size:0.7rem; letter-spacing:0.1em; }
-  #articleView { display:none; padding:48px 5vw; }
-  .back-btn { display:inline-flex; align-items:center; gap:8px; font-family:'IBM Plex Mono',monospace; font-size:0.62rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--text-dim); cursor:pointer; border:1px solid var(--border); padding:8px 16px; margin-bottom:36px; transition:all 0.2s; background:none; }
-  .back-btn:hover { border-color:var(--gold); color:var(--gold); }
-  .article-cat { font-family:'IBM Plex Mono',monospace; font-size:0.6rem; letter-spacing:0.22em; text-transform:uppercase; color:var(--gold); margin-bottom:14px; }
-  .article-title { font-family:'Playfair Display',serif; font-size:clamp(1.8rem,3.5vw,2.8rem); font-weight:900; color:var(--text-bright); line-height:1.12; margin-bottom:18px; }
-  .article-meta { display:flex; gap:20px; flex-wrap:wrap; font-family:'IBM Plex Mono',monospace; font-size:0.62rem; color:var(--text-dim); border-top:1px solid var(--border); border-bottom:1px solid var(--border); padding:12px 0; margin-bottom:32px; }
-  .article-body { max-width:740px; }
-  .article-body p { font-size:0.98rem; line-height:1.85; color:var(--text); margin-bottom:20px; }
-  .article-body h2 { font-family:'Playfair Display',serif; font-size:1.35rem; font-weight:700; color:var(--text-bright); margin:32px 0 14px; }
-  .article-body h3 { font-family:'IBM Plex Mono',monospace; font-size:0.72rem; letter-spacing:0.15em; text-transform:uppercase; color:var(--gold); margin:26px 0 10px; }
-  .article-body blockquote { border-left:2px solid var(--gold); padding:12px 0 12px 20px; margin:26px 0; font-family:'Playfair Display',serif; font-size:1.05rem; font-style:italic; color:var(--text-dim); background:var(--bg2); }
-  .article-share { margin-top:48px; padding-top:24px; border-top:1px solid var(--border); display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
-  .share-label { font-family:'IBM Plex Mono',monospace; font-size:0.6rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--text-dim); }
-  .btn-tg { background:rgba(42,130,200,0.1); border:1px solid rgba(42,130,200,0.3); color:#5aabde; padding:8px 16px; font-family:'IBM Plex Mono',monospace; font-size:0.6rem; letter-spacing:0.12em; text-transform:uppercase; cursor:pointer; text-decoration:none; display:inline-block; }
-  .btn-tg:hover { background:rgba(42,130,200,0.2); }
-  .disclaimer { font-family:'IBM Plex Mono',monospace; font-size:0.58rem; color:var(--text-dim); margin-top:32px; padding:16px; border:1px solid var(--border); line-height:1.7; }
-  footer { background:var(--bg2); border-top:1px solid var(--border); padding:28px 5vw; display:flex; justify-content:space-between; align-items:center; margin-top:64px; }
+  .spinner { display:inline-block; width:12px; height:12px; border:1.5px solid rgba(11,14,20,0.3); border-top-color:#0b0e14; border-radius:50%; animation:spin 0.7s linear infinite; }
+  @keyframes spin { to{transform:rotate(360deg)} }
+  .spinner-gold { display:inline-block; width:12px; height:12px; border:1.5px solid rgba(59,130,246,0.2); border-top-color:var(--gold); border-radius:50%; animation:spin 0.7s linear infinite; }
+  footer { background:var(--bg2); border-top:1px solid var(--border); padding:28px 5vw; display:flex; justify-content:space-between; align-items:center; }
   .footer-logo { font-family:'IBM Plex Mono',monospace; font-size:1rem; color:var(--text-bright); }
   .footer-logo span { color:var(--gold); }
   .footer-note { font-family:'IBM Plex Mono',monospace; font-size:0.56rem; color:var(--text-dim); text-align:right; line-height:1.7; }
-  @keyframes spin { to{transform:rotate(360deg)} }
-  .spinner { display:inline-block; width:14px; height:14px; border:1.5px solid rgba(59,130,246,0.2); border-top-color:var(--gold); border-radius:50%; animation:spin 0.7s linear infinite; vertical-align:middle; margin-right:8px; }
-  @media(max-width:800px){ .blog-grid{grid-template-columns:1fr 1fr;} }
-  @media(max-width:500px){ .blog-grid{grid-template-columns:1fr;} .article-meta{flex-direction:column;gap:6px;} }
-  .legal-disclaimer {
-    background: var(--bg2);
-    border-top: 1px solid var(--border);
-    padding: 20px 5vw;
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 0.58rem;
-    color: var(--text-dim);
-    line-height: 1.8;
-    letter-spacing: 0.03em;
-  }
-  .legal-disclaimer strong { color: var(--text-bright); }
+
+  @media(max-width:800px){ .gen-grid{grid-template-columns:1fr 1fr;} .tg-fields,.blog-grid{grid-template-columns:1fr;} }
+  @media(max-width:500px){ .gen-grid{grid-template-columns:1fr;} }
+
+
+  /* ── EDIT MODE ── */
+  .edit-mode-banner { display:none; align-items:center; gap:12px; background:rgba(59,130,246,0.08); border:1px solid rgba(59,130,246,0.3); border-left:3px solid var(--gold); padding:10px 16px; margin-bottom:16px; font-family:'IBM Plex Mono',monospace; font-size:0.6rem; color:var(--gold); letter-spacing:0.1em; }
+  .edit-mode-banner.active { display:flex; }
+  .btn-done-edit { background:var(--gold); color:#0f1724; border:none; padding:6px 14px; font-family:'IBM Plex Mono',monospace; font-size:0.58rem; font-weight:600; letter-spacing:0.12em; text-transform:uppercase; cursor:pointer; }
+  .btn-done-edit:hover { background:var(--gold-light); }
+  [contenteditable=true] { outline:none; border-bottom:1px dashed var(--gold); cursor:text; background:rgba(59,130,246,0.03); }
+  [contenteditable=true]:focus { background:rgba(59,130,246,0.06); border-bottom:1px solid var(--gold); }
+  .article-title[contenteditable=true] { border-bottom:2px dashed var(--gold); }
+
+  /* ── PREVIEW MODAL ── */
+  .preview-overlay { display:none; position:fixed; inset:0; z-index:8000; background:rgba(226,234,244,0.45); backdrop-filter:blur(3px); align-items:center; justify-content:center; }
+  .preview-overlay.open { display:flex; }
+  .preview-modal { background:var(--bg); border:1px solid var(--border); max-width:800px; width:95vw; max-height:88vh; display:flex; flex-direction:column; box-shadow:0 8px 40px rgba(226,234,244,0.18); }
+  .preview-modal-head { display:flex; justify-content:space-between; align-items:center; padding:16px 24px; border-bottom:1px solid var(--border); flex-shrink:0; }
+  .preview-modal-title { font-family:'IBM Plex Mono',monospace; font-size:0.65rem; letter-spacing:0.2em; text-transform:uppercase; color:var(--gold); }
+  .preview-modal-close { background:none; border:1px solid var(--border); color:var(--text-dim); font-family:'IBM Plex Mono',monospace; font-size:0.6rem; padding:5px 12px; cursor:pointer; letter-spacing:0.1em; text-transform:uppercase; }
+  .preview-modal-close:hover { border-color:var(--gold); color:var(--gold); }
+  .preview-modal-body { overflow-y:auto; padding:32px 40px; flex:1; }
+  .preview-modal-body .p-cat { font-family:'IBM Plex Mono',monospace; font-size:0.6rem; letter-spacing:0.22em; text-transform:uppercase; color:var(--gold); margin-bottom:14px; }
+  .preview-modal-body .p-title { font-family:'Playfair Display',serif; font-size:clamp(1.5rem,3vw,2.2rem); font-weight:900; color:var(--text-bright); line-height:1.12; margin-bottom:18px; }
+  .preview-modal-body .p-meta { display:flex; gap:20px; font-family:'IBM Plex Mono',monospace; font-size:0.62rem; color:var(--text-dim); border-top:1px solid var(--border); border-bottom:1px solid var(--border); padding:10px 0; margin-bottom:24px; }
+  .preview-modal-body p { font-size:0.95rem; line-height:1.85; color:var(--text); margin-bottom:18px; }
+  .preview-modal-body h2 { font-family:'Playfair Display',serif; font-size:1.25rem; font-weight:700; color:var(--text-bright); margin:28px 0 12px; }
+  .preview-modal-body h3 { font-family:'IBM Plex Mono',monospace; font-size:0.7rem; letter-spacing:0.15em; text-transform:uppercase; color:var(--gold); margin:22px 0 8px; }
+  .preview-modal-body blockquote { border-left:3px solid var(--gold); padding:10px 0 10px 18px; margin:22px 0; font-family:'Playfair Display',serif; font-size:1rem; font-style:italic; color:var(--text-dim); background:var(--bg2); }
+  .preview-modal-foot { padding:16px 24px; border-top:1px solid var(--border); display:flex; gap:10px; align-items:center; flex-shrink:0; background:var(--bg2); }
+  .btn-prev-pub { background:var(--gold); color:#0f1724; border:none; padding:10px 22px; font-family:'IBM Plex Mono',monospace; font-size:0.62rem; font-weight:600; letter-spacing:0.15em; text-transform:uppercase; cursor:pointer; }
+  .btn-prev-pub:hover { background:var(--gold-light); }
+  .btn-prev-tg { background:transparent; border:1px solid rgba(42,130,200,0.4); color:#2a6b9e; padding:10px 18px; font-family:'IBM Plex Mono',monospace; font-size:0.62rem; letter-spacing:0.12em; text-transform:uppercase; cursor:pointer; }
+  .btn-prev-tg:hover { background:rgba(42,130,200,0.08); }
+  .prev-note { font-family:'IBM Plex Mono',monospace; font-size:0.56rem; color:var(--text-dim); margin-left:auto; }
 </style>
 </head>
 <body>
 
+<!-- LOGIN -->
 <div id="loginScreen" style="display:none;align-items:center;justify-content:center;position:fixed;inset:0;z-index:9999;background:rgba(10,14,26,0.96);">
-  <div style="border:1px solid #1e3050;background:#0f1724;padding:40px;width:340px;position:relative;">
-    <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,#3b82f6,transparent);"></div>
-    <div style="font-family:'IBM Plex Mono',monospace;font-size:1rem;font-weight:500;color:#e2eaf4;margin-bottom:6px;">XENOS<span style="color:#3b82f6;">FINANCE</span></div>
-    <div style="font-family:'IBM Plex Mono',monospace;font-size:0.6rem;color:#5a7a9a;letter-spacing:0.12em;margin-bottom:24px;">ADMIN ACCESS — AI BLOG</div>
-    <div style="font-family:'IBM Plex Mono',monospace;font-size:0.58rem;color:#5a7a9a;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:6px;">Password</div>
+  <div style="width:340px;background:#0f1724;border:1px solid #1e3050;padding:44px 36px;box-shadow:0 0 60px rgba(59,130,246,0.08);">
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:1.2rem;font-weight:500;color:#e2eaf4;margin-bottom:4px;">XENOS<span style="color:#3b82f6;">FINANCE</span></div>
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:0.6rem;color:#5a7a9a;letter-spacing:.15em;text-transform:uppercase;margin-bottom:32px;">Admin · Accesso riservato</div>
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:0.6rem;letter-spacing:.12em;text-transform:uppercase;color:#5a7a9a;margin-bottom:6px;">Password</div>
     <input id="loginPw" type="password" placeholder="••••••••"
-      onkeydown="if(event.key==='Enter') doLogin()"
-      style="width:100%;background:#131f2e;border:1px solid #1e3050;color:#e2eaf4;font-family:'IBM Plex Mono',monospace;font-size:13px;padding:10px 12px;outline:none;margin-bottom:14px;">
-    <button onclick="doLogin()" style="width:100%;background:#1d4ed8;color:#e2eaf4;border:none;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;padding:13px;cursor:pointer;">Access Admin</button>
+      style="width:100%;background:#131f2e;border:1px solid #1e3050;color:#e2eaf4;font-family:'IBM Plex Mono',monospace;font-size:13px;padding:11px 13px;outline:none;margin-bottom:14px;"
+      onkeydown="if(event.key==='Enter') doLogin()">
+    <button onclick="doLogin()" style="width:100%;background:#1d4ed8;color:#e2eaf4;border:none;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;padding:13px;cursor:pointer;">Accedi</button>
     <div id="loginErr" style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#f87171;margin-top:10px;min-height:16px;"></div>
   </div>
 </div>
@@ -128,8 +152,8 @@
 <header>
   <div class="header-top">
     <a href="https://xenosfinance.com" class="logo" onclick="event.preventDefault();openLogin()">XENOS<span>FINANCE</span></a>
-    <div class="header-date" id="headerDate"></div>
-    <div class="ai-badge"><div class="pulse"></div>AI Blog</div>
+    <div class="header-date" id="headerDate">FINANCIAL ANALYTICS</div>
+    <div class="ai-badge"><div class="pulse"></div>AI Blog Admin</div>
   </div>
   <nav>
     <a href="https://xenosfinance.com">📰 News</a>
@@ -143,179 +167,480 @@
 </header>
 
 <section class="hero">
-  <div class="hero-eyebrow">// AI Analysis — XenosFinance</div>
-  <h1 class="hero-title">AI Blog<br><span>XenosFinance</span></h1>
-  <p class="hero-sub">Professional financial market analysis — Elliott Wave, Forex, Commodities, Macro. Generated with artificial intelligence.</p>
+  <div class="hero-eyebrow">// Генератор статей — искусственный интеллект</div>
+  <h1 class="hero-title">AI Блог<br><span>XenosFinance</span></h1>
+  <p class="hero-sub">Genera articoli professionali sui mercati finanziari. Scegli mercato, tecnica di analisi, lingua e topic — l'AI crea l'articolo in pochi secondi.</p>
 </section>
 
-<!-- ARTICLE GRID -->
-<div id="gridView">
+<div id="adminPanel" style="display:none">
+<section class="section-wrap">
   <div class="section-header">
-    <span class="section-title">// Published Articles</span>
+    <span class="section-title">// Generazione articolo</span>
     <div class="section-line"></div>
-    <span class="section-title" id="articleCount">ARCHIVE</span>
+    <span class="section-title">AI AUTOMATICO</span>
   </div>
-  <div id="blogGrid" class="blog-grid">
-    <div class="loading"><span class="spinner"></span>Loading articles...</div>
+  <div class="gen-grid">
+    <div class="gen-field">
+      <label class="gen-label">Lingua / Язык</label>
+      <select class="gen-select" id="genLang">
+        <option value="russo">🇷🇺 Russo</option>
+        <option value="italiano">🇮🇹 Italiano</option>
+        <option value="inglese">🇬🇧 English</option>
+      </select>
+    </div>
+    <div class="gen-field">
+      <label class="gen-label">Mercato / Рынок</label>
+      <select class="gen-select" id="genMarket">
+        <option value="forex">Forex — EUR/USD, GBP/USD, USD/JPY</option>
+        <option value="commodities">Commodities — Gold, Oil, Gas, Silver</option>
+        <option value="equity">Equity — S&amp;P 500, Nasdaq, Dow Jones</option>
+        <option value="crypto">Crypto — Bitcoin, Ethereum</option>
+        <option value="macro">Macro — Fed, BCE, tassi, inflazione</option>
+        <option value="geopolitics">Geopolitica &amp; Mercati</option>
+        <option value="multi">Multi-mercato (overview globale)</option>
+      </select>
+    </div>
+    <div class="gen-field">
+      <label class="gen-label">Tecnica / Метод</label>
+      <select class="gen-select" id="genTech">
+        <option value="elliott">Elliott Wave Theory</option>
+        <option value="technical">Analisi Tecnica (supporti, pattern, trend)</option>
+        <option value="orderflow">Order Flow &amp; Volume Profile</option>
+        <option value="macro_analysis">Analisi Macroeconomica</option>
+        <option value="sentiment">Sentiment &amp; Posizionamento</option>
+        <option value="educational">Educativo / Didattico</option>
+        <option value="outlook">Outlook &amp; Scenari</option>
+      </select>
+    </div>
+    <div class="gen-field">
+      <label class="gen-label">Stile / Стиль</label>
+      <select class="gen-select" id="genTone">
+        <option value="istituzionale">Istituzionale &amp; Professionale</option>
+        <option value="bloomberg">Bloomberg Terminal Style</option>
+        <option value="research">Research Report</option>
+        <option value="educativo">Educativo &amp; Chiaro</option>
+      </select>
+    </div>
+    <div class="gen-field">
+      <label class="gen-label">Lunghezza / Длина</label>
+      <select class="gen-select" id="genLength">
+        <option value="media">Media (600-800 parole)</option>
+        <option value="breve">Breve (300-400 parole)</option>
+        <option value="lunga">Lunga (1000+ parole)</option>
+      </select>
+    </div>
+    <div class="gen-field">
+      <label class="gen-label">Topic specifico (opzionale)</label>
+      <input class="gen-input" id="genTopic" type="text" placeholder="es. EUR/USD onde di Elliott, Gold scenario rialzista...">
+    </div>
+  </div>
+  <div class="gen-actions">
+    <button class="btn-generate" id="generateBtn" onclick="generateArticle()">
+      <span id="btnIcon">✦</span>
+      <span id="btnText">Genera Articolo</span>
+    </button>
+    <span class="gen-status" id="genStatus"></span>
+  </div>
+</section>
+
+<div class="article-display" id="articleDisplay">
+  <div class="article-cat" id="artCategory"></div>
+  <h1 class="article-title" id="artTitle"></h1>
+  <div class="article-meta">
+    <span id="artDate"></span>
+    <span id="artReadTime"></span>
+    <span>✦ Generato da AI — XenosFinance</span>
+  </div>
+  <div class="article-body" id="artBody"></div>
+  <div class="edit-mode-banner" id="editBanner">
+    ✎ EDIT MODE ACTIVE — Click on title or body to edit directly
+    <button class="btn-done-edit" onclick="toggleEdit()">✓ Done</button>
+  </div>
+  <div class="article-actions">
+    <button class="btn-action" onclick="copyArticle()">📋 Copia testo</button>
+    <button class="btn-action" onclick="generateArticle()">✦ Nuovo articolo</button>
+    <button class="btn-action" id="editBtn" onclick="toggleEdit()" style="border-color:var(--gold);color:var(--gold);font-weight:600;">✎ Edit</button>
+    <button class="btn-publish" id="publishBtn" onclick="publishToBlog()"><span id="pubIcon">✦</span> Pubblica nel blog</button>
+    <button class="btn-telegram" onclick="toggleTgConfig()">✈ Invia su Telegram</button>
+  </div>
+  <div class="gen-status" id="publishStatus" style="margin-top:10px;display:block;font-size:0.75rem;"></div>
+  <div class="tg-config" id="tgConfig">
+    <div class="tg-config-title">// Configurazione Telegram</div>
+    <div class="tg-fields">
+      <div class="gen-field">
+        <label class="gen-label">Bot Token</label>
+        <input class="gen-input" id="tgToken" type="password" placeholder="123456789:AAF...">
+      </div>
+      <div class="gen-field">
+        <label class="gen-label">Channel ID</label>
+        <input class="gen-input" id="tgChannel" type="text" placeholder="@xenosfin o -100123456789">
+      </div>
+    </div>
+    <button class="btn-telegram" id="tgSendBtn" onclick="sendToTelegram()">✈ Invia ora</button>
+    <span class="gen-status" id="tgStatus" style="margin-left:14px"></span>
+    <div class="tg-note">⚠ Token salvato solo nel browser. Il bot deve essere admin del canale.</div>
   </div>
 </div>
 
-<!-- SINGLE ARTICLE -->
-<div id="articleView">
-  <button class="back-btn" onclick="showGrid()">← Back to articles</button>
-  <div class="article-cat" id="artCat"></div>
-  <h1 class="article-title" id="artTitle"></h1>
-  <div class="article-meta" id="artMeta"></div>
-  <div class="article-body" id="artBody"></div>
-  <div class="article-share">
-    <span class="share-label">Follow us:</span>
-    <a class="btn-tg" href="https://t.me/xenosfin" target="_blank">✈ Telegram @xenosfin</a>
+</div><!-- /adminPanel -->
+
+<section class="section-wrap">
+  <div class="section-header">
+    <span class="section-title">// Articoli pubblicati</span>
+    <div class="section-line"></div>
+    <span class="section-title">ARCHIVIO</span>
   </div>
-  <div class="disclaimer">⚠ This article is generated by artificial intelligence for informational purposes only. It does not constitute financial advice. Always do your own research before making investment decisions.</div>
-</div>
+  <div class="blog-grid" id="blogGrid">
+    <div class="blog-card">
+      <div class="card-num">001</div><div class="card-cat">Elliott Wave · Equity</div>
+      <div class="card-title">S&amp;P 500: struttura delle onde nel Q1 2026</div>
+      <div class="card-excerpt">Analisi dell'onda impulsiva corrente e livelli chiave per la correzione.</div>
+      <div class="card-footer"><span>6 min</span><span class="card-read">Leggi →</span></div>
+    </div>
+    <div class="blog-card">
+      <div class="card-num">002</div><div class="card-cat">Macro · Outlook</div>
+      <div class="card-title">Fed e tassi: scenari per i mercati nel 2026</div>
+      <div class="card-excerpt">Analisi delle probabili decisioni Fed e impatto su azioni, oro e dollaro.</div>
+      <div class="card-footer"><span>7 min</span><span class="card-read">Leggi →</span></div>
+    </div>
+    <div class="blog-card">
+      <div class="card-num">003</div><div class="card-cat">Elliott Wave · Commodities</div>
+      <div class="card-title">Gold: scenario rialzista e livelli di invalidazione</div>
+      <div class="card-excerpt">Order flow e struttura tecnica sull'oro. Target, stop e bias direzionale.</div>
+      <div class="card-footer"><span>5 min</span><span class="card-read">Leggi →</span></div>
+    </div>
+  </div>
+</section>
 
 <footer>
   <div class="footer-logo">XENOS<span>FINANCE</span></div>
-  <div class="footer-note">© XENOSFINANCE 2026 · AI Blog<br>⚠ Not investment advice</div>
+  <div class="footer-note">© XENOSFINANCE 2026 · AI Blog<br>⚠ Non costituisce consulenza finanziaria</div>
 </footer>
 
-<div class="legal-disclaimer">
-  <strong>RISK WARNING & LEGAL DISCLAIMER</strong> —
-  XenosFinance is an independent financial research and education platform. All content published on this website, including articles, analyses, Elliott Wave counts, signals, market commentary, and AI-generated content, is provided for <strong>informational and educational purposes only</strong> and does not constitute investment advice, financial advice, trading advice, or any other type of advice. XenosFinance is not a licensed investment advisor, broker, or financial institution regulated under MiFID II or any other regulatory framework.
-  Trading CFDs, forex, equities, commodities, and cryptocurrencies involves a <strong>significant risk of loss</strong> and may not be suitable for all investors. Leveraged products can result in losses exceeding your initial deposit. Past performance is not indicative of future results. You should never invest money you cannot afford to lose.
-  Always conduct your own independent research and seek advice from a qualified financial advisor before making any investment decision. XenosFinance accepts no liability for any loss or damage arising from reliance on information contained on this platform.
-  © 2026 XenosFinance · All rights reserved · Not investment advice
-</div>
-
 <script>
-const GITHUB_RAW = "https://raw.githubusercontent.com/xenosfinance-prog/waves/main/";
-const monthsEN = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-
-function fromBase64(b64) {
-  var bin = atob(b64.replace(/\n/g,''));
-  var bytes = new Uint8Array(bin.length);
-  for (var i=0; i<bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  return new TextDecoder().decode(bytes);
-}
-
-var d0 = new Date();
-document.getElementById('headerDate').textContent = monthsEN[d0.getMonth()].toUpperCase() + ' ' + d0.getDate() + ', ' + d0.getFullYear();
-
-var urlSlug = new URLSearchParams(window.location.search).get('slug');
-
-async function loadGrid() {
-  try {
-    var res = await fetch(GITHUB_RAW + 'articles/index.json?t=' + Date.now());
-    if (!res.ok) throw new Error('Index not found');
-    var articles = await res.json();
-    var grid = document.getElementById('blogGrid');
-    if (!articles || articles.length === 0) {
-      grid.innerHTML = '<div class="empty-state">No articles published yet.<br>Check back soon.</div>';
-      return;
-    }
-    document.getElementById('articleCount').textContent = articles.length + ' ARTICLES';
-    grid.innerHTML = '';
-    articles.forEach(function(a, i) {
-      var card = document.createElement('div');
-      card.className = 'blog-card';
-      var dateStr = '';
-      if (a.publishedAt) {
-        var d = new Date(a.publishedAt);
-        dateStr = monthsEN[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear();
-      }
-      card.innerHTML =
-        '<div class="card-num">' + String(i+1).padStart(3,'0') + '</div>' +
-        '<div class="card-cat">' + (a.category||'') + '</div>' +
-        '<div class="card-title">' + a.title + '</div>' +
-        '<div class="card-excerpt">' + (a.excerpt||'').substring(0,120) + '...</div>' +
-        '<div class="card-footer"><span>' + (a.readTime||'') + '</span><span class="card-read">Read →</span></div>';
-      card.onclick = function(){ loadArticle(a.slug); };
-      grid.appendChild(card);
-    });
-  } catch(err) {
-    document.getElementById('blogGrid').innerHTML = '<div class="empty-state">Error loading articles.<br>' + err.message + '</div>';
-  }
-}
-
-async function loadArticle(slug) {
-  document.getElementById('gridView').style.display = 'none';
-  document.getElementById('articleView').style.display = 'block';
-  document.getElementById('artBody').innerHTML = '<div class="loading"><span class="spinner"></span>Loading article...</div>';
-  window.scrollTo(0,0);
-  history.pushState({slug:slug}, '', '?slug=' + slug);
-  try {
-    var res = await fetch(GITHUB_RAW + 'articles/' + slug + '.json?t=' + Date.now());
-    if (!res.ok) throw new Error('Article not found');
-    var a = await res.json();
-    document.getElementById('artCat').textContent = a.categoryLabel || a.category || '';
-    document.getElementById('artTitle').textContent = a.title;
-    var dateStr = '';
-    if (a.publishedAt) {
-      var d = new Date(a.publishedAt);
-      dateStr = monthsEN[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear();
-    }
-    document.getElementById('artMeta').innerHTML =
-      '<span>📅 ' + dateStr + '</span>' +
-      '<span>⏱ ' + (a.readTime||'') + '</span>' +
-      '<span>✦ Generated by AI — XenosFinance</span>';
-    var html = '<p>' + (a.intro||'') + '</p>';
-    if (a.sections) {
-      a.sections.forEach(function(s){ html += '<h2>' + s.heading + '</h2><p>' + s.content + '</p>'; });
-    }
-    if (a.quote) html += '<blockquote>' + a.quote + '</blockquote>';
-    if (a.conclusion) html += '<h3>// Conclusion</h3><p>' + a.conclusion + '</p>';
-    document.getElementById('artBody').innerHTML = html;
-    document.title = a.title + ' — XenosFinance AI Blog';
-  } catch(err) {
-    document.getElementById('artBody').innerHTML = '<p style="color:#e74c3c">Error: ' + err.message + '</p>';
-  }
-}
-
-function showGrid() {
-  document.getElementById('articleView').style.display = 'none';
-  document.getElementById('gridView').style.display = 'block';
-  history.pushState({}, '', window.location.pathname);
-  document.title = 'XenosFinance — AI Blog';
-  window.scrollTo(0,0);
-}
-
-window.onpopstate = function(e) {
-  if (e.state && e.state.slug) {
-    loadArticle(e.state.slug);
-  } else {
-    showGrid();
-  }
-};
-
-if (urlSlug) {
-  loadArticle(urlSlug);
-} else {
-  loadGrid();
-}
-
+// ── LOGIN ──
 var isAdmin = false;
 
 function openLogin() {
   if (isAdmin) {
-    window.location.href = 'XenosBlogAdmin';
+    // already logged in, toggle admin panel
+    document.getElementById('adminPanel').style.display =
+      document.getElementById('adminPanel').style.display === 'none' ? 'block' : 'none';
   } else {
     document.getElementById('loginScreen').style.display = 'flex';
     setTimeout(function(){ document.getElementById('loginPw').focus(); }, 100);
   }
 }
 
+// Auto-login if coming from XenosBlog with valid session
+window.addEventListener('DOMContentLoaded', function() {
+  if (sessionStorage.getItem('xf_admin') === 'true') {
+    isAdmin = true;
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('adminPanel').style.display = 'block';
+  }
+});
+
 function doLogin() {
   if (document.getElementById('loginPw').value === 'xenosfinance2026') {
     isAdmin = true;
     sessionStorage.setItem('xf_admin', 'true');
     document.getElementById('loginScreen').style.display = 'none';
-    window.location.href = 'XenosBlogAdmin';
+    document.getElementById('adminPanel').style.display = 'block';
+    document.getElementById('adminPanel').scrollIntoView({ behavior:'smooth' });
   } else {
-    document.getElementById('loginErr').textContent = '⚠ Wrong password';
+    document.getElementById('loginErr').textContent = '⚠ Password errata';
     document.getElementById('loginPw').value = '';
   }
 }
 
+// ── CONFIG ──
+const GITHUB_REPO   = "xenosfinance-prog/waves";
+const GITHUB_BRANCH = "main";
+const WORKER_URL    = "https://xenos-ai-proxy.xenosfinance.workers.dev";
+
+const monthsIT = ['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'];
+const monthsRU = ['ЯНВАРЯ','ФЕВРАЛЯ','МАРТА','АПРЕЛЯ','МАЯ','ИЮНЯ','ИЮЛЯ','АВГУСТА','СЕНТЯБРЯ','ОКТЯБРЯ','НОЯБРЯ','ДЕКАБРЯ'];
+const d0 = new Date();
+document.getElementById('headerDate').textContent = d0.getDate() + ' ' + monthsRU[d0.getMonth()] + ' ' + d0.getFullYear() + ' Г.';
+
+let currentArticle = null;
+let cardCount = 3;
+
+// ── UNICODE BASE64 ──
+function toBase64(str) {
+  const bytes = new TextEncoder().encode(str);
+  let bin = '';
+  bytes.forEach(function(b){ bin += String.fromCharCode(b); });
+  return btoa(bin);
+}
+function fromBase64(b64) {
+  const bin = atob(b64.replace(/\n/g,''));
+  const bytes = new Uint8Array(bin.length);
+  for (var i=0; i<bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new TextDecoder().decode(bytes);
+}
+
+// ── PROMPT ──
+function buildPrompt(lang, market, tech, tone, length, topic) {
+  var langInstr = { russo:'russo (termini tecnici finanziari in inglese)', italiano:'italiano professionale', inglese:'English (professional financial tone)' };
+  var marketDesc = { forex:'Forex — EUR/USD, GBP/USD, USD/JPY, ecc.', commodities:'Commodities — oro, petrolio WTI, gas naturale, argento', equity:'Mercati azionari — S&P 500, Nasdaq, Dow Jones', crypto:'Criptovalute — Bitcoin, Ethereum', macro:'Macroeconomia — banche centrali, tassi, inflazione', geopolitics:'Geopolitica e impatto sui mercati finanziari', multi:'Overview globale multi-mercato' };
+  var techDesc = { elliott:'Elliott Wave Theory — onde impulsive e correttive, conteggio, target, invalidazione', technical:'Analisi Tecnica — supporti, resistenze, pattern, RSI, MACD, medie mobili', orderflow:'Order Flow e Volume Profile — volumi, liquidità, delta, imbalance', macro_analysis:'Analisi Macroeconomica — dati economici, banche centrali, correlazioni', sentiment:'Sentiment e posizionamento istituzionale — COT, fear&greed', educational:'Articolo educativo — spiega concetti in modo chiaro', outlook:'Outlook e scenari direzionali con probabilità e catalizzatori' };
+  var lengthDesc = { breve:'300-400 parole, conciso', media:'600-800 parole, bilanciato', lunga:'1000-1200 parole, approfondito' };
+  var topicLine = topic ? 'Argomento specifico: "' + topic + '"' : 'Scegli un argomento attuale su ' + marketDesc[market];
+  return 'Sei un analista finanziario senior di livello istituzionale per XenosFinance. Scrivi un articolo in lingua ' + langInstr[lang] + ' sul mercato: ' + marketDesc[market] + '. Tecnica: ' + techDesc[tech] + '. Stile: ' + tone + ', professionale come Bloomberg o Il Sole 24 Ore. Lunghezza: ' + lengthDesc[length] + '. ' + topicLine + '.\n\nRispondi SOLO con JSON valido, senza markdown, senza testo fuori dal JSON.\n\n{"title":"titolo","readTime":"X min lettura","intro":"paragrafo intro","sections":[{"heading":"Sezione 1","content":"testo 1"},{"heading":"Sezione 2","content":"testo 2"},{"heading":"Sezione 3","content":"testo 3"}],"quote":"citazione o statistica","conclusion":"conclusione con outlook","excerpt":"riassunto 15-20 parole"}';
+}
+
+// ── GENERA ──
+async function generateArticle() {
+  var btn = document.getElementById('generateBtn');
+  var btnText = document.getElementById('btnText');
+  var btnIcon = document.getElementById('btnIcon');
+  var status = document.getElementById('genStatus');
+  var lang   = document.getElementById('genLang').value;
+  var market = document.getElementById('genMarket').value;
+  var tech   = document.getElementById('genTech').value;
+  var tone   = document.getElementById('genTone').value;
+  var length = document.getElementById('genLength').value;
+  var topic  = document.getElementById('genTopic').value.trim();
+
+  btn.disabled = true;
+  btnIcon.innerHTML = '<div class="spinner"></div>';
+  btnText.textContent = 'Generazione...';
+  status.textContent = 'Connessione AI...';
+
+  var marketLabels = { forex:'FOREX', commodities:'COMMODITIES', equity:'EQUITY', crypto:'CRYPTO', macro:'MACRO', geopolitics:'GEOPOLITICA', multi:'MULTI-MARKET' };
+  var techLabels = { elliott:'ELLIOTT WAVE', technical:'ANALISI TECNICA', orderflow:'ORDER FLOW', macro_analysis:'MACRO', sentiment:'SENTIMENT', educational:'EDUCATIVO', outlook:'OUTLOOK' };
+
+  try {
+    status.textContent = 'Scrittura articolo...';
+    var response = await fetch(WORKER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 2500, messages: [{ role: 'user', content: buildPrompt(lang,market,tech,tone,length,topic) }] })
+    });
+    if (!response.ok) throw new Error('HTTP ' + response.status);
+    var data = await response.json();
+    if (data.error) throw new Error(data.error);
+    var text = data.content.map(function(i){ return i.text||''; }).join('');
+    var m = text.match(/\{[\s\S]*\}/);
+    if (!m) throw new Error('JSON non trovato');
+    var article = JSON.parse(m[0]);
+    currentArticle = Object.assign({}, article, {
+      categoryLabel: marketLabels[market] + ' · ' + techLabels[tech],
+      market: market, tech: tech, lang: lang, date: new Date().toISOString()
+    });
+    renderArticle(currentArticle);
+    status.textContent = '✓ Articolo generato!';
+    setTimeout(function(){ status.textContent=''; }, 3000);
+  } catch(err) {
+    status.textContent = '⚠ Errore: ' + err.message;
+    console.error(err);
+  }
+  btn.disabled = false;
+  btnIcon.textContent = '✦';
+  btnText.textContent = 'Genera Articolo';
+}
+
+// ── RENDER ──
+function renderArticle(a) {
+  document.getElementById('artCategory').textContent = a.categoryLabel;
+  document.getElementById('artTitle').textContent = a.title;
+  document.getElementById('artReadTime').textContent = '⏱ ' + a.readTime;
+  var d = new Date();
+  document.getElementById('artDate').textContent = '📅 ' + d.getDate() + ' ' + monthsIT[d.getMonth()] + ' ' + d.getFullYear();
+  var html = '<p>' + a.intro + '</p>';
+  a.sections.forEach(function(s){ html += '<h2>' + s.heading + '</h2><p>' + s.content + '</p>'; });
+  html += '<blockquote>' + a.quote + '</blockquote><h3>// Conclusione</h3><p>' + a.conclusion + '</p>';
+  document.getElementById('artBody').innerHTML = html;
+  document.getElementById('publishStatus').textContent = '';
+  var display = document.getElementById('articleDisplay');
+  display.classList.add('visible');
+  display.scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+// ── GITHUB REQUEST ──
+async function githubRequest(url, method, payload) {
+  var res = await fetch(WORKER_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type:'github', url:url, method:method||'GET', payload:payload||null })
+  });
+  var data = await res.json();
+  if (data && typeof data.status === 'number') return data;
+  return { status: res.ok ? 200 : res.status, data: data };
+}
+
+// ── PUBBLICA ──
+async function publishToBlog() {
+  if (!currentArticle) return;
+  var btn = document.getElementById('publishBtn');
+  var icon = document.getElementById('pubIcon');
+  var status = document.getElementById('publishStatus');
+  btn.disabled = true;
+  icon.innerHTML = '<div class="spinner-gold"></div>';
+  status.textContent = 'Pubblicazione in corso...';
+  status.style.color = 'var(--gold)';
+
+  try {
+    var apiBase = 'https://api.github.com/repos/' + GITHUB_REPO + '/contents';
+    var indexPath = 'articles/index.json';
+    var existingArticles = [];
+    var indexSha = null;
+
+    // 1. Leggi indice
+    var idxRes = await githubRequest(apiBase + '/' + indexPath, 'GET');
+    if (idxRes.status === 200 && idxRes.data && idxRes.data.content) {
+      indexSha = idxRes.data.sha;
+      existingArticles = JSON.parse(fromBase64(idxRes.data.content));
+    }
+
+    // 2. Salva articolo
+    var slug = 'article-' + Date.now();
+    var articleData = Object.assign({}, currentArticle, { slug:slug, publishedAt:new Date().toISOString() });
+    var saveRes = await githubRequest(apiBase + '/articles/' + slug + '.json', 'PUT', {
+      message: 'Blog: ' + currentArticle.title,
+      content: toBase64(JSON.stringify(articleData, null, 2)),
+      branch: GITHUB_BRANCH
+    });
+    if (saveRes.status !== 200 && saveRes.status !== 201) {
+      var errMsg = saveRes.data && saveRes.data.message ? saveRes.data.message : String(saveRes.status);
+      throw new Error('Salvataggio: ' + errMsg);
+    }
+
+    // 3. Aggiorna indice
+    var newEntry = { slug:slug, title:currentArticle.title, excerpt:currentArticle.excerpt||currentArticle.intro.substring(0,120), category:currentArticle.categoryLabel, market:currentArticle.market, tech:currentArticle.tech, lang:currentArticle.lang, readTime:currentArticle.readTime, publishedAt:articleData.publishedAt };
+    existingArticles.unshift(newEntry);
+    var idxPayload = { message:'Indice blog', content:toBase64(JSON.stringify(existingArticles,null,2)), branch:GITHUB_BRANCH };
+    if (indexSha) idxPayload.sha = indexSha;
+    var idxRes2 = await githubRequest(apiBase + '/' + indexPath, 'PUT', idxPayload);
+    if (idxRes2.status !== 200 && idxRes2.status !== 201) {
+      var errMsg2 = idxRes2.data && idxRes2.data.message ? idxRes2.data.message : String(idxRes2.status);
+      throw new Error('Indice: ' + errMsg2);
+    }
+
+    status.textContent = '✓ Pubblicato con successo!';
+    status.style.color = 'var(--gold-light)';
+    cardCount++;
+    var grid = document.getElementById('blogGrid');
+    var card = document.createElement('div');
+    card.className = 'blog-card';
+    card.innerHTML = '<div class="card-num">'+String(cardCount).padStart(3,'0')+'</div><div class="card-cat">'+currentArticle.categoryLabel+'</div><div class="card-title">'+currentArticle.title+'</div><div class="card-excerpt">'+(newEntry.excerpt)+'...</div><div class="card-footer"><span>'+currentArticle.readTime+'</span><span class="card-read">Leggi →</span></div>';
+      card.onclick = function(){ window.open('XenosBlog.html?slug='+slug,'_blank'); };
+    grid.insertBefore(card, grid.firstChild);
+
+  } catch(err) {
+    status.textContent = '⚠ Errore: ' + err.message;
+    status.style.color = '#e74c3c';
+    console.error('Publish error:', err);
+  }
+  btn.disabled = false;
+  icon.textContent = '✦';
+}
+
+// ── COPIA ──
+function copyArticle() {
+  if (!currentArticle) return;
+  var text = currentArticle.title + '\n\n' + currentArticle.intro + '\n\n';
+  currentArticle.sections.forEach(function(s){ text += s.heading + '\n' + s.content + '\n\n'; });
+  text += currentArticle.quote + '\n\n' + currentArticle.conclusion;
+  navigator.clipboard.writeText(text).then(function(){ alert('Articolo copiato!'); });
+}
+
+// ── TELEGRAM ──
+function toggleTgConfig() { document.getElementById('tgConfig').classList.toggle('open'); }
+
+async function sendToTelegram() {
+  if (!currentArticle) return;
+  var token   = document.getElementById('tgToken').value.trim();
+  var channel = document.getElementById('tgChannel').value.trim();
+  var tgStatus = document.getElementById('tgStatus');
+  var btn = document.getElementById('tgSendBtn');
+  if (!token || !channel) { tgStatus.textContent = '⚠ Inserisci token e channel ID'; return; }
+  btn.disabled = true;
+  tgStatus.textContent = 'Invio...';
+  var msg = '*' + currentArticle.title + '*\n\n_' + currentArticle.categoryLabel + ' · XenosFinance_\n\n' + currentArticle.intro + '\n\n';
+  currentArticle.sections.forEach(function(s){ msg += '*' + s.heading + '*\n' + s.content + '\n\n'; });
+  msg += '_"' + currentArticle.quote + '"_\n\n✦ ' + currentArticle.conclusion + '\n\n━━━━━━━━━━━━━━━\n📡 [XenosFinance](https://t.me/xenosfin) — Elliott Wave, analisi, macro\n🔔 Attiva le notifiche per non perdere aggiornamenti';
+  try {
+    var res = await fetch('https://api.telegram.org/bot' + token + '/sendMessage', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ chat_id:channel, text:msg, parse_mode:'Markdown', disable_web_page_preview:true,
+        reply_markup:{ inline_keyboard:[[{text:'✦ AI Blog',url:'https://xenosfinance.com/XenosBlog'},{text:'📊 Grafici',url:'https://xenosfinance.com/xenoswaves_charts'},{text:'📰 News',url:'https://xenosfinance.com'}]] }
+      })
+    });
+    var data = await res.json();
+    if (data.ok) { tgStatus.textContent='✓ Pubblicato nel canale!'; document.getElementById('tgConfig').classList.remove('open'); }
+    else tgStatus.textContent = '⚠ ' + (data.description||'Controlla il token');
+  } catch(e) { tgStatus.textContent = '⚠ Errore di connessione'; }
+  btn.disabled = false;
+  setTimeout(function(){ tgStatus.textContent=''; }, 5000);
+}
+
+// ── PREVIEW ──
+
+let editMode = false;
+function toggleEdit() {
+  editMode = !editMode;
+  const title  = document.getElementById('artTitle');
+  const body   = document.getElementById('artBody');
+  const banner = document.getElementById('editBanner');
+  const btn    = document.getElementById('editBtn');
+
+  if (editMode) {
+    title.contentEditable = 'true';
+    body.contentEditable  = 'true';
+    banner.classList.add('active');
+    btn.textContent = '✓ Done';
+    btn.style.background = 'rgba(122,82,0,0.1)';
+    title.focus();
+  } else {
+    title.contentEditable = 'false';
+    body.contentEditable  = 'false';
+    banner.classList.remove('active');
+    btn.textContent = '✎ Edit';
+    btn.style.background = '';
+    // Save edits back to internal state so publish picks them up
+    if (window.currentArticle) {
+      // Sync title back to currentArticle
+      currentArticle.title = title.textContent.trim();
+      // Sync body: store edited HTML as intro so publish/telegram use it
+      currentArticle.intro = body.innerText.substring(0, 300);
+      currentArticle._editedBody = body.innerHTML;  // full edited HTML
+    }
+  }
+}
+
+function openPreview() {
+  if (!currentArticle) return;
+  var a = currentArticle, d = new Date();
+  var html = '<div class="p-cat">' + a.categoryLabel + '</div>';
+  html += '<div class="p-title">' + a.title + '</div>';
+  html += '<div class="p-meta"><span>📅 ' + d.getDate() + ' ' + monthsIT[d.getMonth()] + ' ' + d.getFullYear() + '</span><span>⏱ ' + a.readTime + '</span><span>✦ XenosFinance AI</span></div>';
+  html += '<p>' + a.intro + '</p>';
+  a.sections.forEach(function(s){ html += '<h2>' + s.heading + '</h2><p>' + s.content + '</p>'; });
+  html += '<blockquote>' + a.quote + '</blockquote><h3>// Conclusione</h3><p>' + a.conclusion + '</p>';
+  document.getElementById('previewBody').innerHTML = html;
+  document.getElementById('previewOverlay').classList.add('open');
+}
+function closePreview() { document.getElementById('previewOverlay').classList.remove('open'); }
+document.addEventListener('click', function(e){ if(e.target===document.getElementById('previewOverlay')) closePreview(); });
 </script>
+
+<!-- PREVIEW MODAL -->
+<div class="preview-overlay" id="previewOverlay">
+  <div class="preview-modal">
+    <div class="preview-modal-head">
+      <span class="preview-modal-title">// Anteprima — rivedi prima di pubblicare</span>
+      <button class="preview-modal-close" onclick="closePreview()">✕ Chiudi</button>
+    </div>
+    <div class="preview-modal-body" id="previewBody"></div>
+    <div class="preview-modal-foot">
+      <button class="btn-prev-pub" onclick="closePreview();publishToBlog()">✦ Pubblica nel blog</button>
+      <button class="btn-prev-tg" onclick="closePreview();setTimeout(()=>{toggleTgConfig();document.getElementById('articleDisplay').scrollIntoView({behavior:'smooth'})},100)">✈ Invia Telegram</button>
+      <span class="prev-note">Controlla il contenuto, poi scegli dove pubblicare</span>
+    </div>
+  </div>
+</div>
 </body>
 </html>
