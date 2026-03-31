@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>XenosFinance — AI Блог Admin</title>
+<title>XenosFinance — AI Blog Admin</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=IBM+Plex+Mono:wght@300;400;500&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -157,18 +157,18 @@
   </div>
   <nav>
     <a href="https://xenosfinance.com">📰 News</a>
-    <a href="https://xenosfinance.com/xenoswaves_charts">📊 Charts</a>
-    <a href="https://xenosfinance.com/XenosBlog">✦ AI Blog</a>
-    <a href="https://xenosfinance.com/signals">📡 Signals</a>
+    <a href="https://xenosfinance.com/dashboard">📊 Dashboard</a>
+    <a href="https://xenosfinance.com/xenoswaves_charts">◈ Charts</a>
+    <a href="https://xenosfinance.com/XenosBlog" class="active">✦ AI Blog</a>
+    <a href="https://xenosfinance.com/trading-signals">📡 Live Signals</a>
     <a href="https://xenosfinance.com/calendar">🗓 Calendar</a>
-  
     <a href="https://xenosfinance.com/elliottwave">〜 Elliott Wave</a>
   </nav>
 </header>
 
 <section class="hero">
-  <div class="hero-eyebrow">// Генератор статей — искусственный интеллект</div>
-  <h1 class="hero-title">AI Блог<br><span>XenosFinance</span></h1>
+  <div class="hero-eyebrow">// AI Article Generator — Artificial Intelligence</div>
+  <h1 class="hero-title">AI Blog<br><span>XenosFinance</span></h1>
   <p class="hero-sub">Genera articoli professionali sui mercati finanziari. Scegli mercato, tecnica di analisi, lingua e topic — l'AI crea l'articolo in pochi secondi.</p>
 </section>
 
@@ -291,24 +291,7 @@
     <span class="section-title">ARCHIVIO</span>
   </div>
   <div class="blog-grid" id="blogGrid">
-    <div class="blog-card">
-      <div class="card-num">001</div><div class="card-cat">Elliott Wave · Equity</div>
-      <div class="card-title">S&amp;P 500: struttura delle onde nel Q1 2026</div>
-      <div class="card-excerpt">Analisi dell'onda impulsiva corrente e livelli chiave per la correzione.</div>
-      <div class="card-footer"><span>6 min</span><span class="card-read">Leggi →</span></div>
-    </div>
-    <div class="blog-card">
-      <div class="card-num">002</div><div class="card-cat">Macro · Outlook</div>
-      <div class="card-title">Fed e tassi: scenari per i mercati nel 2026</div>
-      <div class="card-excerpt">Analisi delle probabili decisioni Fed e impatto su azioni, oro e dollaro.</div>
-      <div class="card-footer"><span>7 min</span><span class="card-read">Leggi →</span></div>
-    </div>
-    <div class="blog-card">
-      <div class="card-num">003</div><div class="card-cat">Elliott Wave · Commodities</div>
-      <div class="card-title">Gold: scenario rialzista e livelli di invalidazione</div>
-      <div class="card-excerpt">Order flow e struttura tecnica sull'oro. Target, stop e bias direzionale.</div>
-      <div class="card-footer"><span>5 min</span><span class="card-read">Leggi →</span></div>
-    </div>
+    <div style="grid-column:1/-1;text-align:center;padding:40px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--gold);letter-spacing:2px;">⬡ LOADING ARTICLES...</div>
   </div>
 </section>
 
@@ -339,6 +322,7 @@ window.addEventListener('DOMContentLoaded', function() {
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('adminPanel').style.display = 'block';
   }
+  loadArticlesFromGitHub();
 });
 
 function doLogin() {
@@ -348,6 +332,7 @@ function doLogin() {
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('adminPanel').style.display = 'block';
     document.getElementById('adminPanel').scrollIntoView({ behavior:'smooth' });
+    loadArticlesFromGitHub();
   } else {
     document.getElementById('loginErr').textContent = '⚠ Password errata';
     document.getElementById('loginPw').value = '';
@@ -359,13 +344,48 @@ const GITHUB_REPO   = "xenosfinance-prog/waves";
 const GITHUB_BRANCH = "main";
 const WORKER_URL    = "https://xenos-ai-proxy.xenosfinance.workers.dev";
 
-const monthsIT = ['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'];
-const monthsRU = ['ЯНВАРЯ','ФЕВРАЛЯ','МАРТА','АПРЕЛЯ','МАЯ','ИЮНЯ','ИЮЛЯ','АВГУСТА','СЕНТЯБРЯ','ОКТЯБРЯ','НОЯБРЯ','ДЕКАБРЯ'];
+const monthsEN = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const d0 = new Date();
-document.getElementById('headerDate').textContent = d0.getDate() + ' ' + monthsRU[d0.getMonth()] + ' ' + d0.getFullYear() + ' Г.';
+document.getElementById('headerDate').textContent = monthsEN[d0.getMonth()].toUpperCase() + ' ' + d0.getDate() + ', ' + d0.getFullYear();
 
 let currentArticle = null;
-let cardCount = 3;
+let cardCount = 0;
+
+// ── CARICA ARTICOLI DA GITHUB ──
+async function loadArticlesFromGitHub() {
+  const grid = document.getElementById('blogGrid');
+  grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:var(--gold);letter-spacing:2px;">⬡ LOADING ARTICLES...</div>';
+  try {
+    // Use raw GitHub (public repo, no token needed for reading)
+    const res = await fetch('https://raw.githubusercontent.com/' + GITHUB_REPO + '/main/articles/index.json?t=' + Date.now());
+    if (res.status === 404) {
+      grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:var(--text-dim);letter-spacing:2px;">No articles published yet.</div>';
+      return;
+    }
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const articles = await res.json();
+    cardCount = articles.length;
+    if (articles.length === 0) {
+      grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:var(--text-dim);letter-spacing:2px;">No articles published yet.</div>';
+      return;
+    }
+    grid.innerHTML = '';
+    articles.forEach(function(a, i) {
+      var card = document.createElement('div');
+      card.className = 'blog-card';
+      card.innerHTML =
+        '<div class="card-num">' + String(i+1).padStart(3,'0') + '</div>' +
+        '<div class="card-cat">' + (a.category||a.categoryLabel||'') + '</div>' +
+        '<div class="card-title">' + a.title + '</div>' +
+        '<div class="card-excerpt">' + (a.excerpt||'').substring(0,120) + '...</div>' +
+        '<div class="card-footer"><span>' + (a.readTime||'') + '</span><span class="card-read">Leggi →</span></div>';
+      card.onclick = function(){ window.open('XenosBlog?slug=' + a.slug, '_blank'); };
+      grid.appendChild(card);
+    });
+  } catch(e) {
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:#e74c3c;letter-spacing:2px;">⚠ Error loading articles: ' + e.message + '</div>';
+  }
+}
 
 // ── UNICODE BASE64 ──
 function toBase64(str) {
