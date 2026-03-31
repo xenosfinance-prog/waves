@@ -393,39 +393,42 @@ function updateDateTime() {
 }
 
 // ─── QUICK MARKET TICKER ───────────────────────────────────────────────────
-const TICKER_SYMS = [
-  {id:'OIL', yf:'CL%3DF', label:'OIL WTI', dec:2, prefix:'$'},
-  {id:'GOLD', yf:'GC%3DF', label:'GOLD', dec:2, prefix:'$'},
-  {id:'EURUSD', yf:'EURUSD%3DX', label:'EUR/USD', dec:4, prefix:''},
-  {id:'BTCUSD', yf:'BTC-USD', label:'BTC/USD', dec:0, prefix:'$', comma:true},
-  {id:'SPY', yf:'SPY', label:'S&P 500', dec:2, prefix:'$'},
-  {id:'USDJPY', yf:'USDJPY%3DX', label:'USD/JPY', dec:4, prefix:''},
-];
+// Ticker uses Worker — no allorigins needed
+const TICKER_PAIRS = ['USOIL','XAUUSD','EURUSD=X','BTC-USD','SPY','USDJPY=X'];
+const TICKER_META  = {
+  'USOIL':    {label:'OIL WTI', dec:2,  prefix:'$'},
+  'XAUUSD':   {label:'GOLD',    dec:2,  prefix:'$'},
+  'EURUSD=X': {label:'EUR/USD', dec:4,  prefix:''},
+  'BTC-USD':  {label:'BTC/USD', dec:0,  prefix:'$', comma:true},
+  'SPY':      {label:'S&P 500', dec:2,  prefix:'$'},
+  'USDJPY=X': {label:'USD/JPY', dec:4,  prefix:''},
+};
 
 async function loadTicker() {
-  let th = '';
-  for (const s of TICKER_SYMS) {
-    try {
-      const u = `https://query1.finance.yahoo.com/v8/finance/chart/${s.yf}?range=2d&interval=1d`;
-      const p = `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`;
-      const ctrl1 = new AbortController(); setTimeout(()=>ctrl1.abort(),8000);
-      const r = await fetch(p, {signal: ctrl1.signal});
-      if (!r.ok) continue;
-      const d = await r.json();
-      const res = d.chart?.result?.[0];
-      if (!res) continue;
-      const cls = res.indicators.quote[0].close.filter(x => x !== null);
-      if (cls.length < 2) continue;
-      const price = cls[cls.length - 1];
-      const meta = res.meta || {};
-      const prev = parseFloat(meta.previousClose || meta.chartPreviousClose || cls[cls.length - 2]);
-      const chg = ((price - prev) / prev) * 100;
-      const up = chg >= 0;
-      const ps = s.comma ? s.prefix + Math.round(price).toLocaleString('en-US') : s.prefix + price.toFixed(s.dec);
-      th += `<span class="t-item"><span class="t-sym">${s.label}</span><span class="${up ? 't-up' : 't-dn'}">${ps}</span><span class="${up ? 't-up' : 't-dn'}">${up ? '▲ +' : '▼ '}${chg.toFixed(2)}%</span></span>`;
-    } catch(e) {}
-  }
-  if (th) { const ti = document.getElementById('ticker-inner'); if (ti) ti.innerHTML = th + th; }
+  try {
+    const res = await fetch(WORKER_URL, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({type: 'prices', pairs: TICKER_PAIRS}),
+      signal: AbortSignal.timeout(10000)
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    const prices = data.prices || {};
+    let th = '';
+    TICKER_PAIRS.forEach(sym => {
+      const p = prices[sym];
+      if (!p || !p.price) return;
+      const meta = TICKER_META[sym];
+      const up  = (p.change_pct || 0) >= 0;
+      const ps  = meta.comma
+        ? meta.prefix + Math.round(p.price).toLocaleString('en-US')
+        : meta.prefix + p.price.toFixed(meta.dec);
+      const cs  = (p.change_pct || 0).toFixed(2);
+      th += `<span class="t-item"><span class="t-sym">${meta.label}</span><span class="${up?'t-up':'t-dn'}">${ps}</span><span class="${up?'t-up':'t-dn'}">${up?'▲ +':'▼ '}${cs}%</span></span>`;
+    });
+    if (th) { const ti = document.getElementById('ticker-inner'); if (ti) ti.innerHTML = th + th; }
+  } catch(e) { console.warn('Ticker error:', e.message); }
 }
 
 // ─── INIT ──────────────────────────────────────────────────────────────────
@@ -544,51 +547,12 @@ function isoWeekRange(offsetWeeks) {
 }
 
 async function fetchLiveCalendar(weekStr) {
-  // Calculate date range for this/next week
   const offsetWeeks = weekStr === 'nextweek' ? 1 : 0;
   const { from, to } = isoWeekRange(offsetWeeks);
 
-  // Try ForexFactory first
-  try {
-    const r = await fetch(WORKER_URL, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ type: 'forexfactory', week: weekStr }),
-      signal: (()=>{ const c = new AbortController(); setTimeout(()=>c.abort(), 8000); return c.signal; })()
-    });
-    if (r.ok) {
-      const d = await r.json();
-      const events = d.events || [];
-      if (events.length > 0 && !d.error) {
-        let withActuals = 0;
-        events.forEach(ev => {
-          if (!ev.actual) return;
-          withActuals++;
-          const date = (ev.time || '').slice(0, 10);
-          const name = normalizeEventName(ev.event || '');
-          liveByNameDate[name + '|' + date] = ev.actual;
-          const k2 = name.slice(0, 15) + '|' + date;
-          if (!liveByNameDate[k2]) liveByNameDate[k2] = ev.actual;
-        });
-        console.log('[Calendar] ForexFactory ' + weekStr + ': ' + events.length + ' events, ' + withActuals + ' actuals');
-        return;
-      }
-    }
-  } catch(e) { console.warn('ForexFactory failed:', e.message); }
-
-  // Fallback: Investing.com
-  try {
-    const r2 = await fetch(WORKER_URL, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ type: 'investing', from, to }),
-      signal: (()=>{ const c = new AbortController(); setTimeout(()=>c.abort(), 10000); return c.signal; })()
-    });
-    if (!r2.ok) return;
-    const d2 = await r2.json();
-    const events2 = d2.events || [];
+  function ingestEvents(events, source) {
     let withActuals = 0;
-    events2.forEach(ev => {
+    events.forEach(ev => {
       if (!ev.actual) return;
       withActuals++;
       const date = (ev.time || '').slice(0, 10);
@@ -597,8 +561,40 @@ async function fetchLiveCalendar(weekStr) {
       const k2 = name.slice(0, 15) + '|' + date;
       if (!liveByNameDate[k2]) liveByNameDate[k2] = ev.actual;
     });
-    console.log('[Calendar] Investing.com ' + weekStr + ': ' + events2.length + ' events, ' + withActuals + ' actuals');
-  } catch(e) { console.warn('Investing.com fetch:', e.message); }
+    console.log('[Calendar] ' + source + ' ' + weekStr + ': ' + events.length + ' events, ' + withActuals + ' actuals');
+    return withActuals;
+  }
+
+  // 1. ForexFactory
+  try {
+    const r = await fetch(WORKER_URL, {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ type: 'forexfactory', week: weekStr }),
+      signal: (()=>{ const c = new AbortController(); setTimeout(()=>c.abort(), 8000); return c.signal; })()
+    });
+    if (r.ok) {
+      const d = await r.json();
+      const events = d.events || [];
+      if (events.length > 0 && !d.error) {
+        ingestEvents(events, 'ForexFactory');
+        return; // FF worked — no need for fallback
+      }
+    }
+  } catch(e) { console.warn('ForexFactory failed:', e.message); }
+
+  // 2. Finnhub fallback
+  try {
+    const r2 = await fetch(WORKER_URL, {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ type: 'finnhub', action: 'economic_calendar', from, to }),
+      signal: (()=>{ const c = new AbortController(); setTimeout(()=>c.abort(), 10000); return c.signal; })()
+    });
+    if (r2.ok) {
+      const d2 = await r2.json();
+      const events2 = d2.economicCalendar || [];
+      ingestEvents(events2, 'Finnhub');
+    }
+  } catch(e) { console.warn('Finnhub calendar failed:', e.message); }
 }
 
 function getLiveActual(ev) {
