@@ -591,6 +591,150 @@ document.addEventListener('DOMContentLoaded', () => {
   // Auto-refresh every 5 minutes
   setInterval(loadSignals, 300000);
 });
+
+// ── ADMIN STATE ───────────────────────────────────────────────
+let isAdmin = false;
+
+function openAdminLogin() {
+  document.getElementById('admin-popup').classList.add('open');
+  document.getElementById('admin-overlay').classList.add('open');
+  setTimeout(() => document.getElementById('admin-pw').focus(), 100);
+}
+
+function closeAdminLogin() {
+  document.getElementById('admin-popup').classList.remove('open');
+  document.getElementById('admin-overlay').classList.remove('open');
+  document.getElementById('admin-pw').value = '';
+  document.getElementById('admin-err').textContent = '';
+}
+
+function doAdminLogin() {
+  const pw = document.getElementById('admin-pw').value;
+  if (pw === 'xenosfinance2026') {
+    isAdmin = true;
+    closeAdminLogin();
+    document.getElementById('admin-bar').style.display = 'flex';
+    applyFilters(); // re-render with admin controls
+  } else {
+    document.getElementById('admin-err').textContent = '⚠ Password errata';
+    document.getElementById('admin-pw').value = '';
+  }
+}
+
+function adminLogout() {
+  isAdmin = false;
+  document.getElementById('admin-bar').style.display = 'none';
+  applyFilters();
+}
+
+// ── TOAST ─────────────────────────────────────────────────────
+function showToast(msg) {
+  let t = document.getElementById('xf-toast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'xf-toast';
+    t.style.cssText = 'position:fixed;bottom:24px;right:24px;background:#131f2e;border:1px solid #243a5e;padding:12px 20px;font-family:monospace;font-size:11px;color:#e2eaf4;z-index:9999;opacity:0;transition:opacity 0.3s;max-width:300px;pointer-events:none;';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.style.opacity = '1';
+  setTimeout(() => { t.style.opacity = '0'; }, 3000);
+}
+
+// ── SAVE OUTCOME ──────────────────────────────────────────────
+async function saveOutcome(event, i, type) {
+  event.stopPropagation();
+  const sig = filtered[i];
+  if (!sig) return;
+  const selId = type + '-oc-' + i;
+  const outcome = document.getElementById(selId)?.value;
+  if (!outcome) return;
+  const btn = event.currentTarget;
+  const origText = btn.textContent;
+  btn.disabled = true; btn.textContent = '⏳';
+
+  const folder = type === 'options' ? 'signals_options' : 'signals_cfd';
+  const updated = {};
+  Object.keys(sig).forEach(k => { if (!k.startsWith('_')) updated[k] = sig[k]; });
+  updated.outcome = outcome;
+
+  try {
+    // Get current SHA
+    const getRes = await fetch(WORKER, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ type:'github', method:'GET',
+        url:`https://api.github.com/repos/${REPO}/contents/${folder}/${sig._filename}` })
+    });
+    const gd = await getRes.json();
+    const sha = gd.data?.sha;
+    if (!sha) throw new Error('Cannot get file SHA');
+
+    const saveRes = await fetch(WORKER, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ type:'github', method:'PUT',
+        url:`https://api.github.com/repos/${REPO}/contents/${folder}/${sig._filename}`,
+        payload: {
+          message: `outcome: ${sig.pair} ${sig.direction||sig.action} → ${outcome}`,
+          content: btoa(unescape(encodeURIComponent(JSON.stringify(updated, null, 2)))),
+          sha
+        }
+      })
+    });
+    const sd = await saveRes.json();
+    if (sd.status === 200 || sd.status === 201) {
+      sig.outcome = outcome;
+      showToast('✅ ' + (sig.pair||'') + ' → ' + outcome.toUpperCase());
+      applyFilters();
+    } else {
+      throw new Error('Save failed: ' + JSON.stringify(sd.data).slice(0,60));
+    }
+  } catch(e) {
+    showToast('❌ ' + e.message);
+  }
+  btn.disabled = false; btn.textContent = origText;
+}
+
+// ── DELETE SIGNAL ─────────────────────────────────────────────
+async function deleteSignal(event, i, type) {
+  event.stopPropagation();
+  const sig = filtered[i];
+  if (!sig) return;
+  if (!confirm('Delete signal ' + (sig.pair||'') + ' ' + (sig.direction||sig.action||'') + '?')) return;
+  const folder = type === 'options' ? 'signals_options' : 'signals_cfd';
+  const btn = event.currentTarget;
+  btn.disabled = true; btn.textContent = '⏳';
+  try {
+    const getRes = await fetch(WORKER, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({type:'github', method:'GET',
+        url:`https://api.github.com/repos/${REPO}/contents/${folder}/${sig._filename}`})
+    });
+    const gd = await getRes.json();
+    const sha = gd.data?.sha;
+    if (!sha) throw new Error('Cannot get file SHA');
+
+    const delRes = await fetch(WORKER, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({type:'github', method:'DELETE',
+        url:`https://api.github.com/repos/${REPO}/contents/${folder}/${sig._filename}`,
+        payload:{ message:`delete: ${sig.pair}`, sha }})
+    });
+    const dd = await delRes.json();
+    if (dd.status === 200) {
+      const arrType = type === 'options' ? 'options' : 'cfd';
+      allSignals[arrType] = allSignals[arrType].filter(s => s._filename !== sig._filename);
+      document.getElementById('count-' + arrType).textContent = allSignals[arrType].length;
+      showToast('🗑 Signal deleted');
+      applyFilters();
+    } else {
+      throw new Error('Delete failed');
+    }
+  } catch(e) {
+    showToast('❌ ' + e.message);
+    btn.disabled = false; btn.textContent = '🗑 Delete';
+  }
+}
+
 </script>
 </body>
 </html>
