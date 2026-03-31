@@ -526,71 +526,67 @@ Write in Bloomberg terminal style. No bullet points. No headers. Direct and prec
   }
 }
 
-// ── LIVE ACTUALS via Worker (ForexFactory) ─────────────────
+// ── LIVE ACTUALS via Worker (RapidAPI Economic Calendar) ──
 const WORKER_URL = 'https://xenos-ai-proxy.xenosfinance.workers.dev';
-
-// Two caches for robust matching
-let liveByNameDate = {};  // "name_prefix|date" -> actual
-let liveByDateTime = {};  // "date|HH:MM|country" -> {actual, event}
+let liveByNameDate = {};  // "normalizedname|date" -> actual
 
 function normalizeEventName(s) {
-  return s.toLowerCase()
-    .replace(/\s+/g,' ')
-    .replace(/[^a-z0-9 ]/g,'')
-    .trim()
-    .slice(0, 30);
+  return s.toLowerCase().replace(/\s+/g,' ').replace(/[^a-z0-9 ]/g,'').trim().slice(0,30);
 }
 
-async function fetchLiveCalendar(weekStr) {
+function isoWeekRange(offsetWeeks) {
+  const now = new Date();
+  const day = now.getDay() || 7;
+  const mon = new Date(now); mon.setHours(0,0,0,0); mon.setDate(now.getDate() - day + 1 + offsetWeeks * 7);
+  const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+  const fmt = d => d.toISOString().split('T')[0];
+  return { from: fmt(mon), to: fmt(sun) };
+}
+
+async function fetchLiveCalendar(offsetWeeks) {
+  const { from, to } = isoWeekRange(offsetWeeks);
   try {
     const r = await fetch(WORKER_URL, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({type: 'forexfactory', week: weekStr}),
-      signal: (()=>{const c=new AbortController();setTimeout(()=>c.abort(),12000);return c.signal;})()
+      body: JSON.stringify({ type: 'finnhub', action: 'economic_calendar', from, to }),
+      signal: (()=>{ const c = new AbortController(); setTimeout(()=>c.abort(), 12000); return c.signal; })()
     });
     if (!r.ok) return;
     const d = await r.json();
-    const events = d.events || [];
+    const events = d.economicCalendar || [];
+    let withActuals = 0;
     events.forEach(ev => {
       if (!ev.actual) return;
+      withActuals++;
       const date = (ev.time || '').slice(0, 10);
-      const timePart = (ev.time || '').slice(11, 16);
       const name = normalizeEventName(ev.event || '');
-      const country = (ev.country || '').toUpperCase();
-
-      // Cache 1: full name + date
+      // Cache by full name + date
       liveByNameDate[name + '|' + date] = ev.actual;
-      // Cache 2: date + time + country
-      liveByDateTime[date + '|' + timePart + '|' + country] = { actual: ev.actual, event: ev.event };
-      // Cache 3: 15-char prefix + date (for partial matches)
-      const k3 = name.slice(0, 15) + '|' + date;
-      if (!liveByNameDate[k3]) liveByNameDate[k3] = ev.actual;
+      // Cache by 15-char prefix + date (partial match fallback)
+      const k2 = name.slice(0, 15) + '|' + date;
+      if (!liveByNameDate[k2]) liveByNameDate[k2] = ev.actual;
     });
-    console.log('[Calendar] ForexFactory ' + weekStr + ': ' + events.length + ' events, ' + events.filter(e=>e.actual).length + ' with actuals');
-  } catch(e) { console.warn('ForexFactory fetch:', e.message); }
+    console.log('[Calendar] RapidAPI week+' + offsetWeeks + ': ' + events.length + ' events, ' + withActuals + ' with actuals');
+  } catch(e) { console.warn('RapidAPI calendar fetch:', e.message); }
 }
 
 function getLiveActual(ev) {
   const name = normalizeEventName(ev.name);
   const date = ev.date;
-
   // 1. Exact name + date
   const v1 = liveByNameDate[name + '|' + date];
   if (v1) return v1;
-
   // 2. 15-char prefix + date
   const v2 = liveByNameDate[name.slice(0, 15) + '|' + date];
   if (v2) return v2;
-
-  // 3. Word-by-word: all significant words must match cached name for same date
+  // 3. Word-by-word: all words >3 chars must match a cached name for same date
   const words = name.split(' ').filter(w => w.length > 3);
   for (const [k, actual] of Object.entries(liveByNameDate)) {
     if (!k.endsWith('|' + date)) continue;
     const cachedName = k.replace('|' + date, '');
     if (words.length > 0 && words.every(w => cachedName.includes(w))) return actual;
   }
-
   return ev.actual || '';
 }
 
@@ -632,8 +628,8 @@ function renderKeyEventsCards() {
 }
 
 async function refreshActuals() {
-  await fetchLiveCalendar('thisweek');
-  await fetchLiveCalendar('nextweek');
+  await fetchLiveCalendar(0);  // this week
+  await fetchLiveCalendar(1);  // next week
   // Patch static EVENTS array with live actuals
   EVENTS.forEach(ev => {
     const live = getLiveActual(ev);
