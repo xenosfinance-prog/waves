@@ -2267,6 +2267,14 @@ function renderSignals(list) {
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.248l-2.05 9.667c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L8.31 14.617l-2.967-.924c-.645-.204-.658-.645.136-.953l11.57-4.461c.537-.194 1.006.131.513.969z"/></svg>
             SEND TO TELEGRAM
           </button>
+          <div style="display:flex;gap:8px;margin-top:8px;">
+            <button class="tg-send-btn" style="background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.4);color:#34d399;" onclick="saveSignal(event,${idx},'cfd')">
+              💾 SAVE CFD
+            </button>
+            <button class="tg-send-btn" style="background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.4);color:#fbbf24;" onclick="saveSignal(event,${idx},'options')">
+              💾 SAVE OPTIONS
+            </button>
+          </div>
         </div>
       </div>
     `;
@@ -3293,6 +3301,76 @@ async function doSendToTelegram(idx, token, chatId) {
   } catch(e) {
     showToast('❌ Errore: ' + e.message);
     if (btn) { btn.disabled = false; btn.innerHTML = '⚠️ RETRY'; }
+  }
+}
+
+// ── SAVE SIGNAL TO GITHUB ARCHIVE ────────────────────────────
+async function saveSignal(event, idx, signalType) {
+  event.stopPropagation();
+  const sig = signals[idx];
+  if (!sig) return;
+
+  const btn = event.currentTarget;
+  btn.disabled = true;
+  btn.textContent = '⏳ SAVING...';
+
+  const now = new Date();
+  const dateStr = now.toISOString().slice(0,10);
+  const timeStr = now.toISOString().slice(11,16).replace(':','');
+  const folder = signalType === 'options' ? 'signals_options' : 'signals_cfd';
+  const filename = `${dateStr}_${sig.pair}_${selectedTF}_${sig.direction}_${timeStr}.json`;
+  const path = `${folder}/${filename}`;
+
+  const payload = {
+    ...sig,
+    timeframe: selectedTF,
+    signal_type: signalType,
+    saved_at: now.toISOString(),
+    entry:  parseFloat(sig.entry),
+    sl:     parseFloat(sig.sl),
+    tp:     parseFloat(sig.tp),
+  };
+
+  try {
+    // Check if file exists first
+    const checkRes = await fetch(WORKER, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'github',
+        method: 'GET',
+        url: `https://api.github.com/repos/xenosfinance-prog/waves/contents/${path}`
+      })
+    });
+    const checkData = await checkRes.json();
+    const sha = checkData.data?.sha || null;
+
+    const saveRes = await fetch(WORKER, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'github',
+        method: 'PUT',
+        url: `https://api.github.com/repos/xenosfinance-prog/waves/contents/${path}`,
+        payload: {
+          message: `signal: ${sig.pair} ${sig.direction} ${selectedTF} [${signalType}]`,
+          content: btoa(unescape(encodeURIComponent(JSON.stringify(payload, null, 2)))),
+          ...(sha ? { sha } : {})
+        }
+      })
+    });
+    const saveData = await saveRes.json();
+    if (saveData.status === 200 || saveData.status === 201) {
+      showToast(`✅ Signal saved to ${signalType.toUpperCase()} archive`);
+      btn.textContent = '✅ SAVED';
+      btn.disabled = false;
+    } else {
+      throw new Error(JSON.stringify(saveData.data).slice(0,100));
+    }
+  } catch(e) {
+    showToast('❌ Save error: ' + e.message);
+    btn.disabled = false;
+    btn.textContent = signalType === 'options' ? '💾 SAVE OPTIONS' : '💾 SAVE CFD';
   }
 }
 
