@@ -1,4 +1,4 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html lang="ru"> 
 <head>
 <meta charset="UTF-8">
@@ -332,7 +332,6 @@ function doLogin() {
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('adminPanel').style.display = 'block';
     document.getElementById('adminPanel').scrollIntoView({ behavior:'smooth' });
-    loadArticlesFromGitHub();
   } else {
     document.getElementById('loginErr').textContent = '⚠ Password errata';
     document.getElementById('loginPw').value = '';
@@ -351,12 +350,10 @@ document.getElementById('headerDate').textContent = monthsEN[d0.getMonth()].toUp
 let currentArticle = null;
 let cardCount = 0;
 
-// ── CARICA ARTICOLI DA GITHUB ──
+// ── CARICA ARTICOLI DA GITHUB (raw, public repo) ──
 async function loadArticlesFromGitHub() {
   const grid = document.getElementById('blogGrid');
-  grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:var(--gold);letter-spacing:2px;">⬡ LOADING ARTICLES...</div>';
   try {
-    // Use raw GitHub (public repo, no token needed for reading)
     const res = await fetch('https://raw.githubusercontent.com/' + GITHUB_REPO + '/main/articles/index.json?t=' + Date.now());
     if (res.status === 404) {
       grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:var(--text-dim);letter-spacing:2px;">No articles published yet.</div>';
@@ -383,7 +380,7 @@ async function loadArticlesFromGitHub() {
       grid.appendChild(card);
     });
   } catch(e) {
-    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:#e74c3c;letter-spacing:2px;">⚠ Error loading articles: ' + e.message + '</div>';
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:#e74c3c;letter-spacing:2px;">⚠ Error: ' + e.message + '</div>';
   }
 }
 
