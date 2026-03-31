@@ -965,7 +965,7 @@ async function fetchCandles(pair) {
     }
   }
 
-  // === SOURCE 3: Yahoo Finance via allorigins (covers all 66 pairs) ===
+  // === SOURCE 3: Yahoo Finance via Worker (covers all 66 pairs) ===
   if (!candles) {
     const YF_MAP = {
       'EURUSD':'EURUSD=X','GBPUSD':'GBPUSD=X','USDJPY':'USDJPY=X','USDCHF':'USDCHF=X',
@@ -986,28 +986,25 @@ async function fetchCandles(pair) {
       try {
         const TF_YF  = {'M15':'15m','H1':'1h','H4':'1h','D1':'1d'};
         const RNG_YF = {'M15':'5d','H1':'30d','H4':'60d','D1':'1y'};
-        const url   = 'https://query1.finance.yahoo.com/v8/finance/chart/'
-          + yfSym + '?interval=' + (TF_YF[selectedTF]||'1h') + '&range=' + (RNG_YF[selectedTF]||'30d');
-        const proxy = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
-        const res   = await fetch(proxy, {signal: AbortSignal.timeout(8000)});
+        const res = await fetch(WORKER, {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({
+            type: 'yahoocandles',
+            symbol: yfSym,
+            interval: TF_YF[selectedTF] || '1h',
+            range: RNG_YF[selectedTF] || '30d'
+          }),
+          signal: AbortSignal.timeout(12000)
+        });
         if (res.ok) {
-          const json = await res.json();
-          const result = json?.chart?.result?.[0];
-          const ts = result?.timestamp || [];
-          const q  = result?.indicators?.quote?.[0] || {};
-          if (ts.length >= 10) {
-            const raw = ts.map((t,i) => ({
-              datetime: new Date(t*1000).toISOString(),
-              open:   q.open?.[i]  || q.close?.[i] || 0,
-              high:   q.high?.[i]  || q.close?.[i] || 0,
-              low:    q.low?.[i]   || q.close?.[i] || 0,
-              close:  q.close?.[i] || 0,
-              volume: q.volume?.[i] || 0,
-            })).filter(r => r.close > 0);
-            if (raw.length >= 10) { candles = raw; console.log('YF OK:', pair, raw.length); }
+          const data = await res.json();
+          if (data.candles && data.candles.length >= 10) {
+            candles = data.candles;
+            console.log('YF via Worker OK:', pair, candles.length);
           }
         }
-      } catch(e) { console.warn('YF:', pair, e.message); }
+      } catch(e) { console.warn('YF Worker:', pair, e.message); }
     }
   }
 
