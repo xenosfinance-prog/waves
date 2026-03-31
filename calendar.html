@@ -528,7 +528,18 @@ Write in Bloomberg terminal style. No bullet points. No headers. Direct and prec
 
 // ── LIVE ACTUALS via Worker (ForexFactory) ─────────────────
 const WORKER_URL = 'https://xenos-ai-proxy.xenosfinance.workers.dev';
-let liveEventsCache = {}; // key: event id → actual value
+
+// Two caches for robust matching
+let liveByNameDate = {};  // "name_prefix|date" -> actual
+let liveByDateTime = {};  // "date|HH:MM|country" -> {actual, event}
+
+function normalizeEventName(s) {
+  return s.toLowerCase()
+    .replace(/\s+/g,' ')
+    .replace(/[^a-z0-9 ]/g,'')
+    .trim()
+    .slice(0, 30);
+}
 
 async function fetchLiveCalendar(weekStr) {
   try {
@@ -542,18 +553,45 @@ async function fetchLiveCalendar(weekStr) {
     const d = await r.json();
     const events = d.events || [];
     events.forEach(ev => {
-      if (ev.actual) {
-        // Match by country + partial event name + date
-        const key = (ev.country + '|' + ev.event.slice(0, 25) + '|' + ev.time.slice(0, 10)).toLowerCase();
-        liveEventsCache[key] = ev.actual;
-      }
+      if (!ev.actual) return;
+      const date = (ev.time || '').slice(0, 10);
+      const timePart = (ev.time || '').slice(11, 16);
+      const name = normalizeEventName(ev.event || '');
+      const country = (ev.country || '').toUpperCase();
+
+      // Cache 1: full name + date
+      liveByNameDate[name + '|' + date] = ev.actual;
+      // Cache 2: date + time + country
+      liveByDateTime[date + '|' + timePart + '|' + country] = { actual: ev.actual, event: ev.event };
+      // Cache 3: 15-char prefix + date (for partial matches)
+      const k3 = name.slice(0, 15) + '|' + date;
+      if (!liveByNameDate[k3]) liveByNameDate[k3] = ev.actual;
     });
+    console.log('[Calendar] ForexFactory ' + weekStr + ': ' + events.length + ' events, ' + events.filter(e=>e.actual).length + ' with actuals');
   } catch(e) { console.warn('ForexFactory fetch:', e.message); }
 }
 
 function getLiveActual(ev) {
-  const key = (ev.country + '|' + ev.name.slice(0, 25) + '|' + ev.date).toLowerCase();
-  return liveEventsCache[key] || ev.actual || '';
+  const name = normalizeEventName(ev.name);
+  const date = ev.date;
+
+  // 1. Exact name + date
+  const v1 = liveByNameDate[name + '|' + date];
+  if (v1) return v1;
+
+  // 2. 15-char prefix + date
+  const v2 = liveByNameDate[name.slice(0, 15) + '|' + date];
+  if (v2) return v2;
+
+  // 3. Word-by-word: all significant words must match cached name for same date
+  const words = name.split(' ').filter(w => w.length > 3);
+  for (const [k, actual] of Object.entries(liveByNameDate)) {
+    if (!k.endsWith('|' + date)) continue;
+    const cachedName = k.replace('|' + date, '');
+    if (words.length > 0 && words.every(w => cachedName.includes(w))) return actual;
+  }
+
+  return ev.actual || '';
 }
 
 // Patch EVENTS array with live actuals and re-render
@@ -596,14 +634,14 @@ function renderKeyEventsCards() {
 async function refreshActuals() {
   await fetchLiveCalendar('thisweek');
   await fetchLiveCalendar('nextweek');
-  setInterval(refreshActuals, 300000); // auto-refresh every 5min
-  // Patch static EVENTS array
+  // Patch static EVENTS array with live actuals
   EVENTS.forEach(ev => {
     const live = getLiveActual(ev);
     if (live && live !== ev.actual) ev.actual = live;
   });
   renderCalendar();
   renderHighlights();
+  renderKeyEventsCards();
   const st = document.getElementById('live-time');
   if (st) {
     const n = new Date();
@@ -617,9 +655,10 @@ document.addEventListener('DOMContentLoaded', () => {
   renderHighlights();
   renderWeekTabs();
   renderCalendar();
+  renderKeyEventsCards();
   loadTicker();
   setInterval(updateDateTime, 60000);
-  // Load live actuals immediately and then every 5 minutes
+  // Fetch live actuals immediately, then every 5 minutes
   refreshActuals();
   setInterval(refreshActuals, 300000);
 });
