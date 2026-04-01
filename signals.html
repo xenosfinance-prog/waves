@@ -652,6 +652,7 @@ function doLogin() {
   const pwd = document.getElementById('pwd-input').value;
   if (!pwd) { showToast('Inserisci la password'); return; }
   if (pwd !== 'xenosfinance2026') { showToast('Password errata'); return; }
+  sessionStorage.setItem('xf_admin', 'true');
   WORKER = 'https://xenos-ai-proxy.xenosfinance.workers.dev';
   document.getElementById('auth-screen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
@@ -3476,8 +3477,15 @@ function showToast(msg) {
 }
 
 window.onload = () => {
-  document.getElementById('empty-state').classList.add('active');
   document.getElementById('pwd-input').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+  // Auto-login se sessione admin già attiva (condivisa con trading-signals)
+  if (sessionStorage.getItem('xf_admin') === 'true') {
+    WORKER = 'https://xenos-ai-proxy.xenosfinance.workers.dev';
+    document.getElementById('auth-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    startClock();
+    document.getElementById('empty-state').classList.add('active');
+  }
 };
 </script>
 </body>
