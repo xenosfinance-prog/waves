@@ -361,6 +361,7 @@ async function loadSignals() {
 
 async function loadFolder(folder, type) {
   try {
+    // Step 1: get file list via Worker (needs GitHub token for private repo)
     const res = await fetch(WORKER, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -371,21 +372,16 @@ async function loadFolder(folder, type) {
     });
     const d = await res.json();
     const files = Array.isArray(d.data) ? d.data : [];
-    const jsonFiles = files.filter(f => f.name.endsWith('.json')).slice(-50); // last 50
+    const jsonFiles = files.filter(f => f.name.endsWith('.json')).slice(-50);
 
+    // Step 2: fetch each file via raw GitHub (fast, no auth needed for public repo)
     const results = await Promise.all(jsonFiles.map(async f => {
       try {
-        const r = await fetch(WORKER, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            type: 'github', method: 'GET',
-            url: `https://api.github.com/repos/${REPO}/contents/${folder}/${f.name}`
-          })
-        });
-        const fd = await r.json();
-        if (!fd.data?.content) return null;
-        const sig = JSON.parse(decodeURIComponent(escape(atob(fd.data.content.replace(/\n/g,'')))));
+        const r = await fetch(
+          `https://raw.githubusercontent.com/${REPO}/main/${folder}/${f.name}?t=${Date.now()}`
+        );
+        if (!r.ok) return null;
+        const sig = await r.json();
         sig._filename = f.name;
         return sig;
       } catch(e) { return null; }
@@ -435,16 +431,18 @@ function clearFilters() {
 }
 
 function applyFilters() {
-  const pair   = document.getElementById('f-pair').value.trim().toUpperCase();
-  const tf     = document.getElementById('f-tf').value;
+  const pairEl = document.getElementById('f-pair');
+  const tfEl   = document.getElementById('f-tf');
+  const pair   = pairEl ? pairEl.value.trim().toUpperCase() : '';
+  const tf     = tfEl   ? tfEl.value : '';
   const anyDir = dirFilter.BUY || dirFilter.SELL;
 
   // Only show open/pending signals in CFD and Options tabs
   const openOnly = allSignals[currentTab].filter(s => !s.outcome || s.outcome === 'pending');
 
   filtered = openOnly.filter(s => {
-    if (pair && !( s.pair||'').includes(pair)) return false;
-    if (tf   && s.timeframe !== tf)            return false;
+    if (pair && !(s.pair||'').includes(pair)) return false;
+    if (tf   && s.timeframe !== tf)           return false;
     if (anyDir) {
       const dir = currentTab === 'options'
         ? (s.action === 'CALL' ? 'BUY' : 'SELL')
