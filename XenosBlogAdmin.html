@@ -243,6 +243,52 @@
   </div>
 </section>
 
+<!-- ── MANUAL ARTICLE SECTION ── -->
+<section class="section-wrap" style="border-top:2px solid var(--border2);margin-top:0;">
+  <div class="section-header">
+    <span class="section-title">// Manual Article</span>
+    <div class="section-line"></div>
+    <span class="section-title">WRITE YOUR OWN</span>
+  </div>
+  <div class="gen-grid">
+    <div class="gen-field" style="grid-column:1/-1;">
+      <label class="gen-label">Title</label>
+      <input class="gen-input" id="manTitle" type="text" placeholder="Article title...">
+    </div>
+    <div class="gen-field">
+      <label class="gen-label">Category</label>
+      <input class="gen-input" id="manCategory" type="text" placeholder="e.g. FOREX · ELLIOTT WAVE">
+    </div>
+    <div class="gen-field">
+      <label class="gen-label">Read Time</label>
+      <input class="gen-input" id="manReadTime" type="text" placeholder="e.g. 5 min read">
+    </div>
+    <div class="gen-field" style="grid-column:1/-1;">
+      <label class="gen-label">Article Body</label>
+      <textarea class="gen-input" id="manBody" rows="8" placeholder="Write your article content here..." style="resize:vertical;font-family:var(--body);line-height:1.7;width:100%;"></textarea>
+    </div>
+    <div class="gen-field" style="grid-column:1/-1;">
+      <label class="gen-label">Image — Ctrl+V to paste · Click to upload · Drag & drop</label>
+      <div id="manImgDrop" style="border:2px dashed var(--border);padding:24px;text-align:center;cursor:pointer;transition:border-color 0.2s;position:relative;background:var(--bg3);"
+           onclick="document.getElementById('manImgFile').click()"
+           ondragover="event.preventDefault();this.style.borderColor='var(--gold)'"
+           ondragleave="this.style.borderColor='var(--border)'"
+           ondrop="handleManImgDrop(event)">
+        <input type="file" id="manImgFile" accept="image/*" style="display:none" onchange="handleManImgFile(event)">
+        <div id="manImgPreview" style="display:none;"><img id="manImgTag" style="max-width:100%;max-height:240px;border:1px solid var(--border);"></div>
+        <div id="manImgPlaceholder" style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);letter-spacing:2px;">📎 No image selected</div>
+        <button id="manImgClear" onclick="clearManImg(event)" style="display:none;position:absolute;top:8px;right:8px;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);color:#ef4444;font-size:10px;padding:3px 8px;cursor:pointer;font-family:'IBM Plex Mono',monospace;">✕ Remove</button>
+      </div>
+    </div>
+  </div>
+  <div class="gen-actions" style="margin-top:16px;">
+    <button class="btn-generate" onclick="publishManualArticle()">
+      <span>✦</span><span id="manBtnText">Publish Manual Article</span>
+    </button>
+    <span class="gen-status" id="manStatus"></span>
+  </div>
+</section>
+
 <div class="article-display" id="articleDisplay">
   <div class="article-cat" id="artCategory"></div>
   <h1 class="article-title" id="artTitle"></h1>
@@ -301,6 +347,112 @@
 </footer>
 
 <script>
+// ── MANUAL ARTICLE ──────────────────────────────────────────
+var manImgBase64 = null;
+var manImgMime = 'image/jpeg';
+
+function setManImg(file) {
+  if (!file || !file.type.startsWith('image/')) return;
+  manImgMime = file.type;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    manImgBase64 = e.target.result.split(',')[1];
+    document.getElementById('manImgTag').src = e.target.result;
+    document.getElementById('manImgPreview').style.display = 'block';
+    document.getElementById('manImgPlaceholder').style.display = 'none';
+    document.getElementById('manImgClear').style.display = 'block';
+    document.getElementById('manImgDrop').style.borderColor = 'var(--gold)';
+  };
+  reader.readAsDataURL(file);
+}
+function handleManImgFile(e) { setManImg(e.target.files[0]); }
+function handleManImgDrop(e) { e.preventDefault(); setManImg(e.dataTransfer.files[0]); }
+function clearManImg(e) {
+  e.stopPropagation();
+  manImgBase64 = null;
+  document.getElementById('manImgTag').src = '';
+  document.getElementById('manImgPreview').style.display = 'none';
+  document.getElementById('manImgPlaceholder').style.display = 'block';
+  document.getElementById('manImgClear').style.display = 'none';
+  document.getElementById('manImgDrop').style.borderColor = 'var(--border)';
+  document.getElementById('manImgFile').value = '';
+}
+// Ctrl+V paste anywhere on page
+document.addEventListener('paste', function(e) {
+  var items = (e.clipboardData || e.originalEvent.clipboardData).items;
+  for (var i = 0; i < items.length; i++) {
+    if (items[i].type.startsWith('image/')) {
+      setManImg(items[i].getAsFile());
+      break;
+    }
+  }
+});
+
+async function publishManualArticle() {
+  var title    = document.getElementById('manTitle').value.trim();
+  var category = document.getElementById('manCategory').value.trim();
+  var readTime = document.getElementById('manReadTime').value.trim() || '3 min read';
+  var body     = document.getElementById('manBody').value.trim();
+  if (!title) { document.getElementById('manStatus').textContent = '⚠ Title required'; return; }
+  if (!body)  { document.getElementById('manStatus').textContent = '⚠ Body required'; return; }
+
+  var btn = document.querySelector('[onclick="publishManualArticle()"]');
+  btn.disabled = true;
+  document.getElementById('manBtnText').textContent = 'Publishing...';
+  document.getElementById('manStatus').textContent = '';
+
+  try {
+    var apiBase = 'https://api.github.com/repos/' + GITHUB_REPO + '/contents';
+    var slug = 'manual-' + Date.now();
+    var now  = new Date().toISOString();
+
+    // Build article object
+    var articleData = {
+      slug, title, category: category || 'ANALYSIS',
+      readTime, publishedAt: now, lang: 'en',
+      intro: body.substring(0, 300),
+      sections: [{ heading: title, content: body }],
+      quote: '', conclusion: '',
+      excerpt: body.substring(0, 120),
+      signal_type: 'manual',
+      image: manImgBase64 ? ('data:' + manImgMime + ';base64,' + manImgBase64) : null
+    };
+
+    // Save article JSON
+    var saveRes = await githubRequest(apiBase + '/articles/' + slug + '.json', 'PUT', {
+      message: 'Article: ' + title,
+      content: toBase64(JSON.stringify(articleData, null, 2)),
+      branch: GITHUB_BRANCH
+    });
+    if (saveRes.status !== 200 && saveRes.status !== 201) throw new Error('Save failed: ' + saveRes.status);
+
+    // Update index
+    var idxRes = await githubRequest(apiBase + '/articles/index.json', 'GET');
+    var existing = [], sha = null;
+    if (idxRes.status === 200 && idxRes.data?.content) {
+      sha = idxRes.data.sha;
+      existing = JSON.parse(fromBase64(idxRes.data.content));
+    }
+    existing.unshift({ slug, title, excerpt: articleData.excerpt, category: articleData.category, readTime, publishedAt: now });
+    var idxPayload = { message: 'Index: ' + title, content: toBase64(JSON.stringify(existing, null, 2)), branch: GITHUB_BRANCH };
+    if (sha) idxPayload.sha = sha;
+    var idxRes2 = await githubRequest(apiBase + '/articles/index.json', 'PUT', idxPayload);
+    if (idxRes2.status !== 200 && idxRes2.status !== 201) throw new Error('Index failed: ' + idxRes2.status);
+
+    document.getElementById('manStatus').textContent = '✓ Published successfully!';
+    document.getElementById('manStatus').style.color = 'var(--gold)';
+    // Reset form
+    ['manTitle','manCategory','manReadTime','manBody'].forEach(function(id){ document.getElementById(id).value = ''; });
+    clearManImg({ stopPropagation: function(){} });
+    loadArticlesFromGitHub();
+  } catch(err) {
+    document.getElementById('manStatus').textContent = '⚠ Error: ' + err.message;
+    document.getElementById('manStatus').style.color = '#e74c3c';
+  }
+  btn.disabled = false;
+  document.getElementById('manBtnText').textContent = 'Publish Manual Article';
+}
+
 // ── LOGIN ──
 var isAdmin = false;
 
