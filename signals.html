@@ -531,11 +531,18 @@
     <div class="topbar">
       <div class="topbar-title">
         Signal Engine
-        <small>AI-POWERED CFD INTRADAY · PATTERN RECOGNITION</small>
+        <small>AI-POWERED CFD & OPTIONS · PATTERN RECOGNITION</small>
       </div>
     </div>
 
     <div class="controls">
+      <div class="ctrl-group">
+        <div class="ctrl-label">Signal Type</div>
+        <div class="toggle-group" id="type-toggle">
+          <button class="toggle-btn active" onclick="toggleSignalType(this,'CFD')" style="color:var(--accent);">⚡ CFD</button>
+          <button class="toggle-btn" onclick="toggleSignalType(this,'OPTIONS')" style="">◎ OPTIONS</button>
+        </div>
+      </div>
       <div class="ctrl-group">
         <div class="ctrl-label">Asset Class</div>
         <div class="toggle-group" id="class-toggle">
@@ -637,6 +644,7 @@ let WORKER = '';
 let selectedClass = 'ALL';
 let selectedTF = 'H1';
 let selectedDir = 'BOTH';
+let selectedSignalType = 'CFD';
 let signals = [];
 
 const CFD_PAIRS = {
@@ -678,6 +686,18 @@ function toggleTF(el, val) {
 function toggleDir(el, val) {
   document.querySelectorAll('#dir-toggle .toggle-btn').forEach(b => b.classList.remove('active'));
   el.classList.add('active'); selectedDir = val;
+}
+function toggleSignalType(el, val) {
+  document.querySelectorAll('#type-toggle .toggle-btn').forEach(b => {
+    b.classList.remove('active');
+    b.style.color = '';
+  });
+  el.classList.add('active');
+  el.style.color = val === 'CFD' ? 'var(--accent)' : 'var(--yellow)';
+  selectedSignalType = val;
+  // Update loader text
+  const lt = document.getElementById('loader-text') || document.querySelector('.loader-text');
+  if (lt) lt.textContent = val === 'CFD' ? 'SCANNING CFD MARKETS' : 'SCANNING OPTIONS MARKETS';
 }
 
 function getPairsToAnalyze() {
