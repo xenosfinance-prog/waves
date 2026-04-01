@@ -591,6 +591,7 @@
         </select>
       </div>
       <button class="btn-generate" id="gen-btn" onclick="generateSignals()">▶ GENERATE SIGNALS</button>
+      <button class="btn-generate" onclick="openManualSignal()" style="background:#1e3050;color:#60a5fa;border:1px solid #2d4a78;margin-left:8px;">✎ MANUAL SIGNAL</button>
     </div>
 
     <div class="stats-bar" id="stats-bar" style="display:none">
@@ -618,6 +619,83 @@
     </div>
 
     <div id="signals-list"></div>
+  </div>
+</div>
+
+<!-- ── MANUAL SIGNAL PANEL ── -->
+<div id="manual-signal-overlay" onclick="closeManualSignal()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:8000;"></div>
+<div id="manual-signal-panel" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:8001;background:#0f1724;border:1px solid #1e3050;width:min(700px,95vw);max-height:90vh;overflow-y:auto;padding:28px 32px;box-shadow:0 0 60px rgba(59,130,246,0.15);">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;border-bottom:1px solid #1e3050;padding-bottom:16px;">
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:3px;color:#3b82f6;text-transform:uppercase;">⚡ Manual Signal</div>
+    <button onclick="closeManualSignal()" style="background:none;border:1px solid #1e3050;color:#5a7a9a;padding:4px 12px;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:10px;">✕ Close</button>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px;">
+    <div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:2px;color:#5a7a9a;margin-bottom:6px;">PAIR</div>
+      <input id="msPair" type="text" placeholder="e.g. EURUSD" style="width:100%;background:#131f2e;border:1px solid #1e3050;color:#e2eaf4;font-family:'IBM Plex Mono',monospace;font-size:12px;padding:9px 12px;outline:none;box-sizing:border-box;">
+    </div>
+    <div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:2px;color:#5a7a9a;margin-bottom:6px;">DIRECTION</div>
+      <select id="msDir" style="width:100%;background:#131f2e;border:1px solid #1e3050;color:#e2eaf4;font-family:'IBM Plex Mono',monospace;font-size:12px;padding:9px 12px;outline:none;">
+        <option value="BUY">▲ BUY</option>
+        <option value="SELL">▼ SELL</option>
+      </select>
+    </div>
+    <div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:2px;color:#5a7a9a;margin-bottom:6px;">TIMEFRAME</div>
+      <select id="msTF" style="width:100%;background:#131f2e;border:1px solid #1e3050;color:#e2eaf4;font-family:'IBM Plex Mono',monospace;font-size:12px;padding:9px 12px;outline:none;">
+        <option>M15</option><option selected>H1</option><option>H4</option><option>D1</option>
+      </select>
+    </div>
+    <div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:2px;color:#5a7a9a;margin-bottom:6px;">ENTRY</div>
+      <input id="msEntry" type="number" step="any" placeholder="0.00000" style="width:100%;background:#131f2e;border:1px solid #1e3050;color:#00d4ff;font-family:'IBM Plex Mono',monospace;font-size:12px;padding:9px 12px;outline:none;box-sizing:border-box;">
+    </div>
+    <div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:2px;color:#5a7a9a;margin-bottom:6px;">STOP LOSS</div>
+      <input id="msSL" type="number" step="any" placeholder="0.00000" style="width:100%;background:#131f2e;border:1px solid #1e3050;color:#ff3d5a;font-family:'IBM Plex Mono',monospace;font-size:12px;padding:9px 12px;outline:none;box-sizing:border-box;">
+    </div>
+    <div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:2px;color:#5a7a9a;margin-bottom:6px;">TAKE PROFIT</div>
+      <input id="msTP" type="number" step="any" placeholder="0.00000" style="width:100%;background:#131f2e;border:1px solid #1e3050;color:#00e676;font-family:'IBM Plex Mono',monospace;font-size:12px;padding:9px 12px;outline:none;box-sizing:border-box;">
+    </div>
+    <div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:2px;color:#5a7a9a;margin-bottom:6px;">PATTERN</div>
+      <input id="msPattern" type="text" placeholder="e.g. Double Bottom" style="width:100%;background:#131f2e;border:1px solid #1e3050;color:#e2eaf4;font-family:'IBM Plex Mono',monospace;font-size:12px;padding:9px 12px;outline:none;box-sizing:border-box;">
+    </div>
+    <div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:2px;color:#5a7a9a;margin-bottom:6px;">CONFIDENCE %</div>
+      <input id="msConf" type="number" min="1" max="100" value="80" style="width:100%;background:#131f2e;border:1px solid #1e3050;color:#e2eaf4;font-family:'IBM Plex Mono',monospace;font-size:12px;padding:9px 12px;outline:none;box-sizing:border-box;">
+    </div>
+    <div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:2px;color:#5a7a9a;margin-bottom:6px;">SIGNAL TYPE</div>
+      <select id="msSigType" style="width:100%;background:#131f2e;border:1px solid #1e3050;color:#e2eaf4;font-family:'IBM Plex Mono',monospace;font-size:12px;padding:9px 12px;outline:none;">
+        <option value="cfd">⚡ CFD</option>
+        <option value="options">◎ Options</option>
+      </select>
+    </div>
+  </div>
+  <div style="margin-bottom:16px;">
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:2px;color:#5a7a9a;margin-bottom:6px;">ANALYSIS / NOTES (optional)</div>
+    <textarea id="msNotes" rows="3" placeholder="Elliott Wave context, key levels, invalidation..." style="width:100%;background:#131f2e;border:1px solid #1e3050;color:#e2eaf4;font-family:'IBM Plex Mono',monospace;font-size:11px;padding:9px 12px;outline:none;resize:vertical;box-sizing:border-box;"></textarea>
+  </div>
+  <div style="margin-bottom:20px;">
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:2px;color:#5a7a9a;margin-bottom:6px;">IMAGE — Ctrl+V to paste · Click to upload · Drag & drop</div>
+    <div id="msImgDrop" onclick="document.getElementById('msImgFile').click()"
+         ondragover="event.preventDefault();this.style.borderColor='#3b82f6'"
+         ondragleave="this.style.borderColor='#1e3050'"
+         ondrop="handleMsImgDrop(event)"
+         style="border:2px dashed #1e3050;padding:20px;text-align:center;cursor:pointer;transition:border-color 0.2s;position:relative;background:#0c1421;">
+      <input type="file" id="msImgFile" accept="image/*" style="display:none" onchange="handleMsImgFile(event)">
+      <div id="msImgPreview" style="display:none;"><img id="msImgTag" style="max-width:100%;max-height:200px;border:1px solid #1e3050;"></div>
+      <div id="msImgPlaceholder" style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#5a7a9a;letter-spacing:2px;">📎 No image selected</div>
+      <button id="msImgClear" onclick="clearMsImg(event)" style="display:none;position:absolute;top:8px;right:8px;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);color:#ef4444;font-size:10px;padding:3px 8px;cursor:pointer;font-family:'IBM Plex Mono',monospace;">✕</button>
+    </div>
+  </div>
+  <div style="display:flex;gap:10px;align-items:center;">
+    <button onclick="saveManualSignal()" style="background:#1d4ed8;color:#e2eaf4;border:none;padding:11px 24px;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;cursor:pointer;">💾 Save Signal</button>
+    <button onclick="saveAndSendManualSignal()" style="background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.4);color:#34d399;padding:11px 24px;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;cursor:pointer;">✈ Save & Send Telegram</button>
+    <span id="msStatus" style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#3b82f6;letter-spacing:1px;"></span>
   </div>
 </div>
 
@@ -3512,6 +3590,155 @@ function showToast(msg) {
   t.textContent = msg;
   t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+// ── MANUAL SIGNAL ────────────────────────────────────────────
+var msImgBase64 = null;
+var msImgMime   = 'image/jpeg';
+
+function openManualSignal() {
+  document.getElementById('manual-signal-panel').style.display = 'block';
+  document.getElementById('manual-signal-overlay').style.display = 'block';
+}
+function closeManualSignal() {
+  document.getElementById('manual-signal-panel').style.display = 'none';
+  document.getElementById('manual-signal-overlay').style.display = 'none';
+}
+function setMsImg(file) {
+  if (!file || !file.type.startsWith('image/')) return;
+  msImgMime = file.type;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    msImgBase64 = e.target.result.split(',')[1];
+    document.getElementById('msImgTag').src = e.target.result;
+    document.getElementById('msImgPreview').style.display = 'block';
+    document.getElementById('msImgPlaceholder').style.display = 'none';
+    document.getElementById('msImgClear').style.display = 'block';
+    document.getElementById('msImgDrop').style.borderColor = '#3b82f6';
+  };
+  reader.readAsDataURL(file);
+}
+function handleMsImgFile(e) { setMsImg(e.target.files[0]); }
+function handleMsImgDrop(e) { e.preventDefault(); setMsImg(e.dataTransfer.files[0]); }
+function clearMsImg(e) {
+  e.stopPropagation();
+  msImgBase64 = null;
+  document.getElementById('msImgTag').src = '';
+  document.getElementById('msImgPreview').style.display = 'none';
+  document.getElementById('msImgPlaceholder').style.display = 'block';
+  document.getElementById('msImgClear').style.display = 'none';
+  document.getElementById('msImgDrop').style.borderColor = '#1e3050';
+  document.getElementById('msImgFile').value = '';
+}
+
+// Ctrl+V paste
+document.addEventListener('paste', function(e) {
+  if (!document.getElementById('manual-signal-panel') ||
+      document.getElementById('manual-signal-panel').style.display === 'none') return;
+  var items = (e.clipboardData || e.originalEvent.clipboardData).items;
+  for (var i = 0; i < items.length; i++) {
+    if (items[i].type.startsWith('image/')) { setMsImg(items[i].getAsFile()); break; }
+  }
+});
+
+function buildManualSignalObj() {
+  var pair    = document.getElementById('msPair').value.trim().toUpperCase();
+  var dir     = document.getElementById('msDir').value;
+  var tf      = document.getElementById('msTF').value;
+  var entry   = parseFloat(document.getElementById('msEntry').value);
+  var sl      = parseFloat(document.getElementById('msSL').value);
+  var tp      = parseFloat(document.getElementById('msTP').value);
+  var pattern = document.getElementById('msPattern').value.trim() || 'Manual Setup';
+  var conf    = parseInt(document.getElementById('msConf').value) || 80;
+  var notes   = document.getElementById('msNotes').value.trim();
+  var sigType = document.getElementById('msSigType').value;
+
+  if (!pair) { document.getElementById('msStatus').textContent = '⚠ Pair required'; return null; }
+  if (isNaN(entry) || isNaN(sl) || isNaN(tp)) { document.getElementById('msStatus').textContent = '⚠ Entry/SL/TP required'; return null; }
+
+  var slDist = Math.abs(sl - entry);
+  var tpDist = Math.abs(tp - entry);
+  var rr = slDist > 0 ? '1:' + (tpDist / slDist).toFixed(1) : '1:0';
+
+  return {
+    pair, direction: dir, timeframe: tf,
+    entry, sl, tp, pattern, confidence: conf, rr,
+    ew_context: notes, pattern_desc: notes, market_context: notes,
+    invalidation: '', key_levels: '', tags: ['manual'],
+    signal_type: sigType, saved_at: new Date().toISOString(),
+    manual: true,
+    image: msImgBase64 ? ('data:' + msImgMime + ';base64,' + msImgBase64) : null
+  };
+}
+
+async function saveManualSignal() {
+  const sig = buildManualSignalObj();
+  if (!sig) return;
+  document.getElementById('msStatus').textContent = 'Saving...';
+  try {
+    await saveSignalToGitHub(sig, sig.signal_type);
+    document.getElementById('msStatus').textContent = '✓ Saved!';
+    document.getElementById('msStatus').style.color = '#34d399';
+    setTimeout(closeManualSignal, 1500);
+  } catch(e) {
+    document.getElementById('msStatus').textContent = '⚠ ' + e.message;
+    document.getElementById('msStatus').style.color = '#ef4444';
+  }
+}
+
+async function saveAndSendManualSignal() {
+  const sig = buildManualSignalObj();
+  if (!sig) return;
+  document.getElementById('msStatus').textContent = 'Saving & sending...';
+  try {
+    await saveSignalToGitHub(sig, sig.signal_type);
+    // Send to Telegram
+    const token  = localStorage.getItem('tg_token');
+    const chatId = localStorage.getItem('tg_chat_id');
+    if (!token || !chatId) {
+      document.getElementById('msStatus').textContent = '✓ Saved — configure Telegram first';
+      return;
+    }
+    const dir = sig.direction === 'BUY' ? '🟢' : '🔴';
+    const caption = `${dir} <b>${sig.pair}</b> — ${sig.direction}\n📐 <b>Pattern:</b> ${sig.pattern}\n⏱ <b>TF:</b> ${sig.timeframe}\n\n📍 <b>Entry:</b> <code>${sig.entry}</code>\n🛑 <b>SL:</b> <code>${sig.sl}</code>\n🎯 <b>TP:</b> <code>${sig.tp}</code>\n📊 <b>R:R:</b> ${sig.rr} | <b>Conf:</b> ${sig.confidence}%${sig.ew_context ? '\n\n📝 ' + sig.ew_context : ''}\n\n<i>XenosFinance Signal Engine — Manual</i>`;
+
+    if (msImgBase64) {
+      const res = await fetch(WORKER, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ type: 'telegram_photo', token, chat_id: chatId, image_base64: msImgBase64, image_mime: msImgMime, caption: caption.slice(0, 1024), parse_mode: 'HTML' })
+      });
+      const d = await res.json();
+      const tg = d.ok !== undefined ? d : (d.data || d);
+      if (!tg.ok) throw new Error(tg.description || 'Telegram error');
+    } else {
+      const res = await fetch(WORKER, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ type: 'telegram', token, chat_id: chatId, text: caption.replace(/<[^>]+>/g, ''), disable_web_page_preview: true })
+      });
+      const d = await res.json();
+      if (!d.ok) throw new Error(d.description || 'Telegram error');
+    }
+    document.getElementById('msStatus').textContent = '✓ Saved & sent!';
+    document.getElementById('msStatus').style.color = '#34d399';
+    setTimeout(closeManualSignal, 1500);
+  } catch(e) {
+    document.getElementById('msStatus').textContent = '⚠ ' + e.message;
+    document.getElementById('msStatus').style.color = '#ef4444';
+  }
+}
+
+async function saveSignalToGitHub(sig, signalType) {
+  const folder   = signalType === 'options' ? 'signals_options' : 'signals_cfd';
+  const filename = 'signal-' + Date.now() + '.json';
+  const res = await fetch(WORKER, {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ type: 'github', method: 'PUT',
+      url: `https://api.github.com/repos/xenosfinance-prog/waves/contents/${folder}/${filename}`,
+      payload: { message: `manual: ${sig.pair} ${sig.direction}`, content: btoa(unescape(encodeURIComponent(JSON.stringify(sig, null, 2)))), branch: 'main' }
+    })
+  });
+  const d = await res.json();
+  if (d.status !== 200 && d.status !== 201) throw new Error('GitHub save failed: ' + d.status);
 }
 
 window.onload = () => {
