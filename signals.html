@@ -3310,10 +3310,13 @@ function closeTgConfig() {
 
 function saveTgConfig() {
   const token = document.getElementById('tg-bot-token').value.trim();
-  const chatId = document.getElementById('tg-chat-id').value.trim();
+  let chatId = document.getElementById('tg-chat-id').value.trim();
   if (!token || !chatId) { showToast('Inserisci Bot Token e Chat ID'); return; }
+  // Auto-fix: canali pubblici @username ok, canali privati devono iniziare con -100
+  if (chatId.match(/^-?\d+$/) && !chatId.startsWith('-')) chatId = '-100' + chatId;
   localStorage.setItem('tg_token', token);
   localStorage.setItem('tg_chat_id', chatId);
+  document.getElementById('tg-chat-id').value = chatId;
   closeTgConfig();
   if (pendingTgSignalIdx !== null) doSendToTelegram(pendingTgSignalIdx, token, chatId);
 }
@@ -3338,9 +3341,9 @@ async function doSendToTelegram(idx, token, chatId) {
 
     // Combina i due canvas verticalmente
     const combined = document.createElement('canvas');
-    const OUT_W = 1200;
-    const OUT_H = 500; // altezza fissa uguale per entrambi i pannelli
-    const gap = 4;
+    const OUT_W = 800;
+    const OUT_H = 300; // ridotto per passare dal Worker
+    const gap = 2;
     combined.width  = OUT_W;
     combined.height = OUT_H * 2 + gap;
     const cctx = combined.getContext('2d');
@@ -3349,7 +3352,7 @@ async function doSendToTelegram(idx, token, chatId) {
     cctx.drawImage(patternC, 0, 0, OUT_W, OUT_H);
     if (liveC) cctx.drawImage(liveC, 0, OUT_H + gap, OUT_W, OUT_H);
 
-    let imageData = combined.toDataURL('image/png').split(',')[1];
+    let imageData = combined.toDataURL('image/jpeg', 0.82).split(',')[1];
     const dir = sig.direction === 'BUY' ? '🟢' : '🔴';
     const rr  = sig.rr || '—';
     const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -3398,19 +3401,23 @@ async function doSendToTelegram(idx, token, chatId) {
         token: token,
         chat_id: chatId,
         image_base64: imageData,
+        image_mime: 'image/jpeg',
         caption: caption.slice(0, 1024),
         parse_mode: 'HTML'
       })
     });
     const data = await res.json();
-    if (data.ok) {
+    // Worker può restituire la risposta TG direttamente o wrappata
+    const tgData = data.ok !== undefined ? data : (data.data || data.result || data);
+    if (tgData.ok) {
       showToast('✅ Segnale inviato su Telegram!');
       if (btn) { btn.disabled = false; btn.innerHTML = '✅ SENT'; }
       setTimeout(() => {
         if (btn) { btn.disabled = false; btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.248l-2.05 9.667c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L8.31 14.617l-2.967-.924c-.645-.204-.658-.645.136-.953l11.57-4.461c.537-.194 1.006.131.513.969z"/></svg> SEND TO TELEGRAM'; }
       }, 3000);
     } else {
-      throw new Error(data.description || JSON.stringify(data));
+      const errMsg = tgData.description || tgData.error || JSON.stringify(tgData).slice(0, 100);
+      throw new Error(errMsg);
     }
   } catch(e) {
     showToast('❌ Errore: ' + e.message);
