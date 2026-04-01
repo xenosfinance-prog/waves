@@ -144,7 +144,7 @@
     <input id="loginPw" type="password" placeholder="••••••••"
       style="width:100%;background:#131f2e;border:1px solid #1e3050;color:#e2eaf4;font-family:'IBM Plex Mono',monospace;font-size:13px;padding:11px 13px;outline:none;margin-bottom:14px;"
       onkeydown="if(event.key==='Enter') doLogin()">
-    <button onclick="doLogin()" style="width:100%;background:#1d4ed8;color:#e2eaf4;border:none;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;padding:13px;cursor:pointer;">Accedi</button>
+    <button onclick="doLogin()" style="width:100%;background:#1d4ed8;color:#e2eaf4;border:none;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;padding:13px;cursor:pointer;">Login</button>
     <div id="loginErr" style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#f87171;margin-top:10px;min-height:16px;"></div>
   </div>
 </div>
@@ -169,7 +169,7 @@
 <section class="hero">
   <div class="hero-eyebrow">// AI Article Generator — Artificial Intelligence</div>
   <h1 class="hero-title">AI Blog<br><span>XenosFinance</span></h1>
-  <p class="hero-sub">Genera articoli professionali sui mercati finanziari. Scegli mercato, tecnica di analisi, lingua e topic — l'AI crea l'articolo in pochi secondi.</p>
+  <p class="hero-sub">Generate professional financial market articles. Choose market, analysis technique, language and topic — AI creates the article in seconds.</p>
 </section>
 
 <div id="adminPanel" style="display:none">
@@ -177,7 +177,7 @@
   <div class="section-header">
     <span class="section-title">// Generazione articolo</span>
     <div class="section-line"></div>
-    <span class="section-title">AI AUTOMATICO</span>
+    <span class="section-title">AI GENERATOR</span>
   </div>
   <div class="gen-grid">
     <div class="gen-field">
@@ -260,7 +260,7 @@
     <button class="btn-action" onclick="copyArticle()">📋 Copia testo</button>
     <button class="btn-action" onclick="generateArticle()">✦ Nuovo articolo</button>
     <button class="btn-action" id="editBtn" onclick="toggleEdit()" style="border-color:var(--gold);color:var(--gold);font-weight:600;">✎ Edit</button>
-    <button class="btn-publish" id="publishBtn" onclick="publishToBlog()"><span id="pubIcon">✦</span> Pubblica nel blog</button>
+    <button class="btn-publish" id="publishBtn" onclick="publishToBlog()"><span id="pubIcon">✦</span> Publish to Blog</button>
     <button class="btn-telegram" onclick="toggleTgConfig()">✈ Invia su Telegram</button>
   </div>
   <div class="gen-status" id="publishStatus" style="margin-top:10px;display:block;font-size:0.75rem;"></div>
@@ -288,7 +288,7 @@
   <div class="section-header">
     <span class="section-title">// Articoli pubblicati</span>
     <div class="section-line"></div>
-    <span class="section-title">ARCHIVIO</span>
+    <span class="section-title">ARCHIVE</span>
   </div>
   <div class="blog-grid" id="blogGrid">
     <div style="grid-column:1/-1;text-align:center;padding:40px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--gold);letter-spacing:2px;">⬡ LOADING ARTICLES...</div>
@@ -297,7 +297,7 @@
 
 <footer>
   <div class="footer-logo">XENOS<span>FINANCE</span></div>
-  <div class="footer-note">© XENOSFINANCE 2026 · AI Blog<br>⚠ Non costituisce consulenza finanziaria</div>
+  <div class="footer-note">© XENOSFINANCE 2026 · AI Blog<br>⚠ Not investment advice</div>
 </footer>
 
 <script>
@@ -424,14 +424,14 @@ async function generateArticle() {
 
   btn.disabled = true;
   btnIcon.innerHTML = '<div class="spinner"></div>';
-  btnText.textContent = 'Generazione...';
-  status.textContent = 'Connessione AI...';
+  btnText.textContent = 'Generating...';
+  status.textContent = 'Connecting to AI...';
 
   var marketLabels = { forex:'FOREX', commodities:'COMMODITIES', equity:'EQUITY', crypto:'CRYPTO', macro:'MACRO', geopolitics:'GEOPOLITICA', multi:'MULTI-MARKET' };
   var techLabels = { elliott:'ELLIOTT WAVE', technical:'ANALISI TECNICA', orderflow:'ORDER FLOW', macro_analysis:'MACRO', sentiment:'SENTIMENT', educational:'EDUCATIVO', outlook:'OUTLOOK' };
 
   try {
-    status.textContent = 'Scrittura articolo...';
+    status.textContent = 'Writing article...';
     var response = await fetch(WORKER_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -497,7 +497,7 @@ async function publishToBlog() {
   var status = document.getElementById('publishStatus');
   btn.disabled = true;
   icon.innerHTML = '<div class="spinner-gold"></div>';
-  status.textContent = 'Pubblicazione in corso...';
+  status.textContent = 'Publishing...';
   status.style.color = 'var(--gold)';
 
   try {
@@ -537,7 +537,7 @@ async function publishToBlog() {
       throw new Error('Indice: ' + errMsg2);
     }
 
-    status.textContent = '✓ Pubblicato con successo!';
+    status.textContent = '✓ Published successfully!';
     status.style.color = 'var(--gold-light)';
     cardCount++;
     var grid = document.getElementById('blogGrid');
@@ -574,23 +574,23 @@ async function sendToTelegram() {
   var channel = document.getElementById('tgChannel').value.trim();
   var tgStatus = document.getElementById('tgStatus');
   var btn = document.getElementById('tgSendBtn');
-  if (!token || !channel) { tgStatus.textContent = '⚠ Inserisci token e channel ID'; return; }
+  if (!token || !channel) { tgStatus.textContent = '⚠ Enter token and channel ID'; return; }
   btn.disabled = true;
-  tgStatus.textContent = 'Invio...';
+  tgStatus.textContent = 'Sending...';
   var msg = '*' + currentArticle.title + '*\n\n_' + currentArticle.categoryLabel + ' · XenosFinance_\n\n' + currentArticle.intro + '\n\n';
   currentArticle.sections.forEach(function(s){ msg += '*' + s.heading + '*\n' + s.content + '\n\n'; });
-  msg += '_"' + currentArticle.quote + '"_\n\n✦ ' + currentArticle.conclusion + '\n\n━━━━━━━━━━━━━━━\n📡 [XenosFinance](https://t.me/xenosfin) — Elliott Wave, analisi, macro\n🔔 Attiva le notifiche per non perdere aggiornamenti';
+  msg += '_"' + currentArticle.quote + '"_\n\n✦ ' + currentArticle.conclusion + '\n\n━━━━━━━━━━━━━━━\n📡 [XenosFinance](https://t.me/xenosfin) — Elliott Wave · Markets · Macro\n🔔 Enable notifications to stay updated';
   try {
-    var res = await fetch('https://api.telegram.org/bot' + token + '/sendMessage', {
+    var res = await fetch(WORKER_URL, {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ chat_id:channel, text:msg, parse_mode:'Markdown', disable_web_page_preview:true,
-        reply_markup:{ inline_keyboard:[[{text:'✦ AI Blog',url:'https://xenosfinance.com/XenosBlog'},{text:'📊 Grafici',url:'https://xenosfinance.com/xenoswaves_charts'},{text:'📰 News',url:'https://xenosfinance.com'}]] }
+      body: JSON.stringify({ type:'telegram', token:token, chat_id:channel, text:msg,
+        reply_markup:{ inline_keyboard:[[{text:'✦ AI Blog',url:'https://xenosfinance.com/XenosBlog'},{text:'📊 Charts',url:'https://xenosfinance.com/xenoswaves_charts'},{text:'📰 News',url:'https://xenosfinance.com'}]] }
       })
     });
     var data = await res.json();
-    if (data.ok) { tgStatus.textContent='✓ Pubblicato nel canale!'; document.getElementById('tgConfig').classList.remove('open'); }
-    else tgStatus.textContent = '⚠ ' + (data.description||'Controlla il token');
-  } catch(e) { tgStatus.textContent = '⚠ Errore di connessione'; }
+    if (data.ok) { tgStatus.textContent='✓ Published to channel!'; document.getElementById('tgConfig').classList.remove('open'); }
+    else tgStatus.textContent = '⚠ ' + (data.description||'Check token and channel ID');
+  } catch(e) { tgStatus.textContent = '⚠ Connection error: ' + e.message; }
   btn.disabled = false;
   setTimeout(function(){ tgStatus.textContent=''; }, 5000);
 }
@@ -654,7 +654,7 @@ document.addEventListener('click', function(e){ if(e.target===document.getElemen
     </div>
     <div class="preview-modal-body" id="previewBody"></div>
     <div class="preview-modal-foot">
-      <button class="btn-prev-pub" onclick="closePreview();publishToBlog()">✦ Pubblica nel blog</button>
+      <button class="btn-prev-pub" onclick="closePreview();publishToBlog()">✦ Publish to Blog</button>
       <button class="btn-prev-tg" onclick="closePreview();setTimeout(()=>{toggleTgConfig();document.getElementById('articleDisplay').scrollIntoView({behavior:'smooth'})},100)">✈ Invia Telegram</button>
       <span class="prev-note">Controlla il contenuto, poi scegli dove pubblicare</span>
     </div>
