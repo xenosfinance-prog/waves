@@ -1895,8 +1895,20 @@ async function analyzePair(pair, livePrices) {
   const slDist   = Math.abs(slVal - entryVal);
   const tpDist   = Math.abs(tpVal - entryVal);
   if (!isFinite(entryVal) || !isFinite(slVal) || !isFinite(tpVal) || slDist < 0.000001) return null;
+
+  // ── Validate direction: BUY = sl < entry < tp | SELL = tp < entry < sl ──
+  const dir = detected.direction;
+  if (dir === 'BUY'  && !(slVal < entryVal && tpVal > entryVal)) return null;
+  if (dir === 'SELL' && !(slVal > entryVal && tpVal < entryVal)) return null;
+
+  // ── Cap SL: max 3x ATR for intraday, 5x for D1 ──
+  const maxSlATR = selectedTF === 'D1' ? 5.0 : selectedTF === 'H4' ? 4.0 : 3.0;
+  if (atr && slDist > atr * maxSlATR) return null;
+
+  // ── Minimum RR: 1:1 ──
   const rawRR = tpDist / slDist;
-  // RR minimo dipende dal timeframe: D1 richiede setup migliori
+  if (rawRR < 1.0) return null;
+
   const rrStr = '1:' + rawRR.toFixed(1);
 
   return {
