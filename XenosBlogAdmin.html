@@ -393,7 +393,7 @@ document.addEventListener('paste', function(e) {
 
 async function publishManualArticle() {
   var title    = document.getElementById('manTitle').value.trim();
-  var category = document.getElementById('manCategory').value.trim();
+  var category = document.getElementById('manCategory').value.trim() || 'ANALYSIS';
   var readTime = document.getElementById('manReadTime').value.trim() || '3 min read';
   var body     = document.getElementById('manBody').value.trim();
   if (!title) { document.getElementById('manStatus').textContent = '⚠ Title required'; return; }
@@ -403,54 +403,71 @@ async function publishManualArticle() {
   btn.disabled = true;
   document.getElementById('manBtnText').textContent = 'Publishing...';
   document.getElementById('manStatus').textContent = '';
+  document.getElementById('manStatus').style.color = 'var(--gold)';
 
   try {
     var apiBase = 'https://api.github.com/repos/' + GITHUB_REPO + '/contents';
     var slug = 'manual-' + Date.now();
     var now  = new Date().toISOString();
+    var imageUrl = null;
 
-    // Build article object
+    // 1. Save image as separate file if present
+    if (manImgBase64) {
+      document.getElementById('manStatus').textContent = 'Uploading image...';
+      var ext = manImgMime.includes('png') ? 'png' : 'jpg';
+      var imgPath = 'articles/' + slug + '-img.' + ext;
+      var imgRes = await githubRequest(apiBase + '/' + imgPath, 'PUT', {
+        message: 'Image: ' + title,
+        content: manImgBase64,
+        branch: GITHUB_BRANCH
+      });
+      if (imgRes.status === 200 || imgRes.status === 201) {
+        imageUrl = 'https://raw.githubusercontent.com/' + GITHUB_REPO + '/main/' + imgPath;
+      }
+    }
+
+    // 2. Save article JSON (no image data inline)
+    document.getElementById('manStatus').textContent = 'Saving article...';
     var articleData = {
-      slug, title, category: category || 'ANALYSIS',
-      readTime, publishedAt: now, lang: 'en',
+      slug, title, category, readTime, publishedAt: now, lang: 'en',
       intro: body.substring(0, 300),
       sections: [{ heading: title, content: body }],
       quote: '', conclusion: '',
       excerpt: body.substring(0, 120),
       signal_type: 'manual',
-      image: manImgBase64 ? ('data:' + manImgMime + ';base64,' + manImgBase64) : null
+      imageUrl: imageUrl || null
     };
 
-    // Save article JSON
     var saveRes = await githubRequest(apiBase + '/articles/' + slug + '.json', 'PUT', {
       message: 'Article: ' + title,
       content: toBase64(JSON.stringify(articleData, null, 2)),
       branch: GITHUB_BRANCH
     });
-    if (saveRes.status !== 200 && saveRes.status !== 201) throw new Error('Save failed: ' + saveRes.status);
+    if (saveRes.status !== 200 && saveRes.status !== 201) throw new Error('Save failed: ' + (saveRes.data?.message || saveRes.status));
 
-    // Update index
+    // 3. Update index
+    document.getElementById('manStatus').textContent = 'Updating index...';
     var idxRes = await githubRequest(apiBase + '/articles/index.json', 'GET');
     var existing = [], sha = null;
     if (idxRes.status === 200 && idxRes.data?.content) {
       sha = idxRes.data.sha;
       existing = JSON.parse(fromBase64(idxRes.data.content));
     }
-    existing.unshift({ slug, title, excerpt: articleData.excerpt, category: articleData.category, readTime, publishedAt: now });
+    existing.unshift({ slug, title, excerpt: articleData.excerpt, category, readTime, publishedAt: now, imageUrl });
     var idxPayload = { message: 'Index: ' + title, content: toBase64(JSON.stringify(existing, null, 2)), branch: GITHUB_BRANCH };
     if (sha) idxPayload.sha = sha;
     var idxRes2 = await githubRequest(apiBase + '/articles/index.json', 'PUT', idxPayload);
-    if (idxRes2.status !== 200 && idxRes2.status !== 201) throw new Error('Index failed: ' + idxRes2.status);
+    if (idxRes2.status !== 200 && idxRes2.status !== 201) throw new Error('Index failed: ' + (idxRes2.data?.message || idxRes2.status));
 
     document.getElementById('manStatus').textContent = '✓ Published successfully!';
-    document.getElementById('manStatus').style.color = 'var(--gold)';
-    // Reset form
+    document.getElementById('manStatus').style.color = 'var(--gold-light, #93c5fd)';
     ['manTitle','manCategory','manReadTime','manBody'].forEach(function(id){ document.getElementById(id).value = ''; });
     clearManImg({ stopPropagation: function(){} });
     loadArticlesFromGitHub();
   } catch(err) {
     document.getElementById('manStatus').textContent = '⚠ Error: ' + err.message;
     document.getElementById('manStatus').style.color = '#e74c3c';
+    console.error('publishManualArticle:', err);
   }
   btn.disabled = false;
   document.getElementById('manBtnText').textContent = 'Publish Manual Article';
