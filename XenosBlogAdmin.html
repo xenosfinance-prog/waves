@@ -350,6 +350,192 @@
 </footer>
 
 <script>
+// ── AUTO IMAGE GENERATOR ────────────────────────────────────
+// Generates a themed SVG image based on market/category/title
+// Colors match site palette: navy bg, blue accent, gold highlights
+function generateArticleImage(title, category, market, tech) {
+  const W = 800, H = 420;
+  const mk = (market || '').toLowerCase();
+  const tk = (tech || '').toLowerCase();
+  const titleShort = title.length > 52 ? title.substring(0, 52) + '…' : title;
+
+  // Market themes
+  const themes = {
+    forex:       { accent: '#3b82f6', accent2: '#60a5fa', label: 'FOREX' },
+    commodities: { accent: '#f59e0b', accent2: '#fbbf24', label: 'COMMODITIES' },
+    equity:      { accent: '#10b981', accent2: '#34d399', label: 'EQUITY' },
+    crypto:      { accent: '#8b5cf6', accent2: '#a78bfa', label: 'CRYPTO' },
+    macro:       { accent: '#ef4444', accent2: '#f87171', label: 'MACRO' },
+    geopolitics: { accent: '#f97316', accent2: '#fb923c', label: 'GEOPOLITICS' },
+  };
+  const theme = themes[mk] || themes.forex;
+  const cat = (category || theme.label).toUpperCase();
+  const a = theme.accent, a2 = theme.accent2;
+
+  // ── Decoration by technique ─────────────────────────────────
+  function gridLines() {
+    var s = '';
+    [80,160,240,320].forEach(function(y){ s += `<line x1="0" y1="${y}" x2="${W}" y2="${y}" stroke="#1e3050" stroke-width="1" opacity="0.35"/>`; });
+    [160,320,480,640].forEach(function(x){ s += `<line x1="${x}" y1="0" x2="${x}" y2="${H}" stroke="#1e3050" stroke-width="1" opacity="0.25"/>`; });
+    return s;
+  }
+
+  function candleBars() {
+    var bars = '';
+    var prices = [180,155,200,135,215,165,205,145,225,160,210,150,235,170];
+    var bw = 34, gap = 14, startX = W - prices.length * (bw + gap) - 30;
+    prices.forEach(function(h, i) {
+      var x = startX + i * (bw + gap), y = H - h - 28;
+      var up = i % 2 === 0 || h > (prices[i-1]||0);
+      var col = up ? '#10b981' : '#ef4444';
+      bars += `<rect x="${x}" y="${y}" width="${bw}" height="${h}" fill="${col}" opacity="0.1" rx="2"/>`;
+      bars += `<rect x="${x}" y="${y}" width="${bw}" height="${h}" fill="none" stroke="${col}" stroke-width="0.8" opacity="0.28" rx="2"/>`;
+      bars += `<line x1="${x+bw/2}" y1="${y-12}" x2="${x+bw/2}" y2="${y+h+8}" stroke="${col}" stroke-width="0.8" opacity="0.2"/>`;
+    });
+    return bars;
+  }
+
+  function waveLine(offsetY, amp, freq, color, opacity, width) {
+    var d = `M 0 ${offsetY}`;
+    for (var x = 0; x <= W; x += 6) {
+      var y = offsetY + Math.sin(x * freq + 1.2) * amp + Math.cos(x * freq * 0.5) * (amp * 0.35);
+      d += ` L ${x} ${y}`;
+    }
+    return `<path d="${d}" fill="none" stroke="${color}" stroke-width="${width||1.5}" opacity="${opacity}"/>`;
+  }
+
+  function elliottWave() {
+    // 1-2-3-4-5 impulse + a-b-c corrective
+    var pts = [[420,320],[470,240],[495,270],[560,185],[590,210],[640,280],[665,250],[700,300]];
+    var labels = ['1','2','3','4','5','a','b','c'];
+    var colors = ['#818cf8','#818cf8','#818cf8','#818cf8','#818cf8','#f59e0b','#f59e0b','#f59e0b'];
+    var s = '';
+    for (var i = 0; i < pts.length - 1; i++) {
+      var col = i >= 5 ? '#f59e0b' : a;
+      var dash = i >= 5 ? 'stroke-dasharray="5,3"' : '';
+      s += `<line x1="${pts[i][0]}" y1="${pts[i][1]}" x2="${pts[i+1][0]}" y2="${pts[i+1][1]}" stroke="${col}" stroke-width="1.8" opacity="0.7" ${dash}/>`;
+      s += `<circle cx="${pts[i][0]}" cy="${pts[i][1]}" r="4" fill="${colors[i]}" opacity="0.8"/>`;
+      s += `<text x="${pts[i][0]-8}" y="${pts[i][1]-10}" font-family="'IBM Plex Mono',monospace" font-size="11" fill="${colors[i]}" opacity="0.9">${labels[i]}</text>`;
+    }
+    var last = pts[pts.length-1];
+    s += `<circle cx="${last[0]}" cy="${last[1]}" r="4" fill="#f59e0b" opacity="0.8"/>`;
+    s += `<text x="${last[0]-8}" y="${last[1]-10}" font-family="'IBM Plex Mono',monospace" font-size="11" fill="#f59e0b" opacity="0.9">c</text>`;
+    return s;
+  }
+
+  function outlookScenarios() {
+    // 3 scenario arrows from a pivot
+    var px = 380, py = 280;
+    return `
+      <circle cx="${px}" cy="${py}" r="5" fill="${a}" opacity="0.8"/>
+      <line x1="${px}" y1="${py}" x2="720" y2="180" stroke="#10b981" stroke-width="1.5" opacity="0.55" stroke-dasharray="5,3"/>
+      <line x1="${px}" y1="${py}" x2="720" y2="270" stroke="${a2}" stroke-width="1.2" opacity="0.45" stroke-dasharray="4,3"/>
+      <line x1="${px}" y1="${py}" x2="720" y2="360" stroke="#ef4444" stroke-width="1.2" opacity="0.45" stroke-dasharray="4,3"/>
+      <text x="728" y="183" font-family="'IBM Plex Mono',monospace" font-size="9" fill="#10b981" opacity="0.8">BULL</text>
+      <text x="728" y="273" font-family="'IBM Plex Mono',monospace" font-size="9" fill="${a2}" opacity="0.8">BASE</text>
+      <text x="728" y="363" font-family="'IBM Plex Mono',monospace" font-size="9" fill="#ef4444" opacity="0.8">BEAR</text>
+      ${waveLine(300, 22, 0.012, a, 0.3, 1.2)}`;
+  }
+
+  function volumeProfile() {
+    var bars = '';
+    var vols = [40,65,80,55,90,70,45,60,85,50];
+    vols.forEach(function(v, i) {
+      var y = 120 + i * 24;
+      bars += `<rect x="${W-v*3-40}" y="${y}" width="${v*3}" height="16" rx="2" fill="${a}" opacity="${0.15 + v/350}"/>`;
+      bars += `<rect x="${W-v*3-40}" y="${y}" width="${v*3}" height="16" rx="2" fill="none" stroke="${a}" stroke-width="0.6" opacity="0.3"/>`;
+    });
+    bars += `<line x1="${W-40}" y1="110" x2="${W-40}" y2="370" stroke="${a}" stroke-width="0.8" opacity="0.4"/>`;
+    return bars + waveLine(260, 20, 0.015, a, 0.3, 1.2);
+  }
+
+  function sentimentGauge() {
+    var cx = 640, cy = 300, r = 100;
+    return `
+      <path d="M ${cx-r} ${cy} A ${r} ${r} 0 0 1 ${cx+r} ${cy}" fill="none" stroke="#1e3050" stroke-width="14" opacity="0.6"/>
+      <path d="M ${cx-r} ${cy} A ${r} ${r} 0 0 1 ${cx} ${cy-r}" fill="none" stroke="${a}" stroke-width="14" opacity="0.5"/>
+      <line x1="${cx}" y1="${cy}" x2="${cx-20}" y2="${cy-90}" stroke="#e2eaf4" stroke-width="2" opacity="0.7"/>
+      <circle cx="${cx}" cy="${cy}" r="6" fill="#e2eaf4" opacity="0.7"/>
+      <text x="${cx-r-10}" y="${cy+20}" font-family="'IBM Plex Mono',monospace" font-size="9" fill="#ef4444" opacity="0.7">FEAR</text>
+      <text x="${cx+r-30}" y="${cy+20}" font-family="'IBM Plex Mono',monospace" font-size="9" fill="#10b981" opacity="0.7">GREED</text>`;
+  }
+
+  function educationalSteps() {
+    var s = '';
+    for (var i = 0; i < 4; i++) {
+      var x = 420 + i * 90;
+      s += `<circle cx="${x}" cy="280" r="22" fill="${a}" opacity="0.12"/>`;
+      s += `<circle cx="${x}" cy="280" r="22" fill="none" stroke="${a}" stroke-width="0.8" opacity="0.4"/>`;
+      s += `<text x="${x}" y="285" font-family="'IBM Plex Mono',monospace" font-size="14" fill="${a}" text-anchor="middle" opacity="0.9">${i+1}</text>`;
+      if (i < 3) s += `<line x1="${x+22}" y1="280" x2="${x+68}" y2="280" stroke="${a}" stroke-width="1" opacity="0.3"/>`;
+    }
+    return s + waveLine(330, 15, 0.02, a, 0.25, 1);
+  }
+
+  function macroBars() {
+    var bars = '', vals = [55,80,45,90,35,70,60,85,40,75];
+    var bw = 28, gap = 10, startX = W - vals.length*(bw+gap) - 30;
+    vals.forEach(function(v, i) {
+      var x = startX + i*(bw+gap), y = H - v*1.6 - 30;
+      var col = v > 60 ? a : a2;
+      bars += `<rect x="${x}" y="${y}" width="${bw}" height="${v*1.6}" fill="${col}" opacity="0.2" rx="2"/>`;
+      bars += `<rect x="${x}" y="${y}" width="${bw}" height="${v*1.6}" fill="none" stroke="${col}" stroke-width="0.8" opacity="0.4" rx="2"/>`;
+    });
+    return bars;
+  }
+
+  // Pick decoration based on technique
+  var decoration;
+  if (tk === 'elliott')          decoration = elliottWave();
+  else if (tk === 'outlook')     decoration = outlookScenarios();
+  else if (tk === 'orderflow')   decoration = volumeProfile();
+  else if (tk === 'sentiment')   decoration = sentimentGauge();
+  else if (tk === 'educational') decoration = educationalSteps();
+  else if (mk === 'macro' || tk === 'macro_analysis') decoration = macroBars() + waveLine(260, 20, 0.015, a, 0.3, 1.2);
+  else                           decoration = candleBars() + waveLine(280, 25, 0.018, a, 0.35, 1.5);
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0a1220"/>
+      <stop offset="100%" stop-color="#0f1c30"/>
+    </linearGradient>
+    <linearGradient id="ag" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="${a}"/>
+      <stop offset="100%" stop-color="${a2}"/>
+    </linearGradient>
+  </defs>
+  <rect width="${W}" height="${H}" fill="url(#bg)"/>
+  ${gridLines()}
+  ${decoration}
+  <rect x="0" y="0" width="${W}" height="3" fill="url(#ag)"/>
+  <circle cx="100" cy="210" r="130" fill="${a}" opacity="0.03"/>
+  <rect x="40" y="40" width="${cat.length*8+24}" height="26" rx="3" fill="${a}" opacity="0.14"/>
+  <rect x="40" y="40" width="${cat.length*8+24}" height="26" rx="3" fill="none" stroke="${a}" stroke-width="0.8" opacity="0.45"/>
+  <text x="52" y="58" font-family="'IBM Plex Mono',monospace" font-size="10" fill="${a}" letter-spacing="2">${cat}</text>
+  <text x="40" y="125" font-family="'Playfair Display',Georgia,serif" font-size="27" font-weight="700" fill="#e2eaf4">${titleShort}</text>
+  <line x1="40" y1="148" x2="260" y2="148" stroke="url(#ag)" stroke-width="2"/>
+  <text x="40" y="390" font-family="'IBM Plex Mono',monospace" font-size="11" fill="#3b82f6" letter-spacing="3">XENOS</text>
+  <text x="106" y="390" font-family="'IBM Plex Mono',monospace" font-size="11" fill="#c8d8ea" letter-spacing="3">FINANCE</text>
+  <text x="${W-40}" y="390" font-family="'IBM Plex Mono',monospace" font-size="9" fill="#5a7a9a" letter-spacing="2" text-anchor="end">AI ANALYSIS</text>
+</svg>`;
+
+  return new Promise(function(resolve) {
+    var canvas = document.createElement('canvas');
+    canvas.width = W; canvas.height = H;
+    var ctx = canvas.getContext('2d');
+    var img = new window.Image();
+    var url = URL.createObjectURL(new Blob([svg], {type:'image/svg+xml'}));
+    img.onload = function() {
+      ctx.drawImage(img, 0, 0);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL('image/jpeg', 0.88).split(',')[1]);
+    };
+    img.onerror = function() { URL.revokeObjectURL(url); resolve(null); };
+    img.src = url;
+  });
+}
+
 // ── MANUAL ARTICLE ──────────────────────────────────────────
 var manImgBase64 = null;
 var manImgMime = 'image/jpeg';
@@ -410,11 +596,20 @@ async function publishManualArticle() {
     var slug = 'manual-' + Date.now();
     var now  = new Date().toISOString();
     var imageUrl = null;
+    var imgBase64 = manImgBase64;
+    var imgMime   = manImgMime;
 
-    // 1. Save image as separate file if present
-    if (manImgBase64) {
+    // Auto-generate image if no manual image provided
+    if (!imgBase64) {
+      document.getElementById('manStatus').textContent = 'Generating image...';
+      imgBase64 = await generateArticleImage(title, category, '', category);
+      imgMime = 'image/jpeg';
+    }
+
+    // Save image as separate file
+    if (imgBase64) {
       document.getElementById('manStatus').textContent = 'Uploading image...';
-      var ext = manImgMime.includes('png') ? 'png' : 'jpg';
+      var ext = imgMime.includes('png') ? 'png' : 'jpg';
       var imgPath = 'articles/' + slug + '-img.' + ext;
       var imgRes = await githubRequest(apiBase + '/' + imgPath, 'PUT', {
         message: 'Image: ' + title,
@@ -685,9 +880,27 @@ async function publishToBlog() {
       existingArticles = JSON.parse(fromBase64(idxRes.data.content));
     }
 
-    // 2. Salva articolo
+    // 2. Generate auto-image and save it
+    var imageUrl = null;
+    try {
+      status.textContent = 'Generating image...';
+      var imgB64 = await generateArticleImage(currentArticle.title, currentArticle.categoryLabel, currentArticle.market, currentArticle.tech);
+      if (imgB64) {
+        var imgPath = 'articles/' + slug + '-img.jpg';
+        var imgRes = await githubRequest(apiBase + '/' + imgPath, 'PUT', {
+          message: 'Image: ' + currentArticle.title,
+          content: imgB64, branch: GITHUB_BRANCH
+        });
+        if (imgRes.status === 200 || imgRes.status === 201) {
+          imageUrl = 'https://raw.githubusercontent.com/' + GITHUB_REPO + '/main/' + imgPath;
+        }
+      }
+    } catch(imgErr) { console.warn('Auto-image failed:', imgErr.message); }
+
+    // 3. Salva articolo
+    status.textContent = 'Publishing...';
     var slug = 'article-' + Date.now();
-    var articleData = Object.assign({}, currentArticle, { slug:slug, publishedAt:new Date().toISOString() });
+    var articleData = Object.assign({}, currentArticle, { slug:slug, publishedAt:new Date().toISOString(), imageUrl: imageUrl });
     var saveRes = await githubRequest(apiBase + '/articles/' + slug + '.json', 'PUT', {
       message: 'Blog: ' + currentArticle.title,
       content: toBase64(JSON.stringify(articleData, null, 2)),
@@ -699,7 +912,7 @@ async function publishToBlog() {
     }
 
     // 3. Aggiorna indice
-    var newEntry = { slug:slug, title:currentArticle.title, excerpt:currentArticle.excerpt||currentArticle.intro.substring(0,120), category:currentArticle.categoryLabel, market:currentArticle.market, tech:currentArticle.tech, lang:currentArticle.lang, readTime:currentArticle.readTime, publishedAt:articleData.publishedAt };
+    var newEntry = { slug:slug, title:currentArticle.title, excerpt:currentArticle.excerpt||currentArticle.intro.substring(0,120), category:currentArticle.categoryLabel, market:currentArticle.market, tech:currentArticle.tech, lang:currentArticle.lang, readTime:currentArticle.readTime, publishedAt:articleData.publishedAt, imageUrl:imageUrl };
     existingArticles.unshift(newEntry);
     var idxPayload = { message:'Indice blog', content:toBase64(JSON.stringify(existingArticles,null,2)), branch:GITHUB_BRANCH };
     if (indexSha) idxPayload.sha = indexSha;
