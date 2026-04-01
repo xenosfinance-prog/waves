@@ -3333,22 +3333,24 @@ async function doSendToTelegram(idx, token, chatId) {
       return tmp;
     })();
 
-    // Live chart canvas (interno al div lc-idx)
+    // Live chart canvas — solo Lightweight Charts (FX/Crypto)
+    // TradingView è un iframe cross-origin, non catturabile
     const liveDiv = document.getElementById('lc-' + idx);
     const liveC = liveDiv ? liveDiv.querySelector('canvas') : null;
+    const hasLiveChart = liveC && liveC.width > 0;
 
-    // Combina i due canvas verticalmente
+    // Canvas combinato
     const combined = document.createElement('canvas');
     const OUT_W = 800;
-    const OUT_H = 300; // ridotto per passare dal Worker
+    const OUT_H = hasLiveChart ? 300 : 500;
     const gap = 2;
     combined.width  = OUT_W;
-    combined.height = OUT_H * 2 + gap;
+    combined.height = hasLiveChart ? OUT_H * 2 + gap : OUT_H;
     const cctx = combined.getContext('2d');
     cctx.fillStyle = '#0d1521';
     cctx.fillRect(0, 0, combined.width, combined.height);
     cctx.drawImage(patternC, 0, 0, OUT_W, OUT_H);
-    if (liveC) cctx.drawImage(liveC, 0, OUT_H + gap, OUT_W, OUT_H);
+    if (hasLiveChart) cctx.drawImage(liveC, 0, OUT_H + gap, OUT_W, OUT_H);
 
     let imageData = combined.toDataURL('image/jpeg', 0.82).split(',')[1];
     const dir = sig.direction === 'BUY' ? '🟢' : '🔴';
