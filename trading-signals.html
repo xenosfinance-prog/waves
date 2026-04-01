@@ -1,4 +1,4 @@
-<!DOCTYPE html>  
+<!DOCTYPE html> 
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -345,13 +345,14 @@ async function loadSignals() {
     loadFolder('signals_cfd',     'cfd'),
     loadFolder('signals_options', 'options'),
   ]);
-  // Closed = signals with outcome set (win/loss/breakeven) from both folders
+  // Closed = signals with a resolved outcome (exclude open/pending/null)
+  const isOpen = s => !s.outcome || s.outcome === 'pending' || s.outcome === 'open' || s.outcome === '';
   allSignals.closed = [
-    ...allSignals.cfd.filter(s => s.outcome && s.outcome !== 'pending'),
-    ...allSignals.options.filter(s => s.outcome && s.outcome !== 'pending'),
-  ].sort((a, b) => new Date(b.timestamp||0) - new Date(a.timestamp||0));
-  document.getElementById('count-cfd').textContent     = allSignals.cfd.filter(s => !s.outcome || s.outcome === 'pending').length;
-  document.getElementById('count-options').textContent = allSignals.options.filter(s => !s.outcome || s.outcome === 'pending').length;
+    ...allSignals.cfd.filter(s => !isOpen(s)),
+    ...allSignals.options.filter(s => !isOpen(s)),
+  ].sort((a, b) => new Date(b.timestamp||b.saved_at||0) - new Date(a.timestamp||a.saved_at||0));
+  document.getElementById('count-cfd').textContent     = allSignals.cfd.filter(s => isOpen(s)).length;
+  document.getElementById('count-options').textContent = allSignals.options.filter(s => isOpen(s)).length;
   document.getElementById('count-closed').textContent  = allSignals.closed.length;
   document.getElementById('last-updated').textContent  =
     'Updated ' + new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) + ' · Auto-refresh every 5 min';
@@ -438,7 +439,7 @@ function applyFilters() {
   const anyDir = dirFilter.BUY || dirFilter.SELL;
 
   // Only show open/pending signals in CFD and Options tabs
-  const openOnly = allSignals[currentTab].filter(s => !s.outcome || s.outcome === 'pending');
+  const openOnly = allSignals[currentTab].filter(s => !s.outcome || s.outcome === 'pending' || s.outcome === 'open' || s.outcome === '');
 
   filtered = openOnly.filter(s => {
     if (pair && !(s.pair||'').includes(pair)) return false;
@@ -543,8 +544,9 @@ function renderCFD() {
           <span style="font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;">Outcome:</span>
           <select id="cfd-oc-${i}" onclick="event.stopPropagation()">
             <option value="open" ${outcome==='open'?'selected':''}>● Open</option>
-            <option value="win"  ${outcome==='win' ?'selected':''}>✓ Win</option>
-            <option value="loss" ${outcome==='loss'?'selected':''}>✗ Loss</option>
+            <option value="win"  ${outcome==='win' ?'selected':''}>✓ Win / TP</option>
+            <option value="loss" ${outcome==='loss'?'selected':''}>✗ Loss / SL</option>
+            <option value="breakeven" ${outcome==='breakeven'?'selected':''}>◎ Breakeven</option>
           </select>
           <button onclick="saveOutcome(event,${i},'cfd')">Save</button>
           <button class="del-btn" onclick="deleteSignal(event,${i},'cfd')">🗑 Delete</button>
@@ -603,8 +605,9 @@ function renderOptions() {
           <span style="font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;">Outcome:</span>
           <select id="options-oc-${i}" onclick="event.stopPropagation()">
             <option value="open" ${(sig.outcome||'open')==='open'?'selected':''}>● Open</option>
-            <option value="win"  ${sig.outcome==='win' ?'selected':''}>✓ Win</option>
-            <option value="loss" ${sig.outcome==='loss'?'selected':''}>✗ Loss</option>
+            <option value="win"  ${sig.outcome==='win' ?'selected':''}>✓ Win / TP</option>
+            <option value="loss" ${sig.outcome==='loss'?'selected':''}>✗ Loss / SL</option>
+            <option value="breakeven" ${sig.outcome==='breakeven'?'selected':''}>◎ Breakeven</option>
           </select>
           <button onclick="saveOutcome(event,${i},'options')">Save</button>
           <button class="del-btn" onclick="deleteSignal(event,${i},'options')">🗑 Delete</button>
@@ -653,9 +656,9 @@ function renderClosed() {
   list.innerHTML = data.map(s => {
     const o = (s.outcome||'').toLowerCase();
     let badgeClass = 'pending';
-    if (o === 'win' || o === 'tp1' || o === 'tp2') badgeClass = 'win';
-    else if (o === 'loss' || o === 'sl')            badgeClass = 'loss';
-    else if (o === 'breakeven' || o === 'be')       badgeClass = 'breakeven';
+    if (o === 'win' || o === 'tp1' || o === 'tp2' || o === 'tp')  badgeClass = 'win';
+    else if (o === 'loss' || o === 'sl' || o === 'stop')           badgeClass = 'loss';
+    else if (o === 'breakeven' || o === 'be')                      badgeClass = 'breakeven';
     const dir = s.direction || s.action || '—';
     const dirColor = (dir === 'BUY' || dir === 'CALL') ? 'color:var(--green)' : 'color:var(--red)';
     const typeTag = s.signal_type === 'options' ? '<span style="font-size:9px;color:var(--yellow);margin-left:4px;">OPT</span>' : '';
