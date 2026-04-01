@@ -582,17 +582,34 @@ async function fetchLiveCalendar(weekStr) {
     }
   } catch(e) { console.warn('ForexFactory failed:', e.message); }
 
-  // 2. Finnhub fallback
+  // 2. RapidAPI FXStreet (primary fallback)
   try {
     const r2 = await fetch(WORKER_URL, {
       method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ type: 'finnhub', action: 'economic_calendar', from, to }),
+      body: JSON.stringify({ type: 'rapidapi_calendar', countries: ['US','EU','GB','DE','JP','CN','CA','AU','CH','NZ'] }),
       signal: (()=>{ const c = new AbortController(); setTimeout(()=>c.abort(), 10000); return c.signal; })()
     });
     if (r2.ok) {
       const d2 = await r2.json();
-      const events2 = d2.economicCalendar || [];
-      ingestEvents(events2, 'Finnhub');
+      const events2 = d2.events || [];
+      if (events2.length > 0 && !d2.error) {
+        ingestEvents(events2, 'RapidAPI FXStreet');
+        return;
+      }
+    }
+  } catch(e) { console.warn('RapidAPI calendar failed:', e.message); }
+
+  // 3. Finnhub fallback
+  try {
+    const r3 = await fetch(WORKER_URL, {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ type: 'finnhub', action: 'economic_calendar', from, to }),
+      signal: (()=>{ const c = new AbortController(); setTimeout(()=>c.abort(), 10000); return c.signal; })()
+    });
+    if (r3.ok) {
+      const d3 = await r3.json();
+      const events3 = d3.economicCalendar || [];
+      ingestEvents(events3, 'Finnhub');
     }
   } catch(e) { console.warn('Finnhub calendar failed:', e.message); }
 }
