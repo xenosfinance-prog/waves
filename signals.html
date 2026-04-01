@@ -3294,13 +3294,11 @@ function sendToTelegram(event, idx) {
   pendingTgSignalIdx = idx;
   const token = localStorage.getItem('tg_token');
   const chatId = localStorage.getItem('tg_chat_id');
-  if (token && chatId) { doSendToTelegram(idx, token, chatId); }
-  else {
-    document.getElementById('tg-bot-token').value = token || '';
-    document.getElementById('tg-chat-id').value = chatId || '';
-    document.getElementById('tg-config').classList.add('open');
-    document.getElementById('tg-overlay').classList.add('open');
-  }
+  // Mostra sempre il popup per verificare le credenziali
+  document.getElementById('tg-bot-token').value = token || '';
+  document.getElementById('tg-chat-id').value = chatId || '';
+  document.getElementById('tg-config').classList.add('open');
+  document.getElementById('tg-overlay').classList.add('open');
 }
 
 function closeTgConfig() {
