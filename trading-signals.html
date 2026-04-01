@@ -159,6 +159,9 @@ body{background:var(--bg);color:var(--ink);font-family:var(--mono);min-height:10
 
 /* ── DISCLAIMER ── */
 .disclaimer{background:var(--bg2);border:1px solid var(--border);border-left:3px solid var(--muted);padding:16px 20px;font-size:10px;color:var(--muted);line-height:1.7;margin-top:32px;letter-spacing:0.5px;}
+/* Admin-only controls — hidden by default, shown only when isAdmin=true */
+.outcome-ctrl{display:none;}
+.outcome-ctrl.admin-visible{display:flex;gap:8px;align-items:center;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);}
 
 /* ── FOOTER ── */
 .page-footer{border-top:1px solid var(--border);padding:20px 32px;display:flex;justify-content:space-between;font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-top:60px;}
@@ -733,6 +736,7 @@ function showToast(msg) {
 // ── SAVE OUTCOME ──────────────────────────────────────────────
 async function saveOutcome(event, i, type) {
   event.stopPropagation();
+  if (!isAdmin) return;
   const sig = filtered[i];
   if (!sig) return;
   const selId = type + '-oc-' + i;
@@ -786,6 +790,7 @@ async function saveOutcome(event, i, type) {
 // ── DELETE SIGNAL ─────────────────────────────────────────────
 async function deleteSignal(event, i, type) {
   event.stopPropagation();
+  if (!isAdmin) return;
   const sig = filtered[i];
   if (!sig) return;
   if (!confirm('Delete signal ' + (sig.pair||'') + ' ' + (sig.direction||sig.action||'') + '?')) return;
