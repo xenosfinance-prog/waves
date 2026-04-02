@@ -136,7 +136,7 @@ body{background:var(--bg);color:var(--ink);font-family:var(--mono);min-height:10
 .opt-card:hover{background:var(--bg3);border-color:var(--border-bright);}
 .opt-card.call{border-left-color:var(--green);}
 .opt-card.put{border-left-color:var(--red);}
-.opt-card-row{display:grid;grid-template-columns:110px 160px 130px 130px 80px 1fr;gap:8px;padding:14px 20px;align-items:center;font-size:11px;}
+.opt-card-row{display:grid;grid-template-columns:110px 160px 110px 110px 120px 60px;gap:8px;padding:14px 20px;align-items:center;font-size:11px;}
 .oc-pair{color:var(--ink);font-weight:700;letter-spacing:2px;font-size:12px;}
 .oc-action{font-size:10px;font-weight:700;padding:3px 12px;letter-spacing:2px;}
 .oc-action.CALL{color:var(--green2);background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.25);}
@@ -152,7 +152,7 @@ body{background:var(--bg);color:var(--ink);font-family:var(--mono);min-height:10
 
 /* ── TABLE HEADER ── */
 .table-header{display:grid;grid-template-columns:110px 80px 170px 100px 100px 100px 80px 1fr;gap:8px;padding:10px 20px;font-size:9px;letter-spacing:3px;color:var(--muted);text-transform:uppercase;border-bottom:1px solid var(--border);background:var(--bg);border-top:1px solid var(--border);}
-.table-header-opt{display:grid;grid-template-columns:110px 160px 130px 130px 80px 1fr;gap:8px;padding:10px 20px;font-size:9px;letter-spacing:3px;color:var(--muted);text-transform:uppercase;border-bottom:1px solid var(--border);background:var(--bg);border-top:1px solid var(--border);}
+.table-header-opt{display:grid;grid-template-columns:110px 160px 110px 110px 120px 60px;gap:8px;padding:10px 20px;font-size:9px;letter-spacing:3px;color:var(--muted);text-transform:uppercase;border-bottom:1px solid var(--border);background:var(--bg);border-top:1px solid var(--border);}
 
 /* ── EMPTY / LOADING ── */
 .empty-msg{text-align:center;padding:60px 20px;font-size:10px;color:var(--muted);letter-spacing:3px;background:var(--bg2);border:1px solid var(--border);font-family:var(--mono);text-transform:uppercase;}
@@ -268,8 +268,8 @@ body{background:var(--bg);color:var(--ink);font-family:var(--mono);min-height:10
   <!-- OPTIONS TABLE -->
   <div id="options-section" style="display:none;">
     <div class="table-header-opt">
-      <div>PAIR</div><div>ACTION</div><div>ENTRY</div>
-      <div>EXPIRY</div><div>CONF</div><div>ANALYSIS</div>
+      <div>PAIR</div><div>ACTION</div><div>OPEN PRICE</div>
+      <div>CLOSE TARGET</div><div>EXPIRY</div><div>CONF</div>
     </div>
     <div id="options-list">
       <div class="loading-msg">⬡ LOADING OPTIONS <span class="loading-dot">...</span></div>
@@ -578,31 +578,35 @@ function renderOptions() {
     return;
   }
   container.innerHTML = filtered.map((sig, i) => {
-    const isCall  = sig.action === 'CALL';
+    const isCall  = (sig.action||sig.direction||'').toUpperCase() === 'CALL';
     const confW   = Math.round((sig.confidence||0) / 100 * 50);
+    const openPx  = sig.entry != null ? fmtPrice(sig.entry, sig.pair) : '—';
+    const closePx = sig.close_price != null ? fmtPrice(sig.close_price, sig.pair) : '—';
+    const expiry  = sig.expiry || sig.timeframe || '—';
+    const analysis = sig.analysis || sig.pattern_desc || sig.ew_context || '';
+    const outcome  = sig.outcome || 'open';
 
     return `
     <div class="opt-card ${isCall?'call':'put'}" onclick="toggleOptDetail(${i})">
       <div class="opt-card-row">
         <div class="oc-pair">${sig.pair||'—'}</div>
-        <div class="oc-action ${sig.action||''}">${isCall?'▲ CALL — Acquisto':'▼ PUT — Vendita'}</div>
-        <div class="oc-entry">${fmtPrice(sig.entry, sig.pair)}</div>
-        <div class="oc-expiry">⏱ ${sig.expiry||'—'}</div>
-        <div class="conf-wrap">
-          <div class="conf-bar"><div class="conf-fill" style="width:${confW}px;background:${isCall?'var(--green)':'var(--red)'}"></div></div>
-          <span style="color:var(--ink2)">${sig.confidence||'—'}%</span>
-        </div>
-        <div style="font-size:10px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${(sig.analysis||'').slice(0,80)}${(sig.analysis||'').length>80?'…':''}</div>
+        <div class="oc-action ${isCall?'CALL':'PUT'}">${isCall?'▲ CALL':'▼ PUT'}</div>
+        <div class="oc-entry">${openPx}</div>
+        <div style="font-family:var(--mono);font-size:11px;color:var(--green)">${closePx}</div>
+        <div style="font-family:var(--mono);font-size:11px;color:var(--yellow)">⏱ ${expiry}</div>
+        <div style="font-family:var(--mono);font-size:11px;color:var(--ink2)">${sig.confidence||'—'}%</div>
       </div>
       <div class="opt-detail" id="opt-detail-${i}">
         <div class="detail-levels" style="margin-bottom:14px;">
           <div class="level-pill"><div class="level-pill-label">Asset</div><div class="level-pill-val" style="color:var(--ink)">${sig.pair||'—'}</div></div>
-          <div class="level-pill"><div class="level-pill-label">Azione</div><div class="level-pill-val ${isCall?'tp':'sl'}">${isCall?'CALL — Acquisto':'PUT — Vendita'}</div></div>
-          <div class="level-pill"><div class="level-pill-label">Prezzo Ingresso</div><div class="level-pill-val entry">${fmtPrice(sig.entry, sig.pair)}</div></div>
-          <div class="level-pill"><div class="level-pill-label">Scadenza</div><div class="level-pill-val" style="color:var(--yellow)">${sig.expiry||'—'}</div></div>
+          <div class="level-pill"><div class="level-pill-label">Action</div><div class="level-pill-val ${isCall?'tp':'sl'}">${isCall?'CALL — Buy':'PUT — Sell'}</div></div>
+          <div class="level-pill"><div class="level-pill-label">Open Price</div><div class="level-pill-val entry">${openPx}</div></div>
+          <div class="level-pill"><div class="level-pill-label">Close Target</div><div class="level-pill-val tp">${closePx}</div></div>
+          <div class="level-pill"><div class="level-pill-label">Expiry</div><div class="level-pill-val" style="color:var(--yellow)">${expiry}</div></div>
+          <div class="level-pill"><div class="level-pill-label">Confidence</div><div class="level-pill-val">${sig.confidence||'—'}%</div></div>
         </div>
-        <div class="opt-detail-analysis">${sig.analysis||'—'}</div>
-        <div class="detail-tags">${(sig.tags||[]).map(t=>`<span class="tag">#${t}</span>`).join('')}</div>
+        ${analysis ? `<div class="detail-block" style="margin-bottom:12px;"><div class="detail-block-label">Analysis</div><div class="detail-block-text">${analysis}</div></div>` : ''}
+        <div class="detail-tags">${(sig.tags||[]).filter(t=>t).map(t=>`<span class="tag">#${t}</span>`).join('')}</div>
         <div class="detail-meta">
           <span>Saved: <strong>${fmtDate(sig.saved_at)}</strong></span>
           <span>Confidence: <strong>${sig.confidence||'—'}%</strong></span>
@@ -610,10 +614,10 @@ function renderOptions() {
         <div class="outcome-ctrl ${isAdmin ? 'admin-visible' : ''}">
           <span style="font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;">Outcome:</span>
           <select id="options-oc-${i}" onclick="event.stopPropagation()">
-            <option value="open" ${(sig.outcome||'open')==='open'?'selected':''}>● Open</option>
-            <option value="win"  ${sig.outcome==='win' ?'selected':''}>✓ Win / TP</option>
-            <option value="loss" ${sig.outcome==='loss'?'selected':''}>✗ Loss / SL</option>
-            <option value="breakeven" ${sig.outcome==='breakeven'?'selected':''}>◎ Breakeven</option>
+            <option value="open"      ${outcome==='open'      ?'selected':''}>● Open</option>
+            <option value="win"       ${outcome==='win'       ?'selected':''}>✓ Win</option>
+            <option value="loss"      ${outcome==='loss'      ?'selected':''}>✗ Loss</option>
+            <option value="breakeven" ${outcome==='breakeven' ?'selected':''}>◎ Breakeven</option>
           </select>
           <button onclick="saveOutcome(event,${i},'options')">Save</button>
           <button class="del-btn" onclick="deleteSignal(event,${i},'options')">🗑 Delete</button>
@@ -667,14 +671,24 @@ function renderClosed() {
     else if (o === 'breakeven' || o === 'be')                      badgeClass = 'breakeven';
     const dir = s.direction || s.action || '—';
     const dirColor = (dir === 'BUY' || dir === 'CALL') ? 'color:var(--green)' : 'color:var(--red)';
-    const typeTag = s.signal_type === 'options' ? '<span style="font-size:9px;color:var(--yellow);margin-left:4px;">OPT</span>' : '';
+    const isOpt = s.signal_type === 'options';
+    const typeTag = isOpt ? '<span style="font-size:9px;color:var(--yellow);margin-left:4px;">OPT</span>' : '';
+    // For options: show open/close price + expiry instead of SL/TP
+    const col3 = isOpt ? fmtPrice(s.entry, s.pair) : fmtPrice(s.entry, s.pair);
+    const col4 = isOpt
+      ? `<span style="color:var(--green)">${fmtPrice(s.close_price, s.pair)}</span>`
+      : `<span style="color:var(--red)">${fmtPrice(s.sl, s.pair)}</span>`;
+    const col5 = isOpt
+      ? `<span style="color:var(--yellow)">${s.expiry||s.timeframe||'—'}</span>`
+      : `<span style="color:var(--green)">${fmtPrice(s.tp, s.pair)}</span>`;
+    const col6 = isOpt ? '' : (s.timeframe||'—');
     return `<div class="closed-row">
       <div style="font-weight:600;color:var(--text-bright)">${s.pair||'—'}${typeTag}</div>
       <div style="${dirColor};font-weight:600;">${dir}</div>
-      <div>${fmtPrice(s.entry, s.pair)}</div>
-      <div style="color:var(--red)">${fmtPrice(s.sl, s.pair)}</div>
-      <div style="color:var(--green)">${fmtPrice(s.tp, s.pair)}</div>
-      <div style="color:var(--muted)">${s.timeframe||'—'}</div>
+      <div>${col3}</div>
+      <div>${col4}</div>
+      <div>${col5}</div>
+      <div style="color:var(--muted)">${col6}</div>
       <div><span class="outcome-badge ${badgeClass}">${s.outcome||'—'}</span></div>
       <div style="color:var(--muted);font-size:10px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">${s.pattern||s.analysis||'—'}</div>
     </div>`;

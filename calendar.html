@@ -2,9 +2,6 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-  <link rel="icon" type="image/x-icon" href="/favicon.ico">
-  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
-  <link rel="apple-touch-icon" sizes="192x192" href="/favicon-192.png">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <title>XenosFinance — Economic Calendar</title>
@@ -165,6 +162,8 @@ body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:10
     <button class="filter-btn on" id="f-GBP" onclick="toggleFilter('GBP')">🇬🇧 GBP</button>
     <button class="filter-btn on" id="f-JPY" onclick="toggleFilter('JPY')">🇯🇵 JPY</button>
     <button class="filter-btn on" id="f-OTHER" onclick="toggleFilter('OTHER')">🌐 Other</button>
+    <span style="width:1px;height:20px;background:var(--border);display:inline-block;margin:0 4px;"></span>
+    <button class="filter-btn" id="f-today" onclick="toggleTodayFilter(this)" style="border-color:var(--red2);color:var(--red2);">● Today Only</button>
   </div>
 
   <!-- Week tabs -->
@@ -237,6 +236,13 @@ const EVENTS = [
 
 // ─── STATE ──────────────────────────────────────────────────────────────────
 const activeFilters = {high:true, med:true, low:true, USD:true, EUR:true, GBP:true, JPY:true, OTHER:true};
+let todayOnly = false;
+
+function toggleTodayFilter(btn) {
+  todayOnly = !todayOnly;
+  btn.classList.toggle('on', todayOnly);
+  renderCalendar();
+}
 let currentWeek = 0; // 0 = this week, 1 = next week
 
 function toggleFilter(key) {
@@ -302,6 +308,7 @@ function impactHtml(impact) {
 }
 
 function matchesFilter(ev) {
+  if (todayOnly && ev.date !== dateKey(new Date())) return false;
   if (!activeFilters[ev.impact]) return false;
   const cur = ev.country;
   if (['USD','EUR','GBP','JPY'].includes(cur)) {
@@ -585,34 +592,17 @@ async function fetchLiveCalendar(weekStr) {
     }
   } catch(e) { console.warn('ForexFactory failed:', e.message); }
 
-  // 2. RapidAPI FXStreet (primary fallback)
+  // 2. Finnhub fallback
   try {
     const r2 = await fetch(WORKER_URL, {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ type: 'rapidapi_calendar', countries: ['US','EU','GB','DE','JP','CN','CA','AU','CH','NZ'] }),
-      signal: (()=>{ const c = new AbortController(); setTimeout(()=>c.abort(), 10000); return c.signal; })()
-    });
-    if (r2.ok) {
-      const d2 = await r2.json();
-      const events2 = d2.events || [];
-      if (events2.length > 0 && !d2.error) {
-        ingestEvents(events2, 'RapidAPI FXStreet');
-        return;
-      }
-    }
-  } catch(e) { console.warn('RapidAPI calendar failed:', e.message); }
-
-  // 3. Finnhub fallback
-  try {
-    const r3 = await fetch(WORKER_URL, {
       method: 'POST', headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({ type: 'finnhub', action: 'economic_calendar', from, to }),
       signal: (()=>{ const c = new AbortController(); setTimeout(()=>c.abort(), 10000); return c.signal; })()
     });
-    if (r3.ok) {
-      const d3 = await r3.json();
-      const events3 = d3.economicCalendar || [];
-      ingestEvents(events3, 'Finnhub');
+    if (r2.ok) {
+      const d2 = await r2.json();
+      const events2 = d2.economicCalendar || [];
+      ingestEvents(events2, 'Finnhub');
     }
   } catch(e) { console.warn('Finnhub calendar failed:', e.message); }
 }
