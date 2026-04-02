@@ -699,14 +699,27 @@ canvas { display: block; }
       <div class="ew-section-line"></div>
     </div>
     <h2 class="ew-section-title">AI Wave Analysis</h2>
-    <p class="ew-prose">Institutional-grade Elliott Wave analysis generated in real-time. Admin access only.</p>
+    <p class="ew-prose">Institutional-grade Elliott Wave analysis generated in real-time. Available to admin and premium subscribers.</p>
 
     <div class="admin-gate">
-      <div class="admin-gate-title">⬡ Admin Access Required</div>
+      <div class="admin-gate-title">⬡ Access Required</div>
       <div id="admin-login-area">
-        <div class="admin-login-row">
-          <input class="admin-pw-input" type="password" id="adminPw" placeholder="Password" onkeydown="if(event.key==='Enter')adminLogin()">
-          <button class="admin-btn" onclick="adminLogin()">Unlock</button>
+        <div style="display:flex;gap:0;margin-bottom:14px;border-bottom:1px solid var(--border);">
+          <button id="tab-admin-btn" onclick="switchAccessTab('admin')" style="padding:8px 20px;font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;background:none;border:none;border-bottom:2px solid var(--gold);color:var(--gold);cursor:pointer;">Admin</button>
+          <button id="tab-premium-btn" onclick="switchAccessTab('premium')" style="padding:8px 20px;font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);cursor:pointer;">Premium</button>
+        </div>
+        <div id="admin-pw-area">
+          <div class="admin-login-row">
+            <input class="admin-pw-input" type="password" id="adminPw" placeholder="Admin password" onkeydown="if(event.key==='Enter')adminLogin()">
+            <button class="admin-btn" onclick="adminLogin()">Unlock</button>
+          </div>
+        </div>
+        <div id="premium-pw-area" style="display:none;">
+          <div style="font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:1px;margin-bottom:10px;">Enter your premium subscription code to access AI Wave Analysis.</div>
+          <div class="admin-login-row">
+            <input class="admin-pw-input" type="password" id="premiumPw" placeholder="Subscription code" onkeydown="if(event.key==='Enter')premiumLogin()">
+            <button class="admin-btn" onclick="premiumLogin()">Unlock</button>
+          </div>
         </div>
         <div class="admin-err" id="adminErr"></div>
       </div>
@@ -714,7 +727,21 @@ canvas { display: block; }
         <div class="admin-controls">
           <div>
             <div class="admin-label">Instrument</div>
-            <input class="admin-input" id="aiSymbol" placeholder="e.g. EUR/USD, Gold, BTC/USD" value="EUR/USD">
+            <select class="admin-select" id="aiSymbol">
+              <option value="OIL WTI">OIL WTI</option>
+              <option value="GOLD">GOLD</option>
+              <option value="SILVER">SILVER</option>
+              <option value="NAT GAS">NAT GAS</option>
+              <option value="EUR/USD" selected>EUR/USD</option>
+              <option value="GBP/USD">GBP/USD</option>
+              <option value="USD/JPY">USD/JPY</option>
+              <option value="BTC/USD">BTC/USD</option>
+              <option value="ETH/USD">ETH/USD</option>
+              <option value="S&P 500">S&P 500</option>
+              <option value="NASDAQ">NASDAQ</option>
+              <option value="DAX">DAX</option>
+              <option value="FTSE 100">FTSE 100</option>
+            </select>
           </div>
           <div>
             <div class="admin-label">Timeframe</div>
@@ -724,20 +751,6 @@ canvas { display: block; }
               <option selected>D1 (Daily)</option>
               <option>H4 (4-Hour)</option>
               <option>H1 (1-Hour)</option>
-            </select>
-          </div>
-          <div>
-            <div class="admin-label">Current Wave Position</div>
-            <select class="admin-select" id="aiWave">
-              <option>Unknown — Identify</option>
-              <option>Wave 1 in progress</option>
-              <option>Wave 2 correction</option>
-              <option>Wave 3 in progress</option>
-              <option>Wave 4 correction</option>
-              <option>Wave 5 final push</option>
-              <option>Wave A correction</option>
-              <option>Wave B retracement</option>
-              <option>Wave C decline</option>
             </select>
           </div>
         </div>
@@ -817,6 +830,15 @@ function filterTag(tag, btn){
 }
 
 // ── ADMIN ──
+function switchAccessTab(tab) {
+  const isAdmin = tab === 'admin';
+  document.getElementById('admin-pw-area').style.display = isAdmin ? '' : 'none';
+  document.getElementById('premium-pw-area').style.display = isAdmin ? 'none' : '';
+  document.getElementById('tab-admin-btn').style.cssText = 'padding:8px 20px;font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;background:none;border:none;cursor:pointer;' + (isAdmin ? 'border-bottom:2px solid var(--gold);color:var(--gold);' : 'border-bottom:2px solid transparent;color:var(--muted);');
+  document.getElementById('tab-premium-btn').style.cssText = 'padding:8px 20px;font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;background:none;border:none;cursor:pointer;' + (!isAdmin ? 'border-bottom:2px solid var(--gold2);color:var(--gold2);' : 'border-bottom:2px solid transparent;color:var(--muted);');
+  document.getElementById('adminErr').textContent = '';
+}
+
 function adminLogin(){
   const pw=document.getElementById('adminPw').value;
   if(pw==='xenosfinance2026'){
@@ -825,6 +847,19 @@ function adminLogin(){
   } else {
     document.getElementById('adminErr').textContent='⚠ Wrong password';
     document.getElementById('adminPw').value='';
+  }
+}
+
+const PREMIUM_CODES = ['XENOS-PREMIUM-2026', 'XF-PRO-001', 'XF-PRO-002', 'XF-PRO-003'];
+
+function premiumLogin(){
+  const code = document.getElementById('premiumPw').value.trim().toUpperCase();
+  if(PREMIUM_CODES.includes(code)){
+    document.getElementById('admin-login-area').style.display='none';
+    document.getElementById('adminPanel').style.display='block';
+  } else {
+    document.getElementById('adminErr').textContent='⚠ Invalid subscription code';
+    document.getElementById('premiumPw').value='';
   }
 }
 
@@ -885,9 +920,9 @@ async function fetchLivePrice(symbolInput) {
 }
 
 async function runAIAnalysis(){
-  const symbol=document.getElementById('aiSymbol').value||'EUR/USD';
+  const symbolEl=document.getElementById('aiSymbol');
+  const symbol=symbolEl.options ? symbolEl.options[symbolEl.selectedIndex].value : (symbolEl.value||'EUR/USD');
   const tf=document.getElementById('aiTf').value;
-  const wave=document.getElementById('aiWave').value;
   const ctx=document.getElementById('aiContext').value;
   const btn=document.getElementById('aiRunBtn');
   const out=document.getElementById('analysisOutput');
@@ -917,7 +952,6 @@ async function runAIAnalysis(){
   const prompt=`You are a senior Elliott Wave analyst at a top-tier institutional trading desk. Generate a precise, professional Elliott Wave analysis for ${symbol} on the ${tf} timeframe.
 
 ${livePriceLine}
-Current wave context: ${wave}
 ${ctx?'Additional context: '+ctx:''}
 
 IMPORTANT: If live market data is provided above, you MUST anchor all price levels (entries, stops, targets) to that current price. Do not invent or use generic placeholder prices. All Fibonacci levels must be calculated relative to the live price and recent swing structure.
