@@ -683,6 +683,11 @@ function renderClosed() {
 
 // ── INIT ─────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
+  // Auto-login if session active
+  if (sessionStorage.getItem('xf_admin') === 'true') {
+    isAdmin = true;
+    document.getElementById('admin-bar').style.display = 'flex';
+  }
   loadSignals();
   setInterval(loadSignals, 300000);
 });
@@ -706,9 +711,11 @@ function closeAdminLogin() {
 function doAdminLogin() {
   const pw = document.getElementById('admin-pw').value;
   if (pw === 'xenosfinance2026') {
+    isAdmin = true;
     sessionStorage.setItem('xf_admin', 'true');
     closeAdminLogin();
-    window.location.href = 'https://xenosfinance.com/signals';
+    document.getElementById('admin-bar').style.display = 'flex';
+    applyFilters(); // re-render with admin controls visible
   } else {
     document.getElementById('admin-err').textContent = '⚠ Password errata';
     document.getElementById('admin-pw').value = '';
