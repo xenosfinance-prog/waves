@@ -382,185 +382,298 @@
 // Generates a themed SVG image based on market/category/title
 // Colors match site palette: navy bg, blue accent, gold highlights
 function generateArticleImage(title, category, market, tech) {
-  const W = 800, H = 420;
+  const W = 1200, H = 630; // OG image size, looks great everywhere
   const mk = (market || '').toLowerCase();
   const tk = (tech || '').toLowerCase();
-  const titleShort = title.length > 52 ? title.substring(0, 52) + '…' : title;
 
-  // Market themes
+  // ── Theme per market ─────────────────────────────
   const themes = {
-    forex:       { accent: '#3b82f6', accent2: '#60a5fa', label: 'FOREX' },
-    commodities: { accent: '#f59e0b', accent2: '#fbbf24', label: 'COMMODITIES' },
-    equity:      { accent: '#10b981', accent2: '#34d399', label: 'EQUITY' },
-    crypto:      { accent: '#8b5cf6', accent2: '#a78bfa', label: 'CRYPTO' },
-    macro:       { accent: '#ef4444', accent2: '#f87171', label: 'MACRO' },
-    geopolitics: { accent: '#f97316', accent2: '#fb923c', label: 'GEOPOLITICS' },
+    forex:       { a: '#3b82f6', a2: '#60a5fa', a3: '#1d4ed8', label: 'FOREX' },
+    commodities: { a: '#f59e0b', a2: '#fbbf24', a3: '#b45309', label: 'COMMODITIES' },
+    equity:      { a: '#10b981', a2: '#34d399', a3: '#065f46', label: 'EQUITY' },
+    crypto:      { a: '#8b5cf6', a2: '#a78bfa', a3: '#5b21b6', label: 'CRYPTO' },
+    macro:       { a: '#ef4444', a2: '#f87171', a3: '#991b1b', label: 'MACRO' },
+    geopolitics: { a: '#f97316', a2: '#fb923c', a3: '#c2410c', label: 'GEOPOLITICS' },
+    multi:       { a: '#3b82f6', a2: '#60a5fa', a3: '#1d4ed8', label: 'GLOBAL' },
   };
-  const theme = themes[mk] || themes.forex;
-  const cat = (category || theme.label).toUpperCase();
-  const a = theme.accent, a2 = theme.accent2;
-
-  // ── Decoration by technique ─────────────────────────────────
-  function gridLines() {
-    var s = '';
-    [80,160,240,320].forEach(function(y){ s += `<line x1="0" y1="${y}" x2="${W}" y2="${y}" stroke="#1e3050" stroke-width="1" opacity="0.35"/>`; });
-    [160,320,480,640].forEach(function(x){ s += `<line x1="${x}" y1="0" x2="${x}" y2="${H}" stroke="#1e3050" stroke-width="1" opacity="0.25"/>`; });
-    return s;
-  }
-
-  function candleBars() {
-    var bars = '';
-    var prices = [180,155,200,135,215,165,205,145,225,160,210,150,235,170];
-    var bw = 34, gap = 14, startX = W - prices.length * (bw + gap) - 30;
-    prices.forEach(function(h, i) {
-      var x = startX + i * (bw + gap), y = H - h - 28;
-      var up = i % 2 === 0 || h > (prices[i-1]||0);
-      var col = up ? '#10b981' : '#ef4444';
-      bars += `<rect x="${x}" y="${y}" width="${bw}" height="${h}" fill="${col}" opacity="0.1" rx="2"/>`;
-      bars += `<rect x="${x}" y="${y}" width="${bw}" height="${h}" fill="none" stroke="${col}" stroke-width="0.8" opacity="0.28" rx="2"/>`;
-      bars += `<line x1="${x+bw/2}" y1="${y-12}" x2="${x+bw/2}" y2="${y+h+8}" stroke="${col}" stroke-width="0.8" opacity="0.2"/>`;
-    });
-    return bars;
-  }
-
-  function waveLine(offsetY, amp, freq, color, opacity, width) {
-    var d = `M 0 ${offsetY}`;
-    for (var x = 0; x <= W; x += 6) {
-      var y = offsetY + Math.sin(x * freq + 1.2) * amp + Math.cos(x * freq * 0.5) * (amp * 0.35);
-      d += ` L ${x} ${y}`;
-    }
-    return `<path d="${d}" fill="none" stroke="${color}" stroke-width="${width||1.5}" opacity="${opacity}"/>`;
-  }
-
-  function elliottWave() {
-    // 1-2-3-4-5 impulse + a-b-c corrective
-    var pts = [[420,320],[470,240],[495,270],[560,185],[590,210],[640,280],[665,250],[700,300]];
-    var labels = ['1','2','3','4','5','a','b','c'];
-    var colors = ['#818cf8','#818cf8','#818cf8','#818cf8','#818cf8','#f59e0b','#f59e0b','#f59e0b'];
-    var s = '';
-    for (var i = 0; i < pts.length - 1; i++) {
-      var col = i >= 5 ? '#f59e0b' : a;
-      var dash = i >= 5 ? 'stroke-dasharray="5,3"' : '';
-      s += `<line x1="${pts[i][0]}" y1="${pts[i][1]}" x2="${pts[i+1][0]}" y2="${pts[i+1][1]}" stroke="${col}" stroke-width="1.8" opacity="0.7" ${dash}/>`;
-      s += `<circle cx="${pts[i][0]}" cy="${pts[i][1]}" r="4" fill="${colors[i]}" opacity="0.8"/>`;
-      s += `<text x="${pts[i][0]-8}" y="${pts[i][1]-10}" font-family="'IBM Plex Mono',monospace" font-size="11" fill="${colors[i]}" opacity="0.9">${labels[i]}</text>`;
-    }
-    var last = pts[pts.length-1];
-    s += `<circle cx="${last[0]}" cy="${last[1]}" r="4" fill="#f59e0b" opacity="0.8"/>`;
-    s += `<text x="${last[0]-8}" y="${last[1]-10}" font-family="'IBM Plex Mono',monospace" font-size="11" fill="#f59e0b" opacity="0.9">c</text>`;
-    return s;
-  }
-
-  function outlookScenarios() {
-    // 3 scenario arrows from a pivot
-    var px = 380, py = 280;
-    return `
-      <circle cx="${px}" cy="${py}" r="5" fill="${a}" opacity="0.8"/>
-      <line x1="${px}" y1="${py}" x2="720" y2="180" stroke="#10b981" stroke-width="1.5" opacity="0.55" stroke-dasharray="5,3"/>
-      <line x1="${px}" y1="${py}" x2="720" y2="270" stroke="${a2}" stroke-width="1.2" opacity="0.45" stroke-dasharray="4,3"/>
-      <line x1="${px}" y1="${py}" x2="720" y2="360" stroke="#ef4444" stroke-width="1.2" opacity="0.45" stroke-dasharray="4,3"/>
-      <text x="728" y="183" font-family="'IBM Plex Mono',monospace" font-size="9" fill="#10b981" opacity="0.8">BULL</text>
-      <text x="728" y="273" font-family="'IBM Plex Mono',monospace" font-size="9" fill="${a2}" opacity="0.8">BASE</text>
-      <text x="728" y="363" font-family="'IBM Plex Mono',monospace" font-size="9" fill="#ef4444" opacity="0.8">BEAR</text>
-      ${waveLine(300, 22, 0.012, a, 0.3, 1.2)}`;
-  }
-
-  function volumeProfile() {
-    var bars = '';
-    var vols = [40,65,80,55,90,70,45,60,85,50];
-    vols.forEach(function(v, i) {
-      var y = 120 + i * 24;
-      bars += `<rect x="${W-v*3-40}" y="${y}" width="${v*3}" height="16" rx="2" fill="${a}" opacity="${0.15 + v/350}"/>`;
-      bars += `<rect x="${W-v*3-40}" y="${y}" width="${v*3}" height="16" rx="2" fill="none" stroke="${a}" stroke-width="0.6" opacity="0.3"/>`;
-    });
-    bars += `<line x1="${W-40}" y1="110" x2="${W-40}" y2="370" stroke="${a}" stroke-width="0.8" opacity="0.4"/>`;
-    return bars + waveLine(260, 20, 0.015, a, 0.3, 1.2);
-  }
-
-  function sentimentGauge() {
-    var cx = 640, cy = 300, r = 100;
-    return `
-      <path d="M ${cx-r} ${cy} A ${r} ${r} 0 0 1 ${cx+r} ${cy}" fill="none" stroke="#1e3050" stroke-width="14" opacity="0.6"/>
-      <path d="M ${cx-r} ${cy} A ${r} ${r} 0 0 1 ${cx} ${cy-r}" fill="none" stroke="${a}" stroke-width="14" opacity="0.5"/>
-      <line x1="${cx}" y1="${cy}" x2="${cx-20}" y2="${cy-90}" stroke="#e2eaf4" stroke-width="2" opacity="0.7"/>
-      <circle cx="${cx}" cy="${cy}" r="6" fill="#e2eaf4" opacity="0.7"/>
-      <text x="${cx-r-10}" y="${cy+20}" font-family="'IBM Plex Mono',monospace" font-size="9" fill="#ef4444" opacity="0.7">FEAR</text>
-      <text x="${cx+r-30}" y="${cy+20}" font-family="'IBM Plex Mono',monospace" font-size="9" fill="#10b981" opacity="0.7">GREED</text>`;
-  }
-
-  function educationalSteps() {
-    var s = '';
-    for (var i = 0; i < 4; i++) {
-      var x = 420 + i * 90;
-      s += `<circle cx="${x}" cy="280" r="22" fill="${a}" opacity="0.12"/>`;
-      s += `<circle cx="${x}" cy="280" r="22" fill="none" stroke="${a}" stroke-width="0.8" opacity="0.4"/>`;
-      s += `<text x="${x}" y="285" font-family="'IBM Plex Mono',monospace" font-size="14" fill="${a}" text-anchor="middle" opacity="0.9">${i+1}</text>`;
-      if (i < 3) s += `<line x1="${x+22}" y1="280" x2="${x+68}" y2="280" stroke="${a}" stroke-width="1" opacity="0.3"/>`;
-    }
-    return s + waveLine(330, 15, 0.02, a, 0.25, 1);
-  }
-
-  function macroBars() {
-    var bars = '', vals = [55,80,45,90,35,70,60,85,40,75];
-    var bw = 28, gap = 10, startX = W - vals.length*(bw+gap) - 30;
-    vals.forEach(function(v, i) {
-      var x = startX + i*(bw+gap), y = H - v*1.6 - 30;
-      var col = v > 60 ? a : a2;
-      bars += `<rect x="${x}" y="${y}" width="${bw}" height="${v*1.6}" fill="${col}" opacity="0.2" rx="2"/>`;
-      bars += `<rect x="${x}" y="${y}" width="${bw}" height="${v*1.6}" fill="none" stroke="${col}" stroke-width="0.8" opacity="0.4" rx="2"/>`;
-    });
-    return bars;
-  }
-
-  // Pick decoration based on technique
-  var decoration;
-  if (tk === 'elliott')          decoration = elliottWave();
-  else if (tk === 'outlook')     decoration = outlookScenarios();
-  else if (tk === 'orderflow')   decoration = volumeProfile();
-  else if (tk === 'sentiment')   decoration = sentimentGauge();
-  else if (tk === 'educational') decoration = educationalSteps();
-  else if (mk === 'macro' || tk === 'macro_analysis') decoration = macroBars() + waveLine(260, 20, 0.015, a, 0.3, 1.2);
-  else                           decoration = candleBars() + waveLine(280, 25, 0.018, a, 0.35, 1.5);
-
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
-  <defs>
-    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#0a1220"/>
-      <stop offset="100%" stop-color="#0f1c30"/>
-    </linearGradient>
-    <linearGradient id="ag" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="${a}"/>
-      <stop offset="100%" stop-color="${a2}"/>
-    </linearGradient>
-  </defs>
-  <rect width="${W}" height="${H}" fill="url(#bg)"/>
-  ${gridLines()}
-  ${decoration}
-  <rect x="0" y="0" width="${W}" height="3" fill="url(#ag)"/>
-  <circle cx="100" cy="210" r="130" fill="${a}" opacity="0.03"/>
-  <rect x="40" y="40" width="${cat.length*8+24}" height="26" rx="3" fill="${a}" opacity="0.14"/>
-  <rect x="40" y="40" width="${cat.length*8+24}" height="26" rx="3" fill="none" stroke="${a}" stroke-width="0.8" opacity="0.45"/>
-  <text x="52" y="58" font-family="'IBM Plex Mono',monospace" font-size="10" fill="${a}" letter-spacing="2">${cat}</text>
-  <text x="40" y="125" font-family="'Playfair Display',Georgia,serif" font-size="27" font-weight="700" fill="#e2eaf4">${titleShort}</text>
-  <line x1="40" y1="148" x2="260" y2="148" stroke="url(#ag)" stroke-width="2"/>
-  <text x="40" y="390" font-family="'IBM Plex Mono',monospace" font-size="11" fill="#3b82f6" letter-spacing="3">XENOS</text>
-  <text x="106" y="390" font-family="'IBM Plex Mono',monospace" font-size="11" fill="#c8d8ea" letter-spacing="3">FINANCE</text>
-  <text x="${W-40}" y="390" font-family="'IBM Plex Mono',monospace" font-size="9" fill="#5a7a9a" letter-spacing="2" text-anchor="end">AI ANALYSIS</text>
-</svg>`;
+  const th = themes[mk] || themes.forex;
+  const catLabel = (category || th.label).toUpperCase().substring(0, 30);
 
   return new Promise(function(resolve) {
-    var canvas = document.createElement('canvas');
+    const canvas = document.createElement('canvas');
     canvas.width = W; canvas.height = H;
-    var ctx = canvas.getContext('2d');
-    var img = new window.Image();
-    var url = URL.createObjectURL(new Blob([svg], {type:'image/svg+xml'}));
-    img.onload = function() {
-      ctx.drawImage(img, 0, 0);
-      URL.revokeObjectURL(url);
-      resolve(canvas.toDataURL('image/jpeg', 0.88).split(',')[1]);
+    const ctx = canvas.getContext('2d');
+
+    // ── Background gradient ──────────────────────
+    const bg = ctx.createLinearGradient(0, 0, W, H);
+    bg.addColorStop(0,   '#090f1a');
+    bg.addColorStop(0.5, '#0b1422');
+    bg.addColorStop(1,   '#0d1930');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+
+    // ── Subtle radial glow top-right ─────────────
+    const glow = ctx.createRadialGradient(W * 0.82, H * 0.18, 0, W * 0.82, H * 0.18, 480);
+    glow.addColorStop(0,   th.a + '18');
+    glow.addColorStop(0.5, th.a + '06');
+    glow.addColorStop(1,   'transparent');
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, W, H);
+
+    // ── Second glow bottom-left ──────────────────
+    const glow2 = ctx.createRadialGradient(W * 0.12, H * 0.85, 0, W * 0.12, H * 0.85, 300);
+    glow2.addColorStop(0,   th.a3 + '20');
+    glow2.addColorStop(1,   'transparent');
+    ctx.fillStyle = glow2;
+    ctx.fillRect(0, 0, W, H);
+
+    // ── Grid lines ───────────────────────────────
+    ctx.strokeStyle = '#1e3050';
+    ctx.lineWidth = 1;
+    ctx.globalAlpha = 0.3;
+    for (let y = 0; y <= H; y += 80) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+    }
+    for (let x = 0; x <= W; x += 120) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+
+    // ── Chart decoration (right half) ────────────
+    function drawDecoration() {
+      const ox = W * 0.52, oy = H * 0.5;
+
+      if (tk === 'elliott') {
+        // Elliott wave 1-2-3-4-5-a-b-c
+        const pts = [
+          [ox+0,  oy+120], [ox+80,  oy+20],  [ox+130, oy+60],
+          [ox+230, oy-80], [ox+290, oy-40],  [ox+380, oy+80],
+          [ox+430, oy+40], [ox+490, oy+130]
+        ];
+        const labels = ['①','②','③','④','⑤','Ⓐ','Ⓑ','Ⓒ'];
+        const impulse = th.a, corr = '#f59e0b';
+
+        // wave lines
+        for (let i = 0; i < pts.length - 1; i++) {
+          const col = i >= 5 ? corr : impulse;
+          ctx.beginPath();
+          ctx.strokeStyle = col;
+          ctx.lineWidth = 2.5;
+          ctx.globalAlpha = 0.75;
+          if (i >= 5) { ctx.setLineDash([8,4]); } else { ctx.setLineDash([]); }
+          ctx.moveTo(pts[i][0], pts[i][1]);
+          ctx.lineTo(pts[i+1][0], pts[i+1][1]);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          // dot
+          ctx.beginPath();
+          ctx.arc(pts[i][0], pts[i][1], 5, 0, Math.PI*2);
+          ctx.fillStyle = col;
+          ctx.globalAlpha = 0.9;
+          ctx.fill();
+          // label
+          ctx.font = 'bold 13px monospace';
+          ctx.fillStyle = col;
+          ctx.globalAlpha = 0.85;
+          ctx.fillText(labels[i], pts[i][0]-8, pts[i][1]-14);
+        }
+        // last dot
+        const lp = pts[pts.length-1];
+        ctx.beginPath(); ctx.arc(lp[0], lp[1], 5, 0, Math.PI*2);
+        ctx.fillStyle = corr; ctx.globalAlpha = 0.9; ctx.fill();
+        ctx.globalAlpha = 1; ctx.setLineDash([]);
+
+      } else if (tk === 'sentiment') {
+        // Semicircle gauge
+        const cx = ox + 230, cy = oy + 80, r = 140;
+        // background arc
+        ctx.beginPath(); ctx.arc(cx, cy, r, Math.PI, 0);
+        ctx.strokeStyle = '#1e3050'; ctx.lineWidth = 18; ctx.globalAlpha = 0.7; ctx.stroke();
+        // colored arc
+        ctx.beginPath(); ctx.arc(cx, cy, r, Math.PI, Math.PI * 1.6);
+        ctx.strokeStyle = th.a; ctx.lineWidth = 18; ctx.globalAlpha = 0.55; ctx.stroke();
+        // needle
+        const angle = Math.PI * 1.35;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(cx + (r-20) * Math.cos(angle), cy + (r-20) * Math.sin(angle));
+        ctx.strokeStyle = '#e2eaf4'; ctx.lineWidth = 3; ctx.globalAlpha = 0.8; ctx.stroke();
+        ctx.beginPath(); ctx.arc(cx, cy, 8, 0, Math.PI*2);
+        ctx.fillStyle = '#e2eaf4'; ctx.globalAlpha = 0.8; ctx.fill();
+        ctx.font = '11px monospace'; ctx.fillStyle = '#ef4444'; ctx.globalAlpha = 0.75;
+        ctx.fillText('FEAR', cx - r - 10, cy + 22);
+        ctx.fillStyle = '#10b981';
+        ctx.fillText('GREED', cx + r - 44, cy + 22);
+        ctx.globalAlpha = 1;
+
+      } else if (tk === 'orderflow') {
+        // Volume profile bars horizontal
+        const vols = [35,55,70,48,85,62,40,55,78,45];
+        vols.forEach(function(v, i) {
+          const y = oy - 100 + i * 22;
+          const bw = v * 4;
+          const col = v > 60 ? th.a : th.a2;
+          ctx.fillStyle = col; ctx.globalAlpha = 0.18 + v/400;
+          ctx.fillRect(ox + 60, y, bw, 15);
+          ctx.strokeStyle = col; ctx.lineWidth = 0.8; ctx.globalAlpha = 0.35;
+          ctx.strokeRect(ox + 60, y, bw, 15);
+        });
+        // price line
+        ctx.beginPath();
+        ctx.moveTo(ox + 400, oy - 110); ctx.lineTo(ox + 400, oy + 130);
+        ctx.strokeStyle = th.a; ctx.lineWidth = 1.5; ctx.globalAlpha = 0.5; ctx.stroke();
+        ctx.globalAlpha = 1;
+
+      } else if (tk === 'outlook') {
+        // 3 scenario arrows
+        const px = ox + 80, py = oy;
+        ctx.beginPath(); ctx.arc(px, py, 7, 0, Math.PI*2);
+        ctx.fillStyle = th.a; ctx.globalAlpha = 0.85; ctx.fill();
+        const arrows = [
+          { tx: ox+480, ty: oy-140, col: '#10b981', label: 'BULL' },
+          { tx: ox+480, ty: oy,     col: th.a2,     label: 'BASE' },
+          { tx: ox+480, ty: oy+140, col: '#ef4444',  label: 'BEAR' },
+        ];
+        arrows.forEach(function(arr) {
+          ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(arr.tx, arr.ty);
+          ctx.strokeStyle = arr.col; ctx.lineWidth = 1.8; ctx.globalAlpha = 0.55;
+          ctx.setLineDash([8,5]); ctx.stroke(); ctx.setLineDash([]);
+          ctx.font = 'bold 11px monospace'; ctx.fillStyle = arr.col; ctx.globalAlpha = 0.8;
+          ctx.fillText(arr.label, arr.tx + 10, arr.ty + 4);
+        });
+        ctx.globalAlpha = 1;
+
+      } else {
+        // Default: candlestick chart
+        const bars = [
+          {h:160,l:60,o:90, c:140}, {h:145,l:80,o:130,c:95},
+          {h:180,l:85,o:100,c:170},{h:170,l:50,o:160,c:75},
+          {h:200,l:90,o:100,c:190},{h:195,l:70,o:180,c:85},
+          {h:220,l:95,o:105,c:210},{h:215,l:60,o:200,c:70},
+          {h:240,l:100,o:115,c:230},{h:235,l:80,o:220,c:90},
+        ];
+        const bw = 38, gap = 18, startX = ox + 20;
+        bars.forEach(function(b, i) {
+          const x = startX + i * (bw + gap);
+          const up = b.c >= b.o;
+          const col = up ? '#10b981' : '#ef4444';
+          const bodyTop = H - Math.max(b.o, b.c) - 20;
+          const bodyH   = Math.abs(b.c - b.o) || 4;
+          // wick
+          ctx.beginPath(); ctx.moveTo(x + bw/2, H - b.h - 20); ctx.lineTo(x + bw/2, H - b.l - 20);
+          ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.globalAlpha = 0.35; ctx.stroke();
+          // body fill
+          ctx.fillStyle = col; ctx.globalAlpha = up ? 0.18 : 0.22;
+          ctx.fillRect(x, bodyTop, bw, bodyH);
+          // body border
+          ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.globalAlpha = 0.5;
+          ctx.strokeRect(x, bodyTop, bw, bodyH);
+        });
+        // moving average line
+        ctx.beginPath();
+        bars.forEach(function(b, i) {
+          const x = startX + i * (bw + gap) + bw/2;
+          const y = H - (b.h + b.l) / 2 - 20;
+          if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        });
+        ctx.strokeStyle = th.a; ctx.lineWidth = 2; ctx.globalAlpha = 0.5;
+        ctx.setLineDash([]); ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
+    }
+
+    drawDecoration();
+    ctx.globalAlpha = 1;
+    ctx.setLineDash([]);
+
+    // ── Left panel: overlay darkening for readability ─
+    const panelGrad = ctx.createLinearGradient(0, 0, W * 0.55, 0);
+    panelGrad.addColorStop(0,   'rgba(9,15,26,0.92)');
+    panelGrad.addColorStop(0.7, 'rgba(9,15,26,0.55)');
+    panelGrad.addColorStop(1,   'rgba(9,15,26,0)');
+    ctx.fillStyle = panelGrad;
+    ctx.fillRect(0, 0, W, H);
+
+    // ── Top accent line ───────────────────────────
+    const lineGrad = ctx.createLinearGradient(0, 0, W * 0.6, 0);
+    lineGrad.addColorStop(0,   th.a);
+    lineGrad.addColorStop(0.5, th.a2);
+    lineGrad.addColorStop(1,   'transparent');
+    ctx.fillStyle = lineGrad;
+    ctx.fillRect(0, 0, W * 0.6, 3);
+
+    // ── Category badge ────────────────────────────
+    const badgeX = 56, badgeY = 48;
+    const badgeW = catLabel.length * 8.5 + 28;
+    ctx.fillStyle = th.a + '22';
+    ctx.fillRect(badgeX, badgeY, badgeW, 28);
+    ctx.strokeStyle = th.a + '66';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(badgeX, badgeY, badgeW, 28);
+    ctx.font = '500 10px monospace';
+    ctx.fillStyle = th.a;
+    ctx.letterSpacing = '3px';
+    ctx.fillText(catLabel, badgeX + 14, badgeY + 18);
+
+    // ── Title (wrapped) ───────────────────────────
+    ctx.font = 'bold 46px Georgia, serif';
+    ctx.fillStyle = '#e8f0fa';
+    const maxW = W * 0.47;
+    const words = title.split(' ');
+    const lines = [];
+    let cur = '';
+    words.forEach(function(w) {
+      const test = cur ? cur + ' ' + w : w;
+      if (ctx.measureText(test).width > maxW && cur) { lines.push(cur); cur = w; }
+      else cur = test;
+    });
+    if (cur) lines.push(cur);
+    const lineH = 56;
+    const titleTop = 140;
+    lines.slice(0, 3).forEach(function(line, i) {
+      ctx.fillText(line, badgeX, titleTop + i * lineH);
+    });
+
+    // ── Accent underline ──────────────────────────
+    const underY = titleTop + Math.min(lines.length, 3) * lineH - 10;
+    const underGrad = ctx.createLinearGradient(badgeX, 0, badgeX + 200, 0);
+    underGrad.addColorStop(0, th.a);
+    underGrad.addColorStop(1, 'transparent');
+    ctx.fillStyle = underGrad;
+    ctx.fillRect(badgeX, underY + 8, 200, 2);
+
+    // ── Technique tag ─────────────────────────────
+    const techLabels = {
+      elliott:'Elliott Wave', technical:'Technical Analysis', orderflow:'Order Flow',
+      macro_analysis:'Macro Analysis', sentiment:'Market Sentiment',
+      educational:'Educational', outlook:'Outlook & Scenarios'
     };
-    img.onerror = function() { URL.revokeObjectURL(url); resolve(null); };
-    img.src = url;
+    const techLabel = techLabels[tk] || 'Market Analysis';
+    ctx.font = '400 13px monospace';
+    ctx.fillStyle = '#5a7a9a';
+    ctx.fillText('// ' + techLabel.toUpperCase(), badgeX, underY + 36);
+
+    // ── Bottom branding ───────────────────────────
+    const brandY = H - 36;
+    ctx.font = 'bold 16px monospace';
+    ctx.fillStyle = th.a;
+    ctx.fillText('XENOS', badgeX, brandY);
+    ctx.fillStyle = '#c8d8ea';
+    ctx.fillText('FINANCE', badgeX + 62, brandY);
+
+    // dot separator
+    ctx.beginPath(); ctx.arc(badgeX + 62 + 72 + 12, brandY - 4, 2.5, 0, Math.PI*2);
+    ctx.fillStyle = '#2a3a55'; ctx.fill();
+
+    ctx.font = '400 11px monospace';
+    ctx.fillStyle = '#2a4060';
+    ctx.fillText('AI MARKET INTELLIGENCE', badgeX + 160, brandY);
+
+    // bottom line
+    ctx.fillStyle = th.a + '33';
+    ctx.fillRect(0, H - 3, W * 0.5, 3);
+
+    resolve(canvas.toDataURL('image/jpeg', 0.92).split(',')[1]);
   });
 }
 
