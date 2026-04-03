@@ -320,22 +320,22 @@
 </footer>
 
 <script>
-// ── UNSPLASH PHOTO QUERIES per market ───────────────────────
-const UNSPLASH_QUERIES = {
-  forex:       ['currency exchange trading floor','forex trading screen','dollar euro currency'],
-  commodities: ['gold bars bullion','oil refinery sunset','commodity trading gold'],
-  equity:      ['stock market trading floor','wall street new york','stock exchange screen'],
-  crypto:      ['bitcoin cryptocurrency digital','blockchain technology blue','crypto trading'],
-  macro:       ['federal reserve building','central bank economics','financial district city'],
-  geopolitics: ['world map geopolitics','financial crisis global','diplomacy international'],
-  multi:       ['financial market global','trading screen data','bank finance technology'],
+// ── PHOTO IDs per market — curated Picsum IDs (professional finance photos) ──
+const PHOTO_IDS = {
+  forex:       [1036, 1029, 534, 210, 259, 442],   // trading screens, city, finance
+  commodities: [247, 421, 1060, 136, 325, 188],     // gold, oil, metals, nature
+  equity:      [1028, 573, 239, 450, 534, 1019],    // wall street, business, charts
+  crypto:      [1036, 180, 325, 442, 259, 1072],    // tech, digital, blue lights
+  macro:       [449, 534, 210, 188, 239, 1019],     // buildings, city, government
+  geopolitics: [188, 210, 325, 259, 449, 167],      // world, maps, architecture
+  multi:       [1036, 534, 442, 210, 247, 573],     // mixed finance
 };
 
-async function fetchUnsplashPhoto(market) {
+async function fetchMarketPhoto(market) {
   const mk = (market || 'multi').toLowerCase();
-  const queries = UNSPLASH_QUERIES[mk] || UNSPLASH_QUERIES.multi;
-  const query   = queries[Math.floor(Math.random() * queries.length)];
-  const url = `https://source.unsplash.com/1200x630/?${encodeURIComponent(query)}&sig=${Date.now()}`;
+  const ids = PHOTO_IDS[mk] || PHOTO_IDS.multi;
+  const id  = ids[Math.floor(Math.random() * ids.length)];
+  const url = `https://picsum.photos/id/${id}/1200/630`;
   try {
     const res = await fetch(url);
     if (!res.ok) throw new Error('fetch failed');
@@ -347,7 +347,7 @@ async function fetchUnsplashPhoto(market) {
       reader.readAsDataURL(blob);
     });
   } catch(e) {
-    console.warn('Unsplash failed:', e.message);
+    console.warn('Photo fetch failed:', e.message);
     return null;
   }
 }
@@ -369,7 +369,7 @@ async function generateArticleImage(title, category, market, tech) {
   const catLabel = (category || th.label).toUpperCase().substring(0, 32);
 
   // 1. Try fetching an Unsplash photo
-  const photoDataUrl = await fetchUnsplashPhoto(mk);
+  const photoDataUrl = await fetchMarketPhoto(mk);
 
   return new Promise(function(resolve) {
     const canvas = document.createElement('canvas');
@@ -932,13 +932,22 @@ async function regenerateAllImages() {
         const imgB64 = await generateArticleImage(entry.title, entry.category || entry.categoryLabel, market, '');
         if (!imgB64) { console.warn('No image for', entry.slug); continue; }
 
-        // Save image to GitHub
+        // Save image to GitHub (get existing SHA to overwrite)
         const imgPath = 'articles/' + entry.slug + '-img.jpg';
-        const imgRes  = await githubRequest(apiBase + '/' + imgPath, 'PUT', {
+        let existingSha = null;
+        try {
+          const existRes = await githubRequest(apiBase + '/' + imgPath, 'GET');
+          if (existRes.status === 200 && existRes.data?.sha) existingSha = existRes.data.sha;
+        } catch(e) { /* new file, no SHA needed */ }
+
+        const putPayload = {
           message: 'Regen image: ' + entry.slug,
           content: imgB64,
           branch:  GITHUB_BRANCH,
-        });
+        };
+        if (existingSha) putPayload.sha = existingSha;
+
+        const imgRes = await githubRequest(apiBase + '/' + imgPath, 'PUT', putPayload);
         if (imgRes.status === 200 || imgRes.status === 201) {
           const newUrl = 'https://raw.githubusercontent.com/' + GITHUB_REPO + '/main/' + imgPath;
           articles[i].imageUrl = newUrl;
