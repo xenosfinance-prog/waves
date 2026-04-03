@@ -775,6 +775,11 @@ canvas { display: block; }
           <button class="admin-tg-btn" id="tgBtn" onclick="sendToTelegram()">✈ Send to Telegram</button>
         </div>
         <div class="analysis-output" id="analysisOutput">
+          <div id="ewChartWrap" style="display:none;margin-bottom:18px;">
+            <div style="font-family:var(--mono);font-size:9px;letter-spacing:3px;color:var(--gold);text-transform:uppercase;margin-bottom:8px;">⬡ Elliott Wave Chart</div>
+            <canvas id="ewChartCanvas" style="width:100%;border:1px solid var(--border);display:block;"></canvas>
+            <div style="font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:6px;letter-spacing:1px;">Impulse waves: <span style="color:#60a5fa">●</span> &nbsp; Corrective waves: <span style="color:#f59e0b">●</span> &nbsp; Entry: <span style="color:#00d4ff">—</span> &nbsp; Stop: <span style="color:#ff3d5a">—</span> &nbsp; Target: <span style="color:#00e676">—</span></div>
+          </div>
           <pre id="analysisText"></pre>
         </div>
       </div>
@@ -968,34 +973,46 @@ async function runAIAnalysis(){
 ${livePriceLine}
 ${ctx?'Additional context: '+ctx:''}
 
-IMPORTANT: If live market data is provided above, you MUST anchor all price levels (entries, stops, targets) to that current price. Do not invent or use generic placeholder prices. All Fibonacci levels must be calculated relative to the live price and recent swing structure.
-If live data is unavailable, explicitly state you are working from limited context and use the information provided in "Additional context" only.
+IMPORTANT: If live market data is provided above, you MUST anchor all price levels to that current price. Do not invent or use generic placeholder prices.
 
-Structure your analysis EXACTLY as follows (use these headers verbatim):
+You must respond with a JSON object ONLY — no other text before or after. The JSON must follow this exact structure:
 
-WAVE COUNT
-[Identify the current wave position and recent completed waves. Be specific about price levels anchored to the live price.]
+{
+  "wave_count": "string — current wave position and recent completed waves with price levels",
+  "key_levels": {
+    "entry": number,
+    "stop_loss": number,
+    "tp1": number,
+    "tp2": number
+  },
+  "scenario_a": {
+    "label": "PRIMARY",
+    "probability": number,
+    "description": "string"
+  },
+  "scenario_b": {
+    "label": "ALTERNATE",
+    "probability": number,
+    "description": "string"
+  },
+  "signal": "LONG | SHORT | WAIT",
+  "signal_detail": "string — conditions and reasoning",
+  "wave_points": {
+    "w0": number,
+    "w1": number,
+    "w2": number,
+    "w3": number,
+    "w4": number,
+    "w5": number,
+    "wa": number,
+    "wb": number,
+    "wc": number
+  },
+  "current_wave": "1|2|3|4|5|A|B|C",
+  "trend": "UP | DOWN"
+}
 
-KEY LEVELS
-[Entry zone, stop loss, take profit 1, take profit 2 with Fibonacci justification — all derived from live price]
-
-SCENARIO A — PRIMARY (probability %)
-[Most likely next move based on wave count. Include target and invalidation level.]
-
-SCENARIO B — ALTERNATE (probability %)
-[Alternative count if primary is invalidated. What would trigger this scenario.]
-
-SIGNAL
-[Clear actionable conclusion: LONG / SHORT / WAIT with specific conditions]
-
-Keep the tone institutional. No disclaimers. Concise, precise, Bloomberg-style.
-FORMATTING RULES — follow exactly:
-- No asterisks, no markdown bold, no bullet points, no dashes as list markers
-- Use ALL CAPS for section headers exactly as shown above (WAVE COUNT, KEY LEVELS, etc.)
-- Separate sections with a blank line
-- Use plain numbers and colons for structure, e.g. "Entry: 1.0850  TP1: 1.0920  SL: 1.0780"
-- Probability in parentheses: (65%)
-- The result must look clean and readable as plain text, like a Bloomberg terminal printout`;
+wave_points must contain realistic price levels for each Elliott Wave pivot relative to the live price. These will be plotted on a chart — they must be consistent with Elliott Wave rules (wave 2 never below w0, wave 3 never shortest, wave 4 no overlap with wave 1 territory, etc). If the corrective phase (A,B,C) hasn't started yet, project plausible values.`;
 
   try{
     const res=await fetch('https://xenos-ai-proxy.xenosfinance.workers.dev',{
@@ -1003,21 +1020,253 @@ FORMATTING RULES — follow exactly:
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({
         model:'claude-sonnet-4-20250514',
-        max_tokens:1000,
+        max_tokens:1200,
         messages:[{role:'user',content:prompt}]
       })
     });
     const data=await res.json();
-    const text=data.content?.[0]?.text||'Error: no response';
-    const priceHeader = liveData ? `[ Live price at generation: ${liveData.price} ]\n\n` : '';
-    txt.textContent=priceHeader+text;
-    lastAnalysis=`Elliott Wave Analysis — ${symbol} ${tf}\n\n${priceHeader}${text}`;
+    const rawText=data.content?.[0]?.text||'';
+
+    // Parse JSON response
+    let analysis = null;
+    try {
+      const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) analysis = JSON.parse(jsonMatch[0]);
+    } catch(e) { console.warn('JSON parse failed:', e.message); }
+
+    if (analysis) {
+      // Render chart
+      renderEWChart(analysis, symbol, tf, liveData);
+
+      // Format text output
+      const priceHeader = liveData ? `[ Live price: ${liveData.price} ]\n\n` : '';
+      const sigColor = analysis.signal === 'LONG' ? '▲ LONG' : analysis.signal === 'SHORT' ? '▼ SHORT' : '◆ WAIT';
+      const formatted = `${priceHeader}WAVE COUNT\n${analysis.wave_count}\n\nKEY LEVELS\nEntry: ${analysis.key_levels?.entry}  SL: ${analysis.key_levels?.stop_loss}  TP1: ${analysis.key_levels?.tp1}  TP2: ${analysis.key_levels?.tp2}\n\nSCENARIO A — PRIMARY (${analysis.scenario_a?.probability}%)\n${analysis.scenario_a?.description}\n\nSCENARIO B — ALTERNATE (${analysis.scenario_b?.probability}%)\n${analysis.scenario_b?.description}\n\nSIGNAL — ${sigColor}\n${analysis.signal_detail}`;
+      txt.textContent = formatted;
+      lastAnalysis = `Elliott Wave Analysis — ${symbol} ${tf}\n\n${formatted}`;
+    } else {
+      // Fallback: show raw text if JSON failed
+      txt.textContent = rawText;
+      lastAnalysis = `Elliott Wave Analysis — ${symbol} ${tf}\n\n${rawText}`;
+    }
     document.getElementById('tgBtn').style.display='inline-block';
   }catch(e){
     txt.textContent='Error: '+e.message;
   }
   btn.disabled=false;
   btn.textContent='⚡ Generate Analysis';
+}
+
+// ── ELLIOTT WAVE CHART RENDERER ────────────────────────────────
+function renderEWChart(analysis, symbol, tf, liveData) {
+  const wrap = document.getElementById('ewChartWrap');
+  const canvas = document.getElementById('ewChartCanvas');
+  if (!wrap || !canvas) return;
+
+  const wp = analysis.wave_points;
+  if (!wp || !wp.w0) { wrap.style.display = 'none'; return; }
+
+  wrap.style.display = 'block';
+
+  const W = canvas.offsetWidth || 860;
+  const H = 400;
+  canvas.width  = W * 2;
+  canvas.height = H * 2;
+  canvas.style.width  = W + 'px';
+  canvas.style.height = H + 'px';
+
+  const ctx2 = canvas.getContext('2d');
+  ctx2.scale(2, 2);
+
+  const ML = 70, MR = 20, MT = 40, MB = 50;
+  const CW = W - ML - MR;
+  const CH = H - MT - MB;
+
+  // ── Wave points in order ──────────────────────────
+  const points = [
+    { label: '0', price: wp.w0,  impulse: true  },
+    { label: '1', price: wp.w1,  impulse: true  },
+    { label: '2', price: wp.w2,  impulse: true  },
+    { label: '3', price: wp.w3,  impulse: true  },
+    { label: '4', price: wp.w4,  impulse: true  },
+    { label: '5', price: wp.w5,  impulse: true  },
+    { label: 'A', price: wp.wa,  impulse: false },
+    { label: 'B', price: wp.wb,  impulse: false },
+    { label: 'C', price: wp.wc,  impulse: false },
+  ];
+
+  const allPrices = points.map(p => p.price).filter(Boolean);
+  const kl = analysis.key_levels || {};
+  if (kl.tp2)   allPrices.push(kl.tp2);
+  if (kl.stop_loss) allPrices.push(kl.stop_loss);
+
+  const minP = Math.min(...allPrices) * 0.9985;
+  const maxP = Math.max(...allPrices) * 1.0015;
+  const priceRange = maxP - minP;
+
+  const toY = p => MT + CH - ((p - minP) / priceRange) * CH;
+  const nPts = points.filter(p => p.price).length;
+  const toX = i => ML + (i / (nPts - 1)) * CW;
+
+  // ── Background ────────────────────────────────────
+  const bgGrad = ctx2.createLinearGradient(0, 0, 0, H);
+  bgGrad.addColorStop(0, '#090f1a');
+  bgGrad.addColorStop(1, '#0d1627');
+  ctx2.fillStyle = bgGrad;
+  ctx2.fillRect(0, 0, W, H);
+
+  // ── Grid lines ────────────────────────────────────
+  ctx2.strokeStyle = '#1e3050';
+  ctx2.lineWidth = 0.5;
+  ctx2.globalAlpha = 0.5;
+  for (let i = 0; i <= 5; i++) {
+    const y = MT + (i / 5) * CH;
+    ctx2.beginPath(); ctx2.moveTo(ML, y); ctx2.lineTo(W - MR, y); ctx2.stroke();
+    const price = maxP - (i / 5) * priceRange;
+    ctx2.fillStyle = '#5a7a9a';
+    ctx2.font = '9px monospace';
+    ctx2.textAlign = 'right';
+    ctx2.globalAlpha = 0.8;
+    ctx2.fillText(price.toFixed(price > 100 ? 2 : 5), ML - 6, y + 3);
+  }
+  ctx2.globalAlpha = 1;
+
+  // ── Price lines (entry, SL, TP) ───────────────────
+  function drawHLine(price, color, label) {
+    if (!price) return;
+    const y = toY(price);
+    ctx2.strokeStyle = color;
+    ctx2.lineWidth = 1;
+    ctx2.globalAlpha = 0.6;
+    ctx2.setLineDash([6, 4]);
+    ctx2.beginPath(); ctx2.moveTo(ML, y); ctx2.lineTo(W - MR, y); ctx2.stroke();
+    ctx2.setLineDash([]);
+    ctx2.fillStyle = color;
+    ctx2.globalAlpha = 0.85;
+    ctx2.font = '9px monospace';
+    ctx2.textAlign = 'left';
+    ctx2.fillText(label + ' ' + price, W - MR - ctx2.measureText(label + ' ' + price).width - 2, y - 3);
+    ctx2.globalAlpha = 1;
+  }
+  drawHLine(kl.entry,     '#00d4ff', 'ENTRY');
+  drawHLine(kl.stop_loss, '#ff3d5a', 'SL');
+  drawHLine(kl.tp1,       '#00e676', 'TP1');
+  drawHLine(kl.tp2,       '#00a854', 'TP2');
+
+  // ── Wave lines ────────────────────────────────────
+  const validPts = points.filter(p => p.price);
+  let xi = 0;
+  for (let i = 0; i < validPts.length - 1; i++) {
+    const p1 = validPts[i], p2 = validPts[i + 1];
+    const x1 = toX(i), y1 = toY(p1.price);
+    const x2 = toX(i + 1), y2 = toY(p2.price);
+    const col = p1.impulse && p2.impulse ? '#3b82f6' : '#f59e0b';
+    const col2 = p1.impulse && p2.impulse ? '#60a5fa' : '#fbbf24';
+
+    // Area fill under line
+    const areaGrad = ctx2.createLinearGradient(0, Math.min(y1,y2), 0, Math.max(y1,y2) + 40);
+    areaGrad.addColorStop(0, col + '18');
+    areaGrad.addColorStop(1, col + '00');
+    ctx2.fillStyle = areaGrad;
+    ctx2.beginPath();
+    ctx2.moveTo(x1, y1);
+    ctx2.lineTo(x2, y2);
+    ctx2.lineTo(x2, H - MB);
+    ctx2.lineTo(x1, H - MB);
+    ctx2.closePath();
+    ctx2.fill();
+
+    // Line
+    ctx2.strokeStyle = col2;
+    ctx2.lineWidth = 2.5;
+    ctx2.globalAlpha = 0.85;
+    ctx2.beginPath();
+    ctx2.moveTo(x1, y1);
+    ctx2.lineTo(x2, y2);
+    ctx2.stroke();
+    ctx2.globalAlpha = 1;
+  }
+
+  // ── Dots + Labels ─────────────────────────────────
+  validPts.forEach((pt, i) => {
+    const x = toX(i), y = toY(pt.price);
+    const col = pt.impulse ? '#60a5fa' : '#fbbf24';
+    const isCurrentWave = pt.label === analysis.current_wave;
+
+    // Glow for current wave
+    if (isCurrentWave) {
+      const glowGrad = ctx2.createRadialGradient(x, y, 0, x, y, 18);
+      glowGrad.addColorStop(0, col + '55');
+      glowGrad.addColorStop(1, col + '00');
+      ctx2.fillStyle = glowGrad;
+      ctx2.beginPath(); ctx2.arc(x, y, 18, 0, Math.PI * 2); ctx2.fill();
+    }
+
+    // Dot
+    ctx2.fillStyle = isCurrentWave ? '#ffffff' : col;
+    ctx2.globalAlpha = 0.95;
+    ctx2.beginPath(); ctx2.arc(x, y, isCurrentWave ? 6 : 4.5, 0, Math.PI * 2); ctx2.fill();
+
+    // Label background + text
+    const labelText = pt.label;
+    ctx2.font = 'bold 11px monospace';
+    const tw = ctx2.measureText(labelText).width;
+    const above = i % 2 === 0; // alternate above/below
+    const offsetY = above ? -18 : 16;
+    const lx = x - tw / 2 - 4;
+    const ly = y + offsetY - 11;
+
+    ctx2.fillStyle = 'rgba(8,14,26,0.85)';
+    ctx2.globalAlpha = 0.9;
+    ctx2.fillRect(lx, ly, tw + 8, 15);
+    ctx2.fillStyle = col;
+    ctx2.globalAlpha = 1;
+    ctx2.textAlign = 'center';
+    ctx2.fillText(labelText, x, ly + 11);
+  });
+
+  // ── Current wave price label ──────────────────────
+  if (liveData?.price) {
+    const liveY = toY(liveData.price);
+    ctx2.strokeStyle = '#ffffff';
+    ctx2.lineWidth = 1;
+    ctx2.globalAlpha = 0.2;
+    ctx2.setLineDash([3, 5]);
+    ctx2.beginPath(); ctx2.moveTo(ML, liveY); ctx2.lineTo(W - MR, liveY); ctx2.stroke();
+    ctx2.setLineDash([]);
+    ctx2.globalAlpha = 0.5;
+    ctx2.fillStyle = '#ffffff';
+    ctx2.font = '9px monospace';
+    ctx2.textAlign = 'right';
+    ctx2.fillText('NOW ' + liveData.price, W - MR - 2, liveY - 3);
+  }
+
+  // ── Header ────────────────────────────────────────
+  ctx2.globalAlpha = 1;
+  ctx2.textAlign = 'left';
+  ctx2.font = 'bold 12px monospace';
+  ctx2.fillStyle = '#3b82f6';
+  ctx2.fillText('XENOS', ML, 24);
+  ctx2.fillStyle = '#c8d8ea';
+  ctx2.fillText('FINANCE', ML + 52, 24);
+  ctx2.font = '10px monospace';
+  ctx2.fillStyle = '#5a7a9a';
+  ctx2.fillText('· ELLIOTT WAVE · ' + symbol + ' · ' + tf, ML + 110, 24);
+
+  const sigText = analysis.signal === 'LONG' ? '▲ LONG' : analysis.signal === 'SHORT' ? '▼ SHORT' : '◆ WAIT';
+  const sigColor = analysis.signal === 'LONG' ? '#00e676' : analysis.signal === 'SHORT' ? '#ff3d5a' : '#f59e0b';
+  ctx2.textAlign = 'right';
+  ctx2.font = 'bold 11px monospace';
+  ctx2.fillStyle = sigColor;
+  ctx2.fillText(sigText, W - MR, 24);
+
+  // ── Bottom axis labels ────────────────────────────
+  ctx2.textAlign = 'center';
+  ctx2.font = '9px monospace';
+  ctx2.fillStyle = '#3a5070';
+  validPts.forEach((pt, i) => {
+    ctx2.fillText('W' + pt.label, toX(i), H - MB + 18);
+  });
 }
 
 async function sendToTelegram(){
