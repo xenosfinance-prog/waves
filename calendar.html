@@ -336,7 +336,7 @@ function renderCalendar() {
       const isToday2 = ev.date === today;
       const evIdx = day + '-' + evs.indexOf(ev);
       const hasReal = hasActual && !ev.actual.includes('TODAY');
-      const aiBtn = hasReal ? `<button class="ai-btn" id="btn-${evIdx}" onclick="analyzeEvent('${evIdx}')">⚡ AI</button>` : '';
+  const aiBtn = (hasReal || isToday2) ? `<button class="ai-btn" id="btn-${evIdx}" onclick="analyzeEvent('${evIdx}')">⚡ AI</button>` : '';
       window._evData = window._evData || {};
       window._evData[evIdx] = ev;
       html += `<tr style="${isToday2 ? 'background:rgba(59,130,246,0.04)' : ''}" id="row-${evIdx}">
@@ -522,17 +522,18 @@ Write a concise institutional-grade market impact analysis (4-6 sentences). Cove
 Write in Bloomberg terminal style. No bullet points. No headers. Direct and precise.`;
 
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+    const res = await fetch(WORKER_URL, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
+        type: 'anthropic',
         model: 'claude-sonnet-4-20250514',
         max_tokens: 1000,
         messages: [{role: 'user', content: prompt}]
       })
     });
     const data = await res.json();
-    const text = data.content?.[0]?.text || 'Analysis unavailable.';
+    const text = data.content?.[0]?.text || data.error || 'Analysis unavailable.';
     inner.innerHTML = `<div class="ai-panel-header">⚡ AI Market Analysis · ${ev.name}</div><div class="ai-panel-text">${text}</div>`;
   } catch(e) {
     inner.innerHTML = `<div class="ai-panel-header">⚡ AI Market Analysis</div><div class="ai-panel-text" style="color:var(--red2)">Analysis failed. Check connection.</div>`;
@@ -560,22 +561,43 @@ async function fetchLiveCalendar(weekStr) {
   const offsetWeeks = weekStr === 'nextweek' ? 1 : 0;
   const { from, to } = isoWeekRange(offsetWeeks);
 
-  function ingestEvents(events, source) {
+  function ingestEvents(events, source, nameField, dateField, actualField) {
     let withActuals = 0;
     events.forEach(ev => {
-      if (!ev.actual) return;
+      const actualVal = ev[actualField || 'actual'];
+      if (!actualVal && actualVal !== 0) return;
       withActuals++;
-      const date = (ev.time || '').slice(0, 10);
-      const name = normalizeEventName(ev.event || '');
-      liveByNameDate[name + '|' + date] = ev.actual;
+      const dateRaw = ev[dateField || 'time'] || ev.date || '';
+      const date = dateRaw.slice(0, 10);
+      const name = normalizeEventName(ev[nameField || 'event'] || ev.name || '');
+      const val = String(actualVal);
+      liveByNameDate[name + '|' + date] = val;
       const k2 = name.slice(0, 15) + '|' + date;
-      if (!liveByNameDate[k2]) liveByNameDate[k2] = ev.actual;
+      if (!liveByNameDate[k2]) liveByNameDate[k2] = val;
     });
     console.log('[Calendar] ' + source + ' ' + weekStr + ': ' + events.length + ' events, ' + withActuals + ' actuals');
     return withActuals;
   }
 
-  // 1. ForexFactory
+  // 1. RapidAPI Economic Calendar (primary live source)
+  try {
+    const r0 = await fetch(WORKER_URL, {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ type: 'rapidapi_calendar', countries: ['US','EU','GB','DE','JP','CN','CA','AU'] }),
+      signal: (()=>{ const c = new AbortController(); setTimeout(()=>c.abort(), 10000); return c.signal; })()
+    });
+    if (r0.ok) {
+      const d0 = await r0.json();
+      const events0 = d0.events || [];
+      if (events0.length > 0 && !d0.error) {
+        // RapidAPI events use 'date' field and 'name'/'event' for event name
+        ingestEvents(events0, 'RapidAPI', 'event', 'time', 'actual');
+        console.log('[Calendar] RapidAPI returned', events0.length, 'events');
+      }
+    }
+  } catch(e) { console.warn('RapidAPI calendar failed:', e.message); }
+
+  // 2. ForexFactory
   try {
     const r = await fetch(WORKER_URL, {
       method: 'POST', headers: {'Content-Type': 'application/json'},
@@ -586,13 +608,12 @@ async function fetchLiveCalendar(weekStr) {
       const d = await r.json();
       const events = d.events || [];
       if (events.length > 0 && !d.error) {
-        ingestEvents(events, 'ForexFactory');
-        return; // FF worked — no need for fallback
+        ingestEvents(events, 'ForexFactory', 'event', 'time', 'actual');
       }
     }
   } catch(e) { console.warn('ForexFactory failed:', e.message); }
 
-  // 2. Finnhub fallback
+  // 3. Finnhub fallback
   try {
     const r2 = await fetch(WORKER_URL, {
       method: 'POST', headers: {'Content-Type': 'application/json'},
@@ -602,7 +623,7 @@ async function fetchLiveCalendar(weekStr) {
     if (r2.ok) {
       const d2 = await r2.json();
       const events2 = d2.economicCalendar || [];
-      ingestEvents(events2, 'Finnhub');
+      ingestEvents(events2, 'Finnhub', 'event', 'time', 'actual');
     }
   } catch(e) { console.warn('Finnhub calendar failed:', e.message); }
 }
