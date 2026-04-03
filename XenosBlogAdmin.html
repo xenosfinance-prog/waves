@@ -525,92 +525,92 @@ function generateArticleImage(title, category, market, tech) {
     ctx.globalAlpha = 1;
     ctx.setLineDash([]);
 
-    // ── Left panel: overlay darkening for readability ─
-    const panelGrad = ctx.createLinearGradient(0, 0, W * 0.55, 0);
-    panelGrad.addColorStop(0,   'rgba(9,15,26,0.92)');
-    panelGrad.addColorStop(0.7, 'rgba(9,15,26,0.55)');
-    panelGrad.addColorStop(1,   'rgba(9,15,26,0)');
+    // ── Full overlay — uniform dark gradient left→right ──
+    const panelGrad = ctx.createLinearGradient(0, 0, W, 0);
+    panelGrad.addColorStop(0,   'rgba(9,15,26,0.72)');
+    panelGrad.addColorStop(0.45,'rgba(9,15,26,0.50)');
+    panelGrad.addColorStop(1,   'rgba(9,15,26,0.28)');
     ctx.fillStyle = panelGrad;
     ctx.fillRect(0, 0, W, H);
 
     // ── Top accent line ───────────────────────────
-    const lineGrad = ctx.createLinearGradient(0, 0, W * 0.6, 0);
+    const lineGrad = ctx.createLinearGradient(0, 0, W, 0);
     lineGrad.addColorStop(0,   th.a);
     lineGrad.addColorStop(0.5, th.a2);
-    lineGrad.addColorStop(1,   'transparent');
+    lineGrad.addColorStop(1,   th.a + '00');
     ctx.fillStyle = lineGrad;
-    ctx.fillRect(0, 0, W * 0.6, 3);
+    ctx.fillRect(0, 0, W, 4);
 
-    // ── Category badge ────────────────────────────
-    const badgeX = 56, badgeY = 48;
-    const badgeW = catLabel.length * 8.5 + 28;
-    ctx.fillStyle = th.a + '22';
-    ctx.fillRect(badgeX, badgeY, badgeW, 28);
-    ctx.strokeStyle = th.a + '66';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(badgeX, badgeY, badgeW, 28);
-    ctx.font = '500 10px monospace';
+    // ── Bottom accent line ────────────────────────
+    ctx.fillStyle = lineGrad;
+    ctx.fillRect(0, H - 4, W, 4);
+
+    // ── Big category text — centred ───────────────
+    const marketName = th.label; // e.g. FOREX, MACRO, EQUITY
+    ctx.font = 'bold 92px Georgia, serif';
+    ctx.fillStyle = '#ffffff';
+    ctx.globalAlpha = 0.06;
+    ctx.textAlign = 'center';
+    ctx.fillText(marketName, W / 2, H / 2 + 34);
+    ctx.globalAlpha = 1;
+
+    // ── Category pill — centred ───────────────────
+    ctx.textAlign = 'left';
+    const cxBadge = W / 2;
+    const cyBadge = H / 2;
+    const badgeLabel = catLabel;
+    ctx.font = '600 13px monospace';
+    const badgeW = ctx.measureText(badgeLabel).width + 36;
+    const badgeH = 36;
+    const bx = cxBadge - badgeW / 2;
+    const by = cyBadge - badgeH / 2;
+
+    // pill background
     ctx.fillStyle = th.a;
-    ctx.letterSpacing = '3px';
-    ctx.fillText(catLabel, badgeX + 14, badgeY + 18);
+    ctx.globalAlpha = 0.18;
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(bx, by, badgeW, badgeH, 4) : ctx.rect(bx, by, badgeW, badgeH);
+    ctx.fill();
 
-    // ── Title (wrapped) ───────────────────────────
-    ctx.font = 'bold 46px Georgia, serif';
-    ctx.fillStyle = '#e8f0fa';
-    const maxW = W * 0.47;
-    const words = title.split(' ');
-    const lines = [];
-    let cur = '';
-    words.forEach(function(w) {
-      const test = cur ? cur + ' ' + w : w;
-      if (ctx.measureText(test).width > maxW && cur) { lines.push(cur); cur = w; }
-      else cur = test;
-    });
-    if (cur) lines.push(cur);
-    const lineH = 56;
-    const titleTop = 140;
-    lines.slice(0, 3).forEach(function(line, i) {
-      ctx.fillText(line, badgeX, titleTop + i * lineH);
-    });
+    // pill border
+    ctx.strokeStyle = th.a;
+    ctx.lineWidth = 1.5;
+    ctx.globalAlpha = 0.7;
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(bx, by, badgeW, badgeH, 4) : ctx.rect(bx, by, badgeW, badgeH);
+    ctx.stroke();
 
-    // ── Accent underline ──────────────────────────
-    const underY = titleTop + Math.min(lines.length, 3) * lineH - 10;
-    const underGrad = ctx.createLinearGradient(badgeX, 0, badgeX + 200, 0);
-    underGrad.addColorStop(0, th.a);
-    underGrad.addColorStop(1, 'transparent');
-    ctx.fillStyle = underGrad;
-    ctx.fillRect(badgeX, underY + 8, 200, 2);
+    // pill text
+    ctx.fillStyle = th.a2;
+    ctx.globalAlpha = 1;
+    ctx.textAlign = 'center';
+    ctx.font = '600 13px monospace';
+    ctx.fillText(badgeLabel, cxBadge, cyBadge + 5);
 
-    // ── Technique tag ─────────────────────────────
-    const techLabels = {
-      elliott:'Elliott Wave', technical:'Technical Analysis', orderflow:'Order Flow',
-      macro_analysis:'Macro Analysis', sentiment:'Market Sentiment',
-      educational:'Educational', outlook:'Outlook & Scenarios'
-    };
-    const techLabel = techLabels[tk] || 'Market Analysis';
-    ctx.font = '400 13px monospace';
-    ctx.fillStyle = '#5a7a9a';
-    ctx.fillText('// ' + techLabel.toUpperCase(), badgeX, underY + 36);
+    // ── Accent lines around badge ─────────────────
+    ctx.strokeStyle = th.a;
+    ctx.lineWidth = 1;
+    ctx.globalAlpha = 0.2;
+    ctx.beginPath(); ctx.moveTo(bx - 20, cyBadge); ctx.lineTo(bx - 60, cyBadge); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(bx + badgeW + 20, cyBadge); ctx.lineTo(bx + badgeW + 60, cyBadge); ctx.stroke();
+    ctx.globalAlpha = 1;
 
     // ── Bottom branding ───────────────────────────
-    const brandY = H - 36;
-    ctx.font = 'bold 16px monospace';
+    const brandY = H - 28;
+    ctx.textAlign = 'left';
+    ctx.font = 'bold 14px monospace';
     ctx.fillStyle = th.a;
-    ctx.fillText('XENOS', badgeX, brandY);
-    ctx.fillStyle = '#c8d8ea';
-    ctx.fillText('FINANCE', badgeX + 62, brandY);
-
-    // dot separator
-    ctx.beginPath(); ctx.arc(badgeX + 62 + 72 + 12, brandY - 4, 2.5, 0, Math.PI*2);
-    ctx.fillStyle = '#2a3a55'; ctx.fill();
-
-    ctx.font = '400 11px monospace';
+    ctx.globalAlpha = 0.9;
+    ctx.fillText('XENOS', 48, brandY);
+    ctx.fillStyle = '#8aaac8';
+    ctx.fillText('FINANCE', 48 + 58, brandY);
+    ctx.font = '400 10px monospace';
     ctx.fillStyle = '#2a4060';
-    ctx.fillText('AI MARKET INTELLIGENCE', badgeX + 160, brandY);
+    ctx.globalAlpha = 0.7;
+    ctx.fillText('· AI MARKET INTELLIGENCE', 48 + 130, brandY);
 
-    // bottom line
-    ctx.fillStyle = th.a + '33';
-    ctx.fillRect(0, H - 3, W * 0.5, 3);
+    ctx.globalAlpha = 1;
+    ctx.textAlign = 'left';
 
     resolve(canvas.toDataURL('image/jpeg', 0.92).split(',')[1]);
   });
