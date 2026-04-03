@@ -82,9 +82,7 @@
   .tg-config-title { font-family:'IBM Plex Mono',monospace; font-size:0.62rem; letter-spacing:0.15em; text-transform:uppercase; color:var(--gold); margin-bottom:14px; }
   .tg-fields { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px; }
   .tg-note { font-family:'IBM Plex Mono',monospace; font-size:0.58rem; color:var(--text-dim); line-height:1.65; margin-top:10px; }
-  .rtb { background:var(--bg3); border:1px solid var(--border); color:var(--text); font-family:'IBM Plex Mono',monospace; font-size:0.65rem; padding:4px 10px; cursor:pointer; transition:all 0.15s; letter-spacing:0.05em; }
-  .rtb:hover { border-color:var(--gold); color:var(--gold); background:rgba(59,130,246,0.08); }
-  #manBody:empty:before { content:attr(data-placeholder); color:var(--dim); pointer-events:none; font-style:italic; }
+  #genPasteText::placeholder { color:var(--dim); font-style:italic; }
   .blog-card { background:var(--bg2); transition:background 0.2s; cursor:pointer; overflow:hidden; position:relative; display:flex; flex-direction:column; }
   .blog-card:hover { background:var(--bg3); }
   .card-img-wrap { width:100%; height:140px; overflow:hidden; background:#0d1624; flex-shrink:0; }
@@ -247,6 +245,10 @@
       <label class="gen-label">Topic specifico (opzionale)</label>
       <input class="gen-input" id="genTopic" type="text" placeholder="es. EUR/USD onde di Elliott, Gold scenario rialzista...">
     </div>
+    <div class="gen-field" style="grid-column:1/-1;">
+      <label class="gen-label">✎ Paste your own text — optional · AI will reformat it in XenosFinance style</label>
+      <textarea class="gen-input" id="genPasteText" rows="5" placeholder="Paste your raw notes, analysis or draft here (optional). If filled, AI will rewrite and structure it professionally — same style as auto-generated articles. Leave empty to generate from scratch." style="resize:vertical;line-height:1.7;width:100%;font-family:'Inter',sans-serif;font-size:0.85rem;"></textarea>
+    </div>
   </div>
   <div class="gen-actions">
     <button class="btn-generate" id="generateBtn" onclick="generateArticle()">
@@ -254,69 +256,6 @@
       <span id="btnText">Genera Articolo</span>
     </button>
     <span class="gen-status" id="genStatus"></span>
-  </div>
-</section>
-
-<!-- ── MANUAL ARTICLE SECTION ── -->
-<section class="section-wrap" style="border-top:2px solid var(--border2);margin-top:0;">
-  <div class="section-header">
-    <span class="section-title">// Manual Article</span>
-    <div class="section-line"></div>
-    <span class="section-title">WRITE YOUR OWN</span>
-  </div>
-  <div class="gen-grid">
-    <div class="gen-field" style="grid-column:1/-1;">
-      <label class="gen-label">Title</label>
-      <input class="gen-input" id="manTitle" type="text" placeholder="Article title...">
-    </div>
-    <div class="gen-field">
-      <label class="gen-label">Category</label>
-      <input class="gen-input" id="manCategory" type="text" placeholder="e.g. FOREX · ELLIOTT WAVE">
-    </div>
-    <div class="gen-field">
-      <label class="gen-label">Read Time</label>
-      <input class="gen-input" id="manReadTime" type="text" placeholder="e.g. 5 min read">
-    </div>
-    <div class="gen-field" style="grid-column:1/-1;">
-      <label class="gen-label">Article Body — Rich Text Editor</label>
-      <div style="border:1px solid var(--border);background:var(--bg3);">
-        <div id="manToolbar" style="display:flex;gap:2px;padding:8px 10px;border-bottom:1px solid var(--border);flex-wrap:wrap;background:var(--bg2);">
-          <button class="rtb" onclick="rte('bold')" title="Bold"><b>B</b></button>
-          <button class="rtb" onclick="rte('italic')" title="Italic"><i>I</i></button>
-          <button class="rtb" onclick="rte('underline')" title="Underline"><u>U</u></button>
-          <span style="width:1px;background:var(--border);margin:0 4px;"></span>
-          <button class="rtb" onclick="rteBlock('h2')" title="Heading 2">H2</button>
-          <button class="rtb" onclick="rteBlock('h3')" title="Heading 3">H3</button>
-          <button class="rtb" onclick="rteBlock('blockquote')" title="Quote">❝</button>
-          <span style="width:1px;background:var(--border);margin:0 4px;"></span>
-          <button class="rtb" onclick="rte('insertUnorderedList')" title="Bullet list">• List</button>
-          <button class="rtb" onclick="rte('insertOrderedList')" title="Numbered list">1. List</button>
-          <span style="width:1px;background:var(--border);margin:0 4px;"></span>
-          <button class="rtb" onclick="rte('removeFormat')" title="Clear format">✕ Clear</button>
-        </div>
-        <div id="manBody" contenteditable="true" data-placeholder="Write your article here. Select text and use toolbar buttons to format — bold, italic, headings, quotes, lists..." style="min-height:220px;padding:18px;font-family:'Inter',sans-serif;font-size:0.93rem;line-height:1.75;color:var(--text);outline:none;"></div>
-      </div>
-      <div style="font-family:'IBM Plex Mono',monospace;font-size:0.55rem;color:var(--muted);margin-top:5px;letter-spacing:0.1em;">Select text then click B/I/H2 to format. Paste text or images directly.</div>
-    </div>
-    <div class="gen-field" style="grid-column:1/-1;">
-      <label class="gen-label">Image — Ctrl+V to paste · Click to upload · Drag & drop</label>
-      <div id="manImgDrop" style="border:2px dashed var(--border);padding:24px;text-align:center;cursor:pointer;transition:border-color 0.2s;position:relative;background:var(--bg3);"
-           onclick="document.getElementById('manImgFile').click()"
-           ondragover="event.preventDefault();this.style.borderColor='var(--gold)'"
-           ondragleave="this.style.borderColor='var(--border)'"
-           ondrop="handleManImgDrop(event)">
-        <input type="file" id="manImgFile" accept="image/*" style="display:none" onchange="handleManImgFile(event)">
-        <div id="manImgPreview" style="display:none;"><img id="manImgTag" style="max-width:100%;max-height:240px;border:1px solid var(--border);"></div>
-        <div id="manImgPlaceholder" style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);letter-spacing:2px;">📎 No image selected</div>
-        <button id="manImgClear" onclick="clearManImg(event)" style="display:none;position:absolute;top:8px;right:8px;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);color:#ef4444;font-size:10px;padding:3px 8px;cursor:pointer;font-family:'IBM Plex Mono',monospace;">✕ Remove</button>
-      </div>
-    </div>
-  </div>
-  <div class="gen-actions" style="margin-top:16px;">
-    <button class="btn-generate" onclick="publishManualArticle()">
-      <span>✦</span><span id="manBtnText">Publish Manual Article</span>
-    </button>
-    <span class="gen-status" id="manStatus"></span>
   </div>
 </section>
 
@@ -678,140 +617,6 @@ function generateArticleImage(title, category, market, tech) {
 }
 
 // ── MANUAL ARTICLE ──────────────────────────────────────────
-var manImgBase64 = null;
-var manImgMime = 'image/jpeg';
-
-function setManImg(file) {
-  if (!file || !file.type.startsWith('image/')) return;
-  manImgMime = file.type;
-  var reader = new FileReader();
-  reader.onload = function(e) {
-    manImgBase64 = e.target.result.split(',')[1];
-    document.getElementById('manImgTag').src = e.target.result;
-    document.getElementById('manImgPreview').style.display = 'block';
-    document.getElementById('manImgPlaceholder').style.display = 'none';
-    document.getElementById('manImgClear').style.display = 'block';
-    document.getElementById('manImgDrop').style.borderColor = 'var(--gold)';
-  };
-  reader.readAsDataURL(file);
-}
-function handleManImgFile(e) { setManImg(e.target.files[0]); }
-function handleManImgDrop(e) { e.preventDefault(); setManImg(e.dataTransfer.files[0]); }
-function clearManImg(e) {
-  e.stopPropagation();
-  manImgBase64 = null;
-  document.getElementById('manImgTag').src = '';
-  document.getElementById('manImgPreview').style.display = 'none';
-  document.getElementById('manImgPlaceholder').style.display = 'block';
-  document.getElementById('manImgClear').style.display = 'none';
-  document.getElementById('manImgDrop').style.borderColor = 'var(--border)';
-  document.getElementById('manImgFile').value = '';
-}
-// Ctrl+V paste anywhere on page
-document.addEventListener('paste', function(e) {
-  var items = (e.clipboardData || e.originalEvent.clipboardData).items;
-  for (var i = 0; i < items.length; i++) {
-    if (items[i].type.startsWith('image/')) {
-      setManImg(items[i].getAsFile());
-      break;
-    }
-  }
-});
-
-async function publishManualArticle() {
-  var title    = document.getElementById('manTitle').value.trim();
-  var category = document.getElementById('manCategory').value.trim() || 'ANALYSIS';
-  var readTime = document.getElementById('manReadTime').value.trim() || '3 min read';
-  var body     = document.getElementById('manBody').innerHTML.trim();
-  var bodyText = document.getElementById('manBody').innerText.trim();
-  if (!title) { document.getElementById('manStatus').textContent = '⚠ Title required'; return; }
-  if (!bodyText) { document.getElementById('manStatus').textContent = '⚠ Body required'; return; }
-
-  var btn = document.querySelector('[onclick="publishManualArticle()"]');
-  btn.disabled = true;
-  document.getElementById('manBtnText').textContent = 'Publishing...';
-  document.getElementById('manStatus').textContent = '';
-  document.getElementById('manStatus').style.color = 'var(--gold)';
-
-  try {
-    var apiBase = 'https://api.github.com/repos/' + GITHUB_REPO + '/contents';
-    var slug = 'manual-' + Date.now();
-    var now  = new Date().toISOString();
-    var imageUrl = null;
-    var imgBase64 = manImgBase64;
-    var imgMime   = manImgMime;
-
-    // Auto-generate image if no manual image provided
-    if (!imgBase64) {
-      document.getElementById('manStatus').textContent = 'Generating image...';
-      imgBase64 = await generateArticleImage(title, category, '', category);
-      imgMime = 'image/jpeg';
-    }
-
-    // Save image as separate file
-    if (imgBase64) {
-      document.getElementById('manStatus').textContent = 'Uploading image...';
-      var ext = imgMime.includes('png') ? 'png' : 'jpg';
-      var imgPath = 'articles/' + slug + '-img.' + ext;
-      var imgRes = await githubRequest(apiBase + '/' + imgPath, 'PUT', {
-        message: 'Image: ' + title,
-        content: imgBase64,
-        branch: GITHUB_BRANCH
-      });
-      if (imgRes.status === 200 || imgRes.status === 201) {
-        imageUrl = 'https://raw.githubusercontent.com/' + GITHUB_REPO + '/main/' + imgPath;
-      }
-    }
-
-    // 2. Save article JSON (no image data inline)
-    document.getElementById('manStatus').textContent = 'Saving article...';
-    var articleData = {
-      slug, title, category, readTime, publishedAt: now, lang: 'en',
-      intro: bodyText.substring(0, 300),
-      bodyHtml: body,
-      sections: [{ heading: title, content: bodyText }],
-      quote: '', conclusion: '',
-      excerpt: bodyText.substring(0, 120),
-      signal_type: 'manual',
-      imageUrl: imageUrl || null
-    };
-
-    var saveRes = await githubRequest(apiBase + '/articles/' + slug + '.json', 'PUT', {
-      message: 'Article: ' + title,
-      content: toBase64(JSON.stringify(articleData, null, 2)),
-      branch: GITHUB_BRANCH
-    });
-    if (saveRes.status !== 200 && saveRes.status !== 201) throw new Error('Save failed: ' + (saveRes.data?.message || saveRes.status));
-
-    // 3. Update index
-    document.getElementById('manStatus').textContent = 'Updating index...';
-    var idxRes = await githubRequest(apiBase + '/articles/index.json', 'GET');
-    var existing = [], sha = null;
-    if (idxRes.status === 200 && idxRes.data?.content) {
-      sha = idxRes.data.sha;
-      existing = JSON.parse(fromBase64(idxRes.data.content));
-    }
-    existing.unshift({ slug, title, excerpt: articleData.excerpt, category, readTime, publishedAt: now, imageUrl });
-    var idxPayload = { message: 'Index: ' + title, content: toBase64(JSON.stringify(existing, null, 2)), branch: GITHUB_BRANCH };
-    if (sha) idxPayload.sha = sha;
-    var idxRes2 = await githubRequest(apiBase + '/articles/index.json', 'PUT', idxPayload);
-    if (idxRes2.status !== 200 && idxRes2.status !== 201) throw new Error('Index failed: ' + (idxRes2.data?.message || idxRes2.status));
-
-    document.getElementById('manStatus').textContent = '✓ Published successfully!';
-    document.getElementById('manStatus').style.color = 'var(--gold-light, #93c5fd)';
-    ['manTitle','manCategory','manReadTime'].forEach(function(id){ document.getElementById(id).value = ''; });
-    document.getElementById('manBody').innerHTML = '';
-    clearManImg({ stopPropagation: function(){} });
-    loadArticlesFromGitHub();
-  } catch(err) {
-    document.getElementById('manStatus').textContent = '⚠ Error: ' + err.message;
-    document.getElementById('manStatus').style.color = '#e74c3c';
-    console.error('publishManualArticle:', err);
-  }
-  btn.disabled = false;
-  document.getElementById('manBtnText').textContent = 'Publish Manual Article';
-}
-
 // ── LOGIN ──
 var isAdmin = false;
 
@@ -918,13 +723,23 @@ function fromBase64(b64) {
 }
 
 // ── PROMPT ──
-function buildPrompt(lang, market, tech, tone, length, topic) {
+function buildPrompt(lang, market, tech, tone, length, topic, pasteText) {
   var langInstr = { russo:'russo (termini tecnici finanziari in inglese)', italiano:'italiano professionale', inglese:'English (professional financial tone)' };
   var marketDesc = { forex:'Forex — EUR/USD, GBP/USD, USD/JPY, ecc.', commodities:'Commodities — oro, petrolio WTI, gas naturale, argento', equity:'Mercati azionari — S&P 500, Nasdaq, Dow Jones', crypto:'Criptovalute — Bitcoin, Ethereum', macro:'Macroeconomia — banche centrali, tassi, inflazione', geopolitics:'Geopolitica e impatto sui mercati finanziari', multi:'Overview globale multi-mercato' };
   var techDesc = { elliott:'Elliott Wave Theory — onde impulsive e correttive, conteggio, target, invalidazione', technical:'Analisi Tecnica — supporti, resistenze, pattern, RSI, MACD, medie mobili', orderflow:'Order Flow e Volume Profile — volumi, liquidità, delta, imbalance', macro_analysis:'Analisi Macroeconomica — dati economici, banche centrali, correlazioni', sentiment:'Sentiment e posizionamento istituzionale — COT, fear&greed', educational:'Articolo educativo — spiega concetti in modo chiaro', outlook:'Outlook e scenari direzionali con probabilità e catalizzatori' };
   var lengthDesc = { breve:'300-400 parole, conciso', media:'600-800 parole, bilanciato', lunga:'1000-1200 parole, approfondito' };
-  var topicLine = topic ? 'Argomento specifico: "' + topic + '"' : 'Scegli un argomento attuale su ' + marketDesc[market];
-  return 'Sei un analista finanziario senior di livello istituzionale per XenosFinance. Scrivi un articolo in lingua ' + langInstr[lang] + ' sul mercato: ' + marketDesc[market] + '. Tecnica: ' + techDesc[tech] + '. Stile: ' + tone + ', professionale come Bloomberg o Il Sole 24 Ore. Lunghezza: ' + lengthDesc[length] + '. ' + topicLine + '.\n\nRispondi SOLO con JSON valido, senza markdown, senza testo fuori dal JSON.\n\n{"title":"titolo","readTime":"X min lettura","intro":"paragrafo intro","sections":[{"heading":"Sezione 1","content":"testo 1"},{"heading":"Sezione 2","content":"testo 2"},{"heading":"Sezione 3","content":"testo 3"}],"quote":"citazione o statistica","conclusion":"conclusione con outlook","excerpt":"riassunto 15-20 parole"}';
+
+  var baseInstr = 'Sei un analista finanziario senior di livello istituzionale per XenosFinance. Scrivi un articolo in lingua ' + langInstr[lang] + ' sul mercato: ' + marketDesc[market] + '. Tecnica: ' + techDesc[tech] + '. Stile: ' + tone + ', professionale come Bloomberg o Il Sole 24 Ore. Lunghezza: ' + lengthDesc[length] + '.';
+
+  var contentInstr;
+  if (pasteText && pasteText.trim().length > 20) {
+    contentInstr = '\n\nHai ricevuto il seguente testo grezzo dall\'autore — riscrivilo e strutturalo professionalmente mantenendo le idee originali, aggiungendo profondità analitica e rispettando lo stile XenosFinance:\n\n"""\n' + pasteText.trim() + '\n"""';
+  } else {
+    var topicLine = topic ? 'Argomento specifico: "' + topic + '"' : 'Scegli un argomento attuale su ' + marketDesc[market];
+    contentInstr = '\n\n' + topicLine + '.';
+  }
+
+  return baseInstr + contentInstr + '\n\nRispondi SOLO con JSON valido, senza markdown, senza testo fuori dal JSON.\n\n{"title":"titolo","readTime":"X min lettura","intro":"paragrafo intro","sections":[{"heading":"Sezione 1","content":"testo 1"},{"heading":"Sezione 2","content":"testo 2"},{"heading":"Sezione 3","content":"testo 3"}],"quote":"citazione o statistica","conclusion":"conclusione con outlook","excerpt":"riassunto 15-20 parole"}';
 }
 
 // ── GENERA ──
@@ -939,6 +754,7 @@ async function generateArticle() {
   var tone   = document.getElementById('genTone').value;
   var length = document.getElementById('genLength').value;
   var topic  = document.getElementById('genTopic').value.trim();
+  var pasteText = document.getElementById('genPasteText').value.trim();
 
   btn.disabled = true;
   btnIcon.innerHTML = '<div class="spinner"></div>';
@@ -949,11 +765,11 @@ async function generateArticle() {
   var techLabels = { elliott:'ELLIOTT WAVE', technical:'ANALISI TECNICA', orderflow:'ORDER FLOW', macro_analysis:'MACRO', sentiment:'SENTIMENT', educational:'EDUCATIVO', outlook:'OUTLOOK' };
 
   try {
-    status.textContent = 'Writing article...';
+    status.textContent = pasteText ? 'Reformatting your text...' : 'Writing article...';
     var response = await fetch(WORKER_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 2500, messages: [{ role: 'user', content: buildPrompt(lang,market,tech,tone,length,topic) }] })
+      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 2500, messages: [{ role: 'user', content: buildPrompt(lang,market,tech,tone,length,topic,pasteText) }] })
     });
     if (!response.ok) throw new Error('HTTP ' + response.status);
     var data = await response.json();
@@ -967,7 +783,8 @@ async function generateArticle() {
       market: market, tech: tech, lang: lang, date: new Date().toISOString()
     });
     renderArticle(currentArticle);
-    status.textContent = '✓ Articolo generato!';
+    status.textContent = pasteText ? '✓ Text reformatted!' : '✓ Articolo generato!';
+    document.getElementById('genPasteText').value = '';
     setTimeout(function(){ status.textContent=''; }, 3000);
   } catch(err) {
     status.textContent = '⚠ Errore: ' + err.message;
@@ -1129,20 +946,6 @@ async function sendToTelegram() {
   } catch(e) { tgStatus.textContent = '⚠ Connection error: ' + e.message; }
   btn.disabled = false;
   setTimeout(function(){ tgStatus.textContent=''; }, 5000);
-}
-
-// ── RICH TEXT EDITOR ──
-function rte(cmd) {
-  document.getElementById('manBody').focus();
-  document.execCommand(cmd, false, null);
-}
-function rteBlock(tag) {
-  document.getElementById('manBody').focus();
-  var sel = window.getSelection();
-  if (!sel.rangeCount) return;
-  var range = sel.getRangeAt(0);
-  var el = document.createElement(tag);
-  try { range.surroundContents(el); } catch(e) { document.execCommand('formatBlock', false, tag); }
 }
 
 // ── DELETE ARTICLE ──
