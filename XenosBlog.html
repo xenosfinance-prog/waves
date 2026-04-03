@@ -67,14 +67,22 @@
   .blog-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--border); border:1px solid var(--border); }
   .blog-card { background:var(--bg2); transition:background 0.2s; cursor:pointer; overflow:hidden; display:flex; flex-direction:column; }
   .blog-card:hover { background:var(--bg3); }
-  .card-img { width:100%; height:158px; object-fit:cover; display:block; border-bottom:1px solid var(--border); }
-  .card-img-placeholder { width:100%; height:158px; background:linear-gradient(135deg,#0d1a2e 0%,#111c30 100%); display:flex; align-items:center; justify-content:center; border-bottom:1px solid var(--border); }
-  .card-img-placeholder-inner { font-family:'IBM Plex Mono',monospace; font-size:0.52rem; letter-spacing:0.25em; color:#243550; text-transform:uppercase; }
-  .card-body { padding:22px 22px 18px; flex:1; display:flex; flex-direction:column; }
+  .card-img-wrap { width:100%; height:162px; overflow:hidden; background:#0d1624; flex-shrink:0; }
+  .card-img-wrap img { width:100%; height:100%; object-fit:cover; display:block; border-bottom:1px solid var(--border); transition:transform 0.3s; }
+  .blog-card:hover .card-img-wrap img { transform:scale(1.03); }
+  .card-img-placeholder { width:100%; height:162px; background:linear-gradient(135deg,#0c1828 0%,#101e30 100%); display:flex; align-items:center; justify-content:center; border-bottom:1px solid var(--border); flex-shrink:0; }
+  .card-img-placeholder span { font-family:'IBM Plex Mono',monospace; font-size:0.5rem; letter-spacing:0.3em; color:#1e3050; text-transform:uppercase; }
+  .card-body { padding:20px 22px 18px; flex:1; display:flex; flex-direction:column; }
   .card-num { font-family:'IBM Plex Mono',monospace; font-size:0.56rem; color:var(--text-dim); margin-bottom:10px; }
   .card-cat { font-family:'IBM Plex Mono',monospace; font-size:0.58rem; letter-spacing:0.15em; text-transform:uppercase; color:var(--gold); margin-bottom:8px; }
   .card-title { font-family:'Playfair Display',serif; font-size:1rem; font-weight:700; color:var(--text-bright); line-height:1.35; margin-bottom:10px; }
   .card-excerpt { font-size:0.8rem; color:var(--text-dim); line-height:1.65; margin-bottom:16px; flex:1; }
+  .article-hero { width:100%; max-height:400px; overflow:hidden; margin-bottom:32px; border:1px solid var(--border); background:#0d1624; }
+  .article-hero img { width:100%; height:100%; object-fit:cover; display:block; max-height:400px; }
+  .article-body strong { color:var(--bright); font-weight:600; }
+  .article-body em { font-style:italic; color:var(--ink2); }
+  .article-body ul, .article-body ol { margin:0 0 20px 24px; }
+  .article-body li { font-size:0.96rem; line-height:1.8; color:var(--text); margin-bottom:6px; }
   .card-footer { display:flex; justify-content:space-between; font-family:'IBM Plex Mono',monospace; font-size:0.58rem; color:var(--text-dim); }
   .card-read { color:var(--gold); }
   .empty-state { text-align:center; padding:64px; color:var(--text-dim); font-family:'IBM Plex Mono',monospace; font-size:0.75rem; line-height:2; }
@@ -82,7 +90,6 @@
   #articleView { display:none; padding:48px 5vw; }
   .back-btn { display:inline-flex; align-items:center; gap:8px; font-family:'IBM Plex Mono',monospace; font-size:0.62rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--text-dim); cursor:pointer; border:1px solid var(--border); padding:8px 16px; margin-bottom:36px; transition:all 0.2s; background:none; }
   .back-btn:hover { border-color:var(--gold); color:var(--gold); }
-  .article-hero-img { width:100%; max-height:380px; object-fit:cover; display:block; border:1px solid var(--border); margin-bottom:32px; }
   .article-cat { font-family:'IBM Plex Mono',monospace; font-size:0.6rem; letter-spacing:0.22em; text-transform:uppercase; color:var(--gold); margin-bottom:14px; }
   .article-title { font-family:'Playfair Display',serif; font-size:clamp(1.8rem,3.5vw,2.8rem); font-weight:900; color:var(--text-bright); line-height:1.12; margin-bottom:18px; }
   .article-meta { display:flex; gap:20px; flex-wrap:wrap; font-family:'IBM Plex Mono',monospace; font-size:0.62rem; color:var(--text-dim); border-top:1px solid var(--border); border-bottom:1px solid var(--border); padding:12px 0; margin-bottom:32px; }
@@ -232,12 +239,12 @@ async function loadGrid() {
         dateStr = monthsEN[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear();
       }
       var imgHtml = a.imageUrl
-        ? '<img class="card-img" src="' + a.imageUrl + '" alt="' + a.title + '" loading="lazy" onerror="this.parentElement.innerHTML=\'<div class=\\\"card-img-placeholder\\\"><span class=\\\"card-img-placeholder-inner\\\">XENOSFINANCE</span></div>\'">'
-        : '<div class="card-img-placeholder"><span class="card-img-placeholder-inner">XENOSFINANCE</span></div>';
+        ? '<div class="card-img-wrap"><img src="' + a.imageUrl + '" alt="' + a.title + '" loading="lazy" onerror="this.parentElement.outerHTML=\'<div class=\\\"card-img-placeholder\\\"><span>XENOSFINANCE</span></div>\'"></div>'
+        : '<div class="card-img-placeholder"><span>XENOSFINANCE</span></div>';
       card.innerHTML =
         imgHtml +
         '<div class="card-body">' +
-        '<div class="card-num">' + String(i+1).padStart(3,'0') + '</div>' +
+        '<div class="card-num">' + String(i+1).padStart(3,'0') + ' · ' + dateStr + '</div>' +
         '<div class="card-cat">' + (a.category||'') + '</div>' +
         '<div class="card-title">' + a.title + '</div>' +
         '<div class="card-excerpt">' + (a.excerpt||'').substring(0,110) + '...</div>' +
@@ -272,16 +279,15 @@ async function loadArticle(slug) {
       '<span>📅 ' + dateStr + '</span>' +
       '<span>⏱ ' + (a.readTime||'') + '</span>' +
       '<span>✦ Generated by AI — XenosFinance</span>';
-    var html = '';
-    if (a.imageUrl) {
-      html += '<img class="article-hero-img" src="' + a.imageUrl + '" alt="' + (a.title||'') + '" onerror="this.style.display=\'none\'">';
-    }
-    html += '<p>' + (a.intro||'') + '</p>';
+    var heroHtml = a.imageUrl ? '<div class="article-hero"><img src="' + a.imageUrl + '" alt="' + (a.title||'') + '" onerror="this.parentElement.style.display=\'none\'"></div>' : '';
+    var html = heroHtml + '<p>' + (a.intro||'') + '</p>';
     if (a.sections) {
-      a.sections.forEach(function(s){ html += '<h2>' + s.heading + '</h2><p>' + s.content + '</p>'; });
+      a.sections.forEach(function(s){ html += '<h2>' + s.heading + '</h2><div class="article-body-section">' + s.content + '</div>'; });
     }
     if (a.quote) html += '<blockquote>' + a.quote + '</blockquote>';
     if (a.conclusion) html += '<h3>// Conclusion</h3><p>' + a.conclusion + '</p>';
+    // If bodyHtml present (manual rich text), use it instead
+    if (a.bodyHtml) { html = heroHtml + a.bodyHtml; }
     document.getElementById('artBody').innerHTML = html;
     document.title = a.title + ' — XenosFinance AI Blog';
   } catch(err) {

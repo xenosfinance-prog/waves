@@ -82,9 +82,20 @@
   .tg-config-title { font-family:'IBM Plex Mono',monospace; font-size:0.62rem; letter-spacing:0.15em; text-transform:uppercase; color:var(--gold); margin-bottom:14px; }
   .tg-fields { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px; }
   .tg-note { font-family:'IBM Plex Mono',monospace; font-size:0.58rem; color:var(--text-dim); line-height:1.65; margin-top:10px; }
-  .blog-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--border); border:1px solid var(--border); margin-top:24px; }
-  .blog-card { background:var(--bg2); padding:26px 22px; transition:background 0.2s; cursor:pointer; }
+  .rtb { background:var(--bg3); border:1px solid var(--border); color:var(--text); font-family:'IBM Plex Mono',monospace; font-size:0.65rem; padding:4px 10px; cursor:pointer; transition:all 0.15s; letter-spacing:0.05em; }
+  .rtb:hover { border-color:var(--gold); color:var(--gold); background:rgba(59,130,246,0.08); }
+  #manBody:empty:before { content:attr(data-placeholder); color:var(--dim); pointer-events:none; font-style:italic; }
+  .blog-card { background:var(--bg2); transition:background 0.2s; cursor:pointer; overflow:hidden; position:relative; display:flex; flex-direction:column; }
   .blog-card:hover { background:var(--bg3); }
+  .card-img-wrap { width:100%; height:140px; overflow:hidden; background:#0d1624; flex-shrink:0; }
+  .card-img-wrap img { width:100%; height:100%; object-fit:cover; display:block; border-bottom:1px solid var(--border); }
+  .card-img-placeholder { width:100%; height:140px; background:linear-gradient(135deg,#0c1828 0%,#101e30 100%); display:flex; align-items:center; justify-content:center; border-bottom:1px solid var(--border); flex-shrink:0; }
+  .card-img-placeholder span { font-family:'IBM Plex Mono',monospace; font-size:0.48rem; letter-spacing:0.3em; color:#1a2e48; text-transform:uppercase; }
+  .card-body-wrap { padding:18px 20px 16px; flex:1; display:flex; flex-direction:column; }
+  .card-del { position:absolute; top:8px; right:8px; background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.3); color:#f87171; font-size:10px; padding:3px 8px; cursor:pointer; font-family:'IBM Plex Mono',monospace; letter-spacing:0.05em; z-index:2; display:none; transition:background 0.2s; }
+  .blog-card:hover .card-del { display:block; }
+  .card-del:hover { background:rgba(239,68,68,0.25); }
+  .blog-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--border); border:1px solid var(--border); margin-top:24px; }
   .card-num { font-family:'IBM Plex Mono',monospace; font-size:0.56rem; color:var(--text-dim); margin-bottom:12px; }
   .card-cat { font-family:'IBM Plex Mono',monospace; font-size:0.58rem; letter-spacing:0.15em; text-transform:uppercase; color:var(--gold); margin-bottom:8px; }
   .card-title { font-family:'Playfair Display',serif; font-size:1rem; font-weight:700; color:var(--text-bright); line-height:1.35; margin-bottom:10px; }
@@ -267,8 +278,25 @@
       <input class="gen-input" id="manReadTime" type="text" placeholder="e.g. 5 min read">
     </div>
     <div class="gen-field" style="grid-column:1/-1;">
-      <label class="gen-label">Article Body</label>
-      <textarea class="gen-input" id="manBody" rows="8" placeholder="Write your article content here..." style="resize:vertical;font-family:var(--body);line-height:1.7;width:100%;"></textarea>
+      <label class="gen-label">Article Body — Rich Text Editor</label>
+      <div style="border:1px solid var(--border);background:var(--bg3);">
+        <div id="manToolbar" style="display:flex;gap:2px;padding:8px 10px;border-bottom:1px solid var(--border);flex-wrap:wrap;background:var(--bg2);">
+          <button class="rtb" onclick="rte('bold')" title="Bold"><b>B</b></button>
+          <button class="rtb" onclick="rte('italic')" title="Italic"><i>I</i></button>
+          <button class="rtb" onclick="rte('underline')" title="Underline"><u>U</u></button>
+          <span style="width:1px;background:var(--border);margin:0 4px;"></span>
+          <button class="rtb" onclick="rteBlock('h2')" title="Heading 2">H2</button>
+          <button class="rtb" onclick="rteBlock('h3')" title="Heading 3">H3</button>
+          <button class="rtb" onclick="rteBlock('blockquote')" title="Quote">❝</button>
+          <span style="width:1px;background:var(--border);margin:0 4px;"></span>
+          <button class="rtb" onclick="rte('insertUnorderedList')" title="Bullet list">• List</button>
+          <button class="rtb" onclick="rte('insertOrderedList')" title="Numbered list">1. List</button>
+          <span style="width:1px;background:var(--border);margin:0 4px;"></span>
+          <button class="rtb" onclick="rte('removeFormat')" title="Clear format">✕ Clear</button>
+        </div>
+        <div id="manBody" contenteditable="true" data-placeholder="Write your article here. Select text and use toolbar buttons to format — bold, italic, headings, quotes, lists..." style="min-height:220px;padding:18px;font-family:'Inter',sans-serif;font-size:0.93rem;line-height:1.75;color:var(--text);outline:none;"></div>
+      </div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:0.55rem;color:var(--muted);margin-top:5px;letter-spacing:0.1em;">Select text then click B/I/H2 to format. Paste text or images directly.</div>
     </div>
     <div class="gen-field" style="grid-column:1/-1;">
       <label class="gen-label">Image — Ctrl+V to paste · Click to upload · Drag & drop</label>
@@ -581,9 +609,10 @@ async function publishManualArticle() {
   var title    = document.getElementById('manTitle').value.trim();
   var category = document.getElementById('manCategory').value.trim() || 'ANALYSIS';
   var readTime = document.getElementById('manReadTime').value.trim() || '3 min read';
-  var body     = document.getElementById('manBody').value.trim();
+  var body     = document.getElementById('manBody').innerHTML.trim();
+  var bodyText = document.getElementById('manBody').innerText.trim();
   if (!title) { document.getElementById('manStatus').textContent = '⚠ Title required'; return; }
-  if (!body)  { document.getElementById('manStatus').textContent = '⚠ Body required'; return; }
+  if (!bodyText) { document.getElementById('manStatus').textContent = '⚠ Body required'; return; }
 
   var btn = document.querySelector('[onclick="publishManualArticle()"]');
   btn.disabled = true;
@@ -613,7 +642,7 @@ async function publishManualArticle() {
       var imgPath = 'articles/' + slug + '-img.' + ext;
       var imgRes = await githubRequest(apiBase + '/' + imgPath, 'PUT', {
         message: 'Image: ' + title,
-        content: manImgBase64,
+        content: imgBase64,
         branch: GITHUB_BRANCH
       });
       if (imgRes.status === 200 || imgRes.status === 201) {
@@ -625,10 +654,11 @@ async function publishManualArticle() {
     document.getElementById('manStatus').textContent = 'Saving article...';
     var articleData = {
       slug, title, category, readTime, publishedAt: now, lang: 'en',
-      intro: body.substring(0, 300),
-      sections: [{ heading: title, content: body }],
+      intro: bodyText.substring(0, 300),
+      bodyHtml: body,
+      sections: [{ heading: title, content: bodyText }],
       quote: '', conclusion: '',
-      excerpt: body.substring(0, 120),
+      excerpt: bodyText.substring(0, 120),
       signal_type: 'manual',
       imageUrl: imageUrl || null
     };
@@ -656,7 +686,8 @@ async function publishManualArticle() {
 
     document.getElementById('manStatus').textContent = '✓ Published successfully!';
     document.getElementById('manStatus').style.color = 'var(--gold-light, #93c5fd)';
-    ['manTitle','manCategory','manReadTime','manBody'].forEach(function(id){ document.getElementById(id).value = ''; });
+    ['manTitle','manCategory','manReadTime'].forEach(function(id){ document.getElementById(id).value = ''; });
+    document.getElementById('manBody').innerHTML = '';
     clearManImg({ stopPropagation: function(){} });
     loadArticlesFromGitHub();
   } catch(err) {
@@ -738,12 +769,19 @@ async function loadArticlesFromGitHub() {
     articles.forEach(function(a, i) {
       var card = document.createElement('div');
       card.className = 'blog-card';
+      var imgHtml = a.imageUrl
+        ? '<div class="card-img-wrap"><img src="' + a.imageUrl + '" alt="' + a.title + '" loading="lazy" onerror="this.parentElement.outerHTML=\'<div class=\\\"card-img-placeholder\\\"><span>XENOSFINANCE</span></div>\'"></div>'
+        : '<div class="card-img-placeholder"><span>XENOSFINANCE</span></div>';
       card.innerHTML =
+        '<button class="card-del" onclick="event.stopPropagation();deleteArticle(\'' + a.slug + '\', this)">✕ Delete</button>' +
+        imgHtml +
+        '<div class="card-body-wrap">' +
         '<div class="card-num">' + String(i+1).padStart(3,'0') + '</div>' +
         '<div class="card-cat">' + (a.category||a.categoryLabel||'') + '</div>' +
         '<div class="card-title">' + a.title + '</div>' +
-        '<div class="card-excerpt">' + (a.excerpt||'').substring(0,120) + '...</div>' +
-        '<div class="card-footer"><span>' + (a.readTime||'') + '</span><span class="card-read">Leggi →</span></div>';
+        '<div class="card-excerpt">' + (a.excerpt||'').substring(0,100) + '...</div>' +
+        '<div class="card-footer"><span>' + (a.readTime||'') + '</span><span class="card-read">View →</span></div>' +
+        '</div>';
       card.onclick = function(){ window.open('XenosBlog?slug=' + a.slug, '_blank'); };
       grid.appendChild(card);
     });
@@ -881,6 +919,7 @@ async function publishToBlog() {
     }
 
     // 2. Generate auto-image and save it
+    var slug = 'article-' + Date.now();
     var imageUrl = null;
     try {
       status.textContent = 'Generating image...';
@@ -899,7 +938,6 @@ async function publishToBlog() {
 
     // 3. Salva articolo
     status.textContent = 'Publishing...';
-    var slug = 'article-' + Date.now();
     var articleData = Object.assign({}, currentArticle, { slug:slug, publishedAt:new Date().toISOString(), imageUrl: imageUrl });
     var saveRes = await githubRequest(apiBase + '/articles/' + slug + '.json', 'PUT', {
       message: 'Blog: ' + currentArticle.title,
@@ -978,6 +1016,62 @@ async function sendToTelegram() {
   } catch(e) { tgStatus.textContent = '⚠ Connection error: ' + e.message; }
   btn.disabled = false;
   setTimeout(function(){ tgStatus.textContent=''; }, 5000);
+}
+
+// ── RICH TEXT EDITOR ──
+function rte(cmd) {
+  document.getElementById('manBody').focus();
+  document.execCommand(cmd, false, null);
+}
+function rteBlock(tag) {
+  document.getElementById('manBody').focus();
+  var sel = window.getSelection();
+  if (!sel.rangeCount) return;
+  var range = sel.getRangeAt(0);
+  var el = document.createElement(tag);
+  try { range.surroundContents(el); } catch(e) { document.execCommand('formatBlock', false, tag); }
+}
+
+// ── DELETE ARTICLE ──
+async function deleteArticle(slug, btn) {
+  if (!confirm('Delete article "' + slug + '"? This cannot be undone.')) return;
+  btn.textContent = '...';
+  btn.disabled = true;
+  var apiBase = 'https://api.github.com/repos/' + GITHUB_REPO + '/contents';
+  try {
+    // 1. Remove from index
+    var idxRes = await githubRequest(apiBase + '/articles/index.json', 'GET');
+    if (idxRes.status !== 200 || !idxRes.data?.content) throw new Error('Cannot read index');
+    var sha = idxRes.data.sha;
+    var articles = JSON.parse(fromBase64(idxRes.data.content));
+    var filtered = articles.filter(function(a){ return a.slug !== slug; });
+    var idxPayload = { message: 'Delete: ' + slug, content: toBase64(JSON.stringify(filtered, null, 2)), branch: GITHUB_BRANCH, sha: sha };
+    var idxRes2 = await githubRequest(apiBase + '/articles/index.json', 'PUT', idxPayload);
+    if (idxRes2.status !== 200 && idxRes2.status !== 201) throw new Error('Index update failed');
+
+    // 2. Delete JSON file
+    var artRes = await githubRequest(apiBase + '/articles/' + slug + '.json', 'GET');
+    if (artRes.status === 200 && artRes.data?.sha) {
+      await githubRequest(apiBase + '/articles/' + slug + '.json', 'DELETE', { message: 'Delete: ' + slug, sha: artRes.data.sha, branch: GITHUB_BRANCH });
+    }
+
+    // 3. Delete image file (try both jpg and png)
+    for (var ext of ['jpg','png']) {
+      var imgPath = '/articles/' + slug + '-img.' + ext;
+      var imgRes = await githubRequest(apiBase + imgPath, 'GET');
+      if (imgRes.status === 200 && imgRes.data?.sha) {
+        await githubRequest(apiBase + imgPath, 'DELETE', { message: 'Delete img: ' + slug, sha: imgRes.data.sha, branch: GITHUB_BRANCH });
+        break;
+      }
+    }
+
+    // 4. Remove card from DOM
+    btn.closest('.blog-card').remove();
+  } catch(e) {
+    alert('Delete failed: ' + e.message);
+    btn.textContent = '✕ Delete';
+    btn.disabled = false;
+  }
 }
 
 // ── PREVIEW ──
