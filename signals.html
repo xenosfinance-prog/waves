@@ -2562,7 +2562,7 @@ function loadTradingViewChart(container, sig) {
       symbol:          tvSym,
       interval:        tvTF,
       timezone:        'Etc/UTC',
-      theme:           'light',
+      theme:           'dark',
       style:           '3',        // area chart
       locale:          'en',
       toolbar_bg:      '#f9fafb',
@@ -2655,37 +2655,36 @@ async function loadLightweightChart(container, sig) {
   const chart = LightweightCharts.createChart(container, {
     width:  container.offsetWidth || 860,
     height: 320,
-    layout: { background: { type: 'solid', color: '#FDF8EF' }, textColor: '#8B6B3D', fontSize: 11, fontFamily: "'Space Mono', monospace" },
-    grid:   { vertLines: { color: 'rgba(0,0,0,0)' }, horzLines: { color: 'rgba(200,185,165,0.4)' } },
+    layout: { background: { type: 'solid', color: '#0f1724' }, textColor: '#5a7a9a', fontSize: 11, fontFamily: "'IBM Plex Mono', monospace" },
+    grid:   { vertLines: { color: 'rgba(0,0,0,0)' }, horzLines: { color: 'rgba(30,48,80,0.5)' } },
     crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
-    rightPriceScale: { borderColor: '#1e2a3a' },
-    timeScale: { borderColor: '#1e2a3a', timeVisible: true, secondsVisible: false },
+    rightPriceScale: { borderColor: '#1e3050', textColor: '#5a7a9a' },
+    timeScale: { borderColor: '#1e3050', timeVisible: true, secondsVisible: false, textColor: '#5a7a9a' },
     handleScroll: { mouseWheel: true, pressedMouseMove: true },
     handleScale:  { mouseWheel: true, pinch: true },
   });
 
-  const candleSeries = chart.addCandlestickSeries({
-    upColor: '#00e676', downColor: '#ff3d5a',
-    borderUpColor: '#00e676', borderDownColor: '#ff3d5a',
-    wickUpColor: '#00e676', wickDownColor: '#ff3d5a',
+  const areaSeries = chart.addAreaSeries({
+    lineColor:       '#3b82f6',
+    lineWidth:       2,
+    topColor:        'rgba(59,130,246,0.25)',
+    bottomColor:     'rgba(59,130,246,0.01)',
+    priceLineVisible: false,
+    crosshairMarkerVisible: true,
+    crosshairMarkerRadius:  4,
+    crosshairMarkerBackgroundColor: '#3b82f6',
   });
 
-  candleSeries.setData(
-    candles.map(c => ({ time: Math.floor(new Date(c.datetime).getTime() / 1000), open: parseFloat(c.open), high: parseFloat(c.high), low: parseFloat(c.low), close: parseFloat(c.close) }))
-           .filter(c => c.time > 0 && c.open > 0)
+  areaSeries.setData(
+    candles.map(c => ({ time: Math.floor(new Date(c.datetime).getTime() / 1000), value: parseFloat(c.close) }))
+           .filter(c => c.time > 0 && c.value > 0)
   );
 
-  const volumeSeries = chart.addHistogramSeries({ priceFormat: { type: 'volume' }, priceScaleId: '', scaleMargins: { top: 0.85, bottom: 0 } });
-  volumeSeries.setData(
-    candles.map(c => ({ time: Math.floor(new Date(c.datetime).getTime() / 1000), value: parseFloat(c.volume) || 0, color: parseFloat(c.close) >= parseFloat(c.open) ? 'rgba(0,230,118,0.2)' : 'rgba(255,61,90,0.2)' }))
-           .filter(c => c.time > 0)
-  );
-
-  candleSeries.createPriceLine({ price: parseFloat(sig.entry), color: '#00d4ff', lineWidth: 2, lineStyle: LightweightCharts.LineStyle.Dashed, axisLabelVisible: true, title: ' ENTRY' });
-  candleSeries.createPriceLine({ price: parseFloat(sig.sl),    color: '#ff3d5a', lineWidth: 1, lineStyle: LightweightCharts.LineStyle.Dashed, axisLabelVisible: true, title: ' STOP' });
-  candleSeries.createPriceLine({ price: parseFloat(sig.tp),    color: '#00e676', lineWidth: 1, lineStyle: LightweightCharts.LineStyle.Dashed, axisLabelVisible: true, title: ' TARGET' });
+  areaSeries.createPriceLine({ price: parseFloat(sig.entry), color: '#00d4ff', lineWidth: 2, lineStyle: LightweightCharts.LineStyle.Dashed, axisLabelVisible: true, title: ' ENTRY' });
+  areaSeries.createPriceLine({ price: parseFloat(sig.sl),    color: '#ff3d5a', lineWidth: 1, lineStyle: LightweightCharts.LineStyle.Dashed, axisLabelVisible: true, title: ' STOP' });
+  areaSeries.createPriceLine({ price: parseFloat(sig.tp),    color: '#00e676', lineWidth: 1, lineStyle: LightweightCharts.LineStyle.Dashed, axisLabelVisible: true, title: ' TARGET' });
   if (sig.tp2 && parseFloat(sig.tp2) > 0) {
-    candleSeries.createPriceLine({ price: parseFloat(sig.tp2), color: '#00a854', lineWidth: 1, lineStyle: LightweightCharts.LineStyle.Dotted, axisLabelVisible: true, title: ' TP2' });
+    areaSeries.createPriceLine({ price: parseFloat(sig.tp2), color: '#00a854', lineWidth: 1, lineStyle: LightweightCharts.LineStyle.Dotted, axisLabelVisible: true, title: ' TP2' });
   }
 
   chart.timeScale().fitContent();
