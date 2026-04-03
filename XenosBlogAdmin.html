@@ -305,8 +305,10 @@
   <div class="section-header">
     <span class="section-title">// Articoli pubblicati</span>
     <div class="section-line"></div>
+    <button onclick="regenerateAllImages()" id="regenBtn" style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;padding:6px 14px;border:1px solid var(--gold);color:var(--gold);background:transparent;cursor:pointer;white-space:nowrap;transition:all 0.2s;" onmouseover="this.style.background='rgba(59,130,246,0.1)'" onmouseout="this.style.background='transparent'">🖼 Regenerate All Images</button>
     <span class="section-title">ARCHIVE</span>
   </div>
+  <div id="regenStatus" style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--gold);padding:0 5vw 12px;display:none;"></div>
   <div class="blog-grid" id="blogGrid">
     <div style="grid-column:1/-1;text-align:center;padding:40px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--gold);letter-spacing:2px;">⬡ LOADING ARTICLES...</div>
   </div>
@@ -318,306 +320,205 @@
 </footer>
 
 <script>
-// ── AUTO IMAGE GENERATOR ────────────────────────────────────
-// Generates a themed SVG image based on market/category/title
-// Colors match site palette: navy bg, blue accent, gold highlights
-function generateArticleImage(title, category, market, tech) {
-  const W = 1200, H = 630; // OG image size, looks great everywhere
-  const mk = (market || '').toLowerCase();
-  const tk = (tech || '').toLowerCase();
+// ── UNSPLASH PHOTO QUERIES per market ───────────────────────
+const UNSPLASH_QUERIES = {
+  forex:       ['currency exchange trading floor','forex trading screen','dollar euro currency'],
+  commodities: ['gold bars bullion','oil refinery sunset','commodity trading gold'],
+  equity:      ['stock market trading floor','wall street new york','stock exchange screen'],
+  crypto:      ['bitcoin cryptocurrency digital','blockchain technology blue','crypto trading'],
+  macro:       ['federal reserve building','central bank economics','financial district city'],
+  geopolitics: ['world map geopolitics','financial crisis global','diplomacy international'],
+  multi:       ['financial market global','trading screen data','bank finance technology'],
+};
 
-  // ── Theme per market ─────────────────────────────
+async function fetchUnsplashPhoto(market) {
+  const mk = (market || 'multi').toLowerCase();
+  const queries = UNSPLASH_QUERIES[mk] || UNSPLASH_QUERIES.multi;
+  const query   = queries[Math.floor(Math.random() * queries.length)];
+  const url = `https://source.unsplash.com/1200x630/?${encodeURIComponent(query)}&sig=${Date.now()}`;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('fetch failed');
+    const blob = await res.blob();
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload  = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch(e) {
+    console.warn('Unsplash failed:', e.message);
+    return null;
+  }
+}
+
+// ── AUTO IMAGE GENERATOR — Unsplash photo + Canvas overlay ──
+async function generateArticleImage(title, category, market, tech) {
+  const W = 1200, H = 630;
+  const mk = (market || 'multi').toLowerCase();
   const themes = {
-    forex:       { a: '#3b82f6', a2: '#60a5fa', a3: '#1d4ed8', label: 'FOREX' },
-    commodities: { a: '#f59e0b', a2: '#fbbf24', a3: '#b45309', label: 'COMMODITIES' },
-    equity:      { a: '#10b981', a2: '#34d399', a3: '#065f46', label: 'EQUITY' },
-    crypto:      { a: '#8b5cf6', a2: '#a78bfa', a3: '#5b21b6', label: 'CRYPTO' },
-    macro:       { a: '#ef4444', a2: '#f87171', a3: '#991b1b', label: 'MACRO' },
-    geopolitics: { a: '#f97316', a2: '#fb923c', a3: '#c2410c', label: 'GEOPOLITICS' },
-    multi:       { a: '#3b82f6', a2: '#60a5fa', a3: '#1d4ed8', label: 'GLOBAL' },
+    forex:       { a: '#3b82f6', a2: '#60a5fa', label: 'FOREX' },
+    commodities: { a: '#f59e0b', a2: '#fbbf24', label: 'COMMODITIES' },
+    equity:      { a: '#10b981', a2: '#34d399', label: 'EQUITY' },
+    crypto:      { a: '#8b5cf6', a2: '#a78bfa', label: 'CRYPTO' },
+    macro:       { a: '#ef4444', a2: '#f87171', label: 'MACRO' },
+    geopolitics: { a: '#f97316', a2: '#fb923c', label: 'GEOPOLITICS' },
+    multi:       { a: '#3b82f6', a2: '#60a5fa', label: 'GLOBAL' },
   };
-  const th = themes[mk] || themes.forex;
-  const catLabel = (category || th.label).toUpperCase().substring(0, 30);
+  const th = themes[mk] || themes.multi;
+  const catLabel = (category || th.label).toUpperCase().substring(0, 32);
+
+  // 1. Try fetching an Unsplash photo
+  const photoDataUrl = await fetchUnsplashPhoto(mk);
 
   return new Promise(function(resolve) {
     const canvas = document.createElement('canvas');
     canvas.width = W; canvas.height = H;
     const ctx = canvas.getContext('2d');
 
-    // ── Background gradient ──────────────────────
-    const bg = ctx.createLinearGradient(0, 0, W, H);
-    bg.addColorStop(0,   '#090f1a');
-    bg.addColorStop(0.5, '#0b1422');
-    bg.addColorStop(1,   '#0d1930');
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, W, H);
+    function drawOverlay() {
+      // ── Dark overlay gradient — makes text readable ──────
+      const ov = ctx.createLinearGradient(0, 0, 0, H);
+      ov.addColorStop(0,   'rgba(8,14,26,0.55)');
+      ov.addColorStop(0.4, 'rgba(8,14,26,0.45)');
+      ov.addColorStop(1,   'rgba(8,14,26,0.82)');
+      ctx.fillStyle = ov;
+      ctx.fillRect(0, 0, W, H);
 
-    // ── Subtle radial glow top-right ─────────────
-    const glow = ctx.createRadialGradient(W * 0.82, H * 0.18, 0, W * 0.82, H * 0.18, 480);
-    glow.addColorStop(0,   th.a + '18');
-    glow.addColorStop(0.5, th.a + '06');
-    glow.addColorStop(1,   'transparent');
-    ctx.fillStyle = glow;
-    ctx.fillRect(0, 0, W, H);
+      // ── Bottom gradient — stronger dark for text ─────────
+      const bot = ctx.createLinearGradient(0, H * 0.5, 0, H);
+      bot.addColorStop(0, 'rgba(8,14,26,0)');
+      bot.addColorStop(1, 'rgba(8,14,26,0.90)');
+      ctx.fillStyle = bot;
+      ctx.fillRect(0, 0, W, H);
 
-    // ── Second glow bottom-left ──────────────────
-    const glow2 = ctx.createRadialGradient(W * 0.12, H * 0.85, 0, W * 0.12, H * 0.85, 300);
-    glow2.addColorStop(0,   th.a3 + '20');
-    glow2.addColorStop(1,   'transparent');
-    ctx.fillStyle = glow2;
-    ctx.fillRect(0, 0, W, H);
+      // ── Top accent bar ───────────────────────────────────
+      const topGrad = ctx.createLinearGradient(0, 0, W, 0);
+      topGrad.addColorStop(0,   th.a);
+      topGrad.addColorStop(0.6, th.a2);
+      topGrad.addColorStop(1,   th.a + '00');
+      ctx.fillStyle = topGrad;
+      ctx.fillRect(0, 0, W, 5);
 
-    // ── Grid lines ───────────────────────────────
-    ctx.strokeStyle = '#1e3050';
-    ctx.lineWidth = 1;
-    ctx.globalAlpha = 0.3;
-    for (let y = 0; y <= H; y += 80) {
-      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
-    }
-    for (let x = 0; x <= W; x += 120) {
-      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
-    }
-    ctx.globalAlpha = 1;
+      // ── Bottom accent bar ────────────────────────────────
+      ctx.fillStyle = topGrad;
+      ctx.fillRect(0, H - 5, W, 5);
 
-    // ── Chart decoration (right half) ────────────
-    function drawDecoration() {
-      const ox = W * 0.52, oy = H * 0.5;
+      // ── Category pill — bottom left ───────────────────────
+      ctx.font = 'bold 13px monospace';
+      ctx.textAlign = 'left';
+      const pillW = ctx.measureText(catLabel).width + 32;
+      const pillH = 34;
+      const px = 52, py = H - 100;
 
-      if (tk === 'elliott') {
-        // Elliott wave 1-2-3-4-5-a-b-c
-        const pts = [
-          [ox+0,  oy+120], [ox+80,  oy+20],  [ox+130, oy+60],
-          [ox+230, oy-80], [ox+290, oy-40],  [ox+380, oy+80],
-          [ox+430, oy+40], [ox+490, oy+130]
-        ];
-        const labels = ['①','②','③','④','⑤','Ⓐ','Ⓑ','Ⓒ'];
-        const impulse = th.a, corr = '#f59e0b';
+      ctx.fillStyle = th.a;
+      ctx.globalAlpha = 0.25;
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(px, py, pillW, pillH, 3);
+      else ctx.rect(px, py, pillW, pillH);
+      ctx.fill();
 
-        // wave lines
-        for (let i = 0; i < pts.length - 1; i++) {
-          const col = i >= 5 ? corr : impulse;
-          ctx.beginPath();
-          ctx.strokeStyle = col;
-          ctx.lineWidth = 2.5;
-          ctx.globalAlpha = 0.75;
-          if (i >= 5) { ctx.setLineDash([8,4]); } else { ctx.setLineDash([]); }
-          ctx.moveTo(pts[i][0], pts[i][1]);
-          ctx.lineTo(pts[i+1][0], pts[i+1][1]);
-          ctx.stroke();
-          ctx.setLineDash([]);
-          // dot
-          ctx.beginPath();
-          ctx.arc(pts[i][0], pts[i][1], 5, 0, Math.PI*2);
-          ctx.fillStyle = col;
-          ctx.globalAlpha = 0.9;
-          ctx.fill();
-          // label
-          ctx.font = 'bold 13px monospace';
-          ctx.fillStyle = col;
-          ctx.globalAlpha = 0.85;
-          ctx.fillText(labels[i], pts[i][0]-8, pts[i][1]-14);
-        }
-        // last dot
-        const lp = pts[pts.length-1];
-        ctx.beginPath(); ctx.arc(lp[0], lp[1], 5, 0, Math.PI*2);
-        ctx.fillStyle = corr; ctx.globalAlpha = 0.9; ctx.fill();
-        ctx.globalAlpha = 1; ctx.setLineDash([]);
+      ctx.strokeStyle = th.a2;
+      ctx.lineWidth = 1.5;
+      ctx.globalAlpha = 0.8;
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(px, py, pillW, pillH, 3);
+      else ctx.rect(px, py, pillW, pillH);
+      ctx.stroke();
 
-      } else if (tk === 'sentiment') {
-        // Semicircle gauge
-        const cx = ox + 230, cy = oy + 80, r = 140;
-        // background arc
-        ctx.beginPath(); ctx.arc(cx, cy, r, Math.PI, 0);
-        ctx.strokeStyle = '#1e3050'; ctx.lineWidth = 18; ctx.globalAlpha = 0.7; ctx.stroke();
-        // colored arc
-        ctx.beginPath(); ctx.arc(cx, cy, r, Math.PI, Math.PI * 1.6);
-        ctx.strokeStyle = th.a; ctx.lineWidth = 18; ctx.globalAlpha = 0.55; ctx.stroke();
-        // needle
-        const angle = Math.PI * 1.35;
-        ctx.beginPath();
-        ctx.moveTo(cx, cy);
-        ctx.lineTo(cx + (r-20) * Math.cos(angle), cy + (r-20) * Math.sin(angle));
-        ctx.strokeStyle = '#e2eaf4'; ctx.lineWidth = 3; ctx.globalAlpha = 0.8; ctx.stroke();
-        ctx.beginPath(); ctx.arc(cx, cy, 8, 0, Math.PI*2);
-        ctx.fillStyle = '#e2eaf4'; ctx.globalAlpha = 0.8; ctx.fill();
-        ctx.font = '11px monospace'; ctx.fillStyle = '#ef4444'; ctx.globalAlpha = 0.75;
-        ctx.fillText('FEAR', cx - r - 10, cy + 22);
-        ctx.fillStyle = '#10b981';
-        ctx.fillText('GREED', cx + r - 44, cy + 22);
-        ctx.globalAlpha = 1;
+      ctx.fillStyle = '#ffffff';
+      ctx.globalAlpha = 1;
+      ctx.font = 'bold 12px monospace';
+      ctx.fillText(catLabel, px + 16, py + 22);
 
-      } else if (tk === 'orderflow') {
-        // Volume profile bars horizontal
-        const vols = [35,55,70,48,85,62,40,55,78,45];
-        vols.forEach(function(v, i) {
-          const y = oy - 100 + i * 22;
-          const bw = v * 4;
-          const col = v > 60 ? th.a : th.a2;
-          ctx.fillStyle = col; ctx.globalAlpha = 0.18 + v/400;
-          ctx.fillRect(ox + 60, y, bw, 15);
-          ctx.strokeStyle = col; ctx.lineWidth = 0.8; ctx.globalAlpha = 0.35;
-          ctx.strokeRect(ox + 60, y, bw, 15);
-        });
-        // price line
-        ctx.beginPath();
-        ctx.moveTo(ox + 400, oy - 110); ctx.lineTo(ox + 400, oy + 130);
-        ctx.strokeStyle = th.a; ctx.lineWidth = 1.5; ctx.globalAlpha = 0.5; ctx.stroke();
-        ctx.globalAlpha = 1;
+      // ── Market watermark — large ghost text top-right ────
+      ctx.textAlign = 'right';
+      ctx.font = 'bold 110px Georgia, serif';
+      ctx.fillStyle = '#ffffff';
+      ctx.globalAlpha = 0.04;
+      ctx.fillText(th.label, W - 48, H * 0.62);
 
-      } else if (tk === 'outlook') {
-        // 3 scenario arrows
-        const px = ox + 80, py = oy;
-        ctx.beginPath(); ctx.arc(px, py, 7, 0, Math.PI*2);
-        ctx.fillStyle = th.a; ctx.globalAlpha = 0.85; ctx.fill();
-        const arrows = [
-          { tx: ox+480, ty: oy-140, col: '#10b981', label: 'BULL' },
-          { tx: ox+480, ty: oy,     col: th.a2,     label: 'BASE' },
-          { tx: ox+480, ty: oy+140, col: '#ef4444',  label: 'BEAR' },
-        ];
-        arrows.forEach(function(arr) {
-          ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(arr.tx, arr.ty);
-          ctx.strokeStyle = arr.col; ctx.lineWidth = 1.8; ctx.globalAlpha = 0.55;
-          ctx.setLineDash([8,5]); ctx.stroke(); ctx.setLineDash([]);
-          ctx.font = 'bold 11px monospace'; ctx.fillStyle = arr.col; ctx.globalAlpha = 0.8;
-          ctx.fillText(arr.label, arr.tx + 10, arr.ty + 4);
-        });
-        ctx.globalAlpha = 1;
+      // ── XenosFinance branding — bottom left ──────────────
+      const brandY = H - 40;
+      ctx.textAlign = 'left';
+      ctx.globalAlpha = 1;
+      ctx.font = 'bold 15px monospace';
+      ctx.fillStyle = th.a2;
+      ctx.fillText('XENOS', 52, brandY);
+      ctx.fillStyle = 'rgba(200,220,240,0.85)';
+      ctx.fillText('FINANCE', 52 + 64, brandY);
+      ctx.font = '400 11px monospace';
+      ctx.fillStyle = 'rgba(90,120,160,0.7)';
+      ctx.fillText('· AI MARKET INTELLIGENCE', 52 + 148, brandY);
 
-      } else {
-        // Default: candlestick chart
-        const bars = [
-          {h:160,l:60,o:90, c:140}, {h:145,l:80,o:130,c:95},
-          {h:180,l:85,o:100,c:170},{h:170,l:50,o:160,c:75},
-          {h:200,l:90,o:100,c:190},{h:195,l:70,o:180,c:85},
-          {h:220,l:95,o:105,c:210},{h:215,l:60,o:200,c:70},
-          {h:240,l:100,o:115,c:230},{h:235,l:80,o:220,c:90},
-        ];
-        const bw = 38, gap = 18, startX = ox + 20;
-        bars.forEach(function(b, i) {
-          const x = startX + i * (bw + gap);
-          const up = b.c >= b.o;
-          const col = up ? '#10b981' : '#ef4444';
-          const bodyTop = H - Math.max(b.o, b.c) - 20;
-          const bodyH   = Math.abs(b.c - b.o) || 4;
-          // wick
-          ctx.beginPath(); ctx.moveTo(x + bw/2, H - b.h - 20); ctx.lineTo(x + bw/2, H - b.l - 20);
-          ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.globalAlpha = 0.35; ctx.stroke();
-          // body fill
-          ctx.fillStyle = col; ctx.globalAlpha = up ? 0.18 : 0.22;
-          ctx.fillRect(x, bodyTop, bw, bodyH);
-          // body border
-          ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.globalAlpha = 0.5;
-          ctx.strokeRect(x, bodyTop, bw, bodyH);
-        });
-        // moving average line
-        ctx.beginPath();
-        bars.forEach(function(b, i) {
-          const x = startX + i * (bw + gap) + bw/2;
-          const y = H - (b.h + b.l) / 2 - 20;
-          if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-        });
-        ctx.strokeStyle = th.a; ctx.lineWidth = 2; ctx.globalAlpha = 0.5;
-        ctx.setLineDash([]); ctx.stroke();
-        ctx.globalAlpha = 1;
-      }
+      // ── Thin separator line ───────────────────────────────
+      ctx.globalAlpha = 0.3;
+      ctx.strokeStyle = th.a;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(52, H - 58); ctx.lineTo(52 + pillW + 40, H - 58);
+      ctx.stroke();
+
+      ctx.globalAlpha = 1;
+      ctx.textAlign = 'left';
     }
 
-    drawDecoration();
-    ctx.globalAlpha = 1;
-    ctx.setLineDash([]);
-
-    // ── Full overlay — uniform dark gradient left→right ──
-    const panelGrad = ctx.createLinearGradient(0, 0, W, 0);
-    panelGrad.addColorStop(0,   'rgba(9,15,26,0.72)');
-    panelGrad.addColorStop(0.45,'rgba(9,15,26,0.50)');
-    panelGrad.addColorStop(1,   'rgba(9,15,26,0.28)');
-    ctx.fillStyle = panelGrad;
-    ctx.fillRect(0, 0, W, H);
-
-    // ── Top accent line ───────────────────────────
-    const lineGrad = ctx.createLinearGradient(0, 0, W, 0);
-    lineGrad.addColorStop(0,   th.a);
-    lineGrad.addColorStop(0.5, th.a2);
-    lineGrad.addColorStop(1,   th.a + '00');
-    ctx.fillStyle = lineGrad;
-    ctx.fillRect(0, 0, W, 4);
-
-    // ── Bottom accent line ────────────────────────
-    ctx.fillStyle = lineGrad;
-    ctx.fillRect(0, H - 4, W, 4);
-
-    // ── Big category text — centred ───────────────
-    const marketName = th.label; // e.g. FOREX, MACRO, EQUITY
-    ctx.font = 'bold 92px Georgia, serif';
-    ctx.fillStyle = '#ffffff';
-    ctx.globalAlpha = 0.06;
-    ctx.textAlign = 'center';
-    ctx.fillText(marketName, W / 2, H / 2 + 34);
-    ctx.globalAlpha = 1;
-
-    // ── Category pill — centred ───────────────────
-    ctx.textAlign = 'left';
-    const cxBadge = W / 2;
-    const cyBadge = H / 2;
-    const badgeLabel = catLabel;
-    ctx.font = '600 13px monospace';
-    const badgeW = ctx.measureText(badgeLabel).width + 36;
-    const badgeH = 36;
-    const bx = cxBadge - badgeW / 2;
-    const by = cyBadge - badgeH / 2;
-
-    // pill background
-    ctx.fillStyle = th.a;
-    ctx.globalAlpha = 0.18;
-    ctx.beginPath();
-    ctx.roundRect ? ctx.roundRect(bx, by, badgeW, badgeH, 4) : ctx.rect(bx, by, badgeW, badgeH);
-    ctx.fill();
-
-    // pill border
-    ctx.strokeStyle = th.a;
-    ctx.lineWidth = 1.5;
-    ctx.globalAlpha = 0.7;
-    ctx.beginPath();
-    ctx.roundRect ? ctx.roundRect(bx, by, badgeW, badgeH, 4) : ctx.rect(bx, by, badgeW, badgeH);
-    ctx.stroke();
-
-    // pill text
-    ctx.fillStyle = th.a2;
-    ctx.globalAlpha = 1;
-    ctx.textAlign = 'center';
-    ctx.font = '600 13px monospace';
-    ctx.fillText(badgeLabel, cxBadge, cyBadge + 5);
-
-    // ── Accent lines around badge ─────────────────
-    ctx.strokeStyle = th.a;
-    ctx.lineWidth = 1;
-    ctx.globalAlpha = 0.2;
-    ctx.beginPath(); ctx.moveTo(bx - 20, cyBadge); ctx.lineTo(bx - 60, cyBadge); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(bx + badgeW + 20, cyBadge); ctx.lineTo(bx + badgeW + 60, cyBadge); ctx.stroke();
-    ctx.globalAlpha = 1;
-
-    // ── Bottom branding ───────────────────────────
-    const brandY = H - 28;
-    ctx.textAlign = 'left';
-    ctx.font = 'bold 14px monospace';
-    ctx.fillStyle = th.a;
-    ctx.globalAlpha = 0.9;
-    ctx.fillText('XENOS', 48, brandY);
-    ctx.fillStyle = '#8aaac8';
-    ctx.fillText('FINANCE', 48 + 58, brandY);
-    ctx.font = '400 10px monospace';
-    ctx.fillStyle = '#2a4060';
-    ctx.globalAlpha = 0.7;
-    ctx.fillText('· AI MARKET INTELLIGENCE', 48 + 130, brandY);
-
-    ctx.globalAlpha = 1;
-    ctx.textAlign = 'left';
-
-    resolve(canvas.toDataURL('image/jpeg', 0.92).split(',')[1]);
+    if (photoDataUrl) {
+      // ── Draw Unsplash photo as background ────────────────
+      const img = new window.Image();
+      img.onload = function() {
+        // Cover fit: scale to fill canvas
+        const scale = Math.max(W / img.width, H / img.height);
+        const sw = img.width * scale, sh = img.height * scale;
+        const sx = (W - sw) / 2, sy = (H - sh) / 2;
+        ctx.drawImage(img, sx, sy, sw, sh);
+        drawOverlay();
+        resolve(canvas.toDataURL('image/jpeg', 0.92).split(',')[1]);
+      };
+      img.onerror = function() {
+        // Fallback to dark gradient if image load fails
+        drawDarkFallback(ctx, W, H, th);
+        drawOverlay();
+        resolve(canvas.toDataURL('image/jpeg', 0.92).split(',')[1]);
+      };
+      img.src = photoDataUrl;
+    } else {
+      drawDarkFallback(ctx, W, H, th);
+      drawOverlay();
+      resolve(canvas.toDataURL('image/jpeg', 0.92).split(',')[1]);
+    }
   });
 }
 
-// ── MANUAL ARTICLE ──────────────────────────────────────────
+function drawDarkFallback(ctx, W, H, th) {
+  const bg = ctx.createLinearGradient(0, 0, W, H);
+  bg.addColorStop(0, '#080e1a');
+  bg.addColorStop(1, '#0d1930');
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+  // Grid
+  ctx.strokeStyle = '#1e3050'; ctx.lineWidth = 1; ctx.globalAlpha = 0.25;
+  for (let y = 0; y <= H; y += 70) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+  for (let x = 0; x <= W; x += 100) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+  // Glow
+  const glow = ctx.createRadialGradient(W*0.75, H*0.3, 0, W*0.75, H*0.3, 400);
+  glow.addColorStop(0, th.a + '22'); glow.addColorStop(1, 'transparent');
+  ctx.fillStyle = glow; ctx.globalAlpha = 1; ctx.fillRect(0, 0, W, H);
+  // Candlestick decoration
+  const bars = [{h:200,l:60,o:80,c:185},{h:190,l:90,o:175,c:100},{h:220,l:85,o:95,c:210},
+                {h:215,l:55,o:205,c:70},{h:250,l:95,o:100,c:240},{h:245,l:65,o:230,c:80}];
+  const bw=52, gap=22, sx=W*0.52;
+  bars.forEach(function(b,i){
+    const x=sx+i*(bw+gap), up=b.c>=b.o, col=up?'#10b981':'#ef4444';
+    const top=H-Math.max(b.o,b.c)-20, bh=Math.abs(b.c-b.o)||6;
+    ctx.beginPath(); ctx.moveTo(x+bw/2,H-b.h-20); ctx.lineTo(x+bw/2,H-b.l-20);
+    ctx.strokeStyle=col; ctx.lineWidth=2; ctx.globalAlpha=0.3; ctx.stroke();
+    ctx.fillStyle=col; ctx.globalAlpha=0.2; ctx.fillRect(x,top,bw,bh);
+    ctx.strokeStyle=col; ctx.lineWidth=1; ctx.globalAlpha=0.45; ctx.strokeRect(x,top,bw,bh);
+  });
+  ctx.globalAlpha=1;
+}
+
+// ── LOGIN ──
 // ── LOGIN ──
 var isAdmin = false;
 
@@ -991,7 +892,89 @@ async function deleteArticle(slug, btn) {
   }
 }
 
-// ── PREVIEW ──
+// ── REGENERATE ALL IMAGES ──────────────────────────────────
+async function regenerateAllImages() {
+  const btn = document.getElementById('regenBtn');
+  const statusEl = document.getElementById('regenStatus');
+  if (!btn || btn.disabled) return;
+  btn.disabled = true;
+  btn.textContent = '⏳ Working...';
+  statusEl.style.display = 'block';
+
+  try {
+    const apiBase = 'https://api.github.com/repos/' + GITHUB_REPO + '/contents';
+
+    // 1. Load index
+    statusEl.textContent = 'Loading article index...';
+    const idxRes = await githubRequest(apiBase + '/articles/index.json', 'GET');
+    if (idxRes.status !== 200 || !idxRes.data?.content) throw new Error('Cannot read index');
+    let indexSha = idxRes.data.sha;
+    let articles  = JSON.parse(fromBase64(idxRes.data.content));
+    const total   = articles.length;
+
+    // 2. Loop through each article
+    for (let i = 0; i < articles.length; i++) {
+      const entry = articles[i];
+      statusEl.textContent = `[${i+1}/${total}] Generating image for: ${entry.title.substring(0,50)}...`;
+
+      try {
+        // Detect market from category string
+        const cat = (entry.category || entry.categoryLabel || '').toLowerCase();
+        let market = 'multi';
+        if (cat.includes('forex') || cat.includes('fx') || cat.includes('eur') || cat.includes('gbp')) market = 'forex';
+        else if (cat.includes('commodit') || cat.includes('gold') || cat.includes('oil') || cat.includes('silver')) market = 'commodities';
+        else if (cat.includes('equit') || cat.includes('stock') || cat.includes('s&p') || cat.includes('nasdaq')) market = 'equity';
+        else if (cat.includes('crypto') || cat.includes('bitcoin') || cat.includes('btc') || cat.includes('eth')) market = 'crypto';
+        else if (cat.includes('macro') || cat.includes('fomc') || cat.includes('fed') || cat.includes('ecb') || cat.includes('cpi') || cat.includes('nfp')) market = 'macro';
+        else if (cat.includes('geopolit') || cat.includes('global') || cat.includes('intermarket')) market = 'geopolitics';
+
+        // Generate new image
+        const imgB64 = await generateArticleImage(entry.title, entry.category || entry.categoryLabel, market, '');
+        if (!imgB64) { console.warn('No image for', entry.slug); continue; }
+
+        // Save image to GitHub
+        const imgPath = 'articles/' + entry.slug + '-img.jpg';
+        const imgRes  = await githubRequest(apiBase + '/' + imgPath, 'PUT', {
+          message: 'Regen image: ' + entry.slug,
+          content: imgB64,
+          branch:  GITHUB_BRANCH,
+        });
+        if (imgRes.status === 200 || imgRes.status === 201) {
+          const newUrl = 'https://raw.githubusercontent.com/' + GITHUB_REPO + '/main/' + imgPath;
+          articles[i].imageUrl = newUrl;
+          // Small delay to avoid GitHub rate limiting
+          await new Promise(r => setTimeout(r, 800));
+        }
+      } catch(e) {
+        console.warn('Failed for', entry.slug, e.message);
+      }
+    }
+
+    // 3. Update index with new imageUrls
+    statusEl.textContent = 'Updating index with new image URLs...';
+    const idxPayload = {
+      message: 'Regen: update all imageUrls',
+      content: toBase64(JSON.stringify(articles, null, 2)),
+      branch:  GITHUB_BRANCH,
+      sha:     indexSha,
+    };
+    await githubRequest(apiBase + '/articles/index.json', 'PUT', idxPayload);
+
+    statusEl.textContent = `✓ Done! ${total} images regenerated. Reload the page to see updates.`;
+    statusEl.style.color = '#34d399';
+    loadArticlesFromGitHub();
+
+  } catch(e) {
+    statusEl.textContent = '⚠ Error: ' + e.message;
+    statusEl.style.color = '#f87171';
+    console.error('regenerateAllImages:', e);
+  }
+
+  btn.disabled = false;
+  btn.textContent = '🖼 Regenerate All Images';
+}
+
+
 
 let editMode = false;
 function toggleEdit() {
