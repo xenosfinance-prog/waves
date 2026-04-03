@@ -336,7 +336,7 @@ function renderCalendar() {
       const isToday2 = ev.date === today;
       const evIdx = day + '-' + evs.indexOf(ev);
       const hasReal = hasActual && !ev.actual.includes('TODAY');
-  const aiBtn = (hasReal || isToday2) ? `<button class="ai-btn" id="btn-${evIdx}" onclick="analyzeEvent('${evIdx}')">⚡ AI</button>` : '';
+  const aiBtn = (hasReal || isToday2) ? `<button class="ai-btn" id="btn-${evIdx}" onclick="analyzeEvent('${evIdx}')" title="${isAdmin() ? 'AI Market Analysis' : '🔒 Premium Feature'}">⚡ AI${isAdmin() ? '' : ' 🔒'}</button>` : '';
       window._evData = window._evData || {};
       window._evData[evIdx] = ev;
       html += `<tr style="${isToday2 ? 'background:rgba(59,130,246,0.04)' : ''}" id="row-${evIdx}">
@@ -480,8 +480,20 @@ function getEvInfo(ev) {
   return EV_INFO_DB.default;
 }
 
+// ─── AUTH CHECK ────────────────────────────────────────────────────────────
+function isAdmin() {
+  return sessionStorage.getItem('xf_admin') === 'true';
+}
+
 // ─── AI ANALYSIS ───────────────────────────────────────────────────────────
 async function analyzeEvent(evIdx) {
+  if (!isAdmin()) {
+    const inner = document.getElementById('ai-inner-' + evIdx);
+    const panel = document.getElementById('ai-' + evIdx);
+    if (panel) panel.style.display = '';
+    if (inner) inner.innerHTML = `<div class="ai-panel-header">🔒 Premium Feature</div><div class="ai-panel-text" style="color:var(--muted)">AI market analysis is available for Premium & Admin accounts only. Subscribe at <span style="color:var(--gold2)">xenosfinance.com</span> to unlock.</div>`;
+    return;
+  }
   const ev = window._evData && window._evData[evIdx];
   if (!ev) return;
   const panel = document.getElementById('ai-' + evIdx);
