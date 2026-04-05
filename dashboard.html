@@ -287,26 +287,54 @@ function fmtP(s, p) {
 }
 
 const WORKER_URL = 'https://xenos-ai-proxy.xenosfinance.workers.dev';
+
+// Map each symbol ID to the exact key the Worker expects
 const WORKER_SYM_MAP = {
-  'OIL':'USOIL','GOLD':'XAUUSD','SILVER':'XAGUSD','NGAS':'NGAS',
-  'EURUSD':'EURUSD=X','GBPUSD':'GBPUSD=X','USDJPY':'USDJPY=X','USDCHF':'USDCHF=X',
-  'BTCUSD':'BTC-USD','ETHUSD':'ETH-USD',
-  'SPY':'SPY','NASDAQ':'%5EIXIC','DAX':'GER40','FTSE':'UK100',
+  'OIL':    'USOIL',
+  'GOLD':   'XAUUSD',
+  'SILVER': 'XAGUSD',
+  'NGAS':   'NGAS',
+  'EURUSD': 'EURUSD',   // Worker uses Frankfurter for FX majors — most accurate
+  'GBPUSD': 'GBPUSD',
+  'USDJPY': 'USDJPY',
+  'USDCHF': 'USDCHF',
+  'BTCUSD': 'BTC-USD',
+  'ETHUSD': 'ETH-USD',
+  'SPY':    'SPY',
+  'NASDAQ': '%5EIXIC',
+  'DAX':    '%5EGDAXI',
+  'FTSE':   '%5EFTSE',
 };
-async function fetchSym(s) {
-  const wsym = WORKER_SYM_MAP[s.id] || s.id;
+
+// Fetch ALL symbols in ONE request — fast and parallel inside Worker
+async function fetchAllPrices() {
+  const pairs = SYMS.map(s => WORKER_SYM_MAP[s.id] || s.id);
   try {
     const r = await fetch(WORKER_URL, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({type: 'prices', pairs}),
+      signal: AbortSignal.timeout(8000)
+    });
+    if (!r.ok) return {};
+    const d = await r.json();
+    return d.prices || {};
+  } catch(e) { return {}; }
+}
+
+// Legacy wrapper kept for compatibility
+async function fetchSym(s) {
+  const wsym = WORKER_SYM_MAP[s.id] || s.id;
+  try {
+    const r = await fetch(WORKER_URL, {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({type: 'prices', pairs: [wsym]}),
-      signal: AbortSignal.timeout(10000)
+      signal: AbortSignal.timeout(8000)
     });
     if (!r.ok) return null;
     const d = await r.json();
     const p = d.prices?.[wsym];
     if (!p || !p.price) return null;
-    // sparkData: store minimal fake closes for sparkline (prev + current)
     const prev = p.price / (1 + (p.change_pct || 0) / 100);
     sparkData[s.id] = [prev, p.price];
     return { price: p.price, chg: p.change_pct || 0, weekChg: p.change_pct || 0 };
@@ -457,11 +485,19 @@ function updateDateTime() {
 async function updateAll() {
   const status = document.getElementById('dash-status');
   if (status) status.textContent = '⟳ Loading...';
+
+  // Single batch request for all symbols
+  const prices = await fetchAllPrices();
   const results = {};
-  await Promise.all(SYMS.map(async sym => {
-    const d = await fetchSym(sym);
-    if (d) results[sym.id] = d;
-  }));
+  SYMS.forEach(sym => {
+    const wsym = WORKER_SYM_MAP[sym.id] || sym.id;
+    const p = prices[wsym];
+    if (!p || !p.price) return;
+    const prev = p.price / (1 + (p.change_pct || 0) / 100);
+    sparkData[sym.id] = [prev, p.price];
+    results[sym.id] = { price: p.price, chg: p.change_pct || 0, weekChg: p.change_pct || 0 };
+  });
+
   buildCards(results);
   buildTable(results);
   buildSentiment(results);
