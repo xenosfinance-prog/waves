@@ -1,4 +1,4 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -1207,22 +1207,52 @@ function renderEWChart(analysis, symbol, tf, liveData) {
     ctx2.globalAlpha = 0.95;
     ctx2.beginPath(); ctx2.arc(x, y, isCurrentWave ? 6 : 4.5, 0, Math.PI * 2); ctx2.fill();
 
-    // Label background + text
+    // Label background + text — position based on wave direction
     const labelText = pt.label;
-    ctx2.font = 'bold 11px monospace';
+    ctx2.font = 'bold 12px monospace';
     const tw = ctx2.measureText(labelText).width;
-    const above = i % 2 === 0; // alternate above/below
-    const offsetY = above ? -18 : 16;
-    const lx = x - tw / 2 - 4;
-    const ly = y + offsetY - 11;
+    const padW = tw + 12, padH = 18;
 
-    ctx2.fillStyle = 'rgba(8,14,26,0.85)';
-    ctx2.globalAlpha = 0.9;
-    ctx2.fillRect(lx, ly, tw + 8, 15);
+    // Determine if this point is a peak or trough based on neighbors
+    const prevPt = validPts[i - 1];
+    const nextPt = validPts[i + 1];
+    let isPeak = false;
+    if (prevPt && nextPt) isPeak = pt.price > prevPt.price && pt.price > nextPt.price;
+    else if (prevPt) isPeak = pt.price > prevPt.price;
+    else if (nextPt) isPeak = pt.price > nextPt.price;
+
+    const offsetY = isPeak ? -(padH + 10) : 10;
+    const lx = x - padW / 2;
+    const ly = y + offsetY;
+
+    // Badge background
+    ctx2.fillStyle = 'rgba(6,11,22,0.92)';
+    ctx2.globalAlpha = 0.95;
+    ctx2.strokeStyle = col + '88';
+    ctx2.lineWidth = 1;
+    if (ctx2.roundRect) {
+      ctx2.beginPath(); ctx2.roundRect(lx, ly, padW, padH, 3);
+      ctx2.fill(); ctx2.stroke();
+    } else {
+      ctx2.fillRect(lx, ly, padW, padH);
+      ctx2.strokeRect(lx, ly, padW, padH);
+    }
+
+    // Label text centered in badge
     ctx2.fillStyle = col;
     ctx2.globalAlpha = 1;
     ctx2.textAlign = 'center';
-    ctx2.fillText(labelText, x, ly + 11);
+    ctx2.fillText(labelText, x, ly + padH - 4);
+
+    // Connector line from badge to dot
+    ctx2.strokeStyle = col;
+    ctx2.lineWidth = 0.8;
+    ctx2.globalAlpha = 0.4;
+    ctx2.beginPath();
+    ctx2.moveTo(x, isPeak ? ly + padH : ly);
+    ctx2.lineTo(x, isPeak ? y - (isCurrentWave ? 6 : 4.5) : y + (isCurrentWave ? 6 : 4.5));
+    ctx2.stroke();
+    ctx2.globalAlpha = 1;
   });
 
   // ── Current wave price label ──────────────────────
