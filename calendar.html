@@ -526,26 +526,37 @@ async function analyzeEvent(evIdx) {
   if (btn) { btn.textContent = '✕ Close'; }
   inner.innerHTML = `<div class="ai-panel-header">⚡ AI Market Analysis</div><div class="ai-loading">Analyzing ${ev.name}...</div>`;
 
-  const beat = ev.actual && ev.forecast && ev.actual !== '—' && ev.forecast !== '—'
+  const hasActual   = ev.actual   && ev.actual   !== '—' && ev.actual   !== '';
+  const hasForecast = ev.forecast && ev.forecast !== '—' && ev.forecast !== '';
+  const hasPrev     = ev.prev     && ev.prev     !== '—' && ev.prev     !== '';
+
+  const beat = hasActual && hasForecast
     ? (parseFloat(ev.actual) > parseFloat(ev.forecast) ? 'beat' : parseFloat(ev.actual) < parseFloat(ev.forecast) ? 'missed' : 'met')
-    : 'released';
+    : null;
 
-  const prompt = `You are a senior macro analyst at an institutional trading desk. A key economic data point just released.
+  let prompt;
+  if (hasActual && hasForecast) {
+    prompt = `You are a senior macro analyst at an institutional trading desk.
 
-Event: ${ev.name} (${ev.desc})
-Country: ${ev.flag} ${ev.country}
+Event: ${ev.name}${ev.desc ? ' — ' + ev.desc : ''}
+Country/Currency: ${ev.flag} ${ev.country}
 Actual: ${ev.actual}
 Forecast: ${ev.forecast}
-Previous: ${ev.prev}
-Result: Data ${beat} expectations
+Previous: ${hasPrev ? ev.prev : 'N/A'}
+Outcome: Data ${beat} expectations
 
-Write a concise institutional-grade market impact analysis (4-6 sentences). Cover:
-1. What the number means vs expectations
-2. Immediate market reaction expected (forex, bonds, equities)
-3. Central bank implications
-4. Key risk or tail scenario to watch
+Write a concise institutional market impact analysis (4-6 sentences, Bloomberg terminal style). Cover the economic signal vs expectations, immediate market reaction expected across FX, bonds and equities, central bank implications, and a key tail risk to watch. No bullet points. No headers. No disclaimers. Write as if briefing a senior portfolio manager.`;
+  } else {
+    prompt = `You are a senior macro analyst at an institutional trading desk. An important economic event is scheduled.
 
-Write in Bloomberg terminal style. No bullet points. No headers. Direct and precise.`;
+Event: ${ev.name}${ev.desc ? ' — ' + ev.desc : ''}
+Country/Currency: ${ev.flag} ${ev.country}
+Date: ${ev.date} at ${ev.time} CET
+${hasForecast ? 'Consensus Forecast: ' + ev.forecast : ''}
+${hasPrev ? 'Previous Reading: ' + ev.prev : ''}
+
+Write a concise forward-looking institutional briefing (4-6 sentences, Bloomberg terminal style). Cover what markets are expecting and why this matters, how a beat vs miss would move key assets, current positioning and key levels, and the tail risk that could surprise markets. No bullet points. No headers. No disclaimers. Write as if briefing a senior portfolio manager ahead of the release.`;
+  }
 
   try {
     const res = await fetch(WORKER_URL, {
@@ -559,7 +570,11 @@ Write in Bloomberg terminal style. No bullet points. No headers. Direct and prec
       })
     });
     const data = await res.json();
-    const text = data.content?.[0]?.text || data.error || 'Analysis unavailable.';
+    let text = data.content?.[0]?.text || '';
+    const badPhrases = ['insufficient data','not enough data','cannot provide','unable to analyze','no data provided'];
+    if (!text || badPhrases.some(p => text.toLowerCase().startsWith(p.toLowerCase().slice(0,15)))) {
+      text = ev.name + ' is a key market event for ' + ev.country + ' assets.' + (hasForecast ? ' Consensus is positioned at ' + ev.forecast + '.' : '') + ' Watch for volatility around the release — any deviation from expectations could trigger sharp directional moves in related currency pairs and fixed income.';
+    }
     inner.innerHTML = `<div class="ai-panel-header">⚡ AI Market Analysis · ${ev.name}</div><div class="ai-panel-text">${text}</div>`;
   } catch(e) {
     inner.innerHTML = `<div class="ai-panel-header">⚡ AI Market Analysis</div><div class="ai-panel-text" style="color:var(--red2)">Analysis failed. Check connection.</div>`;
