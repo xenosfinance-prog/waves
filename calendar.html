@@ -584,74 +584,121 @@ function isoWeekRange(offsetWeeks) {
 }
 
 async function fetchLiveCalendar(weekStr) {
-  const offsetWeeks = weekStr === 'nextweek' ? 1 : 0;
+  const offsetWeeks = weekStr === 'nextweek' ? 1 : weekStr === 'week2' ? 2 : weekStr === 'week3' ? 3 : 0;
   const { from, to } = isoWeekRange(offsetWeeks);
 
-  function ingestEvents(events, source, nameField, dateField, actualField) {
-    let withActuals = 0;
-    events.forEach(ev => {
-      const actualVal = ev[actualField || 'actual'];
-      if (!actualVal && actualVal !== 0) return;
-      withActuals++;
-      const dateRaw = ev[dateField || 'time'] || ev.date || '';
-      const date = dateRaw.slice(0, 10);
-      const name = normalizeEventName(ev[nameField || 'event'] || ev.name || '');
-      const val = String(actualVal);
-      liveByNameDate[name + '|' + date] = val;
-      const k2 = name.slice(0, 15) + '|' + date;
-      if (!liveByNameDate[k2]) liveByNameDate[k2] = val;
-    });
-    console.log('[Calendar] ' + source + ' ' + weekStr + ': ' + events.length + ' events, ' + withActuals + ' actuals');
-    return withActuals;
+  const COUNTRY_FLAG = {USD:'🇺🇸',EUR:'🇪🇺',GBP:'🇬🇧',JPY:'🇯🇵',CAD:'🇨🇦',AUD:'🇦🇺',CHF:'🇨🇭',CNY:'🇨🇳',NZD:'🇳🇿',OTHER:'🌐'};
+
+  function mapImpact(raw) {
+    const s = String(raw||'').toLowerCase();
+    if (['high','3','red','★★★','3.0'].includes(s)) return 'high';
+    if (['medium','med','2','orange','★★','2.0'].includes(s)) return 'med';
+    return 'low';
   }
 
-  // 1. RapidAPI Economic Calendar (primary live source)
+  function mapCountry(raw) {
+    const s = String(raw||'').toUpperCase();
+    const map = {USD:'USD',US:'USD',EUR:'EUR',EU:'EUR',GBP:'GBP',GB:'GBP',UK:'GBP',
+                 JPY:'JPY',JP:'JPY',CAD:'CAD',CA:'CAD',AUD:'AUD',AU:'AUD',
+                 CHF:'CHF',CH:'CHF',CNY:'OTHER',CN:'OTHER',NZD:'OTHER',NZ:'OTHER'};
+    return map[s] || 'OTHER';
+  }
+
+  function evKey(date, name) {
+    return date + '|' + String(name).toLowerCase().replace(/\s+/g,' ').trim().slice(0,40);
+  }
+
+  // Remove old static events for this week so API data takes over
+  const weekDays = [];
+  const d0 = new Date(from + 'T12:00:00');
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(d0); d.setDate(d0.getDate() + i);
+    weekDays.push(d.toISOString().split('T')[0]);
+  }
+  for (let i = EVENTS.length - 1; i >= 0; i--) {
+    if (weekDays.includes(EVENTS[i].date)) EVENTS.splice(i, 1);
+  }
+
+  const existingKeys = new Set(EVENTS.map(e => evKey(e.date, e.name)));
+
+  function ingestLiveEvents(events, cfg) {
+    let added = 0;
+    events.forEach(ev => {
+      const name = String(ev[cfg.name] || ev.event || ev.name || '').trim();
+      if (!name || name.length < 3) return;
+      const dateRaw = String(ev[cfg.date] || ev.date || ev.time || '');
+      const date = dateRaw.slice(0,10);
+      if (!date.match(/^\d{4}-\d{2}-\d{2}$/) || !weekDays.includes(date)) return;
+      const key = evKey(date, name);
+      if (existingKeys.has(key)) {
+        const actual = String(ev[cfg.actual] || ev.actual || '');
+        if (actual) {
+          const ex = EVENTS.find(e => evKey(e.date, e.name) === key);
+          if (ex) ex.actual = actual.slice(0,12);
+        }
+        return;
+      }
+      existingKeys.add(key);
+      const country = mapCountry(ev[cfg.country] || ev.country || ev.currency || '');
+      const impact  = mapImpact(ev[cfg.impact]  || ev.impact  || ev.importance || '');
+      const timeRaw = String(ev[cfg.time] || ev.time || '');
+      const time    = timeRaw.length >= 16 ? timeRaw.slice(11,16) : timeRaw.slice(0,5);
+      EVENTS.push({
+        date, time: (time.match(/^\d{2}:\d{2}$/) ? time : '--:--'),
+        country, flag: COUNTRY_FLAG[country] || '🌐',
+        name, desc: String(ev.comment || ev.description || ev.period || '').slice(0,60),
+        impact,
+        forecast: String(ev[cfg.forecast] || ev.forecast || ev.estimate || '—').slice(0,12),
+        prev:     String(ev[cfg.prev]     || ev.previous || ev.revised  || '—').slice(0,12),
+        actual:   String(ev[cfg.actual]   || ev.actual   || '').slice(0,12),
+        _live: true
+      });
+      added++;
+    });
+    console.log('[Calendar] ' + weekStr + ' +' + added + ' events');
+    return added;
+  }
+
+  // 1. Finnhub economic calendar
+  try {
+    const r = await fetch(WORKER_URL, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ type:'finnhub', action:'economic_calendar', from, to }),
+      signal: (()=>{ const c=new AbortController(); setTimeout(()=>c.abort(),8000); return c.signal; })()
+    });
+    if (r.ok) {
+      const d = await r.json();
+      const evs = d.economicCalendar || [];
+      if (evs.length > 0) {
+        ingestLiveEvents(evs, {name:'event', date:'time', time:'time', impact:'impact',
+          country:'country', forecast:'estimate', prev:'prev', actual:'actual'});
+      }
+    }
+  } catch(e) { console.warn('Finnhub calendar failed:', e.message); }
+
+  // 2. RapidAPI as supplement
   try {
     const r0 = await fetch(WORKER_URL, {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ type: 'rapidapi_calendar', countries: ['US','EU','GB','DE','JP','CN','CA','AU'] }),
-      signal: (()=>{ const c = new AbortController(); setTimeout(()=>c.abort(), 10000); return c.signal; })()
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ type:'rapidapi_calendar', countries:['US','EU','GB','DE','JP','CN','CA','AU'] }),
+      signal: (()=>{ const c=new AbortController(); setTimeout(()=>c.abort(),8000); return c.signal; })()
     });
     if (r0.ok) {
       const d0 = await r0.json();
-      const events0 = d0.events || [];
-      if (events0.length > 0 && !d0.error) {
-        // RapidAPI events use 'date' field and 'name'/'event' for event name
-        ingestEvents(events0, 'RapidAPI', 'event', 'time', 'actual');
-        console.log('[Calendar] RapidAPI returned', events0.length, 'events');
+      const evs0 = d0.events || [];
+      if (evs0.length > 0 && !d0.error) {
+        ingestLiveEvents(evs0, {name:'event', date:'date', time:'time', impact:'impact',
+          country:'country', forecast:'forecast', prev:'previous', actual:'actual'});
       }
     }
   } catch(e) { console.warn('RapidAPI calendar failed:', e.message); }
 
-  // 2. ForexFactory
-  try {
-    const r = await fetch(WORKER_URL, {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ type: 'forexfactory', week: weekStr }),
-      signal: (()=>{ const c = new AbortController(); setTimeout(()=>c.abort(), 8000); return c.signal; })()
-    });
-    if (r.ok) {
-      const d = await r.json();
-      const events = d.events || [];
-      if (events.length > 0 && !d.error) {
-        ingestEvents(events, 'ForexFactory', 'event', 'time', 'actual');
-      }
-    }
-  } catch(e) { console.warn('ForexFactory failed:', e.message); }
-
-  // 3. Finnhub fallback
-  try {
-    const r2 = await fetch(WORKER_URL, {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ type: 'finnhub', action: 'economic_calendar', from, to }),
-      signal: (()=>{ const c = new AbortController(); setTimeout(()=>c.abort(), 10000); return c.signal; })()
-    });
-    if (r2.ok) {
-      const d2 = await r2.json();
-      const events2 = d2.economicCalendar || [];
-      ingestEvents(events2, 'Finnhub', 'event', 'time', 'actual');
-    }
-  } catch(e) { console.warn('Finnhub calendar failed:', e.message); }
+  // Sort EVENTS by date+time
+  EVENTS.sort((a,b) => {
+    const at = a.date+'T'+(a.time==='--:--'?'23:59':a.time);
+    const bt = b.date+'T'+(b.time==='--:--'?'23:59':b.time);
+    return at.localeCompare(bt);
+  });
 }
 
 function getLiveActual(ev) {
@@ -711,13 +758,12 @@ function renderKeyEventsCards() {
 }
 
 async function refreshActuals() {
-  await fetchLiveCalendar('thisweek');
-  await fetchLiveCalendar('nextweek');
-  // Patch static EVENTS array with live actuals
-  EVENTS.forEach(ev => {
-    const live = getLiveActual(ev);
-    if (live && live !== ev.actual) ev.actual = live;
-  });
+  await Promise.all([
+    fetchLiveCalendar('thisweek'),
+    fetchLiveCalendar('nextweek'),
+    fetchLiveCalendar('week2'),
+    fetchLiveCalendar('week3'),
+  ]);
   renderCalendar();
   renderHighlights();
   renderKeyEventsCards();
