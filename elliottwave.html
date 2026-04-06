@@ -742,19 +742,19 @@ canvas { display: block; }
           <div>
             <div class="admin-label">Instrument</div>
             <select class="admin-select" id="aiSymbol">
-              <option value="OIL WTI">OIL WTI</option>
-              <option value="GOLD">GOLD</option>
-              <option value="SILVER">SILVER</option>
-              <option value="NAT GAS">NAT GAS</option>
-              <option value="EUR/USD" selected>EUR/USD</option>
-              <option value="GBP/USD">GBP/USD</option>
-              <option value="USD/JPY">USD/JPY</option>
-              <option value="BTC/USD">BTC/USD</option>
-              <option value="ETH/USD">ETH/USD</option>
-              <option value="S&P 500">S&P 500</option>
-              <option value="NASDAQ">NASDAQ</option>
-              <option value="DAX">DAX</option>
-              <option value="FTSE 100">FTSE 100</option>
+              <option value="oil wti">OIL WTI</option>
+              <option value="gold">GOLD</option>
+              <option value="silver">SILVER</option>
+              <option value="nat gas">NAT GAS</option>
+              <option value="eur/usd" selected>EUR/USD</option>
+              <option value="gbp/usd">GBP/USD</option>
+              <option value="usd/jpy">USD/JPY</option>
+              <option value="btc/usd">BTC/USD</option>
+              <option value="eth/usd">ETH/USD</option>
+              <option value="s&p 500">S&P 500</option>
+              <option value="nasdaq">NASDAQ</option>
+              <option value="dax">DAX</option>
+              <option value="ftse 100">FTSE 100</option>
             </select>
           </div>
           <div>
@@ -886,6 +886,7 @@ let lastAnalysis='';
 
 // ── SYMBOL MAP: user input → Worker "prices" pair key ──
 const EW_SYMBOL_MAP = {
+  // FX Majors — exact Worker symbols (Frankfurter, accurate)
   'eurusd':'EURUSD','eur/usd':'EURUSD',
   'gbpusd':'GBPUSD','gbp/usd':'GBPUSD',
   'usdjpy':'USDJPY','usd/jpy':'USDJPY',
@@ -899,17 +900,20 @@ const EW_SYMBOL_MAP = {
   'cadjpy':'CADJPY','cad/jpy':'CADJPY',
   'audnzd':'AUDNZD','aud/nzd':'AUDNZD',
   'eurchf':'EURCHF','eur/chf':'EURCHF',
+  // Commodities — Yahoo Finance via Worker
   'gold':'XAUUSD','xauusd':'XAUUSD','xau/usd':'XAUUSD',
   'silver':'XAGUSD','xagusd':'XAGUSD','xag/usd':'XAGUSD',
-  'oil':'USOIL','wti':'USOIL','crude':'USOIL','wti crude':'USOIL','wti oil':'USOIL','usoil':'USOIL',
+  'oil':'USOIL','oil wti':'USOIL','wti':'USOIL','crude':'USOIL','wti crude':'USOIL','wti oil':'USOIL','usoil':'USOIL',
   'brent':'UKOIL','brent oil':'UKOIL','ukoil':'UKOIL',
-  'natgas':'NGAS','natural gas':'NGAS','ngas':'NGAS',
+  'nat gas':'NGAS','natgas':'NGAS','natural gas':'NGAS','ngas':'NGAS',
   'copper':'COPPER',
-  'sp500':'US500','s&p500':'US500','s&p 500':'US500','us500':'US500',
-  'nasdaq':'NAS100','nas100':'NAS100',
-  'dow':'US30','dji':'US30','us30':'US30',
-  'dax':'GER40','ger40':'GER40',
-  'ftse':'UK100','uk100':'UK100',
+  // Indices — Yahoo Finance via Worker
+  'sp500':'%5EGSPC','s&p500':'%5EGSPC','s&p 500':'%5EGSPC','us500':'%5EGSPC',
+  'nasdaq':'%5EIXIC','nas100':'%5EIXIC',
+  'dow':'%5EDJI','dji':'%5EDJI','us30':'%5EDJI',
+  'dax':'%5EGDAXI','ger40':'%5EGDAXI',
+  'ftse':'%5EFTSE','ftse 100':'%5EFTSE','uk100':'%5EFTSE',
+  // Crypto — CoinGecko via Worker
   'btc':'BTCUSD','bitcoin':'BTCUSD','btc/usd':'BTCUSD','btcusd':'BTCUSD',
   'eth':'ETHUSD','ethereum':'ETHUSD','eth/usd':'ETHUSD','ethusd':'ETHUSD',
   'sol':'SOLUSD','solana':'SOLUSD','solusd':'SOLUSD',
@@ -940,7 +944,9 @@ async function fetchLivePrice(symbolInput) {
 
 async function runAIAnalysis(){
   const symbolEl=document.getElementById('aiSymbol');
-  const symbol=symbolEl.options ? symbolEl.options[symbolEl.selectedIndex].value : (symbolEl.value||'EUR/USD');
+  const symbolVal=symbolEl.options ? symbolEl.options[symbolEl.selectedIndex].value : (symbolEl.value||'eur/usd');
+  const symbolLabel=symbolEl.options ? symbolEl.options[symbolEl.selectedIndex].text : symbolVal.toUpperCase();
+  const symbol=symbolLabel; // use display label in prompt (e.g. "EUR/USD", "OIL WTI")
   const tf=document.getElementById('aiTf').value;
   const ctx=document.getElementById('aiContext').value;
   const btn=document.getElementById('aiRunBtn');
@@ -954,7 +960,7 @@ async function runAIAnalysis(){
   document.getElementById('tgBtn').style.display='none';
 
   // ── Fetch live price via Worker (type=prices) ──
-  const liveData = await fetchLivePrice(symbol);
+  const liveData = await fetchLivePrice(symbolVal);
   let livePriceLine = '';
   if(liveData && liveData.price != null){
     const sign = (liveData.change ?? 0) >= 0 ? '+' : '';
