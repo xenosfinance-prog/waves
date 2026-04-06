@@ -337,7 +337,7 @@ async function generateArticleImage(title, category, market, tech) {
   };
   const th = themes[mk] || themes.multi;
   const catLabel = (category || th.label).toUpperCase();
-  const titleShort = title.length > 72 ? title.substring(0, 70) + '…' : title;
+  const titleShort = title.length > 120 ? title.substring(0, 118) + '…' : title;
 
   return new Promise(function(resolve) {
     const canvas = document.createElement('canvas');
@@ -478,37 +478,45 @@ async function generateArticleImage(title, category, market, tech) {
 
     // ── Category label — bold, top left ────────────────────
     const catText = '// ' + catLabel;
-    ctx.font = '600 15px monospace';
+    ctx.font = 'bold 13px monospace';
     ctx.fillStyle = th.a2;
     ctx.globalAlpha = 1;
     ctx.textAlign = 'left';
-    ctx.fillText(catText, 44, 58);
+    ctx.fillText(catText, 44, 56);
 
     // ── Accent line under category ──────────────────────────
-    const lineGrad = ctx.createLinearGradient(44, 0, 44 + ctx.measureText(catText).width + 60, 0);
+    const lineGrad = ctx.createLinearGradient(44, 0, 44 + ctx.measureText(catText).width + 80, 0);
     lineGrad.addColorStop(0, th.a);
     lineGrad.addColorStop(1, th.a + '00');
     ctx.fillStyle = lineGrad;
-    ctx.fillRect(44, 68, ctx.measureText(catText).width + 60, 2);
+    ctx.fillRect(44, 64, ctx.measureText(catText).width + 80, 2);
 
-    // ── Title — large, multi-line ──────────────────────────
-    ctx.font = 'bold 54px Georgia, serif';
-    ctx.fillStyle = '#eef4ff';
+    // ── Title — readable size, full width, auto wrapping ───
+    const maxTitleW = W - 88; // full width minus margins
+    // Auto-fit font size: start at 42px, reduce until it fits in 4 lines max
+    let fontSize = 42;
+    let lines2 = [];
+    for (let fs = 42; fs >= 22; fs -= 2) {
+      ctx.font = 'bold ' + fs + 'px Georgia, serif';
+      const words = titleShort.split(' ');
+      lines2 = [];
+      let cur = '';
+      words.forEach(w => {
+        const test = cur ? cur + ' ' + w : w;
+        if (ctx.measureText(test).width > maxTitleW && cur) { lines2.push(cur); cur = w; }
+        else cur = test;
+      });
+      if (cur) lines2.push(cur);
+      if (lines2.length <= 3) { fontSize = fs; break; }
+    }
+
+    ctx.font = 'bold ' + fontSize + 'px Georgia, serif';
+    ctx.fillStyle = '#ffffff';
     ctx.globalAlpha = 1;
-    const maxTitleW = W * 0.52;
-    const words = titleShort.split(' ');
-    const lines2 = [];
-    let cur = '';
-    words.forEach(w => {
-      const test = cur ? cur + ' ' + w : w;
-      if (ctx.measureText(test).width > maxTitleW && cur) { lines2.push(cur); cur = w; }
-      else cur = test;
-    });
-    if (cur) lines2.push(cur);
-
-    const lineH = 64;
-    const titleY = 120;
-    lines2.slice(0, 3).forEach((line, i) => {
+    ctx.textAlign = 'left';
+    const lineH = Math.round(fontSize * 1.28);
+    const titleY = 100 + lineH;
+    lines2.slice(0, 4).forEach((line, i) => {
       ctx.fillText(line, 44, titleY + i * lineH);
     });
 
