@@ -321,201 +321,234 @@
 
 <script>
 // ── PHOTO IDs per market — curated Picsum IDs (professional finance photos) ──
-const PHOTO_IDS = {
-  forex:       [1036, 1029, 534, 210, 259, 442],   // trading screens, city, finance
-  commodities: [247, 421, 1060, 136, 325, 188],     // gold, oil, metals, nature
-  equity:      [1028, 573, 239, 450, 534, 1019],    // wall street, business, charts
-  crypto:      [1036, 180, 325, 442, 259, 1072],    // tech, digital, blue lights
-  macro:       [449, 534, 210, 188, 239, 1019],     // buildings, city, government
-  geopolitics: [188, 210, 325, 259, 449, 167],      // world, maps, architecture
-  multi:       [1036, 534, 442, 210, 247, 573],     // mixed finance
-};
-
-async function fetchMarketPhoto(market) {
-  const mk = (market || 'multi').toLowerCase();
-  const ids = PHOTO_IDS[mk] || PHOTO_IDS.multi;
-  const id  = ids[Math.floor(Math.random() * ids.length)];
-  const url = `https://picsum.photos/id/${id}/1200/630`;
-  try {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error('fetch failed');
-    const blob = await res.blob();
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload  = () => resolve(reader.result);
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
-  } catch(e) {
-    console.warn('Photo fetch failed:', e.message);
-    return null;
-  }
-}
-
-// ── AUTO IMAGE GENERATOR — Unsplash photo + Canvas overlay ──
+// ── AUTO IMAGE GENERATOR — Canvas Premium Design ────────────
 async function generateArticleImage(title, category, market, tech) {
   const W = 1200, H = 630;
   const mk = (market || 'multi').toLowerCase();
+
   const themes = {
-    forex:       { a: '#3b82f6', a2: '#60a5fa', label: 'FOREX' },
-    commodities: { a: '#f59e0b', a2: '#fbbf24', label: 'COMMODITIES' },
-    equity:      { a: '#10b981', a2: '#34d399', label: 'EQUITY' },
-    crypto:      { a: '#8b5cf6', a2: '#a78bfa', label: 'CRYPTO' },
-    macro:       { a: '#ef4444', a2: '#f87171', label: 'MACRO' },
-    geopolitics: { a: '#f97316', a2: '#fb923c', label: 'GEOPOLITICS' },
-    multi:       { a: '#3b82f6', a2: '#60a5fa', label: 'GLOBAL' },
+    forex:       { bg1:'#050d1a', bg2:'#0a1628', a:'#3b82f6', a2:'#60a5fa', a3:'#1d4ed8', label:'FOREX',       icon:'₣' },
+    commodities: { bg1:'#120a00', bg2:'#1c1000', a:'#f59e0b', a2:'#fbbf24', a3:'#92400e', label:'COMMODITIES', icon:'◈' },
+    equity:      { bg1:'#001a0e', bg2:'#00220f', a:'#10b981', a2:'#34d399', a3:'#065f46', label:'EQUITY',       icon:'▲' },
+    crypto:      { bg1:'#0d0520', bg2:'#130828', a:'#8b5cf6', a2:'#a78bfa', a3:'#4c1d95', label:'CRYPTO',       icon:'₿' },
+    macro:       { bg1:'#1a0505', bg2:'#220808', a:'#ef4444', a2:'#f87171', a3:'#991b1b', label:'MACRO',        icon:'◉' },
+    geopolitics: { bg1:'#0d0800', bg2:'#160e00', a:'#f97316', a2:'#fb923c', a3:'#c2410c', label:'GEOPOLITICS',  icon:'◎' },
+    multi:       { bg1:'#050d1a', bg2:'#0a1628', a:'#3b82f6', a2:'#60a5fa', a3:'#1d4ed8', label:'GLOBAL',       icon:'◈' },
   };
   const th = themes[mk] || themes.multi;
-  const catLabel = (category || th.label).toUpperCase().substring(0, 32);
-
-  // 1. Try fetching an Unsplash photo
-  const photoDataUrl = await fetchMarketPhoto(mk);
+  const catLabel = (category || th.label).toUpperCase();
+  const titleShort = title.length > 72 ? title.substring(0, 70) + '…' : title;
 
   return new Promise(function(resolve) {
     const canvas = document.createElement('canvas');
     canvas.width = W; canvas.height = H;
     const ctx = canvas.getContext('2d');
 
-    function drawOverlay() {
-      // ── Dark overlay gradient — makes text readable ──────
-      const ov = ctx.createLinearGradient(0, 0, 0, H);
-      ov.addColorStop(0,   'rgba(8,14,26,0.55)');
-      ov.addColorStop(0.4, 'rgba(8,14,26,0.45)');
-      ov.addColorStop(1,   'rgba(8,14,26,0.82)');
-      ctx.fillStyle = ov;
-      ctx.fillRect(0, 0, W, H);
+    // ── Background ─────────────────────────────────────────
+    const bg = ctx.createLinearGradient(0, 0, W, H);
+    bg.addColorStop(0,   th.bg1);
+    bg.addColorStop(0.6, th.bg2);
+    bg.addColorStop(1,   '#030810');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
 
-      // ── Bottom gradient — stronger dark for text ─────────
-      const bot = ctx.createLinearGradient(0, H * 0.5, 0, H);
-      bot.addColorStop(0, 'rgba(8,14,26,0)');
-      bot.addColorStop(1, 'rgba(8,14,26,0.90)');
-      ctx.fillStyle = bot;
-      ctx.fillRect(0, 0, W, H);
+    // ── Radial glow — accent color ─────────────────────────
+    const glow1 = ctx.createRadialGradient(W*0.15, H*0.5, 0, W*0.15, H*0.5, W*0.55);
+    glow1.addColorStop(0,   th.a + '28');
+    glow1.addColorStop(0.5, th.a + '08');
+    glow1.addColorStop(1,   'rgba(0,0,0,0)');
+    ctx.fillStyle = glow1;
+    ctx.fillRect(0, 0, W, H);
 
-      // ── Top accent bar ───────────────────────────────────
-      const topGrad = ctx.createLinearGradient(0, 0, W, 0);
-      topGrad.addColorStop(0,   th.a);
-      topGrad.addColorStop(0.6, th.a2);
-      topGrad.addColorStop(1,   th.a + '00');
-      ctx.fillStyle = topGrad;
-      ctx.fillRect(0, 0, W, 5);
+    const glow2 = ctx.createRadialGradient(W*0.85, H*0.8, 0, W*0.85, H*0.8, W*0.4);
+    glow2.addColorStop(0,   th.a3 + '30');
+    glow2.addColorStop(1,   'rgba(0,0,0,0)');
+    ctx.fillStyle = glow2;
+    ctx.fillRect(0, 0, W, H);
 
-      // ── Bottom accent bar ────────────────────────────────
-      ctx.fillStyle = topGrad;
-      ctx.fillRect(0, H - 5, W, 5);
-
-      // ── Category pill — bottom left ───────────────────────
-      ctx.font = 'bold 13px monospace';
-      ctx.textAlign = 'left';
-      const pillW = ctx.measureText(catLabel).width + 32;
-      const pillH = 34;
-      const px = 52, py = H - 100;
-
-      ctx.fillStyle = th.a;
-      ctx.globalAlpha = 0.25;
-      ctx.beginPath();
-      if (ctx.roundRect) ctx.roundRect(px, py, pillW, pillH, 3);
-      else ctx.rect(px, py, pillW, pillH);
-      ctx.fill();
-
-      ctx.strokeStyle = th.a2;
-      ctx.lineWidth = 1.5;
-      ctx.globalAlpha = 0.8;
-      ctx.beginPath();
-      if (ctx.roundRect) ctx.roundRect(px, py, pillW, pillH, 3);
-      else ctx.rect(px, py, pillW, pillH);
-      ctx.stroke();
-
-      ctx.fillStyle = '#ffffff';
-      ctx.globalAlpha = 1;
-      ctx.font = 'bold 12px monospace';
-      ctx.fillText(catLabel, px + 16, py + 22);
-
-      // ── Market watermark — large ghost text top-right ────
-      ctx.textAlign = 'right';
-      ctx.font = 'bold 110px Georgia, serif';
-      ctx.fillStyle = '#ffffff';
-      ctx.globalAlpha = 0.04;
-      ctx.fillText(th.label, W - 48, H * 0.62);
-
-      // ── XenosFinance branding — bottom left ──────────────
-      const brandY = H - 40;
-      ctx.textAlign = 'left';
-      ctx.globalAlpha = 1;
-      ctx.font = 'bold 15px monospace';
-      ctx.fillStyle = th.a2;
-      ctx.fillText('XENOS', 52, brandY);
-      ctx.fillStyle = 'rgba(200,220,240,0.85)';
-      ctx.fillText('FINANCE', 52 + 64, brandY);
-      ctx.font = '400 11px monospace';
-      ctx.fillStyle = 'rgba(90,120,160,0.7)';
-      ctx.fillText('· AI MARKET INTELLIGENCE', 52 + 148, brandY);
-
-      // ── Thin separator line ───────────────────────────────
-      ctx.globalAlpha = 0.3;
-      ctx.strokeStyle = th.a;
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(52, H - 58); ctx.lineTo(52 + pillW + 40, H - 58);
-      ctx.stroke();
-
-      ctx.globalAlpha = 1;
-      ctx.textAlign = 'left';
+    // ── Grid lines ─────────────────────────────────────────
+    ctx.strokeStyle = th.a + '15';
+    ctx.lineWidth = 1;
+    for (let y = 0; y <= H; y += 60) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+    }
+    for (let x = 0; x <= W; x += 80) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
     }
 
-    if (photoDataUrl) {
-      // ── Draw Unsplash photo as background ────────────────
-      const img = new window.Image();
-      img.onload = function() {
-        // Cover fit: scale to fill canvas
-        const scale = Math.max(W / img.width, H / img.height);
-        const sw = img.width * scale, sh = img.height * scale;
-        const sx = (W - sw) / 2, sy = (H - sh) / 2;
-        ctx.drawImage(img, sx, sy, sw, sh);
-        drawOverlay();
-        resolve(canvas.toDataURL('image/jpeg', 0.92).split(',')[1]);
-      };
-      img.onerror = function() {
-        // Fallback to dark gradient if image load fails
-        drawDarkFallback(ctx, W, H, th);
-        drawOverlay();
-        resolve(canvas.toDataURL('image/jpeg', 0.92).split(',')[1]);
-      };
-      img.src = photoDataUrl;
+    // ── Market-specific chart decoration (right side) ──────
+    ctx.save();
+    ctx.globalAlpha = 0.22;
+    const cx = W * 0.68, cy = H * 0.5;
+
+    if (mk === 'crypto') {
+      // Hexagonal pattern
+      for (let i = 0; i < 7; i++) {
+        const angle = (i / 6) * Math.PI * 2;
+        const r = 130, rx = cx + Math.cos(angle)*r, ry = cy + Math.sin(angle)*r;
+        ctx.strokeStyle = th.a2;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        for (let j = 0; j < 7; j++) {
+          const a2 = (j/6)*Math.PI*2;
+          const hx = rx + Math.cos(a2)*40, hy = ry + Math.sin(a2)*40;
+          j === 0 ? ctx.moveTo(hx,hy) : ctx.lineTo(hx,hy);
+        }
+        ctx.closePath(); ctx.stroke();
+      }
+    } else if (mk === 'commodities') {
+      // Candlestick bars — gold/oil style
+      const bars = [
+        {o:0.3,c:0.7,h:0.85,l:0.15},{o:0.65,c:0.4,h:0.75,l:0.3},
+        {o:0.35,c:0.8,h:0.9,h2:0.1},{o:0.75,c:0.55,h:0.88,l:0.45},
+        {o:0.5,c:0.85,h:0.95,l:0.4},{o:0.8,c:0.6,h:0.9,l:0.5},
+        {o:0.55,c:0.9,h:1.0,l:0.45},{o:0.85,c:0.7,h:0.95,l:0.6},
+      ];
+      const bw = 44, gap = 16, bh = 260, by = cy - bh/2;
+      bars.forEach((b,i) => {
+        const x = cx - 180 + i*(bw+gap);
+        const up = b.c > b.o;
+        const col = up ? '#10b981' : '#ef4444';
+        ctx.strokeStyle = col; ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(x+bw/2, by + (1-b.h)*bh);
+        ctx.lineTo(x+bw/2, by + (1-(b.l||0))*bh); ctx.stroke();
+        ctx.fillStyle = col;
+        ctx.fillRect(x, by+(1-Math.max(b.o,b.c))*bh, bw, Math.abs(b.c-b.o)*bh || 4);
+      });
+    } else if (mk === 'equity') {
+      // Area chart — rising market
+      const pts = [0.55,0.48,0.60,0.52,0.68,0.62,0.75,0.70,0.82,0.78,0.88,0.85,0.92];
+      const aw = 500, ah = 280, ax = cx-220, ay = cy-ah/2;
+      ctx.beginPath();
+      pts.forEach((p,i) => { const x=ax+i/(pts.length-1)*aw, y=ay+ah-p*ah; i===0?ctx.moveTo(x,y):ctx.lineTo(x,y); });
+      ctx.strokeStyle = th.a; ctx.lineWidth = 3; ctx.globalAlpha = 0.55; ctx.stroke();
+      ctx.lineTo(ax+aw, ay+ah); ctx.lineTo(ax, ay+ah); ctx.closePath();
+      const areaGrad = ctx.createLinearGradient(0, ay, 0, ay+ah);
+      areaGrad.addColorStop(0, th.a+'55'); areaGrad.addColorStop(1, th.a+'00');
+      ctx.fillStyle = areaGrad; ctx.globalAlpha = 0.3; ctx.fill();
+    } else if (mk === 'macro') {
+      // Bar chart — economic data style
+      const vals = [0.6,0.75,0.5,0.85,0.4,0.70,0.55,0.80];
+      const bw2=44, gap2=18, bh2=260, ax2=cx-200, ay2=cy+130;
+      vals.forEach((v,i) => {
+        const x=ax2+i*(bw2+gap2), barH=v*bh2;
+        const col = v > 0.65 ? th.a : th.a2;
+        ctx.fillStyle=col; ctx.globalAlpha=0.3;
+        ctx.fillRect(x, ay2-barH, bw2, barH);
+        ctx.strokeStyle=col; ctx.lineWidth=1; ctx.globalAlpha=0.5;
+        ctx.strokeRect(x, ay2-barH, bw2, barH);
+      });
+    } else if (mk === 'geopolitics') {
+      // World map dots
+      const dots = [[0.3,0.4],[0.5,0.35],[0.6,0.45],[0.4,0.55],[0.7,0.5],[0.45,0.65],[0.55,0.3],[0.35,0.7]];
+      dots.forEach(([dx,dy],i) => {
+        const x = cx-200+dx*440, y = cy-150+dy*300;
+        ctx.beginPath(); ctx.arc(x,y,4+i%3*2,0,Math.PI*2);
+        ctx.fillStyle=th.a; ctx.globalAlpha=0.4; ctx.fill();
+        if(i<dots.length-1){
+          const [nx,ny]=dots[i+1];
+          ctx.strokeStyle=th.a; ctx.lineWidth=1; ctx.globalAlpha=0.15;
+          ctx.beginPath();
+          ctx.moveTo(x,y); ctx.lineTo(cx-200+nx*440,cy-150+ny*300); ctx.stroke();
+        }
+      });
     } else {
-      drawDarkFallback(ctx, W, H, th);
-      drawOverlay();
-      resolve(canvas.toDataURL('image/jpeg', 0.92).split(',')[1]);
+      // Forex — wave line chart
+      const pts2 = [0.5,0.58,0.52,0.65,0.55,0.70,0.62,0.75,0.68,0.80,0.72,0.78,0.74];
+      const aw2=480, ah2=220, ax3=cx-220, ay3=cy-ah2/2;
+      ctx.beginPath();
+      pts2.forEach((p,i) => { const x=ax3+i/(pts2.length-1)*aw2, y=ay3+ah2-p*ah2; i===0?ctx.moveTo(x,y):ctx.lineTo(x,y); });
+      ctx.strokeStyle=th.a; ctx.lineWidth=3; ctx.globalAlpha=0.5; ctx.stroke();
+      // Second wave
+      const pts3=[0.4,0.48,0.42,0.55,0.45,0.60,0.52,0.65,0.58,0.70,0.62,0.68,0.64];
+      ctx.beginPath();
+      pts3.forEach((p,i) => { const x=ax3+i/(pts3.length-1)*aw2, y=ay3+ah2-p*ah2; i===0?ctx.moveTo(x,y):ctx.lineTo(x,y); });
+      ctx.strokeStyle=th.a2; ctx.lineWidth=1.5; ctx.globalAlpha=0.3; ctx.stroke();
     }
-  });
-}
+    ctx.restore();
 
-function drawDarkFallback(ctx, W, H, th) {
-  const bg = ctx.createLinearGradient(0, 0, W, H);
-  bg.addColorStop(0, '#080e1a');
-  bg.addColorStop(1, '#0d1930');
-  ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
-  // Grid
-  ctx.strokeStyle = '#1e3050'; ctx.lineWidth = 1; ctx.globalAlpha = 0.25;
-  for (let y = 0; y <= H; y += 70) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
-  for (let x = 0; x <= W; x += 100) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
-  // Glow
-  const glow = ctx.createRadialGradient(W*0.75, H*0.3, 0, W*0.75, H*0.3, 400);
-  glow.addColorStop(0, th.a + '22'); glow.addColorStop(1, 'transparent');
-  ctx.fillStyle = glow; ctx.globalAlpha = 1; ctx.fillRect(0, 0, W, H);
-  // Candlestick decoration
-  const bars = [{h:200,l:60,o:80,c:185},{h:190,l:90,o:175,c:100},{h:220,l:85,o:95,c:210},
-                {h:215,l:55,o:205,c:70},{h:250,l:95,o:100,c:240},{h:245,l:65,o:230,c:80}];
-  const bw=52, gap=22, sx=W*0.52;
-  bars.forEach(function(b,i){
-    const x=sx+i*(bw+gap), up=b.c>=b.o, col=up?'#10b981':'#ef4444';
-    const top=H-Math.max(b.o,b.c)-20, bh=Math.abs(b.c-b.o)||6;
-    ctx.beginPath(); ctx.moveTo(x+bw/2,H-b.h-20); ctx.lineTo(x+bw/2,H-b.l-20);
-    ctx.strokeStyle=col; ctx.lineWidth=2; ctx.globalAlpha=0.3; ctx.stroke();
-    ctx.fillStyle=col; ctx.globalAlpha=0.2; ctx.fillRect(x,top,bw,bh);
-    ctx.strokeStyle=col; ctx.lineWidth=1; ctx.globalAlpha=0.45; ctx.strokeRect(x,top,bw,bh);
+    // ── Left panel — vertical accent strip ─────────────────
+    const strip = ctx.createLinearGradient(0, 0, 0, H);
+    strip.addColorStop(0,   th.a + 'ff');
+    strip.addColorStop(0.5, th.a2 + 'cc');
+    strip.addColorStop(1,   th.a3 + 'aa');
+    ctx.fillStyle = strip;
+    ctx.fillRect(0, 0, 6, H);
+
+    // ── Category label — bold, top left ────────────────────
+    const catText = '// ' + catLabel;
+    ctx.font = '600 15px monospace';
+    ctx.fillStyle = th.a2;
+    ctx.globalAlpha = 1;
+    ctx.textAlign = 'left';
+    ctx.fillText(catText, 44, 58);
+
+    // ── Accent line under category ──────────────────────────
+    const lineGrad = ctx.createLinearGradient(44, 0, 44 + ctx.measureText(catText).width + 60, 0);
+    lineGrad.addColorStop(0, th.a);
+    lineGrad.addColorStop(1, th.a + '00');
+    ctx.fillStyle = lineGrad;
+    ctx.fillRect(44, 68, ctx.measureText(catText).width + 60, 2);
+
+    // ── Title — large, multi-line ──────────────────────────
+    ctx.font = 'bold 54px Georgia, serif';
+    ctx.fillStyle = '#eef4ff';
+    ctx.globalAlpha = 1;
+    const maxTitleW = W * 0.52;
+    const words = titleShort.split(' ');
+    const lines2 = [];
+    let cur = '';
+    words.forEach(w => {
+      const test = cur ? cur + ' ' + w : w;
+      if (ctx.measureText(test).width > maxTitleW && cur) { lines2.push(cur); cur = w; }
+      else cur = test;
+    });
+    if (cur) lines2.push(cur);
+
+    const lineH = 64;
+    const titleY = 120;
+    lines2.slice(0, 3).forEach((line, i) => {
+      ctx.fillText(line, 44, titleY + i * lineH);
+    });
+
+    // ── Big market icon — ghost watermark ──────────────────
+    ctx.font = 'bold 280px Georgia, serif';
+    ctx.fillStyle = th.a;
+    ctx.globalAlpha = 0.04;
+    ctx.textAlign = 'right';
+    ctx.fillText(th.icon, W - 40, H * 0.78);
+
+    // ── Bottom branding bar ────────────────────────────────
+    const barGrad = ctx.createLinearGradient(0, H-48, W, H-48);
+    barGrad.addColorStop(0, 'rgba(8,14,26,0.95)');
+    barGrad.addColorStop(1, 'rgba(8,14,26,0.80)');
+    ctx.fillStyle = barGrad;
+    ctx.globalAlpha = 1;
+    ctx.fillRect(0, H - 48, W, 48);
+
+    // Brand text
+    ctx.textAlign = 'left';
+    ctx.font = 'bold 14px monospace';
+    ctx.fillStyle = th.a;
+    ctx.fillText('XENOS', 44, H - 18);
+    ctx.fillStyle = '#c8d8ea';
+    ctx.fillText('FINANCE', 44 + 60, H - 18);
+    ctx.font = '400 11px monospace';
+    ctx.fillStyle = '#3a5575';
+    ctx.fillText('· AI MARKET INTELLIGENCE', 44 + 150, H - 18);
+
+    // Date right
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'}).toUpperCase();
+    ctx.textAlign = 'right';
+    ctx.font = '400 11px monospace';
+    ctx.fillStyle = '#2a4060';
+    ctx.fillText(dateStr, W - 40, H - 18);
+
+    ctx.globalAlpha = 1;
+    resolve(canvas.toDataURL('image/jpeg', 0.93).split(',')[1]);
   });
-  ctx.globalAlpha=1;
 }
 
 // ── LOGIN ──
