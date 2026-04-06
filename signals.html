@@ -764,6 +764,7 @@ let selectedTF = 'H1';
 let selectedDir = 'BOTH';
 let selectedSignalType = 'CFD';
 let signals = [];
+let activeSavedSignals = []; // Signals already saved/active — persists across regenerations
 
 const CFD_PAIRS = {
   FX: ['EURUSD','GBPUSD','USDJPY','USDCHF','AUDUSD','NZDUSD','USDCAD','EURGBP','EURJPY','GBPJPY','CADJPY','AUDNZD','EURCHF','GBPCHF','AUDCAD','AUDCHF','AUDJPY','CADCHF','CHFJPY','EURNZD','EURAUD','EURCAD','GBPAUD','GBPCAD','GBPNZD','NZDCAD','NZDCHF','NZDJPY','USDMXN','USDNOK','USDSEK','USDTRY','USDZAR'],
@@ -1496,7 +1497,9 @@ function detectPattern(candles, atr, currentPrice) {
     if (hDiff < atr*3.0 && gap>=6 && gap<=100) {
       const neckLow=Math.min(...lows.slice(h1.idx,h2.idx+1));
       const dtDist=(h2.price-price)/h2.price;
-      if (price < h2.price - atr*0.2 && dtDist < 0.10 && price < neckLow+atr*3) {
+      // Hard filter: price must NOT be in strong uptrend
+      const strongUptrend = ema20 > ema50 + atr && price > ema50;
+      if (!strongUptrend && price < h2.price - atr*0.2 && dtDist < 0.10 && price < neckLow+atr*3) {
         const conf=Math.min(90, 62+(rsi>60?8:0)+(trendDown?8:0)+(macdBear?6:0)+(vol.volumeExpanding?4:0)+(hDiff<atr?4:0));
         results.push({ pattern:'Double Top', direction:'SELL',
           entry:price, sl:h2.price+atr*(selectedTF==='D1'?1.8:1.0),
@@ -1515,7 +1518,9 @@ function detectPattern(candles, atr, currentPrice) {
     if (lDiff < atr*3.0 && gap>=6 && gap<=100) {
       const neckHigh=Math.max(...highs.slice(l1.idx,l2.idx+1));
       const dbDist=(price-l2.price)/l2.price;
-      if (price > l2.price + atr*0.2 && dbDist < 0.10 && price > neckHigh-atr*3) {
+      // Hard filter: price must NOT be in strong downtrend (ema20 << ema50 by more than 1 ATR)
+      const strongDowntrend = ema20 < ema50 - atr && price < ema50;
+      if (!strongDowntrend && price > l2.price + atr*0.2 && dbDist < 0.10 && price > neckHigh-atr*3) {
         const conf=Math.min(90, 62+(rsi<45?8:0)+(trendUp?8:0)+(macdBull?6:0)+(vol.volumeExpanding?4:0)+(lDiff<atr?4:0));
         results.push({ pattern:'Double Bottom', direction:'BUY',
           entry:price, sl:l2.price-atr*(selectedTF==='D1'?1.8:1.0),
@@ -2193,7 +2198,11 @@ async function generateSignals() {
 
     // Step 3: Claude valida e scrive il commento
     document.getElementById('loader-sub').textContent = `AI validating ${validAnalyses.length} real patterns...`;
-    const prompt = buildPromptFromAnalysis(validAnalyses, selectedTF, marketNews, signals);
+    // Expire active signals older than 48h
+    const cutoff = Date.now() - 48 * 60 * 60 * 1000;
+    activeSavedSignals = activeSavedSignals.filter(a => !a.savedAt || a.savedAt > cutoff);
+
+    const prompt = buildPromptFromAnalysis(validAnalyses, selectedTF, marketNews, activeSavedSignals);
     const raw    = await callClaudeAPI(prompt);
 
     clearInterval(loaderInterval);
@@ -2224,10 +2233,11 @@ async function generateSignals() {
       }));
     }
 
-    // Merge dati algoritmici (forza entry/sl/tp/rr/confidence dall'algo)
+    // Merge dati algoritmici (forza entry/sl/tp/rr/confidence/direction dall'algo)
     const merged = finalSignals.map(sig => {
       const algo = validAnalyses.find(a => a.pair === sig.pair);
       if (algo) {
+        sig.direction  = algo.direction;  // ALWAYS use algo direction — never Claude's
         sig.entry      = algo.entry;
         sig.sl         = algo.sl;
         sig.tp         = algo.tp;
@@ -2239,32 +2249,15 @@ async function generateSignals() {
       return sig;
     });
 
-    // Assicura che tutti i validAnalyses siano nel risultato finale
-    for (const algo of validAnalyses) {
-      if (!merged.find(s => s.pair === algo.pair)) {
-        merged.push({
-          pair:           algo.pair,
-          direction:      algo.direction,
-          entry:          algo.entry,
-          sl:             algo.sl,
-          tp:             algo.tp,
-          rr:             algo.rr,
-          confidence:     algo.confidence,
-          pattern:        algo.pattern,
-          atr:            algo.atr,
-          cfd:            algo.cfd || null,
-          ew_context:     'Elliott Wave analysis: ' + (algo.direction === 'BUY' ? 'bullish' : 'bearish') + ' structure detected on ' + selectedTF,
-          pattern_desc:   algo.pattern + ' pattern identified with ' + algo.confidence + '% confidence.',
-          key_levels:     algo.key_sr ? Object.entries(algo.key_sr).map(([k,v])=>k+': '+fmtPrice(v,algo.pair)).join(' | ') : 'N/A',
-          invalidation:   'Close beyond stop loss ' + fmtPrice(algo.sl, algo.pair),
-          market_context: 'Technical setup on ' + selectedTF + ' timeframe.',
-          tags:           [algo.pattern.toLowerCase().replace(/ /g,'_')]
-        });
-      }
-    }
-
     // Applica filtro confidence sull'algo confidence (che è il valore reale)
-    const filtered = merged.filter(s => (selectedDir === 'BOTH' || s.direction === selectedDir));
+    const filtered = merged.filter(s => {
+      if (selectedDir !== 'BOTH' && s.direction !== selectedDir) return false;
+      // Hard geometric check: BUY = sl < entry < tp | SELL = tp < entry < sl
+      const e = parseFloat(s.entry), sl = parseFloat(s.sl), tp = parseFloat(s.tp);
+      if (s.direction === 'BUY'  && !(sl < e && tp > e)) return false;
+      if (s.direction === 'SELL' && !(sl > e && tp < e)) return false;
+      return true;
+    });
 
     // Un solo segnale per pair — tieni il più alto confidence
     const bestPerPair = {};
@@ -2273,7 +2266,18 @@ async function generateSignals() {
         bestPerPair[sig.pair] = sig;
       }
     }
-    const dedupedSignals = Object.values(bestPerPair).sort((a,b) => b.confidence - a.confidence);
+
+    // Block any signal that contradicts an already-active saved signal on same pair
+    const dedupedSignals = Object.values(bestPerPair)
+      .filter(sig => {
+        const active = activeSavedSignals.find(a => a.pair === sig.pair);
+        if (active && active.direction !== sig.direction) {
+          console.warn(`Blocked ${sig.pair} ${sig.direction} — conflicts with active ${active.direction}`);
+          return false;
+        }
+        return true;
+      })
+      .sort((a,b) => b.confidence - a.confidence);
     signals = dedupedSignals;
     renderSignals(dedupedSignals);
     updateStats(dedupedSignals);
@@ -3011,6 +3015,7 @@ function drawPatternOverlay(ctx, pat, isBull, entry, sl, tp,
   const targetY = isBull
     ? Math.min(entryY - 30, toY(tp) + (entryY - toY(tp)) * 0.3)
     : Math.max(entryY + 30, toY(tp) - (toY(tp) - entryY) * 0.3);
+  arrow(nowX, entryY, toX(0.94), targetY, dirCol, 3);
 
   // Pattern-specific trendline overlays
   if (pat.includes('head') && pat.includes('shoulder')) {
@@ -3095,68 +3100,24 @@ function drawPatternShape(ctx, pat, isBull, entry, sl, tp,
   // ── HEAD & SHOULDERS ──
   if (pat.includes('head') && pat.includes('shoulder')) {
     const inv = isBull; // inverse H&S is bullish
-    const dir = inv ? -1 : 1; // 1=normal (bearish), -1=inverse (bullish)
-
-    // Neckline at entry — slight tilt (more realistic)
-    const nkY1 = toY(entry + dir * spread * 0.15);
-    const nkY2 = toY(entry - dir * spread * 0.05);
-
-    // Key price levels — left shoulder lower than right (asymmetric = more realistic)
-    const lsH  = toY(entry + dir * spread * 1.6);   // left shoulder peak
-    const hdH  = toY(entry + dir * spread * 2.8);   // head peak (tallest)
-    const rsH  = toY(entry + dir * spread * 1.4);   // right shoulder (slightly lower)
-
-    // X positions — spread across 65% of chart width
-    const startX = toX(0.04);
-    const lsX  = toX(0.14);
-    const v1X  = toX(0.27);  // valley between LS and head
-    const hdX  = toX(0.40);
-    const v2X  = toX(0.54);  // valley between head and RS
-    const rsX  = toX(0.65);
-
-    // Valley points at neckline level
-    const v1Y = nkY1;
-    const v2Y = nkY2;
-
-    // Neckline — slightly tilted line through both valleys
-    line(toX(0.04), nkY1, nowX, toY(entry - dir*spread*0.1), C_TREND, 2, [6,3]);
-
-    // Price path — smooth H&S shape
-    const path = [
-      [startX, v1Y],
-      [lsX,    lsH],
-      [v1X,    v1Y],
-      [hdX,    hdH],
-      [v2X,    v2Y],
-      [rsX,    rsH],
-      [nowX,   toY(entry)],
-    ];
-    path.reduce((a,b) => { line(a[0],a[1],b[0],b[1],black,2.5); return b; });
-
-    // Dots at peaks
-    dot(lsX, lsH, C_TREND, 5);
-    dot(hdX, hdH, '#e2eaf4', 7);
-    dot(rsX, rsH, C_TREND, 5);
-
-    // Labels — offset based on direction
-    const lo = inv ? -18 : 18;
-    const loHead = inv ? -20 : 20;
-    ctx.fillStyle = C_TREND; ctx.font = 'bold 10px monospace'; ctx.textAlign = 'center';
-    ctx.fillText('LS', lsX, lsH + lo);
-    ctx.fillStyle = '#e2eaf4';
-    ctx.fillText('HEAD', hdX, hdH + loHead);
-    ctx.fillStyle = C_TREND;
-    ctx.fillText('RS', rsX, rsH + lo);
-
-    // Neckline label
-    ctx.fillStyle = C_TREND; ctx.font = '9px monospace'; ctx.textAlign = 'left';
-    ctx.fillText('NECKLINE', toX(0.05), nkY1 + (inv ? 14 : -6));
-
-    // Breakout zone shading
-    const breakY = toY(entry);
-    const zoneTop = inv ? breakY : nkY1;
-    const zoneBot = inv ? nkY1 : breakY;
-    fillZone(toX(0.68), zoneTop, nowX, zoneBot, dirCol, 0.08);
+    const nkY = toY(entry + (inv ? -spread*0.2 : spread*0.2));
+    const lsY = toY(entry + (inv ? -spread*1.2 : spread*1.2));
+    const hdY = toY(entry + (inv ? -spread*2.0 : spread*2.0));
+    const rsY = toY(entry + (inv ? -spread*1.1 : spread*1.1));
+    const lsX=toX(0.12), v1=toX(0.24), hdX=toX(0.38), v2=toX(0.52), rsX=toX(0.62);
+    // Neckline
+    line(toX(0.04), nkY, nowX, nkY, C_TREND, 2, []);
+    // Price path
+    [[toX(0.04),nkY],[lsX,lsY],[v1,nkY],[hdX,hdY],[v2,nkY],[rsX,rsY],[nowX,nkY]].reduce((a,b)=>{
+      line(a[0],a[1],b[0],b[1],black,2.5); return b;
+    });
+    dot(lsX,lsY,C_TREND); dot(hdX,hdY,black,6); dot(rsX,rsY,C_TREND);
+    const lo = inv ? -16 : 16;
+    ctx.fillStyle = '#e2eaf4'; ctx.font = 'bold 10px Arial'; ctx.textAlign = 'center';
+    ctx.fillText('LS', lsX, lsY+lo); ctx.fillText('HEAD', hdX, hdY+lo); ctx.fillText('RS', rsX, rsY+lo);
+    ctx.fillStyle = C_TREND; ctx.font = '9px Arial';
+    ctx.fillText('— NECKLINE —', toX(0.35), nkY+(inv?12:-8));
+    dirArrow();
   }
 
   // ── DOUBLE / TRIPLE TOP / BOTTOM ──
@@ -3184,6 +3145,7 @@ function drawPatternShape(ctx, pat, isBull, entry, sl, tp,
     const lo = isBull ? -14 : 14;
     ctx.fillStyle = '#60a5fa'; ctx.font = 'bold 10px Arial';
     peaks.forEach((x,i) => ctx.fillText(labels[i], x, peakY+lo));
+    dirArrow();
   }
 
   // ── ASCENDING TRIANGLE ──
@@ -3199,6 +3161,7 @@ function drawPatternShape(ctx, pat, isBull, entry, sl, tp,
     ctx.fillStyle = '#60a5fa'; ctx.font = '9px Arial'; ctx.textAlign = 'center';
     ctx.fillText('Resistance', toX(0.30), resY-10);
     ctx.fillText('Rising Support', toX(0.25), supSY+14);
+    dirArrow();
   }
 
   // ── DESCENDING TRIANGLE ──
@@ -3213,6 +3176,7 @@ function drawPatternShape(ctx, pat, isBull, entry, sl, tp,
     ctx.fillStyle = '#60a5fa'; ctx.font = '9px Arial'; ctx.textAlign = 'center';
     ctx.fillText('Support', toX(0.30), supY+12);
     ctx.fillText('Falling Resistance', toX(0.28), resSY-10);
+    dirArrow();
   }
 
   // ── SYMMETRICAL TRIANGLE / PENNANT ──
@@ -3224,6 +3188,7 @@ function drawPatternShape(ctx, pat, isBull, entry, sl, tp,
     [[toX(0.05),topSY],[toX(0.18),botSY*0.6+topSY*0.4],
      [toX(0.32),topSY*0.55+botSY*0.45],[toX(0.46),botEY*0.4+topEY*0.6],
      [nowX,(topEY+botEY)/2]].reduce((a,b)=>{ line(a[0],a[1],b[0],b[1],black,2); return b; });
+    dirArrow();
   }
 
   // ── RISING WEDGE (bearish) ──
@@ -3235,6 +3200,7 @@ function drawPatternShape(ctx, pat, isBull, entry, sl, tp,
     [[toX(0.05),botSY],[toX(0.16),topSY*0.6+botSY*0.4],
      [toX(0.28),botSY*0.3+topSY*0.7],[toX(0.42),topEY*0.3+botEY*0.7],
      [toX(0.56),botEY*0.2+topEY*0.8],[nowX,topEY]].reduce((a,b)=>{ line(a[0],a[1],b[0],b[1],black,2.5); return b; });
+    dirArrow();
   }
 
   // ── FALLING WEDGE (bullish) ──
@@ -3246,6 +3212,7 @@ function drawPatternShape(ctx, pat, isBull, entry, sl, tp,
     [[toX(0.05),topSY],[toX(0.16),botSY*0.6+topSY*0.4],
      [toX(0.28),topSY*0.3+botSY*0.7],[toX(0.42),botEY*0.3+topEY*0.7],
      [toX(0.56),topEY*0.2+botEY*0.8],[nowX,botEY]].reduce((a,b)=>{ line(a[0],a[1],b[0],b[1],black,2.5); return b; });
+    dirArrow();
   }
 
   // ── FLAG ──
@@ -3261,6 +3228,7 @@ function drawPatternShape(ctx, pat, isBull, entry, sl, tp,
     line(toX(0.22),fBot,nowX,isBull?fBot+CH*0.04:fBot-CH*0.04,C_TREND,2);
     // Price inside flag
     [[toX(0.22),fTop],[toX(0.32),fBot],[toX(0.42),fTop*0.6+fBot*0.4],[toX(0.52),fBot*0.4+fTop*0.6],[nowX,isBull?fBot+CH*0.02:fTop-CH*0.02]].reduce((a,b)=>{ line(a[0],a[1],b[0],b[1],black,2); return b; });
+    dirArrow();
   }
 
   // ── CHANNEL (rising / falling / horizontal) ──
@@ -3278,6 +3246,7 @@ function drawPatternShape(ctx, pat, isBull, entry, sl, tp,
     const pts = [[toX(0.05),topSY],[toX(0.18),botSY],[toX(0.33),topSY+slopeY*0.5],
                  [toX(0.48),botSY+slopeY*0.5],[nowX,topSY+slopeY]];
     pts.reduce((a,b)=>{ line(a[0],a[1],b[0],b[1],black,2); return b; });
+    dirArrow();
   }
 
   // ── CUP & HANDLE ──
@@ -3294,6 +3263,7 @@ function drawPatternShape(ctx, pat, isBull, entry, sl, tp,
     // Handle (small pullback)
     [[toX(0.50),rim],[toX(0.56),hBot],[toX(0.62),rim*0.7+hBot*0.3],[nowX,rim]].reduce((a,b)=>{ line(a[0],a[1],b[0],b[1],black,2); return b; });
     line(toX(0.05),rim,nowX,rim,C_TREND,2,[6,4]);
+    dirArrow();
   }
 
   // ── ELLIOT WAVE 3 ──
@@ -3311,6 +3281,7 @@ function drawPatternShape(ctx, pat, isBull, entry, sl, tp,
     dot(pts[3][0],pts[3][1],dirCol,6);
     ctx.fillStyle='#333'; ctx.font='bold 10px Arial'; ctx.textAlign='center';
     ['1','2','3'].forEach((n,i)=>ctx.fillText('W'+n, pts[i+1][0], pts[i+1][1]-12));
+    dirArrow();
   }
 
   // ── ELLIOT WAVE 5 ──
@@ -3325,6 +3296,7 @@ function drawPatternShape(ctx, pat, isBull, entry, sl, tp,
     ['1','2','3','4','5'].forEach((n,i)=>{ dot(pts[i+1][0],pts[i+1][1],i===4?dirCol:C_TREND,5); });
     ctx.fillStyle='#333'; ctx.font='bold 10px Arial'; ctx.textAlign='center';
     ['1','2','3','4','5'].forEach((n,i)=>ctx.fillText('W'+n, pts[i+1][0], pts[i+1][1]-12));
+    dirArrow();
   }
 
   // ── ENGULFING ──
@@ -3342,6 +3314,7 @@ function drawPatternShape(ctx, pat, isBull, entry, sl, tp,
     ctx.fillStyle = isBull ? '#2E7D32' : '#C62828';
     ctx.fillRect(c2x, Math.min(s2o,s2c), cw, Math.abs(s2o-s2c)||4);
     line(c2x+cw/2,toY(entry+(isBull?-lg:lg)),c2x+cw/2,toY(entry+(isBull?lg*0.9:-lg*0.9)),dirCol,1);
+    dirArrow();
   }
 
   // ── HAMMER / SHOOTING STAR ──
@@ -3357,6 +3330,7 @@ function drawPatternShape(ctx, pat, isBull, entry, sl, tp,
     ctx.fillStyle = isHammer ? '#2E7D32' : '#C62828';
     ctx.fillRect(cx, Math.min(co,cc), cw, Math.abs(co-cc)||4);
     line(cx+cw/2, wickTop, cx+cw/2, wickBot, '#555', 1.5);
+    dirArrow();
   }
 
   // ── FIB BOUNCE ──
@@ -3372,6 +3346,7 @@ function drawPatternShape(ctx, pat, isBull, entry, sl, tp,
     line(toX(0.05),fibY,nowX,fibY,C_TREND,2,[6,4]);
     ctx.fillStyle=C_TREND; ctx.font='bold 10px Arial'; ctx.textAlign='center';
     ctx.fillText((fibPct*100).toFixed(1)+'% Fib', toX(0.28), fibY-10);
+    dirArrow();
   }
 
   // ── BREAKOUT ──
@@ -3383,6 +3358,7 @@ function drawPatternShape(ctx, pat, isBull, entry, sl, tp,
      [toX(0.36),keyY],[toX(0.48),toY(entry+spread*0.15)],[nowX,keyY]].reduce((a,b)=>{ line(a[0],a[1],b[0],b[1],black,2); return b; });
     ctx.fillStyle=C_TREND; ctx.font='bold 10px Arial'; ctx.textAlign='center';
     ctx.fillText('KEY LEVEL', toX(0.30), keyY-(isBull?12:-5));
+    dirArrow();
   }
 
   // ── EMA TREND / RSI / GENERIC ──
@@ -3402,6 +3378,7 @@ function drawPatternShape(ctx, pat, isBull, entry, sl, tp,
     line(toX(0.04), toY(entry - d*spread*0.8), nowX, toY(entry + d*spread*0.05), C_TREND, 1.5, [4,3]);
     ctx.fillStyle=C_TREND; ctx.font='9px Arial'; ctx.textAlign='left';
     ctx.fillText('EMA', toX(0.06), toY(entry - d*spread*0.8) - 5);
+    dirArrow();
   }
 }
 
@@ -3641,6 +3618,10 @@ async function saveSignal(event, idx, signalType) {
       showToast(`✅ Signal saved to ${signalType.toUpperCase()} archive`);
       btn.textContent = '✅ SAVED';
       btn.disabled = false;
+      // Track as active — prevents opposite direction on regeneration
+      const existing = activeSavedSignals.findIndex(a => a.pair === sig.pair);
+      if (existing >= 0) activeSavedSignals[existing] = { pair: sig.pair, direction: sig.direction, entry: sig.entry, savedAt: Date.now() };
+      else activeSavedSignals.push({ pair: sig.pair, direction: sig.direction, entry: sig.entry, savedAt: Date.now() });
     } else {
       throw new Error(JSON.stringify(saveData.data).slice(0,100));
     }
