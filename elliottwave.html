@@ -886,7 +886,6 @@ let lastAnalysis='';
 
 // ── SYMBOL MAP: user input → Worker "prices" pair key ──
 const EW_SYMBOL_MAP = {
-  // FX Majors — exact Worker symbols (Frankfurter, accurate)
   'eurusd':'EURUSD','eur/usd':'EURUSD',
   'gbpusd':'GBPUSD','gbp/usd':'GBPUSD',
   'usdjpy':'USDJPY','usd/jpy':'USDJPY',
@@ -900,22 +899,22 @@ const EW_SYMBOL_MAP = {
   'cadjpy':'CADJPY','cad/jpy':'CADJPY',
   'audnzd':'AUDNZD','aud/nzd':'AUDNZD',
   'eurchf':'EURCHF','eur/chf':'EURCHF',
-  // Commodities — Yahoo Finance via Worker
+  // Commodities — Yahoo Finance symbols
   'gold':'XAUUSD','xauusd':'XAUUSD','xau/usd':'XAUUSD',
   'silver':'XAGUSD','xagusd':'XAGUSD','xag/usd':'XAGUSD',
-  'oil':'USOIL','oil wti':'USOIL','wti':'USOIL','crude':'USOIL','wti crude':'USOIL','wti oil':'USOIL','usoil':'USOIL',
+  'oil wti':'USOIL','oil':'USOIL','wti':'USOIL','crude':'USOIL','usoil':'USOIL',
   'brent':'UKOIL','brent oil':'UKOIL','ukoil':'UKOIL',
   'nat gas':'NGAS','natgas':'NGAS','natural gas':'NGAS','ngas':'NGAS',
   'copper':'COPPER',
-  // Indices — Yahoo Finance via Worker
-  'sp500':'%5EGSPC','s&p500':'%5EGSPC','s&p 500':'%5EGSPC','us500':'%5EGSPC',
+  // Indices — correct Yahoo Finance symbols
+  's&p 500':'%5EGSPC','sp500':'%5EGSPC','s&p500':'%5EGSPC','us500':'%5EGSPC',
   'nasdaq':'%5EIXIC','nas100':'%5EIXIC',
-  'dow':'%5EDJI','dji':'%5EDJI','us30':'%5EDJI',
+  'dow':'%5EDJI','us30':'%5EDJI',
   'dax':'%5EGDAXI','ger40':'%5EGDAXI',
-  'ftse':'%5EFTSE','ftse 100':'%5EFTSE','uk100':'%5EFTSE',
-  // Crypto — CoinGecko via Worker
-  'btc':'BTCUSD','bitcoin':'BTCUSD','btc/usd':'BTCUSD','btcusd':'BTCUSD',
-  'eth':'ETHUSD','ethereum':'ETHUSD','eth/usd':'ETHUSD','ethusd':'ETHUSD',
+  'ftse 100':'%5EFTSE','ftse':'%5EFTSE','uk100':'%5EFTSE',
+  // Crypto
+  'btc/usd':'BTC-USD','btcusd':'BTC-USD','bitcoin':'BTC-USD','btc':'BTC-USD',
+  'eth/usd':'ETH-USD','ethusd':'ETH-USD','ethereum':'ETH-USD','eth':'ETH-USD',
   'sol':'SOLUSD','solana':'SOLUSD','solusd':'SOLUSD',
   'xrp':'XRPUSD','ripple':'XRPUSD','xrpusd':'XRPUSD',
   'doge':'DOGEUSD','dogecoin':'DOGEUSD','dogeusd':'DOGEUSD',
@@ -944,9 +943,8 @@ async function fetchLivePrice(symbolInput) {
 
 async function runAIAnalysis(){
   const symbolEl=document.getElementById('aiSymbol');
-  const symbolVal=symbolEl.options ? symbolEl.options[symbolEl.selectedIndex].value : (symbolEl.value||'eur/usd');
-  const symbolLabel=symbolEl.options ? symbolEl.options[symbolEl.selectedIndex].text : symbolVal.toUpperCase();
-  const symbol=symbolLabel; // use display label in prompt (e.g. "EUR/USD", "OIL WTI")
+  const symbolVal = symbolEl.options ? symbolEl.options[symbolEl.selectedIndex].value : 'eur/usd';
+  const symbolLabel = symbolEl.options ? symbolEl.options[symbolEl.selectedIndex].text : symbolVal.toUpperCase();
   const tf=document.getElementById('aiTf').value;
   const ctx=document.getElementById('aiContext').value;
   const btn=document.getElementById('aiRunBtn');
@@ -959,8 +957,9 @@ async function runAIAnalysis(){
   txt.innerHTML='<span class="analysis-loading">⬡ FETCHING LIVE PRICE...</span>';
   document.getElementById('tgBtn').style.display='none';
 
-  // ── Fetch live price via Worker (type=prices) ──
+  // ── Fetch live price via Worker ──
   const liveData = await fetchLivePrice(symbolVal);
+  const symbol = symbolLabel; // use display label in prompt
   let livePriceLine = '';
   if(liveData && liveData.price != null){
     const sign = (liveData.change ?? 0) >= 0 ? '+' : '';
@@ -968,7 +967,16 @@ async function runAIAnalysis(){
     const chgStr = liveData.change != null ? `  Change: ${sign}${Number(liveData.change).toFixed(5).replace(/\.?0+$/,'')}${pctStr}` : '';
     livePriceLine = `LIVE MARKET DATA: Current price = ${liveData.price}${chgStr}`;
   } else {
-    livePriceLine = `(Live price unavailable for "${symbol}" — use the Additional Context field to provide current price manually)`;
+    // No price found — warn user and stop
+    txt.innerHTML = `<div style="color:#f87171;font-family:var(--mono);font-size:11px;line-height:1.8;">
+⚠ LIVE PRICE NOT FOUND for "${symbolLabel}"<br><br>
+The analysis cannot proceed without a real price — AI would invent wrong numbers.<br><br>
+<strong>Fix:</strong> Enter the current price manually in the "Additional Context" field above<br>
+(e.g. "Current price: 112.50") then generate again.
+</div>`;
+    btn.disabled=false;
+    btn.textContent='⚡ Generate Analysis';
+    return;
   }
 
   btn.textContent='Analysing...';
