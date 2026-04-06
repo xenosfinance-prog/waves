@@ -211,41 +211,64 @@ body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:10
 // ─── CALENDAR DATA ─────────────────────────────────────────────────────────────
 // Static curated calendar for current period. Can be extended via API.
 const EVENTS = [
-  // WEEK OF MARCH 24–28
-  {date:'2026-03-31', time:'09:00', country:'EUR', flag:'🇩🇪', name:'German Ifo Business Climate', desc:'Mar 2026', impact:'high', forecast:'86.5', prev:'85.2', actual:''},
-  {date:'2026-04-01', time:'15:00', country:'USD', flag:'🇺🇸', name:'US CB Consumer Confidence', desc:'Apr 2026', impact:'high', forecast:'93.5', prev:'92.9', actual:''},
-  {date:'2026-04-01', time:'10:00', country:'EUR', flag:'🇪🇺', name:'Eurozone Manufacturing PMI', desc:'Mar 2026', impact:'med', forecast:'48.7', prev:'47.6', actual:''},
-  {date:'2026-04-01', time:'15:00', country:'USD', flag:'🇺🇸', name:'US ISM Manufacturing PMI', desc:'Mar 2026', impact:'high', forecast:'49.7', prev:'50.3', actual:''},
-  {date:'2026-04-02', time:'14:30', country:'USD', flag:'🇺🇸', name:'US Durable Goods Orders m/m', desc:'Feb 2026', impact:'med', forecast:'-1.0%', prev:'3.2%', actual:''},
-  {date:'2026-04-02', time:'08:00', country:'EUR', flag:'🇩🇪', name:'German GfK Consumer Climate', desc:'Apr 2026', impact:'med', forecast:'-24.0', prev:'-24.7', actual:''},
-  {date:'2026-04-02', time:'14:30', country:'USD', flag:'🇺🇸', name:'US GDP q/q (Final)', desc:'Q4 2025', impact:'high', forecast:'2.3%', prev:'2.3%', actual:''},
-  {date:'2026-04-02', time:'14:30', country:'USD', flag:'🇺🇸', name:'US Initial Jobless Claims', desc:'Week ending Mar 21', impact:'high', forecast:'225K', prev:'223K', actual:''},
-  {date:'2026-04-03', time:'08:00', country:'EUR', flag:'🇩🇪', name:'German Retail Sales m/m', desc:'Feb 2026', impact:'med', forecast:'0.5%', prev:'-0.4%', actual:''},
-  {date:'2026-04-03', time:'10:00', country:'EUR', flag:'🇪🇺', name:'Eurozone Business Climate', desc:'Mar 2026', impact:'med', forecast:'-0.40', prev:'-0.59', actual:''},
-  {date:'2026-04-03', time:'14:30', country:'USD', flag:'🇺🇸', name:'US Core PCE Price Index m/m', desc:'Feb 2026', impact:'high', forecast:'0.3%', prev:'0.3%', actual:''},
-  {date:'2026-04-03', time:'14:30', country:'USD', flag:'🇺🇸', name:'US Personal Income m/m', desc:'Feb 2026', impact:'med', forecast:'0.4%', prev:'0.9%', actual:''},
-  {date:'2026-04-03', time:'14:30', country:'USD', flag:'🇺🇸', name:'US Personal Spending m/m', desc:'Feb 2026', impact:'med', forecast:'0.5%', prev:'-0.2%', actual:''},
-  {date:'2026-04-03', time:'16:00', country:'USD', flag:'🇺🇸', name:'US Michigan Consumer Sentiment (Final)', desc:'Mar 2026', impact:'high', forecast:'57.9', prev:'64.7', actual:''},
-  {date:'2026-04-04', time:'--:--', country:'USD', flag:'🇺🇸', name:'Good Friday — US Markets Closed', desc:'Market Holiday', impact:'high', forecast:'—', prev:'—', actual:''},
-
-  // WEEK OF MARCH 31 — APRIL 4 (next week — key NFP week)
-  {date:'2026-03-31', time:'09:30', country:'GBP', flag:'🇬🇧', name:'UK Final GDP q/q', desc:'Q4 2025', impact:'high', forecast:'0.1%', prev:'0.1%', actual:''},
-  {date:'2026-03-31', time:'10:00', country:'EUR', flag:'🇪🇺', name:'Eurozone CPI Flash y/y', desc:'Mar 2026', impact:'high', forecast:'2.2%', prev:'2.3%', actual:''},
-  {date:'2026-03-31', time:'14:30', country:'USD', flag:'🇺🇸', name:'US Chicago PMI', desc:'Mar 2026', impact:'med', forecast:'46.0', prev:'45.5', actual:''},
-  {date:'2026-04-01', time:'03:45', country:'OTHER', flag:'🇨🇳', name:'China Caixin Manufacturing PMI', desc:'Mar 2026', impact:'high', forecast:'51.1', prev:'50.8', actual:''},
-  {date:'2026-04-01', time:'10:00', country:'EUR', flag:'🇪🇺', name:'Eurozone Manufacturing PMI (Final)', desc:'Mar 2026', impact:'med', forecast:'48.7', prev:'47.6', actual:''},
-  {date:'2026-04-01', time:'15:00', country:'USD', flag:'🇺🇸', name:'US ISM Manufacturing PMI', desc:'Mar 2026', impact:'high', forecast:'49.7', prev:'50.3', actual:''},
-  {date:'2026-04-02', time:'14:15', country:'USD', flag:'🇺🇸', name:'US ADP Non-Farm Employment Change', desc:'Mar 2026', impact:'high', forecast:'118K', prev:'77K', actual:''},
-  {date:'2026-04-03', time:'14:30', country:'USD', flag:'🇺🇸', name:'US Initial Jobless Claims', desc:'Week ending Mar 28', impact:'high', forecast:'225K', prev:'224K', actual:''},
-  {date:'2026-04-03', time:'15:00', country:'USD', flag:'🇺🇸', name:'US ISM Services PMI', desc:'Mar 2026', impact:'high', forecast:'53.0', prev:'53.5', actual:''},
-  {date:'2026-04-03', time:'14:30', country:'USD', flag:'🇺🇸', name:'US Non-Farm Payrolls', desc:'Mar 2026', impact:'high', forecast:'137K', prev:'151K', actual:''},
-  {date:'2026-04-03', time:'14:30', country:'USD', flag:'🇺🇸', name:'US Unemployment Rate', desc:'Mar 2026', impact:'high', forecast:'4.1%', prev:'4.1%', actual:''},
-  {date:'2026-04-03', time:'14:30', country:'USD', flag:'🇺🇸', name:'US Average Hourly Earnings m/m', desc:'Mar 2026', impact:'high', forecast:'0.3%', prev:'0.3%', actual:''},
-
-  // Central Bank events
+  // ── WEEK APR 6–12 ──────────────────────────────────────────
+  {date:'2026-04-07', time:'10:00', country:'EUR', flag:'🇪🇺', name:'Eurozone Sentix Investor Confidence', desc:'Apr 2026', impact:'med', forecast:'-9.0', prev:'-2.9', actual:''},
+  {date:'2026-04-07', time:'14:30', country:'USD', flag:'🇺🇸', name:'US Trade Balance', desc:'Feb 2026', impact:'med', forecast:'-122.5B', prev:'-131.4B', actual:''},
+  {date:'2026-04-08', time:'10:00', country:'EUR', flag:'🇪🇺', name:'Eurozone Retail Sales m/m', desc:'Feb 2026', impact:'med', forecast:'0.4%', prev:'0.3%', actual:''},
+  {date:'2026-04-08', time:'14:30', country:'USD', flag:'🇺🇸', name:'US NFIB Small Business Index', desc:'Mar 2026', impact:'med', forecast:'99.5', prev:'100.7', actual:''},
+  {date:'2026-04-09', time:'14:30', country:'USD', flag:'🇺🇸', name:'US Initial Jobless Claims', desc:'Week ending Apr 5', impact:'high', forecast:'225K', prev:'219K', actual:''},
+  {date:'2026-04-09', time:'14:30', country:'USD', flag:'🇺🇸', name:'US PPI m/m', desc:'Mar 2026', impact:'high', forecast:'0.2%', prev:'0.0%', actual:''},
   {date:'2026-04-09', time:'20:00', country:'USD', flag:'🇺🇸', name:'FOMC Meeting Minutes', desc:'Mar 18-19 meeting', impact:'high', forecast:'—', prev:'—', actual:''},
+  {date:'2026-04-10', time:'08:00', country:'GBP', flag:'🇬🇧', name:'UK GDP m/m', desc:'Feb 2026', impact:'high', forecast:'0.1%', prev:'0.4%', actual:''},
   {date:'2026-04-10', time:'12:45', country:'EUR', flag:'🇪🇺', name:'ECB Interest Rate Decision', desc:'Apr 2026', impact:'high', forecast:'2.40%', prev:'2.65%', actual:''},
   {date:'2026-04-10', time:'13:30', country:'EUR', flag:'🇪🇺', name:'ECB Press Conference', desc:'Lagarde speaks', impact:'high', forecast:'—', prev:'—', actual:''},
+  {date:'2026-04-10', time:'14:30', country:'USD', flag:'🇺🇸', name:'US CPI m/m', desc:'Mar 2026', impact:'high', forecast:'0.1%', prev:'0.2%', actual:''},
+  {date:'2026-04-10', time:'14:30', country:'USD', flag:'🇺🇸', name:'US Core CPI m/m', desc:'Mar 2026', impact:'high', forecast:'0.3%', prev:'0.2%', actual:''},
+  {date:'2026-04-10', time:'16:00', country:'USD', flag:'🇺🇸', name:'US Michigan Consumer Sentiment (Prelim)', desc:'Apr 2026', impact:'high', forecast:'54.5', prev:'57.0', actual:''},
+  {date:'2026-04-11', time:'14:30', country:'USD', flag:'🇺🇸', name:'US Import Prices m/m', desc:'Mar 2026', impact:'low', forecast:'-0.4%', prev:'0.4%', actual:''},
+
+  // ── WEEK APR 13–19 ─────────────────────────────────────────
+  {date:'2026-04-14', time:'14:30', country:'USD', flag:'🇺🇸', name:'US Retail Sales m/m', desc:'Mar 2026', impact:'high', forecast:'0.5%', prev:'0.2%', actual:''},
+  {date:'2026-04-14', time:'14:30', country:'USD', flag:'🇺🇸', name:'US Core Retail Sales m/m', desc:'Mar 2026', impact:'high', forecast:'0.4%', prev:'0.3%', actual:''},
+  {date:'2026-04-14', time:'15:15', country:'USD', flag:'🇺🇸', name:'US Industrial Production m/m', desc:'Mar 2026', impact:'med', forecast:'0.3%', prev:'0.7%', actual:''},
+  {date:'2026-04-15', time:'09:00', country:'EUR', flag:'🇩🇪', name:'German ZEW Economic Sentiment', desc:'Apr 2026', impact:'high', forecast:'-15.0', prev:'51.6', actual:''},
+  {date:'2026-04-15', time:'10:00', country:'EUR', flag:'🇪🇺', name:'Eurozone ZEW Economic Sentiment', desc:'Apr 2026', impact:'med', forecast:'-10.0', prev:'39.8', actual:''},
+  {date:'2026-04-15', time:'13:30', country:'USD', flag:'🇺🇸', name:'US Empire State Manufacturing Index', desc:'Apr 2026', impact:'med', forecast:'-14.0', prev:'-20.0', actual:''},
+  {date:'2026-04-16', time:'14:30', country:'USD', flag:'🇺🇸', name:'US Building Permits', desc:'Mar 2026', impact:'med', forecast:'1.45M', prev:'1.46M', actual:''},
+  {date:'2026-04-16', time:'14:30', country:'USD', flag:'🇺🇸', name:'US Housing Starts', desc:'Mar 2026', impact:'med', forecast:'1.42M', prev:'1.50M', actual:''},
+  {date:'2026-04-16', time:'14:30', country:'USD', flag:'🇺🇸', name:'US PPI m/m', desc:'Mar 2026', impact:'high', forecast:'0.2%', prev:'0.0%', actual:''},
+  {date:'2026-04-17', time:'14:30', country:'USD', flag:'🇺🇸', name:'US Initial Jobless Claims', desc:'Week ending Apr 12', impact:'high', forecast:'225K', prev:'219K', actual:''},
+  {date:'2026-04-17', time:'14:30', country:'USD', flag:'🇺🇸', name:'US Philadelphia Fed Manufacturing Index', desc:'Apr 2026', impact:'med', forecast:'-10.0', prev:'-26.4', actual:''},
+  {date:'2026-04-17', time:'15:00', country:'USD', flag:'🇺🇸', name:'US Existing Home Sales', desc:'Mar 2026', impact:'med', forecast:'4.20M', prev:'4.26M', actual:''},
+  {date:'2026-04-18', time:'14:30', country:'USD', flag:'🇺🇸', name:'Good Friday — US Markets Closed', desc:'Market Holiday', impact:'high', forecast:'—', prev:'—', actual:''},
+
+  // ── WEEK APR 20–26 ─────────────────────────────────────────
+  {date:'2026-04-22', time:'13:45', country:'EUR', flag:'🇪🇺', name:'Eurozone Manufacturing PMI (Flash)', desc:'Apr 2026', impact:'high', forecast:'48.5', prev:'48.6', actual:''},
+  {date:'2026-04-22', time:'13:45', country:'EUR', flag:'🇪🇺', name:'Eurozone Services PMI (Flash)', desc:'Apr 2026', impact:'high', forecast:'50.4', prev:'50.9', actual:''},
+  {date:'2026-04-22', time:'14:30', country:'GBP', flag:'🇬🇧', name:'UK Manufacturing PMI (Flash)', desc:'Apr 2026', impact:'med', forecast:'44.0', prev:'44.9', actual:''},
+  {date:'2026-04-22', time:'14:30', country:'GBP', flag:'🇬🇧', name:'UK Services PMI (Flash)', desc:'Apr 2026', impact:'med', forecast:'52.0', prev:'52.5', actual:''},
+  {date:'2026-04-22', time:'14:45', country:'USD', flag:'🇺🇸', name:'US Manufacturing PMI (Flash)', desc:'Apr 2026', impact:'high', forecast:'49.0', prev:'49.8', actual:''},
+  {date:'2026-04-22', time:'14:45', country:'USD', flag:'🇺🇸', name:'US Services PMI (Flash)', desc:'Apr 2026', impact:'high', forecast:'52.5', prev:'54.4', actual:''},
+  {date:'2026-04-23', time:'09:00', country:'EUR', flag:'🇩🇪', name:'German Ifo Business Climate', desc:'Apr 2026', impact:'high', forecast:'85.0', prev:'86.7', actual:''},
+  {date:'2026-04-24', time:'14:30', country:'USD', flag:'🇺🇸', name:'US Durable Goods Orders m/m', desc:'Mar 2026', impact:'high', forecast:'-1.5%', prev:'0.9%', actual:''},
+  {date:'2026-04-24', time:'14:30', country:'USD', flag:'🇺🇸', name:'US Initial Jobless Claims', desc:'Week ending Apr 19', impact:'high', forecast:'225K', prev:'—', actual:''},
+  {date:'2026-04-25', time:'14:30', country:'USD', flag:'🇺🇸', name:'US GDP q/q (Advance)', desc:'Q1 2026', impact:'high', forecast:'1.4%', prev:'2.4%', actual:''},
+  {date:'2026-04-25', time:'14:30', country:'USD', flag:'🇺🇸', name:'US Core PCE Price Index q/q', desc:'Q1 2026', impact:'high', forecast:'3.1%', prev:'2.7%', actual:''},
+  {date:'2026-04-25', time:'16:00', country:'USD', flag:'🇺🇸', name:'US Michigan Consumer Sentiment (Final)', desc:'Apr 2026', impact:'high', forecast:'54.5', prev:'57.0', actual:''},
+
+  // ── WEEK APR 27 — MAY 2 ────────────────────────────────────
+  {date:'2026-04-28', time:'08:00', country:'EUR', flag:'🇩🇪', name:'German GDP q/q (Flash)', desc:'Q1 2026', impact:'high', forecast:'0.2%', prev:'0.2%', actual:''},
+  {date:'2026-04-28', time:'10:00', country:'EUR', flag:'🇪🇺', name:'Eurozone GDP q/q (Flash)', desc:'Q1 2026', impact:'high', forecast:'0.3%', prev:'0.2%', actual:''},
+  {date:'2026-04-29', time:'14:00', country:'USD', flag:'🇺🇸', name:'US CB Consumer Confidence', desc:'Apr 2026', impact:'high', forecast:'93.0', prev:'92.9', actual:''},
+  {date:'2026-04-29', time:'10:00', country:'EUR', flag:'🇪🇺', name:'Eurozone CPI Flash y/y', desc:'Apr 2026', impact:'high', forecast:'2.1%', prev:'2.2%', actual:''},
+  {date:'2026-04-30', time:'14:15', country:'USD', flag:'🇺🇸', name:'US ADP Non-Farm Employment Change', desc:'Apr 2026', impact:'high', forecast:'120K', prev:'155K', actual:''},
+  {date:'2026-04-30', time:'20:00', country:'USD', flag:'🇺🇸', name:'FOMC Interest Rate Decision', desc:'May 2026 meeting', impact:'high', forecast:'4.25-4.50%', prev:'4.25-4.50%', actual:''},
+  {date:'2026-04-30', time:'20:30', country:'USD', flag:'🇺🇸', name:'Fed Press Conference', desc:'Powell speaks', impact:'high', forecast:'—', prev:'—', actual:''},
+  {date:'2026-05-01', time:'14:30', country:'USD', flag:'🇺🇸', name:'US Initial Jobless Claims', desc:'Week ending Apr 26', impact:'high', forecast:'225K', prev:'—', actual:''},
+  {date:'2026-05-01', time:'15:00', country:'USD', flag:'🇺🇸', name:'US ISM Manufacturing PMI', desc:'Apr 2026', impact:'high', forecast:'49.5', prev:'49.0', actual:''},
+  {date:'2026-05-01', time:'14:30', country:'USD', flag:'🇺🇸', name:'US Core PCE Price Index m/m', desc:'Mar 2026', impact:'high', forecast:'0.3%', prev:'0.4%', actual:''},
+  {date:'2026-05-02', time:'14:30', country:'USD', flag:'🇺🇸', name:'US Non-Farm Payrolls', desc:'Apr 2026', impact:'high', forecast:'130K', prev:'228K', actual:''},
+  {date:'2026-05-02', time:'14:30', country:'USD', flag:'🇺🇸', name:'US Unemployment Rate', desc:'Apr 2026', impact:'high', forecast:'4.2%', prev:'4.2%', actual:''},
 ];
 
 // ─── STATE ──────────────────────────────────────────────────────────────────
@@ -602,118 +625,101 @@ async function fetchLiveCalendar(weekStr) {
   const offsetWeeks = weekStr === 'nextweek' ? 1 : weekStr === 'week2' ? 2 : weekStr === 'week3' ? 3 : 0;
   const { from, to } = isoWeekRange(offsetWeeks);
 
-  const COUNTRY_FLAG = {USD:'🇺🇸',EUR:'🇪🇺',GBP:'🇬🇧',JPY:'🇯🇵',CAD:'🇨🇦',AUD:'🇦🇺',CHF:'🇨🇭',CNY:'🇨🇳',NZD:'🇳🇿',OTHER:'🌐'};
-
-  function mapImpact(raw) {
-    const s = String(raw||'').toLowerCase();
-    if (['high','3','red','★★★','3.0'].includes(s)) return 'high';
-    if (['medium','med','2','orange','★★','2.0'].includes(s)) return 'med';
-    return 'low';
-  }
-
-  function mapCountry(raw) {
-    const s = String(raw||'').toUpperCase();
-    const map = {USD:'USD',US:'USD',EUR:'EUR',EU:'EUR',GBP:'GBP',GB:'GBP',UK:'GBP',
-                 JPY:'JPY',JP:'JPY',CAD:'CAD',CA:'CAD',AUD:'AUD',AU:'AUD',
-                 CHF:'CHF',CH:'CHF',CNY:'OTHER',CN:'OTHER',NZD:'OTHER',NZ:'OTHER'};
-    return map[s] || 'OTHER';
-  }
-
-  function evKey(date, name) {
-    return date + '|' + String(name).toLowerCase().replace(/\s+/g,' ').trim().slice(0,40);
-  }
-
-  // Remove old static events for this week so API data takes over
   const weekDays = [];
   const d0 = new Date(from + 'T12:00:00');
   for (let i = 0; i < 7; i++) {
     const d = new Date(d0); d.setDate(d0.getDate() + i);
     weekDays.push(d.toISOString().split('T')[0]);
   }
-  for (let i = EVENTS.length - 1; i >= 0; i--) {
-    if (weekDays.includes(EVENTS[i].date)) EVENTS.splice(i, 1);
+
+  function evKey(date, name) {
+    return date + '|' + String(name).toLowerCase().replace(/\s+/g,' ').trim().slice(0,40);
   }
 
-  const existingKeys = new Set(EVENTS.map(e => evKey(e.date, e.name)));
-
-  function ingestLiveEvents(events, cfg) {
-    let added = 0;
+  // Only update actuals on existing events — never delete static events
+  function patchActuals(events, nameField, dateField, actualField) {
     events.forEach(ev => {
-      const name = String(ev[cfg.name] || ev.event || ev.name || '').trim();
-      if (!name || name.length < 3) return;
-      const dateRaw = String(ev[cfg.date] || ev.date || ev.time || '');
+      const actual = String(ev[actualField] || ev.actual || '').trim();
+      if (!actual || actual === '—') return;
+      const dateRaw = String(ev[dateField] || ev.date || ev.time || '').slice(0,10);
+      const name = String(ev[nameField] || ev.event || ev.name || '').trim();
+      if (!dateRaw || !name) return;
+      // Find matching static event and patch actual
+      const existing = EVENTS.find(e => evKey(e.date, e.name) === evKey(dateRaw, name));
+      if (existing && !existing.actual) existing.actual = actual.slice(0,12);
+    });
+  }
+
+  // Also add truly new live events not in static list
+  function addNewEvents(events, cfg) {
+    const existingKeys = new Set(EVENTS.map(e => evKey(e.date, e.name)));
+    const COUNTRY_FLAG = {USD:'🇺🇸',EUR:'🇪🇺',GBP:'🇬🇧',JPY:'🇯🇵',CAD:'🇨🇦',AUD:'🇦🇺',CHF:'🇨🇭',OTHER:'🌐'};
+    const mapImpact = r => { const s=String(r||'').toLowerCase(); return ['high','3','red'].includes(s)?'high':['medium','med','2','orange'].includes(s)?'med':'low'; };
+    const mapCountry = r => { const s=String(r||'').toUpperCase(); return ({USD:'USD',US:'USD',EUR:'EUR',EU:'EUR',GBP:'GBP',GB:'GBP',UK:'GBP',JPY:'JPY',JP:'JPY',CAD:'CAD',CA:'CAD',AUD:'AUD',AU:'AUD',CHF:'CHF',CH:'CHF'})[s]||'OTHER'; };
+    events.forEach(ev => {
+      const name = String(ev[cfg.name]||ev.event||ev.name||'').trim();
+      if (!name||name.length<3) return;
+      const dateRaw = String(ev[cfg.date]||ev.date||ev.time||'').slice(0,10);
+      if (!dateRaw.match(/^\d{4}-\d{2}-\d{2}/)) return;
       const date = dateRaw.slice(0,10);
-      if (!date.match(/^\d{4}-\d{2}-\d{2}$/) || !weekDays.includes(date)) return;
+      if (!weekDays.includes(date)) return;
       const key = evKey(date, name);
-      if (existingKeys.has(key)) {
-        const actual = String(ev[cfg.actual] || ev.actual || '');
-        if (actual) {
-          const ex = EVENTS.find(e => evKey(e.date, e.name) === key);
-          if (ex) ex.actual = actual.slice(0,12);
-        }
-        return;
-      }
+      if (existingKeys.has(key)) return;
       existingKeys.add(key);
-      const country = mapCountry(ev[cfg.country] || ev.country || ev.currency || '');
-      const impact  = mapImpact(ev[cfg.impact]  || ev.impact  || ev.importance || '');
-      const timeRaw = String(ev[cfg.time] || ev.time || '');
-      const time    = timeRaw.length >= 16 ? timeRaw.slice(11,16) : timeRaw.slice(0,5);
+      const country = mapCountry(ev[cfg.country]||ev.country||ev.currency||'');
+      const impact  = mapImpact(ev[cfg.impact]||ev.impact||ev.importance||'');
+      const timeRaw = String(ev[cfg.time]||ev.time||'');
+      const time    = timeRaw.length>=16 ? timeRaw.slice(11,16) : timeRaw.slice(0,5);
       EVENTS.push({
-        date, time: (time.match(/^\d{2}:\d{2}$/) ? time : '--:--'),
-        country, flag: COUNTRY_FLAG[country] || '🌐',
-        name, desc: String(ev.comment || ev.description || ev.period || '').slice(0,60),
+        date, time:(time.match(/^\d{2}:\d{2}$/)?time:'--:--'),
+        country, flag:COUNTRY_FLAG[country]||'🌐', name,
+        desc: String(ev.comment||ev.description||ev.period||'').slice(0,60),
         impact,
-        forecast: String(ev[cfg.forecast] || ev.forecast || ev.estimate || '—').slice(0,12),
-        prev:     String(ev[cfg.prev]     || ev.previous || ev.revised  || '—').slice(0,12),
-        actual:   String(ev[cfg.actual]   || ev.actual   || '').slice(0,12),
+        forecast: String(ev[cfg.forecast]||ev.forecast||ev.estimate||'—').slice(0,12),
+        prev:     String(ev[cfg.prev]    ||ev.previous||ev.revised ||'—').slice(0,12),
+        actual:   String(ev[cfg.actual]  ||ev.actual  ||''         ).slice(0,12),
         _live: true
       });
-      added++;
     });
-    console.log('[Calendar] ' + weekStr + ' +' + added + ' events');
-    return added;
+    EVENTS.sort((a,b)=>{
+      const at=a.date+'T'+(a.time==='--:--'?'23:59':a.time);
+      const bt=b.date+'T'+(b.time==='--:--'?'23:59':b.time);
+      return at.localeCompare(bt);
+    });
   }
 
-  // 1. Finnhub economic calendar
+  // 1. Finnhub — patch actuals + add new events
   try {
     const r = await fetch(WORKER_URL, {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ type:'finnhub', action:'economic_calendar', from, to }),
-      signal: (()=>{ const c=new AbortController(); setTimeout(()=>c.abort(),8000); return c.signal; })()
+      signal:(()=>{const c=new AbortController();setTimeout(()=>c.abort(),8000);return c.signal;})()
     });
     if (r.ok) {
       const d = await r.json();
       const evs = d.economicCalendar || [];
       if (evs.length > 0) {
-        ingestLiveEvents(evs, {name:'event', date:'time', time:'time', impact:'impact',
-          country:'country', forecast:'estimate', prev:'prev', actual:'actual'});
+        patchActuals(evs, 'event', 'time', 'actual');
+        addNewEvents(evs, {name:'event',date:'time',time:'time',impact:'impact',country:'country',forecast:'estimate',prev:'prev',actual:'actual'});
       }
     }
-  } catch(e) { console.warn('Finnhub calendar failed:', e.message); }
+  } catch(e) { console.warn('Finnhub calendar:', e.message); }
 
-  // 2. RapidAPI as supplement
+  // 2. RapidAPI — patch actuals only
   try {
     const r0 = await fetch(WORKER_URL, {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ type:'rapidapi_calendar', countries:['US','EU','GB','DE','JP','CN','CA','AU'] }),
-      signal: (()=>{ const c=new AbortController(); setTimeout(()=>c.abort(),8000); return c.signal; })()
+      signal:(()=>{const c=new AbortController();setTimeout(()=>c.abort(),8000);return c.signal;})()
     });
     if (r0.ok) {
       const d0 = await r0.json();
       const evs0 = d0.events || [];
       if (evs0.length > 0 && !d0.error) {
-        ingestLiveEvents(evs0, {name:'event', date:'date', time:'time', impact:'impact',
-          country:'country', forecast:'forecast', prev:'previous', actual:'actual'});
+        patchActuals(evs0, 'event', 'date', 'actual');
       }
     }
-  } catch(e) { console.warn('RapidAPI calendar failed:', e.message); }
-
-  // Sort EVENTS by date+time
-  EVENTS.sort((a,b) => {
-    const at = a.date+'T'+(a.time==='--:--'?'23:59':a.time);
-    const bt = b.date+'T'+(b.time==='--:--'?'23:59':b.time);
-    return at.localeCompare(bt);
-  });
+  } catch(e) { console.warn('RapidAPI calendar:', e.message); }
 }
 
 function getLiveActual(ev) {
