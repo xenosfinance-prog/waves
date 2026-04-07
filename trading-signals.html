@@ -650,6 +650,9 @@ function toggleOptDetail(i) {
 }
 
 // ── RENDER CLOSED POSITIONS ───────────────────────────────────
+const CLOSED_PAGE_SIZE = 10;
+let closedPage = 0;
+
 function renderClosed() {
   const list = document.getElementById('closed-list');
   const data = allSignals.closed;
@@ -677,7 +680,13 @@ function renderClosed() {
   document.getElementById('cs-wr').textContent     = wr;
   document.getElementById('cs-total').textContent  = total;
 
-  list.innerHTML = data.map(s => {
+  const totalPages = Math.ceil(data.length / CLOSED_PAGE_SIZE);
+  if (closedPage >= totalPages) closedPage = totalPages - 1;
+  if (closedPage < 0) closedPage = 0;
+  const pageData = data.slice(closedPage * CLOSED_PAGE_SIZE, (closedPage + 1) * CLOSED_PAGE_SIZE);
+
+  const rows = pageData.map((s, pi) => {
+    const realIdx = closedPage * CLOSED_PAGE_SIZE + pi;
     const o = (s.outcome||'').toLowerCase();
     let badgeClass = 'pending';
     if (o === 'win' || o === 'tp1' || o === 'tp2' || o === 'tp')  badgeClass = 'win';
@@ -687,8 +696,7 @@ function renderClosed() {
     const dirColor = (dir === 'BUY' || dir === 'CALL') ? 'color:var(--green)' : 'color:var(--red)';
     const isOpt = s.signal_type === 'options';
     const typeTag = isOpt ? '<span style="font-size:9px;color:var(--yellow);margin-left:4px;">OPT</span>' : '';
-    // For options: show open/close price + expiry instead of SL/TP
-    const col3 = isOpt ? fmtPrice(s.entry, s.pair) : fmtPrice(s.entry, s.pair);
+    const col3 = fmtPrice(s.entry, s.pair);
     const col4 = isOpt
       ? `<span style="color:var(--green)">${fmtPrice(s.close_price, s.pair)}</span>`
       : `<span style="color:var(--red)">${fmtPrice(s.sl, s.pair)}</span>`;
@@ -696,6 +704,9 @@ function renderClosed() {
       ? `<span style="color:var(--yellow)">${s.expiry||s.timeframe||'—'}</span>`
       : `<span style="color:var(--green)">${fmtPrice(s.tp, s.pair)}</span>`;
     const col6 = isOpt ? '' : (s.timeframe||'—');
+    const delBtn = isAdmin && s._filename
+      ? `<button class="del-btn" onclick="deleteClosedSignal(event,${realIdx})" style="margin-left:8px;font-size:9px;padding:2px 6px;">🗑</button>`
+      : '';
     return `<div class="closed-row">
       <div style="font-weight:600;color:var(--text-bright)">${s.pair||'—'}${typeTag}</div>
       <div style="${dirColor};font-weight:600;">${dir}</div>
@@ -703,10 +714,67 @@ function renderClosed() {
       <div>${col4}</div>
       <div>${col5}</div>
       <div style="color:var(--muted)">${col6}</div>
-      <div><span class="outcome-badge ${badgeClass}">${s.outcome||'—'}</span></div>
+      <div><span class="outcome-badge ${badgeClass}">${s.outcome||'—'}</span>${delBtn}</div>
       <div style="color:var(--muted);font-size:10px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">${s.pattern||s.analysis||'—'}</div>
     </div>`;
   }).join('');
+
+  // Pagination controls
+  const pagination = totalPages > 1 ? `
+    <div style="display:flex;align-items:center;justify-content:center;gap:12px;padding:14px;font-family:var(--mono);font-size:11px;border-top:1px solid var(--border);background:var(--bg2);">
+      <button onclick="closedPageGo(-1)" ${closedPage===0?'disabled':''} style="background:none;border:1px solid var(--border);color:${closedPage===0?'var(--muted)':'var(--gold)'};padding:4px 12px;cursor:pointer;font-family:var(--mono);font-size:10px;">◀ PREV</button>
+      <span style="color:var(--muted);">Page ${closedPage+1} / ${totalPages} &nbsp;·&nbsp; ${data.length} total</span>
+      <button onclick="closedPageGo(1)" ${closedPage>=totalPages-1?'disabled':''} style="background:none;border:1px solid var(--border);color:${closedPage>=totalPages-1?'var(--muted)':'var(--gold)'};padding:4px 12px;cursor:pointer;font-family:var(--mono);font-size:10px;">NEXT ▶</button>
+    </div>` : '';
+
+  list.innerHTML = rows + pagination;
+}
+
+function closedPageGo(dir) {
+  closedPage += dir;
+  renderClosed();
+}
+
+async function deleteClosedSignal(event, idx) {
+  event.stopPropagation();
+  if (!isAdmin) return;
+  const s = allSignals.closed[idx];
+  if (!s || !s._filename) return;
+  if (!confirm('Delete closed position ' + (s.pair||'') + ' ' + (s.outcome||'') + '?')) return;
+  const btn = event.currentTarget;
+  btn.disabled = true; btn.textContent = '⏳';
+  const folder = s.signal_type === 'options' ? 'signals_options' : 'signals_cfd';
+  try {
+    const getRes = await fetch(WORKER, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({type:'github', method:'GET',
+        url:`https://api.github.com/repos/${REPO}/contents/${folder}/${s._filename}`})
+    });
+    const gd = await getRes.json();
+    const sha = gd.data?.sha;
+    if (!sha) throw new Error('Cannot get file SHA');
+    const delRes = await fetch(WORKER, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({type:'github', method:'DELETE',
+        url:`https://api.github.com/repos/${REPO}/contents/${folder}/${s._filename}`,
+        payload:{ message:`delete closed: ${s.pair}`, sha }})
+    });
+    const dd = await delRes.json();
+    if (dd.status === 200) {
+      // Remove from both closed and source array
+      allSignals.closed.splice(idx, 1);
+      const srcType = s.signal_type === 'options' ? 'options' : 'cfd';
+      allSignals[srcType] = allSignals[srcType].filter(x => x._filename !== s._filename);
+      document.getElementById('count-closed').textContent = allSignals.closed.length;
+      showToast('🗑 Closed position deleted');
+      renderClosed();
+    } else {
+      throw new Error('Delete failed: ' + (dd.data?.message||dd.status));
+    }
+  } catch(e) {
+    showToast('❌ ' + e.message);
+    btn.disabled = false; btn.textContent = '🗑';
+  }
 }
 
 // ── INIT ─────────────────────────────────────────────────────
