@@ -707,33 +707,21 @@ async function fetchMacroData() {
     }
   } catch(e) { console.warn('Macro worker error:', e); }
 
-  // Fetch bonds + DXY via Yahoo Finance proxy
-  const yfSyms = {
-    'US10Y': '%5ETNX',
-    'US02Y': '%5EIRX',
-    'US30Y': '%5ETYX',
-    'US3M':  '%5EIRX',
-    'VIX':   '%5EVIX',
-  };
-  await Promise.all(Object.entries(yfSyms).map(async ([key, yf]) => {
-    try {
-      const u = `https://query1.finance.yahoo.com/v8/finance/chart/${yf}?range=2d&interval=1d`;
-      const proxy = `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`;
-      const r = await fetch(proxy, {signal: (()=>{const c=new AbortController();setTimeout(()=>c.abort(),8000);return c.signal;})()});
-      if (!r.ok) return;
-      const d = await r.json();
-      const res = d.chart?.result?.[0];
-      if (!res) return;
-      const cls = res.indicators.quote[0].close.filter(x => x !== null);
-      if (cls.length < 1) return;
-      const price = cls[cls.length-1];
-      const prev = cls.length > 1 ? cls[cls.length-2] : price;
-      const change_pct = ((price - prev) / prev) * 100;
-      macroCache[key] = { price, change_pct };
-      // Also store VIX under 'VIX' key if not already set
-      if (key === 'VIX' && !macroCache['VIX']) macroCache['VIX'] = { price, change_pct };
-    } catch(e) {}
-  }));
+  // Fetch bonds + VIX via Worker
+  const yfSyms = { 'US10Y':'^TNX','US02Y':'^IRX','US30Y':'^TYX','US3M':'^IRX','VIX':'^VIX' };
+  try {
+    const bondRes = await fetch(MACRO_WORKER, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({type:'prices', pairs: [...new Set(Object.values(yfSyms))]}),
+      signal: AbortSignal.timeout(8000)
+    });
+    if (bondRes.ok) {
+      const bp = (await bondRes.json()).prices || {};
+      for (const [key, yf] of Object.entries(yfSyms)) {
+        if (bp[yf]?.price) macroCache[key] = { price: bp[yf].price, change_pct: bp[yf].change_pct || 0 };
+      }
+    }
+  } catch(e) {}
 
   renderMacroKPI();
   renderYieldCurve();

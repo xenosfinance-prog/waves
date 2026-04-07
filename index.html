@@ -326,7 +326,18 @@ async function loadNews() {
     });
     if (!res.ok) throw new Error('fetch failed');
     const data = await res.json();
-    const raw = data.news || [];
+    let raw = data.news || [];
+    // If general returns empty, try forex category as fallback
+    if (!raw.length) {
+      try {
+        const res2 = await fetch(WORKER, {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({type:'finnhub', action:'market_news', category:'forex'}),
+          signal: AbortSignal.timeout(8000)
+        });
+        if (res2.ok) { const d2 = await res2.json(); raw = d2.news || []; }
+      } catch(e2) {}
+    }
     if (!raw.length) throw new Error('empty');
 
     const n = new Date();
