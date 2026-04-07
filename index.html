@@ -43,7 +43,7 @@ body{background:var(--bg4);color:var(--ink);font-family:var(--mono);min-height:1
 .t-up{color:var(--green2);}.t-dn{color:var(--red2);}
 
 /* TERMINAL */
-.terminal{display:grid;grid-template-columns:1fr 1fr 300px;gap:1px;background:var(--border);min-height:calc(100vh - 210px);}
+.terminal{display:grid;grid-template-columns:1fr 1fr 380px;gap:1px;background:var(--border);min-height:calc(100vh - 210px);}
 .panel{background:var(--bg);display:flex;flex-direction:column;min-height:0;}
 .panel-head{display:flex;align-items:center;justify-content:space-between;padding:8px 14px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0;position:sticky;top:0;z-index:1;}
 .panel-title{font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--gold);}
@@ -280,14 +280,14 @@ async function updateMarkets() {
 }
 
 // ── NEWS CLASSIFICATION ──────────────────────────────────────
-const ECO_KW = ['fed','federal reserve','ecb','rate','inflation','gdp','cpi','pmi','nfp','jobs','unemployment','earnings','recession','treasury','bond','yield','deficit','debt','tariff','export','import','imf','world bank','fiscal','monetary','central bank','interest','dollar','euro','currency','bank','economic','economy','growth','trade deal','wto','g7','g20'];
+const ECO_KW = ['fed','federal reserve','ecb','rate','inflation','gdp','cpi','pmi','nfp','jobs','unemployment','earnings','recession','treasury','bond','yield','deficit','debt','tariff','export','import','imf','world bank','fiscal','monetary','central bank','interest','dollar','euro','currency','bank','economic','economy','growth','trade deal','wto','g7','g20','stock','market','nasdaq','s&p','wall street','oil price','gold price','crypto','bitcoin','fed rate','trade war','supply chain','airline','energy','price','fee','spending','revenue','profit','quarter','annual','forecast','outlook'];
 const GEO_KW = ['war','conflict','attack','military','troops','nato','ukraine','russia','china','israel','iran','middle east','taiwan','north korea','sanctions','coup','election','president','minister','summit','treaty','diplomat','nuclear','missile','threat','territory','border','embargo','opec','energy security','pipeline','strait','sea','global','ally','alliance','geopolit'];
 
 function classify(title, summary) {
   const t = (title + ' ' + (summary || '')).toLowerCase();
   const eco = ECO_KW.filter(k => t.includes(k)).length;
   const geo = GEO_KW.filter(k => t.includes(k)).length;
-  return geo > eco ? 'geo' : 'eco';
+  return geo > eco + 1 ? 'geo' : 'eco';
 }
 
 function detectTags(title, desc) {
