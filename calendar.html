@@ -200,6 +200,15 @@ body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:10
     </tbody>
   </table>
 
+  <div style="display:flex;align-items:center;gap:12px;margin:28px 0 16px;">
+    <div style="font-family:var(--mono);font-size:9px;letter-spacing:4px;text-transform:uppercase;color:var(--gold);white-space:nowrap;">🤖 AI Weekly Brief</div>
+    <div style="flex:1;height:1px;background:var(--border);"></div>
+    <div id="ai-cal-status" style="font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:1px;">⟳</div>
+  </div>
+  <div id="ai-cal-brief" style="background:var(--bg2);border:1px solid var(--border);border-left:3px solid var(--gold);padding:20px 24px;font-size:14px;color:var(--ink2);line-height:1.85;margin-bottom:28px;min-height:60px;">
+    <span style="color:var(--muted);font-family:var(--mono);font-size:11px;">Generating AI weekly analysis...</span>
+  </div>
+
   <div class="bottom-bar">
     <span>© XENOSFINANCE 2026</span>
     <span>Data: Curated macro calendar · All times CET</span>
@@ -801,7 +810,42 @@ document.addEventListener('DOMContentLoaded', () => {
   // Fetch live actuals immediately, then every 5 minutes
   refreshActuals();
   setInterval(refreshActuals, 300000);
+  // AI weekly brief
+  loadCalendarAIBrief();
 });
+
+async function loadCalendarAIBrief() {
+  const el = document.getElementById('ai-cal-brief');
+  const st = document.getElementById('ai-cal-status');
+  if (!el) return;
+  try {
+    // Gather this week's high-impact events as context
+    const now = new Date();
+    const mon = new Date(now); mon.setDate(now.getDate() - now.getDay() + 1);
+    const fri = new Date(mon); fri.setDate(mon.getDate() + 4);
+    const monKey = mon.toISOString().slice(0,10);
+    const friKey = fri.toISOString().slice(0,10);
+    const weekEvents = (typeof EVENTS !== 'undefined' ? EVENTS : [])
+      .filter(e => e.date >= monKey && e.date <= friKey && (e.impact === 'high' || e.impact === 'med'))
+      .map(e => `${e.date} ${e.time} [${e.country}] ${e.name} — Forecast: ${e.forecast||'—'}, Prev: ${e.prev||'—'}${e.actual?' Actual: '+e.actual:''}`)
+      .join('\n');
+    const prompt = `You are XenosFinance's senior macro analyst. Based on this week's key economic events, write a concise 3-paragraph weekly macro brief covering: (1) the most important macro themes and central bank implications this week, (2) how key releases (NFP, CPI, PMI, etc.) could move FX, equities, and commodities, (3) the main tail risk to watch. Be direct, institutional, Bloomberg terminal style. No disclaimers.\n\nThis week's key events:\n${weekEvents||'Standard macro week — no exceptional high-impact releases.'}`;
+    const res = await fetch(WORKER_URL, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({messages:[{role:'user',content:prompt}], max_tokens:500}),
+      signal: AbortSignal.timeout(30000)
+    });
+    if (!res.ok) throw new Error('failed');
+    const data = await res.json();
+    const text = data?.content?.[0]?.text || '';
+    if (!text) throw new Error('empty');
+    el.innerHTML = text.split('\n').filter(l => l.trim()).map(p => `<p style="margin-bottom:12px">${p}</p>`).join('');
+    if (st) { const n=new Date(),hm=n.getHours().toString().padStart(2,'0')+':'+n.getMinutes().toString().padStart(2,'0'); st.textContent='✓ '+hm+' CET'; }
+  } catch(e) {
+    if (el) el.innerHTML = '<span style="color:var(--muted);font-family:var(--mono);font-size:11px;">AI brief temporarily unavailable</span>';
+    if (st) st.textContent = '⚠';
+  }
+}
 </script>
 </body>
 </html>
