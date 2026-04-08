@@ -592,7 +592,7 @@ function renderOptions() {
     return;
   }
   container.innerHTML = filtered.map((sig, i) => {
-    const isCall  = (sig.action||sig.direction||'').toUpperCase() === 'CALL';
+    const isCall  = ['CALL','BUY'].includes((sig.action||sig.direction||'').toUpperCase());
     const confW   = Math.round((sig.confidence||0) / 100 * 50);
     const openPx  = sig.entry != null ? fmtPrice(sig.entry, sig.pair) : '—';
     const closePx = sig.close_price != null ? fmtPrice(sig.close_price, sig.pair) : '—';
