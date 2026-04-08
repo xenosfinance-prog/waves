@@ -988,12 +988,12 @@ async function deleteSignal(event, i, type) {
 
 // ── TECHNICAL SUMMARY ────────────────────────────────────────
 const TS_PAIRS = {
-  forex:       [{s:'EUR/USD',w:'EURUSD'},{s:'GBP/USD',w:'GBPUSD'},{s:'USD/JPY',w:'USDJPY'},{s:'AUD/USD',w:'AUDUSD'},{s:'USD/CHF',w:'USDCHF'},{s:'EUR/GBP',w:'EURGBP'}],
-  commodities: [{s:'GOLD',w:'XAUUSD'},{s:'OIL WTI',w:'USOIL'},{s:'SILVER',w:'XAGUSD'},{s:'NAT GAS',w:'NGAS'}],
-  indices:     [{s:'S&P 500',w:'SPY'},{s:'NASDAQ',w:'^IXIC'},{s:'DAX',w:'^GDAXI'},{s:'FTSE 100',w:'^FTSE'}],
-  crypto:      [{s:'BTC/USD',w:'BTC-USD'},{s:'ETH/USD',w:'ETH-USD'},{s:'SOL/USD',w:'SOLUSD'},{s:'XRP/USD',w:'XRPUSD'}],
+  forex:       [{s:'EUR/USD',w:'EURUSD',td:'EURUSD'},{s:'GBP/USD',w:'GBPUSD',td:'GBPUSD'},{s:'USD/JPY',w:'USDJPY',td:'USDJPY'},{s:'AUD/USD',w:'AUDUSD',td:'AUDUSD'},{s:'USD/CHF',w:'USDCHF',td:'USDCHF'},{s:'EUR/GBP',w:'EURGBP',td:'EURGBP'}],
+  commodities: [{s:'GOLD',w:'XAUUSD',td:'XAUUSD'},{s:'OIL WTI',w:'USOIL',td:null},{s:'SILVER',w:'XAGUSD',td:'XAGUSD'},{s:'NAT GAS',w:'NGAS',td:null}],
+  indices:     [{s:'S&P 500',w:'SPY',td:'SPY'},{s:'NASDAQ',w:'^IXIC',td:null},{s:'DAX',w:'^GDAXI',td:null},{s:'FTSE 100',w:'^FTSE',td:null}],
+  crypto:      [{s:'BTC/USD',w:'BTC-USD',fh:'BINANCE:BTCUSDT'},{s:'ETH/USD',w:'ETH-USD',fh:'BINANCE:ETHUSDT'},{s:'SOL/USD',w:'SOLUSD',fh:'BINANCE:SOLUSDT'},{s:'XRP/USD',w:'XRPUSD',fh:'BINANCE:XRPUSDT'}],
 };
-const TD_SYM = {'EURUSD':'EUR/USD','GBPUSD':'GBP/USD','USDJPY':'USD/JPY','AUDUSD':'AUD/USD','USDCHF':'USD/CHF','EURGBP':'EUR/GBP','XAUUSD':'XAU/USD','XAGUSD':'XAG/USD'};
+const TD_SYM = {'EURUSD':'EUR/USD','GBPUSD':'GBP/USD','USDJPY':'USD/JPY','AUDUSD':'AUD/USD','USDCHF':'USD/CHF','EURGBP':'EUR/GBP','XAUUSD':'XAU/USD','XAGUSD':'XAG/USD','SPY':'SPY'};
 
 let tsCurrentTab = 'forex';
 let tsCache = {};
@@ -1047,10 +1047,9 @@ async function tsLoadTab(tab) {
 
   await Promise.all(pairs.map(async (pair) => {
     try {
-      const tdSym = TD_SYM[pair.w];
-      let price = null, rsi = null, macdHist = null, ema20 = null, ema50 = null;
+      let price = null, rsi = null, macdHist = null, ema20 = null;
 
-      // Fetch price via Worker prices endpoint
+      // Fetch price
       const priceRes = await fetch(WORKER, {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({type:'prices', pairs:[pair.w]}),
@@ -1061,20 +1060,54 @@ async function tsLoadTab(tab) {
         price = pd.prices?.[pair.w]?.price || null;
       }
 
-      // Fetch indicators via TwelveData if symbol mapped
-      if (tdSym) {
-        const indRes = await fetch(WORKER, {
-          method:'POST', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({type:'twelvedata', action:'indicators', symbol:pair.w, interval:'1h', indicators:['rsi','macd','ema']}),
-          signal: AbortSignal.timeout(10000)
-        });
-        if (indRes.ok) {
-          const ind = await indRes.json();
-          rsi = ind.rsi;
-          macdHist = ind.macd?.histogram || null;
-          ema20 = ind.ema_20;
-          ema50 = ind.ema_50;
-        }
+      // TwelveData for FX/commodities/stocks
+      if (pair.td) {
+        try {
+          const indRes = await fetch(WORKER, {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({type:'twelvedata', action:'indicators', symbol:pair.td, interval:'1h', indicators:['rsi','macd','ema']}),
+            signal: AbortSignal.timeout(12000)
+          });
+          if (indRes.ok) {
+            const ind = await indRes.json();
+            rsi = ind.rsi;
+            macdHist = ind.macd?.histogram || null;
+            ema20 = ind.ema_20;
+          }
+        } catch(e2) {}
+      }
+
+      // Finnhub candles for crypto — compute RSI/MACD locally
+      if (pair.fh && rsi === null) {
+        try {
+          const now = Math.floor(Date.now()/1000);
+          const from = now - 3600*50;
+          const candleRes = await fetch(WORKER, {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({type:'finnhub', action:'candles', symbol:pair.fh, assetType:'crypto', resolution:'60', from, to:now}),
+            signal: AbortSignal.timeout(10000)
+          });
+          if (candleRes.ok) {
+            const cd = await candleRes.json();
+            const closes = (cd.candles||[]).map(c=>c.close).filter(Boolean);
+            if (closes.length >= 26) {
+              // RSI(14)
+              let gains=0,losses=0;
+              for(let i=closes.length-14;i<closes.length;i++){const d=closes[i]-closes[i-1];if(d>0)gains+=d;else losses-=d;}
+              const avgG=gains/14,avgL=losses/14;
+              rsi = avgL===0?100:parseFloat((100-100/(1+avgG/avgL)).toFixed(1));
+              // EMA helper
+              const ema=(arr,n)=>{const k=2/(n+1);let e=arr.slice(0,n).reduce((a,b)=>a+b,0)/n;for(let i=n;i<arr.length;i++)e=arr[i]*k+e*(1-k);return e;};
+              const e12=ema(closes,12),e26=ema(closes,26);
+              const macdLine=e12-e26;
+              const prev12=ema(closes.slice(0,-1),12),prev26=ema(closes.slice(0,-1),26);
+              const prevMacd=prev12-prev26;
+              const sig=ema([...Array(8).fill(prevMacd),macdLine],9);
+              macdHist=parseFloat((macdLine-sig).toFixed(6));
+              ema20=parseFloat(ema(closes,20).toFixed(4));
+            }
+          }
+        } catch(e3) {}
       }
 
       const emaDiff = (price && ema20) ? price - ema20 : null;
