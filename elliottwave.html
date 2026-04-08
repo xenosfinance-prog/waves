@@ -979,12 +979,57 @@ The analysis cannot proceed without a real price — AI would invent wrong numbe
     return;
   }
 
+  btn.textContent='Fetching candles...';
+  txt.innerHTML='<span class="analysis-loading">⬡ FETCHING CANDLE DATA...</span>';
+
+  // ── Fetch OHLCV candles for the selected timeframe ──
+  const TF_YAHOO = {
+    'M1 (Monthly)':  { interval:'1mo', range:'5y' },
+    'W1 (Weekly)':   { interval:'1wk', range:'2y' },
+    'D1 (Daily)':    { interval:'1d',  range:'6mo' },
+    'H4 (4-Hour)':   { interval:'1h',  range:'30d' },
+    'H1 (1-Hour)':   { interval:'1h',  range:'7d' },
+  };
+  const TF_TD = {
+    'M1 (Monthly)':  '1month',
+    'W1 (Weekly)':   '1week',
+    'D1 (Daily)':    '1day',
+    'H4 (4-Hour)':   '4h',
+    'H1 (1-Hour)':   '1h',
+  };
+
+  let candleContext = '';
+  const workerSym = EW_SYMBOL_MAP[symbolVal.trim().toLowerCase()];
+  if (workerSym) {
+    try {
+      const yfConf = TF_YAHOO[tf] || { interval:'1d', range:'6mo' };
+      const candleRes = await fetch('https://xenos-ai-proxy.xenosfinance.workers.dev', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ type:'yahoocandles', symbol: workerSym, interval: yfConf.interval, range: yfConf.range }),
+        signal: AbortSignal.timeout(10000)
+      });
+      if (candleRes.ok) {
+        const cd = await candleRes.json();
+        const candles = (cd.candles || []).slice(-20); // last 20 candles
+        if (candles.length >= 5) {
+          candleContext = '\n\nRECENT OHLCV DATA (' + tf + ', last ' + candles.length + ' candles, newest last):\n';
+          candleContext += 'Date | Open | High | Low | Close\n';
+          candleContext += candles.map(c => {
+            const d = c.datetime ? c.datetime.slice(0,10) : '—';
+            return `${d} | ${c.open?.toFixed(5)||'—'} | ${c.high?.toFixed(5)||'—'} | ${c.low?.toFixed(5)||'—'} | ${c.close?.toFixed(5)||'—'}`;
+          }).join('\n');
+          candleContext += '\n\nUse these exact price levels to anchor your wave count and key levels.';
+        }
+      }
+    } catch(e) {}
+  }
+
   btn.textContent='Analysing...';
   txt.innerHTML='<span class="analysis-loading">⬡ GENERATING ANALYSIS...</span>';
 
   const prompt=`You are a senior Elliott Wave analyst at a top-tier institutional trading desk. Generate a precise, professional Elliott Wave analysis for ${symbol} on the ${tf} timeframe.
 
-${livePriceLine}
+${livePriceLine}${candleContext}
 ${ctx?'Additional context: '+ctx:''}
 
 IMPORTANT: If live market data is provided above, you MUST anchor all price levels to that current price. Do not invent or use generic placeholder prices.
