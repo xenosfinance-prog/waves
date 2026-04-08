@@ -143,7 +143,7 @@ body{background:var(--bg4);color:var(--ink);font-family:var(--mono);min-height:1
 
 <div class="terminal">
 
-  <!-- COL 1: TELEGRAM + ECONOMIC NEWS -->
+  <!-- COL 1: TELEGRAM + ECONOMIC NEWS + INDICATOR MATRIX -->
   <div class="panel">
     <div class="panel-head">
       <div class="panel-title"><span class="dot dot-eco"></span>Economic News</div>
@@ -168,6 +168,38 @@ body{background:var(--bg4);color:var(--ink);font-family:var(--mono);min-height:1
         </div>
       </div>
       <div class="empty-row">⟳ LOADING...</div>
+    </div>
+
+    <!-- INDICATOR MATRIX -->
+    <div style="border-top:2px solid var(--border);flex-shrink:0;">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 14px;background:var(--bg2);border-bottom:1px solid var(--border);">
+        <div style="font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--gold);">◈ Macro Matrix</div>
+        <div style="display:flex;gap:0;" id="im-tabs">
+          <button onclick="imSwitch('major')" id="im-tab-major" style="font-size:8px;letter-spacing:1px;text-transform:uppercase;padding:3px 8px;background:none;border:none;border-bottom:2px solid var(--gold);color:var(--gold);cursor:pointer;font-family:var(--mono);">Major</button>
+          <button onclick="imSwitch('europe')" id="im-tab-europe" style="font-size:8px;letter-spacing:1px;text-transform:uppercase;padding:3px 8px;background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);cursor:pointer;font-family:var(--mono);">Europe</button>
+          <button onclick="imSwitch('asia')" id="im-tab-asia" style="font-size:8px;letter-spacing:1px;text-transform:uppercase;padding:3px 8px;background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);cursor:pointer;font-family:var(--mono);">Asia</button>
+          <button onclick="imSwitch('em')" id="im-tab-em" style="font-size:8px;letter-spacing:1px;text-transform:uppercase;padding:3px 8px;background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);cursor:pointer;font-family:var(--mono);">EM</button>
+        </div>
+      </div>
+      <div style="overflow-x:auto;">
+        <table id="im-table" style="width:100%;border-collapse:collapse;font-family:var(--mono);font-size:10px;">
+          <thead>
+            <tr style="background:var(--bg2);border-bottom:1px solid var(--border);">
+              <th style="padding:5px 10px;font-size:8px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);text-align:left;font-weight:400;min-width:110px;">Country</th>
+              <th style="padding:5px 6px;font-size:8px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);text-align:right;font-weight:400;">Rate%</th>
+              <th style="padding:5px 6px;font-size:8px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);text-align:right;font-weight:400;">CPI%</th>
+              <th style="padding:5px 6px;font-size:8px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);text-align:right;font-weight:400;">GDP%</th>
+              <th style="padding:5px 6px;font-size:8px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);text-align:right;font-weight:400;">Unemp</th>
+              <th style="padding:5px 6px;font-size:8px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);text-align:right;font-weight:400;">Debt</th>
+            </tr>
+          </thead>
+          <tbody id="im-body"></tbody>
+        </table>
+      </div>
+      <div style="padding:5px 10px;font-size:8px;color:var(--muted);letter-spacing:1px;border-top:1px solid var(--border);display:flex;justify-content:space-between;">
+        <span>IMF · World Bank · Q4 2025</span>
+        <span style="display:flex;gap:10px;"><span style="color:var(--green2)">● Low</span><span style="color:var(--red2)">● High</span></span>
+      </div>
     </div>
   </div>
 
@@ -425,8 +457,78 @@ async function loadAIBrief(headlines) {
 }
 
 // ── INIT ────────────────────────────────────────────────────
+// ── INDICATOR MATRIX ─────────────────────────────────────────
+const IM_DATA = {
+  major: [
+    {f:'🇺🇸', n:'United States', r:4.25, cpi:2.8,  gdp:2.4,  u:4.2, debt:123},
+    {f:'🇨🇳', n:'China',         r:3.00, cpi:0.4,  gdp:4.8,  u:5.1, debt:88},
+    {f:'🇪🇺', n:'Euro Area',     r:2.40, cpi:2.2,  gdp:0.9,  u:6.2, debt:91},
+    {f:'🇬🇧', n:'United Kingdom',r:4.50, cpi:2.8,  gdp:0.9,  u:4.4, debt:99},
+    {f:'🇯🇵', n:'Japan',         r:0.50, cpi:3.7,  gdp:0.4,  u:2.5, debt:236},
+    {f:'🇨🇦', n:'Canada',        r:2.75, cpi:2.3,  gdp:1.5,  u:6.7, debt:110},
+    {f:'🇦🇺', n:'Australia',     r:4.10, cpi:2.4,  gdp:1.3,  u:4.1, debt:44},
+    {f:'🇨🇭', n:'Switzerland',   r:0.25, cpi:0.3,  gdp:0.8,  u:2.6, debt:15},
+  ],
+  europe: [
+    {f:'🇩🇪', n:'Germany',       r:2.40, cpi:2.3,  gdp:-0.2, u:3.4, debt:62},
+    {f:'🇫🇷', n:'France',        r:2.40, cpi:1.7,  gdp:0.9,  u:7.9, debt:115},
+    {f:'🇮🇹', n:'Italy',         r:2.40, cpi:1.7,  gdp:0.5,  u:5.7, debt:137},
+    {f:'🇪🇸', n:'Spain',         r:2.40, cpi:2.3,  gdp:2.8,  u:11.1,debt:101},
+    {f:'🇳🇱', n:'Netherlands',   r:2.40, cpi:3.3,  gdp:0.9,  u:3.9, debt:49},
+    {f:'🇵🇱', n:'Poland',        r:5.75, cpi:4.9,  gdp:2.9,  u:5.1, debt:54},
+    {f:'🇸🇪', n:'Sweden',        r:2.25, cpi:1.9,  gdp:0.5,  u:8.7, debt:31},
+    {f:'🇳🇴', n:'Norway',        r:4.50, cpi:2.8,  gdp:0.9,  u:1.8, debt:18},
+  ],
+  asia: [
+    {f:'🇯🇵', n:'Japan',         r:0.50, cpi:3.7,  gdp:0.4,  u:2.5, debt:236},
+    {f:'🇨🇳', n:'China',         r:3.00, cpi:0.4,  gdp:4.8,  u:5.1, debt:88},
+    {f:'🇮🇳', n:'India',         r:6.25, cpi:3.6,  gdp:6.4,  u:8.1, debt:82},
+    {f:'🇰🇷', n:'South Korea',   r:2.75, cpi:2.0,  gdp:1.2,  u:2.8, debt:47},
+    {f:'🇸🇬', n:'Singapore',     r:3.00, cpi:1.9,  gdp:3.8,  u:2.0, debt:167},
+    {f:'🇹🇼', n:'Taiwan',        r:2.00, cpi:1.8,  gdp:4.2,  u:3.3, debt:24},
+    {f:'🇭🇰', n:'Hong Kong',     r:5.25, cpi:1.2,  gdp:2.5,  u:3.1, debt:0},
+    {f:'🇦🇺', n:'Australia',     r:4.10, cpi:2.4,  gdp:1.3,  u:4.1, debt:44},
+  ],
+  em: [
+    {f:'🇧🇷', n:'Brazil',        r:13.75,cpi:4.8,  gdp:2.9,  u:6.6, debt:87},
+    {f:'🇲🇽', n:'Mexico',        r:9.00, cpi:3.8,  gdp:1.2,  u:2.9, debt:50},
+    {f:'🇿🇦', n:'South Africa',  r:7.50, cpi:3.2,  gdp:0.8,  u:32.4,debt:74},
+    {f:'🇹🇷', n:'Turkey',        r:42.50,cpi:65.0, gdp:3.0,  u:8.5, debt:25},
+    {f:'🇷🇺', n:'Russia',        r:21.00,cpi:9.5,  gdp:3.6,  u:2.3, debt:18},
+    {f:'🇸🇦', n:'Saudi Arabia',  r:5.00, cpi:1.7,  gdp:1.8,  u:3.4, debt:24},
+    {f:'🇦🇪', n:'UAE',           r:4.90, cpi:2.1,  gdp:4.0,  u:2.7, debt:26},
+    {f:'🇮🇩', n:'Indonesia',     r:5.75, cpi:3.0,  gdp:5.0,  u:4.8, debt:39},
+  ],
+};
+
+function imColor(val, col) {
+  if (col === 'r')    return val <= 1 ? '#34d399' : val >= 8 ? '#f87171' : '#b8cce0';
+  if (col === 'cpi')  return val <= 2 ? '#34d399' : val >= 6 ? '#f87171' : '#b8cce0';
+  if (col === 'gdp')  return val >= 3 ? '#34d399' : val < 0 ? '#f87171' : '#b8cce0';
+  if (col === 'u')    return val <= 4 ? '#34d399' : val >= 10 ? '#f87171' : '#b8cce0';
+  if (col === 'debt') return val <= 60 ? '#34d399' : val >= 120 ? '#f87171' : '#b8cce0';
+  return '#b8cce0';
+}
+
+function imSwitch(tab) {
+  ['major','europe','asia','em'].forEach(t => {
+    const btn = document.getElementById('im-tab-' + t);
+    if (btn) { btn.style.borderBottomColor = t === tab ? 'var(--gold)' : 'transparent'; btn.style.color = t === tab ? 'var(--gold)' : 'var(--muted)'; }
+  });
+  const tbody = document.getElementById('im-body');
+  if (!tbody) return;
+  tbody.innerHTML = (IM_DATA[tab] || []).map(d => `<tr style="border-bottom:1px solid #1a2a40;">
+    <td style="padding:5px 10px;color:#e2eaf4;font-weight:500;">${d.f} ${d.n}</td>
+    <td style="padding:5px 6px;text-align:right;color:${imColor(d.r,'r')}">${d.r}</td>
+    <td style="padding:5px 6px;text-align:right;color:${imColor(d.cpi,'cpi')}">${d.cpi}</td>
+    <td style="padding:5px 6px;text-align:right;color:${imColor(d.gdp,'gdp')}">${d.gdp}</td>
+    <td style="padding:5px 6px;text-align:right;color:${imColor(d.u,'u')}">${d.u}</td>
+    <td style="padding:5px 6px;text-align:right;color:${imColor(d.debt,'debt')}">${d.debt}</td>
+  </tr>`).join('');
+}
+
 document.addEventListener('DOMContentLoaded', () => {
-  updateMarkets();
+  imSwitch('major');
   loadNews().then(h => { if (h.length) loadAIBrief(h); });
   setInterval(updateMarkets, 60000);
   setInterval(() => loadNews().then(h => { if (h.length) loadAIBrief(h); }), 300000);
