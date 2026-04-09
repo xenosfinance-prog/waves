@@ -278,73 +278,39 @@ body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:10
     </div>
   </div>
 
-  <!-- TRADINGVIEW MARKET SUMMARY -->
+  <!-- TRADINGVIEW HOTLISTS — Active / Gainers / Losers -->
   <div style="margin:32px 0 0;border:1px solid var(--border);">
     <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 16px;background:var(--bg2);border-bottom:1px solid var(--border);">
-      <div style="font-family:var(--mono);font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--gold);">◈ Market Summary</div>
+      <div style="font-family:var(--mono);font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--gold);">◈ Top Movers · Active · Gainers · Losers</div>
       <a href="https://www.tradingview.com/pricing/?share_your_love=zendesk_69" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:9px;color:var(--muted);text-decoration:none;transition:color 0.2s;" onmouseover="this.style.color='var(--gold)'" onmouseout="this.style.color='var(--muted)'">TradingView ↗</a>
     </div>
-    <div id="tv-market-overview-widget" style="padding:0;"></div>
-    <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-market-overview.js" async>
-    {
-      "colorTheme": "dark",
-      "dateRange": "1D",
-      "showChart": true,
-      "locale": "en",
-      "largeChartUrl": "",
-      "isTransparent": true,
-      "showSymbolLogo": false,
-      "showFloatingTooltip": false,
-      "width": "100%",
-      "height": "500",
-      "referral_id": "zendesk_69",
-      "tabs": [
-        {
-          "title": "Forex",
-          "symbols": [
-            {"s": "OANDA:EURUSD", "d": "EUR/USD"},
-            {"s": "OANDA:GBPUSD", "d": "GBP/USD"},
-            {"s": "OANDA:USDJPY", "d": "USD/JPY"},
-            {"s": "OANDA:USDCHF", "d": "USD/CHF"},
-            {"s": "OANDA:AUDUSD", "d": "AUD/USD"},
-            {"s": "OANDA:USDCAD", "d": "USD/CAD"}
-          ],
-          "originalTitle": "Forex"
-        },
-        {
-          "title": "Indices",
-          "symbols": [
-            {"s": "FOREXCOM:SPXUSD", "d": "S&P 500"},
-            {"s": "FOREXCOM:NSXUSD", "d": "NASDAQ 100"},
-            {"s": "FOREXCOM:DJI", "d": "Dow Jones"},
-            {"s": "INDEX:DAX", "d": "DAX 40"},
-            {"s": "INDEX:UKX", "d": "FTSE 100"}
-          ],
-          "originalTitle": "Indices"
-        },
-        {
-          "title": "Crypto",
-          "symbols": [
-            {"s": "BINANCE:BTCUSDT", "d": "Bitcoin"},
-            {"s": "BINANCE:ETHUSDT", "d": "Ethereum"},
-            {"s": "BINANCE:SOLUSDT", "d": "Solana"},
-            {"s": "BINANCE:XRPUSDT", "d": "XRP"}
-          ],
-          "originalTitle": "Crypto"
-        },
-        {
-          "title": "Commodities",
-          "symbols": [
-            {"s": "OANDA:XAUUSD", "d": "Gold"},
-            {"s": "OANDA:XAGUSD", "d": "Silver"},
-            {"s": "NYMEX:CL1!", "d": "Oil WTI"},
-            {"s": "NYMEX:NG1!", "d": "Nat Gas"}
-          ],
-          "originalTitle": "Commodities"
-        }
-      ]
-    }
-    </script>
+    <!-- TradingView Widget BEGIN -->
+    <div class="tradingview-widget-container">
+      <div class="tradingview-widget-container__widget"></div>
+      <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-hotlists.js" async>
+      {
+        "colorTheme": "dark",
+        "dateRange": "1D",
+        "exchange": "US",
+        "showChart": true,
+        "locale": "en",
+        "isTransparent": true,
+        "showSymbolLogo": false,
+        "showFloatingTooltip": false,
+        "width": "100%",
+        "height": "500",
+        "referral_id": "zendesk_69",
+        "plotLineColorGrowing": "rgba(41, 98, 255, 1)",
+        "plotLineColorFalling": "rgba(41, 98, 255, 1)",
+        "gridLineColor": "rgba(30, 48, 80, 1)",
+        "scaleFontColor": "rgba(120, 150, 180, 1)",
+        "belowLineFillColorGrowing": "rgba(41, 98, 255, 0.12)",
+        "belowLineFillColorFalling": "rgba(41, 98, 255, 0.12)",
+        "symbolActiveColor": "rgba(41, 98, 255, 0.15)"
+      }
+      </script>
+    </div>
+    <!-- TradingView Widget END -->
 
   <div class="bottom-bar">
     <span>© XENOSFINANCE 2026</span>
@@ -399,20 +365,58 @@ const WORKER_SYM_MAP = {
   'FTSE':   '^FTSE',
 };
 
+// ── Frankfurter direct fetch for Forex change_pct (bypasses Worker fallback) ──
+async function fetchForexChangePct() {
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    const [rT, rY] = await Promise.all([
+      fetch(`https://api.frankfurter.app/${today}?base=EUR`).then(r => r.json()),
+      fetch(`https://api.frankfurter.app/${yesterday}?base=EUR`).then(r => r.json()),
+    ]);
+    const rt = rT.rates || {}, ry = rY.rates || {};
+    function rate(r, base, quote) {
+      if (base === 'EUR' && r[quote]) return r[quote];
+      if (quote === 'EUR' && r[base]) return 1 / r[base];
+      if (r[base] && r[quote]) return r[quote] / r[base];
+      return null;
+    }
+    const fxPairs = ['EURUSD','GBPUSD','USDJPY','USDCHF'];
+    const out = {};
+    fxPairs.forEach(pair => {
+      const base = pair.slice(0,3), quote = pair.slice(3,6);
+      const rateToday = rate(rt, base, quote);
+      const rateYest  = rate(ry, base, quote);
+      if (!rateToday) return;
+      const dec = pair.includes('JPY') ? 3 : 5;
+      const chg = (rateYest && rateYest > 0) ? parseFloat(((rateToday - rateYest) / rateYest * 100).toFixed(3)) : 0;
+      out[pair] = { price: parseFloat(rateToday.toFixed(dec)), change_pct: chg };
+    });
+    return out;
+  } catch(e) { return {}; }
+}
+
 // Fetch ALL symbols in ONE request — fast and parallel inside Worker
 async function fetchAllPrices() {
   const pairs = SYMS.map(s => WORKER_SYM_MAP[s.id] || s.id);
-  try {
-    const r = await fetch(WORKER_URL, {
+  // Fetch Worker prices and Forex fallback in parallel
+  const [workerResult, fxFallback] = await Promise.all([
+    fetch(WORKER_URL, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({type: 'prices', pairs}),
       signal: AbortSignal.timeout(8000)
-    });
-    if (!r.ok) return {};
-    const d = await r.json();
-    return d.prices || {};
-  } catch(e) { return {}; }
+    }).then(r => r.ok ? r.json() : {}).catch(() => ({})),
+    fetchForexChangePct()
+  ]);
+  const prices = workerResult.prices || {};
+  // Override Forex entries: if Worker returned 0% change, use Frankfurter real value
+  Object.entries(fxFallback).forEach(([pair, data]) => {
+    if (!prices[pair] || prices[pair].change_pct === 0) {
+      prices[pair] = { ...prices[pair], ...data };
+    }
+  });
+  return prices;
 }
 
 // Legacy wrapper kept for compatibility
