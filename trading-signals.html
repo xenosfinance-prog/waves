@@ -340,8 +340,6 @@ body{background:var(--bg);color:var(--ink);font-family:var(--mono);min-height:10
     </div>
     <div style="display:flex;border-bottom:1px solid var(--border);background:var(--bg2);" id="ts-tabs">
       <button onclick="tsTab('forex')" id="ts-tab-forex" style="font-size:8px;letter-spacing:2px;text-transform:uppercase;padding:6px 14px;background:none;border:none;border-bottom:2px solid var(--gold);color:var(--gold);cursor:pointer;font-family:var(--mono);">Forex</button>
-      <button onclick="tsTab('commodities')" id="ts-tab-commodities" style="font-size:8px;letter-spacing:2px;text-transform:uppercase;padding:6px 14px;background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);cursor:pointer;font-family:var(--mono);">Commodities</button>
-      <button onclick="tsTab('indices')" id="ts-tab-indices" style="font-size:8px;letter-spacing:2px;text-transform:uppercase;padding:6px 14px;background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);cursor:pointer;font-family:var(--mono);">Indices</button>
       <button onclick="tsTab('crypto')" id="ts-tab-crypto" style="font-size:8px;letter-spacing:2px;text-transform:uppercase;padding:6px 14px;background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);cursor:pointer;font-family:var(--mono);">Crypto</button>
     </div>
     <div style="overflow-x:auto;">
@@ -1080,20 +1078,27 @@ async function deleteSignal(event, i, type) {
 }
 
 // ── TECHNICAL SUMMARY ────────────────────────────────────────
+// wSym = symbol sent to Worker type:'prices' (must match YAHOO_SYMBOL_MAP or FX_PAIRS in Worker)
+// td   = symbol for TwelveData OHLCV candles (uses TD_SYMBOL_MAP: 'EURUSD' → 'EUR/USD')
+// fh   = symbol for Finnhub candles (crypto only)
 const TS_PAIRS = {
-  forex:  [
-    {s:'EUR/USD', td:'EURUSD', fh:'OANDA:EUR_USD'},
-    {s:'GBP/USD', td:'GBPUSD', fh:'OANDA:GBP_USD'},
-    {s:'USD/JPY', td:'USDJPY', fh:'OANDA:USD_JPY'},
-    {s:'USD/CHF', td:'USDCHF', fh:'OANDA:USD_CHF'},
-    {s:'AUD/USD', td:'AUDUSD', fh:'OANDA:AUD_USD'},
-    {s:'EUR/GBP', td:'EURGBP', fh:'OANDA:EUR_GBP'},
+  forex: [
+    {s:'EUR/USD', wSym:'EURUSD', td:'EURUSD', fh:'OANDA:EUR_USD'},
+    {s:'GBP/USD', wSym:'GBPUSD', td:'GBPUSD', fh:'OANDA:GBP_USD'},
+    {s:'USD/JPY', wSym:'USDJPY', td:'USDJPY', fh:'OANDA:USD_JPY'},
+    {s:'USD/CHF', wSym:'USDCHF', td:'USDCHF', fh:'OANDA:USD_CHF'},
+    {s:'AUD/USD', wSym:'AUDUSD', td:'AUDUSD', fh:'OANDA:AUD_USD'},
+    {s:'NZD/USD', wSym:'NZDUSD', td:'NZDUSD', fh:'OANDA:NZD_USD'},
+    {s:'USD/CAD', wSym:'USDCAD', td:'USDCAD', fh:'OANDA:USD_CAD'},
+    {s:'EUR/GBP', wSym:'EURGBP', td:'EURGBP', fh:'OANDA:EUR_GBP'},
+    {s:'EUR/JPY', wSym:'EURJPY', td:'EURJPY', fh:'OANDA:EUR_JPY'},
+    {s:'GBP/JPY', wSym:'GBPJPY', td:'GBPJPY', fh:'OANDA:GBP_JPY'},
   ],
   crypto: [
-    {s:'BTC/USD', fh:'BINANCE:BTCUSDT'},
-    {s:'ETH/USD', fh:'BINANCE:ETHUSDT'},
-    {s:'SOL/USD', fh:'BINANCE:SOLUSDT'},
-    {s:'XRP/USD', fh:'BINANCE:XRPUSDT'},
+    {s:'BTC/USD', wSym:'BTC-USD', fh:'BINANCE:BTCUSDT'},
+    {s:'ETH/USD', wSym:'ETH-USD', fh:'BINANCE:ETHUSDT'},
+    {s:'SOL/USD', wSym:'SOL-USD', fh:'BINANCE:SOLUSDT'},
+    {s:'XRP/USD', wSym:'XRP-USD', fh:'BINANCE:XRPUSDT'},
   ],
 };
 
@@ -1212,12 +1217,13 @@ async function tsLoadTab(tab) {
 
   await Promise.all(pairs.map(async (pair) => {
     try {
-      // Fetch price
-      const wSym = pair.td ? pair.td : (pair.fh ? (pair.s==='BTC/USD'?'BTC-USD':pair.s==='ETH/USD'?'ETH-USD':pair.s==='SOL/USD'?'SOLUSD':'XRPUSD') : null);
+      // Fetch price using wSym (correct Worker key)
       let price = null;
-      if (wSym) {
-        const pr = await fetch(WORKER, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:'prices',pairs:[wSym]}),signal:AbortSignal.timeout(6000)});
-        if (pr.ok) { const pd=await pr.json(); price=pd.prices?.[wSym]?.price||null; }
+      if (pair.wSym) {
+        try {
+          const pr = await fetch(WORKER, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:'prices',pairs:[pair.wSym]}),signal:AbortSignal.timeout(6000)});
+          if (pr.ok) { const pd=await pr.json(); price=pd.prices?.[pair.wSym]?.price||null; }
+        } catch(e) {}
       }
 
       // Fetch candles for each timeframe in parallel
@@ -1302,7 +1308,7 @@ function tsRender(tab, results) {
 
 function tsTab(tab) {
   tsCurrentTab=tab;
-  ['forex','commodities','indices','crypto'].forEach(t=>{
+  ['forex','crypto'].forEach(t=>{
     const btn=document.getElementById('ts-tab-'+t);
     if(btn){btn.style.borderBottomColor=t===tab?'var(--gold)':'transparent';btn.style.color=t===tab?'var(--gold)':'var(--muted)';}
   });
