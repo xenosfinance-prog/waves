@@ -323,16 +323,18 @@ body{background:var(--bg);color:var(--ink);font-family:var(--mono);min-height:10
       <table style="width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11px;">
         <thead>
           <tr style="background:var(--bg2);border-bottom:1px solid var(--border);">
-            <th style="padding:6px 14px;font-size:8px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);text-align:left;font-weight:400;min-width:100px;">Symbol</th>
-            <th style="padding:6px 10px;font-size:8px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);text-align:right;font-weight:400;">Price</th>
-            <th style="padding:6px 10px;font-size:8px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);text-align:center;font-weight:400;">RSI</th>
-            <th style="padding:6px 10px;font-size:8px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);text-align:center;font-weight:400;">MACD</th>
-            <th style="padding:6px 10px;font-size:8px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);text-align:center;font-weight:400;">EMA</th>
-            <th style="padding:6px 10px;font-size:8px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);text-align:center;font-weight:400;">Signal</th>
+            <th style="padding:6px 14px;font-size:8px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);text-align:left;font-weight:400;min-width:90px;">Symbol</th>
+            <th style="padding:6px 8px;font-size:8px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);text-align:right;font-weight:400;">Price</th>
+            <th style="padding:6px 8px;font-size:8px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);text-align:center;font-weight:400;">5M</th>
+            <th style="padding:6px 8px;font-size:8px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);text-align:center;font-weight:400;">15M</th>
+            <th style="padding:6px 8px;font-size:8px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);text-align:center;font-weight:400;">1H</th>
+            <th style="padding:6px 8px;font-size:8px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);text-align:center;font-weight:400;">4H</th>
+            <th style="padding:6px 8px;font-size:8px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);text-align:center;font-weight:400;">1D</th>
+            <th style="padding:6px 8px;font-size:8px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);text-align:center;font-weight:400;">Summary</th>
           </tr>
         </thead>
         <tbody id="ts-body">
-          <tr><td colspan="6" style="text-align:center;padding:20px;color:var(--muted);font-size:10px;letter-spacing:2px;">⟳ LOADING SIGNALS...</td></tr>
+          <tr><td colspan="8" style="text-align:center;padding:20px;color:var(--muted);font-size:10px;letter-spacing:2px;">⟳ LOADING SIGNALS...</td></tr>
         </tbody>
       </table>
     </div>
@@ -988,198 +990,233 @@ async function deleteSignal(event, i, type) {
 
 // ── TECHNICAL SUMMARY ────────────────────────────────────────
 const TS_PAIRS = {
-  forex:       [{s:'EUR/USD',w:'EURUSD',td:'EURUSD'},{s:'GBP/USD',w:'GBPUSD',td:'GBPUSD'},{s:'USD/JPY',w:'USDJPY',td:'USDJPY'},{s:'AUD/USD',w:'AUDUSD',td:'AUDUSD'},{s:'USD/CHF',w:'USDCHF',td:'USDCHF'},{s:'EUR/GBP',w:'EURGBP',td:'EURGBP'}],
-  commodities: [{s:'GOLD',w:'XAUUSD',td:'XAUUSD'},{s:'OIL WTI',w:'USOIL',td:null},{s:'SILVER',w:'XAGUSD',td:'XAGUSD'},{s:'NAT GAS',w:'NGAS',td:null}],
-  indices:     [{s:'S&P 500',w:'SPY',td:'SPY'},{s:'NASDAQ',w:'^IXIC',td:null},{s:'DAX',w:'^GDAXI',td:null},{s:'FTSE 100',w:'^FTSE',td:null}],
-  crypto:      [{s:'BTC/USD',w:'BTC-USD',fh:'BINANCE:BTCUSDT'},{s:'ETH/USD',w:'ETH-USD',fh:'BINANCE:ETHUSDT'},{s:'SOL/USD',w:'SOLUSD',fh:'BINANCE:SOLUSDT'},{s:'XRP/USD',w:'XRPUSD',fh:'BINANCE:XRPUSDT'}],
+  forex:  [
+    {s:'EUR/USD', td:'EURUSD', fh:'OANDA:EUR_USD'},
+    {s:'GBP/USD', td:'GBPUSD', fh:'OANDA:GBP_USD'},
+    {s:'USD/JPY', td:'USDJPY', fh:'OANDA:USD_JPY'},
+    {s:'USD/CHF', td:'USDCHF', fh:'OANDA:USD_CHF'},
+    {s:'AUD/USD', td:'AUDUSD', fh:'OANDA:AUD_USD'},
+    {s:'EUR/GBP', td:'EURGBP', fh:'OANDA:EUR_GBP'},
+  ],
+  crypto: [
+    {s:'BTC/USD', fh:'BINANCE:BTCUSDT'},
+    {s:'ETH/USD', fh:'BINANCE:ETHUSDT'},
+    {s:'SOL/USD', fh:'BINANCE:SOLUSDT'},
+    {s:'XRP/USD', fh:'BINANCE:XRPUSDT'},
+  ],
 };
-const TD_SYM = {'EURUSD':'EUR/USD','GBPUSD':'GBP/USD','USDJPY':'USD/JPY','AUDUSD':'AUD/USD','USDCHF':'USD/CHF','EURGBP':'EUR/GBP','XAUUSD':'XAU/USD','XAGUSD':'XAG/USD','SPY':'SPY'};
+
+const TS_INTERVALS = {
+  td: { '5m':'5min','15m':'15min','1h':'1h','4h':'4h','1d':'1day' },
+  fh: { '5m':'5','15m':'15','1h':'60','4h':'240','1d':'D' }
+};
+const TF_BARS = { '5m':50,'15m':50,'1h':50,'4h':50,'1d':50 };
 
 let tsCurrentTab = 'forex';
 let tsCache = {};
 
-function tsSigLabel(val, type) {
-  if (type === 'rsi') {
-    if (val < 30) return {l:'Oversold', c:'var(--green2)'};
-    if (val > 70) return {l:'Overbought', c:'var(--red2)'};
-    if (val < 45) return {l:'Buy', c:'var(--green2)'};
-    if (val > 55) return {l:'Sell', c:'var(--red2)'};
-    return {l:'Neutral', c:'var(--muted)'};
+function computeRSI(closes, period=14) {
+  if (closes.length < period+1) return null;
+  let gains=0, losses=0;
+  for (let i=closes.length-period; i<closes.length; i++) {
+    const d = closes[i]-closes[i-1];
+    if (d>0) gains+=d; else losses-=d;
   }
-  if (type === 'macd') {
-    if (val > 0.001) return {l:'Buy', c:'var(--green2)'};
-    if (val < -0.001) return {l:'Sell', c:'var(--red2)'};
-    return {l:'Neutral', c:'var(--muted)'};
-  }
-  if (type === 'ema') {
-    if (val > 0) return {l:'Bull', c:'var(--green2)'};
-    if (val < 0) return {l:'Bear', c:'var(--red2)'};
-    return {l:'Neutral', c:'var(--muted)'};
-  }
-  return {l:'—', c:'var(--muted)'};
+  const ag=gains/period, al=losses/period;
+  return al===0 ? 100 : parseFloat((100-100/(1+ag/al)).toFixed(1));
 }
 
-function tsOverallSig(rsiSig, macdSig, emaSig, price, ema20) {
+function computeEMA(arr, n) {
+  if (arr.length < n) return null;
+  const k=2/(n+1);
+  let e=arr.slice(0,n).reduce((a,b)=>a+b,0)/n;
+  for (let i=n; i<arr.length; i++) e=arr[i]*k+e*(1-k);
+  return e;
+}
+
+function computeMACD(closes) {
+  if (closes.length < 26) return null;
+  const e12=computeEMA(closes,12), e26=computeEMA(closes,26);
+  if (!e12||!e26) return null;
+  const macdLine=e12-e26;
+  // signal: EMA9 of last 9 macd values (approx)
+  const macdSeries=[];
+  for (let i=26; i<=closes.length; i++) {
+    const em12=computeEMA(closes.slice(0,i),12);
+    const em26=computeEMA(closes.slice(0,i),26);
+    if (em12&&em26) macdSeries.push(em12-em26);
+  }
+  const sig=computeEMA(macdSeries,9);
+  return sig!=null ? parseFloat((macdLine-sig).toFixed(6)) : null;
+}
+
+function tfSignal(closes, price) {
+  if (!closes || closes.length < 27) return null;
+  const rsi = computeRSI(closes);
+  const macdH = computeMACD(closes);
+  const ema20 = computeEMA(closes, 20);
+  const ema50 = computeEMA(closes, 50);
+  
   let score = 0;
-  if (rsiSig.l === 'Buy' || rsiSig.l === 'Oversold') score++;
-  if (rsiSig.l === 'Sell' || rsiSig.l === 'Overbought') score--;
-  if (macdSig.l === 'Buy') score++;
-  if (macdSig.l === 'Sell') score--;
-  if (emaSig.l === 'Bull') score++;
-  if (emaSig.l === 'Bear') score--;
-  if (score >= 2) return {l:'Strong Buy', c:'var(--green2)'};
-  if (score === 1) return {l:'Buy', c:'var(--green2)'};
-  if (score === -1) return {l:'Sell', c:'var(--red2)'};
-  if (score <= -2) return {l:'Strong Sell', c:'var(--red2)'};
-  return {l:'Neutral', c:'var(--muted)'};
+  if (rsi != null) { if (rsi<35) score+=2; else if (rsi<45) score+=1; else if (rsi>65) score-=2; else if (rsi>55) score-=1; }
+  if (macdH != null) { if (macdH>0) score+=1; else if (macdH<0) score-=1; }
+  if (ema20 && price) { if (price>ema20) score+=1; else score-=1; }
+  if (ema50 && price) { if (price>ema50) score+=1; else score-=1; }
+  
+  if (score>=3) return {l:'Strong Buy',c:'var(--green2)',sc:2};
+  if (score>=1) return {l:'Buy',c:'#6ee7b7',sc:1};
+  if (score<=-3) return {l:'Strong Sell',c:'var(--red2)',sc:-2};
+  if (score<=-1) return {l:'Sell',c:'#fca5a5',sc:-1};
+  return {l:'Neutral',c:'var(--muted)',sc:0};
+}
+
+async function fetchCandles(pair, interval) {
+  const tfs = ['5m','15m','1h','4h','1d'];
+  // Use TwelveData for FX
+  if (pair.td) {
+    try {
+      const tdInterval = TS_INTERVALS.td[interval];
+      const res = await fetch(WORKER, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({type:'twelvedata', action:'ohlcv', symbol:pair.td, interval:tdInterval, outputsize:TF_BARS[interval]}),
+        signal: AbortSignal.timeout(10000)
+      });
+      if (res.ok) {
+        const d = await res.json();
+        return (d.candles||[]).reverse().map(c=>c.close);
+      }
+    } catch(e) {}
+  }
+  // Use Finnhub for crypto
+  if (pair.fh) {
+    try {
+      const resolution = TS_INTERVALS.fh[interval];
+      const bars = TF_BARS[interval];
+      const now = Math.floor(Date.now()/1000);
+      const secPerBar = {'5m':300,'15m':900,'1h':3600,'4h':14400,'1d':86400};
+      const from = now - secPerBar[interval]*bars*2;
+      const res = await fetch(WORKER, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({type:'finnhub', action:'candles', symbol:pair.fh, assetType:'crypto', resolution, from, to:now}),
+        signal: AbortSignal.timeout(10000)
+      });
+      if (res.ok) {
+        const d = await res.json();
+        return (d.candles||[]).slice(-bars).map(c=>c.close);
+      }
+    } catch(e) {}
+  }
+  return null;
 }
 
 async function tsLoadTab(tab) {
-  if (tsCache[tab] && Date.now() - tsCache[tab].ts < 300000) {
-    tsRender(tab, tsCache[tab].data);
-    return;
+  if (tsCache[tab] && Date.now()-tsCache[tab].ts < 300000) {
+    tsRender(tab, tsCache[tab].data); return;
   }
   const tbody = document.getElementById('ts-body');
-  if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--muted);font-size:10px;letter-spacing:2px;">⟳ LOADING SIGNALS...</td></tr>';
+  if (tbody) tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--muted);font-size:10px;letter-spacing:2px;">⟳ LOADING SIGNALS...</td></tr>';
 
-  const pairs = TS_PAIRS[tab];
+  const pairs = TS_PAIRS[tab]||[];
   const results = [];
 
   await Promise.all(pairs.map(async (pair) => {
     try {
-      let price = null, rsi = null, macdHist = null, ema20 = null;
-
       // Fetch price
-      const priceRes = await fetch(WORKER, {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({type:'prices', pairs:[pair.w]}),
-        signal: AbortSignal.timeout(8000)
+      const wSym = pair.td ? pair.td : (pair.fh ? (pair.s==='BTC/USD'?'BTC-USD':pair.s==='ETH/USD'?'ETH-USD':pair.s==='SOL/USD'?'SOLUSD':'XRPUSD') : null);
+      let price = null;
+      if (wSym) {
+        const pr = await fetch(WORKER, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:'prices',pairs:[wSym]}),signal:AbortSignal.timeout(6000)});
+        if (pr.ok) { const pd=await pr.json(); price=pd.prices?.[wSym]?.price||null; }
+      }
+
+      // Fetch candles for each timeframe in parallel
+      const [c5m,c15m,c1h,c4h,c1d] = await Promise.all([
+        fetchCandles(pair,'5m'),
+        fetchCandles(pair,'15m'),
+        fetchCandles(pair,'1h'),
+        fetchCandles(pair,'4h'),
+        fetchCandles(pair,'1d'),
+      ]);
+
+      const p = price || (c1h&&c1h[c1h.length-1]) || null;
+      results.push({
+        pair, price:p,
+        sig5m:  tfSignal(c5m,  p),
+        sig15m: tfSignal(c15m, p),
+        sig1h:  tfSignal(c1h,  p),
+        sig4h:  tfSignal(c4h,  p),
+        sig1d:  tfSignal(c1d,  p),
       });
-      if (priceRes.ok) {
-        const pd = await priceRes.json();
-        price = pd.prices?.[pair.w]?.price || null;
-      }
-
-      // TwelveData for FX/commodities/stocks
-      if (pair.td) {
-        try {
-          const indRes = await fetch(WORKER, {
-            method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({type:'twelvedata', action:'indicators', symbol:pair.td, interval:'1h', indicators:['rsi','macd','ema']}),
-            signal: AbortSignal.timeout(12000)
-          });
-          if (indRes.ok) {
-            const ind = await indRes.json();
-            rsi = ind.rsi;
-            macdHist = ind.macd?.histogram || null;
-            ema20 = ind.ema_20;
-          }
-        } catch(e2) {}
-      }
-
-      // Finnhub candles for crypto — compute RSI/MACD locally
-      if (pair.fh && rsi === null) {
-        try {
-          const now = Math.floor(Date.now()/1000);
-          const from = now - 3600*50;
-          const candleRes = await fetch(WORKER, {
-            method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({type:'finnhub', action:'candles', symbol:pair.fh, assetType:'crypto', resolution:'60', from, to:now}),
-            signal: AbortSignal.timeout(10000)
-          });
-          if (candleRes.ok) {
-            const cd = await candleRes.json();
-            const closes = (cd.candles||[]).map(c=>c.close).filter(Boolean);
-            if (closes.length >= 26) {
-              // RSI(14)
-              let gains=0,losses=0;
-              for(let i=closes.length-14;i<closes.length;i++){const d=closes[i]-closes[i-1];if(d>0)gains+=d;else losses-=d;}
-              const avgG=gains/14,avgL=losses/14;
-              rsi = avgL===0?100:parseFloat((100-100/(1+avgG/avgL)).toFixed(1));
-              // EMA helper
-              const ema=(arr,n)=>{const k=2/(n+1);let e=arr.slice(0,n).reduce((a,b)=>a+b,0)/n;for(let i=n;i<arr.length;i++)e=arr[i]*k+e*(1-k);return e;};
-              const e12=ema(closes,12),e26=ema(closes,26);
-              const macdLine=e12-e26;
-              const prev12=ema(closes.slice(0,-1),12),prev26=ema(closes.slice(0,-1),26);
-              const prevMacd=prev12-prev26;
-              const sig=ema([...Array(8).fill(prevMacd),macdLine],9);
-              macdHist=parseFloat((macdLine-sig).toFixed(6));
-              ema20=parseFloat(ema(closes,20).toFixed(4));
-            }
-          }
-        } catch(e3) {}
-      }
-
-      const emaDiff = (price && ema20) ? price - ema20 : null;
-      results.push({pair, price, rsi, macdHist, emaDiff, ema20});
     } catch(e) {
-      results.push({pair, price:null, rsi:null, macdHist:null, emaDiff:null});
+      results.push({pair, price:null, sig5m:null, sig15m:null, sig1h:null, sig4h:null, sig1d:null});
     }
   }));
 
-  tsCache[tab] = {ts: Date.now(), data: results};
+  tsCache[tab] = {ts:Date.now(), data:results};
   tsRender(tab, results);
+}
+
+function sigCell(sig) {
+  if (!sig) return '<span style="color:var(--muted);font-size:9px;">—</span>';
+  return `<span style="font-size:9px;font-weight:600;letter-spacing:1px;color:${sig.c}">${sig.l}</span>`;
+}
+
+function overallSig(sigs) {
+  const valid = sigs.filter(Boolean);
+  if (!valid.length) return null;
+  const score = valid.reduce((a,s)=>a+s.sc,0);
+  const avg = score/valid.length;
+  if (avg>=1.2) return {l:'Strong Buy',c:'var(--green2)'};
+  if (avg>=0.3) return {l:'Buy',c:'#6ee7b7'};
+  if (avg<=-1.2) return {l:'Strong Sell',c:'var(--red2)'};
+  if (avg<=-0.3) return {l:'Sell',c:'#fca5a5'};
+  return {l:'Neutral',c:'var(--muted)'};
 }
 
 function tsRender(tab, results) {
   const tbody = document.getElementById('ts-body');
   if (!tbody) return;
-  let buys=0, sells=0, neus=0;
+  let buys=0,sells=0,neus=0;
 
   tbody.innerHTML = results.map(r => {
-    const rsiSig  = r.rsi      != null ? tsSigLabel(r.rsi, 'rsi')        : {l:'—',c:'var(--muted)'};
-    const macdSig = r.macdHist != null ? tsSigLabel(r.macdHist, 'macd')  : {l:'—',c:'var(--muted)'};
-    const emaSig  = r.emaDiff  != null ? tsSigLabel(r.emaDiff, 'ema')    : {l:'—',c:'var(--muted)'};
-    const overall = (r.rsi != null || r.macdHist != null) ? tsOverallSig(rsiSig, macdSig, emaSig) : {l:'—',c:'var(--muted)'};
-
-    if (overall.l.includes('Buy')) buys++;
-    else if (overall.l.includes('Sell')) sells++;
-    else neus++;
-
-    const priceStr = r.price ? (r.price > 1000 ? Math.round(r.price).toLocaleString('en-US') : r.price > 10 ? r.price.toFixed(2) : r.price.toFixed(4)) : '—';
-
+    const sigs = [r.sig5m,r.sig15m,r.sig1h,r.sig4h,r.sig1d];
+    const ov = overallSig(sigs);
+    if (ov) { if (ov.l.includes('Buy')) buys++; else if (ov.l.includes('Sell')) sells++; else neus++; }
+    const p = r.price;
+    const priceStr = !p?'—':p>1000?Math.round(p).toLocaleString('en-US'):p>10?p.toFixed(2):p.toFixed(4);
     return `<tr style="border-bottom:1px solid var(--border);">
       <td style="padding:6px 14px;color:var(--ink);font-weight:500;">${r.pair.s}</td>
-      <td style="padding:6px 10px;text-align:right;color:var(--ink2);">${priceStr}</td>
-      <td style="padding:6px 10px;text-align:center;font-size:10px;color:${rsiSig.c}">${r.rsi != null ? r.rsi.toFixed(1)+' · '+rsiSig.l : '—'}</td>
-      <td style="padding:6px 10px;text-align:center;font-size:10px;color:${macdSig.c}">${macdSig.l}</td>
-      <td style="padding:6px 10px;text-align:center;font-size:10px;color:${emaSig.c}">${emaSig.l}</td>
-      <td style="padding:6px 10px;text-align:center;font-size:10px;font-weight:600;color:${overall.c}">${overall.l}</td>
+      <td style="padding:6px 8px;text-align:right;color:var(--ink2);font-size:11px;">${priceStr}</td>
+      <td style="padding:6px 8px;text-align:center;">${sigCell(r.sig5m)}</td>
+      <td style="padding:6px 8px;text-align:center;">${sigCell(r.sig15m)}</td>
+      <td style="padding:6px 8px;text-align:center;">${sigCell(r.sig1h)}</td>
+      <td style="padding:6px 8px;text-align:center;">${sigCell(r.sig4h)}</td>
+      <td style="padding:6px 8px;text-align:center;">${sigCell(r.sig1d)}</td>
+      <td style="padding:6px 8px;text-align:center;">${ov?`<span style="font-size:9px;font-weight:700;letter-spacing:1px;color:${ov.c}">${ov.l}</span>`:'<span style="color:var(--muted)">—</span>'}</td>
     </tr>`;
   }).join('');
 
-  const total = buys+sells+neus||1;
-  const gSell = document.getElementById('ts-g-sell');
-  const gNeu  = document.getElementById('ts-g-neu');
-  const gBuy  = document.getElementById('ts-g-buy');
-  if (gSell) gSell.style.width = Math.round(sells/total*100)+'%';
-  if (gNeu)  gNeu.style.width  = Math.round(neus/total*100)+'%';
-  if (gBuy)  gBuy.style.width  = Math.round(buys/total*100)+'%';
-  const sn = document.getElementById('ts-sell-n'); if (sn) sn.textContent = sells;
-  const bn = document.getElementById('ts-buy-n');  if (bn) bn.textContent = buys;
-  const ov = document.getElementById('ts-overall');
-  if (ov) {
-    const label = buys > sells ? 'BUY' : sells > buys ? 'SELL' : 'NEUTRAL';
-    ov.textContent = label;
-    ov.style.color = buys > sells ? 'var(--green2)' : sells > buys ? 'var(--red2)' : 'var(--muted)';
-  }
-  const sb = document.getElementById('ts-summary-bar'); if (sb) sb.style.display = 'flex';
+  const total=buys+sells+neus||1;
+  const gs=document.getElementById('ts-g-sell'); if(gs) gs.style.width=Math.round(sells/total*100)+'%';
+  const gn=document.getElementById('ts-g-neu');  if(gn) gn.style.width=Math.round(neus/total*100)+'%';
+  const gb=document.getElementById('ts-g-buy');  if(gb) gb.style.width=Math.round(buys/total*100)+'%';
+  const sn=document.getElementById('ts-sell-n'); if(sn) sn.textContent=sells;
+  const bn=document.getElementById('ts-buy-n');  if(bn) bn.textContent=buys;
+  const ov2=document.getElementById('ts-overall');
+  if(ov2){const lbl=buys>sells?'BUY':sells>buys?'SELL':'NEUTRAL';ov2.textContent=lbl;ov2.style.color=buys>sells?'var(--green2)':sells>buys?'var(--red2)':'var(--muted)';}
+  const sb=document.getElementById('ts-summary-bar'); if(sb) sb.style.display='flex';
   const n=new Date(),hm=n.getHours().toString().padStart(2,'0')+':'+n.getMinutes().toString().padStart(2,'0');
-  const tt = document.getElementById('ts-time'); if (tt) tt.textContent = '✓ '+hm+' CET · H1';
+  const tt=document.getElementById('ts-time'); if(tt) tt.textContent='✓ '+hm+' CET';
 }
 
 function tsTab(tab) {
-  tsCurrentTab = tab;
-  ['forex','commodities','indices','crypto'].forEach(t => {
-    const btn = document.getElementById('ts-tab-'+t);
-    if (btn) {
-      btn.style.borderBottomColor = t===tab ? 'var(--gold)' : 'transparent';
-      btn.style.color = t===tab ? 'var(--gold)' : 'var(--muted)';
-    }
+  tsCurrentTab=tab;
+  ['forex','commodities','indices','crypto'].forEach(t=>{
+    const btn=document.getElementById('ts-tab-'+t);
+    if(btn){btn.style.borderBottomColor=t===tab?'var(--gold)':'transparent';btn.style.color=t===tab?'var(--gold)':'var(--muted)';}
   });
   tsLoadTab(tab);
 }
-
 </script>
 <!-- ADMIN LOGIN POPUP -->
 <div id="admin-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9000;" onclick="closeAdminLogin()"></div>
