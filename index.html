@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<meta name="generated" content="XENOS_TS">
+<meta name="generated" content="20260406143921">
 <title>XenosFinance — Financial Analytics</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=PT+Serif:wght@400;700&family=PT+Mono&display=swap" rel="stylesheet">
 <style>
@@ -72,9 +72,9 @@ body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:10
 <body>
 <div class="masthead">
   <div class="masthead-top">
-    <span id="live-date">APRIL 9, 2026</span>
+    <span id="live-date">APRIL 6, 2026</span>
     <span>XENOSFINANCE · FINANCIAL ANALYTICS</span>
-    <span id="live-time">UPDATED AT 17:48 CET</span>
+    <span id="live-time">UPDATED AT 14:39 CET</span>
   </div>
   <div class="masthead-center">
     <div class="masthead-eyebrow">Financial Intelligence · Global Markets</div>
@@ -97,7 +97,6 @@ body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:10
   </div>
 </div>
 <div class="wrap"><div class="newspaper">
-<!-- XENOS_INJECT_START -->
 <div class="hero">
   <div class="hero-main">
     <div class="hero-label">⚡ Top Story</div>
@@ -134,7 +133,6 @@ body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:10
     <div id="flash-feed"></div>
   </div>
 </div>
-<!-- XENOS_INJECT_END -->
 <div class="bottom-bar">
   <span>© XENOSFINANCE 2026</span>
   <span>Sources: Reuters · CNBC · Yahoo Finance · Al Jazeera · NYT</span>
@@ -142,66 +140,86 @@ body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:10
 </div>
 </div></div>
 <script>
+const WORKER='https://xenos-ai-proxy.xenosfinance.workers.dev';
 const SYMS=[
-  {id:'OIL',   yf:'CL%3DF',     label:'OIL WTI', dec:2,prefix:'$'},
-  {id:'GOLD',  yf:'GC%3DF',     label:'GOLD',    dec:2,prefix:'$'},
-  {id:'EURUSD',yf:'EURUSD%3DX', label:'EUR/USD', dec:4,prefix:''},
-  {id:'BTCUSD',yf:'BTC-USD',    label:'BTC/USD', dec:0,prefix:'$',comma:true},
-  {id:'SPY',   yf:'SPY',        label:'S&P 500', dec:2,prefix:'$'},
-  {id:'NASDAQ',yf:'%5EIXIC',    label:'NASDAQ',  dec:0,prefix:'$',comma:true},
-  {id:'USDJPY',yf:'USDJPY%3DX', label:'USD/JPY', dec:4,prefix:''},
-  {id:'SILVER',yf:'SI%3DF',     label:'SILVER',  dec:2,prefix:'$'},
-  {id:'NGAS',  yf:'NG%3DF',     label:'NAT GAS', dec:3,prefix:'$'},
-  {id:'DAX',   yf:'%5EGDAXI',   label:'DAX',     dec:0,prefix:'',comma:true},
+  {id:'OIL',  wk:'USOIL',   label:'OIL WTI',dec:2,prefix:'$'},
+  {id:'GOLD', wk:'XAUUSD',  label:'GOLD',   dec:2,prefix:'$'},
+  {id:'EURUSD',wk:'EURUSD', label:'EUR/USD',dec:4,prefix:''},
+  {id:'BTCUSD',wk:'BTC-USD',label:'BTC/USD',dec:0,prefix:'$',comma:true},
+  {id:'SPY',  wk:'SPY',     label:'S&P 500',dec:2,prefix:'$'},
+  {id:'NASDAQ',wk:'%5EIXIC',label:'NASDAQ', dec:0,prefix:'$',comma:true},
+  {id:'USDJPY',wk:'USDJPY', label:'USD/JPY',dec:4,prefix:''},
+  {id:'SILVER',wk:'XAGUSD', label:'SILVER', dec:2,prefix:'$'},
+  {id:'NGAS', wk:'NGAS',    label:'NAT GAS',dec:3,prefix:'$'},
+  {id:'DAX',  wk:'%5EGDAXI',label:'DAX',    dec:0,prefix:'',comma:true},
 ];
-function fmtP(s,p){if(s.comma)return s.prefix+Math.round(p).toLocaleString('ru-RU');return s.prefix+p.toFixed(s.dec);}
-async function fetchSym(s){
-  const u=`https://query1.finance.yahoo.com/v8/finance/chart/${s.yf}?range=5d&interval=1d`;
-  const px=[`https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,`https://corsproxy.io/?${encodeURIComponent(u)}`];
-  for(const p of px){try{const r=await fetch(p,{signal:AbortSignal.timeout(9000)});if(!r.ok)continue;const d=await r.json();const res=d.chart?.result?.[0];if(!res)continue;const cls=res.indicators.quote[0].close.filter(x=>x!==null);if(cls.length<2)continue;const price=cls[cls.length-1];const meta=res.meta||{};const prev=parseFloat(meta.previousClose||meta.chartPreviousClose||cls[cls.length-2]);return{price,chg:((price-prev)/prev)*100};}catch(e){continue;}}return null;
-}
+function fmtP(s,p){if(s.comma)return s.prefix+Math.round(p).toLocaleString('en-US');return s.prefix+p.toFixed(s.dec);}
+
 async function updateMarkets(){
-  let th='';
-  for(const s of SYMS){
-    const d=await fetchSym(s);if(!d)continue;
-    const up=d.chg>=0,ps=fmtP(s,d.price),cs=(up?'+':'')+d.chg.toFixed(2)+'%',arr=up?'▲':'▼';
-    const pe=document.getElementById('p-'+s.id);if(pe)pe.textContent=ps;
-    const ce=document.getElementById('c-'+s.id);if(ce){ce.textContent=arr+' '+cs;ce.className='s-chg '+(up?'t-up':'t-dn');}
-    const be=document.getElementById('b-'+s.id);if(be){be.style.width=Math.min(Math.abs(d.chg)*25+30,95)+'%';be.style.background=up?'var(--green2)':'var(--red2)';}
-    th+=`<span class="t-item"><span class="t-sym">${s.label}</span><span class="${up?'t-up':'t-dn'}">${ps}</span><span class="${up?'t-up':'t-dn'}">${arr} ${cs}</span></span>`;
-  }
-  if(th){const ti=document.getElementById('ticker-inner');if(ti)ti.innerHTML=th+th;}
+  try{
+    const res=await fetch(WORKER,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({type:'prices',pairs:SYMS.map(s=>s.wk)}),signal:AbortSignal.timeout(6000)});
+    if(!res.ok)return;
+    const prices=(await res.json()).prices||{};
+    let th='';
+    for(const s of SYMS){
+      const p=prices[s.wk];if(!p?.price)continue;
+      const up=(p.change_pct||0)>=0,ps=fmtP(s,p.price),cs=(up?'+':'')+(p.change_pct||0).toFixed(2)+'%',arr=up?'▲':'▼';
+      const pe=document.getElementById('p-'+s.id);if(pe)pe.textContent=ps;
+      const ce=document.getElementById('c-'+s.id);if(ce){ce.textContent=arr+' '+cs;ce.className='s-chg '+(up?'t-up':'t-dn');}
+      const be=document.getElementById('b-'+s.id);if(be){be.style.width=Math.min(Math.abs(p.change_pct||0)*25+30,95)+'%';be.style.background=up?'var(--green2)':'var(--red2)';}
+      th+=`<span class="t-item"><span class="t-sym">${s.label}</span><span class="${up?'t-up':'t-dn'}">${ps}</span><span class="${up?'t-up':'t-dn'}">${arr} ${cs}</span></span>`;
+    }
+    if(th){const ti=document.getElementById('ticker-inner');if(ti)ti.innerHTML=th+th;}
+  }catch(e){}
   const n=new Date(),hm=n.getHours().toString().padStart(2,'0')+':'+n.getMinutes().toString().padStart(2,'0');
   const months=['JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE','JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'];
   const ld=document.getElementById('live-date');if(ld)ld.textContent=months[n.getMonth()]+' '+n.getDate()+', '+n.getFullYear();
   const lt=document.getElementById('live-time');if(lt)lt.textContent='UPDATED AT '+hm+' CET';
   const ss=document.getElementById('snap-status');if(ss)ss.textContent='✓ '+hm;
 }
-const NEWS_FEEDS=[
-  {url:'https://finance.yahoo.com/rss/topstories',source:'Yahoo Finance',cat:'markets'},
-  {url:'https://finance.yahoo.com/rss/news',source:'Yahoo News',cat:'macro'},
-  {url:'https://www.cnbc.com/id/100003114/device/rss/rss.html',source:'CNBC',cat:'markets'},
-  {url:'https://feeds.reuters.com/reuters/businessNews',source:'Reuters',cat:'markets'},
-  {url:'https://feeds.reuters.com/reuters/worldNews',source:'Reuters World',cat:'geo'},
-  {url:'https://www.aljazeera.com/xml/rss/all.xml',source:'Al Jazeera',cat:'geo'},
-  {url:'https://rss.nytimes.com/services/xml/rss/nyt/Business.xml',source:'NYT',cat:'markets'},
-];
+
 const MKT_KW=['gold','oil','crude','fed','federal reserve','rate','inflation','gdp','nasdaq','s&p','dow','futures','stock','market','treasury','dollar','euro','tariff','trade','trump','china','sanctions','ukraine','russia','opec','energy','bitcoin','crypto','earnings','recession','bank','ecb','wall street','nvidia','apple'];
 function isRel(t){const s=t.toLowerCase();return MKT_KW.some(k=>s.includes(k));}
-const TR=[[/federal reserve/gi,'ФРС'],[/the fed/gi,'ФРС'],[/wall street/gi,'Уолл-стрит'],[/stock market/gi,'фондовый рынок'],[/stocks?/gi,'акции'],[/interest rates?/gi,'процентные ставки'],[/inflation/gi,'инфляция'],[/gdp/gi,'ВВП'],[/recession/gi,'рецессия'],[/crude oil/gi,'сырая нефть'],[/tariffs?/gi,'тарифы'],[/trade war/gi,'торговая война'],[/sanctions/gi,'санкции'],[/dollar/gi,'доллар'],[/earnings/gi,'прибыль'],[/rises?/gi,'растёт'],[/falls?/gi,'падает'],[/surges?/gi,'резко растёт'],[/plunges?/gi,'обрушивается'],[/gains?/gi,'прибавляет'],[/drops?/gi,'снижается'],[/(\d+(\.\d+)?)\s*billion/gi,'$1 млрд'],[/(\d+(\.\d+)?)\s*million/gi,'$1 млн']];
-function translate(t){for(const[re,ru]of TR)t=t.replace(re,ru);return t.charAt(0).toUpperCase()+t.slice(1);}
-function detectImpact(t){const s=t.toLowerCase();const tags=[];if(['gold rises','safe haven','inflation','war','sanctions'].some(k=>s.includes(k)))tags.push({asset:'Gold',dir:'bull'});if(['gold falls','dollar strong'].some(k=>s.includes(k)))tags.push({asset:'Gold',dir:'bear'});if(['oil rises','opec cut','iran'].some(k=>s.includes(k)))tags.push({asset:'Oil',dir:'bull'});if(['oil falls','oversupply'].some(k=>s.includes(k)))tags.push({asset:'Oil',dir:'bear'});if(['stocks rise','rally','earnings beat'].some(k=>s.includes(k)))tags.push({asset:'S&P 500',dir:'bull'});if(['stocks fall','selloff','tariff'].some(k=>s.includes(k)))tags.push({asset:'S&P 500',dir:'bear'});return tags.slice(0,2);}
+function detectImpact(t){const s=t.toLowerCase();const tags=[];
+  if(['gold rises','safe haven','inflation','war','sanctions'].some(k=>s.includes(k)))tags.push({asset:'Gold',dir:'bull'});
+  if(['gold falls','dollar strong'].some(k=>s.includes(k)))tags.push({asset:'Gold',dir:'bear'});
+  if(['oil rises','opec cut','iran'].some(k=>s.includes(k)))tags.push({asset:'Oil',dir:'bull'});
+  if(['oil falls','oversupply'].some(k=>s.includes(k)))tags.push({asset:'Oil',dir:'bear'});
+  if(['stocks rise','rally','earnings beat'].some(k=>s.includes(k)))tags.push({asset:'S&P 500',dir:'bull'});
+  if(['stocks fall','selloff','tariff'].some(k=>s.includes(k)))tags.push({asset:'S&P 500',dir:'bear'});
+  return tags.slice(0,2);
+}
 function tagHtml(t){const cls=t.dir==='bull'?'tag-bull':'tag-bear';const arr=t.dir==='bull'?'▲':'▼';return`<span class="story-tag ${cls}">${arr} ${t.asset}</span>`;}
 function storyHtml(it){const lnk=it.link?`href="${it.link}" target="_blank"`:'';const aO=lnk?`<a ${lnk}>`:'';const aC=lnk?'</a>':'';const desc=it.desc?`<div class="story-desc">${it.desc.substring(0,160)}...</div>`:'';const tags=it.impacts.map(tagHtml).join(' ');return`<div class="story"><div class="story-src">📰 ${it.source.toUpperCase()}</div><div class="story-hl">${aO}${it.title}${aC}</div>${desc}<div style="margin-top:6px">${tags}</div></div>`;}
-async function fetchFeed(feed){
-  const proxies=[`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feed.url)}&count=20`,`https://api.allorigins.win/raw?url=${encodeURIComponent(feed.url)}`,`https://corsproxy.io/?${encodeURIComponent(feed.url)}`];
-  try{const r=await fetch(proxies[0],{signal:AbortSignal.timeout(8000)});if(r.ok){const d=await r.json();if(d.status==='ok'&&d.items?.length){return d.items.map(it=>{const raw=it.title?.trim()||'';const desc=(it.description||it.content||'').replace(/<[^>]+>/g,'').trim();if(!raw||raw.length<10)return null;if(!isRel(raw+' '+desc))return null;return{title:translate(raw),desc:desc.substring(0,300),link:it.link||'',source:feed.source,cat:feed.cat,impacts:detectImpact(raw+' '+desc)};}). filter(Boolean);}}}catch(e){}
-  for(const p of proxies.slice(1)){try{const r=await fetch(p,{signal:AbortSignal.timeout(8000)});if(!r.ok)continue;const txt=await r.text();if(!txt||txt.length<100)continue;const doc=new DOMParser().parseFromString(txt,'text/xml');if(doc.querySelector('parsererror'))continue;const items=[];for(const el of doc.querySelectorAll('item')){const raw=el.querySelector('title')?.textContent?.trim()||'';const desc=(el.querySelector('description')?.textContent||'').replace(/<[^>]+>/g,'').trim();const link=el.querySelector('link')?.textContent?.trim()||'';if(!raw||raw.length<10)continue;if(!isRel(raw+' '+desc))continue;items.push({title:translate(raw),desc:desc.substring(0,300),link,source:feed.source,cat:feed.cat,impacts:detectImpact(raw+' '+desc)});}if(items.length)return items;}catch(e){continue;}}return[];
+
+async function fetchFinnhubNews(){
+  try{
+    const res=await fetch(WORKER,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({type:'finnhub',action:'market_news',category:'general'}),signal:AbortSignal.timeout(5000)});
+    if(!res.ok)return[];
+    return((await res.json()).news||[]).map(a=>({title:a.headline,desc:a.summary||'',link:a.url||'',source:a.source||'Finnhub',cat:'markets',impacts:detectImpact(a.headline+' '+(a.summary||''))})).filter(a=>isRel(a.title));
+  }catch(e){return[];}
 }
+
+async function fetchBarchart(url,source,cat){
+  try{
+    const res=await fetch(WORKER,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({type:'barchart',url}),signal:AbortSignal.timeout(5000)});
+    if(!res.ok)return[];
+    return((await res.json()).items||[]).filter(it=>isRel(it.title+' '+(it.desc||''))).map(it=>({title:it.title,desc:it.desc||'',link:it.link||'',source,cat,impacts:detectImpact(it.title+' '+(it.desc||''))}));
+  }catch(e){return[];}
+}
+
 async function loadNews(){
   const st=document.getElementById('news-status');if(st)st.textContent='⟳ Loading...';
-  const results=await Promise.allSettled(NEWS_FEEDS.map(f=>fetchFeed(f)));
-  let all=[];for(const r of results)if(r.status==='fulfilled')all=all.concat(r.value);
+  const [r1,r2,r3]=await Promise.allSettled([
+    fetchFinnhubNews(),
+    fetchBarchart('https://www.barchart.com/news/rss','Barchart','markets'),
+    fetchBarchart('https://feeds.reuters.com/reuters/businessNews','Reuters','markets'),
+  ]);
+  let all=[];
+  for(const r of [r1,r2,r3])if(r.status==='fulfilled')all=all.concat(r.value);
   if(!all.length){if(st)st.textContent='⚠ Temporarily unavailable';return;}
   const seen=new Set();
   const uniq=all.filter(it=>{const k=it.title.substring(0,40).toLowerCase();if(seen.has(k))return false;seen.add(k);return true;});
@@ -215,14 +233,23 @@ async function loadNews(){
     const hb=document.getElementById('hero-byline');if(hb)hb.textContent=top.source+' · '+hm+' CET';
     const he=document.getElementById('hero-extras');if(he)he.innerHTML=uniq.slice(1,3).map(storyHtml).join('');
   }
-  const c1=document.getElementById('col1');if(c1){const items=uniq.filter(i=>['markets','macro'].includes(i.cat)).slice(0,4);c1.innerHTML=items.length?items.map(storyHtml).join(''):storyHtml(uniq[3]||uniq[2]);}
-  const c2=document.getElementById('col2');if(c2){const items=uniq.filter(i=>i.cat==='geo').slice(0,4);c2.innerHTML=items.length?items.map(storyHtml).join(''):storyHtml(uniq[5]||uniq[4]);}
+  const c1=document.getElementById('col1');if(c1)c1.innerHTML=uniq.slice(0,4).map(storyHtml).join('');
+  const c2=document.getElementById('col2');if(c2)c2.innerHTML=uniq.slice(4,8).map(storyHtml).join('');
   const fl=document.getElementById('flash-feed');
-  if(fl){const n=new Date(),hm=n.getHours().toString().padStart(2,'0')+':'+n.getMinutes().toString().padStart(2,'0');fl.innerHTML=uniq.slice(6,14).map(it=>`<div class="flash-item"><div class="flash-time">${hm}</div><div class="flash-hl">${it.link?`<a href="${it.link}" target="_blank">`:''}<br>${it.title.substring(0,90)}${it.link?'</a>':''}</div></div>`).join('');}
+  if(fl){const n=new Date(),hm=n.getHours().toString().padStart(2,'0')+':'+n.getMinutes().toString().padStart(2,'0');fl.innerHTML=uniq.slice(8,16).map(it=>`<div class="flash-item"><div class="flash-time">${hm}</div><div class="flash-hl">${it.link?`<a href="${it.link}" target="_blank">`:''}${it.title.substring(0,90)}${it.link?'</a>':''}</div></div>`).join('');}
   const n=new Date(),hm=n.getHours().toString().padStart(2,'0')+':'+n.getMinutes().toString().padStart(2,'0');
   if(st)st.textContent=`✓ ${uniq.length} stories · ${hm} CET`;
 }
-document.addEventListener('DOMContentLoaded',()=>{updateMarkets();loadNews();setInterval(updateMarkets,60000);setInterval(loadNews,300000);});
+
+document.addEventListener('DOMContentLoaded',()=>{
+  const n=new Date();
+  const months=['JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE','JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'];
+  const ld=document.getElementById('live-date');if(ld)ld.textContent=months[n.getMonth()]+' '+n.getDate()+', '+n.getFullYear();
+  updateMarkets();
+  loadNews();
+  setInterval(updateMarkets,60000);
+  setInterval(loadNews,300000);
+});
 </script>
 </body>
 </html>
