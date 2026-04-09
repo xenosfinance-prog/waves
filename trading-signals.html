@@ -864,17 +864,29 @@ async function deleteClosedSignal(event, idx) {
 // ── INIT ─────────────────────────────────────────────────────
 
 // TradingView symbol map for mini charts
+// OANDA for FX, CAPITALCOM for commodities (NYMEX/ICE futures not available on free TV)
 const TV_SYM_MAP = {
   'EURUSD':'OANDA:EURUSD','GBPUSD':'OANDA:GBPUSD','USDJPY':'OANDA:USDJPY',
   'USDCHF':'OANDA:USDCHF','AUDUSD':'OANDA:AUDUSD','NZDUSD':'OANDA:NZDUSD',
   'USDCAD':'OANDA:USDCAD','EURGBP':'OANDA:EURGBP','EURJPY':'OANDA:EURJPY',
   'GBPJPY':'OANDA:GBPJPY','CADJPY':'OANDA:CADJPY','AUDNZD':'OANDA:AUDNZD',
-  'EURCHF':'OANDA:EURCHF','GBPCHF':'OANDA:GBPCHF',
-  'XAUUSD':'OANDA:XAUUSD','XAGUSD':'OANDA:XAGUSD',
-  'USOIL':'NYMEX:CL1!','UKOIL':'ICEEUR:B1!','NGAS':'NYMEX:NG1!',
+  'EURCHF':'OANDA:EURCHF','GBPCHF':'OANDA:GBPCHF','AUDCAD':'OANDA:AUDCAD',
+  'XAUUSD':'CAPITALCOM:GOLD',    // Gold — works on free TV
+  'XAGUSD':'CAPITALCOM:SILVER',  // Silver
+  'USOIL':'CAPITALCOM:OIL_CRUDE',// WTI Crude
+  'UKOIL':'CAPITALCOM:OIL',      // Brent
+  'NGAS':'CAPITALCOM:NATURALGAS',// Natural Gas
+  'COPPER':'CAPITALCOM:COPPER',
+  'US500':'CAPITALCOM:US500',
+  'US30':'CAPITALCOM:DOW',
+  'NAS100':'CAPITALCOM:NDAQ',
+  'UK100':'CAPITALCOM:UK100',
+  'GER40':'CAPITALCOM:DE40',
   'BTCUSD':'BINANCE:BTCUSDT','ETHUSD':'BINANCE:ETHUSDT',
   'SOLUSD':'BINANCE:SOLUSDT','XRPUSD':'BINANCE:XRPUSDT',
-  'SPY':'AMEX:SPY','AAPL':'NASDAQ:AAPL',
+  'DOGEUSD':'BINANCE:DOGEUSDT','AVAXUSD':'BINANCE:AVAXUSDT',
+  'SPY':'AMEX:SPY','AAPL':'NASDAQ:AAPL','TSLA':'NASDAQ:TSLA',
+  'NVDA':'NASDAQ:NVDA','MSFT':'NASDAQ:MSFT','AMZN':'NASDAQ:AMZN',
 };
 
 function injectTVChart(containerId, pair, tf) {
@@ -1078,27 +1090,28 @@ async function deleteSignal(event, i, type) {
 }
 
 // ── TECHNICAL SUMMARY ────────────────────────────────────────
-// wSym = symbol sent to Worker type:'prices' (must match YAHOO_SYMBOL_MAP or FX_PAIRS in Worker)
-// td   = symbol for TwelveData OHLCV candles (uses TD_SYMBOL_MAP: 'EURUSD' → 'EUR/USD')
-// fh   = symbol for Finnhub candles (crypto only)
+// wSym  = symbol for Worker type:'prices' (live price)
+// yfSym = symbol for Worker type:'yahoocandles' (OHLCV candles, primary)
+// td    = TwelveData symbol fallback
+// fh    = Finnhub symbol (crypto candles fallback)
 const TS_PAIRS = {
   forex: [
-    {s:'EUR/USD', wSym:'EURUSD', td:'EURUSD', fh:'OANDA:EUR_USD'},
-    {s:'GBP/USD', wSym:'GBPUSD', td:'GBPUSD', fh:'OANDA:GBP_USD'},
-    {s:'USD/JPY', wSym:'USDJPY', td:'USDJPY', fh:'OANDA:USD_JPY'},
-    {s:'USD/CHF', wSym:'USDCHF', td:'USDCHF', fh:'OANDA:USD_CHF'},
-    {s:'AUD/USD', wSym:'AUDUSD', td:'AUDUSD', fh:'OANDA:AUD_USD'},
-    {s:'NZD/USD', wSym:'NZDUSD', td:'NZDUSD', fh:'OANDA:NZD_USD'},
-    {s:'USD/CAD', wSym:'USDCAD', td:'USDCAD', fh:'OANDA:USD_CAD'},
-    {s:'EUR/GBP', wSym:'EURGBP', td:'EURGBP', fh:'OANDA:EUR_GBP'},
-    {s:'EUR/JPY', wSym:'EURJPY', td:'EURJPY', fh:'OANDA:EUR_JPY'},
-    {s:'GBP/JPY', wSym:'GBPJPY', td:'GBPJPY', fh:'OANDA:GBP_JPY'},
+    {s:'EUR/USD', wSym:'EURUSD', yfSym:'EURUSD=X', td:'EURUSD', fh:'OANDA:EUR_USD'},
+    {s:'GBP/USD', wSym:'GBPUSD', yfSym:'GBPUSD=X', td:'GBPUSD', fh:'OANDA:GBP_USD'},
+    {s:'USD/JPY', wSym:'USDJPY', yfSym:'USDJPY=X', td:'USDJPY', fh:'OANDA:USD_JPY'},
+    {s:'USD/CHF', wSym:'USDCHF', yfSym:'USDCHF=X', td:'USDCHF', fh:'OANDA:USD_CHF'},
+    {s:'AUD/USD', wSym:'AUDUSD', yfSym:'AUDUSD=X', td:'AUDUSD', fh:'OANDA:AUD_USD'},
+    {s:'NZD/USD', wSym:'NZDUSD', yfSym:'NZDUSD=X', td:'NZDUSD', fh:'OANDA:NZD_USD'},
+    {s:'USD/CAD', wSym:'USDCAD', yfSym:'USDCAD=X', td:'USDCAD', fh:'OANDA:USD_CAD'},
+    {s:'EUR/GBP', wSym:'EURGBP', yfSym:'EURGBP=X', td:'EURGBP', fh:'OANDA:EUR_GBP'},
+    {s:'EUR/JPY', wSym:'EURJPY', yfSym:'EURJPY=X', td:'EURJPY', fh:'OANDA:EUR_JPY'},
+    {s:'GBP/JPY', wSym:'GBPJPY', yfSym:'GBPJPY=X', td:'GBPJPY', fh:'OANDA:GBP_JPY'},
   ],
   crypto: [
-    {s:'BTC/USD', wSym:'BTC-USD', fh:'BINANCE:BTCUSDT'},
-    {s:'ETH/USD', wSym:'ETH-USD', fh:'BINANCE:ETHUSDT'},
-    {s:'SOL/USD', wSym:'SOL-USD', fh:'BINANCE:SOLUSDT'},
-    {s:'XRP/USD', wSym:'XRP-USD', fh:'BINANCE:XRPUSDT'},
+    {s:'BTC/USD', wSym:'BTC-USD', yfSym:'BTC-USD', fh:'BINANCE:BTCUSDT'},
+    {s:'ETH/USD', wSym:'ETH-USD', yfSym:'ETH-USD', fh:'BINANCE:ETHUSDT'},
+    {s:'SOL/USD', wSym:'SOL-USD', yfSym:'SOL-USD', fh:'BINANCE:SOLUSDT'},
+    {s:'XRP/USD', wSym:'XRP-USD', yfSym:'XRP-USD', fh:'BINANCE:XRPUSDT'},
   ],
 };
 
@@ -1166,42 +1179,72 @@ function tfSignal(closes, price) {
   return {l:'Neutral',c:'var(--muted)',sc:0};
 }
 
+// Yahoo Finance range/interval map for each timeframe
+const YF_TF = {
+  '5m':  {interval:'5m',  range:'1d'},
+  '15m': {interval:'15m', range:'5d'},
+  '1h':  {interval:'1h',  range:'1mo'},
+  '4h':  {interval:'1h',  range:'3mo'}, // Yahoo has no 4h; use 1h × 3mo, we take last 50
+  '1d':  {interval:'1d',  range:'6mo'},
+};
+
 async function fetchCandles(pair, interval) {
-  const tfs = ['5m','15m','1h','4h','1d'];
-  // Use TwelveData for FX
+  const bars = TF_BARS[interval] || 50;
+
+  // ── Yahoo candles (FX + crypto) via Worker yahoocandles ──
+  if (pair.yfSym) {
+    try {
+      const {interval: yfi, range} = YF_TF[interval] || {interval:'1h', range:'1mo'};
+      const res = await fetch(WORKER, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({type:'yahoocandles', symbol:pair.yfSym, interval:yfi, range}),
+        signal: AbortSignal.timeout(12000)
+      });
+      if (res.ok) {
+        const d = await res.json();
+        const candles = (d.candles||[]).slice(-bars);
+        if (candles.length >= 27) return candles.map(c => c.close);
+      }
+    } catch(e) {}
+  }
+
+  // ── TwelveData fallback for FX ──
   if (pair.td) {
     try {
       const tdInterval = TS_INTERVALS.td[interval];
       const res = await fetch(WORKER, {
         method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({type:'twelvedata', action:'ohlcv', symbol:pair.td, interval:tdInterval, outputsize:TF_BARS[interval]}),
-        signal: AbortSignal.timeout(10000)
+        body: JSON.stringify({type:'twelvedata', action:'ohlcv', symbol:pair.td, interval:tdInterval, outputsize:bars}),
+        signal: AbortSignal.timeout(12000)
       });
       if (res.ok) {
         const d = await res.json();
-        return (d.candles||[]).reverse().map(c=>c.close);
+        const candles = (d.candles||[]).reverse();
+        if (candles.length >= 27) return candles.map(c => c.close);
       }
     } catch(e) {}
   }
-  // Use Finnhub for crypto
+
+  // ── Finnhub for crypto ──
   if (pair.fh) {
     try {
       const resolution = TS_INTERVALS.fh[interval];
-      const bars = TF_BARS[interval];
       const now = Math.floor(Date.now()/1000);
       const secPerBar = {'5m':300,'15m':900,'1h':3600,'4h':14400,'1d':86400};
-      const from = now - secPerBar[interval]*bars*2;
+      const from = now - secPerBar[interval] * bars * 2;
       const res = await fetch(WORKER, {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({type:'finnhub', action:'candles', symbol:pair.fh, assetType:'crypto', resolution, from, to:now}),
-        signal: AbortSignal.timeout(10000)
+        signal: AbortSignal.timeout(12000)
       });
       if (res.ok) {
         const d = await res.json();
-        return (d.candles||[]).slice(-bars).map(c=>c.close);
+        const candles = (d.candles||[]).slice(-bars);
+        if (candles.length >= 27) return candles.map(c => c.close);
       }
     } catch(e) {}
   }
+
   return null;
 }
 
