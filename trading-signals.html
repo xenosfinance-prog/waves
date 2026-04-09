@@ -589,7 +589,7 @@ function renderCFD() {
     <div class="signal-card ${isBull?'bull':'bear'}" onclick="toggleCFDDetail(${i})">
       <div class="signal-card-row">
         <div class="sc-pair">${sig.pair||'—'}</div>
-        <div class="sc-dir ${sig.direction||''}">${isBull?'▲ BUY':'▼ SELL'}</div>
+        <div class="sc-dir ${sig.direction||''}">${isBull?'BUY':'SELL'}</div>
         <div class="sc-pattern">${sig.pattern||'—'}</div>
         <div class="sc-entry">${fmtPrice(sig.entry, sig.pair)}</div>
         <div class="sc-sl">${fmtPrice(sig.sl, sig.pair)}</div>
@@ -630,6 +630,7 @@ function renderCFD() {
             <div class="detail-block-text" style="color:var(--red2)">${sig.invalidation||'—'}</div>
           </div>
         </div>
+        <div id="tv-cfd-${i}" style="margin:12px 0;background:var(--bg2);border:1px solid var(--border);"></div>
         <div class="detail-tags">${(sig.tags||[]).map(t=>`<span class="tag">#${t}</span>`).join('')}</div>
         <div class="detail-meta">
           <span>TF: <strong>${sig.timeframe||'—'}</strong></span>
@@ -657,7 +658,11 @@ function toggleCFDDetail(i) {
   if (!d) return;
   const isOpen = d.classList.contains('open');
   document.querySelectorAll('.signal-detail.open').forEach(el => el.classList.remove('open'));
-  if (!isOpen) d.classList.add('open');
+  if (!isOpen) {
+    d.classList.add('open');
+    const sig = filtered[i];
+    if (sig) setTimeout(() => injectTVChart('tv-cfd-' + i, sig.pair, sig.timeframe), 100);
+  }
 }
 
 // ── RENDER OPTIONS ────────────────────────────────────────────
@@ -680,7 +685,7 @@ function renderOptions() {
     <div class="opt-card ${isCall?'call':'put'}" onclick="toggleOptDetail(${i})">
       <div class="opt-card-row">
         <div class="oc-pair">${sig.pair||'—'}</div>
-        <div class="oc-action ${isCall?'CALL':'PUT'}">${isCall?'▲ CALL':'▼ PUT'}</div>
+        <div class="oc-action ${isCall?'CALL':'PUT'}">${isCall?'CALL':'PUT'}</div>
         <div class="oc-entry">${openPx}</div>
         <div style="font-family:var(--mono);font-size:11px;color:var(--green)">${closePx}</div>
         <div style="font-family:var(--mono);font-size:11px;color:var(--yellow)">⏱ ${expiry}</div>
@@ -695,6 +700,7 @@ function renderOptions() {
           <div class="level-pill"><div class="level-pill-label">Expiry</div><div class="level-pill-val" style="color:var(--yellow)">${expiry}</div></div>
           <div class="level-pill"><div class="level-pill-label">Confidence</div><div class="level-pill-val">${sig.confidence||'—'}%</div></div>
         </div>
+        <div id="tv-opt-${i}" style="margin:0 0 12px;background:var(--bg2);border:1px solid var(--border);"></div>
         ${analysis ? `<div class="detail-block" style="margin-bottom:12px;"><div class="detail-block-label">Analysis</div><div class="detail-block-text">${analysis}</div></div>` : ''}
         <div class="detail-tags">${(sig.tags||[]).filter(t=>t).map(t=>`<span class="tag">#${t}</span>`).join('')}</div>
         <div class="detail-meta">
@@ -722,7 +728,11 @@ function toggleOptDetail(i) {
   if (!d) return;
   const isOpen = d.classList.contains('open');
   document.querySelectorAll('.opt-detail.open').forEach(el => el.classList.remove('open'));
-  if (!isOpen) d.classList.add('open');
+  if (!isOpen) {
+    d.classList.add('open');
+    const sig = filtered[i];
+    if (sig) setTimeout(() => injectTVChart('tv-opt-' + i, sig.pair, sig.timeframe), 100);
+  }
 }
 
 // ── RENDER CLOSED POSITIONS ───────────────────────────────────
@@ -854,6 +864,62 @@ async function deleteClosedSignal(event, idx) {
 }
 
 // ── INIT ─────────────────────────────────────────────────────
+
+// TradingView symbol map for mini charts
+const TV_SYM_MAP = {
+  'EURUSD':'OANDA:EURUSD','GBPUSD':'OANDA:GBPUSD','USDJPY':'OANDA:USDJPY',
+  'USDCHF':'OANDA:USDCHF','AUDUSD':'OANDA:AUDUSD','NZDUSD':'OANDA:NZDUSD',
+  'USDCAD':'OANDA:USDCAD','EURGBP':'OANDA:EURGBP','EURJPY':'OANDA:EURJPY',
+  'GBPJPY':'OANDA:GBPJPY','CADJPY':'OANDA:CADJPY','AUDNZD':'OANDA:AUDNZD',
+  'EURCHF':'OANDA:EURCHF','GBPCHF':'OANDA:GBPCHF',
+  'XAUUSD':'OANDA:XAUUSD','XAGUSD':'OANDA:XAGUSD',
+  'USOIL':'NYMEX:CL1!','UKOIL':'ICEEUR:B1!','NGAS':'NYMEX:NG1!',
+  'BTCUSD':'BINANCE:BTCUSDT','ETHUSD':'BINANCE:ETHUSDT',
+  'SOLUSD':'BINANCE:SOLUSDT','XRPUSD':'BINANCE:XRPUSDT',
+  'SPY':'AMEX:SPY','AAPL':'NASDAQ:AAPL',
+};
+
+function injectTVChart(containerId, pair, tf) {
+  const sym = TV_SYM_MAP[pair] || pair;
+  const interval = {'M1':'M','W1':'W','D1':'D','H4':'240','H1':'60','M30':'30','M15':'15','M5':'5'}[tf] || 'D';
+  const el = document.getElementById(containerId);
+  if (!el || el.dataset.loaded) return;
+  el.dataset.loaded = '1';
+  const script = document.createElement('script');
+  script.src = 'https://s3.tradingview.com/tv.js';
+  script.onload = () => {
+    new TradingView.widget({
+      container_id: containerId,
+      symbol: sym,
+      interval,
+      theme: 'dark',
+      style: '3',
+      locale: 'en',
+      toolbar_bg: '#131f2e',
+      enable_publishing: false,
+      hide_top_toolbar: true,
+      hide_legend: false,
+      save_image: false,
+      height: 220,
+      width: '100%',
+      studies: [],
+      overrides: {
+        'paneProperties.background': '#0f1724',
+        'paneProperties.backgroundType': 'solid',
+        'mainSeriesProperties.areaStyle.color1': 'rgba(59,130,246,0.3)',
+        'mainSeriesProperties.areaStyle.color2': 'rgba(59,130,246,0.02)',
+        'mainSeriesProperties.areaStyle.linecolor': '#3b82f6',
+        'mainSeriesProperties.areaStyle.linewidth': 2,
+      }
+    });
+  };
+  if (window.TradingView) {
+    script.onload();
+  } else {
+    document.head.appendChild(script);
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   // Auto-login if session active
   if (sessionStorage.getItem('xf_admin') === 'true') {
