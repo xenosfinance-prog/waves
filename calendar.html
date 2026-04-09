@@ -415,9 +415,9 @@ function renderCalendar() {
     html += `<tr class="day-sep"><td colspan="7">${friendlyDate(day)}${isToday ? ' <span style="color:var(--red2);margin-left:8px">● TODAY</span>' : ''}</td></tr>`;
     evs.forEach(ev => {
       const hasActual = ev.actual && ev.actual !== '' && ev.actual !== '—';
-      const actualHtml = ev.actual
-        ? `<span class="val-actual" style="color:${ev.actual.includes('TODAY') ? 'var(--gold2)' : 'var(--ink)'}">${ev.actual}</span>`
-        : '<span style="color:var(--border2)">—</span>';
+      const actualHtml = isAdmin()
+        ? `<span class="val-actual" style="color:${ev.actual&&!ev.actual.includes('TODAY')?'var(--ink)':'var(--border2)'};cursor:pointer;border-bottom:1px dashed var(--border2);" onclick="editActual(event,'${ev.date}','${ev.name.replace(/'/g,'\\\'')}',this)" title="Click to edit actual">${ev.actual||'+ add'}</span>`
+        : (ev.actual ? `<span class="val-actual" style="color:${ev.actual.includes('TODAY') ? 'var(--gold2)' : 'var(--ink)'}">${ev.actual}</span>` : '<span style="color:var(--border2)">—</span>');
       const isToday2 = ev.date === today;
       const evIdx = day + '-' + evs.indexOf(ev);
       const hasReal = hasActual && !ev.actual.includes('TODAY');
@@ -843,10 +843,55 @@ async function refreshActuals() {
   }
 }
 
+
+// ── ADMIN: EDIT ACTUAL INLINE ────────────────────────────────
+function editActual(e, date, name, el) {
+  e.stopPropagation();
+  const current = el.textContent === '+ add' ? '' : el.textContent;
+  const input = document.createElement('input');
+  input.value = current;
+  input.style.cssText = 'background:var(--bg2);border:1px solid var(--gold);color:var(--ink);font-family:var(--mono);font-size:11px;width:80px;padding:2px 4px;';
+  el.replaceWith(input);
+  input.focus();
+  input.select();
+  function save() {
+    const val = input.value.trim();
+    // Update EVENTS array
+    const ev = EVENTS.find(ev => ev.date === date && ev.name === name);
+    if (ev) ev.actual = val;
+    renderCalendar();
+    renderHighlights();
+    renderKeyEventsCards();
+    // Save to localStorage for persistence across refreshes
+    const key = 'xf_actual_' + date + '_' + name.slice(0,20).replace(/\s/g,'_');
+    if (val) localStorage.setItem(key, val);
+    else localStorage.removeItem(key);
+  }
+  input.addEventListener('blur', save);
+  input.addEventListener('keydown', ev => { if (ev.key === 'Enter') { input.blur(); } if (ev.key === 'Escape') { input.value = current; input.blur(); } });
+}
+
+// Load saved actuals from localStorage on init
+function loadSavedActuals() {
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (!key.startsWith('xf_actual_')) continue;
+    const val = localStorage.getItem(key);
+    if (!val) continue;
+    // key format: xf_actual_DATE_NAME
+    const parts = key.replace('xf_actual_', '').split('_');
+    const date = parts[0];
+    const namePart = parts.slice(1).join(' ').toLowerCase();
+    const ev = EVENTS.find(e => e.date === date && e.name.toLowerCase().replace(/\s/g,'_').startsWith(namePart.slice(0,15)));
+    if (ev && !ev.actual) ev.actual = val;
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   updateDateTime();
   renderHighlights();
   renderWeekTabs();
+  loadSavedActuals();
   renderCalendar();
   renderKeyEventsCards();
   loadTicker();
