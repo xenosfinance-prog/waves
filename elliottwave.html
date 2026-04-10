@@ -1276,9 +1276,16 @@ ${last30.map(c=>{
   const dec = liveData.price > 100 ? 2 : 5;
   const livePrice = liveData.price;
 
+  // Calculate actual candle range to pass to Claude as hard bounds
+  const candleHighs = allCandles.slice(-tfConf.bars||100).map(c=>c.high).filter(Boolean);
+  const candleLows  = allCandles.slice(-tfConf.bars||100).map(c=>c.low).filter(Boolean);
+  const maxCandleHigh = candleHighs.length ? Math.max(...candleHighs).toFixed(dec) : 'unknown';
+  const minCandleLow  = candleLows.length  ? Math.min(...candleLows).toFixed(dec)  : 'unknown';
+  const candleRangeLine = candleHighs.length ? `\nCANDLE PRICE RANGE: Highest high = ${maxCandleHigh}, Lowest low = ${minCandleLow}. NO completed wave point may be outside this range.` : '';
+
   const prompt=`You are a senior Elliott Wave analyst at a top-tier institutional trading desk. Generate a precise, professional Elliott Wave analysis for ${symbol} on the ${tf} timeframe.
 
-LIVE PRICE: ${livePrice} (Change: ${liveData.changePct!=null?(liveData.changePct>0?'+':'')+Number(liveData.changePct).toFixed(2)+'%':'n/a'})
+LIVE PRICE: ${livePrice} (Change: ${liveData.changePct!=null?(liveData.changePct>0?'+':'')+Number(liveData.changePct).toFixed(2)+'%':'n/a'})${candleRangeLine}
 ${candleContext}
 ${indicatorContext}
 ${pivotContext}
@@ -1291,7 +1298,11 @@ CRITICAL INSTRUCTIONS — READ BEFORE GENERATING
 
 1. TREND DIRECTION: The detected trend is ${trendDetected}. Your wave count MUST reflect this. If trend is DOWN, the impulse waves (1-3-5) must go DOWNWARD. Do NOT default to bullish unless data clearly supports it.
 
-2. REAL PIVOT ANCHORING: If swing pivots are provided above, your wave_points MUST use those exact prices. Never invent prices that don't exist in the data.
+2. REAL PIVOT ANCHORING — STRICT RULE:
+   - COMPLETED waves (already happened): use ONLY prices that actually appear in the OHLCV data above. Check: does this exact price appear as a high or low in the candle data? If not, do NOT use it.
+   - CURRENT wave (in progress): use the LIVE PRICE (${livePrice}) as the current endpoint.
+   - FUTURE waves (not yet formed): set to null. DO NOT invent future prices and present them as completed pivots.
+   - The live price is ${livePrice}. Any wave point higher than the highest candle high or lower than the lowest candle low IS INVENTED — do not use it.
 
 3. STRICT ELLIOTT WAVE RULES — ALL MUST BE SATISFIED:
    Rule 1: Wave 2 never retraces 100%+ of Wave 1 (W2 must not cross W0)
@@ -1303,9 +1314,11 @@ CRITICAL INSTRUCTIONS — READ BEFORE GENERATING
 
 4. VOLUME CONFIRMATION: Wave 3 should have the highest volume. Declining volume on Wave 5 signals exhaustion. If volume data contradicts wave count, note this.
 
-5. CURRENT WAVE POSITION: Determine where price currently IS based on real data. Do not project a wave that hasn't started.
+5. CURRENT WAVE POSITION: Determine where price currently IS based on real data. The live price is ${livePrice}. The current wave endpoint is always close to ${livePrice}.
 
 6. INVALIDATION LEVEL: Provide the exact price that would invalidate the primary count.
+
+7. NULL FOR UNFORMED WAVES: If wave 5, A, B or C has not yet occurred, set those wave_points to null. It is better to have null than an invented price.
 
 ══════════════════════════════════════════════
 
@@ -1355,7 +1368,7 @@ Respond with a JSON object ONLY — no text before or after:
   }
 }
 
-wave_points: use REAL pivot prices from the data. All prices must satisfy the 6 rules above. w5 or wc can be null/projected if not yet formed.`;
+wave_points rules: Use ONLY prices from the OHLCV data for completed waves. Current wave endpoint ≈ ${livePrice}. Set unformed future waves to null. Never invent a price outside the range of candle data provided above.`;
 
   try{
     async function fetchWithRetry(body, retries=3) {
