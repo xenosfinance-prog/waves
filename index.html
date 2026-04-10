@@ -2,6 +2,13 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<link rel="manifest" href="/manifest.json">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="XenosFinance">
+<link rel="apple-touch-icon" href="/favicon-192.png">
+<meta name="theme-color" content="#0f1724">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta name="generated" content="XENOS_TS">
@@ -535,6 +542,16 @@ document.addEventListener('DOMContentLoaded', () => {
   setInterval(updateMarkets, 60000);
   setInterval(() => loadNews().then(h => { if (h.length) loadAIBrief(h); }), 300000);
 });
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js')
+      .then(reg => console.log('XenosFinance SW registered:', reg.scope))
+      .catch(err => console.warn('SW registration failed:', err));
+  });
+}
 </script>
 </body>
 </html>
