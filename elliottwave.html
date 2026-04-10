@@ -1623,15 +1623,21 @@ function renderEWChart(analysis, symbol, tf, liveData) {
     ctx.beginPath(); ctx.arc(pt.x,pt.y,isCur?6:4.5,0,Math.PI*2); ctx.fill();
     ctx.globalAlpha=1;
 
-    // Label badge
+    // Label badge — position based on peak/trough relative to neighbors
     ctx.font='bold 11px monospace';
-    const tw=ctx.measureText(pt.label).width+10, th=18;
-    // Position above if price is high relative to range
-    const aboveMid = pt.y < MT+CH/2;
-    const ly = aboveMid ? pt.y-th-8 : pt.y+8;
-    const lx = pt.x-tw/2;
+    const tw=ctx.measureText(pt.label).width+12, th=18;
+    // Determine if peak or trough by comparing to adjacent wave points
+    const ptIdx = pts.indexOf(pt);
+    const prevPt = pts[ptIdx-1], nextPt = pts[ptIdx+1];
+    let isPeak = false;
+    if (prevPt && nextPt) isPeak = pt.price > prevPt.price && pt.price > nextPt.price;
+    else if (prevPt) isPeak = pt.price > prevPt.price;
+    else if (nextPt) isPeak = pt.price < nextPt.price; // first point: label above if trend starts up
+    // Peak = label above dot, Trough = label below dot
+    const ly = isPeak ? pt.y - th - 10 : pt.y + 10;
+    const lx = pt.x - tw/2;
 
-    ctx.fillStyle='rgba(6,11,22,0.9)'; ctx.strokeStyle=col+'99'; ctx.lineWidth=1;
+    ctx.fillStyle='rgba(6,11,22,0.92)'; ctx.strokeStyle=col+'99'; ctx.lineWidth=1;
     ctx.beginPath();
     if(ctx.roundRect) ctx.roundRect(lx,ly,tw,th,3);
     else ctx.rect(lx,ly,tw,th);
@@ -1640,10 +1646,10 @@ function renderEWChart(analysis, symbol, tf, liveData) {
     ctx.fillStyle=col; ctx.textAlign='center';
     ctx.fillText(pt.label,pt.x,ly+th-4);
 
-    // Price label
+    // Price label on opposite side of badge
     ctx.font='8px monospace'; ctx.fillStyle='#8aabb0'; ctx.globalAlpha=0.8;
     const prStr=pt.price.toFixed(pt.price>100?2:4);
-    ctx.fillText(prStr,pt.x,aboveMid?ly-2:ly+th+10);
+    ctx.fillText(prStr, pt.x, isPeak ? ly-3 : ly+th+10);
     ctx.globalAlpha=1;
   });
 
