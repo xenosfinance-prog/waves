@@ -1411,29 +1411,144 @@ function renderEWChart(analysis, symbol, tf, liveData) {
   const wrap = document.getElementById('ewChartWrap');
   const canvas = document.getElementById('ewChartCanvas');
   if (!wrap || !canvas) return;
-
   const wp = analysis.wave_points;
-  if (!wp || !wp.w0) { wrap.style.display = 'none'; return; }
-
-  wrap.style.display = 'block';
-
-  const W = canvas.offsetWidth || 860;
-  const H = 420;
-  canvas.width  = W * 2;
-  canvas.height = H * 2;
-  canvas.style.width  = W + 'px';
-  canvas.style.height = H + 'px';
-
-  const ctx2 = canvas.getContext('2d');
-  ctx2.scale(2, 2);
-
-  const ML = 75, MR = 25, MT = 44, MB = 54;
-  const CW = W - ML - MR;
-  const CH = H - MT - MB;
-
-  // ── Determine trend direction ──────────────────────
-  const isBearish = analysis.trend === 'DOWN';
-
+  if (!wp || !wp.w0) { wrap.style.display='none'; return; }
+  wrap.style.display='block';
+  const W = canvas.offsetWidth||860, H=420;
+  canvas.width=W*2; canvas.height=H*2;
+  canvas.style.width=W+'px'; canvas.style.height=H+'px';
+  const ctx2=canvas.getContext('2d'); ctx2.scale(2,2);
+  const ML=75,MR=25,MT=44,MB=54,CW=W-ML-MR,CH=H-MT-MB;
+  const isBearish=analysis.trend==='DOWN';
+  const kl=analysis.key_levels||{}, fibs=analysis.fibonacci_levels||{};
+  const points=[
+    {label:'0',price:wp.w0,impulse:true},{label:'1',price:wp.w1,impulse:true},
+    {label:'2',price:wp.w2,impulse:true},{label:'3',price:wp.w3,impulse:true},
+    {label:'4',price:wp.w4,impulse:true},{label:'5',price:wp.w5,impulse:true},
+    {label:'A',price:wp.wa,impulse:false},{label:'B',price:wp.wb,impulse:false},
+    {label:'C',price:wp.wc,impulse:false},
+  ];
+  const allPrices=points.map(p=>p.price).filter(Boolean);
+  [kl.tp2,kl.stop_loss,kl.invalidation,fibs.fib1618_w1].forEach(v=>{if(v)allPrices.push(v);});
+  const minP=Math.min(...allPrices)*0.9985, maxP=Math.max(...allPrices)*1.0015;
+  const priceRange=maxP-minP;
+  const toY=p=>MT+CH-((p-minP)/priceRange)*CH;
+  const validPts=points.filter(p=>p.price);
+  const toX=i=>ML+(i/(validPts.length-1))*CW;
+  // Background
+  const bg=ctx2.createLinearGradient(0,0,0,H);
+  bg.addColorStop(0,'#090f1a'); bg.addColorStop(1,'#0d1627');
+  ctx2.fillStyle=bg; ctx2.fillRect(0,0,W,H);
+  // Grid
+  ctx2.strokeStyle='#1e3050'; ctx2.lineWidth=0.5; ctx2.globalAlpha=0.5;
+  for(let i=0;i<=6;i++){
+    const y=MT+(i/6)*CH;
+    ctx2.beginPath(); ctx2.moveTo(ML,y); ctx2.lineTo(W-MR,y); ctx2.stroke();
+    const pr=maxP-(i/6)*priceRange;
+    ctx2.fillStyle='#5a7a9a'; ctx2.font='9px monospace'; ctx2.textAlign='right'; ctx2.globalAlpha=0.8;
+    ctx2.fillText(pr.toFixed(pr>100?2:5),ML-5,y+3);
+  }
+  ctx2.globalAlpha=1;
+  // Fibonacci lines
+  function drawFib(price,color,label){
+    if(!price)return; const y=toY(price);
+    ctx2.strokeStyle=color; ctx2.lineWidth=0.8; ctx2.globalAlpha=0.3;
+    ctx2.setLineDash([4,6]); ctx2.beginPath(); ctx2.moveTo(ML,y); ctx2.lineTo(W-MR,y); ctx2.stroke();
+    ctx2.setLineDash([]); ctx2.fillStyle=color; ctx2.globalAlpha=0.55;
+    ctx2.font='8px monospace'; ctx2.textAlign='left';
+    ctx2.fillText(label,ML+3,y-2); ctx2.globalAlpha=1;
+  }
+  drawFib(fibs.fib618_w1,'#8b5cf6','Fib 61.8%');
+  drawFib(fibs.fib1618_w1,'#06b6d4','Fib 161.8%');
+  drawFib(fibs.fib382_w3,'#8b5cf6','Fib 38.2%');
+  // H-Lines
+  function drawHLine(price,color,label){
+    if(!price)return; const y=toY(price);
+    ctx2.strokeStyle=color; ctx2.lineWidth=1; ctx2.globalAlpha=0.65;
+    ctx2.setLineDash([6,4]); ctx2.beginPath(); ctx2.moveTo(ML,y); ctx2.lineTo(W-MR,y); ctx2.stroke();
+    ctx2.setLineDash([]); ctx2.fillStyle=color; ctx2.globalAlpha=0.9;
+    ctx2.font='9px monospace'; ctx2.textAlign='right';
+    ctx2.fillText(label+' '+price,W-MR-2,y-3); ctx2.globalAlpha=1;
+  }
+  drawHLine(kl.entry,'#00d4ff','ENTRY');
+  drawHLine(kl.stop_loss,'#ff3d5a','SL');
+  drawHLine(kl.tp1,'#00e676','TP1');
+  drawHLine(kl.tp2,'#00a854','TP2');
+  drawHLine(kl.invalidation,'#ff6b00','INVAL');
+  // Wave colors
+  const iCol=isBearish?'#f59e0b':'#3b82f6', iCol2=isBearish?'#fbbf24':'#60a5fa';
+  const cCol=isBearish?'#ef4444':'#f59e0b', cCol2=isBearish?'#f87171':'#fbbf24';
+  // Wave lines + fill
+  for(let i=0;i<validPts.length-1;i++){
+    const p1=validPts[i],p2=validPts[i+1];
+    const x1=toX(i),y1=toY(p1.price),x2=toX(i+1),y2=toY(p2.price);
+    const isImp=p1.impulse&&p2.impulse;
+    const col=isImp?iCol:cCol, col2=isImp?iCol2:cCol2;
+    const ag=ctx2.createLinearGradient(0,Math.min(y1,y2),0,Math.max(y1,y2)+40);
+    ag.addColorStop(0,col+'18'); ag.addColorStop(1,col+'00');
+    ctx2.fillStyle=ag;
+    ctx2.beginPath(); ctx2.moveTo(x1,y1); ctx2.lineTo(x2,y2);
+    ctx2.lineTo(x2,H-MB); ctx2.lineTo(x1,H-MB); ctx2.closePath(); ctx2.fill();
+    ctx2.strokeStyle=col2; ctx2.lineWidth=2.5; ctx2.globalAlpha=0.9;
+    ctx2.beginPath(); ctx2.moveTo(x1,y1); ctx2.lineTo(x2,y2); ctx2.stroke();
+    ctx2.globalAlpha=1;
+  }
+  // Dots + labels
+  validPts.forEach((pt,i)=>{
+    const x=toX(i),y=toY(pt.price);
+    const col=pt.impulse?iCol2:cCol2, isCur=pt.label===analysis.current_wave;
+    if(isCur){
+      const g=ctx2.createRadialGradient(x,y,0,x,y,18);
+      g.addColorStop(0,col+'55'); g.addColorStop(1,col+'00');
+      ctx2.fillStyle=g; ctx2.beginPath(); ctx2.arc(x,y,18,0,Math.PI*2); ctx2.fill();
+    }
+    ctx2.fillStyle=isCur?'#ffffff':col; ctx2.globalAlpha=0.95;
+    ctx2.beginPath(); ctx2.arc(x,y,isCur?6:4.5,0,Math.PI*2); ctx2.fill();
+    ctx2.font='bold 12px monospace';
+    const tw=ctx2.measureText(pt.label).width, padW=tw+12,padH=18;
+    const prev=validPts[i-1],next=validPts[i+1];
+    let isPeak=false;
+    if(prev&&next) isPeak=pt.price>prev.price&&pt.price>next.price;
+    else if(prev) isPeak=pt.price>prev.price;
+    else if(next) isPeak=pt.price>next.price;
+    const oy=isPeak?-(padH+10):10, lx=x-padW/2, ly=y+oy;
+    ctx2.fillStyle='rgba(6,11,22,0.92)'; ctx2.globalAlpha=0.95;
+    ctx2.strokeStyle=col+'88'; ctx2.lineWidth=1;
+    if(ctx2.roundRect){ctx2.beginPath();ctx2.roundRect(lx,ly,padW,padH,3);ctx2.fill();ctx2.stroke();}
+    else{ctx2.fillRect(lx,ly,padW,padH);ctx2.strokeRect(lx,ly,padW,padH);}
+    ctx2.fillStyle=col; ctx2.globalAlpha=1; ctx2.textAlign='center';
+    ctx2.fillText(pt.label,x,ly+padH-4);
+    ctx2.strokeStyle=col; ctx2.lineWidth=0.8; ctx2.globalAlpha=0.4;
+    ctx2.beginPath();
+    ctx2.moveTo(x,isPeak?ly+padH:ly);
+    ctx2.lineTo(x,isPeak?y-(isCur?6:4.5):y+(isCur?6:4.5));
+    ctx2.stroke(); ctx2.globalAlpha=1;
+  });
+  // NOW line
+  if(liveData?.price){
+    const ly=toY(liveData.price);
+    ctx2.strokeStyle='#ffffff'; ctx2.lineWidth=1; ctx2.globalAlpha=0.25;
+    ctx2.setLineDash([3,5]); ctx2.beginPath(); ctx2.moveTo(ML,ly); ctx2.lineTo(W-MR,ly); ctx2.stroke();
+    ctx2.setLineDash([]); ctx2.globalAlpha=0.6; ctx2.fillStyle='#ffffff';
+    ctx2.font='9px monospace'; ctx2.textAlign='right';
+    ctx2.fillText('NOW '+liveData.price,W-MR-2,ly-3); ctx2.globalAlpha=1;
+  }
+  // Header
+  ctx2.globalAlpha=1; ctx2.textAlign='left';
+  ctx2.font='bold 12px monospace'; ctx2.fillStyle='#3b82f6'; ctx2.fillText('XENOS',ML,26);
+  ctx2.fillStyle='#c8d8ea'; ctx2.fillText('FINANCE',ML+52,26);
+  ctx2.font='10px monospace'; ctx2.fillStyle='#5a7a9a';
+  ctx2.fillText('· EW · '+symbol+' · '+tf,ML+115,26);
+  const tCol=isBearish?'#f87171':'#34d399', tTxt=isBearish?'▼ BEARISH':'▲ BULLISH';
+  ctx2.font='bold 10px monospace'; ctx2.fillStyle=tCol; ctx2.textAlign='center'; ctx2.fillText(tTxt,W/2,26);
+  const sTxt=analysis.signal==='LONG'?'▲ LONG':analysis.signal==='SHORT'?'▼ SHORT':'◆ WAIT';
+  const sCol=analysis.signal==='LONG'?'#00e676':analysis.signal==='SHORT'?'#ff3d5a':'#f59e0b';
+  ctx2.textAlign='right'; ctx2.font='bold 11px monospace'; ctx2.fillStyle=sCol; ctx2.fillText(sTxt,W-MR,26);
+  ctx2.textAlign='left'; ctx2.font='9px monospace'; ctx2.fillStyle='#3a5070';
+  ctx2.fillText('Wave '+analysis.current_wave+' active'+(analysis.degree?' · '+analysis.degree:''),ML,H-MB+30);
+  ctx2.textAlign='center'; ctx2.font='9px monospace'; ctx2.fillStyle='#3a5070';
+  validPts.forEach((pt,i)=>{ ctx2.fillText('W'+pt.label,toX(i),H-MB+18); });
+}
 
 async function sendToTelegram(){
   if(!lastAnalysis) return;
