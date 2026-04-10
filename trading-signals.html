@@ -1488,7 +1488,29 @@ End with a 2-sentence "Market Overview" on overall sentiment.
 Always close with: ⚠ Educational purposes only — not financial advice.`;
 
   try {
-    const res = await fetch(WORKER, {
+    // Retry logic — handle Cloudflare 529 rate limit with automatic backoff
+    async function fetchWithRetry(url, options, maxRetries = 3) {
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          const res = await fetch(url, options);
+          if (res.status === 529 || res.status === 429) {
+            if (attempt < maxRetries) {
+              const wait = attempt * 2000; // 2s, 4s, 6s
+              status.textContent = `⟳ Rate limited — retry ${attempt}/${maxRetries} in ${wait/1000}s...`;
+              await new Promise(r => setTimeout(r, wait));
+              continue;
+            }
+            throw new Error(`HTTP ${res.status} — Cloudflare rate limit. Wait 1 minute and try again.`);
+          }
+          return res;
+        } catch(e) {
+          if (attempt === maxRetries) throw e;
+          await new Promise(r => setTimeout(r, attempt * 1500));
+        }
+      }
+    }
+
+    const res = await fetchWithRetry(WORKER, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
@@ -1496,7 +1518,7 @@ Always close with: ⚠ Educational purposes only — not financial advice.`;
         max_tokens: 1000,
         messages: [{role: 'user', content: prompt}]
       }),
-      signal: AbortSignal.timeout(30000)
+      signal: AbortSignal.timeout(40000)
     });
 
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
