@@ -278,21 +278,19 @@ body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:10
     </div>
   </div>
 
-  <!-- TRADINGVIEW MARKET SUMMARY — Active / Gainers / Losers -->
+  <!-- AI INTERMARKET ANALYSIS -->
   <div style="margin:32px 0 0;border:1px solid var(--border);">
     <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 16px;background:var(--bg2);border-bottom:1px solid var(--border);">
-      <div style="font-family:var(--mono);font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--gold);">◈ Top Movers · Active · Gainers · Losers</div>
-      <a href="https://www.tradingview.com/pricing/?share_your_love=zendesk_69" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:9px;color:var(--muted);text-decoration:none;transition:color 0.2s;" onmouseover="this.style.color='var(--gold)'" onmouseout="this.style.color='var(--muted)'">TradingView ↗</a>
+      <div style="font-family:var(--mono);font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--gold);">✦ AI Intermarket Analysis</div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span id="ai-im-status" style="font-family:var(--mono);font-size:9px;color:var(--muted);">⟳ Ready</span>
+        <button id="ai-im-btn" onclick="runIntermarketAI()" style="font-family:var(--mono);font-size:8px;letter-spacing:2px;text-transform:uppercase;padding:4px 14px;background:var(--gold);color:#fff;border:none;cursor:pointer;transition:opacity 0.2s;">⟳ Analyse</button>
+      </div>
     </div>
-    <div style="background:#131f2e;padding:4px 0;">
-      <style>
-        tv-market-summary { color-scheme: dark; }
-        tv-market-summary::part(root),
-        tv-market-summary::part(container) { background: #131f2e !important; }
-      </style>
-      <script type="module" src="https://widgets.tradingview-widget.com/w/en/tv-market-summary.js"></script>
-      <tv-market-summary direction="horizontal" color-theme="dark" referral-id="zendesk_69"></tv-market-summary>
+    <div id="ai-im-body" style="padding:20px 24px;min-height:100px;font-family:var(--mono);font-size:11px;color:var(--muted);line-height:1.8;background:var(--bg);">
+      <span style="letter-spacing:1px;">Click <b style="color:var(--gold)">Analyse</b> to generate a real-time intermarket analysis based on current live prices — correlations between DXY, Gold, Oil, Bonds, Equities and Crypto.</span>
     </div>
+  </div>
 
   <div class="bottom-bar">
     <span>© XENOSFINANCE 2026</span>
@@ -329,15 +327,13 @@ function fmtP(s, p) {
 
 const WORKER_URL = 'https://xenos-ai-proxy.xenosfinance.workers.dev';
 
-// Map each symbol ID to the exact key the Worker expects.
-// Commodities/indices/crypto use Yahoo Finance symbols so the Worker
-// routes them through yahooQuote (live prices) instead of COMMODITY_ESTIMATES (static).
+// Map each symbol ID to the exact key the Worker expects
 const WORKER_SYM_MAP = {
-  'OIL':    'CL=F',
-  'GOLD':   'GC=F',
-  'SILVER': 'SI=F',
-  'NGAS':   'NG=F',
-  'EURUSD': 'EURUSD',
+  'OIL':    'USOIL',
+  'GOLD':   'XAUUSD',
+  'SILVER': 'XAGUSD',
+  'NGAS':   'NGAS',
+  'EURUSD': 'EURUSD',   // Worker now uses Finnhub for live FX change_pct
   'GBPUSD': 'GBPUSD',
   'USDJPY': 'USDJPY',
   'USDCHF': 'USDCHF',
@@ -349,58 +345,20 @@ const WORKER_SYM_MAP = {
   'FTSE':   '^FTSE',
 };
 
-// ── Frankfurter direct fetch for Forex change_pct (bypasses Worker fallback) ──
-async function fetchForexChangePct() {
-  try {
-    const today = new Date().toISOString().slice(0, 10);
-    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-    const [rT, rY] = await Promise.all([
-      fetch(`https://api.frankfurter.app/${today}?base=EUR`).then(r => r.json()),
-      fetch(`https://api.frankfurter.app/${yesterday}?base=EUR`).then(r => r.json()),
-    ]);
-    const rt = rT.rates || {}, ry = rY.rates || {};
-    function rate(r, base, quote) {
-      if (base === 'EUR' && r[quote]) return r[quote];
-      if (quote === 'EUR' && r[base]) return 1 / r[base];
-      if (r[base] && r[quote]) return r[quote] / r[base];
-      return null;
-    }
-    const fxPairs = ['EURUSD','GBPUSD','USDJPY','USDCHF'];
-    const out = {};
-    fxPairs.forEach(pair => {
-      const base = pair.slice(0,3), quote = pair.slice(3,6);
-      const rateToday = rate(rt, base, quote);
-      const rateYest  = rate(ry, base, quote);
-      if (!rateToday) return;
-      const dec = pair.includes('JPY') ? 3 : 5;
-      const chg = (rateYest && rateYest > 0) ? parseFloat(((rateToday - rateYest) / rateYest * 100).toFixed(3)) : 0;
-      out[pair] = { price: parseFloat(rateToday.toFixed(dec)), change_pct: chg };
-    });
-    return out;
-  } catch(e) { return {}; }
-}
-
 // Fetch ALL symbols in ONE request — fast and parallel inside Worker
 async function fetchAllPrices() {
   const pairs = SYMS.map(s => WORKER_SYM_MAP[s.id] || s.id);
-  // Fetch Worker prices and Forex fallback in parallel
-  const [workerResult, fxFallback] = await Promise.all([
-    fetch(WORKER_URL, {
+  try {
+    const r = await fetch(WORKER_URL, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({type: 'prices', pairs}),
       signal: AbortSignal.timeout(8000)
-    }).then(r => r.ok ? r.json() : {}).catch(() => ({})),
-    fetchForexChangePct()
-  ]);
-  const prices = workerResult.prices || {};
-  // Override Forex entries: if Worker returned 0% change, use Frankfurter real value
-  Object.entries(fxFallback).forEach(([pair, data]) => {
-    if (!prices[pair] || prices[pair].change_pct === 0) {
-      prices[pair] = { ...prices[pair], ...data };
-    }
-  });
-  return prices;
+    });
+    if (!r.ok) return {};
+    const d = await r.json();
+    return d.prices || {};
+  } catch(e) { return {}; }
 }
 
 // Legacy wrapper kept for compatibility
@@ -675,6 +633,121 @@ async function loadUSStocks() {
     const techEl = document.getElementById('stocks-tech');
     if (techEl) techEl.innerHTML = '<div style="padding:16px;color:var(--muted);font-size:10px;font-family:var(--mono);">Temporarily unavailable</div>';
   }
+}
+
+// ── AI INTERMARKET ANALYSIS ────────────────────────────────────────────────
+// lastPrices is populated by updateAll() — reuse it so no extra API calls needed
+let lastDashPrices = {};
+
+async function runIntermarketAI() {
+  const btn = document.getElementById('ai-im-btn');
+  const body = document.getElementById('ai-im-body');
+  const status = document.getElementById('ai-im-status');
+
+  btn.disabled = true;
+  btn.textContent = '⟳ Analysing...';
+  status.textContent = '⟳ Fetching live data...';
+  body.innerHTML = '<span style="color:var(--muted);letter-spacing:1px;">✦ Fetching live prices and generating analysis...</span>';
+
+  // Always fetch fresh prices for the analysis
+  try {
+    const pairs = ['GC=F','CL=F','SI=F','EURUSD','GBPUSD','USDJPY','USDCHF',
+                   'BTC-USD','ETH-USD','SPY','^IXIC','^GDAXI','^FTSE','^TNX','^VIX'];
+    const r = await fetch(WORKER_URL, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({type: 'prices', pairs}),
+      signal: AbortSignal.timeout(10000)
+    });
+    if (!r.ok) throw new Error('price fetch failed');
+    const priceData = (await r.json()).prices || {};
+
+    // Build market snapshot string for the prompt
+    const fmt = (v, dec=2) => v != null ? v.toFixed(dec) : '--';
+    const chg = (v) => v != null ? (v >= 0 ? `+${v.toFixed(2)}%` : `${v.toFixed(2)}%`) : '--';
+
+    const snap = [
+      `GOLD: $${fmt(priceData['GC=F']?.price)} (${chg(priceData['GC=F']?.change_pct)})`,
+      `OIL WTI: $${fmt(priceData['CL=F']?.price)} (${chg(priceData['CL=F']?.change_pct)})`,
+      `SILVER: $${fmt(priceData['SI=F']?.price)} (${chg(priceData['SI=F']?.change_pct)})`,
+      `EUR/USD: ${fmt(priceData['EURUSD']?.price, 4)} (${chg(priceData['EURUSD']?.change_pct)})`,
+      `GBP/USD: ${fmt(priceData['GBPUSD']?.price, 4)} (${chg(priceData['GBPUSD']?.change_pct)})`,
+      `USD/JPY: ${fmt(priceData['USDJPY']?.price, 3)} (${chg(priceData['USDJPY']?.change_pct)})`,
+      `USD/CHF: ${fmt(priceData['USDCHF']?.price, 4)} (${chg(priceData['USDCHF']?.change_pct)})`,
+      `S&P 500: $${fmt(priceData['SPY']?.price)} (${chg(priceData['SPY']?.change_pct)})`,
+      `NASDAQ: ${priceData['^IXIC']?.price ? Math.round(priceData['^IXIC'].price).toLocaleString('en-US') : '--'} (${chg(priceData['^IXIC']?.change_pct)})`,
+      `DAX: ${priceData['^GDAXI']?.price ? Math.round(priceData['^GDAXI'].price).toLocaleString('en-US') : '--'} (${chg(priceData['^GDAXI']?.change_pct)})`,
+      `FTSE 100: ${priceData['^FTSE']?.price ? Math.round(priceData['^FTSE'].price).toLocaleString('en-US') : '--'} (${chg(priceData['^FTSE']?.change_pct)})`,
+      `US 10Y Yield: ${fmt(priceData['^TNX']?.price, 3)}% (${chg(priceData['^TNX']?.change_pct)})`,
+      `VIX: ${fmt(priceData['^VIX']?.price)} (${chg(priceData['^VIX']?.change_pct)})`,
+      `BTC/USD: $${priceData['BTC-USD']?.price ? Math.round(priceData['BTC-USD'].price).toLocaleString('en-US') : '--'} (${chg(priceData['BTC-USD']?.change_pct)})`,
+      `ETH/USD: $${fmt(priceData['ETH-USD']?.price)} (${chg(priceData['ETH-USD']?.change_pct)})`,
+    ].join('\n');
+
+    status.textContent = '⟳ Generating analysis...';
+
+    const prompt = `You are a senior intermarket analyst at XenosFinance. Analyze the following live market data and produce a professional intermarket analysis.
+
+LIVE MARKET DATA:
+${snap}
+
+Write a structured analysis with these exact sections:
+
+**RISK SENTIMENT** — Is the market in risk-on or risk-off mode? Evidence from VIX, Gold, JPY, Bonds.
+
+**DOLLAR & FOREX** — USD strength/weakness and implications for major pairs. Identify the strongest and weakest currency.
+
+**COMMODITIES** — Gold/Oil/Silver dynamics. What are they signaling about inflation and growth expectations?
+
+**EQUITIES & BONDS** — Equity/bond correlation today. Is the yield move supporting or threatening equities?
+
+**CRYPTO** — BTC/ETH behavior relative to risk assets. Correlated or decoupled?
+
+**INTERMARKET CONCLUSION** — 3-4 sentences: the dominant macro theme, the most important correlation in play today, and one key level or asset to watch.
+
+Be concise, professional, data-driven. Use the actual prices provided. No disclaimers.`;
+
+    const aiRes = await fetch(WORKER_URL, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 900,
+        messages: [{role: 'user', content: prompt}]
+      }),
+      signal: AbortSignal.timeout(35000)
+    });
+
+    if (!aiRes.ok) throw new Error(`AI HTTP ${aiRes.status}`);
+    const aiData = await aiRes.json();
+    const text = aiData?.content?.[0]?.text || aiData?.error || 'No response.';
+
+    // Format output
+    const html = text
+      .replace(/\*\*(.+?)\*\*/g, '<span style="color:var(--ink);font-weight:700;letter-spacing:1px;">$1</span>')
+      .replace(/\n\n/g, '<br><br>')
+      .replace(/\n/g, '<br>');
+
+    const now = new Date();
+    const hm = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
+
+    body.innerHTML = `
+      <div style="font-size:9px;color:var(--muted);letter-spacing:2px;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;">
+        <span>✦ INTERMARKET ANALYSIS · XENOSFINANCE AI</span>
+        <span>${hm} CET · Live prices</span>
+      </div>
+      <div style="font-family:var(--body);font-size:12px;line-height:1.8;color:var(--ink2);">${html}</div>
+      <div style="margin-top:16px;padding-top:10px;border-top:1px solid var(--border);font-size:9px;color:var(--muted);letter-spacing:1px;">⚠ Educational purposes only — not investment advice</div>
+    `;
+    status.textContent = `✓ ${hm} CET`;
+
+  } catch(e) {
+    body.innerHTML = `<span style="color:var(--red2);letter-spacing:1px;">⚠ Analysis failed: ${e.message}. Please try again.</span>`;
+    status.textContent = '⚠ Error';
+  }
+
+  btn.disabled = false;
+  btn.textContent = '⟳ Analyse';
 }
 
 document.addEventListener('DOMContentLoaded', () => {
