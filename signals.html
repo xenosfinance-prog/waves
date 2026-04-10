@@ -3011,11 +3011,7 @@ function drawPatternOverlay(ctx, pat, isBull, entry, sl, tp,
 {
   const entryY = toY(entry);
 
-  // Direction arrow from NOW toward target
-  const targetY = isBull
-    ? Math.min(entryY - 30, toY(tp) + (entryY - toY(tp)) * 0.3)
-    : Math.max(entryY + 30, toY(tp) - (toY(tp) - entryY) * 0.3);
-  arrow(nowX, entryY, toX(0.94), targetY, dirCol, 3);
+  // Direction arrow removed per user request
 
   // Pattern-specific trendline overlays
   if (pat.includes('head') && pat.includes('shoulder')) {
@@ -3084,17 +3080,7 @@ function drawPatternShape(ctx, pat, isBull, entry, sl, tp,
 
   // Final arrow after NOW
   function dirArrow() {
-    const fromX = nowX, fromY = entryY;
-    const toXa  = toX(0.88);
-    // BUY: arrow goes UP (toward TP which is above entry)
-    // SELL: arrow goes DOWN (toward SL which is below entry for SELL, or TP which is below)
-    const targetPrice = isBull ? tp : sl;
-    const targetY = toY(targetPrice);
-    // Ensure correct visual direction: BUY = up, SELL = down
-    const toYa = isBull
-      ? Math.min(fromY - 30, targetY + (fromY - targetY) * 0.3)  // up
-      : Math.max(fromY + 30, targetY + (fromY - targetY) * 0.3); // down
-    arrow(fromX, fromY, toXa, toYa, dirCol, 3);
+    // Direction arrow removed per user request
   }
 
   // ── HEAD & SHOULDERS ──
