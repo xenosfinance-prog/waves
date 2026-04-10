@@ -978,6 +978,7 @@ function premiumLogin(){
 }
 
 let lastAnalysis='';
+let ewLastCandles = []; // stores last fetched candles for chart rendering
 
 // ── SYMBOL MAP: user input → Worker "prices" pair key ──
 const EW_SYMBOL_MAP = {
@@ -1202,6 +1203,7 @@ async function runAIAnalysis(){
         }
 
         const candles = allCandles.slice(-tfConf.bars);
+        ewLastCandles = candles; // store for chart renderer
         if (candles.length >= 20) {
           const closes = candles.map(c=>c.close);
           const highs  = candles.map(c=>c.high);
@@ -1414,141 +1416,269 @@ function renderEWChart(analysis, symbol, tf, liveData) {
   const wp = analysis.wave_points;
   if (!wp || !wp.w0) { wrap.style.display='none'; return; }
   wrap.style.display='block';
-  const W = canvas.offsetWidth||860, H=420;
+
+  const W = canvas.offsetWidth||860, H=460;
   canvas.width=W*2; canvas.height=H*2;
   canvas.style.width=W+'px'; canvas.style.height=H+'px';
-  const ctx2=canvas.getContext('2d'); ctx2.scale(2,2);
-  const ML=75,MR=25,MT=44,MB=54,CW=W-ML-MR,CH=H-MT-MB;
-  const isBearish=analysis.trend==='DOWN';
-  const kl=analysis.key_levels||{}, fibs=analysis.fibonacci_levels||{};
-  const points=[
-    {label:'0',price:wp.w0,impulse:true},{label:'1',price:wp.w1,impulse:true},
-    {label:'2',price:wp.w2,impulse:true},{label:'3',price:wp.w3,impulse:true},
-    {label:'4',price:wp.w4,impulse:true},{label:'5',price:wp.w5,impulse:true},
-    {label:'A',price:wp.wa,impulse:false},{label:'B',price:wp.wb,impulse:false},
-    {label:'C',price:wp.wc,impulse:false},
-  ];
-  const allPrices=points.map(p=>p.price).filter(Boolean);
-  [kl.tp2,kl.stop_loss,kl.invalidation,fibs.fib1618_w1].forEach(v=>{if(v)allPrices.push(v);});
-  const minP=Math.min(...allPrices)*0.9985, maxP=Math.max(...allPrices)*1.0015;
-  const priceRange=maxP-minP;
-  const toY=p=>MT+CH-((p-minP)/priceRange)*CH;
-  const validPts=points.filter(p=>p.price);
-  const toX=i=>ML+(i/(validPts.length-1))*CW;
-  // Background
-  const bg=ctx2.createLinearGradient(0,0,0,H);
-  bg.addColorStop(0,'#090f1a'); bg.addColorStop(1,'#0d1627');
-  ctx2.fillStyle=bg; ctx2.fillRect(0,0,W,H);
-  // Grid
-  ctx2.strokeStyle='#1e3050'; ctx2.lineWidth=0.5; ctx2.globalAlpha=0.5;
-  for(let i=0;i<=6;i++){
-    const y=MT+(i/6)*CH;
-    ctx2.beginPath(); ctx2.moveTo(ML,y); ctx2.lineTo(W-MR,y); ctx2.stroke();
-    const pr=maxP-(i/6)*priceRange;
-    ctx2.fillStyle='#5a7a9a'; ctx2.font='9px monospace'; ctx2.textAlign='right'; ctx2.globalAlpha=0.8;
-    ctx2.fillText(pr.toFixed(pr>100?2:5),ML-5,y+3);
+  const ctx=canvas.getContext('2d'); ctx.scale(2,2);
+  const ML=72,MR=90,MT=44,MB=58,CW=W-ML-MR,CH=H-MT-MB;
+
+  const isBearish = analysis.trend==='DOWN';
+  const kl = analysis.key_levels||{};
+  const fibs = analysis.fibonacci_levels||{};
+
+  // ── Use real candles if available ──────────────────
+  const candles = ewLastCandles.length >= 10 ? ewLastCandles.slice(-80) : [];
+  const useCandles = candles.length >= 10;
+
+  // ── Collect all prices for Y scale ────────────────
+  const allP = [];
+  if (useCandles) {
+    candles.forEach(c=>{ allP.push(c.high,c.low); });
   }
-  ctx2.globalAlpha=1;
-  // Fibonacci lines
+  const wps = [wp.w0,wp.w1,wp.w2,wp.w3,wp.w4,wp.w5,wp.wa,wp.wb,wp.wc].filter(Boolean);
+  wps.forEach(p=>allP.push(p));
+  [kl.stop_loss,kl.tp1,kl.tp2,kl.invalidation,kl.entry,fibs.fib618_w1,fibs.fib1618_w1].forEach(v=>{if(v)allP.push(v);});
+
+  const minP = Math.min(...allP)*0.9992;
+  const maxP = Math.max(...allP)*1.0008;
+  const pRange = maxP-minP;
+  const toY = p => MT + CH - ((p-minP)/pRange)*CH;
+
+  // ── X mapping ─────────────────────────────────────
+  // If real candles: map candle index to X; wave points mapped to nearest candle
+  const nBars = useCandles ? candles.length : 9;
+  const barW = useCandles ? CW/nBars : CW/8;
+  const toXBar = i => ML + (i+0.5)*barW;
+
+  // Find nearest candle index for a given price
+  function nearestCandleIdx(price) {
+    if (!useCandles) return -1;
+    let best=-1, bestDist=Infinity;
+    candles.forEach((c,i)=>{
+      const d=Math.abs(c.close-price);
+      if(d<bestDist){bestDist=d;best=i;}
+    });
+    return best;
+  }
+
+  // Map wave point price to X position using pivot detection
+  function waveX(price, fallbackIdx) {
+    if (!useCandles) return ML + (fallbackIdx/(wps.length-1))*CW;
+    // Find candle where high or low matches best
+    let best=-1, bestDist=Infinity;
+    candles.forEach((c,i)=>{
+      const dH=Math.abs(c.high-price), dL=Math.abs(c.low-price), dC=Math.abs(c.close-price);
+      const d=Math.min(dH,dL,dC);
+      if(d<bestDist){bestDist=d;best=i;}
+    });
+    if (best===-1) return ML+(fallbackIdx/(wps.length-1))*CW;
+    return toXBar(best);
+  }
+
+  // ── Background ────────────────────────────────────
+  const bg=ctx.createLinearGradient(0,0,0,H);
+  bg.addColorStop(0,'#090f1a'); bg.addColorStop(1,'#0c1523');
+  ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
+
+  // ── Grid ──────────────────────────────────────────
+  ctx.strokeStyle='#1a2a40'; ctx.lineWidth=0.5; ctx.globalAlpha=0.6;
+  for(let i=0;i<=7;i++){
+    const y=MT+(i/7)*CH;
+    ctx.beginPath(); ctx.moveTo(ML,y); ctx.lineTo(W-MR,y); ctx.stroke();
+    const pr=maxP-(i/7)*pRange;
+    ctx.fillStyle='#4a6a8a'; ctx.font='9px monospace'; ctx.textAlign='right'; ctx.globalAlpha=0.9;
+    ctx.fillText(pr.toFixed(pr>100?2:5), ML-4, y+3);
+  }
+  // Vertical grid lines
+  ctx.globalAlpha=0.2; ctx.strokeStyle='#1a2a40';
+  if(useCandles){
+    const step=Math.max(1,Math.floor(nBars/8));
+    for(let i=0;i<nBars;i+=step){
+      const x=toXBar(i);
+      ctx.beginPath(); ctx.moveTo(x,MT); ctx.lineTo(x,MT+CH); ctx.stroke();
+      // Date label
+      if(candles[i]?.datetime){
+        const d=candles[i].datetime.slice(5,10);
+        ctx.fillStyle='#2a4060'; ctx.globalAlpha=0.8; ctx.font='8px monospace'; ctx.textAlign='center';
+        ctx.fillText(d,x,H-MB+18);
+      }
+    }
+  }
+  ctx.globalAlpha=1;
+
+  // ── Fibonacci lines ────────────────────────────────
   function drawFib(price,color,label){
-    if(!price)return; const y=toY(price);
-    ctx2.strokeStyle=color; ctx2.lineWidth=0.8; ctx2.globalAlpha=0.3;
-    ctx2.setLineDash([4,6]); ctx2.beginPath(); ctx2.moveTo(ML,y); ctx2.lineTo(W-MR,y); ctx2.stroke();
-    ctx2.setLineDash([]); ctx2.fillStyle=color; ctx2.globalAlpha=0.55;
-    ctx2.font='8px monospace'; ctx2.textAlign='left';
-    ctx2.fillText(label,ML+3,y-2); ctx2.globalAlpha=1;
+    if(!price||price<minP||price>maxP)return;
+    const y=toY(price);
+    ctx.strokeStyle=color; ctx.lineWidth=0.7; ctx.globalAlpha=0.3;
+    ctx.setLineDash([4,7]); ctx.beginPath(); ctx.moveTo(ML,y); ctx.lineTo(W-MR,y); ctx.stroke();
+    ctx.setLineDash([]); ctx.globalAlpha=0.55; ctx.fillStyle=color;
+    ctx.font='8px monospace'; ctx.textAlign='right';
+    ctx.fillText(label,W-MR-2,y-2); ctx.globalAlpha=1;
   }
-  drawFib(fibs.fib618_w1,'#8b5cf6','Fib 61.8%');
-  drawFib(fibs.fib1618_w1,'#06b6d4','Fib 161.8%');
-  drawFib(fibs.fib382_w3,'#8b5cf6','Fib 38.2%');
-  // H-Lines
-  function drawHLine(price,color,label){
-    if(!price)return; const y=toY(price);
-    ctx2.strokeStyle=color; ctx2.lineWidth=1; ctx2.globalAlpha=0.65;
-    ctx2.setLineDash([6,4]); ctx2.beginPath(); ctx2.moveTo(ML,y); ctx2.lineTo(W-MR,y); ctx2.stroke();
-    ctx2.setLineDash([]); ctx2.fillStyle=color; ctx2.globalAlpha=0.9;
-    ctx2.font='9px monospace'; ctx2.textAlign='right';
-    ctx2.fillText(label+' '+price,W-MR-2,y-3); ctx2.globalAlpha=1;
+  drawFib(fibs.fib618_w1,'#a78bfa','61.8%');
+  drawFib(fibs.fib1618_w1,'#22d3ee','161.8%');
+  drawFib(fibs.fib382_w3,'#a78bfa','38.2%');
+
+  // ── H-Lines (key levels) ──────────────────────────
+  function drawHL(price,color,label){
+    if(!price||price<minP*0.98||price>maxP*1.02)return;
+    const y=toY(price);
+    ctx.strokeStyle=color; ctx.lineWidth=1; ctx.globalAlpha=0.6;
+    ctx.setLineDash([6,4]); ctx.beginPath(); ctx.moveTo(ML,y); ctx.lineTo(W-MR,y); ctx.stroke();
+    ctx.setLineDash([]); ctx.globalAlpha=0.9; ctx.fillStyle=color;
+    ctx.font='bold 9px monospace'; ctx.textAlign='left';
+    ctx.fillText(label+' '+price, W-MR+2, y+3); ctx.globalAlpha=1;
   }
-  drawHLine(kl.entry,'#00d4ff','ENTRY');
-  drawHLine(kl.stop_loss,'#ff3d5a','SL');
-  drawHLine(kl.tp1,'#00e676','TP1');
-  drawHLine(kl.tp2,'#00a854','TP2');
-  drawHLine(kl.invalidation,'#ff6b00','INVAL');
-  // Wave colors
-  const iCol=isBearish?'#f59e0b':'#3b82f6', iCol2=isBearish?'#fbbf24':'#60a5fa';
-  const cCol=isBearish?'#ef4444':'#f59e0b', cCol2=isBearish?'#f87171':'#fbbf24';
-  // Wave lines + fill
-  for(let i=0;i<validPts.length-1;i++){
-    const p1=validPts[i],p2=validPts[i+1];
-    const x1=toX(i),y1=toY(p1.price),x2=toX(i+1),y2=toY(p2.price);
+  drawHL(kl.entry,'#00d4ff','ENTRY');
+  drawHL(kl.stop_loss,'#ff3d5a','SL');
+  drawHL(kl.tp1,'#00e676','TP1');
+  drawHL(kl.tp2,'#00a854','TP2');
+  drawHL(kl.invalidation,'#ff6b00','INVAL');
+
+  // ── Real Candles ──────────────────────────────────
+  if (useCandles) {
+    const cW = Math.max(2, barW*0.7);
+    candles.forEach((c,i)=>{
+      const x=toXBar(i);
+      const isUp=c.close>=c.open;
+      const col=isUp?'#10b981':'#ef4444';
+      const colFill=isUp?'rgba(16,185,129,0.7)':'rgba(239,68,68,0.7)';
+      // Wick
+      ctx.strokeStyle=col; ctx.lineWidth=0.8; ctx.globalAlpha=0.7;
+      ctx.beginPath(); ctx.moveTo(x,toY(c.high)); ctx.lineTo(x,toY(c.low)); ctx.stroke();
+      // Body
+      const yO=toY(c.open), yC=toY(c.close);
+      const bTop=Math.min(yO,yC), bH=Math.max(1,Math.abs(yC-yO));
+      ctx.fillStyle=colFill; ctx.globalAlpha=0.85;
+      ctx.fillRect(x-cW/2, bTop, cW, bH);
+      ctx.globalAlpha=1;
+    });
+  }
+
+  // ── Wave overlay ──────────────────────────────────
+  // Build ordered wave point list with X/Y positions
+  const wavePoints = [
+    {label:'0',price:wp.w0,impulse:true},
+    {label:'1',price:wp.w1,impulse:true},
+    {label:'2',price:wp.w2,impulse:true},
+    {label:'3',price:wp.w3,impulse:true},
+    {label:'4',price:wp.w4,impulse:true},
+    {label:'5',price:wp.w5,impulse:true},
+    {label:'A',price:wp.wa,impulse:false},
+    {label:'B',price:wp.wb,impulse:false},
+    {label:'C',price:wp.wc,impulse:false},
+  ].filter(p=>p.price);
+
+  // Assign X positions based on real candles
+  const pts = wavePoints.map((wp2,i)=>({
+    ...wp2,
+    x: waveX(wp2.price, i),
+    y: toY(wp2.price)
+  }));
+
+  // Sort by X to ensure correct left-to-right order
+  pts.sort((a,b)=>a.x-b.x);
+
+  // Wave line colors
+  const iCol  = isBearish?'#f59e0b':'#3b82f6';
+  const iCol2 = isBearish?'#fcd34d':'#60a5fa';
+  const cCol  = isBearish?'#f87171':'#f59e0b';
+  const cCol2 = isBearish?'#fca5a5':'#fcd34d';
+
+  // Draw wave lines with gradient fill
+  for(let i=0;i<pts.length-1;i++){
+    const p1=pts[i], p2=pts[i+1];
     const isImp=p1.impulse&&p2.impulse;
     const col=isImp?iCol:cCol, col2=isImp?iCol2:cCol2;
-    const ag=ctx2.createLinearGradient(0,Math.min(y1,y2),0,Math.max(y1,y2)+40);
-    ag.addColorStop(0,col+'18'); ag.addColorStop(1,col+'00');
-    ctx2.fillStyle=ag;
-    ctx2.beginPath(); ctx2.moveTo(x1,y1); ctx2.lineTo(x2,y2);
-    ctx2.lineTo(x2,H-MB); ctx2.lineTo(x1,H-MB); ctx2.closePath(); ctx2.fill();
-    ctx2.strokeStyle=col2; ctx2.lineWidth=2.5; ctx2.globalAlpha=0.9;
-    ctx2.beginPath(); ctx2.moveTo(x1,y1); ctx2.lineTo(x2,y2); ctx2.stroke();
-    ctx2.globalAlpha=1;
+
+    // Gradient fill under line
+    const ag=ctx.createLinearGradient(0,Math.min(p1.y,p2.y),0,Math.max(p1.y,p2.y)+60);
+    ag.addColorStop(0,col+'22'); ag.addColorStop(1,col+'00');
+    ctx.fillStyle=ag;
+    ctx.beginPath(); ctx.moveTo(p1.x,p1.y); ctx.lineTo(p2.x,p2.y);
+    ctx.lineTo(p2.x,MT+CH); ctx.lineTo(p1.x,MT+CH); ctx.closePath(); ctx.fill();
+
+    // Line
+    ctx.strokeStyle=col2; ctx.lineWidth=2.5; ctx.globalAlpha=0.92;
+    ctx.beginPath(); ctx.moveTo(p1.x,p1.y); ctx.lineTo(p2.x,p2.y); ctx.stroke();
+    ctx.globalAlpha=1;
   }
-  // Dots + labels
-  validPts.forEach((pt,i)=>{
-    const x=toX(i),y=toY(pt.price);
-    const col=pt.impulse?iCol2:cCol2, isCur=pt.label===analysis.current_wave;
+
+  // Draw dots + labels
+  pts.forEach(pt=>{
+    const isCur = pt.label===analysis.current_wave;
+    const col = pt.impulse?iCol2:cCol2;
+
+    // Glow for current wave
     if(isCur){
-      const g=ctx2.createRadialGradient(x,y,0,x,y,18);
-      g.addColorStop(0,col+'55'); g.addColorStop(1,col+'00');
-      ctx2.fillStyle=g; ctx2.beginPath(); ctx2.arc(x,y,18,0,Math.PI*2); ctx2.fill();
+      const g=ctx.createRadialGradient(pt.x,pt.y,0,pt.x,pt.y,16);
+      g.addColorStop(0,col+'66'); g.addColorStop(1,col+'00');
+      ctx.fillStyle=g; ctx.beginPath(); ctx.arc(pt.x,pt.y,16,0,Math.PI*2); ctx.fill();
     }
-    ctx2.fillStyle=isCur?'#ffffff':col; ctx2.globalAlpha=0.95;
-    ctx2.beginPath(); ctx2.arc(x,y,isCur?6:4.5,0,Math.PI*2); ctx2.fill();
-    ctx2.font='bold 12px monospace';
-    const tw=ctx2.measureText(pt.label).width, padW=tw+12,padH=18;
-    const prev=validPts[i-1],next=validPts[i+1];
-    let isPeak=false;
-    if(prev&&next) isPeak=pt.price>prev.price&&pt.price>next.price;
-    else if(prev) isPeak=pt.price>prev.price;
-    else if(next) isPeak=pt.price>next.price;
-    const oy=isPeak?-(padH+10):10, lx=x-padW/2, ly=y+oy;
-    ctx2.fillStyle='rgba(6,11,22,0.92)'; ctx2.globalAlpha=0.95;
-    ctx2.strokeStyle=col+'88'; ctx2.lineWidth=1;
-    if(ctx2.roundRect){ctx2.beginPath();ctx2.roundRect(lx,ly,padW,padH,3);ctx2.fill();ctx2.stroke();}
-    else{ctx2.fillRect(lx,ly,padW,padH);ctx2.strokeRect(lx,ly,padW,padH);}
-    ctx2.fillStyle=col; ctx2.globalAlpha=1; ctx2.textAlign='center';
-    ctx2.fillText(pt.label,x,ly+padH-4);
-    ctx2.strokeStyle=col; ctx2.lineWidth=0.8; ctx2.globalAlpha=0.4;
-    ctx2.beginPath();
-    ctx2.moveTo(x,isPeak?ly+padH:ly);
-    ctx2.lineTo(x,isPeak?y-(isCur?6:4.5):y+(isCur?6:4.5));
-    ctx2.stroke(); ctx2.globalAlpha=1;
+
+    // Dot
+    ctx.fillStyle=isCur?'#ffffff':col; ctx.globalAlpha=0.95;
+    ctx.beginPath(); ctx.arc(pt.x,pt.y,isCur?6:4.5,0,Math.PI*2); ctx.fill();
+    ctx.globalAlpha=1;
+
+    // Label badge
+    ctx.font='bold 11px monospace';
+    const tw=ctx.measureText(pt.label).width+10, th=18;
+    // Position above if price is high relative to range
+    const aboveMid = pt.y < MT+CH/2;
+    const ly = aboveMid ? pt.y-th-8 : pt.y+8;
+    const lx = pt.x-tw/2;
+
+    ctx.fillStyle='rgba(6,11,22,0.9)'; ctx.strokeStyle=col+'99'; ctx.lineWidth=1;
+    ctx.beginPath();
+    if(ctx.roundRect) ctx.roundRect(lx,ly,tw,th,3);
+    else ctx.rect(lx,ly,tw,th);
+    ctx.fill(); ctx.stroke();
+
+    ctx.fillStyle=col; ctx.textAlign='center';
+    ctx.fillText(pt.label,pt.x,ly+th-4);
+
+    // Price label
+    ctx.font='8px monospace'; ctx.fillStyle='#8aabb0'; ctx.globalAlpha=0.8;
+    const prStr=pt.price.toFixed(pt.price>100?2:4);
+    ctx.fillText(prStr,pt.x,aboveMid?ly-2:ly+th+10);
+    ctx.globalAlpha=1;
   });
-  // NOW line
+
+  // ── NOW price line ────────────────────────────────
   if(liveData?.price){
     const ly=toY(liveData.price);
-    ctx2.strokeStyle='#ffffff'; ctx2.lineWidth=1; ctx2.globalAlpha=0.25;
-    ctx2.setLineDash([3,5]); ctx2.beginPath(); ctx2.moveTo(ML,ly); ctx2.lineTo(W-MR,ly); ctx2.stroke();
-    ctx2.setLineDash([]); ctx2.globalAlpha=0.6; ctx2.fillStyle='#ffffff';
-    ctx2.font='9px monospace'; ctx2.textAlign='right';
-    ctx2.fillText('NOW '+liveData.price,W-MR-2,ly-3); ctx2.globalAlpha=1;
+    ctx.strokeStyle='rgba(255,255,255,0.3)'; ctx.lineWidth=1;
+    ctx.setLineDash([2,5]); ctx.beginPath(); ctx.moveTo(ML,ly); ctx.lineTo(W-MR,ly); ctx.stroke();
+    ctx.setLineDash([]); ctx.fillStyle='#aabbcc'; ctx.globalAlpha=0.7;
+    ctx.font='9px monospace'; ctx.textAlign='right';
+    ctx.fillText('NOW '+liveData.price,W-MR-2,ly-3); ctx.globalAlpha=1;
   }
-  // Header
-  ctx2.globalAlpha=1; ctx2.textAlign='left';
-  ctx2.font='bold 12px monospace'; ctx2.fillStyle='#3b82f6'; ctx2.fillText('XENOS',ML,26);
-  ctx2.fillStyle='#c8d8ea'; ctx2.fillText('FINANCE',ML+52,26);
-  ctx2.font='10px monospace'; ctx2.fillStyle='#5a7a9a';
-  ctx2.fillText('· EW · '+symbol+' · '+tf,ML+115,26);
-  const tCol=isBearish?'#f87171':'#34d399', tTxt=isBearish?'▼ BEARISH':'▲ BULLISH';
-  ctx2.font='bold 10px monospace'; ctx2.fillStyle=tCol; ctx2.textAlign='center'; ctx2.fillText(tTxt,W/2,26);
+
+  // ── Header ────────────────────────────────────────
+  ctx.globalAlpha=1; ctx.textAlign='left';
+  ctx.font='bold 12px monospace'; ctx.fillStyle='#3b82f6'; ctx.fillText('XENOS',ML,28);
+  ctx.fillStyle='#c8d8ea'; ctx.fillText('FINANCE',ML+53,28);
+  ctx.font='10px monospace'; ctx.fillStyle='#4a6a8a';
+  ctx.fillText('· EW · '+symbol+' · '+tf,ML+116,28);
+
+  const tCol=isBearish?'#f87171':'#34d399';
+  const tTxt=isBearish?'▼ BEARISH':'▲ BULLISH';
+  ctx.font='bold 10px monospace'; ctx.fillStyle=tCol; ctx.textAlign='center';
+  ctx.fillText(tTxt,W/2,28);
+
   const sTxt=analysis.signal==='LONG'?'▲ LONG':analysis.signal==='SHORT'?'▼ SHORT':'◆ WAIT';
   const sCol=analysis.signal==='LONG'?'#00e676':analysis.signal==='SHORT'?'#ff3d5a':'#f59e0b';
-  ctx2.textAlign='right'; ctx2.font='bold 11px monospace'; ctx2.fillStyle=sCol; ctx2.fillText(sTxt,W-MR,26);
-  ctx2.textAlign='left'; ctx2.font='9px monospace'; ctx2.fillStyle='#3a5070';
-  ctx2.fillText('Wave '+analysis.current_wave+' active'+(analysis.degree?' · '+analysis.degree:''),ML,H-MB+30);
-  ctx2.textAlign='center'; ctx2.font='9px monospace'; ctx2.fillStyle='#3a5070';
-  validPts.forEach((pt,i)=>{ ctx2.fillText('W'+pt.label,toX(i),H-MB+18); });
+  ctx.textAlign='right'; ctx.font='bold 11px monospace'; ctx.fillStyle=sCol;
+  ctx.fillText(sTxt,W-MR,28);
+
+  // Wave degree info
+  ctx.textAlign='left'; ctx.font='9px monospace'; ctx.fillStyle='#3a5070';
+  ctx.fillText('Wave '+analysis.current_wave+' active'+(analysis.degree?' · '+analysis.degree:''),ML,H-MB+32);
 }
+
 
 async function sendToTelegram(){
   if(!lastAnalysis) return;
