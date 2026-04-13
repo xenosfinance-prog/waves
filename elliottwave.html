@@ -1175,7 +1175,7 @@ function fibRet(start, end, ratio) { return end - (end-start)*ratio; }
 
 // ── MAIN ENGINE — 1:1 port of count_elliott_waves_deepscan ──────
 function countElliottWavesDeepscan(candles) {
-  if (!candles || candles.length < 50) return null;
+  if (!candles || candles.length < 20) return null;
 
   const closes  = candles.map(c=>c.close);
   const p       = closes[closes.length-1];
@@ -1622,7 +1622,7 @@ async function runAIAnalysis(){
       const candleRes = await fetch('https://xenos-ai-proxy.xenosfinance.workers.dev', {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ type:'yahoocandles', symbol:workerSym, interval:tfConf.interval, range:tfConf.range }),
-        signal: AbortSignal.timeout(12000)
+        signal: AbortSignal.timeout(20000)
       });
       if (candleRes.ok) {
         const cd = await candleRes.json();
@@ -1700,7 +1700,7 @@ Volume Analysis: ${candles[candles.length-1].volume > vp.avgVol*1.5 ? 'HIGH volu
           }
 
           // ── Last 30 OHLCV candles for context ──
-          const last30 = candles.slice(-30);
+          const last30 = engineCandles.slice(-30);
           candleContext = `\n\nOHLCV DATA (${tf}, last ${last30.length} candles, newest last):
 Date       | Open    | High    | Low     | Close   | Volume
 ${last30.map(c=>{
@@ -1720,12 +1720,17 @@ ${last30.map(c=>{
   const livePrice = liveData.price;
 
   // ── Step 1: Run deterministic JS engine (same as bot.py) ──────
-  const candles = allCandles.slice(-tfConf.bars);
-  ewLastCandles = candles;
-  const ewResult = countElliottWavesDeepscan(candles);
+  // Use all fetched candles — more data = better pivot detection
+  const engineCandles = allCandles.length >= 20 ? allCandles : [];
+  ewLastCandles = engineCandles;
+  const ewResult = countElliottWavesDeepscan(engineCandles);
 
   if (!ewResult) {
-    txt.textContent = '⚠ Insufficient candle data for analysis. Try a different timeframe.';
+    if (allCandles.length === 0) {
+      txt.textContent = '⚠ Could not fetch candle data for this asset/timeframe. Check connection or try again.';
+    } else {
+      txt.textContent = `⚠ Insufficient candle data (${allCandles.length} candles). Need at least 20. Try a longer timeframe.`;
+    }
     btn.disabled=false; btn.textContent='⚡ Generate Analysis'; return;
   }
 
