@@ -3410,14 +3410,7 @@ let pendingTgSignalIdx = null;
 
 function sendToTelegram(event, idx) {
   event.stopPropagation();
-  pendingTgSignalIdx = idx;
-  const token = localStorage.getItem('tg_token');
-  const chatId = localStorage.getItem('tg_chat_id');
-  // Mostra sempre il popup per verificare le credenziali
-  document.getElementById('tg-bot-token').value = token || '';
-  document.getElementById('tg-chat-id').value = chatId || '';
-  document.getElementById('tg-config').classList.add('open');
-  document.getElementById('tg-overlay').classList.add('open');
+  doSendToTelegram(idx);
 }
 
 function closeTgConfig() {
@@ -3426,19 +3419,11 @@ function closeTgConfig() {
 }
 
 function saveTgConfig() {
-  const token = document.getElementById('tg-bot-token').value.trim();
-  let chatId = document.getElementById('tg-chat-id').value.trim();
-  if (!token || !chatId) { showToast('Inserisci Bot Token e Chat ID'); return; }
-  // Auto-fix: canali pubblici @username ok, canali privati devono iniziare con -100
-  if (chatId.match(/^-?\d+$/) && !chatId.startsWith('-')) chatId = '-100' + chatId;
-  localStorage.setItem('tg_token', token);
-  localStorage.setItem('tg_chat_id', chatId);
-  document.getElementById('tg-chat-id').value = chatId;
+  // Legacy — no longer used. Token/channel managed server-side via Worker env vars.
   closeTgConfig();
-  if (pendingTgSignalIdx !== null) doSendToTelegram(pendingTgSignalIdx, token, chatId);
 }
 
-async function doSendToTelegram(idx, token, chatId) {
+async function doSendToTelegram(idx) {
   const sig = signals[idx];
   if (!sig) return;
   const btn = document.querySelector(`[onclick="sendToTelegram(event, ${idx})"]`);
@@ -3517,8 +3502,6 @@ async function doSendToTelegram(idx, token, chatId) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         type: 'telegram_photo',
-        token: token,
-        chat_id: chatId,
         image_base64: imageData,
         image_mime: 'image/jpeg',
         caption: caption.slice(0, 1024),
@@ -3758,12 +3741,6 @@ async function saveAndSendManualSignal() {
   document.getElementById('msStatus').textContent = 'Saving & sending...';
   try {
     await saveSignalToGitHub(sig, sig.signal_type);
-    const token  = localStorage.getItem('tg_token');
-    const chatId = localStorage.getItem('tg_chat_id');
-    if (!token || !chatId) {
-      document.getElementById('msStatus').textContent = '✓ Saved — configure Telegram first';
-      return;
-    }
 
     // Build caption based on type — plain text only to avoid HTML parse errors
     let caption;
@@ -3797,7 +3774,7 @@ async function saveAndSendManualSignal() {
     if (msImgBase64) {
       const res = await fetch(WORKER, {
         method: 'POST', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ type: 'telegram_photo', token, chat_id: chatId, image_base64: msImgBase64, image_mime: msImgMime, caption })
+        body: JSON.stringify({ type: 'telegram_photo', image_base64: msImgBase64, image_mime: msImgMime, caption })
       });
       const d = await res.json();
       const tg = d.ok !== undefined ? d : (d.data || d);
@@ -3805,7 +3782,7 @@ async function saveAndSendManualSignal() {
     } else {
       const res = await fetch(WORKER, {
         method: 'POST', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ type: 'telegram', token, chat_id: chatId, text: caption, disable_web_page_preview: true })
+        body: JSON.stringify({ type: 'telegram', text: caption, disable_web_page_preview: true })
       });
       const d = await res.json();
       if (!d.ok) throw new Error(d.description || 'Telegram error');
