@@ -1581,7 +1581,7 @@ function detectTrend(candles) {
 }
 
 async function runAIAnalysis(){
-  const symbolEl = document.getElementById('aiSymbol');
+  const symbolEl=document.getElementById('aiSymbol');
   const symbolVal = symbolEl.options ? symbolEl.options[symbolEl.selectedIndex].value : 'eur/usd';
   const symbol    = symbolEl.options ? symbolEl.options[symbolEl.selectedIndex].text : symbolVal.toUpperCase();
   const tf        = document.getElementById('aiTf').value;
@@ -1590,142 +1590,197 @@ async function runAIAnalysis(){
   const out       = document.getElementById('analysisOutput');
   const txt       = document.getElementById('analysisText');
 
-  btn.disabled = true;
-  btn.textContent = 'Fetching...';
-  out.style.display = 'block';
-  txt.innerHTML = '<span class="analysis-loading">⬡ CONNECTING TO XENOS ENGINE...</span>';
-  document.getElementById('tgBtn').style.display = 'none';
-  document.getElementById('ewChartWrap').style.display = 'none';
+  btn.disabled=true; btn.textContent='Fetching price...';
+  out.style.display='block';
+  txt.innerHTML='<span class="analysis-loading">⬡ FETCHING LIVE PRICE...</span>';
+  document.getElementById('tgBtn').style.display='none';
 
-  // Railway bot endpoint
-  const RAILWAY_URL = 'https://waves-production.up.railway.app';
-
-  // Map site TF label → API tf param
-  const TF_MAP = {
-    'W1 (Weekly)': 'w1', 'D1 (Daily)': 'd1',
-    'H4 (4-Hour)': 'h4', 'H2 (2-Hour)': 'h2', 'H1 (1-Hour)': 'h1'
+  const TF_CONF = {
+    'W1 (Weekly)':  { interval:'1wk', range:'5y',  bars:150, lookback:4 },
+    'D1 (Daily)':   { interval:'1d',  range:'2y',  bars:150, lookback:5 },
+    'H4 (4-Hour)':  { interval:'1h',  range:'90d', bars:150, lookback:5 },
+    'H2 (2-Hour)':  { interval:'1h',  range:'45d', bars:120, lookback:4 },
+    'H1 (1-Hour)':  { interval:'1h',  range:'21d', bars:120, lookback:3 },
   };
-  const tfParam = TF_MAP[tf] || 'd1';
+  const tfConf = TF_CONF[tf] || TF_CONF['D1 (Daily)'];
 
-  try {
-    txt.innerHTML = '<span class="analysis-loading">⬡ RUNNING ELLIOTT WAVE ENGINE...</span>';
-
-    const res = await fetch(
-      `${RAILWAY_URL}/elliott?symbol=${encodeURIComponent(symbolVal)}&tf=${tfParam}`,
-      { signal: AbortSignal.timeout(60000) }
-    );
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({error: res.statusText}));
-      throw new Error(err.error || `HTTP ${res.status}`);
-    }
-
-    const ew = await res.json();
-    if (ew.error) throw new Error(ew.error);
-
-    // Render chart
-    renderEWChartFromAPI(ew, symbol, tf);
-
-    // Format text output
-    const sigIcon = ew.trend === 'UP' ? '▲' : '▼';
-    const sigTxt  = ew.action.includes('LONG') ? '▲ LONG'
-                  : ew.action.includes('SHORT') ? '▼ SHORT' : '◆ WAIT';
-    const trendTxt = ew.trend === 'UP' ? '▲ UPTREND' : '▼ DOWNTREND';
-    const dec = ew.live_price > 100 ? 2 : 5;
-    const fmt = v => v ? parseFloat(v).toFixed(dec) : '—';
-
-    const divNote  = ew.bearish_div ? '⚠ Bearish RSI divergence — momentum weakening'
-                   : ew.bullish_div ? '✓ Bullish RSI divergence — momentum building' : null;
-    const diagNote = ew.diagonal   ? `Diagonal: ${ew.diagonal}` : null;
-    const corrNote = ew.corrective ? `Correction: ${ew.corrective}` : null;
-    const actionClean = (ew.action||'').replace(/🟢|🔴|⚠️/g,'').trim();
-
-    const output = [
-      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-      `  ${symbol}  ·  ${tf}  ·  Live: ${fmt(ew.live_price)}`,
-      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-      ``,
-      `WAVE STRUCTURE`,
-      `  ${ew.wave_desc}`,
-      `  ${trendTxt}  ·  Degree: ${ew.degree}  ·  Confidence: ${ew.confidence}%`,
-      ``,
-      `MARKET CONTEXT`,
-      `  ${ew.wave_char}`,
-      divNote  ? `  ${divNote}`  : null,
-      diagNote ? `  ${diagNote}` : null,
-      corrNote ? `  ${corrNote}` : null,
-      ``,
-      `KEY LEVELS`,
-      `  Entry      ${fmt(ew.live_price)}`,
-      `  Stop Loss  ${fmt(ew.invalidation)}`,
-      `  Target 1   ${fmt(ew.cons_target)}`,
-      `  Target 2   ${fmt(ew.next_target)}`,
-      `  R:R        1:${ew.risk_reward}`,
-      ``,
-      `SIGNAL  ${sigTxt}`,
-      `  ${actionClean}`,
-      ``,
-      `INDICATORS`,
-      `  RSI(14): ${ew.rsi}${ew.rsi>70?' — Overbought':ew.rsi<30?' — Oversold':''}`,
-      `  MACD: ${ew.macd_hist > 0 ? '+' : ''}${(ew.macd_hist||0).toFixed(5)}  ${ew.macd_hist>0?'Bullish':'Bearish'} momentum`,
-      `  ATR: ${fmt(ew.atr)}`,
-      ``,
-      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-      `  ANALYSIS`,
-      `  Loading...`,
-      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-    ].filter(l => l !== null).join('\n');
-
-    txt.textContent = output;
-    lastAnalysis = `Elliott Wave Analysis — ${symbol} ${tf}\n\n${output}`;
-    document.getElementById('tgBtn').style.display = 'inline-block';
-
-    // Claude narrative (fast, non-blocking)
-    try {
-      const narrativePrompt = `You are a senior Elliott Wave analyst. Write a concise professional commentary (3 short paragraphs, plain text, no markdown, no asterisks) for:
-Instrument: ${symbol} | Timeframe: ${tf}
-Wave: ${ew.wave_num} | Trend: ${ew.trend} | Confidence: ${ew.confidence}%
-${ew.wave_desc}
-${ew.wave_char}
-Signal: ${sigTxt} | SL: ${fmt(ew.invalidation)} | TP1: ${fmt(ew.cons_target)} | TP2: ${fmt(ew.next_target)}
-RSI: ${ew.rsi} | ${divNote||''}
-${ctx_text ? 'Context: '+ctx_text : ''}
-Paragraph 1: what the wave structure means. Paragraph 2: key risk. Paragraph 3: levels to watch.`;
-
-      const nr = await fetch('https://xenos-ai-proxy.xenosfinance.workers.dev', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: 400,
-          messages: [{role: 'user', content: narrativePrompt}]
-        }),
-        signal: AbortSignal.timeout(30000)
-      });
-      if (nr.ok) {
-        const nd = await nr.json();
-        let narrative = (nd.content?.[0]?.text||'')
-          .replace(/\*\*/g,'').replace(/\*/g,'')
-          .replace(/^#+\s*/gm,'').trim();
-        if (narrative) {
-          const final = output.replace('  Loading...', '  ' + narrative.split('\n').join('\n  '));
-          txt.textContent = final;
-          lastAnalysis = `Elliott Wave Analysis — ${symbol} ${tf}\n\n${final}`;
-        }
-      }
-    } catch(e) {
-      const final = output.replace('  Loading...', '  Analysis unavailable.');
-      txt.textContent = final;
-    }
-
-  } catch(e) {
-    txt.textContent = `⚠ Error: ${e.message}\n\nMake sure the Railway bot is running.`;
-    document.getElementById('ewChartWrap').style.display = 'none';
+  const liveData = await fetchLivePrice(symbolVal);
+  if (!liveData?.price) {
+    txt.innerHTML=`<div style="color:#f87171;font-family:var(--mono);font-size:11px;">⚠ LIVE PRICE NOT FOUND for "${symbol}"</div>`;
+    btn.disabled=false; btn.textContent='⚡ Generate Analysis'; return;
   }
 
-  btn.disabled = false;
-  btn.textContent = '⚡ Generate Analysis';
+  btn.textContent='Fetching candles...';
+  txt.innerHTML='<span class="analysis-loading">⬡ FETCHING CANDLE DATA...</span>';
+
+  let allCandles = [];
+  let candleContext = '';
+  const workerSym = EW_SYMBOL_MAP[symbolVal.trim().toLowerCase()];
+
+  if (workerSym) {
+    try {
+      const candleRes = await fetch('https://xenos-ai-proxy.xenosfinance.workers.dev', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ type:'yahoocandles', symbol:workerSym, interval:tfConf.interval, range:tfConf.range }),
+        signal: AbortSignal.timeout(20000)
+      });
+      if (candleRes.ok) {
+        const cd = await candleRes.json();
+        if (cd.error) console.warn('Candle fetch error:', cd.error);
+        allCandles = (cd.candles||[]).filter(c=>c.close>0);
+        if (tf === 'H4 (4-Hour)') {
+          const r=[];
+          for (let i=0;i<allCandles.length-3;i+=4) {
+            const chunk=allCandles.slice(i,i+4);
+            r.push({datetime:chunk[0].datetime,open:chunk[0].open,high:Math.max(...chunk.map(c=>c.high)),low:Math.min(...chunk.map(c=>c.low)),close:chunk[3].close,volume:chunk.reduce((s,c)=>s+(c.volume||0),0)});
+          }
+          allCandles=r;
+        } else if (tf === 'H2 (2-Hour)') {
+          const r=[];
+          for (let i=0;i<allCandles.length-1;i+=2) {
+            const chunk=allCandles.slice(i,i+2);
+            r.push({datetime:chunk[0].datetime,open:chunk[0].open,high:Math.max(...chunk.map(c=>c.high)),low:Math.min(...chunk.map(c=>c.low)),close:chunk[1].close,volume:chunk.reduce((s,c)=>s+(c.volume||0),0)});
+          }
+          allCandles=r;
+        }
+        if (allCandles.length >= 20) {
+          const last30 = allCandles.slice(-30);
+          const dp = liveData.price>10?2:5;
+          candleContext = `\n\nOHLCV DATA (${tf}, last ${last30.length} candles):\n` +
+            last30.map(c=>`${c.datetime?.slice(0,10)} | ${c.close?.toFixed(dp)}`).join('\n');
+        }
+      }
+    } catch(e) { console.warn('Candle fetch error:', e); }
+  }
+
+  btn.textContent='Analysing...';
+  txt.innerHTML='<span class="analysis-loading">⬡ RUNNING XENOS EW ENGINE v3.0...</span>';
+
+  const dec = liveData.price > 100 ? 2 : 5;
+  const livePrice = liveData.price;
+
+  const engineCandles = allCandles.length >= 20 ? allCandles : [];
+  ewLastCandles = engineCandles;
+  const ewResult = countElliottWavesDeepscan(engineCandles);
+
+  if (!ewResult) {
+    txt.textContent = allCandles.length === 0
+      ? `⚠ Could not fetch candle data for "${workerSym||symbol}" on ${tf}.`
+      : `⚠ Insufficient candle data: ${allCandles.length} candles. Need at least 20.`;
+    btn.disabled=false; btn.textContent='⚡ Generate Analysis'; return;
+  }
+
+  ewLastCandles._pivotMap = ewResult.pivotMap;
+
+  const signalDir = ewResult.action.includes('🟢') ? 'LONG'
+                  : ewResult.action.includes('🔴') ? 'SHORT' : 'WAIT';
+
+  const chartAnalysis = {
+    trend: ewResult.directionUp ? 'UP' : 'DOWN',
+    current_wave: ewResult.waveNum,
+    degree: ewResult.degree,
+    signal: signalDir,
+    key_levels: {
+      entry:       parseFloat(livePrice.toFixed(dec)),
+      stop_loss:   parseFloat(ewResult.invalidation.toFixed(dec)),
+      tp1:         parseFloat(ewResult.conservativeTarget.toFixed(dec)),
+      tp2:         parseFloat(ewResult.nextTarget.toFixed(dec)),
+      invalidation:parseFloat(ewResult.invalidation.toFixed(dec)),
+    },
+    fibonacci_levels: {
+      fib618_w1:  parseFloat(fibRet(ewResult.w1Start, ewResult.w1End, 0.618).toFixed(dec)),
+      fib1618_w1: parseFloat((ewResult.w1End + ewResult.w1Size*1.618).toFixed(dec)),
+      fib382_w3:  ewResult.w3End ? parseFloat(fibRet(ewResult.w1End, ewResult.w3End, 0.382).toFixed(dec)) : null,
+    },
+    wave_points: ewResult.wavePoints,
+  };
+
+  renderEWChart(chartAnalysis, symbol, tf, liveData);
+
+  txt.innerHTML='<span class="analysis-loading">⬡ GENERATING NARRATIVE ANALYSIS...</span>';
+
+  const vp = calcVolumeProfile(engineCandles);
+  const sigTxt   = signalDir==='LONG'?'▲ LONG':signalDir==='SHORT'?'▼ SHORT':'◆ WAIT';
+  const trendTxt = chartAnalysis.trend==='UP' ? '▲ UPTREND' : '▼ DOWNTREND';
+  const divNote  = ewResult.bearishDiv ? '⚠ Bearish RSI divergence — momentum weakening'
+                 : ewResult.bullishDiv ? '✓ Bullish RSI divergence — momentum building' : null;
+  const diagNote = ewResult.diagonal ? `Diagonal: ${ewResult.diagonal}` : null;
+  const corrNote = ewResult.correctivePattern ? `Correction: ${ewResult.correctivePattern}` : null;
+  const actionClean = ewResult.action.replace(/🟢|🔴|⚠️/g,'').trim();
+
+  const instantOutput = [
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+    `  ${symbol}  ·  ${tf}  ·  Live: ${livePrice}`,
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+    ``,`WAVE STRUCTURE`,
+    `  ${ewResult.waveDesc}`,
+    `  ${trendTxt}  ·  Degree: ${ewResult.degree}  ·  Confidence: ${ewResult.confidence}%`,
+    ``,`MARKET CONTEXT`,
+    `  ${ewResult.waveChar}`,
+    divNote?`  ${divNote}`:null, diagNote?`  ${diagNote}`:null, corrNote?`  ${corrNote}`:null,
+    ``,`KEY LEVELS`,
+    `  Entry      ${livePrice}`,
+    `  Stop Loss  ${chartAnalysis.key_levels.stop_loss}`,
+    `  Target 1   ${chartAnalysis.key_levels.tp1}`,
+    `  Target 2   ${chartAnalysis.key_levels.tp2}`,
+    `  R:R        1:${ewResult.riskReward}`,
+    ``,`SIGNAL  ${sigTxt}`,
+    `  ${actionClean}`,
+    ``,`INDICATORS`,
+    `  RSI(14): ${ewResult.rsi}${ewResult.rsi>70?' — Overbought':ewResult.rsi<30?' — Oversold':''}`,
+    `  MACD: ${ewResult.macdHist>0?'+':''}${ewResult.macdHist?.toFixed(5)||'n/a'}  ${ewResult.macdHist>0?'Bullish':'Bearish'} momentum`,
+    `  ATR: ${ewResult.atr?.toFixed(dec)||'n/a'}`,
+    vp?`  Vol POC: ${vp.poc}`:null,
+    ``,
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+    `  ANALYSIS`,`  Loading...`,
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+  ].filter(l=>l!==null).join('\n');
+
+  txt.textContent = instantOutput;
+  lastAnalysis = `Elliott Wave Analysis — ${symbol} ${tf}\n\n${instantOutput}`;
+  document.getElementById('tgBtn').style.display='inline-block';
+
+  try {
+    async function fetchWithRetry(body, retries=2) {
+      for (let i=1;i<=retries;i++) {
+        try {
+          const r=await fetch('https://xenos-ai-proxy.xenosfinance.workers.dev',{
+            method:'POST',headers:{'Content-Type':'application/json'},
+            body:JSON.stringify(body),signal:AbortSignal.timeout(30000)
+          });
+          if (r.status===529||r.status===429){if(i<retries){await new Promise(r=>setTimeout(r,i*2000));continue;}return null;}
+          return r;
+        } catch(e){if(i===retries)return null;await new Promise(r=>setTimeout(r,i*1500));}
+      }
+    }
+    const narrativePrompt = `You are a senior Elliott Wave analyst. Write a concise professional commentary (3 short paragraphs, plain text, no markdown, no asterisks):
+${symbol} | ${tf} | Live: ${livePrice}
+Wave: ${ewResult.waveNum} | Trend: ${chartAnalysis.trend} | Confidence: ${ewResult.confidence}%
+${ewResult.waveDesc} — ${ewResult.waveChar}
+Signal: ${sigTxt} | SL: ${chartAnalysis.key_levels.stop_loss} | TP1: ${chartAnalysis.key_levels.tp1} | TP2: ${chartAnalysis.key_levels.tp2}
+RSI: ${ewResult.rsi} | ${divNote||'no divergence'}
+${ctx_text?'Context: '+ctx_text:''}
+Paragraph 1: wave structure meaning. Paragraph 2: key risk. Paragraph 3: specific levels to watch.`;
+
+    const res = await fetchWithRetry({model:'claude-sonnet-4-20250514',max_tokens:400,messages:[{role:'user',content:narrativePrompt}]});
+    if (res) {
+      const data = await res.json();
+      let narrative = (data.content?.[0]?.text||'').replace(/\*\*/g,'').replace(/\*/g,'').replace(/^#+\s*/gm,'').trim();
+      if (narrative) {
+        const final = instantOutput.replace('  Loading...', '  '+narrative.split('\n').join('\n  '));
+        txt.textContent = final;
+        lastAnalysis = `Elliott Wave Analysis — ${symbol} ${tf}\n\n${final}`;
+      }
+    }
+  } catch(e) {
+    txt.textContent = instantOutput.replace('  Loading...', '  Analysis unavailable.');
+  }
+
+  btn.disabled=false;
+  btn.textContent='⚡ Generate Analysis';
 }
+
 
 // ── ELLIOTT WAVE CHART RENDERER (from Railway API) ────────────────
 function renderEWChartFromAPI(ew, symbol, tf) {
