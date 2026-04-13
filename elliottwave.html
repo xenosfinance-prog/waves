@@ -2140,114 +2140,50 @@ function renderEWChart(analysis, symbol, tf, liveData) {
   const cCol  = isBearish?'#f87171':'#f59e0b';
   const cCol2 = isBearish?'#fca5a5':'#fcd34d';
 
-  // Draw wave lines with gradient fill
-  for(let i=0;i<pts.length-1;i++){
-    const p1=pts[i], p2=pts[i+1];
-    const isImp=p1.impulse&&p2.impulse;
-    const col=isImp?iCol:cCol, col2=isImp?iCol2:cCol2;
+  // No connecting lines — just dots and numbers on pivots
 
-    // Gradient fill under line
-    const ag=ctx.createLinearGradient(0,Math.min(p1.y,p2.y),0,Math.max(p1.y,p2.y)+60);
-    ag.addColorStop(0,col+'22'); ag.addColorStop(1,col+'00');
-    ctx.fillStyle=ag;
-    ctx.beginPath(); ctx.moveTo(p1.x,p1.y); ctx.lineTo(p2.x,p2.y);
-    ctx.lineTo(p2.x,MT+CH); ctx.lineTo(p1.x,MT+CH); ctx.closePath(); ctx.fill();
+  // ── Wave labels — numbers only on candles, no connecting lines ──
+  pts.forEach((pt, i) => {
+    const isCur = pt.label === analysis.current_wave;
+    const col = pt.impulse ? iCol2 : cCol2;
 
-    // Line
-    ctx.strokeStyle=col2; ctx.lineWidth=2.5; ctx.globalAlpha=0.92;
-    ctx.beginPath(); ctx.moveTo(p1.x,p1.y); ctx.lineTo(p2.x,p2.y); ctx.stroke();
-    ctx.globalAlpha=1;
-  }
+    // Dot on the candle pivot point
+    ctx.fillStyle = '#0d1521';
+    ctx.beginPath(); ctx.arc(pt.x, pt.y, isCur ? 6 : 4.5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = col; ctx.globalAlpha = 0.95;
+    ctx.beginPath(); ctx.arc(pt.x, pt.y, isCur ? 4.5 : 3, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 1;
 
-  // Draw dots + labels — clean style: dot → line → number
-  const placedLabels = []; // for collision avoidance
-
-  pts.forEach(pt=>{
-    const isCur = pt.label===analysis.current_wave;
-    const col = pt.impulse?iCol2:cCol2;
-
-    // Glow for current wave
-    if(isCur){
-      const g=ctx.createRadialGradient(pt.x,pt.y,0,pt.x,pt.y,14);
-      g.addColorStop(0,col+'55'); g.addColorStop(1,col+'00');
-      ctx.fillStyle=g; ctx.beginPath(); ctx.arc(pt.x,pt.y,14,0,Math.PI*2); ctx.fill();
-    }
-
-    // Dot
-    ctx.fillStyle='#0d1521';
-    ctx.beginPath(); ctx.arc(pt.x,pt.y,isCur?7:5,0,Math.PI*2); ctx.fill();
-    ctx.fillStyle=col; ctx.globalAlpha=0.95;
-    ctx.beginPath(); ctx.arc(pt.x,pt.y,isCur?5.5:3.5,0,Math.PI*2); ctx.fill();
-    ctx.globalAlpha=1;
-
-    // Determine preferred label direction based on wave type
-    const preferAbove = isBearish
+    // Preferred direction: highs get label above, lows get label below
+    const isHigh = isBearish
       ? ['0','2','4','B'].includes(pt.label)
       : ['1','3','5','A','C'].includes(pt.label);
 
-    // Stem length
-    const stemLen = 18;
-    let labelY = preferAbove ? pt.y - stemLen : pt.y + stemLen;
+    // Label Y: just outside the dot, 12px gap
+    let ly = isHigh ? pt.y - 22 : pt.y + 22;
+    ly = Math.max(MT + 10, Math.min(ly, MT + CH - 10));
 
-    // Clamp within chart
-    labelY = Math.max(MT + 8, Math.min(labelY, MT + CH - 8));
-
-    // Collision avoidance — nudge if overlapping a placed label
-    let attempts = 0;
-    while (attempts < 6) {
-      const hit = placedLabels.find(p => Math.abs(p.x - pt.x) < 22 && Math.abs(p.y - labelY) < 16);
-      if (!hit) break;
-      // Try further out in same direction, then opposite
-      labelY += preferAbove ? -14 : 14;
-      labelY = Math.max(MT + 8, Math.min(labelY, MT + CH - 8));
-      attempts++;
+    // Nudge if overlapping previous label
+    for (let j = 0; j < i; j++) {
+      const prev = pts[j];
+      if (Math.abs(prev._ly - ly) < 14 && Math.abs(prev.x - pt.x) < 20) {
+        ly = isHigh ? ly - 14 : ly + 14;
+        ly = Math.max(MT + 10, Math.min(ly, MT + CH - 10));
+      }
     }
-    placedLabels.push({x: pt.x, y: labelY});
+    pt._ly = ly;
 
-    // Stem line from dot to label
-    ctx.strokeStyle = col + 'aa';
-    ctx.lineWidth = 1;
-    ctx.setLineDash([2,2]);
-    ctx.beginPath();
-    ctx.moveTo(pt.x, preferAbove ? pt.y - (isCur?5.5:3.5) : pt.y + (isCur?5.5:3.5));
-    ctx.lineTo(pt.x, labelY + (preferAbove ? 7 : -1));
-    ctx.stroke();
-    ctx.setLineDash([]);
-
-    // Wave number text — clean, no box
-    ctx.font = `bold ${isCur?12:11}px monospace`;
+    // Number — bold, centered, no box
+    ctx.font = `bold ${isCur ? 13 : 11}px monospace`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-
-    // Subtle bg circle for readability
-    ctx.fillStyle = 'rgba(10,16,28,0.85)';
-    ctx.beginPath();
-    ctx.arc(pt.x, labelY, isCur?9:8, 0, Math.PI*2);
-    ctx.fill();
-
-    // Border circle
-    ctx.strokeStyle = col;
-    ctx.lineWidth = isCur ? 1.5 : 1;
-    ctx.beginPath();
-    ctx.arc(pt.x, labelY, isCur?9:8, 0, Math.PI*2);
-    ctx.stroke();
-
-    // Number
+    // Slight shadow for readability on candles
+    ctx.fillStyle = 'rgba(8,14,24,0.9)';
+    ctx.fillText(pt.label, pt.x + 1, ly + 1);
     ctx.fillStyle = col;
-    ctx.fillText(pt.label, pt.x, labelY + 0.5);
+    ctx.fillText(pt.label, pt.x, ly);
     ctx.textBaseline = 'alphabetic';
-
-    // Price — small text next to label circle
-    ctx.font = '8px monospace';
-    ctx.fillStyle = '#6a8aaa';
-    ctx.globalAlpha = 0.85;
-    const prStr = pt.price.toFixed(pt.price > 100 ? 2 : 4);
-    const priceX = pt.x + (pt.x > ML + CW*0.8 ? -28 : 14);
-    ctx.textAlign = 'left';
-    if (pt.x > ML + CW*0.8) { ctx.textAlign = 'right'; ctx.fillText(prStr, pt.x - 12, labelY + 4); }
-    else ctx.fillText(prStr, pt.x + 12, labelY + 4);
-    ctx.globalAlpha = 1;
-    ctx.textAlign = 'center';
+  });
   });
 
   // ── NOW price line ────────────────────────────────
