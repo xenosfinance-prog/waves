@@ -7,7 +7,24 @@
   <link rel="apple-touch-icon" sizes="192x192" href="/favicon-192.png"> 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>XENOS · Signal Engine</title>
-<script src="https://unpkg.com/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
+<script>
+(function(){
+  var CDNS = [
+    'https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js',
+    'https://unpkg.com/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/lightweight-charts/4.1.1/lightweight-charts.standalone.production.min.js'
+  ];
+  var idx = 0;
+  function tryLoad() {
+    if (idx >= CDNS.length) return;
+    var s = document.createElement('script');
+    s.src = CDNS[idx++];
+    s.onerror = function() { tryLoad(); };
+    document.head.appendChild(s);
+  }
+  tryLoad();
+})();
+</script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap');
 
@@ -2605,6 +2622,18 @@ function loadTradingViewChart(container, sig) {
 
 // ── Lightweight Charts (FX + Crypto via TD/Finnhub) ─────────
 async function loadLightweightChart(container, sig) {
+  // Wait up to 4s for library to load (CDN fallback may be slower)
+  if (typeof LightweightCharts === 'undefined') {
+    let waited = 0;
+    await new Promise(resolve => {
+      const check = setInterval(() => {
+        waited += 200;
+        if (typeof LightweightCharts !== 'undefined' || waited >= 4000) {
+          clearInterval(check); resolve();
+        }
+      }, 200);
+    });
+  }
   if (typeof LightweightCharts === 'undefined') {
     container.classList.remove('loading');
     container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;font-family:var(--mono);font-size:11px;color:var(--text-dim);letter-spacing:0.1em;">Live chart library not loaded</div>';
