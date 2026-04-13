@@ -1599,13 +1599,13 @@ async function runAIAnalysis(){
   btn.textContent='Fetching candles...';
   txt.innerHTML='<span class="analysis-loading">⬡ FETCHING CANDLE DATA & INDICATORS...</span>';
 
-  // ── TF config — more candles for better pivot detection ──
+  // ── TF config ──
   const TF_CONF = {
-    'W1 (Weekly)':  { interval:'1wk', range:'3y',  bars:100, lookback:3 },
-    'D1 (Daily)':   { interval:'1d',  range:'1y',  bars:120, lookback:4 },
-    'H4 (4-Hour)':  { interval:'1h',  range:'60d', bars:120, lookback:5 },
-    'H2 (2-Hour)':  { interval:'1h',  range:'30d', bars:100, lookback:4 },
-    'H1 (1-Hour)':  { interval:'1h',  range:'14d', bars:100, lookback:3 },
+    'W1 (Weekly)':  { interval:'1wk', range:'5y',  bars:150, lookback:4 },
+    'D1 (Daily)':   { interval:'1d',  range:'2y',  bars:150, lookback:5 },
+    'H4 (4-Hour)':  { interval:'1h',  range:'90d', bars:150, lookback:5 },
+    'H2 (2-Hour)':  { interval:'1h',  range:'45d', bars:120, lookback:4 },
+    'H1 (1-Hour)':  { interval:'1h',  range:'21d', bars:120, lookback:3 },
   };
   const tfConf = TF_CONF[tf] || TF_CONF['D1 (Daily)'];
 
@@ -1626,7 +1626,11 @@ async function runAIAnalysis(){
       });
       if (candleRes.ok) {
         const cd = await candleRes.json();
+        if (cd.error) console.warn('Candle fetch error from worker:', cd.error, 'symbol:', workerSym);
         allCandles = (cd.candles||[]).filter(c=>c.close>0);
+        if (allCandles.length === 0) {
+          console.warn('No candles returned for', workerSym, 'error:', cd.error||'none');
+        }
 
         // For H4/H2 we need to resample 1h candles
         if (tf === 'H4 (4-Hour)') {
@@ -1727,9 +1731,9 @@ ${last30.map(c=>{
 
   if (!ewResult) {
     if (allCandles.length === 0) {
-      txt.textContent = '⚠ Could not fetch candle data for this asset/timeframe. Check connection or try again.';
+      txt.textContent = `⚠ Could not fetch candle data for "${workerSym||symbol}" on ${tf}.\nCheck browser console for details, or try a different asset/timeframe.`;
     } else {
-      txt.textContent = `⚠ Insufficient candle data (${allCandles.length} candles). Need at least 20. Try a longer timeframe.`;
+      txt.textContent = `⚠ Insufficient candle data: ${allCandles.length} candles fetched for ${workerSym||symbol}. Need at least 20.`;
     }
     btn.disabled=false; btn.textContent='⚡ Generate Analysis'; return;
   }
