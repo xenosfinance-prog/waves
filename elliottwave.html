@@ -1783,60 +1783,77 @@ ${last30.map(c=>{
 
   const vp = calcVolumeProfile(engineCandles);
   const sigTxt = chartAnalysis.signal==='LONG'?'▲ LONG':chartAnalysis.signal==='SHORT'?'▼ SHORT':'◆ WAIT';
+  const trendTxt = chartAnalysis.trend==='UP' ? '▲ UPTREND' : '▼ DOWNTREND';
+  const divNote = ewResult.bearishDiv ? '⚠ Bearish RSI divergence — momentum weakening' 
+                : ewResult.bullishDiv ? '✓ Bullish RSI divergence — momentum building' : '';
+  const diagNote = ewResult.diagonal ? `Diagonal pattern: ${ewResult.diagonal}` : '';
+  const corrNote = ewResult.correctivePattern ? `Corrective structure: ${ewResult.correctivePattern}` : '';
 
-  // Show engine result immediately while Claude loads narrative
+  // Clean, professional output — no internal debug info
   const instantOutput = [
-    `[ Live: ${livePrice} | Trend: ${chartAnalysis.trend} | Wave: ${ewResult.waveNum} | Degree: ${ewResult.degree} | Confidence: ${ewResult.confidence}% ]`,
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+    `  ${symbol}  ·  ${tf}  ·  Live: ${livePrice}`,
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
     ``,
-    `WAVE COUNT`,
-    `${ewResult.waveDesc}`,
-    `${ewResult.waveChar}`,
+    `WAVE STRUCTURE`,
+    `  ${ewResult.waveDesc}`,
+    `  ${trendTxt}  ·  Degree: ${ewResult.degree}  ·  Confidence: ${ewResult.confidence}%`,
+    ``,
+    `MARKET CONTEXT`,
+    `  ${ewResult.waveChar}`,
+    divNote ? `  ${divNote}` : '',
+    diagNote ? `  ${diagNote}` : '',
+    corrNote ? `  ${corrNote}` : '',
     ``,
     `KEY LEVELS`,
-    `Entry: ${livePrice}  SL: ${chartAnalysis.key_levels.stop_loss}  Invalidation: ${chartAnalysis.key_levels.invalidation}`,
-    `TP1: ${chartAnalysis.key_levels.tp1}  TP2: ${chartAnalysis.key_levels.tp2}`,
-    `R:R = 1:${ewResult.riskReward}`,
+    `  Entry      ${livePrice}`,
+    `  Stop Loss  ${chartAnalysis.key_levels.stop_loss}`,
+    `  Target 1   ${chartAnalysis.key_levels.tp1}`,
+    `  Target 2   ${chartAnalysis.key_levels.tp2}`,
+    `  R:R        1:${ewResult.riskReward}`,
     ``,
-    `BIAS`,
-    `${ewResult.bias}`,
+    `SIGNAL  ${sigTxt}`,
+    `  ${ewResult.action}`,
     ``,
-    `ACTION`,
-    `${ewResult.action}`,
-    ``,
-    ewResult.diagonal ? `DIAGONAL: ${ewResult.diagonal}\n` : '',
-    ewResult.bearishDiv ? '⚠ BEARISH RSI DIVERGENCE DETECTED\n' : '',
-    ewResult.bullishDiv ? '✓ BULLISH RSI DIVERGENCE DETECTED\n' : '',
-    ewResult.correctivePattern ? `CORRECTIVE PATTERN: ${ewResult.correctivePattern}\n` : '',
-    Object.keys(ewResult.ewViolations||{}).length ? `⚠ EW VIOLATIONS: ${Object.keys(ewResult.ewViolations).join(', ')}\n` : '',
     `INDICATORS`,
-    `RSI(14): ${ewResult.rsi} | MACD Hist: ${ewResult.macdHist?.toFixed(5)||'n/a'} | ATR: ${ewResult.atr?.toFixed(dec)||'n/a'}`,
-    vp ? `Volume POC: ${vp.poc}` : '',
+    `  RSI(14): ${ewResult.rsi}${ewResult.rsi>70?' — Overbought':ewResult.rsi<30?' — Oversold':''}`,
+    `  MACD Hist: ${ewResult.macdHist>0?'+':''}${ewResult.macdHist?.toFixed(5)||'n/a'}${ewResult.macdHist>0?' — Bullish momentum':' — Bearish momentum'}`,
+    `  ATR: ${ewResult.atr?.toFixed(dec)||'n/a'}`,
+    vp ? `  Volume POC: ${vp.poc}` : '',
     ``,
-    `SIGNAL — ${sigTxt}`,
-    ``,
-    `⬡ Fetching AI narrative...`,
-  ].filter(l=>l!==undefined).join('\n');
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+    `  ANALYSIS`,
+    `  Loading...`,
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+  ].filter(l=>l!==undefined&&l!=='').join('\n');
 
   txt.textContent = instantOutput;
   lastAnalysis = `Elliott Wave Analysis — ${symbol} ${tf}\n\n${instantOutput}`;
   document.getElementById('tgBtn').style.display='inline-block';
 
-  // Claude prompt — narrative only, engine results pre-filled
-  const narrativePrompt = `You are an Elliott Wave analyst. Write a concise professional narrative for this pre-computed analysis:
+  // Claude narrative prompt — clean, no asterisks, no markdown
+  const narrativePrompt = `You are a senior Elliott Wave analyst at an institutional trading desk. Write a concise, professional market commentary for the following pre-computed analysis.
 
-Symbol: ${symbol} | Timeframe: ${tf} | Live Price: ${livePrice}
-Wave: ${ewResult.waveNum} | Phase: ${ewResult.wavePhase} | Bias: ${ewResult.bias} | Confidence: ${ewResult.confidence}%
+INSTRUMENT: ${symbol} | TIMEFRAME: ${tf}
+LIVE PRICE: ${livePrice}
+WAVE: ${ewResult.waveNum} (${ewResult.wavePhase}) | TREND: ${chartAnalysis.trend} | CONFIDENCE: ${ewResult.confidence}%
 ${ewResult.waveDesc}
 ${ewResult.waveChar}
-Action: ${ewResult.action}
-SL: ${chartAnalysis.key_levels.stop_loss} | TP1: ${chartAnalysis.key_levels.tp1} | TP2: ${chartAnalysis.key_levels.tp2}
+SIGNAL: ${sigTxt} | Entry: ${livePrice} | SL: ${chartAnalysis.key_levels.stop_loss} | TP1: ${chartAnalysis.key_levels.tp1} | TP2: ${chartAnalysis.key_levels.tp2}
 RSI: ${ewResult.rsi} | MACD Hist: ${ewResult.macdHist?.toFixed(5)||'n/a'}
-${ewResult.bearishDiv?'⚠ BEARISH RSI DIVERGENCE':''}${ewResult.bullishDiv?'✓ BULLISH RSI DIVERGENCE':''}
-${ewResult.diagonal?'Diagonal: '+ewResult.diagonal:''}
-${candleContext}
-${ctx?'Additional context: '+ctx:''}
+${divNote}
+${diagNote}
+${ctx?'ADDITIONAL CONTEXT: '+ctx:''}
 
-Write 3-4 sentences of professional market narrative: what the wave structure implies, key risk factors, and what to watch for. Do NOT invent new wave counts or different levels. Be concise.`;
+WRITING RULES — FOLLOW EXACTLY:
+- Write exactly 3 short paragraphs, each 2-3 sentences
+- Paragraph 1: what the current wave structure means for the market
+- Paragraph 2: the key risk and what would invalidate the count
+- Paragraph 3: specific levels to watch and what to do
+- NO asterisks, NO bold, NO markdown, NO headers, NO bullet points
+- Plain text only, professional tone, first person plural ("we see", "price suggests")
+- Reference specific price levels from the analysis above
+- Do not repeat the wave number or degree in every sentence`;
 
   try {
     async function fetchWithRetry(body, retries=2) {
@@ -1857,22 +1874,27 @@ Write 3-4 sentences of professional market narrative: what the wave structure im
 
     const res = await fetchWithRetry({
       model:'claude-sonnet-4-20250514',
-      max_tokens:600,
+      max_tokens:400,
       messages:[{role:'user',content:narrativePrompt}]
     });
 
     if (res) {
       const data = await res.json();
-      const narrative = data.content?.[0]?.text||'';
+      let narrative = data.content?.[0]?.text||'';
       if (narrative) {
-        const finalOutput = instantOutput.replace('⬡ Fetching AI narrative...', `ANALYSIS\n${narrative}`);
+        // Strip any markdown asterisks/bold/headers Claude might add
+        narrative = narrative
+          .replace(/\*\*/g,'').replace(/\*/g,'')
+          .replace(/^#+\s*/gm,'')
+          .replace(/^[-•]\s*/gm,'  ')
+          .trim();
+        const finalOutput = instantOutput.replace('  Loading...', '  ' + narrative.split('\n').join('\n  '));
         txt.textContent = finalOutput;
         lastAnalysis = `Elliott Wave Analysis — ${symbol} ${tf}\n\n${finalOutput}`;
       }
     }
   } catch(e) {
-    // Narrative failed — engine result is still shown, no problem
-    const finalOutput = instantOutput.replace('⬡ Fetching AI narrative...', '');
+    const finalOutput = instantOutput.replace('  Loading...', '  Analysis unavailable.');
     txt.textContent = finalOutput;
     lastAnalysis = `Elliott Wave Analysis — ${symbol} ${tf}\n\n${finalOutput}`;
   }
@@ -2094,11 +2116,18 @@ function renderEWChart(analysis, symbol, tf, liveData) {
     const tw=ctx.measureText(pt.label).width+12, th=18;
     // Determine if peak or trough by comparing to adjacent wave points
     const ptIdx = pts.indexOf(pt);
-    const prevPt = pts[ptIdx-1], nextPt = pts[ptIdx+1];
-    let isPeak = false;
-    if (prevPt && nextPt) isPeak = pt.price > prevPt.price && pt.price > nextPt.price;
-    else if (prevPt) isPeak = pt.price > prevPt.price;
-    else if (nextPt) isPeak = pt.price < nextPt.price; // first point: label above if trend starts up
+    // For bear trend: W0,W2,W4 are highs (label above), W1,W3,W5 are lows (label below)
+    // For bull trend: W0,W2,W4 are lows (label below), W1,W3,W5 are highs (label above)
+    // Use wave label to determine position instead of relative price comparison
+    let isPeak;
+    const wLabel = pt.label;
+    if (isBearish) {
+      isPeak = ['0','2','4','B'].includes(wLabel); // highs in bear
+    } else {
+      isPeak = ['1','3','5','A','C'].includes(wLabel); // highs in bull
+    }
+    // Fallback: use price comparison if only 1 point
+    if (pts.length === 1) isPeak = false;
     // Peak = label above dot, Trough = label below dot
     const ly = isPeak ? pt.y - th - 10 : pt.y + 10;
     const lx = pt.x - tw/2;
@@ -2148,20 +2177,24 @@ function renderEWChart(analysis, symbol, tf, liveData) {
 
   // Wave degree info
   ctx.textAlign='left'; ctx.font='9px monospace'; ctx.fillStyle='#3a5070';
-  ctx.fillText('Wave '+analysis.current_wave+' active'+(analysis.degree?' · '+analysis.degree:''),ML,H-MB+32);
+  const waveLabel = {'1':'①','2':'②','3':'③','4':'④','5':'⑤','A':'Ⓐ','B':'Ⓑ','C':'Ⓒ'};
+  ctx.fillText('Wave '+(waveLabel[analysis.current_wave]||analysis.current_wave)+' active · '+analysis.degree+(isBearish?' · Bearish impulse':' · Bullish impulse'),ML,H-MB+32);
 }
 
 
 async function sendToTelegram(){
   if(!lastAnalysis) return;
   const WORKER='https://xenos-ai-proxy.xenosfinance.workers.dev';
-  const clean = lastAnalysis.replace(/\*/g,'').replace(/[_\[\]()~`>#+\-=|{}.!]/g,'\\$&');
-  const msg='📊 *ELLIOTT WAVE ANALYSIS*\n\n' + clean;
+  // Strip any residual markdown, send clean text
+  const clean = lastAnalysis
+    .replace(/\*\*/g,'').replace(/\*/g,'')
+    .replace(/[_`]/g,'')
+    .slice(0, 4000);
   try{
     const res=await fetch(WORKER,{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({type:'telegram',text:msg,parse_mode:'MarkdownV2'})
+      body:JSON.stringify({type:'telegram',text:clean,parse_mode:'HTML'})
     });
     const d=await res.json();
     if(d.ok||d.result) alert('Sent to Telegram ✓');
