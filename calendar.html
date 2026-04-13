@@ -770,6 +770,8 @@ async function fetchLiveCalendar(weekStr) {
   // Also add truly new live events not in static list
   function addNewEvents(events, cfg) {
     const existingKeys = new Set(EVENTS.map(e => evKey(e.date, e.name)));
+    // Also build a fuzzy set: first 20 chars of name + date
+    const existingFuzzy = new Set(EVENTS.map(e => e.date + '|' + e.name.toLowerCase().slice(0,20)));
     const COUNTRY_FLAG = {USD:'🇺🇸',EUR:'🇪🇺',GBP:'🇬🇧',JPY:'🇯🇵',CAD:'🇨🇦',AUD:'🇦🇺',CHF:'🇨🇭',OTHER:'🌐'};
     const mapImpact = r => { const s=String(r||'').toLowerCase(); return ['high','3','red'].includes(s)?'high':['medium','med','2','orange'].includes(s)?'med':'low'; };
     const mapCountry = r => { const s=String(r||'').toUpperCase(); return ({USD:'USD',US:'USD',EUR:'EUR',EU:'EUR',GBP:'GBP',GB:'GBP',UK:'GBP',JPY:'JPY',JP:'JPY',CAD:'CAD',CA:'CAD',AUD:'AUD',AU:'AUD',CHF:'CHF',CH:'CHF'})[s]||'OTHER'; };
@@ -782,7 +784,21 @@ async function fetchLiveCalendar(weekStr) {
       if (!weekDays.includes(date)) return;
       const key = evKey(date, name);
       if (existingKeys.has(key)) return;
+      // Fuzzy check: skip if same date and name starts the same (catches "EIA Crude Oil Inventories" vs "EIA Crude Oil Inventory")
+      const fuzzyKey = date + '|' + name.toLowerCase().slice(0,20);
+      if (existingFuzzy.has(fuzzyKey)) return;
+      // Word overlap check: if >50% of words match an existing event on same date, skip
+      const nameWords = name.toLowerCase().split(/\s+/).filter(w=>w.length>3);
+      const isDupe = EVENTS.some(e => {
+        if (e.date !== date) return false;
+        const eWords = e.name.toLowerCase().split(/\s+/).filter(w=>w.length>3);
+        if (!eWords.length || !nameWords.length) return false;
+        const matches = nameWords.filter(w => eWords.some(ew => ew.includes(w)||w.includes(ew)));
+        return matches.length / nameWords.length > 0.5;
+      });
+      if (isDupe) return;
       existingKeys.add(key);
+      existingFuzzy.add(fuzzyKey);
       const country = mapCountry(ev[cfg.country]||ev.country||ev.currency||'');
       const impact  = mapImpact(ev[cfg.impact]||ev.impact||ev.importance||'');
       const timeRaw = String(ev[cfg.time]||ev.time||'');
@@ -871,8 +887,9 @@ function renderKeyEventsCards() {
   const monKey = mon.toISOString().split('T')[0];
   const friKey = fri.toISOString().split('T')[0];
 
+  const todayKey = today.toISOString().split('T')[0];
   const topEvents = EVENTS
-    .filter(e => e.date >= monKey && e.date <= friKey && e.impact === 'high')
+    .filter(e => e.date >= todayKey && e.date <= friKey && e.impact === 'high')
     .slice(0, 6);
 
   if (!topEvents.length) {
