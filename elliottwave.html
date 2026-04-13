@@ -1499,19 +1499,26 @@ function countElliottWavesDeepscan(candles) {
   };
 
   // PivotMap for chart X positioning
+  // IMPORTANT: pivot idx is relative to c200 (candles.slice(-n200))
+  // Convert to absolute idx relative to full candles array
+  const c200Offset = candles.length - n200; // offset to convert c200 idx → candles idx
   const pivotMap = {};
+  function absPivot(piv, offset) {
+    if (!piv) return null;
+    return { price: piv.price, idx: piv.idx + offset, date: piv.date||'' };
+  }
   if (directionUp) {
-    if (lPvts[0]) pivotMap['w0'] = {price:lPvts[0].price, idx:lPvts[0].idx, date:lPvts[0].date||''};
-    if (hPvts[0]) pivotMap['w1'] = {price:hPvts[0].price, idx:hPvts[0].idx, date:hPvts[0].date||''};
-    if (lPvts[1]) pivotMap['w2'] = {price:lPvts[1].price, idx:lPvts[1].idx, date:lPvts[1].date||''};
-    if (hPvts[1]) pivotMap['w3'] = {price:hPvts[1].price, idx:hPvts[1].idx, date:hPvts[1].date||''};
-    if (lPvts[2]) pivotMap['w4'] = {price:lPvts[2].price, idx:lPvts[2].idx, date:lPvts[2].date||''};
+    if (lPvts[0]) pivotMap['w0'] = absPivot(lPvts[0], c200Offset);
+    if (hPvts[0]) pivotMap['w1'] = absPivot(hPvts[0], c200Offset);
+    if (lPvts[1]) pivotMap['w2'] = absPivot(lPvts[1], c200Offset);
+    if (hPvts[1]) pivotMap['w3'] = absPivot(hPvts[1], c200Offset);
+    if (lPvts[2]) pivotMap['w4'] = absPivot(lPvts[2], c200Offset);
   } else {
-    if (hPvts[0]) pivotMap['w0'] = {price:hPvts[0].price, idx:hPvts[0].idx, date:hPvts[0].date||''};
-    if (lPvts[0]) pivotMap['w1'] = {price:lPvts[0].price, idx:lPvts[0].idx, date:lPvts[0].date||''};
-    if (hPvts[1]) pivotMap['w2'] = {price:hPvts[1].price, idx:hPvts[1].idx, date:hPvts[1].date||''};
-    if (lPvts[1]) pivotMap['w3'] = {price:lPvts[1].price, idx:lPvts[1].idx, date:lPvts[1].date||''};
-    if (hPvts[2]) pivotMap['w4'] = {price:hPvts[2].price, idx:hPvts[2].idx, date:hPvts[2].date||''};
+    if (hPvts[0]) pivotMap['w0'] = absPivot(hPvts[0], c200Offset);
+    if (lPvts[0]) pivotMap['w1'] = absPivot(lPvts[0], c200Offset);
+    if (hPvts[1]) pivotMap['w2'] = absPivot(hPvts[1], c200Offset);
+    if (lPvts[1]) pivotMap['w3'] = absPivot(lPvts[1], c200Offset);
+    if (hPvts[2]) pivotMap['w4'] = absPivot(hPvts[2], c200Offset);
   }
 
   return {
@@ -2043,27 +2050,61 @@ function renderEWChart(analysis, symbol, tf, liveData) {
   }
 
   // ── Wave overlay ──────────────────────────────────
-  // Build ordered wave point list with X/Y positions
   const wavePoints = [
-    {label:'0',price:wp.w0,impulse:true},
-    {label:'1',price:wp.w1,impulse:true},
-    {label:'2',price:wp.w2,impulse:true},
-    {label:'3',price:wp.w3,impulse:true},
-    {label:'4',price:wp.w4,impulse:true},
-    {label:'5',price:wp.w5,impulse:true},
-    {label:'A',price:wp.wa,impulse:false},
-    {label:'B',price:wp.wb,impulse:false},
-    {label:'C',price:wp.wc,impulse:false},
+    {label:'0',key:'w0',price:wp.w0,impulse:true},
+    {label:'1',key:'w1',price:wp.w1,impulse:true},
+    {label:'2',key:'w2',price:wp.w2,impulse:true},
+    {label:'3',key:'w3',price:wp.w3,impulse:true},
+    {label:'4',key:'w4',price:wp.w4,impulse:true},
+    {label:'5',key:'w5',price:wp.w5,impulse:true},
+    {label:'A',key:'wa',price:wp.wa,impulse:false},
+    {label:'B',key:'wb',price:wp.wb,impulse:false},
+    {label:'C',key:'wc',price:wp.wc,impulse:false},
   ].filter(p=>p.price);
 
-  // Assign X positions based on real candles
-  const pts = wavePoints.map((wp2,i)=>({
-    ...wp2,
-    x: waveX(wp2.price, i),
-    y: toY(wp2.price)
-  }));
+  const pivMap = (ewLastCandles && ewLastCandles._pivotMap) || {};
+  const fullLen = ewLastCandles ? ewLastCandles.length : 0;
+  const dispStart = Math.max(0, fullLen - 80);
 
-  // Keep original wave order (0→1→2→3→4→5→A→B→C) — do NOT sort by X
+  const pts = wavePoints.map((wp2, i) => {
+    let x;
+    const pm = pivMap[wp2.key];
+    if (useCandles && pm) {
+      // pm.idx is relative to full ewLastCandles array
+      const di = pm.idx - dispStart;
+      if (di >= 0 && di < candles.length) {
+        x = toXBar(di);
+      } else if (di < 0) {
+        x = ML + 6; // pivot before visible window — pin left
+      } else {
+        // Fallback: find candle by price proximity
+        let best = 0, bestD = Infinity;
+        candles.forEach((c,ci) => {
+          const d = Math.min(Math.abs(c.high-wp2.price), Math.abs(c.low-wp2.price));
+          if (d < bestD) { bestD = d; best = ci; }
+        });
+        x = toXBar(best);
+      }
+    } else if (useCandles) {
+      // No pivotMap entry — find candle by price
+      let best = 0, bestD = Infinity;
+      candles.forEach((c,ci) => {
+        const d = Math.min(Math.abs(c.high-wp2.price), Math.abs(c.low-wp2.price));
+        if (d < bestD) { bestD = d; best = ci; }
+      });
+      x = toXBar(best);
+    } else {
+      x = ML + (i / Math.max(wavePoints.length-1, 1)) * CW * 0.85;
+    }
+    return { ...wp2, x, y: toY(wp2.price) };
+  });
+
+  // Ensure X is strictly increasing (time order) — nudge if needed
+  for (let i = 1; i < pts.length; i++) {
+    if (pts[i].x <= pts[i-1].x) pts[i].x = pts[i-1].x + Math.max(barW, CW*0.03);
+  }
+  // Cap last point at chart right edge
+  pts.forEach(pt => { if (pt.x > ML+CW) pt.x = ML+CW-4; });
 
   // Wave line colors
   const iCol  = isBearish?'#f59e0b':'#3b82f6';
