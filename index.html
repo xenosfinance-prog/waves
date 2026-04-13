@@ -312,7 +312,7 @@ function fmt(s, p) {
 async function updateMarkets() {
   try {
     const res = await fetch(WORKER, {
-      method:'POST', headers:{'Content-Type':'application/json', 'Cache-Control':'no-store, no-cache'},
+      method:'POST', headers:{'Content-Type':'application/json'},
       cache: 'no-store',
       body: JSON.stringify({type:'prices', pairs: SYMS.map(s => s.wk)}),
       signal: AbortSignal.timeout(15000)

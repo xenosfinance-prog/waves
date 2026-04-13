@@ -354,7 +354,7 @@ async function fetchAllPrices() {
   try {
     const r = await fetch(WORKER_URL, {
       method: 'POST',
-      headers: {'Content-Type': 'application/json', 'Cache-Control': 'no-store, no-cache'},
+      headers: {'Content-Type': 'application/json'},
       cache: 'no-store',
       body: JSON.stringify({type: 'prices', pairs}),
       signal: AbortSignal.timeout(15000)
@@ -370,7 +370,7 @@ async function fetchSym(s) {
   const wsym = WORKER_SYM_MAP[s.id] || s.id;
   try {
     const r = await fetch(WORKER_URL, {
-      method: 'POST', headers: {'Content-Type': 'application/json', 'Cache-Control': 'no-store, no-cache'},
+      method: 'POST', headers: {'Content-Type': 'application/json'},
       cache: 'no-store',
       body: JSON.stringify({type: 'prices', pairs: [wsym]}),
       signal: AbortSignal.timeout(15000)
