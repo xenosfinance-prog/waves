@@ -1473,25 +1473,46 @@ function countElliottWavesDeepscan(candles) {
   const risk=Math.abs(p-inv), reward=Math.abs(nt-p);
   const rr=risk>0?parseFloat((reward/risk).toFixed(2)):0;
 
-  // Wave points for chart (real pivot prices)
-  const wavePointPrices = {
-    w0: lPvts.length?lPvts[0].price:(directionUp?w1Start:w1End),
-    w1: hPvts.length?hPvts[0].price:(directionUp?w1End:w1Start),
-    w2: lPvts.length>1?lPvts[1].price:null,
+  // Wave points for chart (real pivot prices) — respects direction
+  // Bull: W0=low, W1=high, W2=low, W3=high, W4=low, W5=high
+  // Bear: W0=high, W1=low, W2=high, W3=low, W4=high, W5=low
+  const wavePointPrices = directionUp ? {
+    w0: lPvts.length ? lPvts[0].price : w1Start,
+    w1: hPvts.length ? hPvts[0].price : w1End,
+    w2: lPvts.length > 1 ? lPvts[1].price : null,
     w3: w3End,
-    w4: w3End&&w1End?fibRet(w1End,w3End,0.382):null,
-    w5: ['5','A','B','C'].includes(wn)?p:null,
-    wa: wn==='A'?p:(wn==='B'||wn==='C'?fibRet(w1End,w3End||w1End,0.618):null),
-    wb: wn==='B'?p:null,
-    wc: wn==='C'?p:null,
+    w4: w3End ? fibRet(w1End, w3End, 0.382) : null,
+    w5: ['5','A','B','C'].includes(wn) ? p : null,
+    wa: wn==='A' ? p : null,
+    wb: wn==='B' ? p : null,
+    wc: wn==='C' ? p : null,
+  } : {
+    w0: hPvts.length ? hPvts[0].price : w1Start,
+    w1: lPvts.length ? lPvts[0].price : w1End,
+    w2: hPvts.length > 1 ? hPvts[1].price : null,
+    w3: w3End,
+    w4: w3End ? fibRet(w1End, w3End, 0.382) : null,
+    w5: ['5','A','B','C'].includes(wn) ? p : null,
+    wa: wn==='A' ? p : null,
+    wb: wn==='B' ? p : null,
+    wc: wn==='C' ? p : null,
   };
 
   // PivotMap for chart X positioning
   const pivotMap = {};
-  const keyMap = ['w0','w1','w2','w3','w4'];
-  [lPvts[0],hPvts[0],lPvts[1],hPvts[1]&&w3End?hPvts[1]:null,null].forEach((piv,i)=>{
-    if (piv && keyMap[i]) pivotMap[keyMap[i]]={price:piv.price, idx:piv.idx, date:piv.date||''};
-  });
+  if (directionUp) {
+    if (lPvts[0]) pivotMap['w0'] = {price:lPvts[0].price, idx:lPvts[0].idx, date:lPvts[0].date||''};
+    if (hPvts[0]) pivotMap['w1'] = {price:hPvts[0].price, idx:hPvts[0].idx, date:hPvts[0].date||''};
+    if (lPvts[1]) pivotMap['w2'] = {price:lPvts[1].price, idx:lPvts[1].idx, date:lPvts[1].date||''};
+    if (hPvts[1]) pivotMap['w3'] = {price:hPvts[1].price, idx:hPvts[1].idx, date:hPvts[1].date||''};
+    if (lPvts[2]) pivotMap['w4'] = {price:lPvts[2].price, idx:lPvts[2].idx, date:lPvts[2].date||''};
+  } else {
+    if (hPvts[0]) pivotMap['w0'] = {price:hPvts[0].price, idx:hPvts[0].idx, date:hPvts[0].date||''};
+    if (lPvts[0]) pivotMap['w1'] = {price:lPvts[0].price, idx:lPvts[0].idx, date:lPvts[0].date||''};
+    if (hPvts[1]) pivotMap['w2'] = {price:hPvts[1].price, idx:hPvts[1].idx, date:hPvts[1].date||''};
+    if (lPvts[1]) pivotMap['w3'] = {price:lPvts[1].price, idx:lPvts[1].idx, date:lPvts[1].date||''};
+    if (hPvts[2]) pivotMap['w4'] = {price:hPvts[2].price, idx:hPvts[2].idx, date:hPvts[2].date||''};
+  }
 
   return {
     waveNum:wn, wavePhase:wp2, waveDesc:wd, waveChar:wc2,
@@ -1530,26 +1551,6 @@ function calcVolumeProfile(candles) {
 
 function detectPivots(candles, lookback=5) {
   return getPivotStructure(candles, lookback);
-}
-
-// ── VOLUME PROFILE (simplified) ──────────────────────────────────
-function calcVolumeProfile(candles) {
-  const recent = candles.slice(-30);
-  const totalVol = recent.reduce((s,c)=>s+(c.volume||0),0);
-  if (totalVol===0) return null;
-  const avgVol = totalVol/recent.length;
-  const prices = recent.map(c=>c.close);
-  const minP = Math.min(...prices), maxP = Math.max(...prices);
-  // Find price level with highest volume (POC approximation)
-  const buckets=10;
-  const step=(maxP-minP)/buckets;
-  let maxBucket=0, pocPrice=minP;
-  for (let b=0;b<buckets;b++) {
-    const lo=minP+b*step, hi=lo+step;
-    const vol=recent.filter(c=>c.close>=lo&&c.close<hi).reduce((s,c)=>s+(c.volume||0),0);
-    if (vol>maxBucket) { maxBucket=vol; pocPrice=lo+step/2; }
-  }
-  return { poc:parseFloat(pocPrice.toFixed(5)), avgVol:parseFloat(avgVol.toFixed(0)), totalVol };
 }
 
 // ── TREND DETECTION from candles ─────────────────────────────────
@@ -1741,13 +1742,24 @@ ${last30.map(c=>{
   // Store pivot map for chart renderer
   ewLastCandles._pivotMap = ewResult.pivotMap;
 
+  // Signal: derived from wave + direction — consistent with chart trend
+  const wn = ewResult.waveNum;
+  const du = ewResult.directionUp;
+  let signalDir;
+  if (['1','3'].includes(wn))      signalDir = du ? 'LONG' : 'SHORT';
+  else if (wn === '5')             signalDir = du ? 'LONG' : 'SHORT';   // terminal — stay in but caution
+  else if (['2','4'].includes(wn)) signalDir = du ? 'LONG' : 'SHORT';   // entry on pullback in trend direction
+  else if (wn === 'A')             signalDir = du ? 'SHORT' : 'LONG';   // corrective against trend
+  else if (wn === 'B')             signalDir = 'WAIT';                   // bull/bear trap
+  else if (wn === 'C')             signalDir = du ? 'SHORT' : 'LONG';
+  else                             signalDir = 'WAIT';
+
   // Build analysis object for chart from engine result
   const chartAnalysis = {
-    trend: ewResult.directionUp ? 'UP' : 'DOWN',
-    current_wave: ewResult.waveNum,
+    trend: du ? 'UP' : 'DOWN',
+    current_wave: wn,
     degree: ewResult.degree,
-    signal: ewResult.bias.includes('BULL')||ewResult.bias.includes('LONG') ? 'LONG'
-           : ewResult.bias.includes('BEAR')||ewResult.bias.includes('SHORT') ? 'SHORT' : 'WAIT',
+    signal: signalDir,
     key_levels: {
       entry: parseFloat(livePrice.toFixed(dec)),
       stop_loss: parseFloat(ewResult.invalidation.toFixed(dec)),
@@ -1769,7 +1781,7 @@ ${last30.map(c=>{
   // ── Step 2: Claude writes narrative only (fast, < 600 tokens) ─
   txt.innerHTML='<span class="analysis-loading">⬡ GENERATING NARRATIVE ANALYSIS...</span>';
 
-  const vp = calcVolumeProfile(candles);
+  const vp = calcVolumeProfile(engineCandles);
   const sigTxt = chartAnalysis.signal==='LONG'?'▲ LONG':chartAnalysis.signal==='SHORT'?'▼ SHORT':'◆ WAIT';
 
   // Show engine result immediately while Claude loads narrative
@@ -2125,7 +2137,7 @@ function renderEWChart(analysis, symbol, tf, liveData) {
   ctx.fillText('· EW · '+symbol+' · '+tf,ML+116,28);
 
   const tCol=isBearish?'#f87171':'#34d399';
-  const tTxt=isBearish?'▼ BEARISH':'▲ BULLISH';
+  const tTxt=isBearish?'▼ TREND DOWN':'▲ TREND UP';
   ctx.font='bold 10px monospace'; ctx.fillStyle=tCol; ctx.textAlign='center';
   ctx.fillText(tTxt,W/2,28);
 
