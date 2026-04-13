@@ -1352,12 +1352,12 @@ function countElliottWavesDeepscan(candles) {
 
   if (wn==='1') {
     wp2='IMPULSIVE'; wd='Wave ① — First Impulse';
-    wc2='Initial wave, often underestimated. Volume building, RSI rising from neutral.';
-    const rawSl = lRec.length ? lRec[lRec.length-1].price : p-av*1.2;
+    wc2='Initial wave, often underestimated. Volume building, momentum rising from neutral.';
+    const rawSl = directionUp ? (lRec.length ? lRec[lRec.length-1].price : p-av*1.2) : (hRec.length ? hRec[hRec.length-1].price : p+av*1.2);
     inv = directionUp ? Math.max(rawSl,p-av*1.2) : Math.min(rawSl,p+av*1.2);
     nt = directionUp ? p+w1Size : p-w1Size;
     ct = directionUp ? p+w1Size*0.618 : p-w1Size*0.618;
-    action='🟢 LONG — Entry now or on pullback to nearest support';
+    action = directionUp ? '🟢 LONG — Entry now or on pullback to nearest support' : '🔴 SHORT — Entry now or on rally to nearest resistance';
   } else if (wn==='2') {
     wp2='CORRECTIVE'; wd='Wave ② — Retracement (50–61.8% of W1)';
     wc2='NEVER violates W1 start. Accumulation zone before the largest W3.';
@@ -1367,16 +1367,16 @@ function countElliottWavesDeepscan(candles) {
     nt = directionUp ? w1End+w1Size*1.618 : w1End-w1Size*1.618;
     ct = directionUp ? w1End+w1Size : w1End-w1Size;
     const ez=fibRet(w1Start,w1End,0.618);
-    action=`🟢 LONG — Entry zone ${ez.toFixed(5)} (61.8% Fib W1), Stop below ${inv.toFixed(5)}`;
+    action = directionUp ? `🟢 LONG — Entry zone ${ez.toFixed(5)} (61.8% Fib W1)` : `🔴 SHORT — Entry zone ${ez.toFixed(5)} (61.8% Fib W1)`;
     alt=`W2: ${cp.split(' ')[0]} — W4 should alternate`;
   } else if (wn==='3') {
     wp2='IMPULSIVE'; wd=`Wave ③ — ${w3Ext?'EXTENDED ':''}Dominant Impulse`;
-    wc2=(w3Ext?'⚡ EXTENDED WAVE 3: exceeds 261.8% of W1. ':'')+'Never the shortest wave. Maximum volume. Most profitable wave.';
+    wc2=(w3Ext?'⚡ EXTENDED WAVE 3: exceeds 261.8% of W1. ':'')+'Never the shortest wave. Maximum volume. Most powerful wave.';
     const rawSl=w1End;
     inv = directionUp ? Math.max(rawSl,p-av*2.0) : Math.min(rawSl,p+av*2.0);
     nt = directionUp ? w1End+w1Size*(w3Ext?4.236:2.618) : w1End-w1Size*(w3Ext?4.236:2.618);
     ct = directionUp ? w1End+w1Size*1.618 : w1End-w1Size*1.618;
-    action='🟢 LONG (trend) — Stay in trade, trailing stop below EMA21';
+    action = directionUp ? '🟢 LONG (trend) — Stay in trade, trailing stop below EMA21' : '🔴 SHORT (trend) — Stay in trade, trailing stop above EMA21';
     alt='N/A';
   } else if (wn==='4') {
     wp2='CORRECTIVE'; wd='Wave ④ — Consolidation (23.6–38.2% Fib of W3)';
@@ -1389,11 +1389,11 @@ function countElliottWavesDeepscan(candles) {
       nt = directionUp ? w3End+w3s*0.618 : w3End-w3s*0.618;
       ct = directionUp ? w3End+w3s*0.382 : w3End-w3s*0.382;
       const ez4=fibRet(w1End,w3End,0.382);
-      action=`🟢 LONG — Entry on confirmed bounce at ${ez4.toFixed(5)} (38.2% W3)`;
+      action = directionUp ? `🟢 LONG — Entry on confirmed bounce at ${ez4.toFixed(5)}` : `🔴 SHORT — Entry on confirmed rejection at ${ez4.toFixed(5)}`;
     } else {
       nt = directionUp ? p+w1Size*0.618 : p-w1Size*0.618;
       ct = directionUp ? p+w1Size*0.382 : p-w1Size*0.382;
-      action='🟢 LONG — Wait for W4 completion at 38.2% Fib';
+      action = directionUp ? '🟢 LONG — Wait for W4 completion' : '🔴 SHORT — Wait for W4 completion';
     }
     alt=`W4: ${cp?cp.split(' ')[0]:'Flat'} — alternation vs W2`;
   } else if (wn==='5') {
@@ -1742,17 +1742,10 @@ ${last30.map(c=>{
   // Store pivot map for chart renderer
   ewLastCandles._pivotMap = ewResult.pivotMap;
 
-  // Signal: derived from wave + direction — consistent with chart trend
-  const wn = ewResult.waveNum;
-  const du = ewResult.directionUp;
-  let signalDir;
-  if (['1','3'].includes(wn))      signalDir = du ? 'LONG' : 'SHORT';
-  else if (wn === '5')             signalDir = du ? 'LONG' : 'SHORT';   // terminal — stay in but caution
-  else if (['2','4'].includes(wn)) signalDir = du ? 'LONG' : 'SHORT';   // entry on pullback in trend direction
-  else if (wn === 'A')             signalDir = du ? 'SHORT' : 'LONG';   // corrective against trend
-  else if (wn === 'B')             signalDir = 'WAIT';                   // bull/bear trap
-  else if (wn === 'C')             signalDir = du ? 'SHORT' : 'LONG';
-  else                             signalDir = 'WAIT';
+  // Signal derived directly from action — single source of truth
+  const signalDir = ewResult.action.includes('🟢') ? 'LONG'
+                  : ewResult.action.includes('🔴') ? 'SHORT'
+                  : 'WAIT';
 
   // Build analysis object for chart from engine result
   const chartAnalysis = {
@@ -1778,18 +1771,21 @@ ${last30.map(c=>{
   // Render chart immediately with engine data
   renderEWChart(chartAnalysis, symbol, tf, liveData);
 
-  // ── Step 2: Claude writes narrative only (fast, < 600 tokens) ─
+  // ── Step 2: Claude writes narrative only ─
   txt.innerHTML='<span class="analysis-loading">⬡ GENERATING NARRATIVE ANALYSIS...</span>';
 
-  const vp = calcVolumeProfile(engineCandles);
-  const sigTxt = chartAnalysis.signal==='LONG'?'▲ LONG':chartAnalysis.signal==='SHORT'?'▼ SHORT':'◆ WAIT';
+  const vp       = calcVolumeProfile(engineCandles);
+  const sigTxt   = chartAnalysis.signal==='LONG'?'▲ LONG':chartAnalysis.signal==='SHORT'?'▼ SHORT':'◆ WAIT';
   const trendTxt = chartAnalysis.trend==='UP' ? '▲ UPTREND' : '▼ DOWNTREND';
-  const divNote = ewResult.bearishDiv ? '⚠ Bearish RSI divergence — momentum weakening' 
-                : ewResult.bullishDiv ? '✓ Bullish RSI divergence — momentum building' : '';
-  const diagNote = ewResult.diagonal ? `Diagonal pattern: ${ewResult.diagonal}` : '';
-  const corrNote = ewResult.correctivePattern ? `Corrective structure: ${ewResult.correctivePattern}` : '';
+  const divNote  = ewResult.bearishDiv ? '⚠ Bearish RSI divergence — momentum weakening'
+                 : ewResult.bullishDiv ? '✓ Bullish RSI divergence — momentum building' : null;
+  const diagNote = ewResult.diagonal ? `Diagonal: ${ewResult.diagonal}` : null;
+  const corrNote = ewResult.correctivePattern ? `Correction: ${ewResult.correctivePattern}` : null;
 
-  // Clean, professional output — no internal debug info
+  // Clean action text — strip emoji for display
+  const actionClean = ewResult.action.replace(/🟢|🔴|⚠️/g,'').trim();
+
+  // Clean, professional output
   const instantOutput = [
     `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
     `  ${symbol}  ·  ${tf}  ·  Live: ${livePrice}`,
@@ -1801,9 +1797,9 @@ ${last30.map(c=>{
     ``,
     `MARKET CONTEXT`,
     `  ${ewResult.waveChar}`,
-    divNote ? `  ${divNote}` : '',
-    diagNote ? `  ${diagNote}` : '',
-    corrNote ? `  ${corrNote}` : '',
+    divNote ? `  ${divNote}` : null,
+    diagNote ? `  ${diagNote}` : null,
+    corrNote ? `  ${corrNote}` : null,
     ``,
     `KEY LEVELS`,
     `  Entry      ${livePrice}`,
@@ -1813,19 +1809,19 @@ ${last30.map(c=>{
     `  R:R        1:${ewResult.riskReward}`,
     ``,
     `SIGNAL  ${sigTxt}`,
-    `  ${ewResult.action}`,
+    `  ${actionClean}`,
     ``,
     `INDICATORS`,
     `  RSI(14): ${ewResult.rsi}${ewResult.rsi>70?' — Overbought':ewResult.rsi<30?' — Oversold':''}`,
-    `  MACD Hist: ${ewResult.macdHist>0?'+':''}${ewResult.macdHist?.toFixed(5)||'n/a'}${ewResult.macdHist>0?' — Bullish momentum':' — Bearish momentum'}`,
+    `  MACD: ${ewResult.macdHist>0?'+':''}${ewResult.macdHist?.toFixed(5)||'n/a'}  ${ewResult.macdHist>0?'Bullish momentum':'Bearish momentum'}`,
     `  ATR: ${ewResult.atr?.toFixed(dec)||'n/a'}`,
-    vp ? `  Volume POC: ${vp.poc}` : '',
+    vp ? `  Vol POC: ${vp.poc}` : null,
     ``,
     `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
     `  ANALYSIS`,
     `  Loading...`,
     `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-  ].filter(l=>l!==undefined&&l!=='').join('\n');
+  ].filter(l=>l!==null&&l!==undefined).join('\n');
 
   txt.textContent = instantOutput;
   lastAnalysis = `Elliott Wave Analysis — ${symbol} ${tf}\n\n${instantOutput}`;
