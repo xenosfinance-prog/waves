@@ -2157,54 +2157,46 @@ function renderEWChart(analysis, symbol, tf, liveData) {
   const pivMap = (ewLastCandles && ewLastCandles._pivotMap) || {};
   const dispStart = candleOffset; // pivot idx offset matches smart window start
 
+  // Map each wave point to the exact candle bar (X) and exact high/low (Y)
   const pts = wavePoints.map((wp2, i) => {
-    let x;
+    // isHigh: bear W0,W2,W4,B = highs; bull W1,W3,W5,A,C = highs
+    const isHighPt = isBearish
+      ? ['0','2','4','B'].includes(wp2.label)
+      : ['1','3','5','A','C'].includes(wp2.label);
+
+    let candleIdx = -1;
+
+    // 1. Use pivotMap index if available and in range
     const pm = pivMap[wp2.key];
-    if (useCandles && pm) {
+    if (pm && pm.idx !== undefined) {
       const di = pm.idx - dispStart;
-      if (di >= 0 && di < candles.length) {
-        x = toXBar(di);
-      } else if (di < 0) {
-        x = ML + 6;
-      } else {
-        let best = 0, bestD = Infinity;
-        candles.forEach((c,ci) => {
-          const d = Math.min(Math.abs(c.high-wp2.price), Math.abs(c.low-wp2.price));
-          if (d < bestD) { bestD = d; best = ci; }
-        });
-        x = toXBar(best);
-      }
-    } else if (useCandles) {
-      let best = 0, bestD = Infinity;
-      candles.forEach((c,ci) => {
-        const d = Math.min(Math.abs(c.high-wp2.price), Math.abs(c.low-wp2.price));
-        if (d < bestD) { bestD = d; best = ci; }
-      });
-      x = toXBar(best);
-    } else {
-      x = ML + (i / Math.max(wavePoints.length-1, 1)) * CW * 0.85;
+      if (di >= 0 && di < candles.length) candleIdx = di;
     }
-    return { ...wp2, x, y: toY(wp2.price) };
+
+    // 2. Fallback: find candle whose high or low is closest to the pivot price
+    if (candleIdx < 0 && useCandles) {
+      let bestD = Infinity;
+      candles.forEach((c, ci) => {
+        const d = isHighPt ? Math.abs(c.high - wp2.price) : Math.abs(c.low - wp2.price);
+        if (d < bestD) { bestD = d; candleIdx = ci; }
+      });
+    }
+
+    // 3. Last resort: even spacing
+    if (candleIdx < 0) candleIdx = Math.round(i / Math.max(wavePoints.length-1,1) * (candles.length-1));
+
+    const x = toXBar(candleIdx);
+    // Y: use exact candle high or low, not the pivot price approximation
+    const candleY = useCandles && candles[candleIdx]
+      ? (isHighPt ? toY(candles[candleIdx].high) : toY(candles[candleIdx].low))
+      : toY(wp2.price);
+
+    return { ...wp2, x, y: candleY, candleIdx };
   });
 
-  // Sort by X to get time order, then redistribute evenly across 85% of chart width
-  // This prevents cramping when pivots cluster in one part of the chart
-  const sortedByX = [...pts].sort((a,b) => a.x - b.x);
-  const minX = sortedByX[0]?.x || ML;
-  const maxX = sortedByX[sortedByX.length-1]?.x || ML+CW*0.85;
-  const chartSpan = ML + CW * 0.85;
-
-  // If all pivots are crammed in less than 40% of chart width, redistribute
-  const pivotSpan = maxX - minX;
-  if (pivotSpan < CW * 0.4 && pts.length >= 3) {
-    // Redistribute: keep relative order but spread evenly
-    const step = (CW * 0.80) / Math.max(pts.length - 1, 1);
-    pts.forEach((pt, i) => { pt.x = ML + i * step; });
-  } else {
-    // Ensure strictly increasing X
-    for (let i = 1; i < pts.length; i++) {
-      if (pts[i].x <= pts[i-1].x) pts[i].x = pts[i-1].x + Math.max(barW*1.5, CW*0.04);
-    }
+  // Ensure X is strictly left-to-right (wave order = time order)
+  for (let i = 1; i < pts.length; i++) {
+    if (pts[i].x <= pts[i-1].x) pts[i].x = pts[i-1].x + Math.max(barW, CW*0.03);
   }
   pts.forEach(pt => { if (pt.x > ML+CW-4) pt.x = ML+CW-4; });
 
@@ -2219,16 +2211,17 @@ function renderEWChart(analysis, symbol, tf, liveData) {
     const isCur = pt.label === analysis.current_wave;
     const col   = pt.impulse ? iCol2 : cCol2;
 
-    // Is this pivot a high or a low?
+    // isHigh already computed in pt (bear: 0,2,4,B = highs; bull: 1,3,5,A,C = highs)
     const isHigh = isBearish
       ? ['0','2','4','B'].includes(pt.label)
       : ['1','3','5','A','C'].includes(pt.label);
 
-    // Y position: just above the high wick or below the low wick
-    const labelY = isHigh ? pt.y - 14 : pt.y + 14;
+    // pt.y is already the exact candle high or low Y
+    // Place number just outside: 12px above high, 12px below low
+    const labelY = isHigh ? pt.y - 12 : pt.y + 12;
     const clampedY = Math.max(MT + 10, Math.min(labelY, MT + CH - 10));
 
-    // Number with dark outline — readable on any candle color
+    // Number with dark outline — readable on any background
     const fontSize = isCur ? 14 : 12;
     ctx.font = `bold ${fontSize}px Arial, sans-serif`;
     ctx.textAlign = 'center';
