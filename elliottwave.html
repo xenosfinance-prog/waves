@@ -1475,18 +1475,12 @@ function renderEWChart(analysis, symbol, tf, liveData) {
     return best;
   }
 
-  // Map wave point price to X position using pivot detection
-  function waveX(price, fallbackIdx) {
-    if (!useCandles) return ML + (fallbackIdx/(wps.length-1))*CW;
-    // Find candle where high or low matches best
-    let best=-1, bestDist=Infinity;
-    candles.forEach((c,i)=>{
-      const dH=Math.abs(c.high-price), dL=Math.abs(c.low-price), dC=Math.abs(c.close-price);
-      const d=Math.min(dH,dL,dC);
-      if(d<bestDist){bestDist=d;best=i;}
-    });
-    if (best===-1) return ML+(fallbackIdx/(wps.length-1))*CW;
-    return toXBar(best);
+  // Map wave point to X: use proportional spacing across chart width
+  // Wave points are ordered 0→1→2→3→4→5→A→B→C, so we space them evenly
+  function waveX(price, idx) {
+    const total = wavePoints.length;
+    // Distribute wave points across 85% of chart width, leaving room on right
+    return ML + (idx / Math.max(total - 1, 1)) * CW * 0.85;
   }
 
   // ── Background ────────────────────────────────────
@@ -1591,8 +1585,7 @@ function renderEWChart(analysis, symbol, tf, liveData) {
     y: toY(wp2.price)
   }));
 
-  // Sort by X to ensure correct left-to-right order
-  pts.sort((a,b)=>a.x-b.x);
+  // Keep original wave order (0→1→2→3→4→5→A→B→C) — do NOT sort by X
 
   // Wave line colors
   const iCol  = isBearish?'#f59e0b':'#3b82f6';
