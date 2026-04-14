@@ -803,81 +803,14 @@ canvas { display: block; }
     <p class="ew-prose">Choose your access level. Free interactive charts for all users — advanced AI analysis for admin and premium subscribers.</p>
 
     <!-- TWO COLUMN LAYOUT -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:0;" id="ewTiersGrid">
-
-    <!-- LEFT: FREE TIER -->
-    <div style="background:var(--bg2);border:1px solid var(--border);padding:0;display:flex;flex-direction:column;">
-      <div style="padding:18px 20px;border-bottom:1px solid var(--border);">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-          <span style="font-size:9px;letter-spacing:4px;color:var(--green);text-transform:uppercase;">Free</span>
-          <span style="font-size:9px;padding:3px 10px;border:1px solid rgba(16,185,129,.3);color:var(--green);letter-spacing:1px;">Open Access</span>
-        </div>
-        <div style="font-family:var(--serif);font-size:20px;font-weight:700;margin-bottom:4px;">Elliott for Newbies</div>
-        <div style="font-size:11px;color:var(--muted);line-height:1.6;">Interactive wave chart with real pivot detection. No login required.</div>
+    <div style="background:var(--bg2);border:1px solid var(--border);padding:48px 40px;text-align:center;margin-top:8px;">
+      <div style="font-size:11px;letter-spacing:4px;color:var(--muted);text-transform:uppercase;margin-bottom:16px;">Work in Progress</div>
+      <div style="font-family:var(--serif);font-size:28px;font-weight:700;margin-bottom:14px;">Live Analysis Coming Soon</div>
+      <div style="font-size:12px;color:var(--muted);line-height:1.8;max-width:480px;margin:0 auto;">
+        We are currently testing and refining our AI-powered Elliott Wave analysis engine. Stay tuned — follow us on Telegram for updates.
       </div>
-      <div style="padding:16px 20px;flex:1;">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px;">
-          <div>
-            <div class="admin-label">Instrument</div>
-            <select class="admin-select" id="freeSymbol">
-              <option value="eur/usd">EUR/USD</option>
-              <option value="gold">GOLD</option>
-              <option value="oil wti">OIL WTI</option>
-              <option value="btc/usd">BTC/USD</option>
-              <option value="gbp/usd">GBP/USD</option>
-              <option value="usd/jpy">USD/JPY</option>
-            </select>
-          </div>
-          <div>
-            <div class="admin-label">Timeframe</div>
-            <select class="admin-select" id="freeTf">
-              <option>H1 (1-Hour)</option>
-              <option>H4 (4-Hour)</option>
-              <option selected>D1 (Daily)</option>
-              <option>W1 (Weekly)</option>
-            </select>
-          </div>
-        </div>
-        <button class="admin-run-btn" id="freeRunBtn" onclick="runFreeAnalysis()" style="width:100%;margin-bottom:10px;background:var(--green);color:#fff;">⚡ Generate Wave Chart</button>
-        <div id="freeLoadingTxt" style="font-size:11px;color:var(--muted);letter-spacing:2px;display:none;padding:8px 0;">⬡ Analysing...</div>
-        <div id="freeChartWrap" style="display:none;">
-          <div style="background:#131f2e;border:1px solid var(--border);margin-bottom:8px;">
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 14px;border-bottom:1px solid var(--border);">
-              <span style="color:var(--text);font-size:11px;font-weight:500;" id="freeChartTitle">—</span>
-              <div style="display:flex;gap:6px;">
-                <span id="freeSignalBadge" style="display:none;"></span>
-                <span id="freeWaveBadge" style="display:none;padding:3px 10px;font-size:9px;border:1px solid var(--border);color:var(--muted);"></span>
-              </div>
-            </div>
-            <canvas id="freeChartCanvas" style="display:block;width:100%;background:#090f1a;"></canvas>
-          </div>
-          <div id="freeChartMetrics" style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:8px;"></div>
-          <div id="freeNarrative" style="display:none;font-size:11px;color:#8aaccc;line-height:1.8;background:var(--bg2);border:1px solid var(--border);padding:14px 16px;">
-            <div style="font-size:9px;letter-spacing:.14em;color:var(--gold);text-transform:uppercase;margin-bottom:8px;">⬡ AI Analysis</div>
-            <div id="freeNarrativeText"></div>
-          </div>
-        </div>
-      </div>
+      <a href="https://t.me/xenosfin" target="_blank" rel="noopener" style="display:inline-block;margin-top:24px;padding:10px 28px;background:var(--gold3);color:#fff;font-family:var(--mono);font-size:10px;letter-spacing:3px;text-transform:uppercase;text-decoration:none;">📡 Follow @xenosfin</a>
     </div>
-
-
-    <!-- RIGHT: PRO TIER — links to subpage -->
-    <div style="background:var(--bg2);border:1px solid var(--border2);padding:0;display:flex;flex-direction:column;">
-      <div style="padding:18px 20px;border-bottom:1px solid var(--border2);">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-          <span style="font-size:9px;letter-spacing:4px;color:var(--gold);text-transform:uppercase;">Pro</span>
-          <span style="font-size:9px;padding:3px 10px;border:1px solid rgba(59,130,246,.3);color:var(--gold);letter-spacing:1px;">Admin / Premium</span>
-        </div>
-        <div style="font-family:var(--serif);font-size:20px;font-weight:700;margin-bottom:4px;">AI Wave Analysis</div>
-        <div style="font-size:11px;color:var(--muted);line-height:1.6;">Institutional-grade AI analysis, narrative commentary and Telegram publishing.</div>
-      </div>
-      <div style="padding:24px 20px;flex:1;display:flex;flex-direction:column;justify-content:space-between;">
-        <p style="font-size:12px;color:var(--muted);line-height:1.8;margin-bottom:28px;">Available to premium subscribers and admin.</p>
-        <a href="/elliottwave-pro" style="display:block;text-align:center;padding:13px;background:var(--gold3);color:#fff;font-family:var(--mono);font-size:11px;letter-spacing:3px;text-transform:uppercase;text-decoration:none;transition:background .2s;" onmouseover="this.style.background='var(--gold)'" onmouseout="this.style.background='var(--gold3)'">⚡ Open Pro Analysis →</a>
-      </div>
-    </div>
-
-    </div><!-- end ewTiersGrid -->
   </div><!-- end ew-section -->
 
 </div><!-- end page-wrap -->
