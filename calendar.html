@@ -356,7 +356,6 @@ const EVENTS = [
   {date:'2026-04-17', time:'14:30', country:'USD', flag:'🇺🇸', name:'US Initial Jobless Claims', desc:'Week ending Apr 12', impact:'high', forecast:'225K', prev:'219K', actual:''},
   {date:'2026-04-17', time:'14:30', country:'USD', flag:'🇺🇸', name:'US Philadelphia Fed Manufacturing Index', desc:'Apr 2026', impact:'med', forecast:'-10.0', prev:'-26.4', actual:''},
   {date:'2026-04-17', time:'15:00', country:'USD', flag:'🇺🇸', name:'US Existing Home Sales', desc:'Mar 2026', impact:'med', forecast:'4.20M', prev:'4.26M', actual:''},
-  {date:'2026-04-18', time:'14:30', country:'USD', flag:'🇺🇸', name:'Good Friday — US Markets Closed', desc:'Market Holiday', impact:'high', forecast:'—', prev:'—', actual:''},
 
   // ── WEEK APR 20–26 ─────────────────────────────────────────
   {date:'2026-04-22', time:'13:45', country:'EUR', flag:'🇪🇺', name:'Eurozone Manufacturing PMI (Flash)', desc:'Apr 2026', impact:'high', forecast:'48.5', prev:'48.6', actual:''},
@@ -772,9 +771,9 @@ async function fetchLiveCalendar(weekStr) {
     const existingKeys = new Set(EVENTS.map(e => evKey(e.date, e.name)));
     // Also build a fuzzy set: first 20 chars of name + date
     const existingFuzzy = new Set(EVENTS.map(e => e.date + '|' + e.name.toLowerCase().slice(0,20)));
-    const COUNTRY_FLAG = {USD:'🇺🇸',EUR:'🇪🇺',GBP:'🇬🇧',JPY:'🇯🇵',CAD:'🇨🇦',AUD:'🇦🇺',CHF:'🇨🇭',OTHER:'🌐'};
+    const COUNTRY_FLAG = {USD:'🇺🇸',EUR:'🇪🇺',GBP:'🇬🇧',JPY:'🇯🇵',CAD:'🇨🇦',AUD:'🇦🇺',CHF:'🇨🇭',CNY:'🇨🇳',NZD:'🇳🇿',SEK:'🇸🇪',NOK:'🇳🇴',MXN:'🇲🇽',BRL:'🇧🇷',ZAR:'🇿🇦',KRW:'🇰🇷',SGD:'🇸🇬',HKD:'🇭🇰',INR:'🇮🇳',OTHER:'🌐'};
     const mapImpact = r => { const s=String(r||'').toLowerCase(); return ['high','3','red'].includes(s)?'high':['medium','med','2','orange'].includes(s)?'med':'low'; };
-    const mapCountry = r => { const s=String(r||'').toUpperCase(); return ({USD:'USD',US:'USD',EUR:'EUR',EU:'EUR',GBP:'GBP',GB:'GBP',UK:'GBP',JPY:'JPY',JP:'JPY',CAD:'CAD',CA:'CAD',AUD:'AUD',AU:'AUD',CHF:'CHF',CH:'CHF'})[s]||'OTHER'; };
+    const mapCountry = r => { const s=String(r||'').toUpperCase(); return ({USD:'USD',US:'USD',EUR:'EUR',EU:'EUR',GBP:'GBP',GB:'GBP',UK:'GBP',JPY:'JPY',JP:'JPY',CAD:'CAD',CA:'CAD',AUD:'AUD',AU:'AUD',CHF:'CHF',CH:'CHF',CNY:'CNY',CN:'CNY',NZD:'NZD',NZ:'NZD',SEK:'SEK',NOK:'NOK',MXN:'MXN',BRL:'BRL',ZAR:'ZAR',KRW:'KRW',SGD:'SGD',HKD:'HKD',INR:'INR'})[s]||(s.length>=2&&s.length<=4?s:'OTHER'); };
     events.forEach(ev => {
       const name = String(ev[cfg.name]||ev.event||ev.name||'').trim();
       if (!name||name.length<3) return;
@@ -889,7 +888,10 @@ function renderKeyEventsCards() {
 
   const todayKey = today.toISOString().split('T')[0];
   const topEvents = EVENTS
-    .filter(e => e.date >= todayKey && e.date <= friKey && e.impact === 'high')
+    .filter(e => e.date >= todayKey && e.date <= friKey && e.impact === 'high'
+      && !e.name.toLowerCase().includes('holiday')
+      && !e.name.toLowerCase().includes('closed')
+      && !e.name.toLowerCase().includes('good friday'))
     .slice(0, 6);
 
   if (!topEvents.length) {
@@ -980,11 +982,12 @@ document.addEventListener('DOMContentLoaded', () => {
   renderWeekTabs();
   loadSavedActuals();
   renderCalendar();
-  renderKeyEventsCards();
   loadTicker();
   setInterval(updateDateTime, 60000);
-  // Fetch live actuals immediately, then every 5 minutes
-  refreshActuals();
+  // Fetch live actuals first, then render key events cards once data is ready
+  refreshActuals().then(() => {
+    renderKeyEventsCards();
+  });
   setInterval(refreshActuals, 300000);
   // AI weekly brief
   loadCalendarAIBrief();

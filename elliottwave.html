@@ -593,7 +593,6 @@ canvas { display: block; }
       <input class="gloss-search" id="glossSearch" type="text" placeholder="Search terms… e.g. impulse, zigzag, fibonacci" oninput="filterGloss()">
     </div>
     <div class="gloss-tags">
-      <button class="gloss-tag active" onclick="filterTag('all',this)">All</button>
       <button class="gloss-tag" onclick="filterTag('wave',this)">Waves</button>
       <button class="gloss-tag" onclick="filterTag('rule',this)">Rules</button>
       <button class="gloss-tag" onclick="filterTag('pattern',this)">Patterns</button>
@@ -864,6 +863,14 @@ function toggleGloss(el){
 
 function filterGloss(){
   const q = document.getElementById('glossSearch').value.toLowerCase().trim();
+  // If no search and no active tag, hide all
+  const activeTag = document.querySelector('.gloss-tag.active');
+  if (!q && !activeTag) {
+    document.querySelectorAll('.gloss-item').forEach(el => el.classList.add('hidden'));
+    document.getElementById('glossCount').textContent = 'Select a category or search to explore terms';
+    document.getElementById('glossEmpty').style.display = 'none';
+    return;
+  }
   const items = document.querySelectorAll('.gloss-item');
   let visible = 0;
   items.forEach(item => {
@@ -2630,6 +2637,9 @@ function drawMiniWave(id){
 
 // Init all drawings on load
 window.addEventListener('load',()=>{
+  // Hide all glossary items by default
+  document.querySelectorAll('.gloss-item').forEach(el=>el.classList.add('hidden'));
+  document.getElementById('glossCount').textContent='Select a category or search to explore terms';
   function initCanvases(){
     try { drawBasicWave(); } catch(e){ console.error('drawBasicWave:', e); }
     try { drawCorrectivePatterns(); } catch(e){ console.error('drawCorrectivePatterns:', e); }
