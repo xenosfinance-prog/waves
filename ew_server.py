@@ -166,22 +166,24 @@ Respond ONLY with valid JSON, no markdown:
 
 # ── Plotly chart builder ───────────────────────────────────────────────────────
 def build_plotly_chart(df: pd.DataFrame, ai_result: dict, symbol: str, tf: str, dp: int):
-    dates  = df.index.tolist()
-    is_bull = ai_result.get("trend") == "UP"
+    dates    = df.index.tolist()
+    is_bull  = ai_result.get("trend") == "UP"
     wave_pts = ai_result.get("wave_points", [])
-    kl = ai_result
-    signal  = ai_result.get("signal", "WAIT")
+    signal   = ai_result.get("signal", "WAIT")
     live_price = float(df["Close"].iloc[-1])
 
-    # Wave colors
-    IMPULSE_COLOR  = "#3b82f6"   # blue
-    CORRECTIVE_COLOR = "#f59e0b" # amber
+    IMP_COL  = "#3b82f6"   # blue — impulse waves 1,3,5
+    IMP_DOT  = "#60a5fa"
+    COR_COL  = "#f59e0b"   # amber — corrective waves 2,4,A,B,C
+    COR_DOT  = "#fcd34d"
+    IMP_LBLS = {"1","3","5","i","iii","v"}
+    COR_LBLS = {"2","4","A","B","C","ii","iv","W","X","Y"}
 
-    # Determine color per segment
-    impulse_labels = {"1","3","5"} if ai_result.get("pattern") == "Impulse" else set()
-    corrective_labels = {"2","4","A","C"}
+    def wave_col(label, dot=False):
+        if label in IMP_LBLS: return IMP_DOT if dot else IMP_COL
+        return COR_DOT if dot else COR_COL
 
-    # ── Candlestick ────────────────────────────────────────────────────────────
+    # ── Candlestick ───────────────────────────────────────────────
     candle = go.Candlestick(
         x=dates,
         open=df["Open"].values,
@@ -189,52 +191,58 @@ def build_plotly_chart(df: pd.DataFrame, ai_result: dict, symbol: str, tf: str, 
         low=df["Low"].values,
         close=df["Close"].values,
         name=symbol,
-        increasing=dict(line=dict(color="#10b981"), fillcolor="rgba(16,185,129,0.7)"),
-        decreasing=dict(line=dict(color="#ef4444"), fillcolor="rgba(239,68,68,0.7)"),
+        increasing=dict(line=dict(color="#10b981", width=1), fillcolor="rgba(16,185,129,0.72)"),
+        decreasing=dict(line=dict(color="#ef4444", width=1), fillcolor="rgba(239,68,68,0.72)"),
         whiskerwidth=0.3,
         showlegend=False,
     )
 
-    # ── Wave zigzag ────────────────────────────────────────────────────────────
-    wave_x = [dates[p["idx"]] for p in wave_pts if p["idx"] < len(dates)]
-    wave_y = [p["price"] for p in wave_pts if p["idx"] < len(dates)]
-    wave_labels_text = [f"({p['label']})" for p in wave_pts if p["idx"] < len(dates)]
+    traces = [candle]
 
-    zigzag = go.Scatter(
-        x=wave_x,
-        y=wave_y,
-        mode="lines+markers+text",
-        name="Elliott Wave",
-        line=dict(color=IMPULSE_COLOR if is_bull else CORRECTIVE_COLOR, width=2.5),
-        marker=dict(
-            size=10,
-            color=[IMPULSE_COLOR if p["label"] in {"1","3","5"} else CORRECTIVE_COLOR for p in wave_pts if p["idx"] < len(dates)],
-            line=dict(color="#0f1724", width=2),
-        ),
-        text=wave_labels_text,
-        textposition=["top center" if p["type"] == "high" else "bottom center" for p in wave_pts if p["idx"] < len(dates)],
-        textfont=dict(size=14, color=IMPULSE_COLOR if is_bull else CORRECTIVE_COLOR, family="Arial Black"),
-        hovertemplate="Wave %{text}<br>%{y}<extra></extra>",
-        showlegend=False,
-    )
+    # ── Zigzag segment by segment (each with its own color) ───────
+    valid_pts = [p for p in wave_pts if p["idx"] < len(dates)]
+    for i in range(len(valid_pts) - 1):
+        p1, p2 = valid_pts[i], valid_pts[i+1]
+        seg_col = wave_col(p1["label"])
+        traces.append(go.Scatter(
+            x=[dates[p1["idx"]], dates[p2["idx"]]],
+            y=[p1["price"], p2["price"]],
+            mode="lines",
+            line=dict(color=seg_col, width=2.5),
+            showlegend=False,
+            hoverinfo="skip",
+        ))
 
-    # ── Horizontal level lines ─────────────────────────────────────────────────
-    sl  = kl.get("invalidation")
-    tp1 = kl.get("tp1")
-    tp2 = kl.get("tp2")
+    # ── Dots ──────────────────────────────────────────────────────
+    for p in valid_pts:
+        col = wave_col(p["label"], dot=True)
+        traces.append(go.Scatter(
+            x=[dates[p["idx"]]],
+            y=[p["price"]],
+            mode="markers",
+            marker=dict(size=11, color=col, line=dict(color="#090f1a", width=2.5)),
+            showlegend=False,
+            hovertemplate=f"Wave ({p['label']}): {p['price']:.{dp}f}<extra></extra>",
+        ))
 
+    # ── Level lines ───────────────────────────────────────────────
+    sl  = ai_result.get("invalidation")
+    tp1 = ai_result.get("tp1")
+    tp2 = ai_result.get("tp2")
     shapes = []
-    level_annotations = []
+    level_ann = []
 
     def add_level(price, color, label):
-        if not price:
-            return
+        if not price: return
+        try: price = float(price)
+        except: return
         shapes.append(dict(
             type="line", x0=dates[0], x1=dates[-1], y0=price, y1=price,
-            line=dict(color=color, width=1, dash="dash"), opacity=0.6
+            line=dict(color=color, width=1, dash="dash"), opacity=0.55
         ))
-        level_annotations.append(dict(
-            x=dates[-1], y=price, xanchor="left", text=f" {label} {price:.{dp}f}",
+        level_ann.append(dict(
+            x=dates[-1], y=price, xanchor="left",
+            text=f"  {label} {price:.{dp}f}",
             font=dict(color=color, size=10, family="IBM Plex Mono"),
             showarrow=False, xref="x", yref="y"
         ))
@@ -244,81 +252,83 @@ def build_plotly_chart(df: pd.DataFrame, ai_result: dict, symbol: str, tf: str, 
     add_level(tp1,        "#10b981", "TP1")
     add_level(tp2,        "#059669", "TP2")
 
-    # ── Wave label annotations ─────────────────────────────────────────────────
-    wave_annotations = []
-    for p in wave_pts:
-        if p["idx"] >= len(dates):
-            continue
+    # ── Wave label annotations (pill style like the demo) ─────────
+    wave_ann = []
+    for p in valid_pts:
+        col     = wave_col(p["label"])
+        dot_col = wave_col(p["label"], dot=True)
         is_high = p["type"] == "high"
-        col = IMPULSE_COLOR if p["label"] in {"1","3","5"} else CORRECTIVE_COLOR
-        wave_annotations.append(dict(
+        wave_ann.append(dict(
             x=dates[p["idx"]],
             y=p["price"],
             xref="x", yref="y",
             text=f"<b>({p['label']})</b>",
             showarrow=True,
             arrowhead=0,
-            arrowcolor=col,
+            arrowcolor=col + "99",
             arrowwidth=1.5,
             ax=0,
-            ay=-30 if is_high else 30,
-            font=dict(size=14, color=col, family="Arial Black"),
-            bgcolor="rgba(9,15,26,0.85)",
+            ay=-32 if is_high else 32,
+            font=dict(size=15, color=dot_col, family="Arial Black, Arial, sans-serif"),
+            bgcolor="rgba(9,15,26,0.88)",
             bordercolor=col,
-            borderwidth=1,
-            borderpad=4,
+            borderwidth=1.5,
+            borderpad=5,
         ))
 
-    # ── Layout ─────────────────────────────────────────────────────────────────
-    sig_color = "#00e676" if signal == "LONG" else "#ff3d5a" if signal == "SHORT" else "#f59e0b"
-    sig_text  = "▲ LONG" if signal == "LONG" else "▼ SHORT" if signal == "SHORT" else "◆ WAIT"
+    # ── Header annotations ────────────────────────────────────────
+    sig_color   = "#00e676" if signal=="LONG" else "#ff3d5a" if signal=="SHORT" else "#f59e0b"
+    sig_text    = "▲ LONG"  if signal=="LONG" else "▼ SHORT"  if signal=="SHORT" else "◆ WAIT"
     trend_color = "#34d399" if is_bull else "#f87171"
     trend_text  = "▲ TREND UP" if is_bull else "▼ TREND DOWN"
+
+    header_ann = [
+        dict(x=0.01, y=0.985, xref="paper", yref="paper",
+             text=f"<b><span style='color:#3b82f6'>XENOS</span><span style='color:#c8d8ea'>FINANCE</span></b>"
+                  f"<span style='color:#4a6a8a'>  ·  {symbol}  ·  {tf}</span>",
+             font=dict(size=12, family="IBM Plex Mono"), showarrow=False,
+             align="left", bgcolor="rgba(9,15,26,0.75)", borderpad=7),
+        dict(x=0.5, y=0.985, xref="paper", yref="paper",
+             text=f"<b><span style='color:{trend_color}'>{trend_text}</span></b>",
+             font=dict(size=11, family="IBM Plex Mono"), showarrow=False, align="center"),
+        dict(x=0.995, y=0.985, xref="paper", yref="paper",
+             text=f"<b><span style='color:{sig_color}'>{sig_text}</span></b>",
+             font=dict(size=12, family="IBM Plex Mono"), showarrow=False, align="right"),
+    ]
 
     layout = go.Layout(
         paper_bgcolor="#0d1520",
         plot_bgcolor="#090f1a",
         font=dict(family="IBM Plex Mono, monospace", color="#c8d8ea", size=11),
-        margin=dict(l=60, r=120, t=50, b=40),
+        margin=dict(l=60, r=110, t=48, b=36),
         xaxis=dict(
             rangeslider=dict(visible=False),
-            gridcolor="#1a2a40", gridwidth=0.5,
-            linecolor="#1e3050",
+            gridcolor="#152030", gridwidth=0.5,
+            linecolor="#1e3050", zeroline=False,
             tickfont=dict(size=9, color="#4a6a8a"),
             type="date",
         ),
         yaxis=dict(
-            gridcolor="#1a2a40", gridwidth=0.5,
-            linecolor="#1e3050",
+            gridcolor="#152030", gridwidth=0.5,
+            linecolor="#1e3050", zeroline=False,
             tickfont=dict(size=9, color="#4a6a8a"),
             tickformat=f".{dp}f",
             side="left",
         ),
         showlegend=False,
         shapes=shapes,
-        annotations=wave_annotations + level_annotations + [
-            dict(x=0.01, y=0.99, xref="paper", yref="paper",
-                 text=f"<b><span style='color:#3b82f6'>XENOS</span>FINANCE</b>  ·  {symbol}  ·  {tf}",
-                 font=dict(size=12, family="IBM Plex Mono"), showarrow=False,
-                 align="left", bgcolor="rgba(9,15,26,0.7)", borderpad=6),
-            dict(x=0.5, y=0.99, xref="paper", yref="paper",
-                 text=f"<b><span style='color:{trend_color}'>{trend_text}</span></b>",
-                 font=dict(size=11), showarrow=False, align="center"),
-            dict(x=0.99, y=0.99, xref="paper", yref="paper",
-                 text=f"<b><span style='color:{sig_color}'>{sig_text}</span></b>",
-                 font=dict(size=12), showarrow=False, align="right"),
-        ],
+        annotations=wave_ann + level_ann + header_ann,
         hovermode="x unified",
         hoverlabel=dict(
             bgcolor="#0d1520", bordercolor="#1e3050",
             font=dict(family="IBM Plex Mono", size=11, color="#c8d8ea")
         ),
         dragmode="pan",
-        height=480,
+        height=500,
+        autosize=True,
     )
 
-    fig = go.Figure(data=[candle, zigzag], layout=layout)
-    return fig
+    return go.Figure(data=traces, layout=layout)
 
 # ── Main endpoint ──────────────────────────────────────────────────────────────
 @app.route("/ew-chart", methods=["POST", "OPTIONS"])
