@@ -1581,477 +1581,692 @@ function detectTrend(candles) {
 }
 
 async function runAIAnalysis(){
-  const symbolEl  = document.getElementById('aiSymbol');
+  const symbolEl=document.getElementById('aiSymbol');
   const symbolVal = symbolEl.options ? symbolEl.options[symbolEl.selectedIndex].value : 'eur/usd';
-  const symbol    = symbolEl.options ? symbolEl.options[symbolEl.selectedIndex].text  : symbolVal.toUpperCase();
+  const symbol    = symbolEl.options ? symbolEl.options[symbolEl.selectedIndex].text : symbolVal.toUpperCase();
   const tf        = document.getElementById('aiTf').value;
   const ctx_text  = document.getElementById('aiContext').value;
   const btn       = document.getElementById('aiRunBtn');
   const out       = document.getElementById('analysisOutput');
   const txt       = document.getElementById('analysisText');
 
-  btn.disabled = true; btn.textContent = 'Fetching price...';
-  out.style.display = 'block';
-  txt.innerHTML = '<span class="analysis-loading">&#x29E1; FETCHING LIVE PRICE...</span>';
-  document.getElementById('tgBtn').style.display = 'none';
-  document.getElementById('ewChartWrap').style.display = 'none';
+  btn.disabled=true; btn.textContent='Fetching price...';
+  out.style.display='block';
+  txt.innerHTML='<span class="analysis-loading">⬡ FETCHING LIVE PRICE...</span>';
+  document.getElementById('tgBtn').style.display='none';
 
   const TF_CONF = {
-    'W1 (Weekly)': { interval:'1wk', range:'5y'  },
-    'D1 (Daily)':  { interval:'1d',  range:'2y'  },
-    'H4 (4-Hour)': { interval:'1h',  range:'90d' },
-    'H2 (2-Hour)': { interval:'1h',  range:'45d' },
-    'H1 (1-Hour)': { interval:'1h',  range:'21d' },
+    'W1 (Weekly)':  { interval:'1wk', range:'5y',  bars:150, lookback:4 },
+    'D1 (Daily)':   { interval:'1d',  range:'2y',  bars:150, lookback:5 },
+    'H4 (4-Hour)':  { interval:'1h',  range:'90d', bars:150, lookback:5 },
+    'H2 (2-Hour)':  { interval:'1h',  range:'45d', bars:120, lookback:4 },
+    'H1 (1-Hour)':  { interval:'1h',  range:'21d', bars:120, lookback:3 },
   };
   const tfConf = TF_CONF[tf] || TF_CONF['D1 (Daily)'];
-  const dec = 5;
 
-  // ── 1. Live price ──────────────────────────────────────────────
   const liveData = await fetchLivePrice(symbolVal);
   if (!liveData?.price) {
-    txt.innerHTML = '<div style="color:#f87171;font-size:11px;">&#x26A0; Live price not found for "'+symbol+'"</div>';
-    btn.disabled = false; btn.textContent = '&#x26A1; Generate Analysis'; return;
+    txt.innerHTML=`<div style="color:#f87171;font-family:var(--mono);font-size:11px;">⚠ LIVE PRICE NOT FOUND for "${symbol}"</div>`;
+    btn.disabled=false; btn.textContent='⚡ Generate Analysis'; return;
   }
-  const livePrice = liveData.price;
-  const dp = livePrice > 100 ? 2 : 5;
 
-  // ── 2. Fetch candles ───────────────────────────────────────────
-  btn.textContent = 'Fetching candles...';
-  txt.innerHTML = '<span class="analysis-loading">&#x29E1; FETCHING CANDLE DATA...</span>';
+  btn.textContent='Fetching candles...';
+  txt.innerHTML='<span class="analysis-loading">⬡ FETCHING CANDLE DATA...</span>';
 
   let allCandles = [];
+  let candleContext = '';
   const workerSym = EW_SYMBOL_MAP[symbolVal.trim().toLowerCase()];
+
   if (workerSym) {
     try {
-      const r = await fetch('https://xenos-ai-proxy.xenosfinance.workers.dev', {
+      const candleRes = await fetch('https://xenos-ai-proxy.xenosfinance.workers.dev', {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ type:'yahoocandles', symbol:workerSym, interval:tfConf.interval, range:tfConf.range }),
         signal: AbortSignal.timeout(20000)
       });
-      if (r.ok) {
-        const cd = await r.json();
+      if (candleRes.ok) {
+        const cd = await candleRes.json();
+        if (cd.error) console.warn('Candle fetch error:', cd.error);
         allCandles = (cd.candles||[]).filter(c=>c.close>0);
-        if (tf==='H4 (4-Hour)') {
-          const a=[];
-          for(let i=0;i<allCandles.length-3;i+=4){const ch=allCandles.slice(i,i+4);a.push({datetime:ch[0].datetime,open:ch[0].open,high:Math.max(...ch.map(c=>c.high)),low:Math.min(...ch.map(c=>c.low)),close:ch[3].close,volume:ch.reduce((s,c)=>s+(c.volume||0),0)});}
-          allCandles=a;
-        } else if (tf==='H2 (2-Hour)') {
-          const a=[];
-          for(let i=0;i<allCandles.length-1;i+=2){const ch=allCandles.slice(i,i+2);a.push({datetime:ch[0].datetime,open:ch[0].open,high:Math.max(...ch.map(c=>c.high)),low:Math.min(...ch.map(c=>c.low)),close:ch[1].close,volume:ch.reduce((s,c)=>s+(c.volume||0),0)});}
-          allCandles=a;
+        if (tf === 'H4 (4-Hour)') {
+          const r=[];
+          for (let i=0;i<allCandles.length-3;i+=4) {
+            const chunk=allCandles.slice(i,i+4);
+            r.push({datetime:chunk[0].datetime,open:chunk[0].open,high:Math.max(...chunk.map(c=>c.high)),low:Math.min(...chunk.map(c=>c.low)),close:chunk[3].close,volume:chunk.reduce((s,c)=>s+(c.volume||0),0)});
+          }
+          allCandles=r;
+        } else if (tf === 'H2 (2-Hour)') {
+          const r=[];
+          for (let i=0;i<allCandles.length-1;i+=2) {
+            const chunk=allCandles.slice(i,i+2);
+            r.push({datetime:chunk[0].datetime,open:chunk[0].open,high:Math.max(...chunk.map(c=>c.high)),low:Math.min(...chunk.map(c=>c.low)),close:chunk[1].close,volume:chunk.reduce((s,c)=>s+(c.volume||0),0)});
+          }
+          allCandles=r;
+        }
+        if (allCandles.length >= 20) {
+          const last30 = allCandles.slice(-30);
+          const dp = liveData.price>10?2:5;
+          candleContext = `\n\nOHLCV DATA (${tf}, last ${last30.length} candles):\n` +
+            last30.map(c=>`${c.datetime?.slice(0,10)} | ${c.close?.toFixed(dp)}`).join('\n');
         }
       }
-    } catch(e){ console.warn('candle fetch:', e); }
+    } catch(e) { console.warn('Candle fetch error:', e); }
   }
 
-  if (allCandles.length < 30) {
-    txt.textContent = '&#x26A0; Not enough candle data for '+symbol+' on '+tf+'.';
-    btn.disabled=false; btn.textContent='&#x26A1; Generate Analysis'; return;
+  btn.textContent='Analysing...';
+  txt.innerHTML='<span class="analysis-loading">⬡ RUNNING XENOS EW ENGINE v3.0...</span>';
+
+  const dec = liveData.price > 100 ? 2 : 5;
+  const livePrice = liveData.price;
+
+  const engineCandles = allCandles.length >= 20 ? allCandles : [];
+  ewLastCandles = engineCandles;
+  const ewResult = countElliottWavesDeepscan(engineCandles);
+
+  if (!ewResult) {
+    txt.textContent = allCandles.length === 0
+      ? `⚠ Could not fetch candle data for "${workerSym||symbol}" on ${tf}.`
+      : `⚠ Insufficient candle data: ${allCandles.length} candles. Need at least 20.`;
+    btn.disabled=false; btn.textContent='⚡ Generate Analysis'; return;
   }
 
-  // ── 3. STEP 1: Algoritmo matematico trova swing high/low reali ─
-  btn.textContent = 'Finding pivots...';
-  txt.innerHTML = '<span class="analysis-loading">&#x29E1; DETECTING SWING PIVOTS...</span>';
+  ewLastCandles._pivotMap = ewResult.pivotMap;
 
-  // Use last 80 candles
-  const workCandles = allCandles.slice(-80);
-  ewLastCandles = workCandles;
-
-  // Zigzag pivot detection — find alternating swing highs and lows
-  // with adaptive window based on timeframe
-  function findZigzagPivots(candles, minSwing) {
-    const pivots = [];
-    let lastType = null;
-    let lastIdx  = -1;
-    let lastPrice = -1;
-
-    // First pass: find all local extremes with window=3
-    const candidates = [];
-    for (let i = 2; i < candles.length - 2; i++) {
-      const h = candles[i].high;
-      const l = candles[i].low;
-      const isHigh = h > candles[i-1].high && h > candles[i-2].high && h > candles[i+1].high && h > candles[i+2].high;
-      const isLow  = l < candles[i-1].low  && l < candles[i-2].low  && l < candles[i+1].low  && l < candles[i+2].low;
-      if (isHigh) candidates.push({idx:i, price:h, type:'high'});
-      if (isLow)  candidates.push({idx:i, price:l, type:'low'});
-    }
-
-    // Second pass: enforce alternation + minimum swing size
-    for (const c of candidates) {
-      if (lastType === null) {
-        pivots.push(c); lastType=c.type; lastIdx=c.idx; lastPrice=c.price;
-      } else if (c.type !== lastType) {
-        // Check minimum swing
-        const swing = Math.abs(c.price - lastPrice);
-        if (swing >= minSwing) {
-          pivots.push(c); lastType=c.type; lastIdx=c.idx; lastPrice=c.price;
-        }
-      } else {
-        // Same type: keep more extreme
-        const last = pivots[pivots.length-1];
-        if ((c.type==='high' && c.price > last.price) || (c.type==='low' && c.price < last.price)) {
-          pivots[pivots.length-1] = c; lastPrice=c.price; lastIdx=c.idx;
-        }
-      }
-    }
-    return pivots;
-  }
-
-  const priceRange = Math.max(...workCandles.map(c=>c.high)) - Math.min(...workCandles.map(c=>c.low));
-  const minSwing = priceRange * 0.008; // 0.8% minimum swing
-  const allPivots = findZigzagPivots(workCandles, minSwing);
-
-  // Take the most recent 8 pivots (enough for 5-wave or ABC)
-  const recentPivots = allPivots.slice(-8);
-
-  if (recentPivots.length < 3) {
-    txt.textContent = '&#x26A0; Not enough pivot structure found. Try a different timeframe.';
-    btn.disabled=false; btn.textContent='&#x26A1; Generate Analysis'; return;
-  }
-
-  // ── 4. STEP 2: AI etichetta i pivot trovati dall'algoritmo ─────
-  btn.textContent = 'AI labelling waves...';
-  txt.innerHTML = '<span class="analysis-loading">&#x29E1; AI IDENTIFYING WAVE LABELS...</span>';
-
-  const pivotSummary = recentPivots.map((p,i) =>
-    `Pivot ${i}: candle_index=${p.idx}, price=${p.price.toFixed(dp)}, type=${p.type}, date=${workCandles[p.idx]?.datetime?.slice(0,10)||''}`
-  ).join('
-');
-
-  const aiPrompt = `You are a professional Elliott Wave analyst.
-
-The following swing pivots have been mathematically detected from real ${symbol} ${tf} price data.
-These are REAL alternating swing highs and lows extracted from the chart.
-
-DETECTED PIVOTS (already alternating high/low):
-${pivotSummary}
-
-Current live price: ${livePrice}
-${ctx_text ? 'Additional context: ' + ctx_text : ''}
-
-YOUR TASK: Assign Elliott Wave labels to these pivots.
-
-RULES:
-1. Use ALL the pivots listed — do not skip any
-2. Assign labels in order: for an IMPULSE use 0,1,2,3,4,5 — for CORRECTIVE use A,B,C
-3. If there are more pivots than needed for one pattern, label the most recent complete pattern
-4. "candle_index" must be EXACTLY the candle_index value shown above — do not change it
-5. "price" must be EXACTLY the price shown above — do not change it
-6. "type" must be EXACTLY "high" or "low" as shown above — do not change it
-7. The last pivot in your list should be the most recent one (highest candle_index)
-8. Apply EW rules: wave 2 cannot go beyond wave 0, wave 3 cannot be shortest, wave 4 cannot enter wave 1
-
-Respond ONLY with valid JSON, no markdown, no explanation:
-{
-  "pattern": "Impulse",
-  "trend": "UP",
-  "current_wave": "5",
-  "degree": "Minor",
-  "confidence": 80,
-  "wave_points": [
-    {"label":"0","candle_index":5,"price":1.0820,"type":"low"},
-    {"label":"1","candle_index":18,"price":1.0950,"type":"high"},
-    {"label":"2","candle_index":26,"price":1.0865,"type":"low"},
-    {"label":"3","candle_index":48,"price":1.1120,"type":"high"},
-    {"label":"4","candle_index":57,"price":1.1010,"type":"low"},
-    {"label":"5","candle_index":68,"price":1.1200,"type":"high"}
-  ],
-  "invalidation": 1.0819,
-  "tp1": 1.1250,
-  "tp2": 1.1380,
-  "signal": "LONG",
-  "narrative": "3 sentences: wave structure, key risk, levels to watch. Plain text only."
-}`;
-
-  async function fetchWithRetry(body, retries=2) {
-    for (let i=1;i<=retries;i++) {
-      try {
-        const r = await fetch('https://xenos-ai-proxy.xenosfinance.workers.dev', {
-          method:'POST', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify(body), signal: AbortSignal.timeout(45000)
-        });
-        if (r.status===529||r.status===429){if(i<retries){await new Promise(r=>setTimeout(r,i*2000));continue;}return null;}
-        return r;
-      } catch(e){if(i===retries)return null;await new Promise(r=>setTimeout(r,i*1500));}
-    }
-  }
-
-  let aiResult = null;
-  try {
-    const res = await fetchWithRetry({
-      model:'claude-sonnet-4-20250514', max_tokens:800,
-      messages:[{role:'user', content:aiPrompt}]
-    });
-    if (res) {
-      const data = await res.json();
-      const raw  = (data.content?.[0]?.text||'').replace(/```json|```/g,'').trim();
-      aiResult   = JSON.parse(raw);
-    }
-  } catch(e){ console.error('AI labelling failed:', e); }
-
-  if (!aiResult || !aiResult.wave_points?.length) {
-    txt.textContent = '&#x26A0; AI analysis unavailable. Please try again.';
-    btn.disabled=false; btn.textContent='&#x26A1; Generate Analysis'; return;
-  }
-
-  // ── 5. Build chartAnalysis ─────────────────────────────────────
-  const keyMap = {'0':'w0','1':'w1','2':'w2','3':'w3','4':'w4','5':'w5','A':'wa','B':'wb','C':'wc'};
-  const wp = {};
-  const pivotMap = {};
-  aiResult.wave_points.forEach(p => {
-    const k = keyMap[p.label];
-    if (k) {
-      wp[k] = p.price;
-      pivotMap[k] = { price:p.price, idx:p.candle_index, type:p.type, date:'' };
-    }
-  });
-  ewLastCandles._pivotMap = pivotMap;
+  const signalDir = ewResult.action.includes('🟢') ? 'LONG'
+                  : ewResult.action.includes('🔴') ? 'SHORT' : 'WAIT';
 
   const chartAnalysis = {
-    trend:        aiResult.trend,
-    current_wave: aiResult.current_wave,
-    degree:       aiResult.degree || 'Minor',
-    signal:       aiResult.signal || 'WAIT',
+    trend: ewResult.directionUp ? 'UP' : 'DOWN',
+    current_wave: ewResult.waveNum,
+    degree: ewResult.degree,
+    signal: signalDir,
     key_levels: {
-      entry:        parseFloat(livePrice.toFixed(dp)),
-      stop_loss:    parseFloat((aiResult.invalidation||livePrice).toFixed(dp)),
-      tp1:          parseFloat((aiResult.tp1||livePrice).toFixed(dp)),
-      tp2:          parseFloat((aiResult.tp2||livePrice).toFixed(dp)),
-      invalidation: parseFloat((aiResult.invalidation||livePrice).toFixed(dp)),
+      entry:       parseFloat(livePrice.toFixed(dec)),
+      stop_loss:   parseFloat(ewResult.invalidation.toFixed(dec)),
+      tp1:         parseFloat(ewResult.conservativeTarget.toFixed(dec)),
+      tp2:         parseFloat(ewResult.nextTarget.toFixed(dec)),
+      invalidation:parseFloat(ewResult.invalidation.toFixed(dec)),
     },
-    fibonacci_levels: { fib618_w1:null, fib1618_w1:null, fib382_w3:null },
-    wave_points: wp,
+    fibonacci_levels: {
+      fib618_w1:  parseFloat(fibRet(ewResult.w1Start, ewResult.w1End, 0.618).toFixed(dec)),
+      fib1618_w1: parseFloat((ewResult.w1End + ewResult.w1Size*1.618).toFixed(dec)),
+      fib382_w3:  ewResult.w3End ? parseFloat(fibRet(ewResult.w1End, ewResult.w3End, 0.382).toFixed(dec)) : null,
+    },
+    wave_points: ewResult.wavePoints,
   };
 
-  // ── 6. Render chart ────────────────────────────────────────────
   renderEWChart(chartAnalysis, symbol, tf, liveData);
 
-  // ── 7. Text output ─────────────────────────────────────────────
-  const sigTxt   = aiResult.signal==='LONG'?'&#x25B2; LONG':aiResult.signal==='SHORT'?'&#x25BC; SHORT':'&#x25C6; WAIT';
-  const trendTxt = aiResult.trend==='UP'?'&#x25B2; UPTREND':'&#x25BC; DOWNTREND';
+  txt.innerHTML='<span class="analysis-loading">⬡ GENERATING NARRATIVE ANALYSIS...</span>';
 
-  const output = [
+  const vp = calcVolumeProfile(engineCandles);
+  const sigTxt   = signalDir==='LONG'?'▲ LONG':signalDir==='SHORT'?'▼ SHORT':'◆ WAIT';
+  const trendTxt = chartAnalysis.trend==='UP' ? '▲ UPTREND' : '▼ DOWNTREND';
+  const divNote  = ewResult.bearishDiv ? '⚠ Bearish RSI divergence — momentum weakening'
+                 : ewResult.bullishDiv ? '✓ Bullish RSI divergence — momentum building' : null;
+  const diagNote = ewResult.diagonal ? `Diagonal: ${ewResult.diagonal}` : null;
+  const corrNote = ewResult.correctivePattern ? `Correction: ${ewResult.correctivePattern}` : null;
+  const actionClean = ewResult.action.replace(/🟢|🔴|⚠️/g,'').trim();
+
+  const instantOutput = [
     `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
     `  ${symbol}  ·  ${tf}  ·  Live: ${livePrice}`,
     `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-    ``,
-    `WAVE STRUCTURE`,
-    `  ${aiResult.pattern} — Wave ${aiResult.current_wave} active`,
-    `  ${trendTxt}  ·  Degree: ${aiResult.degree}  ·  Confidence: ${aiResult.confidence}%`,
-    ``,
-    `WAVE POINTS`,
-    ...aiResult.wave_points.map(p=>`  Wave ${p.label}  →  ${p.price.toFixed(dp)}  (${p.type})`),
-    ``,
-    `KEY LEVELS`,
-    `  Entry        ${livePrice}`,
-    `  Stop Loss    ${chartAnalysis.key_levels.stop_loss}`,
-    `  Target 1     ${chartAnalysis.key_levels.tp1}`,
-    `  Target 2     ${chartAnalysis.key_levels.tp2}`,
-    ``,
-    `SIGNAL  ${sigTxt}`,
+    ``,`WAVE STRUCTURE`,
+    `  ${ewResult.waveDesc}`,
+    `  ${trendTxt}  ·  Degree: ${ewResult.degree}  ·  Confidence: ${ewResult.confidence}%`,
+    ``,`MARKET CONTEXT`,
+    `  ${ewResult.waveChar}`,
+    divNote?`  ${divNote}`:null, diagNote?`  ${diagNote}`:null, corrNote?`  ${corrNote}`:null,
+    ``,`KEY LEVELS`,
+    `  Entry      ${livePrice}`,
+    `  Stop Loss  ${chartAnalysis.key_levels.stop_loss}`,
+    `  Target 1   ${chartAnalysis.key_levels.tp1}`,
+    `  Target 2   ${chartAnalysis.key_levels.tp2}`,
+    `  R:R        1:${ewResult.riskReward}`,
+    ``,`SIGNAL  ${sigTxt}`,
+    `  ${actionClean}`,
+    ``,`INDICATORS`,
+    `  RSI(14): ${ewResult.rsi}${ewResult.rsi>70?' — Overbought':ewResult.rsi<30?' — Oversold':''}`,
+    `  MACD: ${ewResult.macdHist>0?'+':''}${ewResult.macdHist?.toFixed(5)||'n/a'}  ${ewResult.macdHist>0?'Bullish':'Bearish'} momentum`,
+    `  ATR: ${ewResult.atr?.toFixed(dec)||'n/a'}`,
+    vp?`  Vol POC: ${vp.poc}`:null,
     ``,
     `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-    `  ANALYSIS`,
-    `  ${(aiResult.narrative||'').split('\n').join('\n  ')}`,
+    `  ANALYSIS`,`  Loading...`,
     `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-  ].join('\n');
+  ].filter(l=>l!==null).join('\n');
 
-  txt.textContent = output;
-  lastAnalysis = `Elliott Wave Analysis — ${symbol} ${tf}\n\n${output}`;
-  document.getElementById('tgBtn').style.display = 'inline-block';
-  btn.disabled = false;
-  btn.textContent = '&#x26A1; Generate Analysis';
+  txt.textContent = instantOutput;
+  lastAnalysis = `Elliott Wave Analysis — ${symbol} ${tf}\n\n${instantOutput}`;
+  document.getElementById('tgBtn').style.display='inline-block';
+
+  try {
+    async function fetchWithRetry(body, retries=2) {
+      for (let i=1;i<=retries;i++) {
+        try {
+          const r=await fetch('https://xenos-ai-proxy.xenosfinance.workers.dev',{
+            method:'POST',headers:{'Content-Type':'application/json'},
+            body:JSON.stringify(body),signal:AbortSignal.timeout(30000)
+          });
+          if (r.status===529||r.status===429){if(i<retries){await new Promise(r=>setTimeout(r,i*2000));continue;}return null;}
+          return r;
+        } catch(e){if(i===retries)return null;await new Promise(r=>setTimeout(r,i*1500));}
+      }
+    }
+    const narrativePrompt = `You are a senior Elliott Wave analyst. Write a concise professional commentary (3 short paragraphs, plain text, no markdown, no asterisks):
+${symbol} | ${tf} | Live: ${livePrice}
+Wave: ${ewResult.waveNum} | Trend: ${chartAnalysis.trend} | Confidence: ${ewResult.confidence}%
+${ewResult.waveDesc} — ${ewResult.waveChar}
+Signal: ${sigTxt} | SL: ${chartAnalysis.key_levels.stop_loss} | TP1: ${chartAnalysis.key_levels.tp1} | TP2: ${chartAnalysis.key_levels.tp2}
+RSI: ${ewResult.rsi} | ${divNote||'no divergence'}
+${ctx_text?'Context: '+ctx_text:''}
+Paragraph 1: wave structure meaning. Paragraph 2: key risk. Paragraph 3: specific levels to watch.`;
+
+    const res = await fetchWithRetry({model:'claude-sonnet-4-20250514',max_tokens:400,messages:[{role:'user',content:narrativePrompt}]});
+    if (res) {
+      const data = await res.json();
+      let narrative = (data.content?.[0]?.text||'').replace(/\*\*/g,'').replace(/\*/g,'').replace(/^#+\s*/gm,'').trim();
+      if (narrative) {
+        const final = instantOutput.replace('  Loading...', '  '+narrative.split('\n').join('\n  '));
+        txt.textContent = final;
+        lastAnalysis = `Elliott Wave Analysis — ${symbol} ${tf}\n\n${final}`;
+      }
+    }
+  } catch(e) {
+    txt.textContent = instantOutput.replace('  Loading...', '  Analysis unavailable.');
+  }
+
+  btn.disabled=false;
+  btn.textContent='⚡ Generate Analysis';
 }
 
 
-// ── ELLIOTT WAVE CHART RENDERER ─────────────────────────────────
-function renderEWChart(analysis, symbol, tf, liveData) {
+// ── ELLIOTT WAVE CHART RENDERER (from Railway API) ────────────────
+function renderEWChartFromAPI(ew, symbol, tf) {
   const wrap   = document.getElementById('ewChartWrap');
   const canvas = document.getElementById('ewChartCanvas');
   if (!wrap || !canvas) return;
-
-  const wp = analysis.wave_points;
-  if (!wp || !wp.w0) { wrap.style.display='none'; return; }
   wrap.style.display = 'block';
-  canvas.style.height = '460px';
 
-  const W = wrap.getBoundingClientRect().width || 860;
-  const H = 460;
-  canvas.width  = W * 2; canvas.height = H * 2;
-  canvas.style.width = '100%'; canvas.style.height = H + 'px';
-  const ctx = canvas.getContext('2d'); ctx.scale(2, 2);
-  const ML=72, MR=96, MT=44, MB=56, CW=W-ML-MR, CH=H-MT-MB;
+  const candles   = ew.candles || [];
+  const wavePoints = ew.wave_points || {};
+  if (candles.length < 5) { wrap.style.display = 'none'; return; }
 
-  const isBearish = analysis.trend === 'DOWN';
-  const kl  = analysis.key_levels || {};
+  const W = canvas.offsetWidth || 860, H = 460;
+  canvas.width = W*2; canvas.height = H*2;
+  canvas.style.width = W+'px'; canvas.style.height = H+'px';
+  const ctx = canvas.getContext('2d'); ctx.scale(2,2);
+  const ML=72, MR=90, MT=44, MB=58, CW=W-ML-MR, CH=H-MT-MB;
 
-  // ── Candles & pivotMap ─────────────────────────────────────────
-  const candles  = (ewLastCandles && ewLastCandles.length >= 10) ? ewLastCandles : [];
-  const pivMap   = (ewLastCandles && ewLastCandles._pivotMap) || {};
-  const useC     = candles.length >= 10;
+  const isBearish = ew.trend === 'DOWN';
 
-  // ── Y scale ────────────────────────────────────────────────────
+  // ── Y scale from candles + wave points ──
   const allP = [];
-  if (useC) candles.forEach(c => { allP.push(c.high, c.low); });
-  [wp.w0,wp.w1,wp.w2,wp.w3,wp.w4,wp.w5,wp.wa,wp.wb,wp.wc].filter(Boolean).forEach(p=>allP.push(p));
-  [kl.stop_loss,kl.tp1,kl.tp2,kl.entry].forEach(v=>{if(v)allP.push(v);});
-  if (!allP.length) { wrap.style.display='none'; return; }
-  const minP = Math.min(...allP)*0.9992, maxP = Math.max(...allP)*1.0008;
+  candles.forEach(c => { allP.push(c.high, c.low); });
+  Object.values(wavePoints).forEach(wp => { if(wp) allP.push(wp.price); });
+  [ew.invalidation, ew.cons_target, ew.next_target, ew.live_price].forEach(v => { if(v) allP.push(v); });
+  const minP = Math.min(...allP) * 0.9992;
+  const maxP = Math.max(...allP) * 1.0008;
   const pRange = maxP - minP || 1;
   const toY = p => MT + CH - ((p - minP) / pRange) * CH;
 
-  // ── X scale ────────────────────────────────────────────────────
-  const nBars = useC ? candles.length : 80;
+  // ── X scale ──
+  const nBars = candles.length;
   const barW  = CW / nBars;
-  const toX   = i => ML + (i + 0.5) * barW;
+  const toXBar = i => ML + (i + 0.5) * barW;
 
-  // ── Background ────────────────────────────────────────────────
+  // ── Background ──
   const bg = ctx.createLinearGradient(0,0,0,H);
   bg.addColorStop(0,'#090f1a'); bg.addColorStop(1,'#0c1523');
   ctx.fillStyle = bg; ctx.fillRect(0,0,W,H);
 
-  // ── Grid ──────────────────────────────────────────────────────
-  ctx.globalAlpha = 0.5;
-  for (let i=0; i<=7; i++) {
-    const y = MT + (i/7)*CH;
-    ctx.strokeStyle='#1a2a40'; ctx.lineWidth=0.5;
+  // ── Grid ──
+  ctx.strokeStyle='#1a2a40'; ctx.lineWidth=0.5; ctx.globalAlpha=0.5;
+  for(let i=0;i<=7;i++){
+    const y = MT+(i/7)*CH;
     ctx.beginPath(); ctx.moveTo(ML,y); ctx.lineTo(W-MR,y); ctx.stroke();
-    const pr = maxP - (i/7)*pRange;
+    const pr = maxP-(i/7)*pRange;
     ctx.fillStyle='#4a6a8a'; ctx.font='9px monospace'; ctx.textAlign='right'; ctx.globalAlpha=0.9;
     ctx.fillText(pr.toFixed(pr>100?2:5), ML-4, y+3);
   }
-  if (useC) {
-    const step = Math.max(1, Math.floor(nBars/8));
-    ctx.globalAlpha=0.2; ctx.strokeStyle='#1a2a40';
-    for (let i=0;i<nBars;i+=step) {
-      const x = toX(i);
-      ctx.beginPath(); ctx.moveTo(x,MT); ctx.lineTo(x,MT+CH); ctx.stroke();
-      if (candles[i]?.datetime) {
-        ctx.fillStyle='#2a4060'; ctx.globalAlpha=0.7; ctx.font='8px monospace'; ctx.textAlign='center';
-        ctx.fillText(candles[i].datetime.slice(5,10), x, H-MB+18);
-      }
+  const step = Math.max(1, Math.floor(nBars/8));
+  ctx.globalAlpha=0.2; ctx.strokeStyle='#1a2a40';
+  for(let i=0;i<nBars;i+=step){
+    const x = toXBar(i);
+    ctx.beginPath(); ctx.moveTo(x,MT); ctx.lineTo(x,MT+CH); ctx.stroke();
+    if(candles[i]?.datetime){
+      ctx.fillStyle='#2a4060'; ctx.globalAlpha=0.7; ctx.font='8px monospace'; ctx.textAlign='center';
+      ctx.fillText(candles[i].datetime.slice(5,10), x, H-MB+18);
     }
   }
-  ctx.globalAlpha = 1;
+  ctx.globalAlpha=1;
 
-  // ── Key level lines ────────────────────────────────────────────
+  // ── Key level lines ──
   function drawHL(price, color, label) {
     if (!price || price < minP*0.98 || price > maxP*1.02) return;
     const y = toY(price);
     ctx.strokeStyle=color; ctx.lineWidth=1; ctx.globalAlpha=0.6; ctx.setLineDash([6,4]);
     ctx.beginPath(); ctx.moveTo(ML,y); ctx.lineTo(W-MR,y); ctx.stroke();
-    ctx.setLineDash([]); ctx.globalAlpha=0.9; ctx.fillStyle=color;
-    ctx.font='bold 9px monospace'; ctx.textAlign='left';
-    ctx.fillText(label+' '+parseFloat(price).toFixed(price>100?2:5), W-MR+2, y+3);
+    ctx.setLineDash([]); ctx.globalAlpha=0.9;
+    ctx.fillStyle=color; ctx.font='bold 9px monospace'; ctx.textAlign='left';
+    ctx.fillText(`${label} ${parseFloat(price).toFixed(ew.live_price>100?2:5)}`, W-MR+2, y+3);
     ctx.globalAlpha=1;
   }
-  if (liveData?.price) drawHL(liveData.price, '#00d4ff', 'NOW');
-  drawHL(kl.stop_loss,   '#ff3d5a', 'SL');
-  drawHL(kl.tp1,         '#00e676', 'TP1');
-  drawHL(kl.tp2,         '#00a854', 'TP2');
-  drawHL(kl.invalidation,'#ff6b00', 'INVAL');
+  drawHL(ew.live_price,  '#00d4ff', 'ENTRY');
+  drawHL(ew.invalidation,'#ff3d5a', 'SL');
+  drawHL(ew.cons_target, '#00e676', 'TP1');
+  drawHL(ew.next_target, '#00a854', 'TP2');
 
-  // ── Candles ────────────────────────────────────────────────────
-  if (useC) {
-    const cW = Math.max(2, barW * 0.7);
-    candles.forEach((c, i) => {
-      const x = toX(i), isUp = c.close >= c.open;
-      const col = isUp ? '#10b981' : '#ef4444';
-      ctx.strokeStyle=col; ctx.lineWidth=0.8; ctx.globalAlpha=0.7;
-      ctx.beginPath(); ctx.moveTo(x,toY(c.high)); ctx.lineTo(x,toY(c.low)); ctx.stroke();
-      const yO=toY(c.open), yC=toY(c.close), bH=Math.max(1,Math.abs(yC-yO));
-      ctx.fillStyle=isUp?'rgba(16,185,129,0.7)':'rgba(239,68,68,0.7)'; ctx.globalAlpha=0.85;
-      ctx.fillRect(x-cW/2, Math.min(yO,yC), cW, bH);
-      ctx.globalAlpha=1;
-    });
-  }
-
-  // ── Wave points array ──────────────────────────────────────────
-  const waveOrder = [
-    {label:'0',key:'w0',impulse:true},
-    {label:'1',key:'w1',impulse:true},
-    {label:'2',key:'w2',impulse:true},
-    {label:'3',key:'w3',impulse:true},
-    {label:'4',key:'w4',impulse:true},
-    {label:'5',key:'w5',impulse:true},
-    {label:'A',key:'wa',impulse:false},
-    {label:'B',key:'wb',impulse:false},
-    {label:'C',key:'wc',impulse:false},
-  ].filter(w => wp[w.key]);
-
-  // Map each point to screen coordinates using pivotMap data
-  const pts = waveOrder.map((w, i) => {
-    const pm = pivMap[w.key];
-    // X: exact candle index from algorithm
-    let ci = (pm && pm.idx !== undefined) ? pm.idx : -1;
-    if (ci < 0 || ci >= nBars) ci = Math.round(i / Math.max(waveOrder.length-1,1) * (nBars-1));
-    const x = toX(Math.max(0, Math.min(ci, nBars-1)));
-    // Y: exact price from algorithm pivot
-    const price = pm ? pm.price : wp[w.key];
+  // Fib levels
+  function drawFib(price, color, label) {
+    if (!price || price < minP || price > maxP) return;
     const y = toY(price);
-    const isHigh = pm ? pm.type === 'high' : !isBearish ? ['1','3','5','A','C'].includes(w.label) : ['0','2','4','B'].includes(w.label);
-    return { ...w, x, y, price, isHigh, ci };
+    ctx.strokeStyle=color; ctx.lineWidth=0.7; ctx.globalAlpha=0.25; ctx.setLineDash([4,7]);
+    ctx.beginPath(); ctx.moveTo(ML,y); ctx.lineTo(W-MR,y); ctx.stroke();
+    ctx.setLineDash([]); ctx.globalAlpha=0.5; ctx.fillStyle=color;
+    ctx.font='8px monospace'; ctx.textAlign='right';
+    ctx.fillText(label, W-MR-2, y-2); ctx.globalAlpha=1;
+  }
+  drawFib(ew.fib_618, '#a78bfa', '61.8%');
+  drawFib(ew.fib_382, '#a78bfa', '38.2%');
+
+  // ── Candles ──
+  const cW = Math.max(2, barW * 0.7);
+  candles.forEach((c, i) => {
+    const x = toXBar(i);
+    const isUp = c.close >= c.open;
+    const col  = isUp ? '#10b981' : '#ef4444';
+    const fill = isUp ? 'rgba(16,185,129,0.7)' : 'rgba(239,68,68,0.7)';
+    ctx.strokeStyle=col; ctx.lineWidth=0.8; ctx.globalAlpha=0.7;
+    ctx.beginPath(); ctx.moveTo(x,toY(c.high)); ctx.lineTo(x,toY(c.low)); ctx.stroke();
+    const yO=toY(c.open), yC=toY(c.close);
+    const bTop=Math.min(yO,yC), bH=Math.max(1,Math.abs(yC-yO));
+    ctx.fillStyle=fill; ctx.globalAlpha=0.85;
+    ctx.fillRect(x-cW/2, bTop, cW, bH);
+    ctx.globalAlpha=1;
   });
 
-  // Enforce strict left-to-right
-  for (let i=1; i<pts.length; i++) {
-    if (pts[i].x <= pts[i-1].x) pts[i].x = pts[i-1].x + Math.max(barW, CW*0.03);
-  }
+  // ── Wave labels ──
+  // Build ordered wave point array with screen positions
+  const waveOrder = ['w0','w1','w2','w3','w4','w5','wa','wb','wc'];
+  const waveLabels = {'w0':'0','w1':'1','w2':'2','w3':'3','w4':'4','w5':'5','wa':'A','wb':'B','wc':'C'};
+  const iColW  = isBearish ? '#fcd34d' : '#60a5fa';
+  const cColW  = isBearish ? '#fca5a5' : '#fcd34d';
 
-  const iCol  = isBearish ? '#f59e0b' : '#3b82f6';
-  const iCol2 = isBearish ? '#fcd34d' : '#60a5fa';
-  const cCol  = isBearish ? '#f87171' : '#f59e0b';
-  const cCol2 = isBearish ? '#fca5a5' : '#fcd34d';
+  const labelPlaced = [];
 
-  // ── Zigzag lines ───────────────────────────────────────────────
-  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
-  for (let i=0; i<pts.length-1; i++) {
-    const col = (pts[i].impulse && pts[i+1].impulse) ? iCol : cCol;
-    ctx.strokeStyle = col; ctx.lineWidth = 2.5; ctx.globalAlpha = 0.9;
-    ctx.beginPath(); ctx.moveTo(pts[i].x, pts[i].y); ctx.lineTo(pts[i+1].x, pts[i+1].y); ctx.stroke();
-  }
-  ctx.globalAlpha = 1; ctx.lineJoin = 'miter'; ctx.lineCap = 'butt';
+  waveOrder.forEach(key => {
+    const wp = wavePoints[key];
+    if (!wp) return;
+    const label = waveLabels[key];
+    const isCur = label === ew.wave_num;
+    const isImp = ['w0','w1','w2','w3','w4','w5'].includes(key);
+    const col   = isImp ? iColW : cColW;
 
-  // ── Dots ───────────────────────────────────────────────────────
-  pts.forEach(pt => {
-    const col = pt.impulse ? iCol2 : cCol2;
-    ctx.fillStyle = 'rgba(6,12,22,0.92)';
-    ctx.beginPath(); ctx.arc(pt.x, pt.y, 6, 0, Math.PI*2); ctx.fill();
+    // Map pos to screen X — wp.pos is candle index in the tail(100) array
+    const x = toXBar(Math.min(wp.pos, nBars-1));
+    const y = toY(wp.price);
+
+    // Dot
+    ctx.fillStyle = 'rgba(8,14,24,0.9)';
+    ctx.beginPath(); ctx.arc(x, y, 5.5, 0, Math.PI*2); ctx.fill();
     ctx.fillStyle = col;
-    ctx.beginPath(); ctx.arc(pt.x, pt.y, 4, 0, Math.PI*2); ctx.fill();
-  });
+    ctx.beginPath(); ctx.arc(x, y, isCur ? 4 : 3, 0, Math.PI*2); ctx.fill();
 
-  // ── Labels ─────────────────────────────────────────────────────
-  pts.forEach(pt => {
-    const col = pt.impulse ? iCol2 : cCol2;
-    const isCur = pt.label === analysis.current_wave;
-    const labelY = Math.max(MT+12, Math.min(pt.isHigh ? pt.y-14 : pt.y+14, MT+CH-12));
+    // Label direction: highs above, lows below
+    const isHigh = isBearish
+      ? ['0','2','4','B'].includes(label)
+      : ['1','3','5','A','C'].includes(label);
+
+    let labelY = isHigh ? y - 30 : y + 30;
+    labelY = Math.max(MT+10, Math.min(labelY, MT+CH-10));
+
+    // Collision avoidance
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const hit = labelPlaced.find(p => Math.abs(p.x-x)<22 && Math.abs(p.y-labelY)<16);
+      if (!hit) break;
+      labelY += isHigh ? -16 : 16;
+      labelY = Math.max(MT+10, Math.min(labelY, MT+CH-10));
+    }
+    labelPlaced.push({x, y: labelY});
+
+    // Tick line
+    ctx.strokeStyle = col + '99'; ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x, isHigh ? y-5 : y+5);
+    ctx.lineTo(x, isHigh ? labelY+7 : labelY-7);
+    ctx.stroke();
+
+    // Number with dark outline
     ctx.font = `bold ${isCur?14:12}px Arial, sans-serif`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.lineWidth = 3.5; ctx.lineJoin = 'round';
-    ctx.strokeStyle = 'rgba(6,12,22,0.95)';
-    ctx.strokeText(pt.label, pt.x, labelY);
+    ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(8,14,24,0.95)';
+    ctx.lineJoin = 'round';
+    ctx.strokeText(label, x, labelY);
     ctx.fillStyle = col;
-    ctx.fillText(pt.label, pt.x, labelY);
-    ctx.lineJoin = 'miter'; ctx.textBaseline = 'alphabetic';
+    ctx.fillText(label, x, labelY);
+    ctx.textBaseline = 'alphabetic'; ctx.lineJoin = 'miter';
   });
 
-  // ── Header ─────────────────────────────────────────────────────
+  // ── NOW line ──
+  if (ew.live_price) {
+    const ly = toY(ew.live_price);
+    ctx.strokeStyle='rgba(255,255,255,0.25)'; ctx.lineWidth=1; ctx.setLineDash([2,5]);
+    ctx.beginPath(); ctx.moveTo(ML,ly); ctx.lineTo(W-MR,ly); ctx.stroke();
+    ctx.setLineDash([]); ctx.fillStyle='#aabbcc'; ctx.globalAlpha=0.7;
+    ctx.font='9px monospace'; ctx.textAlign='right';
+    ctx.fillText('NOW '+ew.live_price, W-MR-2, ly-3); ctx.globalAlpha=1;
+  }
+
+  // ── Header ──
   ctx.globalAlpha=1; ctx.textAlign='left';
   ctx.font='bold 12px monospace'; ctx.fillStyle='#3b82f6'; ctx.fillText('XENOS',ML,28);
   ctx.fillStyle='#c8d8ea'; ctx.fillText('FINANCE',ML+53,28);
   ctx.font='10px monospace'; ctx.fillStyle='#4a6a8a';
   ctx.fillText('· EW · '+symbol+' · '+tf, ML+116, 28);
-  const tCol = isBearish?'#f87171':'#34d399';
+
+  const tCol = isBearish ? '#f87171' : '#34d399';
   ctx.font='bold 10px monospace'; ctx.fillStyle=tCol; ctx.textAlign='center';
   ctx.fillText(isBearish?'▼ TREND DOWN':'▲ TREND UP', W/2, 28);
-  const sCol = analysis.signal==='LONG'?'#00e676':analysis.signal==='SHORT'?'#ff3d5a':'#f59e0b';
-  const sTxt = analysis.signal==='LONG'?'▲ LONG':analysis.signal==='SHORT'?'▼ SHORT':'◆ WAIT';
+
+  const sCol = ew.action.includes('LONG')?'#00e676':ew.action.includes('SHORT')?'#ff3d5a':'#f59e0b';
+  const sTxt = ew.action.includes('LONG')?'▲ LONG':ew.action.includes('SHORT')?'▼ SHORT':'◆ WAIT';
   ctx.textAlign='right'; ctx.font='bold 11px monospace'; ctx.fillStyle=sCol;
   ctx.fillText(sTxt, W-MR, 28);
-  const wL={'1':'①','2':'②','3':'③','4':'④','5':'⑤','A':'Ⓐ','B':'Ⓑ','C':'Ⓒ'};
+
+  const waveLabel = {'1':'①','2':'②','3':'③','4':'④','5':'⑤','A':'Ⓐ','B':'Ⓑ','C':'Ⓒ'};
   ctx.textAlign='left'; ctx.font='9px monospace'; ctx.fillStyle='#3a5070';
-  ctx.fillText('Wave '+(wL[analysis.current_wave]||analysis.current_wave)+' active · '+analysis.degree+(isBearish?' · Bearish':' · Bullish'), ML, H-MB+32);
+  ctx.fillText('Wave '+(waveLabel[ew.wave_num]||ew.wave_num)+' active · '+ew.degree+(isBearish?' · Bearish':' · Bullish'), ML, H-MB+32);
+}
+
+// ── ELLIOTT WAVE CHART RENDERER ────────────────────────────────
+function renderEWChart(analysis, symbol, tf, liveData) {
+  const wrap = document.getElementById('ewChartWrap');
+  const canvas = document.getElementById('ewChartCanvas');
+  if (!wrap || !canvas) return;
+  const wp = analysis.wave_points;
+  if (!wp || !wp.w0) { wrap.style.display='none'; return; }
+  wrap.style.display='block';
+
+  const W = canvas.offsetWidth||860, H=460;
+  canvas.width=W*2; canvas.height=H*2;
+  canvas.style.width=W+'px'; canvas.style.height=H+'px';
+  const ctx=canvas.getContext('2d'); ctx.scale(2,2);
+  const ML=72,MR=90,MT=44,MB=58,CW=W-ML-MR,CH=H-MT-MB;
+
+  const isBearish = analysis.trend==='DOWN';
+  const kl = analysis.key_levels||{};
+  const fibs = analysis.fibonacci_levels||{};
+
+  // ── Smart candle window: show the range that includes all wave pivots ──
+  const pivMap0 = (ewLastCandles && ewLastCandles._pivotMap) || {};
+  const fullCandles = ewLastCandles.length >= 10 ? ewLastCandles : [];
+
+  // Find earliest and latest pivot index in full candles array
+  let earliestPivIdx = fullCandles.length;
+  let latestPivIdx = 0;
+  Object.values(pivMap0).forEach(pm => {
+    if (pm && pm.idx !== undefined) {
+      if (pm.idx < earliestPivIdx) earliestPivIdx = pm.idx;
+      if (pm.idx > latestPivIdx) latestPivIdx = pm.idx;
+    }
+  });
+
+  // Window: from earliest pivot (with 5 candle padding) to end of array
+  // Minimum 40 candles, maximum 100
+  const pivWindowStart = Math.max(0, earliestPivIdx - 5);
+  const rawWindow = fullCandles.slice(pivWindowStart);
+  const candles = rawWindow.length >= 10 ? rawWindow.slice(0, Math.min(rawWindow.length, 100)) : fullCandles.slice(-80);
+  const candleOffset = pivWindowStart; // offset for pivot idx mapping
+  const useCandles = candles.length >= 10;
+
+  // ── Collect all prices for Y scale ────────────────
+  const allP = [];
+  if (useCandles) {
+    candles.forEach(c=>{ allP.push(c.high,c.low); });
+  }
+  const wps = [wp.w0,wp.w1,wp.w2,wp.w3,wp.w4,wp.w5,wp.wa,wp.wb,wp.wc].filter(Boolean);
+  wps.forEach(p=>allP.push(p));
+  [kl.stop_loss,kl.tp1,kl.tp2,kl.invalidation,kl.entry,fibs.fib618_w1,fibs.fib1618_w1].forEach(v=>{if(v)allP.push(v);});
+
+  const minP = Math.min(...allP)*0.9992;
+  const maxP = Math.max(...allP)*1.0008;
+  const pRange = maxP-minP;
+  const toY = p => MT + CH - ((p-minP)/pRange)*CH;
+
+  // ── X mapping ─────────────────────────────────────
+  // If real candles: map candle index to X; wave points mapped to nearest candle
+  const nBars = useCandles ? candles.length : 9;
+  const barW = useCandles ? CW/nBars : CW/8;
+  const toXBar = i => ML + (i+0.5)*barW;
+
+  // Find nearest candle index for a given price
+  function nearestCandleIdx(price) {
+    if (!useCandles) return -1;
+    let best=-1, bestDist=Infinity;
+    candles.forEach((c,i)=>{
+      const d=Math.abs(c.close-price);
+      if(d<bestDist){bestDist=d;best=i;}
+    });
+    return best;
+  }
+
+  // Map wave point to X: use proportional spacing across chart width
+  // Wave points are ordered 0→1→2→3→4→5→A→B→C, so we space them evenly
+  function waveX(price, idx) {
+    const total = wavePoints.length;
+    // Distribute wave points across 85% of chart width, leaving room on right
+    return ML + (idx / Math.max(total - 1, 1)) * CW * 0.85;
+  }
+
+  // ── Background ────────────────────────────────────
+  const bg=ctx.createLinearGradient(0,0,0,H);
+  bg.addColorStop(0,'#090f1a'); bg.addColorStop(1,'#0c1523');
+  ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
+
+  // ── Grid ──────────────────────────────────────────
+  ctx.strokeStyle='#1a2a40'; ctx.lineWidth=0.5; ctx.globalAlpha=0.6;
+  for(let i=0;i<=7;i++){
+    const y=MT+(i/7)*CH;
+    ctx.beginPath(); ctx.moveTo(ML,y); ctx.lineTo(W-MR,y); ctx.stroke();
+    const pr=maxP-(i/7)*pRange;
+    ctx.fillStyle='#4a6a8a'; ctx.font='9px monospace'; ctx.textAlign='right'; ctx.globalAlpha=0.9;
+    ctx.fillText(pr.toFixed(pr>100?2:5), ML-4, y+3);
+  }
+  // Vertical grid lines
+  ctx.globalAlpha=0.2; ctx.strokeStyle='#1a2a40';
+  if(useCandles){
+    const step=Math.max(1,Math.floor(nBars/8));
+    for(let i=0;i<nBars;i+=step){
+      const x=toXBar(i);
+      ctx.beginPath(); ctx.moveTo(x,MT); ctx.lineTo(x,MT+CH); ctx.stroke();
+      // Date label
+      if(candles[i]?.datetime){
+        const d=candles[i].datetime.slice(5,10);
+        ctx.fillStyle='#2a4060'; ctx.globalAlpha=0.8; ctx.font='8px monospace'; ctx.textAlign='center';
+        ctx.fillText(d,x,H-MB+18);
+      }
+    }
+  }
+  ctx.globalAlpha=1;
+
+  // ── Fibonacci lines ────────────────────────────────
+  function drawFib(price,color,label){
+    if(!price||price<minP||price>maxP)return;
+    const y=toY(price);
+    ctx.strokeStyle=color; ctx.lineWidth=0.7; ctx.globalAlpha=0.3;
+    ctx.setLineDash([4,7]); ctx.beginPath(); ctx.moveTo(ML,y); ctx.lineTo(W-MR,y); ctx.stroke();
+    ctx.setLineDash([]); ctx.globalAlpha=0.55; ctx.fillStyle=color;
+    ctx.font='8px monospace'; ctx.textAlign='right';
+    ctx.fillText(label,W-MR-2,y-2); ctx.globalAlpha=1;
+  }
+  drawFib(fibs.fib618_w1,'#a78bfa','61.8%');
+  drawFib(fibs.fib1618_w1,'#22d3ee','161.8%');
+  drawFib(fibs.fib382_w3,'#a78bfa','38.2%');
+
+  // ── H-Lines (key levels) ──────────────────────────
+  function drawHL(price,color,label){
+    if(!price||price<minP*0.98||price>maxP*1.02)return;
+    const y=toY(price);
+    ctx.strokeStyle=color; ctx.lineWidth=1; ctx.globalAlpha=0.6;
+    ctx.setLineDash([6,4]); ctx.beginPath(); ctx.moveTo(ML,y); ctx.lineTo(W-MR,y); ctx.stroke();
+    ctx.setLineDash([]); ctx.globalAlpha=0.9; ctx.fillStyle=color;
+    ctx.font='bold 9px monospace'; ctx.textAlign='left';
+    ctx.fillText(label+' '+price, W-MR+2, y+3); ctx.globalAlpha=1;
+  }
+  drawHL(kl.entry,'#00d4ff','ENTRY');
+  drawHL(kl.stop_loss,'#ff3d5a','SL');
+  drawHL(kl.tp1,'#00e676','TP1');
+  drawHL(kl.tp2,'#00a854','TP2');
+  drawHL(kl.invalidation,'#ff6b00','INVAL');
+
+  // ── Real Candles ──────────────────────────────────
+  if (useCandles) {
+    const cW = Math.max(2, barW*0.7);
+    candles.forEach((c,i)=>{
+      const x=toXBar(i);
+      const isUp=c.close>=c.open;
+      const col=isUp?'#10b981':'#ef4444';
+      const colFill=isUp?'rgba(16,185,129,0.7)':'rgba(239,68,68,0.7)';
+      // Wick
+      ctx.strokeStyle=col; ctx.lineWidth=0.8; ctx.globalAlpha=0.7;
+      ctx.beginPath(); ctx.moveTo(x,toY(c.high)); ctx.lineTo(x,toY(c.low)); ctx.stroke();
+      // Body
+      const yO=toY(c.open), yC=toY(c.close);
+      const bTop=Math.min(yO,yC), bH=Math.max(1,Math.abs(yC-yO));
+      ctx.fillStyle=colFill; ctx.globalAlpha=0.85;
+      ctx.fillRect(x-cW/2, bTop, cW, bH);
+      ctx.globalAlpha=1;
+    });
+  }
+
+  // ── Wave overlay ──────────────────────────────────
+  const wavePoints = [
+    {label:'0',key:'w0',price:wp.w0,impulse:true},
+    {label:'1',key:'w1',price:wp.w1,impulse:true},
+    {label:'2',key:'w2',price:wp.w2,impulse:true},
+    {label:'3',key:'w3',price:wp.w3,impulse:true},
+    {label:'4',key:'w4',price:wp.w4,impulse:true},
+    {label:'5',key:'w5',price:wp.w5,impulse:true},
+    {label:'A',key:'wa',price:wp.wa,impulse:false},
+    {label:'B',key:'wb',price:wp.wb,impulse:false},
+    {label:'C',key:'wc',price:wp.wc,impulse:false},
+  ].filter(p=>p.price);
+
+  const pivMap = (ewLastCandles && ewLastCandles._pivotMap) || {};
+  const dispStart = candleOffset; // pivot idx offset matches smart window start
+
+  // Map each wave point to the exact candle bar (X) and exact high/low (Y)
+  const pts = wavePoints.map((wp2, i) => {
+    // isHigh: bear W0,W2,W4,B = highs; bull W1,W3,W5,A,C = highs
+    const isHighPt = isBearish
+      ? ['0','2','4','B'].includes(wp2.label)
+      : ['1','3','5','A','C'].includes(wp2.label);
+
+    let candleIdx = -1;
+
+    // 1. Use pivotMap index if available and in range
+    const pm = pivMap[wp2.key];
+    if (pm && pm.idx !== undefined) {
+      const di = pm.idx - dispStart;
+      if (di >= 0 && di < candles.length) candleIdx = di;
+    }
+
+    // 2. Fallback: find candle whose high or low is closest to the pivot price
+    if (candleIdx < 0 && useCandles) {
+      let bestD = Infinity;
+      candles.forEach((c, ci) => {
+        const d = isHighPt ? Math.abs(c.high - wp2.price) : Math.abs(c.low - wp2.price);
+        if (d < bestD) { bestD = d; candleIdx = ci; }
+      });
+    }
+
+    // 3. Last resort: even spacing
+    if (candleIdx < 0) candleIdx = Math.round(i / Math.max(wavePoints.length-1,1) * (candles.length-1));
+
+    const x = toXBar(candleIdx);
+    // Y: use exact candle high or low, not the pivot price approximation
+    const candleY = useCandles && candles[candleIdx]
+      ? (isHighPt ? toY(candles[candleIdx].high) : toY(candles[candleIdx].low))
+      : toY(wp2.price);
+
+    return { ...wp2, x, y: candleY, candleIdx };
+  });
+
+  // Ensure X is strictly left-to-right (wave order = time order)
+  for (let i = 1; i < pts.length; i++) {
+    if (pts[i].x <= pts[i-1].x) pts[i].x = pts[i-1].x + Math.max(barW, CW*0.03);
+  }
+  pts.forEach(pt => { if (pt.x > ML+CW-4) pt.x = ML+CW-4; });
+
+  // Wave line colors
+  const iCol  = isBearish?'#f59e0b':'#3b82f6';
+  const iCol2 = isBearish?'#fcd34d':'#60a5fa';
+  const cCol  = isBearish?'#f87171':'#f59e0b';
+  const cCol2 = isBearish?'#fca5a5':'#fcd34d';
+
+  // ── Wave labels: number directly on candle pivot ──────────────
+  pts.forEach((pt) => {
+    const isCur = pt.label === analysis.current_wave;
+    const col   = pt.impulse ? iCol2 : cCol2;
+
+    // isHigh already computed in pt (bear: 0,2,4,B = highs; bull: 1,3,5,A,C = highs)
+    const isHigh = isBearish
+      ? ['0','2','4','B'].includes(pt.label)
+      : ['1','3','5','A','C'].includes(pt.label);
+
+    // pt.y is already the exact candle high or low Y
+    // Place number just outside: 12px above high, 12px below low
+    const labelY = isHigh ? pt.y - 12 : pt.y + 12;
+    const clampedY = Math.max(MT + 10, Math.min(labelY, MT + CH - 10));
+
+    // Number with dark outline — readable on any background
+    const fontSize = isCur ? 14 : 12;
+    ctx.font = `bold ${fontSize}px Arial, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.lineWidth = 3.5;
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = 'rgba(6,12,22,0.95)';
+    ctx.strokeText(pt.label, pt.x, clampedY);
+    ctx.fillStyle = col;
+    ctx.fillText(pt.label, pt.x, clampedY);
+    ctx.lineJoin = 'miter';
+    ctx.textBaseline = 'alphabetic';
+  });
+
+    // ── NOW price line ────────────────────────────────
+  if(liveData?.price){
+    const ly=toY(liveData.price);
+    ctx.strokeStyle='rgba(255,255,255,0.3)'; ctx.lineWidth=1;
+    ctx.setLineDash([2,5]); ctx.beginPath(); ctx.moveTo(ML,ly); ctx.lineTo(W-MR,ly); ctx.stroke();
+    ctx.setLineDash([]); ctx.fillStyle='#aabbcc'; ctx.globalAlpha=0.7;
+    ctx.font='9px monospace'; ctx.textAlign='right';
+    ctx.fillText('NOW '+liveData.price,W-MR-2,ly-3); ctx.globalAlpha=1;
+  }
+
+  // ── Header ────────────────────────────────────────
+  ctx.globalAlpha=1; ctx.textAlign='left';
+  ctx.font='bold 12px monospace'; ctx.fillStyle='#3b82f6'; ctx.fillText('XENOS',ML,28);
+  ctx.fillStyle='#c8d8ea'; ctx.fillText('FINANCE',ML+53,28);
+  ctx.font='10px monospace'; ctx.fillStyle='#4a6a8a';
+  ctx.fillText('· EW · '+symbol+' · '+tf,ML+116,28);
+
+  const tCol=isBearish?'#f87171':'#34d399';
+  const tTxt=isBearish?'▼ TREND DOWN':'▲ TREND UP';
+  ctx.font='bold 10px monospace'; ctx.fillStyle=tCol; ctx.textAlign='center';
+  ctx.fillText(tTxt,W/2,28);
+
+  const sTxt=analysis.signal==='LONG'?'▲ LONG':analysis.signal==='SHORT'?'▼ SHORT':'◆ WAIT';
+  const sCol=analysis.signal==='LONG'?'#00e676':analysis.signal==='SHORT'?'#ff3d5a':'#f59e0b';
+  ctx.textAlign='right'; ctx.font='bold 11px monospace'; ctx.fillStyle=sCol;
+  ctx.fillText(sTxt,W-MR,28);
+
+  // Wave degree info
+  ctx.textAlign='left'; ctx.font='9px monospace'; ctx.fillStyle='#3a5070';
+  const waveLabel = {'1':'①','2':'②','3':'③','4':'④','5':'⑤','A':'Ⓐ','B':'Ⓑ','C':'Ⓒ'};
+  ctx.fillText('Wave '+(waveLabel[analysis.current_wave]||analysis.current_wave)+' active · '+analysis.degree+(isBearish?' · Bearish impulse':' · Bullish impulse'),ML,H-MB+32);
 }
 
 
