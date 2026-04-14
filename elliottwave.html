@@ -1656,14 +1656,14 @@ async function runAIAnalysis(){
     btn.disabled = false; btn.textContent = '⚡ Generate Analysis'; return;
   }
 
-  ewLastCandles = allCandles;
+  // CRITICAL FIX: AI and renderer must use the SAME candle array
+  const candlesForAI = allCandles.slice(-80);
+  ewLastCandles = candlesForAI;
 
   // ── 3. Ask Claude AI to identify Elliott Wave count ──────────
   btn.textContent = 'AI analysing waves...';
   txt.innerHTML   = '<span class="analysis-loading">⬡ XENOS AI — IDENTIFYING ELLIOTT WAVE STRUCTURE...</span>';
 
-  // Send last 80 candles to AI (enough for EW, not too many tokens)
-  const candlesForAI = allCandles.slice(-80);
   const dp = dec;
   const candleRows = candlesForAI.map((c, i) =>
     `${i}|${c.datetime?.slice(0,10)||i}|${c.open?.toFixed(dp)}|${c.high?.toFixed(dp)}|${c.low?.toFixed(dp)}|${c.close?.toFixed(dp)}`
@@ -1677,20 +1677,23 @@ ${candleRows}
 Current live price: ${livePrice}
 ${ctx_text ? 'Additional context: ' + ctx_text : ''}
 
-TASK: Identify the most recent complete or developing Elliott Wave pattern in this data.
+TASK: Identify the Elliott Wave pattern that is CURRENTLY DEVELOPING — the one whose last wave point is at or near the most recent candles.
+
+THE MOST IMPORTANT RULE: The last wave point in your wave_points array MUST have candle_index >= 73 (i.e. within the last 7 candles of the 80 provided). The pattern must end at the current market price, not in the past.
 
 STRICT RULES YOU MUST FOLLOW:
 1. Wave points MUST be in strictly ascending candle_index order (chronological)
-2. The "price" for each wave point must be the ACTUAL high or low of that specific candle (use the high/low columns)
-3. The "type" must be "high" if you are using that candle's HIGH, or "low" if using that candle's LOW
-4. BULLISH IMPULSE (trend=UP): 0=low, 1=high, 2=low, 3=high, 4=low, 5=high — alternating lows and highs
-5. BEARISH IMPULSE (trend=DOWN): 0=high, 1=low, 2=high, 3=low, 4=high, 5=low — alternating highs and lows
-6. EW RULE — Wave 2 price CANNOT go beyond Wave 0 price
-7. EW RULE — Wave 3 MUST be longer than Wave 1 (or at least not the shortest wave)
-8. EW RULE — Wave 4 price CANNOT enter Wave 1 price territory
-9. Choose candle indices that are genuine swing highs and swing lows, not random candles
-10. The last wave point should be near the most recent candles (within last 15 candles)
-11. If pattern is incomplete, label "current_wave" as the wave currently forming
+2. The LAST wave point candle_index MUST be between 73 and 79 (the most recent candles)
+3. The "price" for each wave point must be the ACTUAL high or low of that specific candle
+4. The "type" must be "high" if using that candle's HIGH price, or "low" if using that candle's LOW price
+5. BULLISH IMPULSE (trend=UP): alternating low/high/low/high/low/high starting from a significant bottom
+6. BEARISH IMPULSE (trend=DOWN): alternating high/low/high/low/high/low starting from a significant top
+7. CORRECTIVE ABC: A=first leg, B=counter-move, C=final leg (currently completing near last candle)
+8. EW RULE — Wave 2 CANNOT retrace beyond Wave 0
+9. EW RULE — Wave 3 CANNOT be the shortest impulse wave
+10. EW RULE — Wave 4 CANNOT enter Wave 1 territory
+11. If the full pattern is not visible in 80 candles, show the most recent 3-5 wave points ending NOW
+12. "current_wave" = the wave that is actively forming at the last candle
 
 Respond ONLY with a valid JSON object, no markdown, no explanation, no extra text:
 {
@@ -2049,26 +2052,11 @@ function renderEWChart(analysis, symbol, tf, liveData) {
   const kl = analysis.key_levels||{};
   const fibs = analysis.fibonacci_levels||{};
 
-  // ── Smart candle window: show the range that includes all wave pivots ──
+  // ── Candle window: use EXACTLY the same array sent to AI (no sub-windowing)
+  // This guarantees candle_index from AI maps to the correct candle in renderer
   const pivMap0 = (ewLastCandles && ewLastCandles._pivotMap) || {};
-  const fullCandles = ewLastCandles.length >= 10 ? ewLastCandles : [];
-
-  // Find earliest and latest pivot index in full candles array
-  let earliestPivIdx = fullCandles.length;
-  let latestPivIdx = 0;
-  Object.values(pivMap0).forEach(pm => {
-    if (pm && pm.idx !== undefined) {
-      if (pm.idx < earliestPivIdx) earliestPivIdx = pm.idx;
-      if (pm.idx > latestPivIdx) latestPivIdx = pm.idx;
-    }
-  });
-
-  // Window: from earliest pivot (with 5 candle padding) to end of array
-  // Minimum 40 candles, maximum 100
-  const pivWindowStart = Math.max(0, earliestPivIdx - 5);
-  const rawWindow = fullCandles.slice(pivWindowStart);
-  const candles = rawWindow.length >= 10 ? rawWindow.slice(0, Math.min(rawWindow.length, 100)) : fullCandles.slice(-80);
-  const candleOffset = pivWindowStart; // offset for pivot idx mapping
+  const candles = ewLastCandles.length >= 10 ? ewLastCandles : [];
+  const candleOffset = 0; // no offset needed — same array as AI received
   const useCandles = candles.length >= 10;
 
   // ── Collect all prices for Y scale ────────────────
