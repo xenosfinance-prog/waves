@@ -21,7 +21,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("EWServer")
 
 app = Flask(__name__)
-CORS(app, origins=["https://xenosfinance.com", "https://www.xenosfinance.com"])
+CORS(app)  # Allow all origins
 
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 
@@ -393,6 +393,6 @@ def health():
     return jsonify({"status": "ok", "service": "XenosFinance EW Server"})
 
 if __name__ == "__main__":
-    port = int(os.getenv("EW_PORT", 5001))
+    port = int(os.getenv("PORT", os.getenv("EW_PORT", 5001)))
     logger.info(f"Starting EW Server on port {port}")
     app.run(host="0.0.0.0", port=port, debug=False)
