@@ -296,6 +296,7 @@ canvas { display: block; }
 </script>
 <script src="/i18n.js"></script>
 <script src="/i18n-engine.js"></script>
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
 </head>
 <body>
 
@@ -842,9 +843,9 @@ canvas { display: block; }
         <button class="admin-run-btn" id="freeRunBtn" onclick="runFreeAnalysis()" style="width:100%;margin-bottom:14px;background:var(--green);color:#fff;">⚡ Generate Wave Chart</button>
         <div id="freeChartWrap" style="display:none;">
           <div style="font-size:9px;letter-spacing:3px;color:var(--green);text-transform:uppercase;margin-bottom:8px;">⬡ Elliott Wave Chart</div>
-          <canvas id="freeChartCanvas" style="width:100%;border:1px solid var(--border);display:block;background:#090f1a;"></canvas>
-          <div style="font-size:9px;color:var(--muted);margin-top:6px;letter-spacing:1px;">Impulse: <span style="color:#60a5fa">●</span> &nbsp; Corrective: <span style="color:#f59e0b">●</span> &nbsp; SL: <span style="color:#ff3d5a">—</span> &nbsp; TP: <span style="color:#10b981">—</span></div>
+          <div id="freePlotlyDiv" style="width:100%;border:1px solid var(--border);background:#090f1a;min-height:480px;"></div>
           <div id="freeChartMetrics" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px;font-size:10px;"></div>
+          <div id="freeNarrative" style="margin-top:12px;font-size:11px;color:#8aaccc;line-height:1.8;background:var(--bg);border:1px solid var(--border);padding:14px 16px;display:none;"></div>
         </div>
         <div id="freeLoadingTxt" style="font-size:11px;color:var(--muted);letter-spacing:2px;display:none;">⬡ Detecting pivots...</div>
       </div>
@@ -2337,270 +2338,80 @@ function renderEWChart(analysis, symbol, tf, liveData) {
 }
 
 
-// ── FREE ELLIOTT WAVE ANALYSIS ────────────────────────────────
-const FREE_SYMBOL_MAP = {
-  'eur/usd':'EURUSD=X','gold':'GC=F','oil wti':'CL=F',
-  'btc/usd':'BTC-USD','gbp/usd':'GBPUSD=X','usd/jpy':'JPY=X'
-};
+// ── FREE ELLIOTT WAVE — powered by Railway EW Server ─────────────────
+const EW_SERVER_URL = 'https://waves-production-ddbf.up.railway.app';
 
 async function runFreeAnalysis() {
-  const symbolVal = document.getElementById('freeSymbol').value;
+  const symbolEl  = document.getElementById('freeSymbol');
+  const symbolVal = symbolEl.value;
   const tf        = document.getElementById('freeTf').value;
   const btn       = document.getElementById('freeRunBtn');
   const wrap      = document.getElementById('freeChartWrap');
   const loading   = document.getElementById('freeLoadingTxt');
+  const plotDiv   = document.getElementById('freePlotlyDiv');
+  const metrics   = document.getElementById('freeChartMetrics');
+  const narrative = document.getElementById('freeNarrative');
 
-  btn.disabled = true; btn.textContent = 'Loading...';
+  btn.disabled = true; btn.textContent = 'Analysing...';
   wrap.style.display = 'none';
   loading.style.display = 'block';
+  loading.textContent = '⧡ Fetching candles and identifying Elliott Wave structure...';
 
-  const TF_CONF = {
-    'D1 (Daily)':  { interval:'1d',  range:'1y'  },
-    'H4 (4-Hour)': { interval:'1h',  range:'60d' },
-    'H1 (1-Hour)': { interval:'1h',  range:'14d' },
-    'W1 (Weekly)': { interval:'1wk', range:'3y'  },
-  };
-  const tfConf = TF_CONF[tf] || TF_CONF['D1 (Daily)'];
-  const workerSym = FREE_SYMBOL_MAP[symbolVal];
-  const symbolName = document.getElementById('freeSymbol').options[document.getElementById('freeSymbol').selectedIndex].text;
+  try {
+    const res = await fetch(EW_SERVER_URL + '/ew-chart', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ symbol: symbolVal, tf: tf }),
+      signal: AbortSignal.timeout(90000)
+    });
 
-  let candles = [];
-  if (workerSym) {
-    try {
-      const r = await fetch('https://xenos-ai-proxy.xenosfinance.workers.dev', {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ type:'yahoocandles', symbol:workerSym, interval:tfConf.interval, range:tfConf.range }),
-        signal: AbortSignal.timeout(20000)
-      });
-      if (r.ok) {
-        const cd = await r.json();
-        candles = (cd.candles||[]).filter(c=>c.close>0);
-        if (tf==='H4 (4-Hour)') {
-          const a=[];
-          for(let i=0;i<candles.length-3;i+=4){const ch=candles.slice(i,i+4);a.push({datetime:ch[0].datetime,open:ch[0].open,high:Math.max(...ch.map(c=>c.high)),low:Math.min(...ch.map(c=>c.low)),close:ch[3].close});}
-          candles=a;
-        }
-      }
-    } catch(e){ console.warn('free candle fetch:', e); }
-  }
-
-  if (candles.length < 30) {
-    loading.textContent = '⚠ Could not load candle data. Try again.';
-    btn.disabled=false; btn.textContent='⚡ Generate Wave Chart'; return;
-  }
-
-  // Use last 80 candles
-  const work = candles.slice(-80);
-
-  // Find zigzag pivots
-  function findPivots(c, win=4) {
-    const raw=[];
-    for(let i=win;i<c.length-win;i++){
-      let isH=true,isL=true;
-      for(let j=1;j<=win;j++){
-        if(c[i].high<=c[i-j].high||c[i].high<=c[i+j].high)isH=false;
-        if(c[i].low >=c[i-j].low ||c[i].low >=c[i+j].low) isL=false;
-      }
-      if(isH)raw.push({i,price:c[i].high,type:'high'});
-      if(isL)raw.push({i,price:c[i].low, type:'low'});
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Server error ' + res.status);
     }
-    const alt=[];
-    for(const p of raw.sort((a,b)=>a.i-b.i)){
-      if(!alt.length||alt[alt.length-1].type!==p.type)alt.push({...p});
-      else if(p.type==='high'&&p.price>alt[alt.length-1].price)alt[alt.length-1]={...p};
-      else if(p.type==='low' &&p.price<alt[alt.length-1].price)alt[alt.length-1]={...p};
+
+    const data = await res.json();
+
+    // Inject Plotly chart
+    plotDiv.innerHTML = data.chart_html;
+    plotDiv.querySelectorAll('script').forEach(s => {
+      const ns = document.createElement('script');
+      ns.textContent = s.textContent;
+      document.body.appendChild(ns);
+    });
+
+    // Metrics
+    const dp = (data.live_price || 1) > 100 ? 2 : 5;
+    metrics.innerHTML = [
+      { l:'Signal',       v: data.signal==='LONG'?'▲ LONG':data.signal==='SHORT'?'▼ SHORT':'◆ WAIT',
+                          c: data.signal==='LONG'?'var(--green)':data.signal==='SHORT'?'var(--red)':'var(--yellow)' },
+      { l:'Wave Active',  v: '(' + (data.current_wave||'?') + ') · ' + (data.degree||''), c:'var(--gold)' },
+      { l:'Confidence',   v: (data.confidence||0) + '%', c:'var(--text)' },
+      { l:'Stop Loss',    v: data.invalidation ? parseFloat(data.invalidation).toFixed(dp) : '—', c:'var(--red)' },
+      { l:'Target 1',     v: data.tp1 ? parseFloat(data.tp1).toFixed(dp) : '—', c:'var(--green)' },
+      { l:'Target 2',     v: data.tp2 ? parseFloat(data.tp2).toFixed(dp) : '—', c:'var(--green)' },
+    ].map(m => `<div style="background:var(--bg3,#172032);border:1px solid var(--border);padding:8px 10px;">
+      <div style="font-size:8px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:4px;">${m.l}</div>
+      <div style="font-size:12px;font-weight:500;color:${m.c};">${m.v}</div>
+    </div>`).join('');
+    metrics.style.gridTemplateColumns = 'repeat(3,1fr)';
+
+    // Narrative
+    if (data.narrative) {
+      narrative.textContent = data.narrative;
+      narrative.style.display = 'block';
     }
-    return alt;
+
+    loading.style.display = 'none';
+    wrap.style.display = 'block';
+
+  } catch(e) {
+    loading.textContent = '⚠ ' + (e.message || 'Analysis failed. Please try again.');
+    console.error('EW Server error:', e);
   }
 
-  // Get pivots with larger window for cleaner swings
-  const allPivots = findPivots(work, 5);
-  if (allPivots.length < 3) {
-    loading.textContent = '⚠ Not enough pivot structure. Try a different timeframe.';
-    btn.disabled=false; btn.textContent='⚡ Generate Wave Chart'; return;
-  }
-
-  // Smart pattern selection:
-  // - 3 pivots = ABC corrective
-  // - 5-6 pivots = impulse 1-2-3-4-5
-  // Always use the most recent pivots ending at current price
-  let pivots, labels, isABC;
-  if (allPivots.length >= 5) {
-    pivots = allPivots.slice(-5);
-    labels = ['1','2','3','4','5'];
-    isABC = false;
-  } else {
-    pivots = allPivots.slice(-3);
-    labels = ['A','B','C'];
-    isABC = true;
-  }
-
-  // Direction: from first pivot to last
-  const isBull = pivots[pivots.length-1].price > pivots[0].price;
-
-  // Color per wave: impulse waves blue, corrective orange
-  // For impulse: 1,3,5 = blue; 2,4 = orange
-  // For ABC: A,C = orange; B = blue
-  const wavePts = pivots.map((p,i) => {
-    let col;
-    if (isABC) {
-      col = (i===1) ? 'imp' : 'cor'; // B=blue, A,C=orange
-    } else {
-      col = (i===0||i===2||i===4) ? 'imp' : 'cor'; // 1,3,5=blue; 2,4=orange
-    }
-    return {...p, label:labels[i], col};
-  });
-
-  const prices = wavePts.map(p=>p.price);
-  const lp = work[work.length-1].close;
-  const dp = lp > 100 ? 2 : 5;
-  const sl  = isBull ? (Math.min(...prices)*0.997).toFixed(dp) : (Math.max(...prices)*1.003).toFixed(dp);
-  const tp1 = isBull ? (Math.max(...prices)*1.015).toFixed(dp) : (Math.min(...prices)*0.985).toFixed(dp);
-
-  // Draw chart
-  drawFreeChart(work, wavePts, isBull, parseFloat(sl), parseFloat(tp1), lp, symbolName, tf, dp);
-
-  // Metrics
-  const mc = document.getElementById('freeChartMetrics');
-  mc.innerHTML = [
-    {l:'Signal', v:isBull?'▲ LONG':'▼ SHORT', c:isBull?'var(--green)':'var(--red)'},
-    {l:'Stop Loss', v:parseFloat(sl).toFixed(dp), c:'var(--red)'},
-    {l:'Target', v:parseFloat(tp1).toFixed(dp), c:'var(--green)'},
-  ].map(m=>`<div style="background:var(--bg3,#172032);border:1px solid var(--border);padding:8px 10px;"><div style="font-size:8px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:4px;">${m.l}</div><div style="font-size:13px;font-weight:500;color:${m.c};">${m.v}</div></div>`).join('');
-
-  loading.style.display = 'none';
-  wrap.style.display = 'block';
-  btn.disabled = false; btn.textContent = '⚡ Generate Wave Chart';
-}
-
-function drawFreeChart(candles, wavePts, isBull, sl, tp1, livePrice, symbol, tf, dp) {
-  const canvas = document.getElementById('freeChartCanvas');
-  const W = canvas.getBoundingClientRect().width || canvas.offsetWidth || 420;
-  const H = 340;
-  canvas.width=W*2; canvas.height=H*2;
-  canvas.style.width='100%'; canvas.style.height=H+'px';
-  const ctx=canvas.getContext('2d'); ctx.scale(2,2);
-  const ML=62,MR=78,MT=36,MB=40,CW=W-ML-MR,CH=H-MT-MB;
-
-  const allP=[];
-  candles.forEach(c=>{allP.push(c.high,c.low);});
-  wavePts.forEach(p=>allP.push(p.price));
-  [sl,tp1,livePrice].forEach(v=>{if(v)allP.push(v);});
-  const minP=Math.min(...allP)*0.9991, maxP=Math.max(...allP)*1.0009;
-  const pR=maxP-minP||1;
-  const toY=p=>MT+CH-((p-minP)/pR)*CH;
-  const barW=CW/candles.length;
-  const toX=i=>ML+(i+0.5)*barW;
-
-  // Background
-  ctx.fillStyle='#090f1a'; ctx.fillRect(0,0,W,H);
-
-  // Grid lines
-  for(let i=0;i<=6;i++){
-    const y=MT+(i/6)*CH;
-    ctx.strokeStyle='#1a2a40'; ctx.lineWidth=0.5; ctx.globalAlpha=0.45;
-    ctx.beginPath(); ctx.moveTo(ML,y); ctx.lineTo(W-MR,y); ctx.stroke();
-    const pr=maxP-(i/6)*pR;
-    ctx.fillStyle='#4a6a8a'; ctx.font='8px monospace'; ctx.textAlign='right'; ctx.globalAlpha=0.85;
-    ctx.fillText(pr.toFixed(pr>100?2:5), ML-3, y+3);
-  }
-  // Vertical grid
-  const vstep=Math.max(1,Math.floor(candles.length/7));
-  for(let i=0;i<candles.length;i+=vstep){
-    ctx.globalAlpha=0.15; ctx.strokeStyle='#1a2a40'; ctx.lineWidth=0.5;
-    const x=toX(i); ctx.beginPath(); ctx.moveTo(x,MT); ctx.lineTo(x,MT+CH); ctx.stroke();
-    if(candles[i]?.datetime){
-      ctx.fillStyle='#253a55'; ctx.globalAlpha=0.7; ctx.font='7px monospace'; ctx.textAlign='center';
-      ctx.fillText(candles[i].datetime.slice(5,10), x, H-MB+18);
-    }
-  }
-  ctx.globalAlpha=1;
-
-  // Key level lines
-  function hl(price, color, label) {
-    if(!price||price<minP*0.96||price>maxP*1.04) return;
-    const y=toY(price);
-    ctx.strokeStyle=color; ctx.lineWidth=1; ctx.globalAlpha=0.5; ctx.setLineDash([5,4]);
-    ctx.beginPath(); ctx.moveTo(ML,y); ctx.lineTo(W-MR,y); ctx.stroke();
-    ctx.setLineDash([]); ctx.globalAlpha=0.9; ctx.fillStyle=color;
-    ctx.font='bold 8px monospace'; ctx.textAlign='left';
-    ctx.fillText(label+' '+parseFloat(price).toFixed(dp), W-MR+2, y+3);
-    ctx.globalAlpha=1;
-  }
-  hl(livePrice,'#00d4ff','NOW');
-  hl(sl,'#ef4444','SL ');
-  hl(tp1,'#10b981','TP ');
-
-  // Candles
-  const cW=Math.max(1.5,barW*0.72);
-  candles.forEach((c,i)=>{
-    const x=toX(i), isUp=c.close>=c.open;
-    ctx.strokeStyle=isUp?'#10b981':'#ef4444'; ctx.lineWidth=0.8; ctx.globalAlpha=0.72;
-    ctx.beginPath(); ctx.moveTo(x,toY(c.high)); ctx.lineTo(x,toY(c.low)); ctx.stroke();
-    const yO=toY(c.open), yC=toY(c.close);
-    ctx.fillStyle=isUp?'rgba(16,185,129,0.78)':'rgba(239,68,68,0.78)'; ctx.globalAlpha=0.88;
-    ctx.fillRect(x-cW/2, Math.min(yO,yC), cW, Math.max(1,Math.abs(yC-yO)));
-    ctx.globalAlpha=1;
-  });
-
-  // Colors per segment — each wave point has its own color
-  const IMP_LINE = '#3b82f6';  // blue — impulse
-  const IMP_DOT  = '#60a5fa';
-  const COR_LINE = '#f59e0b';  // amber — corrective
-  const COR_DOT  = '#fcd34d';
-
-  // Draw zigzag segment by segment with correct color
-  for(let i=0;i<wavePts.length-1;i++){
-    const p1=wavePts[i], p2=wavePts[i+1];
-    const col = p1.col==='imp' ? IMP_LINE : COR_LINE;
-    ctx.strokeStyle=col; ctx.lineWidth=2.5; ctx.globalAlpha=0.92;
-    ctx.lineJoin='round'; ctx.lineCap='round';
-    ctx.beginPath(); ctx.moveTo(toX(p1.i),toY(p1.price)); ctx.lineTo(toX(p2.i),toY(p2.price)); ctx.stroke();
-  }
-  ctx.globalAlpha=1; ctx.lineJoin='miter'; ctx.lineCap='butt';
-
-  // Dots + labels with parentheses — professional style
-  wavePts.forEach(p=>{
-    const x=toX(p.i), y=toY(p.price);
-    const dotCol = p.col==='imp' ? IMP_DOT : COR_DOT;
-    const lineCol = p.col==='imp' ? IMP_LINE : COR_LINE;
-
-    // Dot with ring
-    ctx.fillStyle='rgba(6,12,22,0.94)';
-    ctx.beginPath(); ctx.arc(x,y,6.5,0,Math.PI*2); ctx.fill();
-    ctx.fillStyle=dotCol;
-    ctx.beginPath(); ctx.arc(x,y,4,0,Math.PI*2); ctx.fill();
-
-    // Tick line from dot to label
-    const isHigh=p.type==='high';
-    const labelDist=18;
-    const ly=Math.max(MT+12,Math.min(isHigh?y-labelDist:y+labelDist, MT+CH-12));
-    ctx.strokeStyle=lineCol+'88'; ctx.lineWidth=1;
-    ctx.beginPath(); ctx.moveTo(x, isHigh?y-7:y+7); ctx.lineTo(x, isHigh?ly+7:ly-7); ctx.stroke();
-
-    // Label with parentheses — bold, with dark outline for readability
-    ctx.font='bold 13px Arial, sans-serif';
-    ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.lineWidth=3.5; ctx.lineJoin='round';
-    ctx.strokeStyle='rgba(6,12,22,0.97)';
-    ctx.strokeText('('+p.label+')', x, ly);
-    ctx.fillStyle=dotCol;
-    ctx.fillText('('+p.label+')', x, ly);
-    ctx.lineJoin='miter'; ctx.textBaseline='alphabetic';
-  });
-
-  // Header bar
-  ctx.textAlign='left'; ctx.font='bold 10px monospace'; ctx.fillStyle='#3b82f6';
-  ctx.fillText('XENOS', ML, 24);
-  ctx.fillStyle='#c8d8ea'; ctx.fillText('FINANCE', ML+42, 24);
-  ctx.font='9px monospace'; ctx.fillStyle='#4a6a8a';
-  ctx.fillText('· '+symbol+' · '+tf, ML+95, 24);
-  ctx.textAlign='center'; ctx.font='bold 9px monospace';
-  ctx.fillStyle=isBull?'#34d399':'#f87171';
-  ctx.fillText(isBull?'▲ TREND UP':'▼ TREND DOWN', W/2, 24);
-  ctx.textAlign='right'; ctx.font='bold 9px monospace';
-  ctx.fillStyle=isBull?'#00e676':'#ff3d5a';
-  ctx.fillText(isBull?'▲ LONG':'▼ SHORT', W-MR, 24);
+  btn.disabled = false;
+  btn.textContent = '⚡ Generate Wave Chart';
 }
 
 
