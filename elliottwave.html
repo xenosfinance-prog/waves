@@ -2372,13 +2372,25 @@ async function runFreeAnalysis() {
 
     const data = await res.json();
 
-    // Inject Plotly chart
-    plotDiv.innerHTML = data.chart_html;
-    plotDiv.querySelectorAll('script').forEach(s => {
-      const ns = document.createElement('script');
-      ns.textContent = s.textContent;
-      document.body.appendChild(ns);
-    });
+    // Render Plotly chart from JSON data
+    if (data.plotly_data && data.plotly_layout) {
+      plotDiv.innerHTML = '';
+      plotDiv.style.height = '480px';
+      Plotly.newPlot(plotDiv, data.plotly_data, data.plotly_layout, {
+        responsive: true,
+        displaylogo: false,
+        scrollZoom: true,
+        modeBarButtonsToRemove: ['autoScale2d','lasso2d','select2d']
+      });
+    } else if (data.chart_html) {
+      // Fallback: inject HTML
+      plotDiv.innerHTML = data.chart_html;
+      plotDiv.querySelectorAll('script').forEach(s => {
+        const ns = document.createElement('script');
+        ns.textContent = s.textContent;
+        document.body.appendChild(ns);
+      });
+    }
 
     // Metrics
     const dp = (data.live_price || 1) > 100 ? 2 : 5;
