@@ -1669,7 +1669,7 @@ async function runAIAnalysis(){
     `${i}|${c.datetime?.slice(0,10)||i}|${c.open?.toFixed(dp)}|${c.high?.toFixed(dp)}|${c.low?.toFixed(dp)}|${c.close?.toFixed(dp)}`
   ).join('\n');
 
-  const aiPrompt = `You are a professional Elliott Wave analyst. Analyze the following OHLC candle data for ${symbol} on the ${tf} timeframe and identify the current Elliott Wave structure.
+  const aiPrompt = `You are a professional Elliott Wave analyst. Analyze the OHLC candle data below for ${symbol} on the ${tf} timeframe.
 
 CANDLE DATA (index|date|open|high|low|close):
 ${candleRows}
@@ -1677,37 +1677,43 @@ ${candleRows}
 Current live price: ${livePrice}
 ${ctx_text ? 'Additional context: ' + ctx_text : ''}
 
-Instructions:
-1. Identify the most recent significant Elliott Wave pattern (impulse 1-2-3-4-5 or corrective A-B-C)
-2. Each wave point must use the ACTUAL candle index from the data above where that pivot occurred
-3. Wave points must be in strict chronological order (ascending candle index)
-4. For a BULLISH impulse: wave 0=low, 1=high, 2=low, 3=high, 4=low, 5=high
-5. For a BEARISH impulse: wave 0=high, 1=low, 2=high, 3=low, 4=high, 5=low
-6. Apply strict EW rules: Wave 2 cannot retrace below Wave 0; Wave 3 cannot be the shortest; Wave 4 cannot enter Wave 1 territory
-7. The last wave point should be close to the current price (last few candles)
+TASK: Identify the most recent complete or developing Elliott Wave pattern in this data.
 
-Respond ONLY with a valid JSON object, no markdown, no explanation:
+STRICT RULES YOU MUST FOLLOW:
+1. Wave points MUST be in strictly ascending candle_index order (chronological)
+2. The "price" for each wave point must be the ACTUAL high or low of that specific candle (use the high/low columns)
+3. The "type" must be "high" if you are using that candle's HIGH, or "low" if using that candle's LOW
+4. BULLISH IMPULSE (trend=UP): 0=low, 1=high, 2=low, 3=high, 4=low, 5=high — alternating lows and highs
+5. BEARISH IMPULSE (trend=DOWN): 0=high, 1=low, 2=high, 3=low, 4=high, 5=low — alternating highs and lows
+6. EW RULE — Wave 2 price CANNOT go beyond Wave 0 price
+7. EW RULE — Wave 3 MUST be longer than Wave 1 (or at least not the shortest wave)
+8. EW RULE — Wave 4 price CANNOT enter Wave 1 price territory
+9. Choose candle indices that are genuine swing highs and swing lows, not random candles
+10. The last wave point should be near the most recent candles (within last 15 candles)
+11. If pattern is incomplete, label "current_wave" as the wave currently forming
+
+Respond ONLY with a valid JSON object, no markdown, no explanation, no extra text:
 {
-  "pattern": "Impulse" or "Corrective",
-  "trend": "UP" or "DOWN",
-  "current_wave": "1" to "5" or "A","B","C",
-  "degree": "Minor" or "Minute" or "Intermediate" or "Primary",
-  "confidence": 0-100,
+  "pattern": "Impulse",
+  "trend": "UP",
+  "current_wave": "5",
+  "degree": "Minor",
+  "confidence": 75,
   "wave_points": [
-    {"label":"0","candle_index":12,"price":1.0850,"type":"low"},
-    {"label":"1","candle_index":28,"price":1.0950,"type":"high"},
-    {"label":"2","candle_index":35,"price":1.0880,"type":"low"},
-    {"label":"3","candle_index":55,"price":1.1100,"type":"high"},
-    {"label":"4","candle_index":62,"price":1.1020,"type":"low"},
-    {"label":"5","candle_index":72,"price":1.1180,"type":"high"}
+    {"label":"0","candle_index":5,"price":1.0820,"type":"low"},
+    {"label":"1","candle_index":18,"price":1.0950,"type":"high"},
+    {"label":"2","candle_index":26,"price":1.0865,"type":"low"},
+    {"label":"3","candle_index":48,"price":1.1120,"type":"high"},
+    {"label":"4","candle_index":57,"price":1.1010,"type":"low"},
+    {"label":"5","candle_index":68,"price":1.1200,"type":"high"}
   ],
-  "invalidation": 1.0849,
-  "tp1": 1.1200,
-  "tp2": 1.1350,
-  "signal": "LONG" or "SHORT" or "WAIT",
-  "fib618": 1.0890,
-  "fib1618": 1.1250,
-  "narrative": "3 sentences describing the wave structure, key risk, and levels to watch. Plain text, no markdown."
+  "invalidation": 1.0819,
+  "tp1": 1.1250,
+  "tp2": 1.1380,
+  "signal": "LONG",
+  "fib618": 1.0870,
+  "fib1618": 1.1230,
+  "narrative": "EUR/USD has completed waves 1 through 4 and is now developing wave 5 of a Minor degree impulse. The key risk is a break below wave 4 low at 1.1010 which would invalidate the count. Watch for resistance at the 161.8% extension near 1.1230 as the primary target."
 }`;
 
   async function fetchWithRetry(body, retries=2) {
@@ -1757,7 +1763,7 @@ Respond ONLY with a valid JSON object, no markdown, no explanation:
   const pivotMap = {};
   aiResult.wave_points.forEach(p => {
     const k = keyMap[p.label];
-    if (k) pivotMap[k] = { price: p.price, idx: p.candle_index, date: '' };
+    if (k) pivotMap[k] = { price: p.price, idx: p.candle_index, type: p.type || '' , date: '' };
   });
   ewLastCandles._pivotMap = pivotMap;
 
@@ -2199,50 +2205,34 @@ function renderEWChart(analysis, symbol, tf, liveData) {
   ].filter(p=>p.price);
 
   const pivMap = (ewLastCandles && ewLastCandles._pivotMap) || {};
-  const dispStart = candleOffset; // pivot idx offset matches smart window start
 
-  // Map each wave point to the exact candle bar (X) and exact high/low (Y)
+  // Map each wave point using EXACT AI-provided candle_index for X and EXACT price for Y
+  // No approximations, no nearest-candle search — the AI told us exactly where each pivot is
   const pts = wavePoints.map((wp2, i) => {
-    // isHigh: bear W0,W2,W4,B = highs; bull W1,W3,W5,A,C = highs
-    const isHighPt = isBearish
-      ? ['0','2','4','B'].includes(wp2.label)
-      : ['1','3','5','A','C'].includes(wp2.label);
-
-    let candleIdx = -1;
-
-    // 1. Use pivotMap index if available and in range
     const pm = pivMap[wp2.key];
+
+    // X: use the exact candle_index the AI identified, adjusted for display window offset
+    let candleIdx = -1;
     if (pm && pm.idx !== undefined) {
-      const di = pm.idx - dispStart;
+      const di = pm.idx - candleOffset;
       if (di >= 0 && di < candles.length) candleIdx = di;
     }
-
-    // 2. Fallback: find candle whose high or low is closest to the pivot price
-    if (candleIdx < 0 && useCandles) {
-      let bestD = Infinity;
-      candles.forEach((c, ci) => {
-        const d = isHighPt ? Math.abs(c.high - wp2.price) : Math.abs(c.low - wp2.price);
-        if (d < bestD) { bestD = d; candleIdx = ci; }
-      });
-    }
-
-    // 3. Last resort: even spacing
-    if (candleIdx < 0) candleIdx = Math.round(i / Math.max(wavePoints.length-1,1) * (candles.length-1));
+    // Fallback: even spacing (should rarely happen)
+    if (candleIdx < 0) candleIdx = Math.round(i / Math.max(wavePoints.length - 1, 1) * (candles.length - 1));
 
     const x = toXBar(candleIdx);
-    // Y: use exact candle high or low, not the pivot price approximation
-    const candleY = useCandles && candles[candleIdx]
-      ? (isHighPt ? toY(candles[candleIdx].high) : toY(candles[candleIdx].low))
-      : toY(wp2.price);
 
-    return { ...wp2, x, y: candleY, candleIdx };
+    // Y: use EXACTLY the price the AI returned — this is what the AI identified as the pivot
+    const y = toY(wp2.price);
+
+    return { ...wp2, x, y, candleIdx };
   });
 
-  // Ensure X is strictly left-to-right (wave order = time order)
+  // Ensure X is strictly left-to-right (enforce chronological order visually)
   for (let i = 1; i < pts.length; i++) {
-    if (pts[i].x <= pts[i-1].x) pts[i].x = pts[i-1].x + Math.max(barW, CW*0.03);
+    if (pts[i].x <= pts[i-1].x) pts[i].x = pts[i-1].x + Math.max(barW, CW * 0.04);
   }
-  pts.forEach(pt => { if (pt.x > ML+CW-4) pt.x = ML+CW-4; });
+  pts.forEach(pt => { if (pt.x > ML + CW - 4) pt.x = ML + CW - 4; });
 
   // Wave line colors
   const iCol  = isBearish?'#f59e0b':'#3b82f6';
@@ -2294,34 +2284,23 @@ function renderEWChart(analysis, symbol, tf, liveData) {
     ctx.beginPath(); ctx.arc(pt.x, pt.y, isCur ? 5 : 3.5, 0, Math.PI * 2); ctx.fill();
   });
 
-  // ── Wave labels: number directly on candle pivot ──────────────
+  // ── Wave labels ───────────────────────────────────────────────
   pts.forEach((pt) => {
     const isCur = pt.label === analysis.current_wave;
     const col   = pt.impulse ? iCol2 : cCol2;
-
-    // isHigh already computed in pt (bear: 0,2,4,B = highs; bull: 1,3,5,A,C = highs)
-    const isHigh = isBearish
-      ? ['0','2','4','B'].includes(pt.label)
-      : ['1','3','5','A','C'].includes(pt.label);
-
-    // pt.y is already the exact candle high or low Y
-    // Place number just outside: 12px above high, 12px below low
-    const labelY = isHigh ? pt.y - 12 : pt.y + 12;
+    const pm2   = pivMap[pt.key];
+    const isHigh = pm2 ? pm2.type === 'high' : (isBearish ? ['0','2','4','B'].includes(pt.label) : ['1','3','5','A','C'].includes(pt.label));
+    const labelY   = isHigh ? pt.y - 14 : pt.y + 14;
     const clampedY = Math.max(MT + 10, Math.min(labelY, MT + CH - 10));
-
-    // Number with dark outline — readable on any background
     const fontSize = isCur ? 14 : 12;
     ctx.font = `bold ${fontSize}px Arial, sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.lineWidth = 3.5;
-    ctx.lineJoin = 'round';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.lineWidth = 3.5; ctx.lineJoin = 'round';
     ctx.strokeStyle = 'rgba(6,12,22,0.95)';
     ctx.strokeText(pt.label, pt.x, clampedY);
     ctx.fillStyle = col;
     ctx.fillText(pt.label, pt.x, clampedY);
-    ctx.lineJoin = 'miter';
-    ctx.textBaseline = 'alphabetic';
+    ctx.lineJoin = 'miter'; ctx.textBaseline = 'alphabetic';
   });
 
     // ── NOW price line ────────────────────────────────
