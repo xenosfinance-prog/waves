@@ -832,9 +832,9 @@ canvas { display: block; }
           <div>
             <div class="admin-label">Timeframe</div>
             <select class="admin-select" id="freeTf">
-              <option>D1 (Daily)</option>
-              <option>H4 (4-Hour)</option>
               <option>H1 (1-Hour)</option>
+              <option>H4 (4-Hour)</option>
+              <option selected>D1 (Daily)</option>
               <option>W1 (Weekly)</option>
             </select>
           </div>
@@ -2413,26 +2413,49 @@ async function runFreeAnalysis() {
     return alt;
   }
 
-  const pivots = findPivots(work, 4).slice(-6);
-  if (pivots.length < 3) {
+  // Get pivots with larger window for cleaner swings
+  const allPivots = findPivots(work, 5);
+  if (allPivots.length < 3) {
     loading.textContent = '⚠ Not enough pivot structure. Try a different timeframe.';
     btn.disabled=false; btn.textContent='⚡ Generate Wave Chart'; return;
   }
 
-  // Determine direction from first to last pivot
+  // Smart pattern selection:
+  // - 3 pivots = ABC corrective
+  // - 5-6 pivots = impulse 1-2-3-4-5
+  // Always use the most recent pivots ending at current price
+  let pivots, labels, isABC;
+  if (allPivots.length >= 5) {
+    pivots = allPivots.slice(-5);
+    labels = ['1','2','3','4','5'];
+    isABC = false;
+  } else {
+    pivots = allPivots.slice(-3);
+    labels = ['A','B','C'];
+    isABC = true;
+  }
+
+  // Direction: from first pivot to last
   const isBull = pivots[pivots.length-1].price > pivots[0].price;
-  const labels = pivots.length >= 6
-    ? ['0','1','2','3','4','5']
-    : pivots.length === 5 ? ['1','2','3','4','5']
-    : pivots.length === 4 ? ['2','3','4','5']
-    : ['A','B','C'];
-  const wavePts = pivots.map((p,i) => ({...p, label:labels[i]||String(i)}));
+
+  // Color per wave: impulse waves blue, corrective orange
+  // For impulse: 1,3,5 = blue; 2,4 = orange
+  // For ABC: A,C = orange; B = blue
+  const wavePts = pivots.map((p,i) => {
+    let col;
+    if (isABC) {
+      col = (i===1) ? 'imp' : 'cor'; // B=blue, A,C=orange
+    } else {
+      col = (i===0||i===2||i===4) ? 'imp' : 'cor'; // 1,3,5=blue; 2,4=orange
+    }
+    return {...p, label:labels[i], col};
+  });
 
   const prices = wavePts.map(p=>p.price);
   const lp = work[work.length-1].close;
   const dp = lp > 100 ? 2 : 5;
   const sl  = isBull ? (Math.min(...prices)*0.997).toFixed(dp) : (Math.max(...prices)*1.003).toFixed(dp);
-  const tp1 = isBull ? (Math.max(...prices)*1.012).toFixed(dp) : (Math.min(...prices)*0.988).toFixed(dp);
+  const tp1 = isBull ? (Math.max(...prices)*1.015).toFixed(dp) : (Math.min(...prices)*0.985).toFixed(dp);
 
   // Draw chart
   drawFreeChart(work, wavePts, isBull, parseFloat(sl), parseFloat(tp1), lp, symbolName, tf, dp);
@@ -2452,41 +2475,52 @@ async function runFreeAnalysis() {
 
 function drawFreeChart(candles, wavePts, isBull, sl, tp1, livePrice, symbol, tf, dp) {
   const canvas = document.getElementById('freeChartCanvas');
-  const W = canvas.offsetWidth || 420;
-  const H = 300;
+  const W = canvas.getBoundingClientRect().width || canvas.offsetWidth || 420;
+  const H = 340;
   canvas.width=W*2; canvas.height=H*2;
-  canvas.style.width=W+'px'; canvas.style.height=H+'px';
+  canvas.style.width='100%'; canvas.style.height=H+'px';
   const ctx=canvas.getContext('2d'); ctx.scale(2,2);
-  const ML=58,MR=72,MT=32,MB=36,CW=W-ML-MR,CH=H-MT-MB;
+  const ML=62,MR=78,MT=36,MB=40,CW=W-ML-MR,CH=H-MT-MB;
 
   const allP=[];
   candles.forEach(c=>{allP.push(c.high,c.low);});
   wavePts.forEach(p=>allP.push(p.price));
   [sl,tp1,livePrice].forEach(v=>{if(v)allP.push(v);});
-  const minP=Math.min(...allP)*0.9992, maxP=Math.max(...allP)*1.0008;
+  const minP=Math.min(...allP)*0.9991, maxP=Math.max(...allP)*1.0009;
   const pR=maxP-minP||1;
   const toY=p=>MT+CH-((p-minP)/pR)*CH;
   const barW=CW/candles.length;
   const toX=i=>ML+(i+0.5)*barW;
 
+  // Background
   ctx.fillStyle='#090f1a'; ctx.fillRect(0,0,W,H);
 
-  // Grid
-  for(let i=0;i<=5;i++){
-    const y=MT+(i/5)*CH;
-    ctx.strokeStyle='#1a2a40'; ctx.lineWidth=0.5; ctx.globalAlpha=0.5;
+  // Grid lines
+  for(let i=0;i<=6;i++){
+    const y=MT+(i/6)*CH;
+    ctx.strokeStyle='#1a2a40'; ctx.lineWidth=0.5; ctx.globalAlpha=0.45;
     ctx.beginPath(); ctx.moveTo(ML,y); ctx.lineTo(W-MR,y); ctx.stroke();
-    const pr=maxP-(i/5)*pR;
-    ctx.fillStyle='#4a6a8a'; ctx.font='8px monospace'; ctx.textAlign='right'; ctx.globalAlpha=0.9;
+    const pr=maxP-(i/6)*pR;
+    ctx.fillStyle='#4a6a8a'; ctx.font='8px monospace'; ctx.textAlign='right'; ctx.globalAlpha=0.85;
     ctx.fillText(pr.toFixed(pr>100?2:5), ML-3, y+3);
+  }
+  // Vertical grid
+  const vstep=Math.max(1,Math.floor(candles.length/7));
+  for(let i=0;i<candles.length;i+=vstep){
+    ctx.globalAlpha=0.15; ctx.strokeStyle='#1a2a40'; ctx.lineWidth=0.5;
+    const x=toX(i); ctx.beginPath(); ctx.moveTo(x,MT); ctx.lineTo(x,MT+CH); ctx.stroke();
+    if(candles[i]?.datetime){
+      ctx.fillStyle='#253a55'; ctx.globalAlpha=0.7; ctx.font='7px monospace'; ctx.textAlign='center';
+      ctx.fillText(candles[i].datetime.slice(5,10), x, H-MB+18);
+    }
   }
   ctx.globalAlpha=1;
 
-  // Key lines
+  // Key level lines
   function hl(price, color, label) {
-    if(!price) return;
+    if(!price||price<minP*0.96||price>maxP*1.04) return;
     const y=toY(price);
-    ctx.strokeStyle=color; ctx.lineWidth=1; ctx.globalAlpha=0.55; ctx.setLineDash([5,4]);
+    ctx.strokeStyle=color; ctx.lineWidth=1; ctx.globalAlpha=0.5; ctx.setLineDash([5,4]);
     ctx.beginPath(); ctx.moveTo(ML,y); ctx.lineTo(W-MR,y); ctx.stroke();
     ctx.setLineDash([]); ctx.globalAlpha=0.9; ctx.fillStyle=color;
     ctx.font='bold 8px monospace'; ctx.textAlign='left';
@@ -2494,55 +2528,79 @@ function drawFreeChart(candles, wavePts, isBull, sl, tp1, livePrice, symbol, tf,
     ctx.globalAlpha=1;
   }
   hl(livePrice,'#00d4ff','NOW');
-  hl(sl,'#ef4444','SL');
-  hl(tp1,'#10b981','TP');
+  hl(sl,'#ef4444','SL ');
+  hl(tp1,'#10b981','TP ');
 
   // Candles
   const cW=Math.max(1.5,barW*0.72);
   candles.forEach((c,i)=>{
     const x=toX(i), isUp=c.close>=c.open;
-    ctx.strokeStyle=isUp?'#10b981':'#ef4444'; ctx.lineWidth=0.7; ctx.globalAlpha=0.7;
+    ctx.strokeStyle=isUp?'#10b981':'#ef4444'; ctx.lineWidth=0.8; ctx.globalAlpha=0.72;
     ctx.beginPath(); ctx.moveTo(x,toY(c.high)); ctx.lineTo(x,toY(c.low)); ctx.stroke();
     const yO=toY(c.open), yC=toY(c.close);
-    ctx.fillStyle=isUp?'rgba(16,185,129,0.75)':'rgba(239,68,68,0.75)'; ctx.globalAlpha=0.85;
+    ctx.fillStyle=isUp?'rgba(16,185,129,0.78)':'rgba(239,68,68,0.78)'; ctx.globalAlpha=0.88;
     ctx.fillRect(x-cW/2, Math.min(yO,yC), cW, Math.max(1,Math.abs(yC-yO)));
     ctx.globalAlpha=1;
   });
 
-  const wCol=isBull?'#3b82f6':'#f59e0b';
-  const wCol2=isBull?'#60a5fa':'#fcd34d';
+  // Colors per segment — each wave point has its own color
+  const IMP_LINE = '#3b82f6';  // blue — impulse
+  const IMP_DOT  = '#60a5fa';
+  const COR_LINE = '#f59e0b';  // amber — corrective
+  const COR_DOT  = '#fcd34d';
 
-  // Zigzag
-  ctx.strokeStyle=wCol; ctx.lineWidth=2; ctx.globalAlpha=0.9;
-  ctx.lineJoin='round'; ctx.lineCap='round';
-  ctx.beginPath();
-  wavePts.forEach((p,i)=>{i===0?ctx.moveTo(toX(p.i),toY(p.price)):ctx.lineTo(toX(p.i),toY(p.price));});
-  ctx.stroke();
+  // Draw zigzag segment by segment with correct color
+  for(let i=0;i<wavePts.length-1;i++){
+    const p1=wavePts[i], p2=wavePts[i+1];
+    const col = p1.col==='imp' ? IMP_LINE : COR_LINE;
+    ctx.strokeStyle=col; ctx.lineWidth=2.5; ctx.globalAlpha=0.92;
+    ctx.lineJoin='round'; ctx.lineCap='round';
+    ctx.beginPath(); ctx.moveTo(toX(p1.i),toY(p1.price)); ctx.lineTo(toX(p2.i),toY(p2.price)); ctx.stroke();
+  }
   ctx.globalAlpha=1; ctx.lineJoin='miter'; ctx.lineCap='butt';
 
-  // Dots + labels
+  // Dots + labels with parentheses — professional style
   wavePts.forEach(p=>{
     const x=toX(p.i), y=toY(p.price);
-    ctx.fillStyle='rgba(6,12,22,0.92)';
-    ctx.beginPath(); ctx.arc(x,y,5.5,0,Math.PI*2); ctx.fill();
-    ctx.fillStyle=wCol2;
-    ctx.beginPath(); ctx.arc(x,y,3.5,0,Math.PI*2); ctx.fill();
+    const dotCol = p.col==='imp' ? IMP_DOT : COR_DOT;
+    const lineCol = p.col==='imp' ? IMP_LINE : COR_LINE;
+
+    // Dot with ring
+    ctx.fillStyle='rgba(6,12,22,0.94)';
+    ctx.beginPath(); ctx.arc(x,y,6.5,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle=dotCol;
+    ctx.beginPath(); ctx.arc(x,y,4,0,Math.PI*2); ctx.fill();
+
+    // Tick line from dot to label
     const isHigh=p.type==='high';
-    const ly=Math.max(MT+10,Math.min(isHigh?y-13:y+13, MT+CH-10));
-    ctx.font='bold 11px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.lineWidth=3; ctx.lineJoin='round'; ctx.strokeStyle='rgba(6,12,22,0.96)';
-    ctx.strokeText('('+p.label+')',x,ly);
-    ctx.fillStyle=wCol2; ctx.fillText('('+p.label+')',x,ly);
+    const labelDist=18;
+    const ly=Math.max(MT+12,Math.min(isHigh?y-labelDist:y+labelDist, MT+CH-12));
+    ctx.strokeStyle=lineCol+'88'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(x, isHigh?y-7:y+7); ctx.lineTo(x, isHigh?ly+7:ly-7); ctx.stroke();
+
+    // Label with parentheses — bold, with dark outline for readability
+    ctx.font='bold 13px Arial, sans-serif';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.lineWidth=3.5; ctx.lineJoin='round';
+    ctx.strokeStyle='rgba(6,12,22,0.97)';
+    ctx.strokeText('('+p.label+')', x, ly);
+    ctx.fillStyle=dotCol;
+    ctx.fillText('('+p.label+')', x, ly);
     ctx.lineJoin='miter'; ctx.textBaseline='alphabetic';
   });
 
-  // Header
-  ctx.textAlign='left'; ctx.font='bold 10px monospace'; ctx.fillStyle='#3b82f6'; ctx.fillText('XENOS',ML,22);
-  ctx.fillStyle='#c8d8ea'; ctx.fillText('FINANCE',ML+40,22);
-  ctx.font='8px monospace'; ctx.fillStyle='#4a6a8a'; ctx.fillText('· '+symbol+' · '+tf, ML+88, 22);
-  ctx.textAlign='right'; ctx.font='bold 9px monospace';
+  // Header bar
+  ctx.textAlign='left'; ctx.font='bold 10px monospace'; ctx.fillStyle='#3b82f6';
+  ctx.fillText('XENOS', ML, 24);
+  ctx.fillStyle='#c8d8ea'; ctx.fillText('FINANCE', ML+42, 24);
+  ctx.font='9px monospace'; ctx.fillStyle='#4a6a8a';
+  ctx.fillText('· '+symbol+' · '+tf, ML+95, 24);
+  ctx.textAlign='center'; ctx.font='bold 9px monospace';
   ctx.fillStyle=isBull?'#34d399':'#f87171';
-  ctx.fillText(isBull?'▲ BULL':'▼ BEAR', W-MR, 22);
+  ctx.fillText(isBull?'▲ TREND UP':'▼ TREND DOWN', W/2, 24);
+  ctx.textAlign='right'; ctx.font='bold 9px monospace';
+  ctx.fillStyle=isBull?'#00e676':'#ff3d5a';
+  ctx.fillText(isBull?'▲ LONG':'▼ SHORT', W-MR, 24);
 }
 
 
