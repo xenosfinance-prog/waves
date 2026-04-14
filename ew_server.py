@@ -107,56 +107,47 @@ def label_waves_with_ai(pivots: list, symbol: str, tf: str, live_price: float, d
         for i, p in enumerate(pivots)
     ])
 
-    prompt = f"""You are a professional Elliott Wave analyst with deep knowledge of R.N. Elliott's original work.
+    prompt = f"""You are a professional Elliott Wave analyst.
 
 The following swing pivots have been mathematically detected from real {symbol} {tf} price data.
-These are REAL alternating swing highs and lows — do not modify idx, price, or type values.
+These are REAL alternating swing highs and lows.
 
 DETECTED PIVOTS:
 {pivot_text}
 
 Current live price: {live_price:.{dp}f}
 
-YOUR TASK: Identify the current Elliott Wave structure visible in these pivots and label them correctly.
+YOUR TASK: Assign Elliott Wave labels to these pivots.
 
-IMPORTANT — DO NOT force a complete 5-wave count:
-- Show ONLY the waves that are actually visible in the data
-- If the market is in wave 3 of a higher degree, label the sub-waves of that wave only
-- If only a corrective ABC is visible, label A-B-C
-- If only waves 1-2-3 are developing, label just those
-- If a wave is currently in progress (incomplete), mark it as "current_wave"
-- The number of wave_points can be 2, 3, 4, 5, or 6 — whatever fits the actual structure
-- NEVER fabricate waves that are not clearly visible in the pivot data
+STRICT RULES:
+1. Use ALL pivots listed — do not skip any
+2. For IMPULSE (5 pivots): labels must be 1,2,3,4,5 in chronological order
+3. For CORRECTIVE (3 pivots): labels must be A,B,C in chronological order  
+4. idx, price, type must be EXACTLY as shown — do not change them
+5. EW rules: wave 2 cannot go beyond wave 0/start, wave 3 cannot be shortest, wave 4 cannot enter wave 1 territory
+6. "signal": LONG if last wave points up, SHORT if points down, WAIT if unclear
+7. "invalidation": the price level that invalidates the count
+8. "tp1": conservative target, "tp2": extended target
 
-STRICT EW RULES (apply only to the waves you identify):
-- Wave 2 cannot retrace beyond the start of wave 1
-- Wave 3 cannot be the shortest impulse wave
-- Wave 4 cannot overlap wave 1 territory (except in diagonals)
-- idx, price, type must be EXACTLY as shown in the pivot data above
-
-LABEL GUIDE:
-- Impulse sub-waves: 1, 2, 3, 4, 5
-- Corrective waves: A, B, C
-- Complex corrections: W, X, Y
-- Use lowercase i, ii, iii, iv, v for sub-waves of a larger wave if needed
-
-Respond ONLY with valid JSON, no markdown, no explanation:
+Respond ONLY with valid JSON, no markdown:
 {{
-  "pattern": "Impulse | Corrective | Developing",
-  "trend": "UP | DOWN",
-  "current_wave": "3",
-  "degree": "Minor | Minute | Intermediate | Primary",
-  "confidence": 75,
+  "pattern": "Impulse",
+  "trend": "UP",
+  "current_wave": "5",
+  "degree": "Minor",
+  "confidence": 78,
   "wave_points": [
     {{"label":"1","idx":5,"price":1.0820,"type":"low"}},
     {{"label":"2","idx":18,"price":1.0950,"type":"high"}},
-    {{"label":"3","idx":48,"price":1.0865,"type":"low"}}
+    {{"label":"3","idx":26,"price":1.0865,"type":"low"}},
+    {{"label":"4","idx":48,"price":1.1120,"type":"high"}},
+    {{"label":"5","idx":57,"price":1.1010,"type":"low"}}
   ],
   "invalidation": 1.0819,
   "tp1": 1.1250,
   "tp2": 1.1380,
-  "signal": "LONG | SHORT | WAIT",
-  "narrative": "2-3 sentences describing the wave structure, what degree we are in, key risk and target levels. Professional tone, plain text only."
+  "signal": "LONG",
+  "narrative": "3 sentences: wave structure, key risk, levels to watch. Plain text only."
 }}"""
 
     msg = client.messages.create(
@@ -174,7 +165,7 @@ Respond ONLY with valid JSON, no markdown, no explanation:
     return json.loads(raw.strip())
 
 # ── Plotly chart builder ───────────────────────────────────────────────────────
-def build_plotly_chart(df: pd.DataFrame, ai_result: dict, symbol: str, tf: str, dp: int) -> str:
+def build_plotly_chart(df: pd.DataFrame, ai_result: dict, symbol: str, tf: str, dp: int):
     dates  = df.index.tolist()
     is_bull = ai_result.get("trend") == "UP"
     wave_pts = ai_result.get("wave_points", [])
@@ -327,19 +318,7 @@ def build_plotly_chart(df: pd.DataFrame, ai_result: dict, symbol: str, tf: str, 
     )
 
     fig = go.Figure(data=[candle, zigzag], layout=layout)
-
-    # Return full HTML with config
-    html = fig.to_html(
-        full_html=False,
-        include_plotlyjs=False,
-        config=dict(
-            responsive=True,
-            displaylogo=False,
-            scrollZoom=True,
-            modeBarButtonsToRemove=["autoScale2d", "lasso2d", "select2d"],
-        )
-    )
-    return html
+    return fig
 
 # ── Main endpoint ──────────────────────────────────────────────────────────────
 @app.route("/ew-chart", methods=["POST", "OPTIONS"])
@@ -378,10 +357,12 @@ def ew_chart():
 
         # 4. Build Plotly chart
         logger.info("Building Plotly chart...")
-        chart_html = build_plotly_chart(df, ai_result, symbol_name, tf_raw, dp)
+        fig = build_plotly_chart(df, ai_result, symbol_name, tf_raw, dp)
+        fig_dict = fig.to_dict()
 
         return jsonify({
-            "chart_html":   chart_html,
+            "plotly_data":   fig_dict["data"],
+            "plotly_layout": fig_dict["layout"],
             "pattern":      ai_result.get("pattern"),
             "trend":        ai_result.get("trend"),
             "current_wave": ai_result.get("current_wave"),
