@@ -21,7 +21,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("EWServer")
 
 app = Flask(__name__)
-CORS(app)  # Allow all origins
+CORS(app)
 
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 
@@ -54,6 +54,9 @@ def fetch_candles(yf_symbol: str, interval: str, period: str) -> pd.DataFrame:
     df = yf.download(yf_symbol, interval=interval, period=period, progress=False, auto_adjust=True)
     if df.empty:
         raise ValueError(f"No data for {yf_symbol}")
+    # Flatten MultiIndex columns if present (yfinance 0.2.x)
+    if isinstance(df.columns, pd.MultiIndex):
+        df.columns = df.columns.get_level_values(0)
     df = df.dropna()
     # Aggregate to H4 if needed
     if interval == "1h" and period == "60d":
