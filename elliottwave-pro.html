@@ -238,68 +238,6 @@ canvas { display: block; }
   .page-footer{flex-direction:column;gap:12px;text-align:center;}
 }
 </style>
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "FAQPage",
-  "mainEntity": [
-    {
-      "@type": "Question",
-      "name": "What is Elliott Wave analysis?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "Elliott Wave Theory is a technical analysis method that identifies recurring wave patterns in financial markets. Markets move in 5 impulsive waves in the direction of the trend and 3 corrective waves against it. This allows traders to anticipate future price movements with defined entry and exit points."
-      }
-    },
-    {
-      "@type": "Question",
-      "name": "Is Elliott Wave analysis free on XenosFinance?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "Yes, XenosFinance provides free AI-powered Elliott Wave analysis for major Forex pairs, Gold, Bitcoin and global indices. Wave counts, key Fibonacci levels and market forecasts are updated in real time."
-      }
-    },
-    {
-      "@type": "Question",
-      "name": "Which markets have Elliott Wave analysis?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "Elliott Wave analysis is available for EUR/USD, GBP/USD, USD/JPY, USD/CHF, AUD/USD, Gold (XAU/USD), Silver, Oil WTI, Bitcoin (BTC/USD), Ethereum, S&P 500, NASDAQ, DAX and FTSE 100."
-      }
-    },
-    {
-      "@type": "Question",
-      "name": "How does the AI Elliott Wave system work?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "The XenosFinance AI system fetches real OHLCV candle data, identifies swing pivots, applies strict Elliott Wave rules (wave 2 cannot retrace beyond wave 1 start, wave 3 cannot be the shortest, etc.), validates with Fibonacci extensions and RSI/MACD confirmation, then generates a wave count with entry zones and targets."
-      }
-    },
-    {
-      "@type": "Question",
-      "name": "What timeframes are available for Elliott Wave analysis?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "Elliott Wave analysis is available on multiple timeframes: 15 minutes, 1 hour, 4 hours, daily and weekly. Multi-timeframe confluence increases signal reliability significantly."
-      }
-    },
-    {
-      "@type": "Question",
-      "name": "Can Elliott Wave analysis predict market direction?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "Elliott Wave analysis provides probabilistic scenarios based on historical patterns, not guaranteed predictions. When combined with Fibonacci levels, volume analysis and momentum indicators it offers a high-probability framework for identifying turning points."
-      }
-    }
-  ]
-}
-</script>
-<script src="/i18n.js"></script>
-<script src="/i18n-engine.js"></script>
-</head>
-<body>
-
-<!-- MASTHEAD -->
 <div class="masthead">
   <div class="masthead-top">
     <span>VOL. I — EDUCATIONAL SERIES</span>
@@ -323,569 +261,74 @@ canvas { display: block; }
   </nav>
 </div>
 
-<div class="page-wrap">
-
-  <!-- HERO -->
-  <div class="ew-hero">
-    <div class="ew-hero-label">Educational Series · Market Structure</div>
-    <h1 class="ew-hero-title">Elliott Wave<br><em>Theory</em></h1>
-    <p class="ew-hero-sub">The complete institutional framework for reading market structure. From wave identification to trade execution.</p>
+<div class="page-wrap" style="max-width:900px;">
+  <div style="padding:40px 0 32px;border-bottom:1px solid var(--border);margin-bottom:36px;">
+    <div style="font-size:9px;letter-spacing:5px;color:var(--gold);text-transform:uppercase;margin-bottom:10px;">Pro Analysis · Admin &amp; Premium</div>
+    <h1 style="font-family:var(--serif);font-size:40px;font-weight:900;margin-bottom:10px;">AI Wave Analysis</h1>
+    <p style="font-size:13px;color:var(--muted);line-height:1.7;max-width:540px;">Institutional-grade Elliott Wave analysis with AI narrative, key levels, and Telegram publishing.</p>
+    <a href="/elliottwave" style="display:inline-block;margin-top:14px;font-size:10px;letter-spacing:2px;color:var(--muted);text-decoration:none;border:1px solid var(--border);padding:6px 14px;">← Back to Elliott Wave</a>
   </div>
-
-  <!-- SECTION 1: FOUNDATIONS -->
-  <div class="ew-section">
-    <div class="ew-section-header">
-      <span class="ew-section-num">01 — Foundations</span>
-      <div class="ew-section-line"></div>
+  <div class="admin-gate">
+    <div class="admin-gate-title">⬡ Access Required</div>
+    <div id="admin-login-area">
+      <div style="display:flex;gap:0;margin-bottom:14px;border-bottom:1px solid var(--border);">
+        <button id="tab-admin-btn" onclick="switchAccessTab('admin')" style="padding:8px 20px;font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;background:none;border:none;border-bottom:2px solid var(--gold);color:var(--gold);cursor:pointer;">Admin</button>
+        <button id="tab-premium-btn" onclick="switchAccessTab('premium')" style="padding:8px 20px;font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);cursor:pointer;">Premium</button>
+      </div>
+      <div id="admin-pw-area">
+        <div class="admin-login-row">
+          <input class="admin-pw-input" type="password" id="adminPw" placeholder="Admin password" onkeydown="if(event.key==='Enter')adminLogin()">
+          <button class="admin-btn" onclick="adminLogin()">Unlock</button>
+        </div>
+      </div>
+      <div id="premium-pw-area" style="display:none;">
+        <div style="font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:1px;margin-bottom:10px;">Enter your premium subscription code.</div>
+        <div class="admin-login-row">
+          <input class="admin-pw-input" type="password" id="premiumPw" placeholder="Subscription code" onkeydown="if(event.key==='Enter')premiumLogin()">
+          <button class="admin-btn" onclick="premiumLogin()">Unlock</button>
+        </div>
+      </div>
+      <div class="admin-err" id="adminErr"></div>
     </div>
-    <h2 class="ew-section-title">What is Elliott Wave Theory?</h2>
-    <p class="ew-prose">Developed by Ralph Nelson Elliott in the 1930s, Elliott Wave Theory is a form of technical analysis that describes how markets move in <strong>repetitive fractal patterns</strong> driven by collective investor psychology. Elliott observed that crowd behavior alternates between optimism and pessimism in natural sequences.</p>
-    <p class="ew-prose">The core insight: markets move in a basic pattern of <strong>five waves in the direction of the primary trend</strong>, followed by <strong>three corrective waves</strong> against it. This 5-3 structure repeats at every degree of trend, from minute charts to multi-decade cycles.</p>
-
-    <div class="diagram-wrap">
-      <canvas id="canvas-basic" width="680" height="260"></canvas>
-      <div class="diagram-label">Complete 8-Wave Cycle — 5 Impulse + 3 Corrective</div>
-    </div>
-  </div>
-
-  <!-- SECTION 2: THREE INVIOLABLE RULES -->
-  <div class="ew-section">
-    <div class="ew-section-header">
-      <span class="ew-section-num">02 — The Three Rules</span>
-      <div class="ew-section-line"></div>
-    </div>
-    <h2 class="ew-section-title">Inviolable Rules</h2>
-    <p class="ew-prose">These rules are <strong>absolute</strong>. If a wave count violates any of them, the count is wrong — no exceptions.</p>
-    <div class="rules-grid">
-      <div class="rule-card">
-        <div class="rule-num">Rule I</div>
-        <div class="rule-title">Wave 2 Never Retraces Wave 1 Completely</div>
-        <div class="rule-body">Wave 2 cannot retrace 100% or more of Wave 1. It must end above the start of Wave 1 in a bull market. Typical retracements: 50%, 61.8%, 76.4%.</div>
-        <span class="rule-law">W2 bottom &gt; W1 origin</span>
-      </div>
-      <div class="rule-card">
-        <div class="rule-num">Rule II</div>
-        <div class="rule-title">Wave 3 Is Never the Shortest Impulse Wave</div>
-        <div class="rule-body">Wave 3 must be longer than at least one of Wave 1 or Wave 5. It is most commonly the longest and strongest wave, extending 161.8% of Wave 1 or more.</div>
-        <span class="rule-law">W3 &gt; min(W1, W5)</span>
-      </div>
-      <div class="rule-card">
-        <div class="rule-num">Rule III</div>
-        <div class="rule-title">Wave 4 Does Not Overlap Wave 1</div>
-        <div class="rule-body">In an impulse wave, the price territory of Wave 4 cannot overlap with the price territory of Wave 1 (except in diagonal triangles).</div>
-        <span class="rule-law">W4 low &gt; W1 high</span>
-      </div>
-    </div>
-  </div>
-
-  <!-- SECTION 3: WAVE CHARACTERISTICS -->
-  <div class="ew-section">
-    <div class="ew-section-header">
-      <span class="ew-section-num">03 — Wave Characteristics</span>
-      <div class="ew-section-line"></div>
-    </div>
-    <h2 class="ew-section-title">Each Wave Has a Personality</h2>
-    <div class="wave-tabs">
-      <button class="wave-tab active" onclick="showWave('w1',this)">Wave 1</button>
-      <button class="wave-tab" onclick="showWave('w2',this)">Wave 2</button>
-      <button class="wave-tab" onclick="showWave('w3',this)">Wave 3</button>
-      <button class="wave-tab" onclick="showWave('w4',this)">Wave 4</button>
-      <button class="wave-tab" onclick="showWave('w5',this)">Wave 5</button>
-      <button class="wave-tab" onclick="showWave('wa',this)">Wave A</button>
-      <button class="wave-tab" onclick="showWave('wb',this)">Wave B</button>
-      <button class="wave-tab" onclick="showWave('wc',this)">Wave C</button>
-    </div>
-    <div class="wave-panels">
-      <div class="wave-panel active" id="panel-w1">
-        <div class="wave-panel-text">
-          <h3>Wave 1 — The Birth</h3>
-          <p>Wave 1 is typically the hardest to identify in real time. It often appears as a routine countertrend rally against the previous downtrend. Volume is modest, and the news is still negative.</p>
-          <p>Analysts typically still bearish. Smart money accumulates quietly. Wave 1 is often short and choppy.</p>
-          <div class="wave-fib">
-            <span class="fib-badge">No prior Fibonacci ref</span>
-            <span class="fib-badge key">Length baseline for W3, W5</span>
-          </div>
+    <div class="admin-panel" id="adminPanel">
+      <div class="admin-controls" style="grid-template-columns:1fr 1fr;">
+        <div>
+          <div class="admin-label">Instrument</div>
+          <select class="admin-select" id="aiSymbol">
+            <option value="oil wti">OIL WTI</option><option value="gold">GOLD</option>
+            <option value="silver">SILVER</option><option value="nat gas">NAT GAS</option>
+            <option value="eur/usd" selected>EUR/USD</option><option value="gbp/usd">GBP/USD</option>
+            <option value="usd/jpy">USD/JPY</option><option value="btc/usd">BTC/USD</option>
+            <option value="eth/usd">ETH/USD</option><option value="s&p 500">S&P 500</option>
+            <option value="nasdaq">NASDAQ</option><option value="dax">DAX</option>
+            <option value="ftse 100">FTSE 100</option>
+          </select>
         </div>
-        <div class="diagram-wrap"><canvas id="c-w1" width="280" height="180"></canvas><div class="diagram-label">Wave 1 Context</div></div>
-      </div>
-      <div class="wave-panel" id="panel-w2">
-        <div class="wave-panel-text">
-          <h3>Wave 2 — The Shakeout</h3>
-          <p>Wave 2 retraces deeply but cannot exceed Wave 1's origin. The crowd believes the prior downtrend has resumed. Pessimism returns. Volume is lower than Wave 1's peak.</p>
-          <p>This is where weak hands are shaken out before the powerful Wave 3 begins.</p>
-          <div class="wave-fib">
-            <span class="fib-badge">50% retrace</span>
-            <span class="fib-badge key">61.8% retrace ★</span>
-            <span class="fib-badge">76.4% retrace</span>
-          </div>
+        <div>
+          <div class="admin-label">Timeframe</div>
+          <select class="admin-select" id="aiTf">
+            <option>H1 (1-Hour)</option><option>H4 (4-Hour)</option>
+            <option selected>D1 (Daily)</option><option>W1 (Weekly)</option>
+          </select>
         </div>
-        <div class="diagram-wrap"><canvas id="c-w2" width="280" height="180"></canvas><div class="diagram-label">Wave 2 Context</div></div>
       </div>
-      <div class="wave-panel" id="panel-w3">
-        <div class="wave-panel-text">
-          <h3>Wave 3 — The Power Move</h3>
-          <p>Wave 3 is almost always the longest and most powerful impulse wave. Breakouts occur, fundamentals confirm, the news turns positive. Volume expands significantly.</p>
-          <p>This is where the majority of traders enter and where the most money is made. Never the shortest impulse wave.</p>
-          <div class="wave-fib">
-            <span class="fib-badge">138.2% of W1</span>
-            <span class="fib-badge key">161.8% of W1 ★</span>
-            <span class="fib-badge">261.8% of W1</span>
-            <span class="fib-badge">423.6% of W1</span>
-          </div>
-        </div>
-        <div class="diagram-wrap"><canvas id="c-w3" width="280" height="180"></canvas><div class="diagram-label">Wave 3 Context</div></div>
+      <div class="admin-label" style="margin-top:10px;">Additional Context (optional)</div>
+      <textarea class="admin-textarea" id="aiContext" placeholder="e.g. Price at 1.0850, broke above 1.0800 resistance, RSI 58..."></textarea>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+        <button class="admin-run-btn" id="aiRunBtn" onclick="runAIAnalysis()">⚡ Generate Analysis</button>
+        <button class="admin-tg-btn" id="tgBtn" onclick="sendToTelegram()">✈ Send to Telegram</button>
       </div>
-      <div class="wave-panel" id="panel-w4">
-        <div class="wave-panel-text">
-          <h3>Wave 4 — The Consolidation</h3>
-          <p>Wave 4 is typically sideways and complex — a flat, triangle, or zigzag. It corrects Wave 3's advance but must not enter Wave 1's territory. It alternates in character with Wave 2.</p>
-          <p><strong>Guideline of alternation</strong>: if Wave 2 was a sharp correction, Wave 4 tends to be flat/sideways, and vice versa.</p>
-          <div class="wave-fib">
-            <span class="fib-badge key">38.2% of W3 ★</span>
-            <span class="fib-badge">23.6% of W3</span>
-            <span class="fib-badge">50% of W3</span>
-          </div>
+      <div class="analysis-output" id="analysisOutput">
+        <div id="ewChartWrap" style="display:none;margin-bottom:18px;">
+          <div style="font-family:var(--mono);font-size:9px;letter-spacing:3px;color:var(--gold);text-transform:uppercase;margin-bottom:8px;">⬡ Elliott Wave Chart</div>
+          <canvas id="ewChartCanvas" style="width:100%;border:1px solid var(--border);display:block;"></canvas>
+          <div style="font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:6px;letter-spacing:1px;">Impulse waves: <span style="color:#60a5fa">●</span> &nbsp; Corrective waves: <span style="color:#f59e0b">●</span> &nbsp; Entry: <span style="color:#00d4ff">—</span> &nbsp; Stop: <span style="color:#ff3d5a">—</span> &nbsp; Target: <span style="color:#00e676">—</span></div>
         </div>
-        <div class="diagram-wrap"><canvas id="c-w4" width="280" height="180"></canvas><div class="diagram-label">Wave 4 Context</div></div>
-      </div>
-      <div class="wave-panel" id="panel-w5">
-        <div class="wave-panel-text">
-          <h3>Wave 5 — The Final Push</h3>
-          <p>Wave 5 is the final leg in the direction of trend. Breadth often narrows — fewer stocks participating. Divergences appear on momentum indicators (RSI, MACD). Public sentiment is extremely bullish.</p>
-          <p>Wave 5 is often the setup for the best short trade as the corrective A-B-C follows.</p>
-          <div class="wave-fib">
-            <span class="fib-badge">Equal to W1</span>
-            <span class="fib-badge key">61.8% of W1+W3 ★</span>
-            <span class="fib-badge">161.8% of W1</span>
-          </div>
-        </div>
-        <div class="diagram-wrap"><canvas id="c-w5" width="280" height="180"></canvas><div class="diagram-label">Wave 5 Context</div></div>
-      </div>
-      <div class="wave-panel" id="panel-wa">
-        <div class="wave-panel-text">
-          <h3>Wave A — First Corrective Leg</h3>
-          <p>Wave A is the initial counter-trend move. Most analysts still view it as a temporary pullback within the uptrend. Volume begins to pick up to the downside.</p>
-          <p>Wave A can subdivide into 5 waves (zigzag) or 3 waves (flat). The structure of Wave A identifies the corrective pattern type.</p>
-          <div class="wave-fib">
-            <span class="fib-badge">38.2% retrace of impulse</span>
-            <span class="fib-badge key">50% retrace ★</span>
-            <span class="fib-badge">61.8% retrace</span>
-          </div>
-        </div>
-        <div class="diagram-wrap"><canvas id="c-wa" width="280" height="180"></canvas><div class="diagram-label">Wave A Context</div></div>
-      </div>
-      <div class="wave-panel" id="panel-wb">
-        <div class="wave-panel-text">
-          <h3>Wave B — The Bull Trap</h3>
-          <p>Wave B is a counter-rally against Wave A. This is the classic bull trap — the crowd believes the uptrend has resumed. Volume is typically lower and the move lacks conviction.</p>
-          <p>Wave B rarely retraces more than 100% of Wave A. If it does, re-evaluate the entire count.</p>
-          <div class="wave-fib">
-            <span class="fib-badge">38.2% of A</span>
-            <span class="fib-badge key">61.8% of A ★</span>
-            <span class="fib-badge">76.4% of A</span>
-          </div>
-        </div>
-        <div class="diagram-wrap"><canvas id="c-wb" width="280" height="180"></canvas><div class="diagram-label">Wave B Context</div></div>
-      </div>
-      <div class="wave-panel" id="panel-wc">
-        <div class="wave-panel-text">
-          <h3>Wave C — The Decisive Decline</h3>
-          <p>Wave C is almost always a 5-wave structure and is the most devastating corrective wave. It confirms the correction is real. Panic selling emerges, fundamentals turn negative.</p>
-          <p>Wave C typically equals Wave A in length, or extends to 161.8% of Wave A.</p>
-          <div class="wave-fib">
-            <span class="fib-badge key">Equal to A ★</span>
-            <span class="fib-badge">61.8% of A</span>
-            <span class="fib-badge">161.8% of A</span>
-          </div>
-        </div>
-        <div class="diagram-wrap"><canvas id="c-wc" width="280" height="180"></canvas><div class="diagram-label">Wave C Context</div></div>
+        <pre id="analysisText"></pre>
       </div>
     </div>
   </div>
-
-  <!-- SECTION 4: CORRECTIVE PATTERNS -->
-  <div class="ew-section">
-    <div class="ew-section-header">
-      <span class="ew-section-num">04 — Corrective Patterns</span>
-      <div class="ew-section-line"></div>
-    </div>
-    <h2 class="ew-section-title">The Four Corrective Structures</h2>
-    <div class="corr-grid">
-      <div class="corr-card">
-        <div class="corr-title">Zigzag (5-3-5)</div>
-        <div class="corr-body">Sharp correction. Wave A and C each subdivide into 5 waves; Wave B into 3. Most common corrective pattern. Wave C typically equals or exceeds Wave A. Used in Wave 2 positions most frequently.</div>
-      </div>
-      <div class="corr-card">
-        <div class="corr-title">Flat (3-3-5)</div>
-        <div class="corr-body">Sideways correction. All three subwaves (A, B, C) are roughly equal in size. Wave B retraces nearly 100% of Wave A. Common in Wave 4 positions. Three sub-variants: regular, expanded, running.</div>
-      </div>
-      <div class="corr-card">
-        <div class="corr-title">Triangle (3-3-3-3-3)</div>
-        <div class="corr-body">Five overlapping waves (A-B-C-D-E) that contract within converging trendlines. Almost always in Wave 4 or Wave B positions. The thrust out of the triangle often equals the widest part of the triangle.</div>
-      </div>
-      <div class="corr-card">
-        <div class="corr-title">Double/Triple Zigzag</div>
-        <div class="corr-body">Complex corrections joining two or three simple patterns via connector waves labeled X. More common in Wave 4 and large Wave 2 corrections. Signals a strong underlying trend when complete.</div>
-      </div>
-    </div>
-
-    <div class="diagram-wrap">
-      <canvas id="canvas-corrective" width="680" height="220"></canvas>
-      <div class="diagram-label">Zigzag · Flat · Triangle — Side by Side</div>
-    </div>
-  </div>
-
-  <!-- SECTION 5: FIBONACCI -->
-  <div class="ew-section">
-    <div class="ew-section-header">
-      <span class="ew-section-num">05 — Fibonacci Relationships</span>
-      <div class="ew-section-line"></div>
-    </div>
-    <h2 class="ew-section-title">Key Fibonacci Ratios</h2>
-    <p class="ew-prose">Fibonacci ratios are the mathematical foundation of Elliott Wave analysis. Every wave has predictable relationships to adjacent waves.</p>
-    <table class="fib-table">
-      <thead>
-        <tr><th>Wave</th><th>Retracement of</th><th>Common Ratios</th><th>Key Level</th></tr>
-      </thead>
-      <tbody>
-        <tr><td>Wave 2</td><td>Wave 1</td><td>50%, 61.8%, 76.4%</td><td class="key-row">61.8%</td></tr>
-        <tr class="key-row"><td>Wave 3</td><td>Wave 1 extension</td><td>138.2%, 161.8%, 261.8%</td><td>161.8%</td></tr>
-        <tr><td>Wave 4</td><td>Wave 3</td><td>23.6%, 38.2%, 50%</td><td class="key-row">38.2%</td></tr>
-        <tr><td>Wave 5</td><td>= Wave 1 or ext.</td><td>61.8%, 100%, 161.8%</td><td class="key-row">= W1</td></tr>
-        <tr><td>Wave A</td><td>Prior impulse</td><td>38.2%, 50%, 61.8%</td><td class="key-row">50%</td></tr>
-        <tr><td>Wave B</td><td>Wave A</td><td>38.2%, 61.8%, 76.4%</td><td class="key-row">61.8%</td></tr>
-        <tr class="key-row"><td>Wave C</td><td>= Wave A or ext.</td><td>61.8%, 100%, 161.8%</td><td>= A</td></tr>
-      </tbody>
-    </table>
-  </div>
-
-  <!-- SECTION 6: WAVE DEGREES -->
-  <div class="ew-section">
-    <div class="ew-section-header">
-      <span class="ew-section-num">06 — Wave Degrees</span>
-      <div class="ew-section-line"></div>
-    </div>
-    <h2 class="ew-section-title">The Fractal Hierarchy</h2>
-    <p class="ew-prose">Elliott Wave operates simultaneously at all timeframes. A Wave 3 on a monthly chart contains 5 waves on a weekly chart, each of which contains 5 waves on a daily chart.</p>
-    <div class="degrees-list">
-      <div class="degree-item"><div class="degree-name">Grand Supercycle</div><div class="degree-time">Multi-century</div></div>
-      <div class="degree-item"><div class="degree-name">Supercycle</div><div class="degree-time">Multi-decade</div></div>
-      <div class="degree-item"><div class="degree-name">Cycle</div><div class="degree-time">1–10 years</div></div>
-      <div class="degree-item"><div class="degree-name">Primary</div><div class="degree-time">Months–Years</div></div>
-      <div class="degree-item"><div class="degree-name">Intermediate</div><div class="degree-time">Weeks–Months</div></div>
-      <div class="degree-item"><div class="degree-name">Minor</div><div class="degree-time">Weeks</div></div>
-      <div class="degree-item"><div class="degree-name">Minute</div><div class="degree-time">Days</div></div>
-      <div class="degree-item"><div class="degree-name">Minuette</div><div class="degree-time">Hours</div></div>
-    </div>
-  </div>
-
-  <!-- SECTION 7: GLOSSARY -->
-  <div class="ew-section">
-    <div class="ew-section-header">
-      <span class="ew-section-num">07 — Glossary</span>
-      <div class="ew-section-line"></div>
-    </div>
-    <h2 class="ew-section-title">Elliott Wave Glossary</h2>
-    <p class="ew-prose">Search and explore every term in Elliott Wave Theory. Click any entry to expand.</p>
-
-    <div class="gloss-search-wrap">
-      <span class="gloss-search-icon">⌕</span>
-      <input class="gloss-search" id="glossSearch" type="text" placeholder="Search terms… e.g. impulse, zigzag, fibonacci" oninput="filterGloss()">
-    </div>
-    <div class="gloss-tags">
-      <button class="gloss-tag active" onclick="filterTag('all',this)">All</button>
-      <button class="gloss-tag" onclick="filterTag('wave',this)">Waves</button>
-      <button class="gloss-tag" onclick="filterTag('rule',this)">Rules</button>
-      <button class="gloss-tag" onclick="filterTag('pattern',this)">Patterns</button>
-      <button class="gloss-tag" onclick="filterTag('fib',this)">Fibonacci</button>
-      <button class="gloss-tag" onclick="filterTag('concept',this)">Concepts</button>
-    </div>
-    <div class="gloss-count" id="glossCount">40 terms</div>
-
-    <div class="gloss-grid" id="glossGrid">
-
-      <div class="gloss-item" data-cat="wave" onclick="toggleGloss(this)">
-        <div class="gloss-header"><span class="gloss-term">Impulse Wave (5-wave)</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-wave">Wave</span><span class="gloss-arrow">▶</span></span></div>
-        <div class="gloss-body">A five-wave structure that moves in the direction of the primary trend. Labelled 1-2-3-4-5. Waves 1, 3, and 5 are motive; waves 2 and 4 are corrective. The impulse is the building block of all trending markets. <strong>Rules: Wave 2 never retraces 100% of Wave 1; Wave 3 is never the shortest; Wave 4 never overlaps Wave 1.</strong></div>
-      </div>
-
-      <div class="gloss-item" data-cat="wave" onclick="toggleGloss(this)">
-        <div class="gloss-header"><span class="gloss-term">Wave 1</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-wave">Wave</span><span class="gloss-arrow">▶</span></span></div>
-        <div class="gloss-body">The first wave of an impulse. Often hard to identify in real time as it looks like a counter-trend rally. Volume is modest, news still negative. Smart money accumulates. Sets the length baseline for Waves 3 and 5.</div>
-      </div>
-
-      <div class="gloss-item" data-cat="wave" onclick="toggleGloss(this)">
-        <div class="gloss-header"><span class="gloss-term">Wave 2</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-wave">Wave</span><span class="gloss-arrow">▶</span></span></div>
-        <div class="gloss-body">Corrective wave against Wave 1. Retraces 50–76.4% of Wave 1 but <strong>never 100% or more</strong> (inviolable rule). Creates the "shakeout" that removes weak hands before the powerful Wave 3. Typical retracements: 61.8% (most common), 50%, 76.4%.</div>
-      </div>
-
-      <div class="gloss-item" data-cat="wave" onclick="toggleGloss(this)">
-        <div class="gloss-header"><span class="gloss-term">Wave 3</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-wave">Wave</span><span class="gloss-arrow">▶</span></span></div>
-        <div class="gloss-body">The most powerful and typically the longest impulse wave. <strong>Never the shortest impulse wave</strong> (inviolable rule). Breakouts occur, volume surges, fundamentals confirm, public enters. Most commonly extends to 161.8% of Wave 1. The best wave to be positioned for.</div>
-      </div>
-
-      <div class="gloss-item" data-cat="wave" onclick="toggleGloss(this)">
-        <div class="gloss-header"><span class="gloss-term">Wave 4</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-wave">Wave</span><span class="gloss-arrow">▶</span></span></div>
-        <div class="gloss-body">Corrective wave against Wave 3. Typically sideways and complex (flat or triangle). <strong>Cannot overlap Wave 1's price territory</strong> (inviolable rule). Guideline of Alternation: tends to contrast in character with Wave 2. Common retracement: 38.2% of Wave 3.</div>
-      </div>
-
-      <div class="gloss-item" data-cat="wave" onclick="toggleGloss(this)">
-        <div class="gloss-header"><span class="gloss-term">Wave 5</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-wave">Wave</span><span class="gloss-arrow">▶</span></span></div>
-        <div class="gloss-body">The final impulse wave in the direction of trend. Market breadth narrows. RSI and MACD often diverge (price makes new high, momentum does not). The public is extremely bullish. Often sets up the best short trade of the cycle as corrective A-B-C follows.</div>
-      </div>
-
-      <div class="gloss-item" data-cat="wave" onclick="toggleGloss(this)">
-        <div class="gloss-header"><span class="gloss-term">Wave A</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-wave">Wave</span><span class="gloss-arrow">▶</span></span></div>
-        <div class="gloss-body">First wave of the corrective ABC sequence. Looks like a routine pullback in the uptrend. Volume begins to increase to the downside. Wave A's internal structure (5 waves = zigzag; 3 waves = flat/triangle) identifies the corrective pattern type.</div>
-      </div>
-
-      <div class="gloss-item" data-cat="wave" onclick="toggleGloss(this)">
-        <div class="gloss-header"><span class="gloss-term">Wave B</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-wave">Wave</span><span class="gloss-arrow">▶</span></span></div>
-        <div class="gloss-body">Counter-rally against Wave A. The classic <strong>"bull trap"</strong> — the crowd believes the uptrend has resumed. Volume is lower and the move lacks conviction. Rarely retraces more than 100% of Wave A. Most common retracement: 61.8% of Wave A.</div>
-      </div>
-
-      <div class="gloss-item" data-cat="wave" onclick="toggleGloss(this)">
-        <div class="gloss-header"><span class="gloss-term">Wave C</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-wave">Wave</span><span class="gloss-arrow">▶</span></span></div>
-        <div class="gloss-body">The decisive, devastating corrective decline. Almost always a 5-wave structure internally. Panic selling emerges, news turns negative, fundamentals deteriorate. Typically equals Wave A in length or extends to 161.8% of Wave A.</div>
-      </div>
-
-      <div class="gloss-item" data-cat="rule" onclick="toggleGloss(this)">
-        <div class="gloss-header"><span class="gloss-term">Rule I — Wave 2 Never Retraces 100%</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-rule">Rule</span><span class="gloss-arrow">▶</span></span></div>
-        <div class="gloss-body"><strong>Inviolable.</strong> Wave 2 must end above the origin of Wave 1 (in a bull market). If price retraces 100% or more of Wave 1, the wave count is invalid and must be re-evaluated. No exceptions.</div>
-      </div>
-
-      <div class="gloss-item" data-cat="rule" onclick="toggleGloss(this)">
-        <div class="gloss-header"><span class="gloss-term">Rule II — Wave 3 Never Shortest</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-rule">Rule</span><span class="gloss-arrow">▶</span></span></div>
-        <div class="gloss-body"><strong>Inviolable.</strong> Wave 3 must be longer than at least one of Wave 1 or Wave 5. Wave 3 cannot be the shortest of the three impulse waves. If it is, the count is wrong.</div>
-      </div>
-
-      <div class="gloss-item" data-cat="rule" onclick="toggleGloss(this)">
-        <div class="gloss-header"><span class="gloss-term">Rule III — Wave 4 No Overlap</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-rule">Rule</span><span class="gloss-arrow">▶</span></span></div>
-        <div class="gloss-body"><strong>Inviolable.</strong> In an impulse wave, Wave 4 cannot enter the price territory of Wave 1. Exception: diagonal triangles. If overlap occurs in a standard impulse, the count is invalid.</div>
-      </div>
-
-      <div class="gloss-item" data-cat="rule" onclick="toggleGloss(this)">
-        <div class="gloss-header"><span class="gloss-term">Guideline of Alternation</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-rule">Rule</span><span class="gloss-arrow">▶</span></span></div>
-        <div class="gloss-body">A guideline (not a rule): corrective waves tend to alternate in character. If Wave 2 is a sharp, deep correction (zigzag), Wave 4 will tend to be a shallow, sideways correction (flat or triangle), and vice versa. Helps anticipate corrective structure.</div>
-      </div>
-
-      <div class="gloss-item" data-cat="pattern" onclick="toggleGloss(this)">
-        <div class="gloss-header"><span class="gloss-term">Zigzag (5-3-5)</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-pattern">Pattern</span><span class="gloss-arrow">▶</span></span></div>
-        <div class="gloss-body">The sharpest and most common corrective pattern. Internal structure: Wave A subdivides into 5, Wave B into 3, Wave C into 5. Wave C typically equals or exceeds Wave A. Most common in Wave 2 positions. Creates steep, clean retracements.</div>
-      </div>
-
-      <div class="gloss-item" data-cat="pattern" onclick="toggleGloss(this)">
-        <div class="gloss-header"><span class="gloss-term">Flat (3-3-5)</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-pattern">Pattern</span><span class="gloss-arrow">▶</span></span></div>
-        <div class="gloss-body">A sideways correction. All three waves (A, B, C) are roughly equal in size. Wave B retraces nearly 100% of Wave A. Three variants: <strong>Regular Flat</strong> (C ends near A's origin), <strong>Expanded Flat</strong> (C exceeds A's origin), <strong>Running Flat</strong> (C ends above A's origin). Common in Wave 4.</div>
-      </div>
-
-      <div class="gloss-item" data-cat="pattern" onclick="toggleGloss(this)">
-        <div class="gloss-header"><span class="gloss-term">Triangle (3-3-3-3-3)</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-pattern">Pattern</span><span class="gloss-arrow">▶</span></span></div>
-        <div class="gloss-body">Five overlapping corrective waves (A-B-C-D-E) within converging trendlines. Almost always appears in Wave 4 or Wave B positions — never in Wave 2. The "thrust" out of the triangle equals the widest part. Four types: contracting, expanding, ascending, descending.</div>
-      </div>
-
-      <div class="gloss-item" data-cat="pattern" onclick="toggleGloss(this)">
-        <div class="gloss-header"><span class="gloss-term">Double Zigzag / Triple Zigzag</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-pattern">Pattern</span><span class="gloss-arrow">▶</span></span></div>
-        <div class="gloss-body">Complex corrections joining two or three simple zigzag patterns via connector waves labelled X. Appear in strong trend markets where a single zigzag doesn't retrace enough. Signal a powerful underlying trend when complete. More common in large Wave 4 and Wave 2 corrections.</div>
-      </div>
-
-      <div class="gloss-item" data-cat="pattern" onclick="toggleGloss(this)">
-        <div class="gloss-header"><span class="gloss-term">Diagonal Triangle</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-pattern">Pattern</span><span class="gloss-arrow">▶</span></span></div>
-        <div class="gloss-body">A 5-wave structure where each subwave is a corrective (3-wave) structure. Appears only in Wave 1 or Wave 5 (leading diagonal) or Wave C (ending diagonal). Wave 4 CAN overlap Wave 1 — the only exception to Rule III. Signals exhaustion or a powerful new trend beginning.</div>
-      </div>
-
-      <div class="gloss-item" data-cat="pattern" onclick="toggleGloss(this)">
-        <div class="gloss-header"><span class="gloss-term">Corrective ABC</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-pattern">Pattern</span><span class="gloss-arrow">▶</span></span></div>
-        <div class="gloss-body">The three-wave counter-trend movement following a five-wave impulse. The basic corrective structure: Wave A down, Wave B up (partial retracement), Wave C down to completion. The ABC correction itself subdivides into smaller 5-3 patterns at lower degrees.</div>
-      </div>
-
-      <div class="gloss-item" data-cat="fib" onclick="toggleGloss(this)">
-        <div class="gloss-header"><span class="gloss-term">Golden Ratio (0.618 / 1.618)</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-fib">Fibonacci</span><span class="gloss-arrow">▶</span></span></div>
-        <div class="gloss-body">The most important Fibonacci ratio in Elliott Wave analysis. <strong>0.618</strong> is the key retracement for Wave 2. <strong>1.618</strong> is the key extension for Wave 3. Derived from the Fibonacci sequence where each number is the sum of the two preceding numbers: 1, 1, 2, 3, 5, 8, 13, 21…</div>
-      </div>
-
-      <div class="gloss-item" data-cat="fib" onclick="toggleGloss(this)">
-        <div class="gloss-header"><span class="gloss-term">Fibonacci Retracement</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-fib">Fibonacci</span><span class="gloss-arrow">▶</span></span></div>
-        <div class="gloss-body">Corrective waves retrace prior impulse waves at predictable Fibonacci levels. Key levels: <strong>23.6%, 38.2%, 50%, 61.8%, 76.4%</strong>. Wave 2 most commonly retraces 61.8% of Wave 1. Wave 4 most commonly retraces 38.2% of Wave 3.</div>
-      </div>
-
-      <div class="gloss-item" data-cat="fib" onclick="toggleGloss(this)">
-        <div class="gloss-header"><span class="gloss-term">Fibonacci Extension</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-fib">Fibonacci</span><span class="gloss-arrow">▶</span></span></div>
-        <div class="gloss-body">Impulse waves extend to Fibonacci multiples of prior waves. Key levels: <strong>138.2%, 161.8%, 261.8%, 423.6%</strong>. Wave 3 most commonly extends to 161.8% of Wave 1. Wave 5 often equals Wave 1 (100%) or extends to 161.8% of Wave 1.</div>
-      </div>
-
-      <div class="gloss-item" data-cat="fib" onclick="toggleGloss(this)">
-        <div class="gloss-header"><span class="gloss-term">38.2% Retracement</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-fib">Fibonacci</span><span class="gloss-arrow">▶</span></span></div>
-        <div class="gloss-body">Key Fibonacci level derived from 1 − 0.618. Most common retracement for Wave 4 against Wave 3. Also the minimum retracement expected in most corrective structures. In strong trends, Wave 4 may only retrace 23.6% of Wave 3.</div>
-      </div>
-
-      <div class="gloss-item" data-cat="fib" onclick="toggleGloss(this)">
-        <div class="gloss-header"><span class="gloss-term">Wave Equality</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-fib">Fibonacci</span><span class="gloss-arrow">▶</span></span></div>
-        <div class="gloss-body">A guideline stating that when Wave 3 is extended, Waves 1 and 5 tend to be equal in length (or relate by 0.618). Also applies to corrective waves: Wave C often equals Wave A in length. Useful for projecting price targets.</div>
-      </div>
-
-      <div class="gloss-item" data-cat="concept" onclick="toggleGloss(this)">
-        <div class="gloss-header"><span class="gloss-term">Fractal Nature</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-concept">Concept</span><span class="gloss-arrow">▶</span></span></div>
-        <div class="gloss-body">Elliott Wave patterns repeat at every timeframe simultaneously. A Wave 3 on a monthly chart contains a complete 5-wave impulse on the weekly, which contains 5-wave impulses on the daily, and so on. Every wave at every degree is simultaneously a subwave of a larger wave and contains smaller subwaves.</div>
-      </div>
-
-      <div class="gloss-item" data-cat="concept" onclick="toggleGloss(this)">
-        <div class="gloss-header"><span class="gloss-term">Wave Degree</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-concept">Concept</span><span class="gloss-arrow">▶</span></span></div>
-        <div class="gloss-body">The size or timeframe classification of a wave. From largest to smallest: Grand Supercycle (centuries), Supercycle (decades), Cycle (years), Primary (months–years), Intermediate (weeks–months), Minor (weeks), Minute (days), Minuette (hours). All degrees operate simultaneously.</div>
-      </div>
-
-      <div class="gloss-item" data-cat="concept" onclick="toggleGloss(this)">
-        <div class="gloss-header"><span class="gloss-term">Motive Wave</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-concept">Concept</span><span class="gloss-arrow">▶</span></span></div>
-        <div class="gloss-body">Any wave that moves in the direction of the primary trend. Motive waves subdivide into 5 subwaves. In an uptrend: Waves 1, 3, 5, and sub-waves within these are motive. Motive waves are more straightforward to trade as they offer clear directional momentum.</div>
-      </div>
-
-      <div class="gloss-item" data-cat="concept" onclick="toggleGloss(this)">
-        <div class="gloss-header"><span class="gloss-term">Corrective Wave</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-concept">Concept</span><span class="gloss-arrow">▶</span></span></div>
-        <div class="gloss-body">Any wave that moves against the direction of the primary trend. Corrective waves subdivide into 3 subwaves (or multiples of 3). In an uptrend: Waves 2 and 4 are corrective, as is the entire A-B-C sequence following the impulse. More complex and harder to trade than motive waves.</div>
-      </div>
-
-      <div class="gloss-item" data-cat="concept" onclick="toggleGloss(this)">
-        <div class="gloss-header"><span class="gloss-term">Bull Trap</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-concept">Concept</span><span class="gloss-arrow">▶</span></span></div>
-        <div class="gloss-body">A false signal where price appears to resume an uptrend, causing traders to go long — only to reverse sharply. In Elliott Wave, the classic bull trap is <strong>Wave B</strong> of a corrective ABC: a counter-rally that looks bullish but is followed by the devastating Wave C decline.</div>
-      </div>
-
-      <div class="gloss-item" data-cat="concept" onclick="toggleGloss(this)">
-        <div class="gloss-header"><span class="gloss-term">Momentum Divergence</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-concept">Concept</span><span class="gloss-arrow">▶</span></span></div>
-        <div class="gloss-body">A key confirmation signal for wave endings. In Wave 5: price makes a new high but RSI/MACD fail to confirm (bearish divergence) — signals impulse exhaustion. In Wave C: price makes a new low but RSI/MACD diverge (bullish divergence) — signals corrective exhaustion and potential trend reversal.</div>
-      </div>
-
-      <div class="gloss-item" data-cat="concept" onclick="toggleGloss(this)">
-        <div class="gloss-header"><span class="gloss-term">Invalidation Level</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-concept">Concept</span><span class="gloss-arrow">▶</span></span></div>
-        <div class="gloss-body">The price level at which a wave count is proven wrong. For a bullish count: the origin of Wave 1. For a Wave 2 long: if price breaks below Wave 1's starting point, the count is invalid. Always define the invalidation level before entering a trade — it is your stop loss anchor.</div>
-      </div>
-
-      <div class="gloss-item" data-cat="concept" onclick="toggleGloss(this)">
-        <div class="gloss-header"><span class="gloss-term">Extended Wave</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-concept">Concept</span><span class="gloss-arrow">▶</span></span></div>
-        <div class="gloss-body">When one impulse wave (usually Wave 3, sometimes Wave 1 or Wave 5) extends far beyond the typical 161.8% Fibonacci projection. An extended Wave 3 subdivides into 9 visible subwaves at the same degree. Extension in Wave 1 or Wave 5 leads to post-extension retracements to unusual depths.</div>
-      </div>
-
-      <div class="gloss-item" data-cat="concept" onclick="toggleGloss(this)">
-        <div class="gloss-header"><span class="gloss-term">Truncation</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-concept">Concept</span><span class="gloss-arrow">▶</span></span></div>
-        <div class="gloss-body">When Wave 5 fails to exceed the end of Wave 3 in price. Also called a "failure." Rare, but signals extreme weakness in the underlying trend. The subsequent corrective decline is often severe. Most common in highly volatile markets (crypto, leveraged instruments).</div>
-      </div>
-
-      <div class="gloss-item" data-cat="concept" onclick="toggleGloss(this)">
-        <div class="gloss-header"><span class="gloss-term">Channeling</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-concept">Concept</span><span class="gloss-arrow">▶</span></span></div>
-        <div class="gloss-body">A technique for projecting wave targets using parallel trendlines. Draw a baseline through Wave 1 and Wave 3 ends; a parallel through Wave 2 end projects Wave 4 target. Then draw a baseline through Wave 2 and Wave 4; a parallel through Wave 3 end projects Wave 5 target.</div>
-      </div>
-
-      <div class="gloss-item" data-cat="concept" onclick="toggleGloss(this)">
-        <div class="gloss-header"><span class="gloss-term">Throw-over</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-concept">Concept</span><span class="gloss-arrow">▶</span></span></div>
-        <div class="gloss-body">When Wave 5 briefly exceeds the upper channel line before reversing. Common in ending diagonal patterns. The "throw-over" is accompanied by high volume and euphoric sentiment, then a sharp reversal confirms the wave is complete and the corrective ABC begins.</div>
-      </div>
-
-      <div class="gloss-item" data-cat="concept" onclick="toggleGloss(this)">
-        <div class="gloss-header"><span class="gloss-term">Supercycle</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-concept">Concept</span><span class="gloss-arrow">▶</span></span></div>
-        <div class="gloss-body">A wave degree spanning multiple decades. The S&P 500's bull market from 1932 is considered a Grand Supercycle. Understanding higher-degree waves provides context for lower-degree counts — a Wave 2 correction within a Supercycle uptrend can be extremely deep and long-lasting.</div>
-      </div>
-
-      <div class="gloss-item" data-cat="concept" onclick="toggleGloss(this)">
-        <div class="gloss-header"><span class="gloss-term">Wave Count</span><span style="display:flex;align-items:center;gap:10px;"><span class="gloss-cat cat-concept">Concept</span><span class="gloss-arrow">▶</span></span></div>
-        <div class="gloss-body">The analyst's interpretation of where price currently sits within the Elliott Wave structure. Always maintain a primary count (most probable) and an alternate count (if the primary is invalidated). A good analyst always knows the exact price level that proves their count wrong.</div>
-      </div>
-
-    </div>
-    <div class="gloss-empty" id="glossEmpty">No terms match your search.</div>
-  </div>
-
-  <!-- SECTION 8: LIVE ANALYSIS — FREE + PRO SIDE BY SIDE -->
-  <div class="ew-section">
-    <div class="ew-section-header">
-      <span class="ew-section-num">08 — Live Analysis</span>
-      <div class="ew-section-line"></div>
-    </div>
-    <h2 class="ew-section-title">Elliott Wave Analysis</h2>
-    <p class="ew-prose">Choose your access level. Free interactive charts for all users — advanced AI analysis for admin and premium subscribers.</p>
-
-    <!-- TWO COLUMN LAYOUT -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:0;" id="ewTiersGrid">
-
-    <!-- LEFT: FREE TIER -->
-    <div style="background:var(--bg2);border:1px solid var(--border);padding:0;display:flex;flex-direction:column;">
-      <div style="padding:18px 20px;border-bottom:1px solid var(--border);">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-          <span style="font-size:9px;letter-spacing:4px;color:var(--green);text-transform:uppercase;">Free</span>
-          <span style="font-size:9px;padding:3px 10px;border:1px solid rgba(16,185,129,.3);color:var(--green);letter-spacing:1px;">Open Access</span>
-        </div>
-        <div style="font-family:var(--serif);font-size:20px;font-weight:700;margin-bottom:4px;">Elliott for Newbies</div>
-        <div style="font-size:11px;color:var(--muted);line-height:1.6;">Interactive wave chart with real pivot detection. No login required.</div>
-      </div>
-      <div style="padding:16px 20px;flex:1;">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px;">
-          <div>
-            <div class="admin-label">Instrument</div>
-            <select class="admin-select" id="freeSymbol">
-              <option value="eur/usd">EUR/USD</option>
-              <option value="gold">GOLD</option>
-              <option value="oil wti">OIL WTI</option>
-              <option value="btc/usd">BTC/USD</option>
-              <option value="gbp/usd">GBP/USD</option>
-              <option value="usd/jpy">USD/JPY</option>
-            </select>
-          </div>
-          <div>
-            <div class="admin-label">Timeframe</div>
-            <select class="admin-select" id="freeTf">
-              <option>H1 (1-Hour)</option>
-              <option>H4 (4-Hour)</option>
-              <option selected>D1 (Daily)</option>
-              <option>W1 (Weekly)</option>
-            </select>
-          </div>
-        </div>
-        <button class="admin-run-btn" id="freeRunBtn" onclick="runFreeAnalysis()" style="width:100%;margin-bottom:14px;background:var(--green);color:#fff;">⚡ Generate Wave Chart</button>
-        <div id="freeLoadingTxt" style="font-size:11px;color:var(--muted);letter-spacing:2px;display:none;padding:10px 0;">⬡ Analysing Elliott Wave structure...</div>
-        <div id="freeChartWrap" style="display:none;">
-          <div style="background:#131f2e;border:1px solid var(--border);margin-bottom:10px;">
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid var(--border);font-size:10px;">
-              <span style="color:var(--text);font-size:11px;" id="freeChartTitle">—</span>
-              <div style="display:flex;gap:8px;">
-                <span id="freeSignalBadge" style="display:none;padding:3px 10px;font-size:9px;letter-spacing:.1em;"></span>
-                <span id="freeWaveBadge" style="display:none;padding:3px 10px;font-size:9px;border:1px solid var(--border);color:var(--muted);"></span>
-              </div>
-            </div>
-            <canvas id="freeChartCanvas" style="display:block;width:100%;background:#090f1a;"></canvas>
-          </div>
-          <div id="freeChartMetrics" style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:10px;"></div>
-          <div id="freeNarrative" style="display:none;font-size:11px;color:#8aaccc;line-height:1.8;background:var(--bg2);border:1px solid var(--border);padding:14px 16px;">
-            <div style="font-size:9px;letter-spacing:.14em;color:var(--gold);text-transform:uppercase;margin-bottom:8px;">⬡ AI Analysis</div>
-            <div id="freeNarrativeText"></div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- RIGHT: PRO TIER — links to subpage -->
-    <div style="background:var(--bg2);border:1px solid var(--border2);padding:0;display:flex;flex-direction:column;">
-      <div style="padding:18px 20px;border-bottom:1px solid var(--border2);">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-          <span style="font-size:9px;letter-spacing:4px;color:var(--gold);text-transform:uppercase;">Pro</span>
-          <span style="font-size:9px;padding:3px 10px;border:1px solid rgba(59,130,246,.3);color:var(--gold);letter-spacing:1px;">Admin / Premium</span>
-        </div>
-        <div style="font-family:var(--serif);font-size:20px;font-weight:700;margin-bottom:4px;">AI Wave Analysis</div>
-        <div style="font-size:11px;color:var(--muted);line-height:1.6;">Institutional-grade AI analysis, narrative commentary and Telegram publishing.</div>
-      </div>
-      <div style="padding:24px 20px;flex:1;display:flex;flex-direction:column;justify-content:space-between;">
-        <ul style="font-size:11px;color:var(--muted);line-height:2;list-style:none;padding:0;margin:0 0 28px 0;">
-          <li style="display:flex;gap:8px;align-items:center;"><span style="color:var(--gold);">✦</span> Real OHLCV candle data via AI engine</li>
-          <li style="display:flex;gap:8px;align-items:center;"><span style="color:var(--gold);">✦</span> Elliott Wave count with degree analysis</li>
-          <li style="display:flex;gap:8px;align-items:center;"><span style="color:var(--gold);">✦</span> RSI, MACD, ATR indicators</li>
-          <li style="display:flex;gap:8px;align-items:center;"><span style="color:var(--gold);">✦</span> Professional narrative commentary</li>
-          <li style="display:flex;gap:8px;align-items:center;"><span style="color:var(--gold);">✦</span> One-click Telegram publishing</li>
-        </ul>
-        <a href="/elliottwave-pro" style="display:block;text-align:center;padding:13px;background:var(--gold3);color:#fff;font-family:var(--mono);font-size:11px;letter-spacing:3px;text-transform:uppercase;text-decoration:none;transition:background .2s;" onmouseover="this.style.background='var(--gold)'" onmouseout="this.style.background='var(--gold3)'">⚡ Open Pro Analysis →</a>
-      </div>
-    </div>
-
-    </div><!-- end ewTiersGrid -->
-  </div><!-- end ew-section -->
-
-</div><!-- end page-wrap -->
+</div>
 
 <div style="background:var(--bg2);border-top:1px solid var(--border);padding:20px 32px;margin-top:0;">
   <div style="font-family:var(--mono);font-size:8px;letter-spacing:3px;text-transform:uppercase;color:var(--gold);margin-bottom:12px;">Explore XenosFinance</div>
@@ -908,6 +351,1809 @@ canvas { display: block; }
   </div>
   <span><span data-i18n="label_not_investment_advice">Not investment advice</span></span>
 </div>
+
+<script>
+// ── DATE ──
+(function(){
+  const d=new Date();
+  document.getElementById('live-date').textContent=
+    d.toLocaleDateString('en-GB',{day:'2-digit',month:'long',year:'numeric'}).toUpperCase();
+})();
+
+// ── WAVE TABS ──
+function showWave(id, btn){
+  document.querySelectorAll('.wave-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.wave-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('panel-'+id).classList.add('active');
+  btn.classList.add('active');
+  // redraw mini canvas for that wave
+  drawMiniWave(id);
+}
+
+// ── GLOSSARY ──
+let activeTag = 'all';
+
+function toggleGloss(el){
+  el.classList.toggle('open');
+}
+
+function filterGloss(){
+  const q = document.getElementById('glossSearch').value.toLowerCase().trim();
+  const items = document.querySelectorAll('.gloss-item');
+  let visible = 0;
+  items.forEach(item => {
+    const term = item.querySelector('.gloss-term').textContent.toLowerCase();
+    const body = item.querySelector('.gloss-body').textContent.toLowerCase();
+    const cat  = item.dataset.cat;
+    const matchSearch = !q || term.includes(q) || body.includes(q);
+    const matchTag = activeTag === 'all' || cat === activeTag;
+    if(matchSearch && matchTag){ item.classList.remove('hidden'); visible++; }
+    else { item.classList.add('hidden'); }
+  });
+  document.getElementById('glossCount').textContent = visible + ' term' + (visible!==1?'s':'');
+  document.getElementById('glossEmpty').style.display = visible === 0 ? 'block' : 'none';
+}
+
+function filterTag(tag, btn){
+  activeTag = tag;
+  document.querySelectorAll('.gloss-tag').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  filterGloss();
+}
+
+// ── ADMIN ──
+function switchAccessTab(tab) {
+  const isAdmin = tab === 'admin';
+  document.getElementById('admin-pw-area').style.display = isAdmin ? '' : 'none';
+  document.getElementById('premium-pw-area').style.display = isAdmin ? 'none' : '';
+  document.getElementById('tab-admin-btn').style.cssText = 'padding:8px 20px;font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;background:none;border:none;cursor:pointer;' + (isAdmin ? 'border-bottom:2px solid var(--gold);color:var(--gold);' : 'border-bottom:2px solid transparent;color:var(--muted);');
+  document.getElementById('tab-premium-btn').style.cssText = 'padding:8px 20px;font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;background:none;border:none;cursor:pointer;' + (!isAdmin ? 'border-bottom:2px solid var(--gold2);color:var(--gold2);' : 'border-bottom:2px solid transparent;color:var(--muted);');
+  document.getElementById('adminErr').textContent = '';
+}
+
+function adminLogin(){
+  const pw=document.getElementById('adminPw').value;
+  if(pw==='RMG@Manu78'){
+    document.getElementById('admin-login-area').style.display='none';
+    document.getElementById('adminPanel').style.display='block';
+  } else {
+    document.getElementById('adminErr').textContent='⚠ Wrong password';
+    document.getElementById('adminPw').value='';
+  }
+}
+
+const PREMIUM_CODES = ['XENOS-PREMIUM-2026', 'XF-PRO-001', 'XF-PRO-002', 'XF-PRO-003'];
+
+function premiumLogin(){
+  const code = document.getElementById('premiumPw').value.trim().toUpperCase();
+  if(PREMIUM_CODES.includes(code)){
+    document.getElementById('admin-login-area').style.display='none';
+    document.getElementById('adminPanel').style.display='block';
+  } else {
+    document.getElementById('adminErr').textContent='⚠ Invalid subscription code';
+    document.getElementById('premiumPw').value='';
+  }
+}
+
+let lastAnalysis='';
+let ewLastCandles = []; // stores last fetched candles for chart rendering
+
+// ── SYMBOL MAP: user input → Worker "prices" pair key ──
+const EW_SYMBOL_MAP = {
+  'eurusd':'EURUSD','eur/usd':'EURUSD',
+  'gbpusd':'GBPUSD','gbp/usd':'GBPUSD',
+  'usdjpy':'USDJPY','usd/jpy':'USDJPY',
+  'audusd':'AUDUSD','aud/usd':'AUDUSD',
+  'usdchf':'USDCHF','usd/chf':'USDCHF',
+  'usdcad':'USDCAD','usd/cad':'USDCAD',
+  'nzdusd':'NZDUSD','nzd/usd':'NZDUSD',
+  'eurgbp':'EURGBP','eur/gbp':'EURGBP',
+  'eurjpy':'EURJPY','eur/jpy':'EURJPY',
+  'gbpjpy':'GBPJPY','gbp/jpy':'GBPJPY',
+  'cadjpy':'CADJPY','cad/jpy':'CADJPY',
+  'audnzd':'AUDNZD','aud/nzd':'AUDNZD',
+  'eurchf':'EURCHF','eur/chf':'EURCHF',
+  // Commodities — Yahoo Finance symbols
+  'gold':'XAUUSD','xauusd':'XAUUSD','xau/usd':'XAUUSD',
+  'silver':'XAGUSD','xagusd':'XAGUSD','xag/usd':'XAGUSD',
+  'oil wti':'USOIL','oil':'USOIL','wti':'USOIL','crude':'USOIL','usoil':'USOIL',
+  'brent':'UKOIL','brent oil':'UKOIL','ukoil':'UKOIL',
+  'nat gas':'NGAS','natgas':'NGAS','natural gas':'NGAS','ngas':'NGAS',
+  'copper':'COPPER',
+  // Indices — correct Yahoo Finance symbols
+  's&p 500':'^GSPC','sp500':'^GSPC','s&p500':'^GSPC','us500':'^GSPC',
+  'nasdaq':'^IXIC','nas100':'^IXIC',
+  'dow':'^DJI','us30':'^DJI',
+  'dax':'^GDAXI','ger40':'^GDAXI',
+  'ftse 100':'^FTSE','ftse':'^FTSE','uk100':'^FTSE',
+  // Crypto
+  'btc/usd':'BTC-USD','btcusd':'BTC-USD','bitcoin':'BTC-USD','btc':'BTC-USD',
+  'eth/usd':'ETH-USD','ethusd':'ETH-USD','ethereum':'ETH-USD','eth':'ETH-USD',
+  'sol':'SOLUSD','solana':'SOLUSD','solusd':'SOLUSD',
+  'xrp':'XRPUSD','ripple':'XRPUSD','xrpusd':'XRPUSD',
+  'doge':'DOGEUSD','dogecoin':'DOGEUSD','dogeusd':'DOGEUSD',
+};
+
+async function fetchLivePrice(symbolInput) {
+  const key = symbolInput.trim().toLowerCase();
+  const workerSym = EW_SYMBOL_MAP[key];
+  if (!workerSym) return null;
+  try {
+    const res = await fetch('https://xenos-ai-proxy.xenosfinance.workers.dev', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'prices', pairs: [workerSym] })
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const p = data?.prices?.[workerSym];
+    if (!p || !p.price) return null;
+    return { price: p.price, change: p.change ?? null, changePct: p.change_pct ?? null };
+  } catch(e) {
+    console.warn('fetchLivePrice error:', e.message);
+    return null;
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// XENOS ELLIOTT WAVE ENGINE v3.0 — JS port of bot.py
+// Deterministic, no AI for wave count. Claude used only for narrative.
+// ══════════════════════════════════════════════════════════════════
+
+function calcEMA(arr, n) {
+  if (!arr || arr.length < n) return null;
+  const k = 2/(n+1);
+  let e = arr.slice(0,n).reduce((a,b)=>a+b,0)/n;
+  for (let i=n; i<arr.length; i++) e = arr[i]*k + e*(1-k);
+  return e;
+}
+
+function calcRSI(closes, period=14) {
+  if (!closes || closes.length < period+1) return null;
+  let gains=0, losses=0;
+  for (let i=closes.length-period; i<closes.length; i++) {
+    const d = closes[i]-closes[i-1];
+    if (d>0) gains+=d; else losses-=d;
+  }
+  const ag=gains/period, al=losses/period;
+  if (al===0) return 100;
+  return parseFloat((100 - 100/(1+ag/al)).toFixed(1));
+}
+
+function calcMACD(closes) {
+  if (!closes || closes.length < 26) return null;
+  const e12=calcEMA(closes,12), e26=calcEMA(closes,26);
+  if (e12==null||e26==null) return null;
+  const macdLine = e12-e26;
+  const macdSeries=[];
+  for (let i=26; i<=closes.length; i++) {
+    const m12=calcEMA(closes.slice(0,i),12), m26=calcEMA(closes.slice(0,i),26);
+    if (m12!=null&&m26!=null) macdSeries.push(m12-m26);
+  }
+  const sig = calcEMA(macdSeries,9);
+  if (sig==null) return null;
+  return { macd:macdLine, signal:sig, histogram:macdLine-sig };
+}
+
+function calcATR(candles, period=14) {
+  if (!candles || candles.length < period+1) return null;
+  const trs = [];
+  for (let i=1; i<candles.length; i++) {
+    const hl = candles[i].high - candles[i].low;
+    const hc = Math.abs(candles[i].high - candles[i-1].close);
+    const lc = Math.abs(candles[i].low  - candles[i-1].close);
+    trs.push(Math.max(hl,hc,lc));
+  }
+  return trs.slice(-period).reduce((a,b)=>a+b,0)/period;
+}
+
+// ── Pivot detection — exact Python port ─────────────────────────
+function detectSwings(closes, window=5) {
+  const highs=[], lows=[];
+  for (let i=window; i<closes.length-window; i++) {
+    const slice = closes.slice(i-window, i+window+1);
+    const maxV = Math.max(...slice), minV = Math.min(...slice);
+    if (closes[i] === maxV) highs.push(i);
+    if (closes[i] === minV) lows.push(i);
+  }
+  return {highs, lows};
+}
+
+function getPivotStructure(candles, window=10) {
+  const closes = candles.map(c=>c.close);
+  const {highs, lows} = detectSwings(closes, window);
+  const all = [
+    ...highs.map(i=>({type:'H', idx:i, price:candles[i].high,  date:candles[i].datetime?.slice(0,10)||''})),
+    ...lows.map( i=>({type:'L', idx:i, price:candles[i].low,   date:candles[i].datetime?.slice(0,10)||''})),
+  ].sort((a,b)=>a.idx-b.idx);
+
+  // Filter: no consecutive same type, keep more extreme
+  const filtered=[];
+  for (const pv of all) {
+    if (!filtered.length || filtered[filtered.length-1].type !== pv.type) {
+      filtered.push(pv);
+    } else {
+      const last = filtered[filtered.length-1];
+      if (pv.type==='H' && pv.price > last.price) filtered[filtered.length-1]=pv;
+      if (pv.type==='L' && pv.price < last.price) filtered[filtered.length-1]=pv;
+    }
+  }
+  return filtered;
+}
+
+function identifyWaveDegree(candles) {
+  const closes = candles.map(c=>c.close);
+  const cMax=Math.max(...closes), cMin=Math.min(...closes), cMean=closes.reduce((a,b)=>a+b,0)/closes.length;
+  const r = (cMax-cMin)/cMean*100;
+  if (r>30) return 'Primary';
+  if (r>15) return 'Intermediate';
+  if (r>7)  return 'Minor';
+  return 'Minute';
+}
+
+function identifyCorrectivePattern(pivots) {
+  if (!pivots || pivots.length < 4) return 'Correction developing';
+  const recent = pivots.slice(-6);
+  const hPrices = recent.filter(p=>p.type==='H').map(p=>p.price);
+  const lPrices = recent.filter(p=>p.type==='L').map(p=>p.price);
+  if (hPrices.length<2||lPrices.length<2) return 'Simple corrective structure';
+  const hd = hPrices[hPrices.length-1] < hPrices[hPrices.length-2];
+  const la = lPrices[lPrices.length-1] > lPrices[lPrices.length-2];
+  if (hd && la)  return 'Symmetric Triangle — pre-breakout compression';
+  if (hd && !la) return 'Descending Triangle — bearish bias';
+  if (!hd && la) return 'Ascending Triangle — bullish bias';
+  const wa = Math.abs(hPrices[0]-lPrices[0]);
+  const wb = hPrices.length>=2 ? Math.abs(hPrices[hPrices.length-1]-hPrices[0]) : 0;
+  const wc = lPrices.length>=2 ? Math.abs(lPrices[lPrices.length-1]-lPrices[0]) : 0;
+  if (wa>0) {
+    const bR=wb/wa, cR=wc/wa;
+    if (bR>1.05) return 'Expanded Flat (3-3-5) — B exceeds wave A start';
+    if (cR<0.9&&bR>0.85) return 'Running Flat (3-3-5) — trend strength';
+    if (bR>=0.85&&bR<=1.05) return 'Regular Flat (3-3-5)';
+  }
+  return 'Zigzag (5-3-5) — sharp correction';
+}
+
+function detectDiagonal(pivots, directionUp) {
+  if (!pivots||pivots.length<6) return null;
+  const recent=pivots.slice(-6);
+  const hP=recent.filter(p=>p.type==='H').map(p=>p.price);
+  const lP=recent.filter(p=>p.type==='L').map(p=>p.price);
+  if (hP.length<2||lP.length<2) return null;
+  const hConv = directionUp ? hP[hP.length-1]<hP[0] : hP[hP.length-1]>hP[0];
+  const lConv = directionUp ? lP[lP.length-1]>lP[0] : lP[lP.length-1]<lP[0];
+  if (hConv&&lConv) return 'Ending Diagonal (Terminal Wedge)';
+  const hDiv = directionUp ? hP[hP.length-1]>hP[0] : hP[hP.length-1]<hP[0];
+  const lDiv = directionUp ? lP[lP.length-1]<lP[0] : lP[lP.length-1]>lP[0];
+  if (hDiv&&lDiv) return 'Expanding Diagonal';
+  return null;
+}
+
+function fibRet(start, end, ratio) { return end - (end-start)*ratio; }
+
+// ── MAIN ENGINE — 1:1 port of count_elliott_waves_deepscan ──────
+function countElliottWavesDeepscan(candles) {
+  if (!candles || candles.length < 20) return null;
+
+  const closes  = candles.map(c=>c.close);
+  const p       = closes[closes.length-1];
+  const pv      = closes[closes.length-2];
+  const rv      = calcRSI(closes) || 50;
+  const macdR   = calcMACD(closes);
+  const mh      = macdR ? macdR.histogram : 0;
+  const av      = calcATR(candles) || (p*0.01);
+
+  const n200    = Math.min(200, candles.length);
+  const n50     = Math.min(50,  candles.length);
+  const c200    = candles.slice(-n200);
+  const c50     = candles.slice(-n50);
+
+  const s20  = calcEMA(closes, Math.min(20,closes.length))  || p;
+  const s50e = calcEMA(closes, Math.min(50,closes.length))  || p;
+  const s200e= calcEMA(closes, Math.min(200,closes.length)) || p;
+
+  // Pivots
+  const wPiv200 = Math.max(5, Math.floor(n200/20));
+  const wPiv50  = Math.max(3, Math.floor(n50/10));
+  const pivots        = getPivotStructure(c200, wPiv200);
+  const pivotsRecent  = getPivotStructure(c50,  wPiv50);
+  const hPvts = pivots.filter(p2=>p2.type==='H');
+  const lPvts = pivots.filter(p2=>p2.type==='L');
+  const hRec  = pivotsRecent.filter(p2=>p2.type==='H');
+  const lRec  = pivotsRecent.filter(p2=>p2.type==='L');
+
+  // Wave 1 anchor
+  let w1Start = lPvts.length ? lPvts[0].price : Math.min(...c200.map(c=>c.low));
+  let w1End   = hPvts.length ? hPvts[0].price : Math.max(...c200.map(c=>c.high));
+  if (hPvts.length && lPvts.length && hPvts[0].idx < lPvts[0].idx) {
+    w1Start = hPvts[0].price; w1End = lPvts[0].price;
+  }
+  const w1Size     = Math.abs(w1End - w1Start);
+  const directionUp = w1End > w1Start;
+
+  let w3End = null;
+  if (directionUp  && hPvts.length>1) w3End = hPvts[1].price;
+  if (!directionUp && lPvts.length>1) w3End = lPvts[1].price;
+
+  // Trend flags
+  const trend20  = closes.length>20  ? p > closes[closes.length-20]  : true;
+  const trend50  = closes.length>50  ? p > closes[closes.length-50]  : true;
+  const trend200 = closes.length>200 ? p > closes[closes.length-200] : true;
+
+  // Divergence
+  const rsiSeries = [];
+  for (let i=Math.max(0,closes.length-20); i<closes.length; i++) rsiSeries.push(calcRSI(closes.slice(0,i+1))||50);
+  const rsiPk20 = Math.max(...rsiSeries), rsiLw20 = Math.min(...rsiSeries);
+  const pPk20   = Math.max(...closes.slice(-20)), pLw20 = Math.min(...closes.slice(-20));
+  const bearishDiv = (p >= pPk20*0.998) && (rv < rsiPk20-5);
+  const bullishDiv = (p <= pLw20*1.002) && (rv > rsiLw20+5);
+
+  // EW rule violations
+  const ewViolations = {};
+  if (w3End!=null && w1Size>0) {
+    const w3Size = Math.abs(w3End-w1End);
+    if (w3Size < w1Size*0.9) ewViolations.w3_shortest = true;
+  }
+  if (directionUp  && p<w1End) ewViolations.w4_invades_w1 = true;
+  if (!directionUp && p>w1End) ewViolations.w4_invades_w1 = true;
+  if (directionUp  && p<w1Start) ewViolations.w2_beyond_start = true;
+  if (!directionUp && p>w1Start) ewViolations.w2_beyond_start = true;
+
+  // ── Scoring ──
+  let sw1=0, sw2=0, sw3=0, sw4=0, sw5=0, swa=0, swb=0, swc=0;
+
+  // W1
+  if (trend20 && !trend50)  sw1+=2;
+  if (!trend200)            sw1+=1;
+  if (rv>38&&rv<62)         sw1+=1;
+  if (mh>0)                 sw1+=1;
+  if (p<s200e*1.05)         sw1+=1;
+
+  // W2
+  const w2Valid = (directionUp&&w1Start<p&&p<w1End)||((!directionUp)&&w1End<p&&p<w1Start);
+  if (w2Valid)              sw2+=3; else sw2-=5;
+  if (trend200&&!trend20)   sw2+=2;
+  if (rv<50)                sw2+=1;
+  if (mh<0)                 sw2+=1;
+  if (w1Size>0) {
+    const retPct = Math.abs(p-w1End)/w1Size;
+    if (retPct>=0.382&&retPct<=0.618) sw2+=3;
+    else if (retPct>0.618&&retPct<=0.786) sw2+=1;
+    else if (retPct>0.786) sw2-=3;
+  }
+
+  // W3
+  let w3Ext=false;
+  if (directionUp) {
+    if (p>w1End+w1Size*1.0)   sw3+=2;
+    if (p>w1End+w1Size*1.618) sw3+=2;
+    if (p>w1End+w1Size*2.618){ sw3+=1; w3Ext=true; }
+  } else {
+    if (p<w1End-w1Size*1.0)   sw3+=2;
+    if (p<w1End-w1Size*1.618) sw3+=2;
+    if (p<w1End-w1Size*2.618){ sw3+=1; w3Ext=true; }
+  }
+  if (trend20&&trend50&&trend200) sw3+=2;
+  if (rv>55)                      sw3+=1;
+  if (mh>0&&directionUp)          sw3+=1;
+  if (mh<0&&!directionUp)         sw3+=1;
+  if (w3End&&w1Size>0) {
+    const w3s=Math.abs(w3End-w1End);
+    if (w3s<w1Size) sw3-=4;
+  }
+
+  // W4
+  const w4Valid = (directionUp&&p>w1End)||((!directionUp)&&p<w1End);
+  if (w4Valid)              sw4+=3; else sw4-=6;
+  if (trend50&&trend200&&!trend20) sw4+=2;
+  if (rv>38&&rv<65)         sw4+=1;
+  if (mh<0)                 sw4+=1;
+  if (w3End&&w1End) {
+    const w3s=Math.abs(w3End-w1End);
+    if (w3s>0) {
+      const r4=Math.abs(p-w3End)/w3s;
+      if (r4>=0.236&&r4<=0.382) sw4+=3;
+      else if (r4>0.382&&r4<=0.618) sw4+=1;
+      else if (r4>0.618) sw4-=2;
+    }
+  }
+  sw4+=1; // slight bonus
+
+  // W5
+  if (trend20&&trend50&&trend200)    sw5+=2;
+  if (bearishDiv&&directionUp)       sw5+=3;
+  if (bullishDiv&&!directionUp)      sw5+=3;
+  if (rv>65&&directionUp)            sw5+=1;
+  if (rv<35&&!directionUp)           sw5+=1;
+  if (mh>0&&directionUp)             sw5+=1;
+  const diagPre = detectDiagonal(pivots, directionUp);
+  if (diagPre&&diagPre.includes('Ending')) sw5+=2;
+  if (w3End) {
+    if (directionUp&&p>w3End)  sw5+=2;
+    else if (!directionUp&&p<w3End) sw5+=2;
+    else sw5-=4;
+  }
+
+  // WA
+  if (trend200&&!trend50&&!trend20) swa+=3;
+  if (rv<50) swa+=1;
+  if (mh<0)  swa+=2;
+  if (bearishDiv&&!directionUp) swa+=1;
+
+  // WB
+  if (!trend200&&trend20) swb+=2;
+  if (rv>48&&rv<65)       swb+=1;
+  if (mh>0&&!bearishDiv)  swb+=2;
+
+  // WC
+  if (!trend200&&!trend50) swc+=2;
+  if (rv<45) swc+=2;
+  if (mh<0)  swc+=1;
+  if (bullishDiv) swc+=2;
+
+  // ── Select winner ──
+  const candidates = [];
+  if (sw1>=3)             candidates.push(['1',sw1]);
+  if (sw2>=4&&w2Valid)    candidates.push(['2',sw2]);
+  if (sw3>=4)             candidates.push(['3',sw3]);
+  if (sw4>=4&&w4Valid)    candidates.push(['4',sw4]);
+  if (sw5>=4)             candidates.push(['5',sw5]);
+  if (swa>=4)             candidates.push(['A',swa]);
+  if (swb>=3)             candidates.push(['B',swb]);
+  if (swc>=3)             candidates.push(['C',swc]);
+
+  candidates.sort((a,b)=>b[1]-a[1]);
+  const wn = candidates.length ? candidates[0][0] : '?';
+
+  // ── SL/TP/Action per wave type ──
+  let wp2,wd,wc2,inv,nt,ct,action,cp=null,alt='N/A',diagonal=null,truncated=false;
+
+  if (wn==='1') {
+    wp2='IMPULSIVE'; wd='Wave ① — First Impulse';
+    wc2='Initial wave, often underestimated. Volume building, momentum rising from neutral.';
+    const rawSl = directionUp ? (lRec.length ? lRec[lRec.length-1].price : p-av*1.2) : (hRec.length ? hRec[hRec.length-1].price : p+av*1.2);
+    inv = directionUp ? Math.max(rawSl,p-av*1.2) : Math.min(rawSl,p+av*1.2);
+    nt = directionUp ? p+w1Size : p-w1Size;
+    ct = directionUp ? p+w1Size*0.618 : p-w1Size*0.618;
+    action = directionUp ? '🟢 LONG — Entry now or on pullback to nearest support' : '🔴 SHORT — Entry now or on rally to nearest resistance';
+  } else if (wn==='2') {
+    wp2='CORRECTIVE'; wd='Wave ② — Retracement (50–61.8% of W1)';
+    wc2='NEVER violates W1 start. Accumulation zone before the largest W3.';
+    cp=identifyCorrectivePattern(pivots);
+    const rawSl = directionUp ? w1Start-av*0.1 : w1Start+av*0.1;
+    inv = directionUp ? Math.max(rawSl,p-av*1.5) : Math.min(rawSl,p+av*1.5);
+    nt = directionUp ? w1End+w1Size*1.618 : w1End-w1Size*1.618;
+    ct = directionUp ? w1End+w1Size : w1End-w1Size;
+    const ez=fibRet(w1Start,w1End,0.618);
+    action = directionUp ? `🟢 LONG — Entry zone ${ez.toFixed(5)} (61.8% Fib W1)` : `🔴 SHORT — Entry zone ${ez.toFixed(5)} (61.8% Fib W1)`;
+    alt=`W2: ${cp.split(' ')[0]} — W4 should alternate`;
+  } else if (wn==='3') {
+    wp2='IMPULSIVE'; wd=`Wave ③ — ${w3Ext?'EXTENDED ':''}Dominant Impulse`;
+    wc2=(w3Ext?'⚡ EXTENDED WAVE 3: exceeds 261.8% of W1. ':'')+'Never the shortest wave. Maximum volume. Most powerful wave.';
+    const rawSl=w1End;
+    inv = directionUp ? Math.max(rawSl,p-av*2.0) : Math.min(rawSl,p+av*2.0);
+    nt = directionUp ? w1End+w1Size*(w3Ext?4.236:2.618) : w1End-w1Size*(w3Ext?4.236:2.618);
+    ct = directionUp ? w1End+w1Size*1.618 : w1End-w1Size*1.618;
+    action = directionUp ? '🟢 LONG (trend) — Stay in trade, trailing stop below EMA21' : '🔴 SHORT (trend) — Stay in trade, trailing stop above EMA21';
+    alt='N/A';
+  } else if (wn==='4') {
+    wp2='CORRECTIVE'; wd='Wave ④ — Consolidation (23.6–38.2% Fib of W3)';
+    wc2='NEVER enters W1 territory. Typical: Flat or Triangle. Alternates with W2.';
+    cp=identifyCorrectivePattern(pivots);
+    const rawSl = directionUp ? w1End-av*0.1 : w1End+av*0.1;
+    inv = directionUp ? Math.max(rawSl,p-av*1.5) : Math.min(rawSl,p+av*1.5);
+    if (w3End) {
+      const w3s=Math.abs(w3End-w1End);
+      nt = directionUp ? w3End+w3s*0.618 : w3End-w3s*0.618;
+      ct = directionUp ? w3End+w3s*0.382 : w3End-w3s*0.382;
+      const ez4=fibRet(w1End,w3End,0.382);
+      action = directionUp ? `🟢 LONG — Entry on confirmed bounce at ${ez4.toFixed(5)}` : `🔴 SHORT — Entry on confirmed rejection at ${ez4.toFixed(5)}`;
+    } else {
+      nt = directionUp ? p+w1Size*0.618 : p-w1Size*0.618;
+      ct = directionUp ? p+w1Size*0.382 : p-w1Size*0.382;
+      action = directionUp ? '🟢 LONG — Wait for W4 completion' : '🔴 SHORT — Wait for W4 completion';
+    }
+    alt=`W4: ${cp?cp.split(' ')[0]:'Flat'} — alternation vs W2`;
+  } else if (wn==='5') {
+    wp2='IMPULSIVE'; wd='Wave ⑤ — Terminal Impulse';
+    diagonal=detectDiagonal(pivots,directionUp);
+    truncated=(directionUp&&p<(w1End+w1Size*0.3))||(!directionUp&&p>(w1End-w1Size*0.3));
+    if (truncated) wd+=' [TRUNCATED ⚠️]';
+    if (diagonal)  wd+=` [${diagonal}]`;
+    wc2='⚠️ RSI divergence expected. End of impulsive cycle — expect ABC reversal.';
+    inv=directionUp ? p-av*1.5 : p+av*1.5;
+    nt = directionUp ? p+w1Size*(truncated?0.382:0.618) : p-w1Size*(truncated?0.382:0.618);
+    ct = directionUp ? p+w1Size*0.382 : p-w1Size*0.382;
+    action='⚠️ Terminal phase — trail stops, no new entries';
+    alt='N/A';
+  } else if (wn==='A') {
+    wp2='CORRECTIVE ABC'; wd='Wave 🅐 — First Corrective Leg';
+    wc2='Internal impulse structure (5 sub-waves). Target: 38.2–61.8% of prior cycle.';
+    const rawSl=hRec.length?hRec[hRec.length-1].price:p+av*1.2;
+    inv=!directionUp ? Math.min(rawSl,p+av*1.2) : Math.max(rawSl,p-av*1.2);
+    const cycleHigh=hPvts.length?hPvts[hPvts.length-1].price:Math.max(...closes);
+    const cycleLow =lPvts.length?lPvts[0].price:Math.min(...closes);
+    nt=fibRet(cycleHigh,cycleLow,0.618);
+    ct=fibRet(cycleHigh,cycleLow,0.382);
+    action='🔴 SHORT — Distributive structure. Stop above recent high';
+  } else if (wn==='B') {
+    wp2='CORRECTIVE ABC'; wd='Wave 🅑 — Corrective Bounce (Bull Trap)';
+    wc2='Volume declining vs prior cycle. Should not exceed wave A high. Prepare short for C.';
+    cp=identifyCorrectivePattern(pivots);
+    const rawSl=hRec.length?hRec[hRec.length-1].price:p+av*1.2;
+    inv=Math.min(rawSl,p+av*1.5);
+    const aLow=lRec.length?lRec[lRec.length-1].price:p-av*2;
+    const aHigh=hRec.length?hRec[hRec.length-1].price:p+av*2;
+    nt=fibRet(aLow,aHigh,0.618);
+    ct=fibRet(aLow,aHigh,0.5);
+    action='⚠️ AVOID LONGS — Bull trap. Prepare SHORT for Wave C';
+    alt=`B Pattern: ${cp?cp.split(' ')[0]:'N/A'}`;
+  } else if (wn==='C') {
+    wp2='CORRECTIVE ABC'; wd='Wave 🅒 — Final Corrective Leg (100–123.6% of A)';
+    const aLow=lRec.length?lRec[lRec.length-1].price:p-w1Size;
+    const aHigh=hRec.length?hRec[hRec.length-1].price:p+w1Size;
+    const aSize=Math.abs(aHigh-aLow);
+    const ct100 =!directionUp ? aLow-aSize    : aHigh+aSize;
+    const ct1236=!directionUp ? aLow-aSize*1.236 : aHigh+aSize*1.236;
+    wc2=`Internal impulse structure. Target: ${ct100.toFixed(5)} (100%A) / ${ct1236.toFixed(5)} (123.6%A).`;
+    const rawSl=hRec.length?hRec[hRec.length-1].price:p+av*1.2;
+    inv=Math.min(rawSl,p+av*1.2);
+    nt=ct1236; ct=ct100;
+    action=`🔴 SHORT — Target ${ct100.toFixed(5)} / ${ct1236.toFixed(5)}. Stop above ${inv.toFixed(5)}`;
+  } else {
+    wp2='TRANSITION'; wd='Transition Phase — Count Developing';
+    wc2='Structure not classifiable with confidence. Wait for key level breakout.';
+    inv=p-av*1.0; nt=p+av*2.0; ct=p+av*1.0;
+    action='⏳ WAIT — No confirmed setup. Wait for range breakout';
+  }
+
+  // Bias
+  let bi;
+  if (['1','3'].includes(wn))     bi='BULLISH';
+  else if (wn==='5')              bi='BULLISH (TERMINAL ⚠️)';
+  else if (['2','4'].includes(wn))bi='PULLBACK — LONG SETUP';
+  else if (wn==='A')              bi='BEARISH';
+  else if (wn==='B')              bi='CORRECTIVE BOUNCE — SHORT SETUP';
+  else if (wn==='C')              bi='BEARISH (TERMINAL ⚠️)';
+  else                            bi='NEUTRAL';
+
+  // Confidence
+  const degree = identifyWaveDegree(candles);
+  const confSigs=[p>s200e,p>s50e,p>s20,rv>50,mh>0,trend20,trend50];
+  let conf;
+  if (bi.includes('BULL'))  conf=confSigs.filter(Boolean).length*13;
+  else if (bi.includes('BEAR')) conf=(7-confSigs.filter(Boolean).length)*13;
+  else conf=42;
+  conf -= Object.keys(ewViolations).length * 10;
+  conf = Math.max(30, Math.min(conf, 91));
+
+  // R:R
+  const risk=Math.abs(p-inv), reward=Math.abs(nt-p);
+  const rr=risk>0?parseFloat((reward/risk).toFixed(2)):0;
+
+  // Wave points for chart (real pivot prices) — respects direction
+  // Bull: W0=low, W1=high, W2=low, W3=high, W4=low, W5=high
+  // Bear: W0=high, W1=low, W2=high, W3=low, W4=high, W5=low
+  const wavePointPrices = directionUp ? {
+    w0: lPvts.length ? lPvts[0].price : w1Start,
+    w1: hPvts.length ? hPvts[0].price : w1End,
+    w2: lPvts.length > 1 ? lPvts[1].price : null,
+    w3: w3End,
+    w4: w3End ? fibRet(w1End, w3End, 0.382) : null,
+    w5: ['5','A','B','C'].includes(wn) ? p : null,
+    wa: wn==='A' ? p : null,
+    wb: wn==='B' ? p : null,
+    wc: wn==='C' ? p : null,
+  } : {
+    w0: hPvts.length ? hPvts[0].price : w1Start,
+    w1: lPvts.length ? lPvts[0].price : w1End,
+    w2: hPvts.length > 1 ? hPvts[1].price : null,
+    w3: w3End,
+    w4: w3End ? fibRet(w1End, w3End, 0.382) : null,
+    w5: ['5','A','B','C'].includes(wn) ? p : null,
+    wa: wn==='A' ? p : null,
+    wb: wn==='B' ? p : null,
+    wc: wn==='C' ? p : null,
+  };
+
+  // PivotMap for chart X positioning
+  // IMPORTANT: pivot idx is relative to c200 (candles.slice(-n200))
+  // Convert to absolute idx relative to full candles array
+  const c200Offset = candles.length - n200; // offset to convert c200 idx → candles idx
+  const pivotMap = {};
+  function absPivot(piv, offset) {
+    if (!piv) return null;
+    return { price: piv.price, idx: piv.idx + offset, date: piv.date||'' };
+  }
+  if (directionUp) {
+    if (lPvts[0]) pivotMap['w0'] = absPivot(lPvts[0], c200Offset);
+    if (hPvts[0]) pivotMap['w1'] = absPivot(hPvts[0], c200Offset);
+    if (lPvts[1]) pivotMap['w2'] = absPivot(lPvts[1], c200Offset);
+    if (hPvts[1]) pivotMap['w3'] = absPivot(hPvts[1], c200Offset);
+    if (lPvts[2]) pivotMap['w4'] = absPivot(lPvts[2], c200Offset);
+  } else {
+    if (hPvts[0]) pivotMap['w0'] = absPivot(hPvts[0], c200Offset);
+    if (lPvts[0]) pivotMap['w1'] = absPivot(lPvts[0], c200Offset);
+    if (hPvts[1]) pivotMap['w2'] = absPivot(hPvts[1], c200Offset);
+    if (lPvts[1]) pivotMap['w3'] = absPivot(lPvts[1], c200Offset);
+    if (hPvts[2]) pivotMap['w4'] = absPivot(hPvts[2], c200Offset);
+  }
+
+  return {
+    waveNum:wn, wavePhase:wp2, waveDesc:wd, waveChar:wc2,
+    action, bias:bi, confidence:conf, degree,
+    directionUp, w1Start, w1End, w1Size, w3End,
+    invalidation:inv, nextTarget:nt, conservativeTarget:ct,
+    correctivePattern:cp, extended:wn==='3'?w3Ext:false,
+    diagonal, truncated, alternance:alt,
+    bearishDiv, bullishDiv, ewViolations,
+    riskReward:rr, pivots, pivotsRecent,
+    wavePoints:wavePointPrices, pivotMap,
+    rsi:rv, macdHist:mh, atr:av,
+    sma20:s20, sma50:s50e, sma200:s200e,
+    trend20, trend50, trend200,
+    hPvts, lPvts, hRec, lRec,
+  };
+}
+
+// Legacy wrappers for existing code
+function calcVolumeProfile(candles) {
+  const recent = candles.slice(-30);
+  const totalVol = recent.reduce((s,c)=>s+(c.volume||0),0);
+  if (totalVol===0) return null;
+  const avgVol = totalVol/recent.length;
+  const prices = recent.map(c=>c.close);
+  const minP = Math.min(...prices), maxP = Math.max(...prices);
+  const buckets=10, step=(maxP-minP)/buckets;
+  let maxBucket=0, pocPrice=minP;
+  for (let b=0;b<buckets;b++) {
+    const lo=minP+b*step, hi=lo+step;
+    const vol=recent.filter(c=>c.close>=lo&&c.close<hi).reduce((s,c)=>s+(c.volume||0),0);
+    if (vol>maxBucket){maxBucket=vol;pocPrice=lo+step/2;}
+  }
+  return {poc:parseFloat(pocPrice.toFixed(5)),avgVol:parseFloat(avgVol.toFixed(0)),totalVol};
+}
+
+function detectPivots(candles, lookback=5) {
+  return getPivotStructure(candles, lookback);
+}
+
+// ── TREND DETECTION from candles ─────────────────────────────────
+function detectTrend(candles) {
+  if (candles.length < 20) return 'UNKNOWN';
+  const closes = candles.map(c=>c.close);
+  const ema20 = calcEMA(closes, 20);
+  const ema50 = calcEMA(closes, Math.min(50, closes.length));
+  const lastClose = closes[closes.length-1];
+  const firstClose = closes[0];
+  // Count higher highs / lower lows
+  let higherHighs=0, lowerLows=0;
+  for (let i=1;i<candles.length;i++) {
+    if (candles[i].high > candles[i-1].high) higherHighs++;
+    if (candles[i].low < candles[i-1].low) lowerLows++;
+  }
+  const trending = lastClose > firstClose ? 'UP' : 'DOWN';
+  const emaSignal = (ema20 && ema50) ? (ema20 > ema50 ? 'UP' : 'DOWN') : trending;
+  // If both agree, high confidence
+  return (trending === emaSignal) ? trending : (higherHighs > lowerLows ? 'UP' : 'DOWN');
+}
+
+async function runAIAnalysis(){
+  const symbolEl=document.getElementById('aiSymbol');
+  const symbolVal = symbolEl.options ? symbolEl.options[symbolEl.selectedIndex].value : 'eur/usd';
+  const symbol    = symbolEl.options ? symbolEl.options[symbolEl.selectedIndex].text : symbolVal.toUpperCase();
+  const tf        = document.getElementById('aiTf').value;
+  const ctx_text  = document.getElementById('aiContext').value;
+  const btn       = document.getElementById('aiRunBtn');
+  const out       = document.getElementById('analysisOutput');
+  const txt       = document.getElementById('analysisText');
+
+  btn.disabled=true; btn.textContent='Fetching price...';
+  out.style.display='block';
+  txt.innerHTML='<span class="analysis-loading">⬡ FETCHING LIVE PRICE...</span>';
+  document.getElementById('tgBtn').style.display='none';
+
+  const TF_CONF = {
+    'W1 (Weekly)':  { interval:'1wk', range:'5y',  bars:150, lookback:4 },
+    'D1 (Daily)':   { interval:'1d',  range:'2y',  bars:150, lookback:5 },
+    'H4 (4-Hour)':  { interval:'1h',  range:'90d', bars:150, lookback:5 },
+    'H2 (2-Hour)':  { interval:'1h',  range:'45d', bars:120, lookback:4 },
+    'H1 (1-Hour)':  { interval:'1h',  range:'21d', bars:120, lookback:3 },
+  };
+  const tfConf = TF_CONF[tf] || TF_CONF['D1 (Daily)'];
+
+  const liveData = await fetchLivePrice(symbolVal);
+  if (!liveData?.price) {
+    txt.innerHTML=`<div style="color:#f87171;font-family:var(--mono);font-size:11px;">⚠ LIVE PRICE NOT FOUND for "${symbol}"</div>`;
+    btn.disabled=false; btn.textContent='⚡ Generate Analysis'; return;
+  }
+
+  btn.textContent='Fetching candles...';
+  txt.innerHTML='<span class="analysis-loading">⬡ FETCHING CANDLE DATA...</span>';
+
+  let allCandles = [];
+  let candleContext = '';
+  const workerSym = EW_SYMBOL_MAP[symbolVal.trim().toLowerCase()];
+
+  if (workerSym) {
+    try {
+      const candleRes = await fetch('https://xenos-ai-proxy.xenosfinance.workers.dev', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ type:'yahoocandles', symbol:workerSym, interval:tfConf.interval, range:tfConf.range }),
+        signal: AbortSignal.timeout(20000)
+      });
+      if (candleRes.ok) {
+        const cd = await candleRes.json();
+        if (cd.error) console.warn('Candle fetch error:', cd.error);
+        allCandles = (cd.candles||[]).filter(c=>c.close>0);
+        if (tf === 'H4 (4-Hour)') {
+          const r=[];
+          for (let i=0;i<allCandles.length-3;i+=4) {
+            const chunk=allCandles.slice(i,i+4);
+            r.push({datetime:chunk[0].datetime,open:chunk[0].open,high:Math.max(...chunk.map(c=>c.high)),low:Math.min(...chunk.map(c=>c.low)),close:chunk[3].close,volume:chunk.reduce((s,c)=>s+(c.volume||0),0)});
+          }
+          allCandles=r;
+        } else if (tf === 'H2 (2-Hour)') {
+          const r=[];
+          for (let i=0;i<allCandles.length-1;i+=2) {
+            const chunk=allCandles.slice(i,i+2);
+            r.push({datetime:chunk[0].datetime,open:chunk[0].open,high:Math.max(...chunk.map(c=>c.high)),low:Math.min(...chunk.map(c=>c.low)),close:chunk[1].close,volume:chunk.reduce((s,c)=>s+(c.volume||0),0)});
+          }
+          allCandles=r;
+        }
+        if (allCandles.length >= 20) {
+          const last30 = allCandles.slice(-30);
+          const dp = liveData.price>10?2:5;
+          candleContext = `\n\nOHLCV DATA (${tf}, last ${last30.length} candles):\n` +
+            last30.map(c=>`${c.datetime?.slice(0,10)} | ${c.close?.toFixed(dp)}`).join('\n');
+        }
+      }
+    } catch(e) { console.warn('Candle fetch error:', e); }
+  }
+
+  btn.textContent='Analysing...';
+  txt.innerHTML='<span class="analysis-loading">⬡ RUNNING XENOS EW ENGINE v3.0...</span>';
+
+  const dec = liveData.price > 100 ? 2 : 5;
+  const livePrice = liveData.price;
+
+  const engineCandles = allCandles.length >= 20 ? allCandles : [];
+  ewLastCandles = engineCandles;
+  const ewResult = countElliottWavesDeepscan(engineCandles);
+
+  if (!ewResult) {
+    txt.textContent = allCandles.length === 0
+      ? `⚠ Could not fetch candle data for "${workerSym||symbol}" on ${tf}.`
+      : `⚠ Insufficient candle data: ${allCandles.length} candles. Need at least 20.`;
+    btn.disabled=false; btn.textContent='⚡ Generate Analysis'; return;
+  }
+
+  ewLastCandles._pivotMap = ewResult.pivotMap;
+
+  const signalDir = ewResult.action.includes('🟢') ? 'LONG'
+                  : ewResult.action.includes('🔴') ? 'SHORT' : 'WAIT';
+
+  const chartAnalysis = {
+    trend: ewResult.directionUp ? 'UP' : 'DOWN',
+    current_wave: ewResult.waveNum,
+    degree: ewResult.degree,
+    signal: signalDir,
+    key_levels: {
+      entry:       parseFloat(livePrice.toFixed(dec)),
+      stop_loss:   parseFloat(ewResult.invalidation.toFixed(dec)),
+      tp1:         parseFloat(ewResult.conservativeTarget.toFixed(dec)),
+      tp2:         parseFloat(ewResult.nextTarget.toFixed(dec)),
+      invalidation:parseFloat(ewResult.invalidation.toFixed(dec)),
+    },
+    fibonacci_levels: {
+      fib618_w1:  parseFloat(fibRet(ewResult.w1Start, ewResult.w1End, 0.618).toFixed(dec)),
+      fib1618_w1: parseFloat((ewResult.w1End + ewResult.w1Size*1.618).toFixed(dec)),
+      fib382_w3:  ewResult.w3End ? parseFloat(fibRet(ewResult.w1End, ewResult.w3End, 0.382).toFixed(dec)) : null,
+    },
+    wave_points: ewResult.wavePoints,
+  };
+
+  renderEWChart(chartAnalysis, symbol, tf, liveData);
+
+  txt.innerHTML='<span class="analysis-loading">⬡ GENERATING NARRATIVE ANALYSIS...</span>';
+
+  const vp = calcVolumeProfile(engineCandles);
+  const sigTxt   = signalDir==='LONG'?'▲ LONG':signalDir==='SHORT'?'▼ SHORT':'◆ WAIT';
+  const trendTxt = chartAnalysis.trend==='UP' ? '▲ UPTREND' : '▼ DOWNTREND';
+  const divNote  = ewResult.bearishDiv ? '⚠ Bearish RSI divergence — momentum weakening'
+                 : ewResult.bullishDiv ? '✓ Bullish RSI divergence — momentum building' : null;
+  const diagNote = ewResult.diagonal ? `Diagonal: ${ewResult.diagonal}` : null;
+  const corrNote = ewResult.correctivePattern ? `Correction: ${ewResult.correctivePattern}` : null;
+  const actionClean = ewResult.action.replace(/🟢|🔴|⚠️/g,'').trim();
+
+  const instantOutput = [
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+    `  ${symbol}  ·  ${tf}  ·  Live: ${livePrice}`,
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+    ``,`WAVE STRUCTURE`,
+    `  ${ewResult.waveDesc}`,
+    `  ${trendTxt}  ·  Degree: ${ewResult.degree}  ·  Confidence: ${ewResult.confidence}%`,
+    ``,`MARKET CONTEXT`,
+    `  ${ewResult.waveChar}`,
+    divNote?`  ${divNote}`:null, diagNote?`  ${diagNote}`:null, corrNote?`  ${corrNote}`:null,
+    ``,`KEY LEVELS`,
+    `  Entry      ${livePrice}`,
+    `  Stop Loss  ${chartAnalysis.key_levels.stop_loss}`,
+    `  Target 1   ${chartAnalysis.key_levels.tp1}`,
+    `  Target 2   ${chartAnalysis.key_levels.tp2}`,
+    `  R:R        1:${ewResult.riskReward}`,
+    ``,`SIGNAL  ${sigTxt}`,
+    `  ${actionClean}`,
+    ``,`INDICATORS`,
+    `  RSI(14): ${ewResult.rsi}${ewResult.rsi>70?' — Overbought':ewResult.rsi<30?' — Oversold':''}`,
+    `  MACD: ${ewResult.macdHist>0?'+':''}${ewResult.macdHist?.toFixed(5)||'n/a'}  ${ewResult.macdHist>0?'Bullish':'Bearish'} momentum`,
+    `  ATR: ${ewResult.atr?.toFixed(dec)||'n/a'}`,
+    vp?`  Vol POC: ${vp.poc}`:null,
+    ``,
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+    `  ANALYSIS`,`  Loading...`,
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+  ].filter(l=>l!==null).join('\n');
+
+  txt.textContent = instantOutput;
+  lastAnalysis = `Elliott Wave Analysis — ${symbol} ${tf}\n\n${instantOutput}`;
+  document.getElementById('tgBtn').style.display='inline-block';
+
+  try {
+    async function fetchWithRetry(body, retries=2) {
+      for (let i=1;i<=retries;i++) {
+        try {
+          const r=await fetch('https://xenos-ai-proxy.xenosfinance.workers.dev',{
+            method:'POST',headers:{'Content-Type':'application/json'},
+            body:JSON.stringify(body),signal:AbortSignal.timeout(30000)
+          });
+          if (r.status===529||r.status===429){if(i<retries){await new Promise(r=>setTimeout(r,i*2000));continue;}return null;}
+          return r;
+        } catch(e){if(i===retries)return null;await new Promise(r=>setTimeout(r,i*1500));}
+      }
+    }
+    const narrativePrompt = `You are a senior Elliott Wave analyst. Write a concise professional commentary (3 short paragraphs, plain text, no markdown, no asterisks):
+${symbol} | ${tf} | Live: ${livePrice}
+Wave: ${ewResult.waveNum} | Trend: ${chartAnalysis.trend} | Confidence: ${ewResult.confidence}%
+${ewResult.waveDesc} — ${ewResult.waveChar}
+Signal: ${sigTxt} | SL: ${chartAnalysis.key_levels.stop_loss} | TP1: ${chartAnalysis.key_levels.tp1} | TP2: ${chartAnalysis.key_levels.tp2}
+RSI: ${ewResult.rsi} | ${divNote||'no divergence'}
+${ctx_text?'Context: '+ctx_text:''}
+Paragraph 1: wave structure meaning. Paragraph 2: key risk. Paragraph 3: specific levels to watch.`;
+
+    const res = await fetchWithRetry({model:'claude-sonnet-4-20250514',max_tokens:400,messages:[{role:'user',content:narrativePrompt}]});
+    if (res) {
+      const data = await res.json();
+      let narrative = (data.content?.[0]?.text||'').replace(/\*\*/g,'').replace(/\*/g,'').replace(/^#+\s*/gm,'').trim();
+      if (narrative) {
+        const final = instantOutput.replace('  Loading...', '  '+narrative.split('\n').join('\n  '));
+        txt.textContent = final;
+        lastAnalysis = `Elliott Wave Analysis — ${symbol} ${tf}\n\n${final}`;
+      }
+    }
+  } catch(e) {
+    txt.textContent = instantOutput.replace('  Loading...', '  Analysis unavailable.');
+  }
+
+  btn.disabled=false;
+  btn.textContent='⚡ Generate Analysis';
+}
+
+
+// ── ELLIOTT WAVE CHART RENDERER (from Railway API) ────────────────
+function renderEWChartFromAPI(ew, symbol, tf) {
+  const wrap   = document.getElementById('ewChartWrap');
+  const canvas = document.getElementById('ewChartCanvas');
+  if (!wrap || !canvas) return;
+  wrap.style.display = 'block';
+
+  const candles   = ew.candles || [];
+  const wavePoints = ew.wave_points || {};
+  if (candles.length < 5) { wrap.style.display = 'none'; return; }
+
+  const W = canvas.offsetWidth || 860, H = 460;
+  canvas.width = W*2; canvas.height = H*2;
+  canvas.style.width = W+'px'; canvas.style.height = H+'px';
+  const ctx = canvas.getContext('2d'); ctx.scale(2,2);
+  const ML=72, MR=90, MT=44, MB=58, CW=W-ML-MR, CH=H-MT-MB;
+
+  const isBearish = ew.trend === 'DOWN';
+
+  // ── Y scale from candles + wave points ──
+  const allP = [];
+  candles.forEach(c => { allP.push(c.high, c.low); });
+  Object.values(wavePoints).forEach(wp => { if(wp) allP.push(wp.price); });
+  [ew.invalidation, ew.cons_target, ew.next_target, ew.live_price].forEach(v => { if(v) allP.push(v); });
+  const minP = Math.min(...allP) * 0.9992;
+  const maxP = Math.max(...allP) * 1.0008;
+  const pRange = maxP - minP || 1;
+  const toY = p => MT + CH - ((p - minP) / pRange) * CH;
+
+  // ── X scale ──
+  const nBars = candles.length;
+  const barW  = CW / nBars;
+  const toXBar = i => ML + (i + 0.5) * barW;
+
+  // ── Background ──
+  const bg = ctx.createLinearGradient(0,0,0,H);
+  bg.addColorStop(0,'#090f1a'); bg.addColorStop(1,'#0c1523');
+  ctx.fillStyle = bg; ctx.fillRect(0,0,W,H);
+
+  // ── Grid ──
+  ctx.strokeStyle='#1a2a40'; ctx.lineWidth=0.5; ctx.globalAlpha=0.5;
+  for(let i=0;i<=7;i++){
+    const y = MT+(i/7)*CH;
+    ctx.beginPath(); ctx.moveTo(ML,y); ctx.lineTo(W-MR,y); ctx.stroke();
+    const pr = maxP-(i/7)*pRange;
+    ctx.fillStyle='#4a6a8a'; ctx.font='9px monospace'; ctx.textAlign='right'; ctx.globalAlpha=0.9;
+    ctx.fillText(pr.toFixed(pr>100?2:5), ML-4, y+3);
+  }
+  const step = Math.max(1, Math.floor(nBars/8));
+  ctx.globalAlpha=0.2; ctx.strokeStyle='#1a2a40';
+  for(let i=0;i<nBars;i+=step){
+    const x = toXBar(i);
+    ctx.beginPath(); ctx.moveTo(x,MT); ctx.lineTo(x,MT+CH); ctx.stroke();
+    if(candles[i]?.datetime){
+      ctx.fillStyle='#2a4060'; ctx.globalAlpha=0.7; ctx.font='8px monospace'; ctx.textAlign='center';
+      ctx.fillText(candles[i].datetime.slice(5,10), x, H-MB+18);
+    }
+  }
+  ctx.globalAlpha=1;
+
+  // ── Key level lines ──
+  function drawHL(price, color, label) {
+    if (!price || price < minP*0.98 || price > maxP*1.02) return;
+    const y = toY(price);
+    ctx.strokeStyle=color; ctx.lineWidth=1; ctx.globalAlpha=0.6; ctx.setLineDash([6,4]);
+    ctx.beginPath(); ctx.moveTo(ML,y); ctx.lineTo(W-MR,y); ctx.stroke();
+    ctx.setLineDash([]); ctx.globalAlpha=0.9;
+    ctx.fillStyle=color; ctx.font='bold 9px monospace'; ctx.textAlign='left';
+    ctx.fillText(`${label} ${parseFloat(price).toFixed(ew.live_price>100?2:5)}`, W-MR+2, y+3);
+    ctx.globalAlpha=1;
+  }
+  drawHL(ew.live_price,  '#00d4ff', 'ENTRY');
+  drawHL(ew.invalidation,'#ff3d5a', 'SL');
+  drawHL(ew.cons_target, '#00e676', 'TP1');
+  drawHL(ew.next_target, '#00a854', 'TP2');
+
+  // Fib levels
+  function drawFib(price, color, label) {
+    if (!price || price < minP || price > maxP) return;
+    const y = toY(price);
+    ctx.strokeStyle=color; ctx.lineWidth=0.7; ctx.globalAlpha=0.25; ctx.setLineDash([4,7]);
+    ctx.beginPath(); ctx.moveTo(ML,y); ctx.lineTo(W-MR,y); ctx.stroke();
+    ctx.setLineDash([]); ctx.globalAlpha=0.5; ctx.fillStyle=color;
+    ctx.font='8px monospace'; ctx.textAlign='right';
+    ctx.fillText(label, W-MR-2, y-2); ctx.globalAlpha=1;
+  }
+  drawFib(ew.fib_618, '#a78bfa', '61.8%');
+  drawFib(ew.fib_382, '#a78bfa', '38.2%');
+
+  // ── Candles ──
+  const cW = Math.max(2, barW * 0.7);
+  candles.forEach((c, i) => {
+    const x = toXBar(i);
+    const isUp = c.close >= c.open;
+    const col  = isUp ? '#10b981' : '#ef4444';
+    const fill = isUp ? 'rgba(16,185,129,0.7)' : 'rgba(239,68,68,0.7)';
+    ctx.strokeStyle=col; ctx.lineWidth=0.8; ctx.globalAlpha=0.7;
+    ctx.beginPath(); ctx.moveTo(x,toY(c.high)); ctx.lineTo(x,toY(c.low)); ctx.stroke();
+    const yO=toY(c.open), yC=toY(c.close);
+    const bTop=Math.min(yO,yC), bH=Math.max(1,Math.abs(yC-yO));
+    ctx.fillStyle=fill; ctx.globalAlpha=0.85;
+    ctx.fillRect(x-cW/2, bTop, cW, bH);
+    ctx.globalAlpha=1;
+  });
+
+  // ── Wave labels ──
+  // Build ordered wave point array with screen positions
+  const waveOrder = ['w0','w1','w2','w3','w4','w5','wa','wb','wc'];
+  const waveLabels = {'w0':'0','w1':'1','w2':'2','w3':'3','w4':'4','w5':'5','wa':'A','wb':'B','wc':'C'};
+  const iColW  = isBearish ? '#fcd34d' : '#60a5fa';
+  const cColW  = isBearish ? '#fca5a5' : '#fcd34d';
+
+  const labelPlaced = [];
+
+  waveOrder.forEach(key => {
+    const wp = wavePoints[key];
+    if (!wp) return;
+    const label = waveLabels[key];
+    const isCur = label === ew.wave_num;
+    const isImp = ['w0','w1','w2','w3','w4','w5'].includes(key);
+    const col   = isImp ? iColW : cColW;
+
+    // Map pos to screen X — wp.pos is candle index in the tail(100) array
+    const x = toXBar(Math.min(wp.pos, nBars-1));
+    const y = toY(wp.price);
+
+    // Dot
+    ctx.fillStyle = 'rgba(8,14,24,0.9)';
+    ctx.beginPath(); ctx.arc(x, y, 5.5, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = col;
+    ctx.beginPath(); ctx.arc(x, y, isCur ? 4 : 3, 0, Math.PI*2); ctx.fill();
+
+    // Label direction: highs above, lows below
+    const isHigh = isBearish
+      ? ['0','2','4','B'].includes(label)
+      : ['1','3','5','A','C'].includes(label);
+
+    let labelY = isHigh ? y - 30 : y + 30;
+    labelY = Math.max(MT+10, Math.min(labelY, MT+CH-10));
+
+    // Collision avoidance
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const hit = labelPlaced.find(p => Math.abs(p.x-x)<22 && Math.abs(p.y-labelY)<16);
+      if (!hit) break;
+      labelY += isHigh ? -16 : 16;
+      labelY = Math.max(MT+10, Math.min(labelY, MT+CH-10));
+    }
+    labelPlaced.push({x, y: labelY});
+
+    // Tick line
+    ctx.strokeStyle = col + '99'; ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x, isHigh ? y-5 : y+5);
+    ctx.lineTo(x, isHigh ? labelY+7 : labelY-7);
+    ctx.stroke();
+
+    // Number with dark outline
+    ctx.font = `bold ${isCur?14:12}px Arial, sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(8,14,24,0.95)';
+    ctx.lineJoin = 'round';
+    ctx.strokeText(label, x, labelY);
+    ctx.fillStyle = col;
+    ctx.fillText(label, x, labelY);
+    ctx.textBaseline = 'alphabetic'; ctx.lineJoin = 'miter';
+  });
+
+  // ── NOW line ──
+  if (ew.live_price) {
+    const ly = toY(ew.live_price);
+    ctx.strokeStyle='rgba(255,255,255,0.25)'; ctx.lineWidth=1; ctx.setLineDash([2,5]);
+    ctx.beginPath(); ctx.moveTo(ML,ly); ctx.lineTo(W-MR,ly); ctx.stroke();
+    ctx.setLineDash([]); ctx.fillStyle='#aabbcc'; ctx.globalAlpha=0.7;
+    ctx.font='9px monospace'; ctx.textAlign='right';
+    ctx.fillText('NOW '+ew.live_price, W-MR-2, ly-3); ctx.globalAlpha=1;
+  }
+
+  // ── Header ──
+  ctx.globalAlpha=1; ctx.textAlign='left';
+  ctx.font='bold 12px monospace'; ctx.fillStyle='#3b82f6'; ctx.fillText('XENOS',ML,28);
+  ctx.fillStyle='#c8d8ea'; ctx.fillText('FINANCE',ML+53,28);
+  ctx.font='10px monospace'; ctx.fillStyle='#4a6a8a';
+  ctx.fillText('· EW · '+symbol+' · '+tf, ML+116, 28);
+
+  const tCol = isBearish ? '#f87171' : '#34d399';
+  ctx.font='bold 10px monospace'; ctx.fillStyle=tCol; ctx.textAlign='center';
+  ctx.fillText(isBearish?'▼ TREND DOWN':'▲ TREND UP', W/2, 28);
+
+  const sCol = ew.action.includes('LONG')?'#00e676':ew.action.includes('SHORT')?'#ff3d5a':'#f59e0b';
+  const sTxt = ew.action.includes('LONG')?'▲ LONG':ew.action.includes('SHORT')?'▼ SHORT':'◆ WAIT';
+  ctx.textAlign='right'; ctx.font='bold 11px monospace'; ctx.fillStyle=sCol;
+  ctx.fillText(sTxt, W-MR, 28);
+
+  const waveLabel = {'1':'①','2':'②','3':'③','4':'④','5':'⑤','A':'Ⓐ','B':'Ⓑ','C':'Ⓒ'};
+  ctx.textAlign='left'; ctx.font='9px monospace'; ctx.fillStyle='#3a5070';
+  ctx.fillText('Wave '+(waveLabel[ew.wave_num]||ew.wave_num)+' active · '+ew.degree+(isBearish?' · Bearish':' · Bullish'), ML, H-MB+32);
+}
+
+// ── ELLIOTT WAVE CHART RENDERER ────────────────────────────────
+function renderEWChart(analysis, symbol, tf, liveData) {
+  const wrap = document.getElementById('ewChartWrap');
+  const canvas = document.getElementById('ewChartCanvas');
+  if (!wrap || !canvas) return;
+  const wp = analysis.wave_points;
+  if (!wp || !wp.w0) { wrap.style.display='none'; return; }
+  wrap.style.display='block';
+
+  const W = canvas.offsetWidth||860, H=460;
+  canvas.width=W*2; canvas.height=H*2;
+  canvas.style.width=W+'px'; canvas.style.height=H+'px';
+  const ctx=canvas.getContext('2d'); ctx.scale(2,2);
+  const ML=72,MR=90,MT=44,MB=58,CW=W-ML-MR,CH=H-MT-MB;
+
+  const isBearish = analysis.trend==='DOWN';
+  const kl = analysis.key_levels||{};
+  const fibs = analysis.fibonacci_levels||{};
+
+  // ── Smart candle window: show the range that includes all wave pivots ──
+  const pivMap0 = (ewLastCandles && ewLastCandles._pivotMap) || {};
+  const fullCandles = ewLastCandles.length >= 10 ? ewLastCandles : [];
+
+  // Find earliest and latest pivot index in full candles array
+  let earliestPivIdx = fullCandles.length;
+  let latestPivIdx = 0;
+  Object.values(pivMap0).forEach(pm => {
+    if (pm && pm.idx !== undefined) {
+      if (pm.idx < earliestPivIdx) earliestPivIdx = pm.idx;
+      if (pm.idx > latestPivIdx) latestPivIdx = pm.idx;
+    }
+  });
+
+  // Window: from earliest pivot (with 5 candle padding) to end of array
+  // Minimum 40 candles, maximum 100
+  const pivWindowStart = Math.max(0, earliestPivIdx - 5);
+  const rawWindow = fullCandles.slice(pivWindowStart);
+  const candles = rawWindow.length >= 10 ? rawWindow.slice(0, Math.min(rawWindow.length, 100)) : fullCandles.slice(-80);
+  const candleOffset = pivWindowStart; // offset for pivot idx mapping
+  const useCandles = candles.length >= 10;
+
+  // ── Collect all prices for Y scale ────────────────
+  const allP = [];
+  if (useCandles) {
+    candles.forEach(c=>{ allP.push(c.high,c.low); });
+  }
+  const wps = [wp.w0,wp.w1,wp.w2,wp.w3,wp.w4,wp.w5,wp.wa,wp.wb,wp.wc].filter(Boolean);
+  wps.forEach(p=>allP.push(p));
+  [kl.stop_loss,kl.tp1,kl.tp2,kl.invalidation,kl.entry,fibs.fib618_w1,fibs.fib1618_w1].forEach(v=>{if(v)allP.push(v);});
+
+  const minP = Math.min(...allP)*0.9992;
+  const maxP = Math.max(...allP)*1.0008;
+  const pRange = maxP-minP;
+  const toY = p => MT + CH - ((p-minP)/pRange)*CH;
+
+  // ── X mapping ─────────────────────────────────────
+  // If real candles: map candle index to X; wave points mapped to nearest candle
+  const nBars = useCandles ? candles.length : 9;
+  const barW = useCandles ? CW/nBars : CW/8;
+  const toXBar = i => ML + (i+0.5)*barW;
+
+  // Find nearest candle index for a given price
+  function nearestCandleIdx(price) {
+    if (!useCandles) return -1;
+    let best=-1, bestDist=Infinity;
+    candles.forEach((c,i)=>{
+      const d=Math.abs(c.close-price);
+      if(d<bestDist){bestDist=d;best=i;}
+    });
+    return best;
+  }
+
+  // Map wave point to X: use proportional spacing across chart width
+  // Wave points are ordered 0→1→2→3→4→5→A→B→C, so we space them evenly
+  function waveX(price, idx) {
+    const total = wavePoints.length;
+    // Distribute wave points across 85% of chart width, leaving room on right
+    return ML + (idx / Math.max(total - 1, 1)) * CW * 0.85;
+  }
+
+  // ── Background ────────────────────────────────────
+  const bg=ctx.createLinearGradient(0,0,0,H);
+  bg.addColorStop(0,'#090f1a'); bg.addColorStop(1,'#0c1523');
+  ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
+
+  // ── Grid ──────────────────────────────────────────
+  ctx.strokeStyle='#1a2a40'; ctx.lineWidth=0.5; ctx.globalAlpha=0.6;
+  for(let i=0;i<=7;i++){
+    const y=MT+(i/7)*CH;
+    ctx.beginPath(); ctx.moveTo(ML,y); ctx.lineTo(W-MR,y); ctx.stroke();
+    const pr=maxP-(i/7)*pRange;
+    ctx.fillStyle='#4a6a8a'; ctx.font='9px monospace'; ctx.textAlign='right'; ctx.globalAlpha=0.9;
+    ctx.fillText(pr.toFixed(pr>100?2:5), ML-4, y+3);
+  }
+  // Vertical grid lines
+  ctx.globalAlpha=0.2; ctx.strokeStyle='#1a2a40';
+  if(useCandles){
+    const step=Math.max(1,Math.floor(nBars/8));
+    for(let i=0;i<nBars;i+=step){
+      const x=toXBar(i);
+      ctx.beginPath(); ctx.moveTo(x,MT); ctx.lineTo(x,MT+CH); ctx.stroke();
+      // Date label
+      if(candles[i]?.datetime){
+        const d=candles[i].datetime.slice(5,10);
+        ctx.fillStyle='#2a4060'; ctx.globalAlpha=0.8; ctx.font='8px monospace'; ctx.textAlign='center';
+        ctx.fillText(d,x,H-MB+18);
+      }
+    }
+  }
+  ctx.globalAlpha=1;
+
+  // ── Fibonacci lines ────────────────────────────────
+  function drawFib(price,color,label){
+    if(!price||price<minP||price>maxP)return;
+    const y=toY(price);
+    ctx.strokeStyle=color; ctx.lineWidth=0.7; ctx.globalAlpha=0.3;
+    ctx.setLineDash([4,7]); ctx.beginPath(); ctx.moveTo(ML,y); ctx.lineTo(W-MR,y); ctx.stroke();
+    ctx.setLineDash([]); ctx.globalAlpha=0.55; ctx.fillStyle=color;
+    ctx.font='8px monospace'; ctx.textAlign='right';
+    ctx.fillText(label,W-MR-2,y-2); ctx.globalAlpha=1;
+  }
+  drawFib(fibs.fib618_w1,'#a78bfa','61.8%');
+  drawFib(fibs.fib1618_w1,'#22d3ee','161.8%');
+  drawFib(fibs.fib382_w3,'#a78bfa','38.2%');
+
+  // ── H-Lines (key levels) ──────────────────────────
+  function drawHL(price,color,label){
+    if(!price||price<minP*0.98||price>maxP*1.02)return;
+    const y=toY(price);
+    ctx.strokeStyle=color; ctx.lineWidth=1; ctx.globalAlpha=0.6;
+    ctx.setLineDash([6,4]); ctx.beginPath(); ctx.moveTo(ML,y); ctx.lineTo(W-MR,y); ctx.stroke();
+    ctx.setLineDash([]); ctx.globalAlpha=0.9; ctx.fillStyle=color;
+    ctx.font='bold 9px monospace'; ctx.textAlign='left';
+    ctx.fillText(label+' '+price, W-MR+2, y+3); ctx.globalAlpha=1;
+  }
+  drawHL(kl.entry,'#00d4ff','ENTRY');
+  drawHL(kl.stop_loss,'#ff3d5a','SL');
+  drawHL(kl.tp1,'#00e676','TP1');
+  drawHL(kl.tp2,'#00a854','TP2');
+  drawHL(kl.invalidation,'#ff6b00','INVAL');
+
+  // ── Real Candles ──────────────────────────────────
+  if (useCandles) {
+    const cW = Math.max(2, barW*0.7);
+    candles.forEach((c,i)=>{
+      const x=toXBar(i);
+      const isUp=c.close>=c.open;
+      const col=isUp?'#10b981':'#ef4444';
+      const colFill=isUp?'rgba(16,185,129,0.7)':'rgba(239,68,68,0.7)';
+      // Wick
+      ctx.strokeStyle=col; ctx.lineWidth=0.8; ctx.globalAlpha=0.7;
+      ctx.beginPath(); ctx.moveTo(x,toY(c.high)); ctx.lineTo(x,toY(c.low)); ctx.stroke();
+      // Body
+      const yO=toY(c.open), yC=toY(c.close);
+      const bTop=Math.min(yO,yC), bH=Math.max(1,Math.abs(yC-yO));
+      ctx.fillStyle=colFill; ctx.globalAlpha=0.85;
+      ctx.fillRect(x-cW/2, bTop, cW, bH);
+      ctx.globalAlpha=1;
+    });
+  }
+
+  // ── Wave overlay ──────────────────────────────────
+  const wavePoints = [
+    {label:'0',key:'w0',price:wp.w0,impulse:true},
+    {label:'1',key:'w1',price:wp.w1,impulse:true},
+    {label:'2',key:'w2',price:wp.w2,impulse:true},
+    {label:'3',key:'w3',price:wp.w3,impulse:true},
+    {label:'4',key:'w4',price:wp.w4,impulse:true},
+    {label:'5',key:'w5',price:wp.w5,impulse:true},
+    {label:'A',key:'wa',price:wp.wa,impulse:false},
+    {label:'B',key:'wb',price:wp.wb,impulse:false},
+    {label:'C',key:'wc',price:wp.wc,impulse:false},
+  ].filter(p=>p.price);
+
+  const pivMap = (ewLastCandles && ewLastCandles._pivotMap) || {};
+  const dispStart = candleOffset; // pivot idx offset matches smart window start
+
+  // Map each wave point to the exact candle bar (X) and exact high/low (Y)
+  const pts = wavePoints.map((wp2, i) => {
+    // isHigh: bear W0,W2,W4,B = highs; bull W1,W3,W5,A,C = highs
+    const isHighPt = isBearish
+      ? ['0','2','4','B'].includes(wp2.label)
+      : ['1','3','5','A','C'].includes(wp2.label);
+
+    let candleIdx = -1;
+
+    // 1. Use pivotMap index if available and in range
+    const pm = pivMap[wp2.key];
+    if (pm && pm.idx !== undefined) {
+      const di = pm.idx - dispStart;
+      if (di >= 0 && di < candles.length) candleIdx = di;
+    }
+
+    // 2. Fallback: find candle whose high or low is closest to the pivot price
+    if (candleIdx < 0 && useCandles) {
+      let bestD = Infinity;
+      candles.forEach((c, ci) => {
+        const d = isHighPt ? Math.abs(c.high - wp2.price) : Math.abs(c.low - wp2.price);
+        if (d < bestD) { bestD = d; candleIdx = ci; }
+      });
+    }
+
+    // 3. Last resort: even spacing
+    if (candleIdx < 0) candleIdx = Math.round(i / Math.max(wavePoints.length-1,1) * (candles.length-1));
+
+    const x = toXBar(candleIdx);
+    // Y: use exact candle high or low, not the pivot price approximation
+    const candleY = useCandles && candles[candleIdx]
+      ? (isHighPt ? toY(candles[candleIdx].high) : toY(candles[candleIdx].low))
+      : toY(wp2.price);
+
+    return { ...wp2, x, y: candleY, candleIdx };
+  });
+
+  // Ensure X is strictly left-to-right (wave order = time order)
+  for (let i = 1; i < pts.length; i++) {
+    if (pts[i].x <= pts[i-1].x) pts[i].x = pts[i-1].x + Math.max(barW, CW*0.03);
+  }
+  pts.forEach(pt => { if (pt.x > ML+CW-4) pt.x = ML+CW-4; });
+
+  // Wave line colors
+  const iCol  = isBearish?'#f59e0b':'#3b82f6';
+  const iCol2 = isBearish?'#fcd34d':'#60a5fa';
+  const cCol  = isBearish?'#f87171':'#f59e0b';
+  const cCol2 = isBearish?'#fca5a5':'#fcd34d';
+
+  // ── Wave labels: number directly on candle pivot ──────────────
+  pts.forEach((pt) => {
+    const isCur = pt.label === analysis.current_wave;
+    const col   = pt.impulse ? iCol2 : cCol2;
+
+    // isHigh already computed in pt (bear: 0,2,4,B = highs; bull: 1,3,5,A,C = highs)
+    const isHigh = isBearish
+      ? ['0','2','4','B'].includes(pt.label)
+      : ['1','3','5','A','C'].includes(pt.label);
+
+    // pt.y is already the exact candle high or low Y
+    // Place number just outside: 12px above high, 12px below low
+    const labelY = isHigh ? pt.y - 12 : pt.y + 12;
+    const clampedY = Math.max(MT + 10, Math.min(labelY, MT + CH - 10));
+
+    // Number with dark outline — readable on any background
+    const fontSize = isCur ? 14 : 12;
+    ctx.font = `bold ${fontSize}px Arial, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.lineWidth = 3.5;
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = 'rgba(6,12,22,0.95)';
+    ctx.strokeText(pt.label, pt.x, clampedY);
+    ctx.fillStyle = col;
+    ctx.fillText(pt.label, pt.x, clampedY);
+    ctx.lineJoin = 'miter';
+    ctx.textBaseline = 'alphabetic';
+  });
+
+    // ── NOW price line ────────────────────────────────
+  if(liveData?.price){
+    const ly=toY(liveData.price);
+    ctx.strokeStyle='rgba(255,255,255,0.3)'; ctx.lineWidth=1;
+    ctx.setLineDash([2,5]); ctx.beginPath(); ctx.moveTo(ML,ly); ctx.lineTo(W-MR,ly); ctx.stroke();
+    ctx.setLineDash([]); ctx.fillStyle='#aabbcc'; ctx.globalAlpha=0.7;
+    ctx.font='9px monospace'; ctx.textAlign='right';
+    ctx.fillText('NOW '+liveData.price,W-MR-2,ly-3); ctx.globalAlpha=1;
+  }
+
+  // ── Header ────────────────────────────────────────
+  ctx.globalAlpha=1; ctx.textAlign='left';
+  ctx.font='bold 12px monospace'; ctx.fillStyle='#3b82f6'; ctx.fillText('XENOS',ML,28);
+  ctx.fillStyle='#c8d8ea'; ctx.fillText('FINANCE',ML+53,28);
+  ctx.font='10px monospace'; ctx.fillStyle='#4a6a8a';
+  ctx.fillText('· EW · '+symbol+' · '+tf,ML+116,28);
+
+  const tCol=isBearish?'#f87171':'#34d399';
+  const tTxt=isBearish?'▼ TREND DOWN':'▲ TREND UP';
+  ctx.font='bold 10px monospace'; ctx.fillStyle=tCol; ctx.textAlign='center';
+  ctx.fillText(tTxt,W/2,28);
+
+  const sTxt=analysis.signal==='LONG'?'▲ LONG':analysis.signal==='SHORT'?'▼ SHORT':'◆ WAIT';
+  const sCol=analysis.signal==='LONG'?'#00e676':analysis.signal==='SHORT'?'#ff3d5a':'#f59e0b';
+  ctx.textAlign='right'; ctx.font='bold 11px monospace'; ctx.fillStyle=sCol;
+  ctx.fillText(sTxt,W-MR,28);
+
+  // Wave degree info
+  ctx.textAlign='left'; ctx.font='9px monospace'; ctx.fillStyle='#3a5070';
+  const waveLabel = {'1':'①','2':'②','3':'③','4':'④','5':'⑤','A':'Ⓐ','B':'Ⓑ','C':'Ⓒ'};
+  ctx.fillText('Wave '+(waveLabel[analysis.current_wave]||analysis.current_wave)+' active · '+analysis.degree+(isBearish?' · Bearish impulse':' · Bullish impulse'),ML,H-MB+32);
+}
+
+
+// ── FREE ELLIOTT WAVE — Canvas renderer (same style as demo) ──────
+const EW_SERVER_URL = 'https://waves-production-ddbf.up.railway.app';
+
+async function runFreeAnalysis() {
+  const symbolEl  = document.getElementById('freeSymbol');
+  const symbolVal = symbolEl.value;
+  const tf        = document.getElementById('freeTf').value;
+  const btn       = document.getElementById('freeRunBtn');
+  const wrap      = document.getElementById('freeChartWrap');
+  const loading   = document.getElementById('freeLoadingTxt');
+
+  btn.disabled = true; btn.textContent = 'Analysing...';
+  wrap.style.display = 'none';
+  loading.style.display = 'block';
+  loading.textContent = '⧡ Fetching candles and identifying Elliott Wave structure...';
+
+  try {
+    const res = await fetch(EW_SERVER_URL + '/ew-chart', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ symbol: symbolVal, tf: tf }),
+      signal: AbortSignal.timeout(90000)
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Server error ' + res.status);
+    }
+
+    const data = await res.json();
+
+    // Convert server wave_points (idx-based) to canvas format
+    const wavePts = (data.wave_points || []).map(p => ({
+      i:     p.idx,
+      price: p.price,
+      type:  p.type,
+      label: p.label
+    }));
+
+    const candles = data.candles || [];
+    const dp = (data.live_price || 1) > 100 ? 2 : 5;
+    const isBull = data.trend === 'UP';
+    const curWave = data.current_wave || '';
+    const cfg = { name: symbolVal.toUpperCase(), dp };
+
+    // Draw chart
+    drawFreeCanvas(candles, wavePts, isBull, data.invalidation, data.tp1, data.tp2, data.live_price, cfg, tf, curWave, dp);
+
+    // Header badges
+    const title = document.getElementById('freeChartTitle');
+    const sigBadge = document.getElementById('freeSignalBadge');
+    const wavBadge = document.getElementById('freeWaveBadge');
+    if (title) title.textContent = symbolVal.toUpperCase() + ' · ' + tf + ' · Elliott Wave';
+    if (sigBadge) {
+      const iL = data.signal === 'LONG', iS = data.signal === 'SHORT';
+      sigBadge.textContent = iL ? '▲ LONG' : iS ? '▼ SHORT' : '◆ WAIT';
+      sigBadge.style.cssText = `padding:3px 10px;font-size:9px;letter-spacing:.1em;display:inline-block;
+        background:${iL?'rgba(16,185,129,.15)':iS?'rgba(239,68,68,.15)':'rgba(245,158,11,.15)'};
+        color:${iL?'#10b981':iS?'#ef4444':'#f59e0b'};
+        border:1px solid ${iL?'rgba(16,185,129,.3)':iS?'rgba(239,68,68,.3)':'rgba(245,158,11,.3)'};`;
+    }
+    if (wavBadge) {
+      wavBadge.textContent = 'Wave (' + curWave + ') · ' + (data.degree || 'Minor');
+      wavBadge.style.display = 'inline-block';
+    }
+
+    // Metrics
+    const mc = document.getElementById('freeChartMetrics');
+    mc.innerHTML = [
+      { l:'Live Price',  v: (data.live_price||0).toFixed(dp),          c:'#3b82f6' },
+      { l:'Wave Active', v: '(' + curWave + ')',                        c:'#60a5fa' },
+      { l:'Stop Loss',   v: data.invalidation?(+data.invalidation).toFixed(dp):'—', c:'#ef4444' },
+      { l:'Target 1',    v: data.tp1?(+data.tp1).toFixed(dp):'—', c:'#10b981' },
+      { l:'Target 2',    v: data.tp2?(+data.tp2).toFixed(dp):'—', c:'#059669' },
+    ].map(m => `<div style="background:#131f2e;border:1px solid var(--border);padding:12px 14px;">
+      <div style="font-size:9px;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;margin-bottom:6px;">${m.l}</div>
+      <div style="font-size:15px;font-weight:500;color:${m.c};">${m.v}</div>
+    </div>`).join('');
+
+    // Narrative
+    if (data.narrative) {
+      document.getElementById('freeNarrativeText').textContent = data.narrative;
+      document.getElementById('freeNarrative').style.display = 'block';
+    }
+
+    loading.style.display = 'none';
+    wrap.style.display = 'block';
+
+  } catch(e) {
+    loading.textContent = '⚠ ' + (e.message || 'Analysis failed. Please try again.');
+    console.error('EW error:', e);
+  }
+
+  btn.disabled = false;
+  btn.textContent = '⚡ Generate Wave Chart';
+}
+
+function drawFreeCanvas(candles, wavePts, isBull, sl, tp1, tp2, livePrice, cfg, tf, curWave, dp) {
+  const canvas = document.getElementById('freeChartCanvas');
+  if (!canvas) return;
+  const W = canvas.getBoundingClientRect().width || canvas.offsetWidth || 600;
+  const H = 420;
+  canvas.width = W*2; canvas.height = H*2;
+  canvas.style.width = '100%'; canvas.style.height = H+'px';
+  const ctx = canvas.getContext('2d'); ctx.scale(2,2);
+  const ML=62, MR=105, MT=32, MB=44, CW=W-ML-MR, CH=H-MT-MB;
+
+  // Y scale
+  const allP = [];
+  if (candles.length) candles.forEach(c=>{allP.push(c.high,c.low);});
+  wavePts.forEach(p=>allP.push(p.price));
+  [sl,tp1,tp2,livePrice].filter(Boolean).forEach(v=>allP.push(+v));
+  if (!allP.length) return;
+  const minP=Math.min(...allP)*0.9992, maxP=Math.max(...allP)*1.0008;
+  const pR=maxP-minP||1;
+  const toY=p=>MT+CH-((p-minP)/pR)*CH;
+  const nBars = candles.length || 80;
+  const barW=CW/nBars;
+  const toX=i=>ML+(i+0.5)*barW;
+
+  // Background
+  ctx.fillStyle='#090f1a'; ctx.fillRect(0,0,W,H);
+
+  // Grid
+  for(let i=0;i<=7;i++){
+    const y=MT+(i/7)*CH;
+    ctx.strokeStyle='#1a2a40'; ctx.lineWidth=0.5; ctx.globalAlpha=0.5;
+    ctx.beginPath(); ctx.moveTo(ML,y); ctx.lineTo(W-MR,y); ctx.stroke();
+    const pr=maxP-(i/7)*pR;
+    ctx.fillStyle='#4a6a8a'; ctx.font='8px monospace'; ctx.textAlign='right'; ctx.globalAlpha=0.9;
+    ctx.fillText(pr.toFixed(pr>100?2:5), ML-3, y+3);
+  }
+  const step=Math.max(1,Math.floor(nBars/8));
+  for(let i=0;i<nBars;i+=step){
+    ctx.globalAlpha=0.2; ctx.strokeStyle='#1a2a40'; ctx.lineWidth=0.5;
+    const x=toX(i); ctx.beginPath(); ctx.moveTo(x,MT); ctx.lineTo(x,MT+CH); ctx.stroke();
+    if(candles[i]?.datetime){
+      ctx.fillStyle='#2a4060'; ctx.globalAlpha=0.7; ctx.font='8px monospace'; ctx.textAlign='center';
+      ctx.fillText(candles[i].datetime.slice(5,10), x, H-MB+16);
+    }
+  }
+  ctx.globalAlpha=1;
+
+  // Level lines
+  function drawHL(price, color, label) {
+    if(!price) return;
+    price = +price;
+    if(price<minP*0.97||price>maxP*1.03) return;
+    const y=toY(price);
+    ctx.strokeStyle=color; ctx.lineWidth=1; ctx.globalAlpha=0.55; ctx.setLineDash([5,4]);
+    ctx.beginPath(); ctx.moveTo(ML,y); ctx.lineTo(W-MR,y); ctx.stroke();
+    ctx.setLineDash([]); ctx.globalAlpha=0.9; ctx.fillStyle=color;
+    ctx.font='bold 9px monospace'; ctx.textAlign='left';
+    ctx.fillText(label+' '+price.toFixed(dp), W-MR+3, y+3);
+    ctx.globalAlpha=1;
+  }
+  drawHL(livePrice,'#00d4ff','NOW');
+  drawHL(sl,       '#ef4444','SL ');
+  drawHL(tp1,      '#10b981','TP1');
+  drawHL(tp2,      '#059669','TP2');
+
+  // Candles
+  if (candles.length) {
+    const cW=Math.max(2,barW*0.72);
+    candles.forEach((c,i)=>{
+      const x=toX(i), isUp=c.close>=c.open;
+      ctx.strokeStyle=isUp?'#10b981':'#ef4444'; ctx.lineWidth=0.8; ctx.globalAlpha=0.75;
+      ctx.beginPath(); ctx.moveTo(x,toY(c.high)); ctx.lineTo(x,toY(c.low)); ctx.stroke();
+      const yO=toY(c.open), yC=toY(c.close);
+      ctx.fillStyle=isUp?'rgba(16,185,129,0.75)':'rgba(239,68,68,0.75)'; ctx.globalAlpha=0.88;
+      ctx.fillRect(x-cW/2, Math.min(yO,yC), cW, Math.max(1,Math.abs(yC-yO)));
+      ctx.globalAlpha=1;
+    });
+  }
+
+  // Wave colors
+  const wCol  = isBull?'#3b82f6':'#f59e0b';
+  const wCol2 = isBull?'#60a5fa':'#fcd34d';
+
+  // Zigzag
+  if (wavePts.length > 1) {
+    ctx.strokeStyle=wCol; ctx.lineWidth=2.5; ctx.globalAlpha=0.92;
+    ctx.lineJoin='round'; ctx.lineCap='round';
+    ctx.beginPath();
+    wavePts.forEach((p,i)=>{
+      const x=toX(p.i), y=toY(p.price);
+      i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+    });
+    ctx.stroke();
+    ctx.globalAlpha=1; ctx.lineJoin='miter'; ctx.lineCap='butt';
+  }
+
+  // Dots + labels
+  wavePts.forEach(p=>{
+    const x=toX(p.i), y=toY(p.price);
+    const isCur = p.label === curWave;
+    ctx.fillStyle='rgba(6,12,22,0.92)';
+    ctx.beginPath(); ctx.arc(x,y,isCur?7:5.5,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle=wCol2;
+    ctx.beginPath(); ctx.arc(x,y,isCur?5:3.5,0,Math.PI*2); ctx.fill();
+    const isHigh = p.type==='high';
+    const ly=Math.max(MT+12,Math.min(isHigh?y-16:y+16, MT+CH-12));
+    ctx.font=`bold ${isCur?14:12}px Arial`; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.lineWidth=3.5; ctx.lineJoin='round'; ctx.strokeStyle='rgba(6,12,22,0.96)';
+    ctx.strokeText('('+p.label+')', x, ly);
+    ctx.fillStyle=wCol2; ctx.fillText('('+p.label+')', x, ly);
+    ctx.lineJoin='miter'; ctx.textBaseline='alphabetic';
+  });
+
+  // Header
+  ctx.textAlign='left'; ctx.font='bold 11px monospace'; ctx.fillStyle='#3b82f6'; ctx.fillText('XENOS',ML,24);
+  ctx.fillStyle='#c8d8ea'; ctx.fillText('FINANCE',ML+46,24);
+  ctx.font='9px monospace'; ctx.fillStyle='#4a6a8a';
+  ctx.fillText('· EW · '+cfg.name+' · '+tf, ML+100, 24);
+  ctx.textAlign='center'; ctx.font='bold 10px monospace';
+  ctx.fillStyle=isBull?'#34d399':'#f87171';
+  ctx.fillText(isBull?'▲ TREND UP':'▼ TREND DOWN', W/2, 24);
+  ctx.textAlign='right'; ctx.font='bold 10px monospace';
+  ctx.fillStyle=isBull?'#00e676':'#ff3d5a';
+  ctx.fillText(isBull?'▲ LONG':'▼ SHORT', W-MR, 24);
+  ctx.textAlign='left'; ctx.font='9px monospace'; ctx.fillStyle='#3a5070';
+  ctx.fillText('Wave ('+curWave+') active · '+(isBull?'Bullish':'Bearish')+' · '+data_degree, ML, H-MB+28);
+}
+
+
+async function sendToTelegram(){
+  if(!lastAnalysis) return;
+  const WORKER='https://xenos-ai-proxy.xenosfinance.workers.dev';
+  // Strip any residual markdown, send clean text
+  const clean = lastAnalysis
+    .replace(/\*\*/g,'').replace(/\*/g,'')
+    .replace(/[_`]/g,'')
+    .slice(0, 4000);
+  try{
+    const res=await fetch(WORKER,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({type:'telegram',text:clean,parse_mode:'HTML'})
+    });
+    const d=await res.json();
+    if(d.ok||d.result) alert('Sent to Telegram ✓');
+    else alert('Error sending: '+JSON.stringify(d));
+  }catch(e){ alert('Error: '+e.message); }
+}
+
+// ── CANVAS DIAGRAMS ──
+function drawBasicWave(){
+  const c=document.getElementById('canvas-basic');
+  const ctx=c.getContext('2d');
+  const W=c.width,H=c.height;
+  ctx.clearRect(0,0,W,H);
+
+  // All 9 labelled points (0-5, A-B-C)
+  const pts=[
+    {x:40, y:210},{x:130,y:120},{x:175,y:158},{x:300,y:45},{x:350,y:92},
+    {x:440,y:30}, {x:510,y:88},{x:568,y:52},{x:628,y:138}
+  ];
+  const labels=['0','1','2','3','4','5','A','B','C'];
+  // true=above dot, false=below dot (based on wave direction)
+  const above=[false,true,false,true,false,true,false,true,false];
+
+  // Divider
+  ctx.strokeStyle='#1e3050';ctx.lineWidth=1;ctx.setLineDash([4,4]);
+  ctx.beginPath();ctx.moveTo(440,15);ctx.lineTo(440,235);ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Section labels
+  ctx.font='9px monospace';ctx.fillStyle='#5a7a9a';ctx.fillText('IMPULSE',90,248);
+  ctx.fillText('CORRECTIVE',468,248);
+
+  // Impulse line (blue) 0→5
+  ctx.strokeStyle='#3b82f6';ctx.lineWidth=2.5;
+  ctx.beginPath();
+  for(let i=0;i<=5;i++) i===0?ctx.moveTo(pts[i].x,pts[i].y):ctx.lineTo(pts[i].x,pts[i].y);
+  ctx.stroke();
+
+  // Corrective line (orange) 5→C
+  ctx.strokeStyle='#f59e0b';ctx.lineWidth=2.5;
+  ctx.beginPath();
+  for(let i=5;i<=8;i++) i===5?ctx.moveTo(pts[i].x,pts[i].y):ctx.lineTo(pts[i].x,pts[i].y);
+  ctx.stroke();
+
+  // Dots + labels
+  pts.forEach((p,i)=>{
+    const col=i<6?'#60a5fa':'#fbbf24';
+    // dot
+    ctx.fillStyle=col;
+    ctx.beginPath();ctx.arc(p.x,p.y,5,0,Math.PI*2);ctx.fill();
+    // label background + text
+    ctx.font='bold 13px monospace';
+    const tw=ctx.measureText(labels[i]).width;
+    const offsetY=above[i]?-14:18;
+    const lx=p.x-tw/2, ly=p.y+offsetY;
+    ctx.fillStyle='rgba(10,16,28,0.8)';
+    ctx.fillRect(lx-3,ly-13,tw+6,17);
+    ctx.fillStyle=col;
+    ctx.fillText(labels[i],lx,ly);
+  });
+}
+
+function drawCorrectivePatterns(){
+  const c=document.getElementById('canvas-corrective');
+  const ctx=c.getContext('2d');
+  const W=c.width,H=c.height;
+  ctx.clearRect(0,0,W,H);
+
+  function drawPattern(startX, pts, color, label, subLabels){
+    ctx.strokeStyle=color;
+    ctx.lineWidth=2;
+    ctx.beginPath();
+    pts.forEach((p,i)=>i===0?ctx.moveTo(startX+p[0],p[1]):ctx.lineTo(startX+p[0],p[1]));
+    ctx.stroke();
+    pts.forEach((p,i)=>{
+      // dot
+      ctx.fillStyle=color;
+      ctx.beginPath();ctx.arc(startX+p[0],p[1],5,0,Math.PI*2);ctx.fill();
+      if(!subLabels[i]) return;
+      // label: above if point is a peak (lower y = higher on screen), below if trough
+      const prev = pts[i-1], next = pts[i+1];
+      const isPeak = (prev&&p[1]<prev[1]) && (next&&p[1]<next[1]);
+      const isTrough = (prev&&p[1]>prev[1]) && (next&&p[1]>next[1]);
+      // first/last points: check only one neighbour
+      const isTop = pts[i][1] <= Math.min(...pts.map(p=>p[1])) + 20;
+      const offsetY = (isPeak||isTop) ? -14 : 16;
+      // background pill
+      ctx.font='bold 12px monospace';
+      const tw = ctx.measureText(subLabels[i]).width;
+      ctx.fillStyle='rgba(13,21,33,0.75)';
+      ctx.fillRect(startX+pts[i][0]-tw/2-4, pts[i][1]+offsetY-12, tw+8, 16);
+      // label text
+      ctx.fillStyle=color;
+      ctx.fillText(subLabels[i], startX+pts[i][0]-tw/2, pts[i][1]+offsetY);
+    });
+    ctx.font='9px monospace';
+    ctx.fillStyle='#5a7a9a';
+    ctx.fillText(label,startX+4,H-8);
+  }
+
+  // Zigzag — start high, A=bottom, B=mid, C=lowest
+  drawPattern(20,[
+    [0,35],[70,145],[115,85],[175,185]
+  ],'#3b82f6','ZIGZAG (5-3-5)',['','A','B','C']);
+
+  // Flat — sideways, A=bottom, B near top, C=bottom
+  drawPattern(240,[
+    [0,35],[65,135],[115,45],[178,140]
+  ],'#10b981','FLAT (3-3-5)',['','A','B','C']);
+
+  // Triangle — converging A-B-C-D-E
+  drawPattern(455,[
+    [0,35],[42,138],[85,65],[128,118],[168,82],[205,100]
+  ],'#f59e0b','TRIANGLE (3-3-3-3-3)',['','A','B','C','D','E']);
+}
+
+function drawMiniWave(id){
+  const canvasId='c-'+id;
+  const c=document.getElementById(canvasId);
+  if(!c) return;
+  const ctx=c.getContext('2d');
+  const W=c.width,H=c.height;
+  ctx.clearRect(0,0,W,H);
+
+  const schemes={
+    w1:{pts:[[20,140],[100,80],[140,110],[240,40]],highlight:[0,1],color:'#3b82f6',label:'W1'},
+    w2:{pts:[[20,60],[80,120],[120,90],[200,150]],highlight:[2,3],color:'#f87171',label:'W2'},
+    w3:{pts:[[20,150],[40,130],[80,160],[180,40]],highlight:[0,3],color:'#3b82f6',label:'W3'},
+    w4:{pts:[[20,60],[80,80],[130,65],[200,90]],highlight:[0,3],color:'#f59e0b',label:'W4'},
+    w5:{pts:[[20,110],[60,80],[100,100],[180,50]],highlight:[0,3],color:'#3b82f6',label:'W5'},
+    wa:{pts:[[20,50],[100,130],[150,100],[240,160]],highlight:[0,3],color:'#f87171',label:'A'},
+    wb:{pts:[[20,150],[80,110],[130,130],[200,100]],highlight:[0,3],color:'#f59e0b',label:'B'},
+    wc:{pts:[[20,80],[60,100],[120,80],[220,160]],highlight:[0,3],color:'#f87171',label:'C'},
+  };
+
+  const s=schemes[id];
+  if(!s) return;
+
+  ctx.strokeStyle=s.color+'88';
+  ctx.lineWidth=1.5;
+  ctx.setLineDash([4,4]);
+  ctx.beginPath();
+  s.pts.forEach((p,i)=>i===0?ctx.moveTo(p[0],p[1]):ctx.lineTo(p[0],p[1]));
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Highlight main wave segment
+  ctx.strokeStyle=s.color;
+  ctx.lineWidth=2.5;
+  ctx.beginPath();
+  const [si,ei]=s.highlight;
+  ctx.moveTo(s.pts[si][0],s.pts[si][1]);
+  ctx.lineTo(s.pts[ei][0],s.pts[ei][1]);
+  ctx.stroke();
+
+  s.pts.forEach((p,i)=>{
+    const isHL=i===s.highlight[0]||i===s.highlight[1];
+    ctx.fillStyle=isHL?s.color:'#2d4a78';
+    ctx.beginPath();ctx.arc(p[0],p[1],isHL?5:3,0,Math.PI*2);ctx.fill();
+  });
+
+  // Label: position based on whether highlight end is a peak or trough
+  const hlEnd=s.pts[s.highlight[1]];
+  const hlStart=s.pts[s.highlight[0]];
+  const goingUp=hlEnd[1]<hlStart[1]; // lower y = higher on canvas
+  const lOffY=goingUp?-12:18;
+  ctx.font='bold 14px monospace';
+  const ltw=ctx.measureText(s.label).width;
+  ctx.fillStyle='rgba(10,16,28,0.8)';
+  ctx.fillRect(hlEnd[0]-ltw/2-3,hlEnd[1]+lOffY-13,ltw+6,17);
+  ctx.fillStyle=s.color;
+  ctx.fillText(s.label,hlEnd[0]-ltw/2,hlEnd[1]+lOffY);
+}
+
+// Init all drawings on load
+window.addEventListener('load',()=>{
+  function initCanvases(){
+    try { drawBasicWave(); } catch(e){ console.error('drawBasicWave:', e); }
+    try { drawCorrectivePatterns(); } catch(e){ console.error('drawCorrectivePatterns:', e); }
+    try { drawMiniWave('w1'); } catch(e){ console.error('drawMiniWave:', e); }
+  }
+  if(document.fonts && document.fonts.ready){
+    document.fonts.ready.then(initCanvases).catch(()=>setTimeout(initCanvases,400));
+  } else {
+    setTimeout(initCanvases, 400);
+  }
+});
+</script>
 
 <script>
 // ── DATE ──
