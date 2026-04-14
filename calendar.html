@@ -777,6 +777,10 @@ async function fetchLiveCalendar(weekStr) {
     events.forEach(ev => {
       const name = String(ev[cfg.name]||ev.event||ev.name||'').trim();
       if (!name||name.length<3) return;
+      // Skip non-financial events
+      const nameLower = name.toLowerCase();
+      const skipWords = ['easter','christmas','holiday','closed','orthodox','coptic','election','parliamentary','presidential','independence day','thanksgiving','new year','ramadan','eid','diwali','hanukkah','kwanzaa','boxing day','labour day','labor day','veterans day','memorial day','columbus day','martin luther','inauguration','coronation','funeral','observance'];
+      if (skipWords.some(w => nameLower.includes(w))) return;
       const dateRaw = String(ev[cfg.date]||ev.date||ev.time||'').slice(0,10);
       if (!dateRaw.match(/^\d{4}-\d{2}-\d{2}/)) return;
       const date = dateRaw.slice(0,10);
@@ -888,10 +892,12 @@ function renderKeyEventsCards() {
 
   const todayKey = today.toISOString().split('T')[0];
   const topEvents = EVENTS
-    .filter(e => e.date >= todayKey && e.date <= friKey && e.impact === 'high'
-      && !e.name.toLowerCase().includes('holiday')
-      && !e.name.toLowerCase().includes('closed')
-      && !e.name.toLowerCase().includes('good friday'))
+    .filter(e => {
+      if (e.date < todayKey || e.date > friKey || e.impact !== 'high') return false;
+      const n = e.name.toLowerCase();
+      const skip = ['holiday','closed','easter','christmas','election','orthodox','coptic','independence','thanksgiving','new year','memorial','labour','labor','veterans','ramadan','eid'];
+      return !skip.some(w => n.includes(w));
+    })
     .slice(0, 6);
 
   if (!topEvents.length) {
