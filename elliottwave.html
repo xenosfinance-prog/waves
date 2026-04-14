@@ -816,8 +816,7 @@ canvas { display: block; }
         <div style="font-size:11px;color:var(--muted);line-height:1.6;">Interactive wave chart with real pivot detection. No login required.</div>
       </div>
       <div style="padding:16px 20px;flex:1;">
-        <!-- FREE controls -->
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px;">
           <div>
             <div class="admin-label">Instrument</div>
             <select class="admin-select" id="freeSymbol">
@@ -840,28 +839,28 @@ canvas { display: block; }
           </div>
         </div>
         <button class="admin-run-btn" id="freeRunBtn" onclick="runFreeAnalysis()" style="width:100%;margin-bottom:14px;background:var(--green);color:#fff;">⚡ Generate Wave Chart</button>
+        <div id="freeLoadingTxt" style="font-size:11px;color:var(--muted);letter-spacing:2px;display:none;padding:10px 0;">⬡ Analysing Elliott Wave structure...</div>
         <div id="freeChartWrap" style="display:none;">
           <div style="background:#131f2e;border:1px solid var(--border);margin-bottom:10px;">
             <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid var(--border);font-size:10px;">
               <span style="color:var(--text);font-size:11px;" id="freeChartTitle">—</span>
               <div style="display:flex;gap:8px;">
-                <span id="freeSignalBadge" style="padding:3px 10px;font-size:9px;letter-spacing:.1em;display:none;"></span>
-                <span id="freeWaveBadge" style="padding:3px 10px;font-size:9px;border:1px solid var(--border);color:var(--muted);display:none;"></span>
+                <span id="freeSignalBadge" style="display:none;padding:3px 10px;font-size:9px;letter-spacing:.1em;"></span>
+                <span id="freeWaveBadge" style="display:none;padding:3px 10px;font-size:9px;border:1px solid var(--border);color:var(--muted);"></span>
               </div>
             </div>
             <canvas id="freeChartCanvas" style="display:block;width:100%;background:#090f1a;"></canvas>
           </div>
-          <div id="freeChartMetrics" style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:10px;font-size:10px;"></div>
-          <div id="freeNarrative" style="font-size:11px;color:#8aaccc;line-height:1.8;background:var(--bg2);border:1px solid var(--border);padding:14px 16px;display:none;">
+          <div id="freeChartMetrics" style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:10px;"></div>
+          <div id="freeNarrative" style="display:none;font-size:11px;color:#8aaccc;line-height:1.8;background:var(--bg2);border:1px solid var(--border);padding:14px 16px;">
             <div style="font-size:9px;letter-spacing:.14em;color:var(--gold);text-transform:uppercase;margin-bottom:8px;">⬡ AI Analysis</div>
             <div id="freeNarrativeText"></div>
           </div>
         </div>
-        <div id="freeLoadingTxt" style="font-size:11px;color:var(--muted);letter-spacing:2px;display:none;">⬡ Detecting pivots...</div>
       </div>
     </div>
 
-    <!-- RIGHT: PRO TIER -->
+    <!-- RIGHT: PRO TIER — links to subpage -->
     <div style="background:var(--bg2);border:1px solid var(--border2);padding:0;display:flex;flex-direction:column;">
       <div style="padding:18px 20px;border-bottom:1px solid var(--border2);">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
@@ -871,80 +870,18 @@ canvas { display: block; }
         <div style="font-family:var(--serif);font-size:20px;font-weight:700;margin-bottom:4px;">AI Wave Analysis</div>
         <div style="font-size:11px;color:var(--muted);line-height:1.6;">Institutional-grade AI analysis, narrative commentary and Telegram publishing.</div>
       </div>
-      <div style="padding:16px 20px;flex:1;">
-
-    <div class="admin-gate">
-      <div class="admin-gate-title">⬡ Access Required</div>
-      <div id="admin-login-area">
-        <div style="display:flex;gap:0;margin-bottom:14px;border-bottom:1px solid var(--border);">
-          <button id="tab-admin-btn" onclick="switchAccessTab('admin')" style="padding:8px 20px;font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;background:none;border:none;border-bottom:2px solid var(--gold);color:var(--gold);cursor:pointer;">Admin</button>
-          <button id="tab-premium-btn" onclick="switchAccessTab('premium')" style="padding:8px 20px;font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);cursor:pointer;">Premium</button>
-        </div>
-        <div id="admin-pw-area">
-          <div class="admin-login-row">
-            <input class="admin-pw-input" type="password" id="adminPw" placeholder="Admin password" onkeydown="if(event.key==='Enter')adminLogin()">
-            <button class="admin-btn" onclick="adminLogin()">Unlock</button>
-          </div>
-        </div>
-        <div id="premium-pw-area" style="display:none;">
-          <div style="font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:1px;margin-bottom:10px;">Enter your premium subscription code to access AI Wave Analysis.</div>
-          <div class="admin-login-row">
-            <input class="admin-pw-input" type="password" id="premiumPw" placeholder="Subscription code" onkeydown="if(event.key==='Enter')premiumLogin()">
-            <button class="admin-btn" onclick="premiumLogin()">Unlock</button>
-          </div>
-        </div>
-        <div class="admin-err" id="adminErr"></div>
-      </div>
-      <div class="admin-panel" id="adminPanel">
-        <div class="admin-controls">
-          <div>
-            <div class="admin-label">Instrument</div>
-            <select class="admin-select" id="aiSymbol">
-              <option value="oil wti">OIL WTI</option>
-              <option value="gold">GOLD</option>
-              <option value="silver">SILVER</option>
-              <option value="nat gas">NAT GAS</option>
-              <option value="eur/usd" selected>EUR/USD</option>
-              <option value="gbp/usd">GBP/USD</option>
-              <option value="usd/jpy">USD/JPY</option>
-              <option value="btc/usd">BTC/USD</option>
-              <option value="eth/usd">ETH/USD</option>
-              <option value="s&p 500">S&P 500</option>
-              <option value="nasdaq">NASDAQ</option>
-              <option value="dax">DAX</option>
-              <option value="ftse 100">FTSE 100</option>
-            </select>
-          </div>
-          <div>
-            <div class="admin-label">Timeframe</div>
-            <select class="admin-select" id="aiTf">
-              <option>W1 (Weekly)</option>
-              <option selected>D1 (Daily)</option>
-              <option>H4 (4-Hour)</option>
-              <option>H2 (2-Hour)</option>
-              <option>H1 (1-Hour)</option>
-            </select>
-          </div>
-        </div>
-        <div class="admin-label">Additional Context (optional)</div>
-        <textarea class="admin-textarea" id="aiContext" placeholder="e.g. Price at 1.0850, broke above 1.0800 resistance, RSI 58, last pivot high 1.1200..."></textarea>
-        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-          <button class="admin-run-btn" id="aiRunBtn" onclick="runAIAnalysis()">⚡ Generate Analysis</button>
-          <button class="admin-tg-btn" id="tgBtn" onclick="sendToTelegram()">✈ Send to Telegram</button>
-        </div>
-        <div class="analysis-output" id="analysisOutput">
-          <div id="ewChartWrap" style="display:none;margin-bottom:18px;">
-            <div style="font-family:var(--mono);font-size:9px;letter-spacing:3px;color:var(--gold);text-transform:uppercase;margin-bottom:8px;">⬡ Elliott Wave Chart</div>
-            <canvas id="ewChartCanvas" style="width:100%;border:1px solid var(--border);display:block;"></canvas>
-            <div style="font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:6px;letter-spacing:1px;">Impulse waves: <span style="color:#60a5fa">●</span> &nbsp; Corrective waves: <span style="color:#f59e0b">●</span> &nbsp; Entry: <span style="color:#00d4ff">—</span> &nbsp; Stop: <span style="color:#ff3d5a">—</span> &nbsp; Target: <span style="color:#00e676">—</span></div>
-          </div>
-          <pre id="analysisText"></pre>
-        </div>
+      <div style="padding:24px 20px;flex:1;display:flex;flex-direction:column;justify-content:space-between;">
+        <ul style="font-size:11px;color:var(--muted);line-height:2;list-style:none;padding:0;margin:0 0 28px 0;">
+          <li style="display:flex;gap:8px;align-items:center;"><span style="color:var(--gold);">✦</span> Real OHLCV candle data via AI engine</li>
+          <li style="display:flex;gap:8px;align-items:center;"><span style="color:var(--gold);">✦</span> Elliott Wave count with degree analysis</li>
+          <li style="display:flex;gap:8px;align-items:center;"><span style="color:var(--gold);">✦</span> RSI, MACD, ATR indicators</li>
+          <li style="display:flex;gap:8px;align-items:center;"><span style="color:var(--gold);">✦</span> Professional narrative commentary</li>
+          <li style="display:flex;gap:8px;align-items:center;"><span style="color:var(--gold);">✦</span> One-click Telegram publishing</li>
+        </ul>
+        <a href="/elliottwave-pro" style="display:block;text-align:center;padding:13px;background:var(--gold3);color:#fff;font-family:var(--mono);font-size:11px;letter-spacing:3px;text-transform:uppercase;text-decoration:none;transition:background .2s;" onmouseover="this.style.background='var(--gold)'" onmouseout="this.style.background='var(--gold3)'">⚡ Open Pro Analysis →</a>
       </div>
     </div>
-  </div>
 
-    </div><!-- end pro column -->
     </div><!-- end ewTiersGrid -->
   </div><!-- end ew-section -->
 
