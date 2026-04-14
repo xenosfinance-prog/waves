@@ -217,6 +217,7 @@ canvas { display: block; }
 .analysis-output { display: none; margin-top: 20px; background: var(--bg); border: 1px solid var(--border); padding: 24px; }
 .analysis-output pre { font-family: var(--mono); font-size: 12px; color: var(--ink2); white-space: pre-wrap; line-height: 1.7; }
 .analysis-loading { font-size: 11px; color: var(--muted); letter-spacing: 2px; }
+#ewChartCanvas { display: block; width: 100% !important; min-height: 460px; background: #090f1a; }
 
 /* ── FOOTER ── */
 .page-footer { border-top: 1px solid var(--border); padding: 24px 32px; display: flex; justify-content: space-between; align-items: center; font-size: 10px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; margin-top: 80px; }
@@ -1988,10 +1989,12 @@ function renderEWChart(analysis, symbol, tf, liveData) {
   const wp = analysis.wave_points;
   if (!wp || !wp.w0) { wrap.style.display='none'; return; }
   wrap.style.display='block';
+  canvas.style.height='460px';
 
-  const W = canvas.offsetWidth||860, H=460;
+  const W = canvas.getBoundingClientRect().width || canvas.offsetWidth || wrap.offsetWidth || 860;
+  const H = 460;
   canvas.width=W*2; canvas.height=H*2;
-  canvas.style.width=W+'px'; canvas.style.height=H+'px';
+  canvas.style.width='100%'; canvas.style.height=H+'px';
   const ctx=canvas.getContext('2d'); ctx.scale(2,2);
   const ML=72,MR=90,MT=44,MB=58,CW=W-ML-MR,CH=H-MT-MB;
 
@@ -2205,6 +2208,50 @@ function renderEWChart(analysis, symbol, tf, liveData) {
   const iCol2 = isBearish?'#fcd34d':'#60a5fa';
   const cCol  = isBearish?'#f87171':'#f59e0b';
   const cCol2 = isBearish?'#fca5a5':'#fcd34d';
+
+  // ── Wave zigzag lines ──────────────────────────────────────────
+  // Draw connecting lines between consecutive wave points
+  for (let i = 0; i < pts.length - 1; i++) {
+    const from = pts[i];
+    const to   = pts[i + 1];
+    // Impulse segment (both impulse) = blue/amber; corrective = orange/red
+    const isImpSeg = from.impulse && to.impulse;
+    const segCol = isImpSeg ? iCol : cCol;
+
+    // Glow pass (thicker, lower alpha)
+    ctx.strokeStyle = segCol;
+    ctx.lineWidth   = 4;
+    ctx.globalAlpha = 0.18;
+    ctx.lineJoin    = 'round';
+    ctx.lineCap     = 'round';
+    ctx.beginPath();
+    ctx.moveTo(from.x, from.y);
+    ctx.lineTo(to.x, to.y);
+    ctx.stroke();
+
+    // Main line pass
+    ctx.lineWidth   = 2;
+    ctx.globalAlpha = 0.85;
+    ctx.beginPath();
+    ctx.moveTo(from.x, from.y);
+    ctx.lineTo(to.x, to.y);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  ctx.lineJoin    = 'miter';
+  ctx.lineCap     = 'butt';
+
+  // ── Wave dots ─────────────────────────────────────────────────
+  pts.forEach((pt) => {
+    const isCur = pt.label === analysis.current_wave;
+    const col   = pt.impulse ? iCol2 : cCol2;
+    // Outer ring
+    ctx.fillStyle = 'rgba(6,12,22,0.92)';
+    ctx.beginPath(); ctx.arc(pt.x, pt.y, isCur ? 7 : 5.5, 0, Math.PI * 2); ctx.fill();
+    // Inner dot
+    ctx.fillStyle = col;
+    ctx.beginPath(); ctx.arc(pt.x, pt.y, isCur ? 5 : 3.5, 0, Math.PI * 2); ctx.fill();
+  });
 
   // ── Wave labels: number directly on candle pivot ──────────────
   pts.forEach((pt) => {
