@@ -863,11 +863,12 @@ function toggleGloss(el){
 
 function filterGloss(){
   const q = document.getElementById('glossSearch').value.toLowerCase().trim();
-  // If no search and no active tag, hide all
-  const activeTag = document.querySelector('.gloss-tag.active');
-  if (!q && !activeTag) {
-    document.querySelectorAll('.gloss-item').forEach(el => el.classList.add('hidden'));
-    document.getElementById('glossCount').textContent = 'Select a category or search to explore terms';
+  // Use the global activeTag string variable (NOT a DOM query — that was the bug)
+  const currentTag = activeTag; // string: 'all', 'wave', 'rule', etc.
+  if (!q && currentTag === 'all') {
+    document.querySelectorAll('.gloss-item').forEach(el => el.classList.remove('hidden'));
+    const total = document.querySelectorAll('.gloss-item').length;
+    document.getElementById('glossCount').textContent = total + ' terms';
     document.getElementById('glossEmpty').style.display = 'none';
     return;
   }
@@ -878,7 +879,7 @@ function filterGloss(){
     const body = item.querySelector('.gloss-body').textContent.toLowerCase();
     const cat  = item.dataset.cat;
     const matchSearch = !q || term.includes(q) || body.includes(q);
-    const matchTag = activeTag === 'all' || cat === activeTag;
+    const matchTag = currentTag === 'all' || cat === currentTag;
     if(matchSearch && matchTag){ item.classList.remove('hidden'); visible++; }
     else { item.classList.add('hidden'); }
   });
