@@ -2613,8 +2613,9 @@ function loadTradingViewChart(container, sig) {
     });
   };
   // Se tv.js è già caricato, crea direttamente il widget
+  // Wrap in setTimeout to ensure container div is fully in DOM before widget init
   if (window.TradingView) {
-    script.onload();
+    setTimeout(script.onload, 0);
   } else {
     document.head.appendChild(script);
   }
