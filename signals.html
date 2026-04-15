@@ -340,6 +340,20 @@
 
   .detail-info { display: flex; flex-direction: column; gap: 14px; }
 
+  .full-analysis-block { font-family: 'PT Serif',Georgia,serif; font-size:13px; line-height:1.75; color:#c8d8ea; }
+  .full-analysis-block .analysis-title { font-family:'IBM Plex Mono',monospace; font-size:9px; letter-spacing:.16em; text-transform:uppercase; color:#3b82f6; margin:16px 0 6px; padding-bottom:4px; border-bottom:1px solid #1e3050; }
+  .full-analysis-block .analysis-title:first-child { margin-top:0; }
+  .full-analysis-block .analysis-para { margin-bottom:10px; color:#b8cce0; }
+  .full-analysis-block .analysis-list { list-style:none; margin:0 0 10px; padding:0; }
+  .full-analysis-block .analysis-list li { padding:4px 0 4px 14px; position:relative; color:#b8cce0; font-size:12px; }
+  .full-analysis-block .analysis-list li::before { content:'·'; position:absolute; left:0; color:#3b82f6; font-weight:700; }
+  .full-analysis-block .analysis-list li strong { color:#e2eaf4; font-weight:600; }
+  .full-analysis-block .analysis-invalidation { background:rgba(239,68,68,0.07); border-left:2px solid #ef4444; padding:8px 12px; margin-bottom:10px; font-size:12px; color:#fca5a5; border-radius:0 2px 2px 0; }
+  .full-analysis-block .flow-grid { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:10px; }
+  .full-analysis-block .flow-cell { background:#172032; padding:7px 10px; font-family:'IBM Plex Mono',monospace; font-size:10px; }
+  .full-analysis-block .flow-cell-label { color:#5a7a9a; font-size:9px; letter-spacing:.1em; margin-bottom:3px; }
+  .full-analysis-block .flow-cell-val { font-weight:700; }
+
   .detail-section-title {
     font-size: 9px;
     color: #60a5fa;
@@ -2144,6 +2158,7 @@ Return ONLY a raw JSON array. Each object:
   "key_levels": "Support: 1.0795 (swing low). Resistance: 1.0856 (neckline), 1.0900 (prior structure)",
   "invalidation": "Close below 1.0790 on ${tf} timeframe negates the pattern",
   "market_context": "USD weakness amid Fed dovish repricing supports EUR recovery from oversold levels",
+  "full_analysis": "## Market Structure & Technical Context\n\n[2-3 sentences: overall structure, wave position, why this pattern is significant at this exact price level. Use real numbers from the data.]\n\n[1-2 sentences: RSI value, EMA alignment (EMA20 vs EMA50), ATR context, momentum state.]\n\n## Key Levels\n\n- **Resistance**: [exact price] ([context — swing high / breakout level / prior structure])\n- **Support**: [exact price] ([context])\n\n## Invalidation Level\n\n[Complete sentence: exactly what candle close would negate this setup and why it matters structurally.]\n\n## Macro & Flow Context\n\n[1-2 sentences: macro backdrop relevant to this instrument, how CFD flow data confirms or challenges the setup.]",
   "tags": ["double_bottom","key_support","mean_reversion"]
 }
 
@@ -2153,6 +2168,7 @@ CRITICAL RULES:
 - rr string must match the algo rr exactly
 - confidence: algo value ±5 only
 - Return empty array [] if no patterns are convincing
+- full_analysis: write REAL numbers from the data provided. Minimum 120 words. Use the section structure shown exactly.
 - Output only the JSON array, no markdown`;
 }
 
@@ -2391,47 +2407,9 @@ function renderSignals(list) {
             <div class="level-box"><div class="level-label">STOP LOSS</div><div class="level-val sl">${fmt(sig.sl, sig.pair)}</div></div>
             <div class="level-box"><div class="level-label">TAKE PROFIT</div><div class="level-val tp">${fmt(sig.tp, sig.pair)}</div></div>
           </div>
-          <div>
-            <div class="detail-section-title">Elliott Wave Context</div>
-            <div class="detail-text">${sig.ew_context || '—'}</div>
+          <div class="full-analysis-block">
+            ${sig.full_analysis ? renderAnalysis(sig.full_analysis, sig) : renderLegacyAnalysis(sig)}
           </div>
-          <div>
-            <div class="detail-section-title">Pattern Description</div>
-            <div class="detail-text">${sig.pattern_desc || '—'}</div>
-          </div>
-          <div>
-            <div class="detail-section-title">Key Levels</div>
-            <div class="detail-text">${sig.key_levels || '—'}</div>
-          </div>
-          <div>
-            <div class="detail-section-title">Invalidation</div>
-            <div class="detail-text" style="color:#ff3d5a">${sig.invalidation || '—'}</div>
-          </div>
-          <div>
-            <div class="detail-section-title">Market Context</div>
-            <div class="detail-text">${sig.market_context || '—'}</div>
-          </div>
-          ${sig.cfd ? `
-          <div>
-            <div class="detail-section-title" style="color:var(--accent)">⚡ CFD Physics Validation</div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px;">
-              <div style="background:var(--bg3);padding:8px 10px;font-size:10px;">
-                <div style="color:#94a3b8;font-size:9px;letter-spacing:.1em;margin-bottom:3px;">REYNOLDS (thrust)</div>
-                <div style="color:${sig.cfd.reynolds > 50 ? 'var(--green)' : 'var(--yellow)'};font-weight:700;">${sig.cfd.reynolds}</div>
-              </div>
-              <div style="background:var(--bg3);padding:8px 10px;font-size:10px;">
-                <div style="color:#94a3b8;font-size:9px;letter-spacing:.1em;margin-bottom:3px;">VISCOSITY (friction)</div>
-                <div style="color:${sig.cfd.viscosity < 0.5 ? 'var(--green)' : 'var(--yellow)'};font-weight:700;">${sig.cfd.viscosity}</div>
-              </div>
-            </div>
-            <div style="margin-top:6px;padding:7px 10px;background:var(--bg3);font-size:10px;display:flex;justify-content:space-between;align-items:center;">
-              <span style="color:#94a3b8;font-size:9px;letter-spacing:.1em;">FLOW TYPE</span>
-              <span style="color:${sig.cfd.flowType.includes('TURBULENT') ? 'var(--green)' : 'var(--text-dim)'};font-weight:600;font-size:10px;">${sig.cfd.flowType}</span>
-            </div>
-            <div style="margin-top:4px;padding:5px 10px;background:var(--bg3);font-size:9px;color:${sig.cfd.momentumAligned ? 'var(--green)' : 'var(--yellow)'};letter-spacing:.08em;">
-              ${sig.cfd.momentumAligned ? '✓ MOMENTUM ALIGNED' : '⚠ MOMENTUM DIVERGING'}
-            </div>
-          </div>` : ''}
           <div class="tag-list">${(sig.tags||[]).map(t=>`<span class="tag">${t}</span>`).join('')}</div>
           <button class="tg-send-btn" onclick="sendToTelegram(event, ${idx})">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.248l-2.05 9.667c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L8.31 14.617l-2.967-.924c-.645-.204-.658-.645.136-.953l11.57-4.461c.537-.194 1.006.131.513.969z"/></svg>
@@ -3457,117 +3435,84 @@ async function doSendToTelegram(idx) {
   if (!sig) return;
   const btn = document.querySelector(`[onclick="sendToTelegram(event, ${idx})"]`);
   if (btn) { btn.disabled = true; btn.textContent = '⏳ SENDING...'; }
+
   try {
-    // Pattern canvas
-    const patternCanvas = document.getElementById('chart-' + idx);
-    let patternC = patternCanvas && patternCanvas.dataset.drawn ? patternCanvas : (() => {
-      const tmp = document.createElement('canvas');
-      drawPatternChart(tmp, sig, candleCache[sig.pair + "_" + selectedTF] || []);
-      return tmp;
-    })();
-
-    // Live chart canvas — solo Lightweight Charts (FX/Crypto)
-    // TradingView è un iframe cross-origin, non catturabile
-    const liveDiv = document.getElementById('lc-' + idx);
-    const liveC = liveDiv ? liveDiv.querySelector('canvas') : null;
-    const hasLiveChart = liveC && liveC.width > 0;
-
-    // Canvas combinato
-    const combined = document.createElement('canvas');
-    const OUT_W = 800;
-    const OUT_H = hasLiveChart ? 300 : 500;
-    const gap = 2;
-    combined.width  = OUT_W;
-    combined.height = hasLiveChart ? OUT_H * 2 + gap : OUT_H;
-    const cctx = combined.getContext('2d');
-    cctx.fillStyle = '#0d1521';
-    cctx.fillRect(0, 0, combined.width, combined.height);
-    cctx.drawImage(patternC, 0, 0, OUT_W, OUT_H);
-    if (hasLiveChart) cctx.drawImage(liveC, 0, OUT_H + gap, OUT_W, OUT_H);
-
-    // Resize to max 600px wide to stay well under Cloudflare 1MB body limit
-    const MAX_W = 600;
-    let finalCanvas = combined;
-    if (combined.width > MAX_W) {
-      const scale = MAX_W / combined.width;
-      const resized = document.createElement('canvas');
-      resized.width  = MAX_W;
-      resized.height = Math.round(combined.height * scale);
-      resized.getContext('2d').drawImage(combined, 0, 0, resized.width, resized.height);
-      finalCanvas = resized;
-    }
-    let imageData = finalCanvas.toDataURL('image/jpeg', 0.72).split(',')[1];
-    // Safety check — if still > 700KB base64 (~525KB binary), compress further
-    if (imageData.length > 700000) {
-      imageData = finalCanvas.toDataURL('image/jpeg', 0.55).split(',')[1];
-    }
     const dir = sig.direction === 'BUY' ? '🟢' : '🔴';
     const rr  = sig.rr || '—';
-    const txt = s => String(s || '—');
-    // Build caption — use full_analysis if available, strip markdown for plain text
+    const t   = s => String(s || '—');
+    const dp  = sig.pair && sig.pair.includes('JPY') ? 3 : sig.pair && (sig.pair.includes('BTC') || sig.pair.includes('XAU')) ? 2 : 5;
+
+    // Strip markdown → plain text for Telegram
     function stripMd(s) {
-      return String(s||'')
-        .replace(/^#{1,3}\s*/gm,'')
-        .replace(/\*\*([^*]+)\*\*/g,'$1')
-        .replace(/^[\-\*]\s+/gm,'· ')
+      return String(s || '')
+        .replace(/^#{1,3}\s*/gm, '')
+        .replace(/\*\*([^*]+)\*\*/g, '$1')
+        .replace(/^[\-\*]\s+/gm, '· ')
+        .replace(/\n{3,}/g, '\n\n')
         .trim();
     }
-    let analysisText = '';
-    if (sig.full_analysis) {
-      analysisText = stripMd(sig.full_analysis);
-    } else {
-      const parts = [];
-      if (sig.ew_context)     parts.push('Elliott Wave:\n' + txt(sig.ew_context));
-      if (sig.pattern_desc)   parts.push('Pattern:\n'     + txt(sig.pattern_desc));
-      if (sig.key_levels)     parts.push('Key Levels:\n'  + txt(sig.key_levels));
-      if (sig.market_context) parts.push('Context:\n'     + txt(sig.market_context));
-      if (sig.invalidation)   parts.push('Invalidation: '  + txt(sig.invalidation));
-      analysisText = parts.join('\n\n');
-    }
-    const captionParts = [
-      `${dir} ${txt(sig.pair)} — ${txt(sig.direction)}`,
-      `Pattern: ${txt(sig.pattern)}  |  TF: ${txt(selectedTF)}`,
-      ``,
-      `Entry:       ${txt(fmt(sig.entry, sig.pair))}`,
-      `Stop Loss:   ${txt(fmt(sig.sl, sig.pair))}`,
-      `Take Profit: ${txt(fmt(sig.tp, sig.pair))}`,
-      `R:R: ${txt(rr)}  |  Confidence: ${txt(sig.confidence)}%`,
-      ``,
-      analysisText,
-      ``,
-      `${(sig.tags||[]).filter(t=>t).map(t=>'#'+t.replace(/\s+/g,'_')).join(' ')}`,
-      ``,
-      `✦ XenosFinance Signal Engine`,
-    ];
-    const caption = captionParts.join('\n').slice(0, 1024);
 
-    // Send via Worker (avoids CORS block on direct api.telegram.org calls)
+    // Header
+    const lines = [
+      `${dir} <b>${t(sig.pair)}</b> — ${t(sig.direction)}`,
+      `📐 <b>${t(sig.pattern)}</b>  ·  ${t(selectedTF)}  ·  ${t(sig.confidence)}% confidence`,
+      ``,
+      `<b>Entry:</b>       ${t(fmt(sig.entry, sig.pair))}`,
+      `<b>Stop Loss:</b>   ${t(fmt(sig.sl, sig.pair))}`,
+      `<b>Take Profit:</b> ${t(fmt(sig.tp, sig.pair))}`,
+      `<b>R:R:</b> ${t(rr)}`,
+      ``,
+    ];
+
+    // Full structured analysis if available, else legacy fields
+    if (sig.full_analysis) {
+      lines.push(stripMd(sig.full_analysis));
+    } else {
+      if (sig.ew_context)     lines.push(`<b>Elliott Wave:</b>\n${t(sig.ew_context)}\n`);
+      if (sig.pattern_desc)   lines.push(`<b>Pattern:</b>\n${t(sig.pattern_desc)}\n`);
+      if (sig.key_levels)     lines.push(`<b>Key Levels:</b>\n${t(sig.key_levels)}\n`);
+      if (sig.market_context) lines.push(`<b>Context:</b>\n${t(sig.market_context)}\n`);
+      if (sig.invalidation)   lines.push(`<b>Invalidation:</b> ${t(sig.invalidation)}`);
+    }
+
+    // CFD diagnostics
+    if (sig.cfd) {
+      lines.push(`\n⚡ <b>Flow:</b> Reynolds ${sig.cfd.reynolds} · Viscosity ${sig.cfd.viscosity} · ${sig.cfd.flowType}`);
+      lines.push(sig.cfd.momentumAligned ? '✅ Momentum aligned' : '⚠️ Momentum diverging');
+    }
+
+    // Tags + footer
+    lines.push(``);
+    if (sig.tags && sig.tags.length) {
+      lines.push(sig.tags.filter(Boolean).map(t => '#' + t.replace(/\s+/g,'_')).join(' '));
+    }
+    lines.push(`\n✦ <b>XenosFinance Signal Engine</b>`);
+
+    // Telegram HTML mode — limit 4096 chars
+    const text = lines.join('\n').slice(0, 4096);
+
     const res = await fetch(WORKER, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        type: 'telegram_photo',
-        image_base64: imageData,
-        image_mime: 'image/jpeg',
-        caption: caption.slice(0, 1024),
-
+        type: 'telegram',
+        text: text,
+        parse_mode: 'HTML',
+        disable_web_page_preview: true
       })
     });
     const data = await res.json();
-    // Worker può restituire la risposta TG direttamente o wrappata
-    const tgData = data.ok !== undefined ? data : (data.data || data.result || data);
-    if (tgData.ok) {
+    if (data.ok) {
       showToast('✅ Segnale inviato su Telegram!');
       if (btn) { btn.disabled = false; btn.innerHTML = '✅ SENT'; }
       setTimeout(() => {
         if (btn) { btn.disabled = false; btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.248l-2.05 9.667c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L8.31 14.617l-2.967-.924c-.645-.204-.658-.645.136-.953l11.57-4.461c.537-.194 1.006.131.513.969z"/></svg> SEND TO TELEGRAM'; }
       }, 3000);
     } else {
-      const errMsg = tgData.description || tgData.error || JSON.stringify(tgData).slice(0, 100);
-      throw new Error(errMsg);
+      throw new Error(data.description || data.error || JSON.stringify(data).slice(0, 120));
     }
   } catch(e) {
-    showToast('❌ Errore: ' + e.message);
+    showToast('❌ ' + e.message);
     if (btn) { btn.disabled = false; btn.innerHTML = '⚠️ RETRY'; }
   }
 }
