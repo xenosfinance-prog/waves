@@ -320,9 +320,9 @@ const EVENTS = [
   {date:'2026-04-07', time:'21:30', country:'USD', flag:'🇺🇸', name:'API Crude Oil Stock Change', desc:'Week ending Apr 4', impact:'high', forecast:'—', prev:'-3.3M', actual:'-1.374M'},
   {date:'2026-04-08', time:'16:30', country:'USD', flag:'🇺🇸', name:'EIA Crude Oil Inventories', desc:'Week ending Apr 4 — Key oil market report', impact:'high', forecast:'—', prev:'-3.3M', actual:'-2.429M'},
   {date:'2026-04-08', time:'16:30', country:'USD', flag:'🇺🇸', name:'EIA Gasoline Inventories', desc:'Week ending Apr 4', impact:'med', forecast:'—', prev:'-1.1M', actual:'-1.628M'},
-  {date:'2026-04-14', time:'21:30', country:'USD', flag:'🇺🇸', name:'API Crude Oil Stock Change', desc:'Week ending Apr 11', impact:'high', forecast:'—', prev:'—', actual:''},
-  {date:'2026-04-15', time:'16:30', country:'USD', flag:'🇺🇸', name:'EIA Crude Oil Inventories', desc:'Week ending Apr 11 — Key oil market report', impact:'high', forecast:'—', prev:'—', actual:''},
-  {date:'2026-04-15', time:'16:30', country:'USD', flag:'🇺🇸', name:'EIA Gasoline Inventories', desc:'Week ending Apr 11', impact:'med', forecast:'—', prev:'—', actual:''},
+  {date:'2026-04-14', time:'21:30', country:'USD', flag:'🇺🇸', name:'API Crude Oil Stock Change', desc:'Week ending Apr 11', impact:'high', forecast:'—', prev:'-1.374M', actual:''},
+  {date:'2026-04-15', time:'16:30', country:'USD', flag:'🇺🇸', name:'EIA Crude Oil Inventories', desc:'Week ending Apr 11 — Key oil market report', impact:'high', forecast:'—', prev:'-2.429M', actual:''},
+  {date:'2026-04-15', time:'16:30', country:'USD', flag:'🇺🇸', name:'EIA Gasoline Inventories', desc:'Week ending Apr 11', impact:'med', forecast:'—', prev:'-1.628M', actual:''},
   {date:'2026-04-21', time:'21:30', country:'USD', flag:'🇺🇸', name:'API Crude Oil Stock Change', desc:'Week ending Apr 18', impact:'high', forecast:'—', prev:'—', actual:''},
   {date:'2026-04-22', time:'16:30', country:'USD', flag:'🇺🇸', name:'EIA Crude Oil Inventories', desc:'Week ending Apr 18 — Key oil market report', impact:'high', forecast:'—', prev:'—', actual:''},
   {date:'2026-04-22', time:'16:30', country:'USD', flag:'🇺🇸', name:'EIA Gasoline Inventories', desc:'Week ending Apr 18', impact:'med', forecast:'—', prev:'—', actual:''},
@@ -927,6 +927,7 @@ async function refreshActuals() {
     fetchLiveCalendar('week2'),
     fetchLiveCalendar('week3'),
   ]);
+  renderWeekTabs();   // re-render tabs after live events added (preserves currentWeek)
   renderCalendar();
   renderHighlights();
   renderKeyEventsCards();
@@ -990,8 +991,10 @@ document.addEventListener('DOMContentLoaded', () => {
   renderCalendar();
   loadTicker();
   setInterval(updateDateTime, 60000);
-  // Fetch live actuals first, then render key events cards once data is ready
+  // Fetch live actuals — renderWeekTabs() inside refreshActuals re-applies after fetch
   refreshActuals().then(() => {
+    renderWeekTabs();
+    renderCalendar();
     renderKeyEventsCards();
   });
   setInterval(refreshActuals, 300000);
