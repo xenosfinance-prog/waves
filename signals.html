@@ -2089,6 +2089,61 @@ async function analyzePair(pair, livePrices) {
 }
 
 // ── Prompt a Claude con dati tecnici reali ───────────────────
+function renderAnalysis(text, sig) {
+  if (!text) return renderLegacyAnalysis(sig);
+  let html = '';
+  const lines = text.split('\n');
+  let inList = false;
+  for (let line of lines) {
+    line = line.trim();
+    if (!line) { if (inList) { html += '</ul>'; inList = false; } continue; }
+    if (line.startsWith('## ')) {
+      if (inList) { html += '</ul>'; inList = false; }
+      html += '<div class="analysis-title">' + line.slice(3) + '</div>';
+      continue;
+    }
+    if (line.startsWith('- ') || line.startsWith('* ')) {
+      if (!inList) { html += '<ul class="analysis-list">'; inList = true; }
+      let item = line.slice(2).replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+      html += '<li>' + item + '</li>';
+      continue;
+    }
+    if (inList) { html += '</ul>'; inList = false; }
+    let para = line.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    html += '<p class="analysis-para">' + para + '</p>';
+  }
+  if (inList) html += '</ul>';
+  if (sig && sig.cfd) {
+    html += '<div class="analysis-title">Flow Diagnostics (CFD Model)</div>'
+      + '<div class="flow-grid">'
+      + '<div class="flow-cell"><div class="flow-cell-label">REYNOLDS (thrust)</div><div class="flow-cell-val" style="color:' + (sig.cfd.reynolds > 50 ? '#10b981' : '#f59e0b') + '">' + sig.cfd.reynolds + '</div></div>'
+      + '<div class="flow-cell"><div class="flow-cell-label">VISCOSITY (friction)</div><div class="flow-cell-val" style="color:' + (sig.cfd.viscosity < 0.5 ? '#10b981' : '#f59e0b') + '">' + sig.cfd.viscosity + '</div></div>'
+      + '<div class="flow-cell"><div class="flow-cell-label">FLOW TYPE</div><div class="flow-cell-val" style="color:' + ((sig.cfd.flowType||'').includes('TURBULENT') ? '#10b981' : '#94a3b8') + '">' + (sig.cfd.flowType||'—') + '</div></div>'
+      + '<div class="flow-cell"><div class="flow-cell-label">MOMENTUM</div><div class="flow-cell-val" style="color:' + (sig.cfd.momentumAligned ? '#10b981' : '#f59e0b') + '">' + (sig.cfd.momentumAligned ? '✓ ALIGNED' : '⚠ DIVERGING') + '</div></div>'
+      + '</div>';
+  }
+  return html;
+}
+
+function renderLegacyAnalysis(sig) {
+  let html = '';
+  if (sig.ew_context)     html += '<div class="analysis-title">Elliott Wave Context</div><p class="analysis-para">' + (sig.ew_context||'') + '</p>';
+  if (sig.pattern_desc)   html += '<div class="analysis-title">Pattern Description</div><p class="analysis-para">' + (sig.pattern_desc||'') + '</p>';
+  if (sig.key_levels)     html += '<div class="analysis-title">Key Levels</div><p class="analysis-para">' + (sig.key_levels||'') + '</p>';
+  if (sig.invalidation)   html += '<div class="analysis-title">Invalidation</div><div class="analysis-invalidation">' + (sig.invalidation||'') + '</div>';
+  if (sig.market_context) html += '<div class="analysis-title">Market Context</div><p class="analysis-para">' + (sig.market_context||'') + '</p>';
+  if (sig.cfd) {
+    html += '<div class="analysis-title">Flow Diagnostics (CFD Model)</div>'
+      + '<div class="flow-grid">'
+      + '<div class="flow-cell"><div class="flow-cell-label">REYNOLDS</div><div class="flow-cell-val" style="color:' + (sig.cfd.reynolds > 50 ? '#10b981' : '#f59e0b') + '">' + sig.cfd.reynolds + '</div></div>'
+      + '<div class="flow-cell"><div class="flow-cell-label">VISCOSITY</div><div class="flow-cell-val" style="color:' + (sig.cfd.viscosity < 0.5 ? '#10b981' : '#f59e0b') + '">' + sig.cfd.viscosity + '</div></div>'
+      + '<div class="flow-cell"><div class="flow-cell-label">FLOW TYPE</div><div class="flow-cell-val" style="color:#94a3b8">' + (sig.cfd.flowType||'—') + '</div></div>'
+      + '<div class="flow-cell"><div class="flow-cell-label">MOMENTUM</div><div class="flow-cell-val" style="color:' + (sig.cfd.momentumAligned ? '#10b981' : '#f59e0b') + '">' + (sig.cfd.momentumAligned ? '✓ ALIGNED' : '⚠ DIVERGING') + '</div></div>'
+      + '</div>';
+  }
+  return html || '<p class="analysis-para" style="color:#3a5070">No analysis available.</p>';
+}
+
 function buildPromptFromAnalysis(analyses, tf, marketNews, prevSignals = []) {
   const { generalNews, forexNews, cryptoNews, sentLines } = marketNews;
   const hasNews = generalNews || forexNews || cryptoNews;
