@@ -417,7 +417,10 @@ function getWeekStart(offset) {
 }
 
 function dateKey(d) {
-  return d.toISOString().split('T')[0];
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const dy = String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${dy}`;
 }
 
 function weekDates(offset) {
@@ -733,8 +736,7 @@ function isoWeekRange(offsetWeeks) {
   const day = now.getDay() || 7;
   const mon = new Date(now); mon.setHours(0,0,0,0); mon.setDate(now.getDate() - day + 1 + offsetWeeks * 7);
   const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
-  const fmt = d => d.toISOString().split('T')[0];
-  return { from: fmt(mon), to: fmt(sun) };
+  return { from: dateKey(mon), to: dateKey(sun) };
 }
 
 async function fetchLiveCalendar(weekStr) {
@@ -745,7 +747,7 @@ async function fetchLiveCalendar(weekStr) {
   const d0 = new Date(from + 'T12:00:00');
   for (let i = 0; i < 7; i++) {
     const d = new Date(d0); d.setDate(d0.getDate() + i);
-    weekDays.push(d.toISOString().split('T')[0]);
+    weekDays.push(dateKey(d));
   }
 
   function evKey(date, name) {
@@ -887,10 +889,10 @@ function renderKeyEventsCards() {
   const wd = today.getDay()||7;
   const mon = new Date(today); mon.setDate(today.getDate()-wd+1);
   const fri = new Date(mon); fri.setDate(mon.getDate()+4);
-  const monKey = mon.toISOString().split('T')[0];
-  const friKey = fri.toISOString().split('T')[0];
+  const monKey = dateKey(mon);
+  const friKey = dateKey(fri);
 
-  const todayKey = today.toISOString().split('T')[0];
+  const todayKey = dateKey(today);
   const topEvents = EVENTS
     .filter(e => {
       if (e.date < todayKey || e.date > friKey || e.impact !== 'high') return false;
@@ -1011,8 +1013,8 @@ async function loadCalendarAIBrief() {
     const now = new Date();
     const mon = new Date(now); mon.setDate(now.getDate() - now.getDay() + 1);
     const fri = new Date(mon); fri.setDate(mon.getDate() + 4);
-    const monKey = mon.toISOString().slice(0,10);
-    const friKey = fri.toISOString().slice(0,10);
+    const monKey = dateKey(mon);
+    const friKey = dateKey(fri);
     const weekEvents = (typeof EVENTS !== 'undefined' ? EVENTS : [])
       .filter(e => e.date >= monKey && e.date <= friKey && (e.impact === 'high' || e.impact === 'med'))
       .map(e => `${e.date} ${e.time} [${e.country}] ${e.name} — Forecast: ${e.forecast||'—'}, Prev: ${e.prev||'—'}${e.actual?' Actual: '+e.actual:''}`)
