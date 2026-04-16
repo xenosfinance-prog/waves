@@ -4,7 +4,6 @@
 (function() {
   const LANGS = {
     en: { flag: '🇬🇧', label: 'EN' },
-    it: { flag: '🇮🇹', label: 'IT' },
     ru: { flag: '🇷🇺', label: 'RU' },
     pl: { flag: '🇵🇱', label: 'PL' },
     es: { flag: '🇪🇸', label: 'ES' },
