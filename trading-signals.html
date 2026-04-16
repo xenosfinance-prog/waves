@@ -741,6 +741,7 @@ function renderCFD() {
             <option value="breakeven" ${outcome==='breakeven'?'selected':''}>◎ Breakeven</option>
           </select>
           <button onclick="saveOutcome(event,${i},'cfd')">Save</button>
+          <button onclick="sendToTelegram(event,${i},'cfd')" style="background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.4);color:var(--gold2);font-family:var(--mono);font-size:9px;letter-spacing:1px;padding:4px 10px;cursor:pointer;">📡 Telegram</button>
           <button class="del-btn" onclick="deleteSignal(event,${i},'cfd')">🗑 Delete</button>
         </div>
       </div>
@@ -811,6 +812,7 @@ function renderOptions() {
             <option value="breakeven" ${outcome==='breakeven' ?'selected':''}>◎ Breakeven</option>
           </select>
           <button onclick="saveOutcome(event,${i},'options')">Save</button>
+          <button onclick="sendToTelegram(event,${i},'options')" style="background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.4);color:var(--gold2);font-family:var(--mono);font-size:9px;letter-spacing:1px;padding:4px 10px;cursor:pointer;">📡 Telegram</button>
           <button class="del-btn" onclick="deleteSignal(event,${i},'options')">🗑 Delete</button>
         </div>
       </div>
@@ -990,39 +992,61 @@ function injectTVChart(containerId, pair, tf) {
   const sym = TV_SYM_MAP[pair] || pair;
   const interval = {'M1':'M','W1':'W','D1':'D','H4':'240','H1':'60','M30':'30','M15':'15','M5':'5'}[tf] || 'D';
   const el = document.getElementById(containerId);
-  if (!el || el.dataset.loaded) return;
-  el.dataset.loaded = '1';
-  const script = document.createElement('script');
-  script.src = 'https://s3.tradingview.com/tv.js';
-  script.onload = () => {
-    new TradingView.widget({
-      container_id: containerId,
-      symbol: sym,
-      interval,
-      theme: 'dark',
-      style: '3',
-      locale: 'en',
-      toolbar_bg: '#131f2e',
-      enable_publishing: false,
-      hide_top_toolbar: true,
-      hide_legend: false,
-      save_image: false,
-      height: 220,
-      width: '100%',
-      studies: [],
-      overrides: {
-        'paneProperties.background': '#0f1724',
-        'paneProperties.backgroundType': 'solid',
-        'mainSeriesProperties.areaStyle.color1': 'rgba(59,130,246,0.3)',
-        'mainSeriesProperties.areaStyle.color2': 'rgba(59,130,246,0.02)',
-        'mainSeriesProperties.areaStyle.linecolor': '#3b82f6',
-        'mainSeriesProperties.areaStyle.linewidth': 2,
+  if (!el) return;
+  // If already has a widget iframe inside, skip
+  if (el.querySelector('iframe')) return;
+  el.innerHTML = '';
+  el.style.height = '220px';
+
+  function buildWidget() {
+    try {
+      new TradingView.widget({
+        container_id: containerId,
+        symbol: sym,
+        interval,
+        theme: 'dark',
+        style: '3',
+        locale: 'en',
+        toolbar_bg: '#131f2e',
+        enable_publishing: false,
+        hide_top_toolbar: true,
+        hide_legend: false,
+        save_image: false,
+        height: 220,
+        width: '100%',
+        studies: [],
+        overrides: {
+          'paneProperties.background': '#0f1724',
+          'paneProperties.backgroundType': 'solid',
+          'mainSeriesProperties.areaStyle.color1': 'rgba(59,130,246,0.3)',
+          'mainSeriesProperties.areaStyle.color2': 'rgba(59,130,246,0.02)',
+          'mainSeriesProperties.areaStyle.linecolor': '#3b82f6',
+          'mainSeriesProperties.areaStyle.linewidth': 2,
+        }
+      });
+    } catch(e) {
+      if (el) el.innerHTML = '<div style="padding:16px;font-family:var(--mono);font-size:10px;color:var(--muted);text-align:center;">Chart unavailable for ' + (sym||pair) + '</div>';
+    }
+  }
+
+  if (window.TradingView && window.TradingView.widget) {
+    buildWidget();
+  } else if (document.querySelector('script[src*="tradingview.com/tv.js"]')) {
+    // Script already injected but still loading — poll for it
+    const wait = setInterval(() => {
+      if (window.TradingView && window.TradingView.widget) {
+        clearInterval(wait);
+        buildWidget();
       }
-    });
-  };
-  if (window.TradingView) {
-    setTimeout(script.onload, 0);
+    }, 150);
+    setTimeout(() => clearInterval(wait), 10000);
   } else {
+    const script = document.createElement('script');
+    script.src = 'https://s3.tradingview.com/tv.js';
+    script.onload = buildWidget;
+    script.onerror = () => {
+      if (el) el.innerHTML = '<div style="padding:16px;font-family:var(--mono);font-size:10px;color:var(--muted);text-align:center;">TradingView unavailable</div>';
+    };
     document.head.appendChild(script);
   }
 }
@@ -1456,6 +1480,92 @@ function tsTab(tab) {
   const aiSel = document.getElementById('ai-tab-select');
   if (aiSel) aiSel.value = tab;
   tsLoadTab(tab);
+}
+
+// ── SEND TO TELEGRAM ──────────────────────────────────────────
+async function sendToTelegram(event, i, type) {
+  event.stopPropagation();
+  if (!isAdmin) return;
+  const sig = filtered[i];
+  if (!sig) return;
+
+  const btn = event.currentTarget;
+  const origText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '⏳ Sending...';
+
+  try {
+    let text = '';
+    if (type === 'options') {
+      const isCall = ['CALL','BUY'].includes((sig.action||sig.direction||'').toUpperCase());
+      const action = isCall ? '🟢 CALL' : '🔴 PUT';
+      const expiry  = sig.expiry || sig.timeframe || '—';
+      const entry   = sig.entry != null ? fmtPrice(sig.entry, sig.pair) : '—';
+      const close   = sig.close_price != null ? fmtPrice(sig.close_price, sig.pair) : '—';
+      const conf    = sig.confidence ? sig.confidence + '%' : '—';
+      const analysis = sig.analysis || sig.pattern_desc || sig.ew_context || '';
+
+      text = `📡 <b>XENOS OPTIONS SIGNAL</b>\n` +
+        `━━━━━━━━━━━━━━━━━━\n` +
+        `<b>Asset:</b> ${sig.pair||'—'}\n` +
+        `<b>Action:</b> ${action}\n` +
+        `<b>Open Price:</b> ${entry}\n` +
+        `<b>Close Target:</b> ${close}\n` +
+        `<b>Expiry:</b> ⏱ ${expiry}\n` +
+        `<b>Confidence:</b> ${conf}\n` +
+        (analysis ? `\n📊 <i>${analysis.slice(0,200)}</i>\n` : '') +
+        `━━━━━━━━━━━━━━━━━━\n` +
+        `⚠ Educational only — not financial advice\n` +
+        `🔗 xenosfinance.com/trading-signals`;
+    } else {
+      const isBull = sig.direction === 'BUY';
+      const dir    = isBull ? '🟢 BUY' : '🔴 SELL';
+      const entry  = fmtPrice(sig.entry, sig.pair);
+      const sl     = fmtPrice(sig.sl, sig.pair);
+      const tp     = fmtPrice(sig.tp, sig.pair);
+      const rr     = sig.rr || '—';
+      const conf   = sig.confidence ? sig.confidence + '%' : '—';
+      const tf     = sig.timeframe || '—';
+      const pattern = sig.pattern || '—';
+      const context = sig.market_context || sig.ew_context || '';
+
+      text = `📡 <b>XENOS CFD SIGNAL</b>\n` +
+        `━━━━━━━━━━━━━━━━━━\n` +
+        `<b>Asset:</b> ${sig.pair||'—'}\n` +
+        `<b>Direction:</b> ${dir}\n` +
+        `<b>Pattern:</b> ${pattern}\n` +
+        `<b>Timeframe:</b> ${tf}\n` +
+        `━━━━━━━━━━━━━━━━━━\n` +
+        `<b>Entry:</b>     ${entry}\n` +
+        `<b>Stop Loss:</b> ${sl}\n` +
+        `<b>Take Profit:</b> ${tp}\n` +
+        `<b>R:R Ratio:</b> ${rr}\n` +
+        `<b>Confidence:</b> ${conf}\n` +
+        (context ? `\n📊 <i>${context.slice(0,200)}</i>\n` : '') +
+        `━━━━━━━━━━━━━━━━━━\n` +
+        `⚠ Educational only — not financial advice\n` +
+        `🔗 xenosfinance.com/trading-signals`;
+    }
+
+    const res = await fetch(WORKER, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'telegram', text, parse_mode: 'HTML' }),
+      signal: AbortSignal.timeout(12000)
+    });
+    const d = await res.json();
+    if (d.ok) {
+      showToast('📡 Signal sent to @xenosfin');
+      btn.textContent = '✓ Sent';
+      setTimeout(() => { btn.textContent = origText; btn.disabled = false; }, 3000);
+    } else {
+      throw new Error(d.description || 'Telegram error');
+    }
+  } catch(e) {
+    showToast('❌ Telegram: ' + e.message);
+    btn.disabled = false;
+    btn.textContent = origText;
+  }
 }
 
 // ── AI OPTIONS INTERPRETER ────────────────────────────────────
