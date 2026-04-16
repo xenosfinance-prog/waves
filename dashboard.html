@@ -332,17 +332,17 @@ const WORKER_URL = 'https://xenos-ai-proxy.xenosfinance.workers.dev';
 
 // Map each symbol ID to the exact key the Worker expects
 const WORKER_SYM_MAP = {
-  'OIL':    'USOIL',
-  'GOLD':   'XAUUSD',
-  'SILVER': 'XAGUSD',
-  'NGAS':   'NGAS',
+  'OIL':    'CL=F',       // Yahoo futures — live WTI price
+  'GOLD':   'GC=F',       // Yahoo futures — live Gold price
+  'SILVER': 'SI=F',       // Yahoo futures — live Silver price
+  'NGAS':   'NG=F',       // Yahoo futures — live Natural Gas price
   'EURUSD': 'EURUSD=X',  // Yahoo FX — returns real change_pct
   'GBPUSD': 'GBPUSD=X',
   'USDJPY': 'USDJPY=X',
   'USDCHF': 'USDCHF=X',
   'BTCUSD': 'BTC-USD',
   'ETHUSD': 'ETH-USD',
-  'SPY':    'SPY',
+  'SPY':    '^GSPC',      // Yahoo — S&P 500 real index (not SPY ETF)
   'NASDAQ': '^IXIC',
   'DAX':    '^GDAXI',
   'FTSE':   '^FTSE',
@@ -656,8 +656,8 @@ async function runIntermarketAI() {
 
   // Always fetch fresh prices for the analysis
   try {
-    const pairs = ['GC=F','CL=F','SI=F','EURUSD','GBPUSD','USDJPY','USDCHF',
-                   'BTC-USD','ETH-USD','SPY','^IXIC','^GDAXI','^FTSE','^TNX','^VIX'];
+    const pairs = ['GC=F','CL=F','SI=F','EURUSD=X','GBPUSD=X','USDJPY=X','USDCHF=X',
+                   'BTC-USD','ETH-USD','^GSPC','^IXIC','^GDAXI','^FTSE','^TNX','^VIX'];
     const r = await fetch(WORKER_URL, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
@@ -675,11 +675,11 @@ async function runIntermarketAI() {
       `GOLD: $${fmt(priceData['GC=F']?.price)} (${chg(priceData['GC=F']?.change_pct)})`,
       `OIL WTI: $${fmt(priceData['CL=F']?.price)} (${chg(priceData['CL=F']?.change_pct)})`,
       `SILVER: $${fmt(priceData['SI=F']?.price)} (${chg(priceData['SI=F']?.change_pct)})`,
-      `EUR/USD: ${fmt(priceData['EURUSD']?.price, 4)} (${chg(priceData['EURUSD']?.change_pct)})`,
-      `GBP/USD: ${fmt(priceData['GBPUSD']?.price, 4)} (${chg(priceData['GBPUSD']?.change_pct)})`,
-      `USD/JPY: ${fmt(priceData['USDJPY']?.price, 3)} (${chg(priceData['USDJPY']?.change_pct)})`,
-      `USD/CHF: ${fmt(priceData['USDCHF']?.price, 4)} (${chg(priceData['USDCHF']?.change_pct)})`,
-      `S&P 500: $${fmt(priceData['SPY']?.price)} (${chg(priceData['SPY']?.change_pct)})`,
+      `EUR/USD: ${fmt(priceData['EURUSD=X']?.price, 4)} (${chg(priceData['EURUSD=X']?.change_pct)})`,
+      `GBP/USD: ${fmt(priceData['GBPUSD=X']?.price, 4)} (${chg(priceData['GBPUSD=X']?.change_pct)})`,
+      `USD/JPY: ${fmt(priceData['USDJPY=X']?.price, 3)} (${chg(priceData['USDJPY=X']?.change_pct)})`,
+      `USD/CHF: ${fmt(priceData['USDCHF=X']?.price, 4)} (${chg(priceData['USDCHF=X']?.change_pct)})`,
+      `S&P 500: ${priceData['^GSPC']?.price ? Math.round(priceData['^GSPC'].price).toLocaleString('en-US') : '--'} (${chg(priceData['^GSPC']?.change_pct)})`,
       `NASDAQ: ${priceData['^IXIC']?.price ? Math.round(priceData['^IXIC'].price).toLocaleString('en-US') : '--'} (${chg(priceData['^IXIC']?.change_pct)})`,
       `DAX: ${priceData['^GDAXI']?.price ? Math.round(priceData['^GDAXI'].price).toLocaleString('en-US') : '--'} (${chg(priceData['^GDAXI']?.change_pct)})`,
       `FTSE 100: ${priceData['^FTSE']?.price ? Math.round(priceData['^FTSE'].price).toLocaleString('en-US') : '--'} (${chg(priceData['^FTSE']?.change_pct)})`,
