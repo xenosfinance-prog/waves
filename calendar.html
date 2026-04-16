@@ -528,11 +528,23 @@ function renderHighlights() {
   const lbl = document.querySelector('.section-head-label');
   if (lbl && lbl.textContent.includes('Key Events')) lbl.textContent = weekLabel;
   const targetWeek = weekDates(offset);
-  let highEvs = EVENTS.filter(e => targetWeek.includes(e.date) && e.impact === 'high' && e.date >= today && ['USD','EUR','GBP','JPY'].includes(e.country)).slice(0, 6);
-  // Fallback: if still empty try next offset
+  const majorCountries = ['USD','EUR','GBP','JPY'];
+  const skip = ['holiday','closed','easter','christmas','election','orthodox','coptic','independence','thanksgiving','new year','memorial','labour','labor','veterans','ramadan','eid'];
+  const isSkip = n => skip.some(w => n.toLowerCase().includes(w));
+
+  // Future/today events first
+  let highEvs = EVENTS.filter(e => targetWeek.includes(e.date) && e.impact === 'high' && e.date >= today && majorCountries.includes(e.country) && !isSkip(e.name));
+  // If fewer than 6, fill with most recent past events from this week (newest first)
+  if (highEvs.length < 6) {
+    const past = EVENTS
+      .filter(e => targetWeek.includes(e.date) && e.impact === 'high' && e.date < today && majorCountries.includes(e.country) && !isSkip(e.name))
+      .reverse();
+    highEvs = [...highEvs, ...past].slice(0, 6);
+  }
+  // Final fallback: next week
   if (!highEvs.length) {
     const fallback = weekDates(offset + 1);
-    highEvs = EVENTS.filter(e => fallback.includes(e.date) && e.impact === 'high' && ['USD','EUR','GBP','JPY'].includes(e.country)).slice(0, 6);
+    highEvs = EVENTS.filter(e => fallback.includes(e.date) && e.impact === 'high' && majorCountries.includes(e.country) && !isSkip(e.name)).slice(0, 6);
   }
   if (!highEvs.length) {
     grid.innerHTML = '<div style="padding:24px;font-family:var(--mono);font-size:10px;color:var(--muted);text-align:center;grid-column:1/-1;">No upcoming high impact events found.</div>';
@@ -894,15 +906,21 @@ function renderKeyEventsCards() {
   const friKey = dateKey(fri);
 
   const todayKey = dateKey(today);
-  const topEvents = EVENTS
-    .filter(e => {
-      if (e.date < todayKey || e.date > friKey || e.impact !== 'high') return false;
-      if (!['USD','EUR','GBP','JPY'].includes(e.country)) return false;
-      const n = e.name.toLowerCase();
-      const skip = ['holiday','closed','easter','christmas','election','orthodox','coptic','independence','thanksgiving','new year','memorial','labour','labor','veterans','ramadan','eid'];
-      return !skip.some(w => n.includes(w));
-    })
-    .slice(0, 6);
+  const majorCountries = ['USD','EUR','GBP','JPY'];
+  const skipWords = ['holiday','closed','easter','christmas','election','orthodox','coptic','independence','thanksgiving','new year','memorial','labour','labor','veterans','ramadan','eid'];
+  const isSkip = n => skipWords.some(w => n.toLowerCase().includes(w));
+
+  // Future events first
+  let topEvents = EVENTS.filter(e => e.date >= todayKey && e.date <= friKey && e.impact === 'high' && majorCountries.includes(e.country) && !isSkip(e.name));
+  // Fill with past events from this week if fewer than 6
+  if (topEvents.length < 6) {
+    const past = EVENTS
+      .filter(e => e.date >= monKey && e.date < todayKey && e.impact === 'high' && majorCountries.includes(e.country) && !isSkip(e.name))
+      .reverse();
+    topEvents = [...topEvents, ...past].slice(0, 6);
+  } else {
+    topEvents = topEvents.slice(0, 6);
+  }
 
   if (!topEvents.length) {
     grid.innerHTML = '<div style="padding:24px;background:var(--bg2);font-family:var(--mono);font-size:10px;color:var(--muted);text-align:center;grid-column:1/-1;">No high impact events this week.</div>';
