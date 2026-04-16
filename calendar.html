@@ -528,11 +528,11 @@ function renderHighlights() {
   const lbl = document.querySelector('.section-head-label');
   if (lbl && lbl.textContent.includes('Key Events')) lbl.textContent = weekLabel;
   const targetWeek = weekDates(offset);
-  let highEvs = EVENTS.filter(e => targetWeek.includes(e.date) && e.impact === 'high').slice(0, 6);
+  let highEvs = EVENTS.filter(e => targetWeek.includes(e.date) && e.impact === 'high' && e.date >= today && ['USD','EUR','GBP','JPY'].includes(e.country)).slice(0, 6);
   // Fallback: if still empty try next offset
   if (!highEvs.length) {
     const fallback = weekDates(offset + 1);
-    highEvs = EVENTS.filter(e => fallback.includes(e.date) && e.impact === 'high').slice(0, 6);
+    highEvs = EVENTS.filter(e => fallback.includes(e.date) && e.impact === 'high' && ['USD','EUR','GBP','JPY'].includes(e.country)).slice(0, 6);
   }
   if (!highEvs.length) {
     grid.innerHTML = '<div style="padding:24px;font-family:var(--mono);font-size:10px;color:var(--muted);text-align:center;grid-column:1/-1;">No upcoming high impact events found.</div>';
@@ -897,7 +897,6 @@ function renderKeyEventsCards() {
   const topEvents = EVENTS
     .filter(e => {
       if (e.date < todayKey || e.date > friKey || e.impact !== 'high') return false;
-      // Only show major currency events in the key cards
       if (!['USD','EUR','GBP','JPY'].includes(e.country)) return false;
       const n = e.name.toLowerCase();
       const skip = ['holiday','closed','easter','christmas','election','orthodox','coptic','independence','thanksgiving','new year','memorial','labour','labor','veterans','ramadan','eid'];
