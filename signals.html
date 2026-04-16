@@ -9,14 +9,19 @@
 <title>XENOS · Signal Engine</title>
 <script>
 (function(){
+  // Only cdnjs is allowed by CSP — try multiple versions in case one is unavailable
   var CDNS = [
-    'https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js',
-    'https://unpkg.com/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js',
-    'https://cdnjs.cloudflare.com/ajax/libs/lightweight-charts/4.1.1/lightweight-charts.standalone.production.min.js'
+    'https://cdnjs.cloudflare.com/ajax/libs/lightweight-charts/4.2.0/lightweight-charts.standalone.production.min.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/lightweight-charts/4.1.3/lightweight-charts.standalone.production.min.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/lightweight-charts/4.1.1/lightweight-charts.standalone.production.min.js',
   ];
   var idx = 0;
   function tryLoad() {
-    if (idx >= CDNS.length) return;
+    if (idx >= CDNS.length) {
+      // All CDNs failed — set flag so chart code can show fallback
+      window._lwcFailed = true;
+      return;
+    }
     var s = document.createElement('script');
     s.src = CDNS[idx++];
     s.onerror = function() { tryLoad(); };
@@ -2593,7 +2598,7 @@ const FH_CANDLE_MAP = {
   'ZECUSD':{sym:'BINANCE:ZECUSDT',type:'crypto'},
 };
 
-// ── TradingView widget (commodities + indici + metalli) ──────
+// ── TradingView widget (tutti i simboli) ──────
 function loadTradingViewChart(container, sig) {
   container.classList.remove('loading', 'error');
   container.innerHTML = '';
@@ -2608,60 +2613,73 @@ function loadTradingViewChart(container, sig) {
   div.style.cssText = 'width:100%;height:100%;';
   container.appendChild(div);
 
-  const script = document.createElement('script');
-  script.src = 'https://s3.tradingview.com/tv.js';
-  script.onload = () => {
-    new TradingView.widget({
-      container_id:    widgetId,
-      symbol:          tvSym,
-      interval:        tvTF,
-      timezone:        'Etc/UTC',
-      theme:           'dark',
-      style:           '3',        // area chart
-      locale:          'en',
-      toolbar_bg:      '#f9fafb',
-      enable_publishing: false,
-      hide_top_toolbar:  false,
-      hide_legend:       false,
-      save_image:        false,
-      backgroundColor:   '#ffffff',
-      gridColor:         'rgba(0,0,0,0)',
-      width:             '100%',
-      height:            420,
-      studies:           [],
-      disabled_features: ['use_localstorage_for_settings','header_symbol_search','header_compare',
-        'left_toolbar','header_indicators','header_undo_redo','header_screenshot',
-        'header_fullscreen_button'],
-      enabled_features:  ['hide_left_toolbar_by_default'],
-      overrides: {
-        'paneProperties.vertGridProperties.color': 'rgba(0,0,0,0)',
-        'paneProperties.horzGridProperties.color': 'rgba(0,0,0,0)',
-        'scalesProperties.textColor': '#334155',
-        'mainSeriesProperties.areaStyle.color1':       '#3b82f6',
-        'mainSeriesProperties.areaStyle.color2':       'rgba(59,130,246,0.08)',
-        'mainSeriesProperties.areaStyle.linecolor':    '#3b82f6',
-        'mainSeriesProperties.areaStyle.linewidth':    2,
-        'mainSeriesProperties.areaStyle.priceSource':  'close',
-      },
-    });
-  };
-  // Se tv.js è già caricato, crea direttamente il widget
-  if (window.TradingView) {
-    script.onload();
+  function buildWidget() {
+    try {
+      new TradingView.widget({
+        container_id:    widgetId,
+        symbol:          tvSym,
+        interval:        tvTF,
+        timezone:        'Etc/UTC',
+        theme:           'dark',
+        style:           '3',
+        locale:          'en',
+        toolbar_bg:      '#131f2e',
+        enable_publishing: false,
+        hide_top_toolbar:  false,
+        hide_legend:       false,
+        save_image:        false,
+        width:             '100%',
+        height:            420,
+        studies:           [],
+        disabled_features: ['use_localstorage_for_settings','header_symbol_search','header_compare',
+          'left_toolbar','header_indicators','header_undo_redo','header_screenshot',
+          'header_fullscreen_button'],
+        enabled_features:  ['hide_left_toolbar_by_default'],
+        overrides: {
+          'paneProperties.background': '#0f1724',
+          'paneProperties.backgroundType': 'solid',
+          'paneProperties.vertGridProperties.color': 'rgba(0,0,0,0)',
+          'paneProperties.horzGridProperties.color': 'rgba(30,48,80,0.5)',
+          'mainSeriesProperties.areaStyle.color1':    'rgba(59,130,246,0.3)',
+          'mainSeriesProperties.areaStyle.color2':    'rgba(59,130,246,0.02)',
+          'mainSeriesProperties.areaStyle.linecolor': '#3b82f6',
+          'mainSeriesProperties.areaStyle.linewidth': 2,
+        },
+      });
+    } catch(e) {
+      container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;font-family:var(--mono);font-size:11px;color:var(--text-dim);">Chart unavailable</div>';
+    }
+  }
+
+  if (window.TradingView && window.TradingView.widget) {
+    buildWidget();
+  } else if (document.querySelector('script[src*="tradingview.com/tv.js"]')) {
+    const wait = setInterval(() => {
+      if (window.TradingView && window.TradingView.widget) {
+        clearInterval(wait); buildWidget();
+      }
+    }, 150);
+    setTimeout(() => clearInterval(wait), 10000);
   } else {
+    const script = document.createElement('script');
+    script.src = 'https://s3.tradingview.com/tv.js';
+    script.onload = buildWidget;
+    script.onerror = () => {
+      container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;font-family:var(--mono);font-size:11px;color:var(--text-dim);">TradingView unavailable</div>';
+    };
     document.head.appendChild(script);
   }
 }
 
 // ── Lightweight Charts (FX + Crypto via TD/Finnhub) ─────────
 async function loadLightweightChart(container, sig) {
-  // Wait up to 4s for library to load (CDN fallback may be slower)
+  // Wait up to 8s for library to load (CDN fallback may be slower)
   if (typeof LightweightCharts === 'undefined') {
     let waited = 0;
     await new Promise(resolve => {
       const check = setInterval(() => {
         waited += 200;
-        if (typeof LightweightCharts !== 'undefined' || waited >= 4000) {
+        if (typeof LightweightCharts !== 'undefined' || waited >= 8000) {
           clearInterval(check); resolve();
         }
       }, 200);
@@ -2758,19 +2776,9 @@ async function loadLightweightChart(container, sig) {
   ro.observe(container);
 }
 
-// ── Router principale — Lightweight Charts per FX, TradingView per il resto ─────
+// ── Router principale — TradingView per tutti (CSP-safe) ─────
 async function loadLiveChart(container, sig, idx) {
   container.classList.remove('error');
-  // Se il simbolo ha dati Finnhub/TD, usa Lightweight Charts (più affidabile)
-  if (FH_CANDLE_MAP[sig.pair]) {
-    try {
-      await loadLightweightChart(container, sig);
-      return;
-    } catch(e) {
-      console.warn('Lightweight chart failed, trying TradingView:', e.message);
-    }
-  }
-  // Fallback: TradingView widget
   if (TV_SYMBOL_MAP[sig.pair]) {
     loadTradingViewChart(container, sig);
   } else {
