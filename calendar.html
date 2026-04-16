@@ -736,7 +736,8 @@ function isoWeekRange(offsetWeeks) {
   const day = now.getDay() || 7;
   const mon = new Date(now); mon.setHours(0,0,0,0); mon.setDate(now.getDate() - day + 1 + offsetWeeks * 7);
   const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
-  return { from: dateKey(mon), to: dateKey(sun) };
+  const fmt = d => dateKey(d);
+  return { from: fmt(mon), to: fmt(sun) };
 }
 
 async function fetchLiveCalendar(weekStr) {
@@ -896,6 +897,8 @@ function renderKeyEventsCards() {
   const topEvents = EVENTS
     .filter(e => {
       if (e.date < todayKey || e.date > friKey || e.impact !== 'high') return false;
+      // Only show major currency events in the key cards
+      if (!['USD','EUR','GBP','JPY'].includes(e.country)) return false;
       const n = e.name.toLowerCase();
       const skip = ['holiday','closed','easter','christmas','election','orthodox','coptic','independence','thanksgiving','new year','memorial','labour','labor','veterans','ramadan','eid'];
       return !skip.some(w => n.includes(w));
