@@ -1,7 +1,7 @@
 // XenosFinance Service Worker v1.0
 // Caches shell pages for offline access, sempre fetch live per prezzi e news
 
-const CACHE_NAME = 'xenos-v1';
+const CACHE_NAME = 'xenos-v2';
 const SHELL_URLS = [
   '/',
   '/dashboard',
