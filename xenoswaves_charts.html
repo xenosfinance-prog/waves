@@ -963,10 +963,11 @@ const ETF_WORKER = 'https://xenos-ai-proxy.xenosfinance.workers.dev';
 function etfTab(name, btn) {
   document.querySelectorAll('.etf-tab').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.etf-section').forEach(s => s.classList.remove('active'));
-  btn.classList.add('active');
+  if (btn && typeof btn === 'object') btn.classList.add('active');
   document.getElementById('etf-' + name).classList.add('active');
-  if (name === 'search' && document.getElementById('etf-table-body').innerHTML === '') etfSearch('');
+  if (name === 'search') etfSearch(document.getElementById('etf-search-input')?.value || '');
   if (name === 'top') loadTopETFs();
+  if (name === 'heatmap') loadETFHeatmap();
 }
 
 // Static ETF database
@@ -1054,7 +1055,7 @@ function etfSearch(query) {
     const chg = p?.change_pct;
     const chgStr = chg != null ? (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%' : '—';
     const chgCls = chg == null ? '' : chg >= 0 ? 'etf-chg-up' : 'etf-chg-dn';
-    return `<tr onclick="showETFInfo('${e.ticker}')" style="cursor:pointer;">
+    return `<tr onclick="showETFInfo('${e.ticker}')" style="cursor:pointer;transition:background 0.15s;">
       <td class="etf-ticker-cell">${e.ticker}</td>
       <td class="etf-name-cell">${e.name}<span class="etf-isin">${e.isin}</span></td>
       <td class="${chgCls}">${chgStr}</td>
@@ -1070,14 +1071,27 @@ function etfSearch(query) {
   });
 }
 
-function showETFInfo(ticker) {
+function showETFInfo(ticker, switchToSearch) {
   const e = ETF_DB.find(x => x.ticker === ticker);
   if (!e) return;
+
+  // Switch to Search & Info tab if requested or if not already active
+  const searchSection = document.getElementById('etf-search');
+  if (switchToSearch || !searchSection?.classList.contains('active')) {
+    const searchBtn = document.querySelectorAll('.etf-tab')[1];
+    etfTab('search', searchBtn);
+  }
+
+  // Highlight selected row
+  document.querySelectorAll('#etf-table-body tr').forEach(r => r.classList.remove('selected'));
+  const rows = document.querySelectorAll('#etf-table-body tr');
+  rows.forEach(r => { if (r.querySelector('.etf-ticker-cell')?.textContent === ticker) r.classList.add('selected'); });
+
   const p = etfPrices[e.wsym];
   const price = p?.price;
   const chg = p?.change_pct;
-  const priceStr = price ? '$' + price.toFixed(2) : '—';
-  const chgStr = chg != null ? (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%' : '';
+  const priceStr = price ? (e.tags.includes('EUR') ? '€' : '$') + price.toFixed(2) : '—';
+  const chgStr = chg != null ? (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%' : '—';
   const chgColor = chg == null ? '' : chg >= 0 ? 'color:var(--green2)' : 'color:var(--red2)';
   document.getElementById('etf-info-title').textContent = ticker + ' — ' + e.type;
   document.getElementById('etf-info-body').innerHTML = `
@@ -1097,7 +1111,7 @@ function showETFInfo(ticker) {
       <div class="info-item"><div class="info-item-label">Distribution</div><div class="info-item-val" style="font-size:10px;">${e.dist}</div></div>
       <div class="info-item"><div class="info-item-label">Inception</div><div class="info-item-val" style="font-size:10px;">${e.incep}</div></div>
       <div class="info-item"><div class="info-item-label">Live Price</div><div class="info-item-val">${priceStr}</div></div>
-      <div class="info-item"><div class="info-item-label">Today</div><div class="info-item-val" style="${chgColor}">${chgStr || '—'}</div></div>
+      <div class="info-item"><div class="info-item-label">Today</div><div class="info-item-val" style="${chgColor}">${chgStr}</div></div>
     </div>`;
 }
 
@@ -1114,7 +1128,7 @@ async function loadTopETFs() {
       const chg = p?.change_pct;
       const chgStr = chg != null ? (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%' : '—';
       const chgColor = chg == null ? '' : chg >= 0 ? 'color:var(--green2)' : 'color:var(--red2)';
-      return `<tr onclick="showETFInfo('${e.ticker}');etfTab('search',document.querySelectorAll('.etf-tab')[1])" style="cursor:pointer;">
+      return `<tr onclick="showETFInfo('${e.ticker}', true)" style="cursor:pointer;transition:background 0.15s;">
         <td class="etf-ticker-cell" style="padding:8px;">${e.ticker}</td>
         <td style="padding:8px;font-size:10px;color:var(--ink2);">${e.name.slice(0,28)}</td>
         <td style="padding:8px;text-align:right;${chgColor}">${chgStr}</td>
@@ -1140,6 +1154,9 @@ document.addEventListener('DOMContentLoaded', () => {
 <div class="chart-panel" id="panel-etf">
   <div class="section-label">ETF & Funds</div>
   <hr class="section-divider">
+  <div style="font-family:var(--mono);font-size:10px;color:var(--muted);line-height:1.8;margin-bottom:20px;max-width:820px;letter-spacing:0.5px;">
+    Exchange-Traded Funds (ETFs) are investment funds traded on stock exchanges that track indices, sectors, commodities or asset classes. They offer diversified exposure at low cost — a single ETF can hold hundreds of securities. Browse sector performance, search by ticker or ISIN, and view full certificate details including AUM, expense ratio, benchmark and distribution policy.
+  </div>
 
   <style>
   .etf-tabs{display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:20px;}
