@@ -200,6 +200,7 @@ body { background: var(--bg); color: var(--ink); font-family: var(--mono); min-h
   <button class="tab-btn" onclick="switchTab('equity',this)">📈 US Equities</button>
   <button class="tab-btn" onclick="switchTab('crypto',this)">₿ Crypto</button>
   <button class="tab-btn" onclick="switchTab('macro',this)">🌐 Global Macro</button>
+  <button class="tab-btn" onclick="switchTab('etf',this)">◈ ETF & Funds</button>
 </div>
 
 <!-- TAB: OVERVIEW -->
@@ -946,6 +947,7 @@ function switchTab(name, btn) {
   if (btn) btn.classList.add('active');
   window.scrollTo({top: 160, behavior: 'smooth'});
   if (name === 'macro' && !Object.keys(macroCache).length) fetchMacroData();
+  if (name === 'etf') { loadETFHeatmap(); loadTopETFs(); }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -954,9 +956,339 @@ document.addEventListener('DOMContentLoaded', () => {
 setInterval(() => {
   if (document.getElementById('panel-macro')?.classList.contains('active')) fetchMacroData();
 }, 120000);
+
+// ── ETF ENGINE ────────────────────────────────────────────────
+const ETF_WORKER = 'https://xenos-ai-proxy.xenosfinance.workers.dev';
+
+function etfTab(name, btn) {
+  document.querySelectorAll('.etf-tab').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.etf-section').forEach(s => s.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('etf-' + name).classList.add('active');
+  if (name === 'search' && document.getElementById('etf-table-body').innerHTML === '') etfSearch('');
+  if (name === 'top') loadTopETFs();
+}
+
+// Static ETF database
+const ETF_DB = [
+  {ticker:'SPY',  name:'SPDR S&P 500 ETF Trust',      isin:'US78462F1030', wsym:'SPY',     aum:'$520B', ter:'0.09%', bench:'S&P 500',      type:'Equity',    dist:'Quarterly', incep:'Jan 1993', tags:['Equity','US Large Cap','USD']},
+  {ticker:'QQQ',  name:'Invesco NASDAQ 100 ETF',       isin:'US46090E1038', wsym:'QQQ',     aum:'$290B', ter:'0.20%', bench:'NASDAQ-100',   type:'Equity',    dist:'Quarterly', incep:'Mar 1999', tags:['Equity','US Tech','USD']},
+  {ticker:'IWDA', name:'iShares MSCI World UCITS ETF', isin:'IE00B4L5Y983', wsym:'IWDA.AS', aum:'€68B',  ter:'0.20%', bench:'MSCI World',   type:'Equity',    dist:'Accumulating', incep:'Sep 2009', tags:['Equity','Global','EUR']},
+  {ticker:'GLD',  name:'SPDR Gold Shares',             isin:'US78463V1070', wsym:'GLD',     aum:'$72B',  ter:'0.40%', bench:'Gold Spot',    type:'Commodity', dist:'None',      incep:'Nov 2004', tags:['Commodity','Gold','USD']},
+  {ticker:'IEF',  name:'iShares 7-10 Year Treasury',  isin:'US4642874576', wsym:'IEF',     aum:'$28B',  ter:'0.15%', bench:'ICE 7-10Y US', type:'Bond',      dist:'Monthly',   incep:'Jul 2002', tags:['Bond','US Treasury','USD']},
+  {ticker:'VTI',  name:'Vanguard Total Stock Market',  isin:'US9229087690', wsym:'VTI',     aum:'$430B', ter:'0.03%', bench:'CRSP US Total',type:'Equity',    dist:'Quarterly', incep:'May 2001', tags:['Equity','US Total Market','USD']},
+  {ticker:'EEM',  name:'iShares MSCI Emerging Markets',isin:'US4642872349', wsym:'EEM',     aum:'$21B',  ter:'0.68%', bench:'MSCI EM',      type:'Equity',    dist:'Semi-Annual',incep:'Apr 2003', tags:['Equity','Emerging Markets','USD']},
+  {ticker:'LQD',  name:'iShares iBoxx $ Corp Bond',   isin:'US4642874329', wsym:'LQD',     aum:'$32B',  ter:'0.14%', bench:'iBoxx USD Liq.',type:'Bond',     dist:'Monthly',   incep:'Jul 2002', tags:['Bond','Corp Bond','USD']},
+  {ticker:'GDX',  name:'VanEck Gold Miners ETF',       isin:'US92189F1066', wsym:'GDX',     aum:'$14B',  ter:'0.51%', bench:'NYSE Arca Gold',type:'Equity',   dist:'Annual',    incep:'May 2006', tags:['Equity','Gold Miners','USD']},
+  {ticker:'USO',  name:'United States Oil Fund',        isin:'US91232N1081', wsym:'USO',     aum:'$1.4B', ter:'0.60%', bench:'WTI Crude',    type:'Commodity', dist:'None',      incep:'Apr 2006', tags:['Commodity','Oil','USD']},
+  {ticker:'TLT',  name:'iShares 20+ Year Treasury',    isin:'US4642874659', wsym:'TLT',     aum:'$52B',  ter:'0.15%', bench:'ICE 20+Y US',  type:'Bond',      dist:'Monthly',   incep:'Jul 2002', tags:['Bond','Long Duration','USD']},
+  {ticker:'XLK',  name:'Technology Select Sector SPDR',isin:'US81369Y8030', wsym:'XLK',     aum:'$64B',  ter:'0.09%', bench:'S&P Tech Sec.',type:'Equity',    dist:'Quarterly', incep:'Dec 1998', tags:['Equity','Technology','USD']},
+  {ticker:'CSPX', name:'iShares Core S&P 500 UCITS',   isin:'IE00B5BMR087', wsym:'CSPX.L', aum:'$80B',  ter:'0.07%', bench:'S&P 500',      type:'Equity',    dist:'Accumulating',incep:'May 2010',tags:['Equity','US Large Cap','USD','UCITS']},
+  {ticker:'VUSA', name:'Vanguard S&P 500 UCITS ETF',   isin:'IE00B3XXRP09', wsym:'VUSA.AS',aum:'$42B',  ter:'0.07%', bench:'S&P 500',      type:'Equity',    dist:'Quarterly', incep:'May 2012', tags:['Equity','US Large Cap','EUR','UCITS']},
+  {ticker:'SLV',  name:'iShares Silver Trust',          isin:'US46428Q1094', wsym:'SLV',     aum:'$10B',  ter:'0.50%', bench:'Silver Spot',  type:'Commodity', dist:'None',      incep:'Apr 2006', tags:['Commodity','Silver','USD']},
+];
+
+let etfPrices = {};
+
+async function fetchETFPrices(symbols) {
+  try {
+    const r = await fetch(ETF_WORKER, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({type:'prices', pairs: symbols}),
+      signal: AbortSignal.timeout(12000)
+    });
+    if (!r.ok) return {};
+    const d = await r.json();
+    return d.prices || {};
+  } catch(e) { return {}; }
+}
+
+// Sector heatmap data
+const SECTOR_ETFS = [
+  {sym:'XLK',  name:'Technology'},
+  {sym:'XLF',  name:'Financials'},
+  {sym:'XLE',  name:'Energy'},
+  {sym:'XLV',  name:'Healthcare'},
+  {sym:'XLI',  name:'Industrials'},
+  {sym:'XLY',  name:'Cons. Disc.'},
+  {sym:'XLP',  name:'Cons. Staples'},
+  {sym:'XLU',  name:'Utilities'},
+  {sym:'XLRE', name:'Real Estate'},
+  {sym:'XLB',  name:'Materials'},
+  {sym:'XLC',  name:'Comm. Serv.'},
+  {sym:'GLD',  name:'Gold ETF'},
+];
+
+async function loadETFHeatmap() {
+  const grid = document.getElementById('etf-hm-grid');
+  if (!grid) return;
+  const syms = SECTOR_ETFS.map(s => s.sym);
+  const prices = await fetchETFPrices(syms);
+  etfPrices = {...etfPrices, ...prices};
+  grid.innerHTML = SECTOR_ETFS.map(s => {
+    const p = prices[s.sym];
+    const chg = p?.change_pct;
+    const cls = chg == null ? 'hm-neu' : chg >= 0.3 ? 'hm-up' : chg <= -0.3 ? 'hm-dn' : 'hm-neu';
+    const val = chg != null ? (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%' : '—';
+    return `<div class="hm-cell ${cls}"><div class="hm-name">${s.name}</div><div class="hm-val">${val}</div></div>`;
+  }).join('');
+}
+
+function etfSearch(query) {
+  const q = (query || '').toLowerCase().trim();
+  const tbody = document.getElementById('etf-table-body');
+  if (!tbody) return;
+  const results = q.length < 1
+    ? ETF_DB.slice(0, 10)
+    : ETF_DB.filter(e =>
+        e.ticker.toLowerCase().includes(q) ||
+        e.name.toLowerCase().includes(q) ||
+        e.isin.toLowerCase().includes(q)
+      );
+  if (!results.length) {
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--muted);font-family:var(--mono);font-size:10px;">No ETF found</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = results.map((e, i) => {
+    const p = etfPrices[e.wsym];
+    const chg = p?.change_pct;
+    const chgStr = chg != null ? (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%' : '—';
+    const chgCls = chg == null ? '' : chg >= 0 ? 'etf-chg-up' : 'etf-chg-dn';
+    return `<tr onclick="showETFInfo('${e.ticker}')" style="cursor:pointer;">
+      <td class="etf-ticker-cell">${e.ticker}</td>
+      <td class="etf-name-cell">${e.name}<span class="etf-isin">${e.isin}</span></td>
+      <td class="${chgCls}">${chgStr}</td>
+      <td class="etf-aum">${e.aum}</td>
+    </tr>`;
+  }).join('');
+
+  // Fetch prices for visible ETFs
+  const syms = results.map(e => e.wsym);
+  fetchETFPrices(syms).then(prices => {
+    etfPrices = {...etfPrices, ...prices};
+    etfSearch(query);
+  });
+}
+
+function showETFInfo(ticker) {
+  const e = ETF_DB.find(x => x.ticker === ticker);
+  if (!e) return;
+  const p = etfPrices[e.wsym];
+  const price = p?.price;
+  const chg = p?.change_pct;
+  const priceStr = price ? '$' + price.toFixed(2) : '—';
+  const chgStr = chg != null ? (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%' : '';
+  const chgColor = chg == null ? '' : chg >= 0 ? 'color:var(--green2)' : 'color:var(--red2)';
+  document.getElementById('etf-info-title').textContent = ticker + ' — ' + e.type;
+  document.getElementById('etf-info-body').innerHTML = `
+    <div class="info-card">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">
+        <div class="info-title">${e.ticker}</div>
+        <div style="font-family:var(--mono);font-size:13px;font-weight:700;${chgColor}">${chgStr}</div>
+      </div>
+      <div class="info-sub">${e.name}</div>
+      <div class="info-tags">${e.tags.map(t => `<span class="info-tag">${t}</span>`).join('')}</div>
+    </div>
+    <div class="info-grid">
+      <div class="info-item"><div class="info-item-label">ISIN</div><div class="info-item-val" style="font-size:9px;letter-spacing:1px;">${e.isin}</div></div>
+      <div class="info-item"><div class="info-item-label">AUM</div><div class="info-item-val">${e.aum}</div></div>
+      <div class="info-item"><div class="info-item-label">Expense Ratio</div><div class="info-item-val" style="color:var(--green2)">${e.ter}</div></div>
+      <div class="info-item"><div class="info-item-label">Benchmark</div><div class="info-item-val" style="font-size:9px;">${e.bench}</div></div>
+      <div class="info-item"><div class="info-item-label">Distribution</div><div class="info-item-val" style="font-size:10px;">${e.dist}</div></div>
+      <div class="info-item"><div class="info-item-label">Inception</div><div class="info-item-val" style="font-size:10px;">${e.incep}</div></div>
+      <div class="info-item"><div class="info-item-label">Live Price</div><div class="info-item-val">${priceStr}</div></div>
+      <div class="info-item"><div class="info-item-label">Today</div><div class="info-item-val" style="${chgColor}">${chgStr || '—'}</div></div>
+    </div>`;
+}
+
+async function loadTopETFs() {
+  const allSyms = ETF_DB.map(e => e.wsym);
+  const prices = await fetchETFPrices(allSyms);
+  etfPrices = {...etfPrices, ...prices};
+
+  function buildTable(id, filter) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const rows = ETF_DB.filter(e => e.type === filter).map(e => {
+      const p = prices[e.wsym];
+      const chg = p?.change_pct;
+      const chgStr = chg != null ? (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%' : '—';
+      const chgColor = chg == null ? '' : chg >= 0 ? 'color:var(--green2)' : 'color:var(--red2)';
+      return `<tr onclick="showETFInfo('${e.ticker}');etfTab('search',document.querySelectorAll('.etf-tab')[1])" style="cursor:pointer;">
+        <td class="etf-ticker-cell" style="padding:8px;">${e.ticker}</td>
+        <td style="padding:8px;font-size:10px;color:var(--ink2);">${e.name.slice(0,28)}</td>
+        <td style="padding:8px;text-align:right;${chgColor}">${chgStr}</td>
+      </tr>`;
+    }).join('');
+    el.innerHTML = `<thead><tr>
+      <th>Ticker</th><th>Name</th><th style="text-align:right">1D%</th>
+    </tr></thead><tbody>${rows}</tbody>`;
+  }
+
+  buildTable('top-equity',    'Equity');
+  buildTable('top-bond',      'Bond');
+  buildTable('top-commodity', 'Commodity');
+}
+
+// Init ETF search with default list
+document.addEventListener('DOMContentLoaded', () => {
+  etfSearch('');
+});
 </script>
 
-<!-- TAB: MARKET DATA -->
+<!-- TAB: ETF & FUNDS -->
+<div class="chart-panel" id="panel-etf">
+  <div class="section-label">ETF & Funds</div>
+  <hr class="section-divider">
+
+  <style>
+  .etf-tabs{display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:20px;}
+  .etf-tab{padding:8px 20px;font-size:9px;letter-spacing:2px;text-transform:uppercase;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;background:none;border-top:none;border-left:none;border-right:none;font-family:var(--mono);transition:all 0.2s;}
+  .etf-tab.active{color:var(--gold);border-bottom-color:var(--gold);}
+  .etf-section{display:none;}.etf-section.active{display:block;}
+  .hm-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:3px;margin-bottom:8px;}
+  .hm-cell{padding:12px 8px;text-align:center;}
+  .hm-name{font-family:var(--mono);font-size:8px;letter-spacing:1px;color:rgba(200,216,234,0.7);margin-bottom:4px;}
+  .hm-val{font-family:var(--mono);font-size:13px;font-weight:700;}
+  .hm-up{background:rgba(16,185,129,0.2);color:#34d399;}
+  .hm-dn{background:rgba(239,68,68,0.15);color:#f87171;}
+  .hm-neu{background:rgba(30,48,80,0.5);color:#5a7a9a;}
+  .etf-two-col{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);}
+  .etf-col{background:var(--bg2);padding:0;}
+  .etf-col-head{padding:8px 14px;background:var(--bg3);border-bottom:1px solid var(--border);font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--gold);display:flex;justify-content:space-between;align-items:center;}
+  .etf-col-body{padding:14px;}
+  .etf-search-row{display:flex;gap:6px;margin-bottom:12px;}
+  .etf-search-input{flex:1;background:var(--bg);border:1px solid var(--border);color:var(--ink);font-family:var(--mono);font-size:11px;padding:8px 10px;outline:none;}
+  .etf-search-input:focus{border-color:var(--gold);}
+  .etf-search-btn{padding:8px 14px;background:var(--gold3);color:#fff;border:none;font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;cursor:pointer;}
+  .etf-table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:10px;}
+  .etf-table th{padding:5px 8px;font-size:8px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);text-align:left;font-weight:400;border-bottom:1px solid var(--border);background:var(--bg3);}
+  .etf-table th:last-child{text-align:right;}
+  .etf-table td{padding:9px 8px;border-bottom:1px solid var(--border2);color:var(--ink2);}
+  .etf-table tr:hover td{background:rgba(255,255,255,0.02);}
+  .etf-table tr.selected td{background:rgba(59,130,246,0.06);}
+  .etf-ticker-cell{color:var(--gold2);font-weight:700;font-size:11px;}
+  .etf-name-cell{color:var(--ink);font-size:10px;}
+  .etf-isin{display:block;color:var(--muted);font-size:8px;letter-spacing:1px;margin-top:2px;}
+  .etf-chg-up{color:var(--green2);text-align:right;}
+  .etf-chg-dn{color:var(--red2);text-align:right;}
+  .etf-aum{color:var(--muted);font-size:9px;text-align:right;}
+  .info-card{background:var(--bg);border:1px solid var(--border);border-left:2px solid var(--gold);padding:14px;margin-bottom:12px;}
+  .info-title{font-family:var(--mono);font-size:14px;font-weight:700;color:var(--ink);margin-bottom:4px;}
+  .info-sub{font-family:var(--mono);font-size:9px;color:var(--muted);margin-bottom:8px;}
+  .info-tags{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:12px;}
+  .info-tag{font-family:var(--mono);font-size:8px;letter-spacing:1px;padding:2px 8px;border:1px solid rgba(59,130,246,0.3);color:var(--gold2);background:rgba(59,130,246,0.06);}
+  .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+  .info-item{background:var(--bg2);padding:8px 10px;border:1px solid var(--border);}
+  .info-item-label{font-family:var(--mono);font-size:7px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:3px;}
+  .info-item-val{font-family:var(--mono);font-size:12px;color:var(--ink);font-weight:700;}
+  .info-empty{font-family:var(--mono);font-size:10px;color:var(--muted);text-align:center;padding:40px 20px;letter-spacing:2px;}
+  @media(max-width:900px){.hm-grid{grid-template-columns:repeat(3,1fr);}.etf-two-col{grid-template-columns:1fr;}}
+  </style>
+
+  <!-- Sub-tabs -->
+  <div class="etf-tabs">
+    <button class="etf-tab active" onclick="etfTab('heatmap',this)">Sector Heatmap</button>
+    <button class="etf-tab" onclick="etfTab('search',this)">Search & Info</button>
+    <button class="etf-tab" onclick="etfTab('top',this)">Top ETFs</button>
+  </div>
+
+  <!-- HEATMAP -->
+  <div class="etf-section active" id="etf-heatmap">
+    <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:12px;">S&amp;P 500 Sector Performance · Live</div>
+    <div class="hm-grid" id="etf-hm-grid">
+      <div style="grid-column:1/-1;text-align:center;padding:20px;font-family:var(--mono);font-size:10px;color:var(--muted);">⟳ Loading...</div>
+    </div>
+    <div style="font-family:var(--mono);font-size:7px;color:var(--muted);letter-spacing:1px;text-align:right;margin-top:8px;">Data via Yahoo Finance · Auto-refresh 60s</div>
+
+    <!-- TradingView ETF Heatmap widget -->
+    <div style="margin-top:24px;border:1px solid var(--border);">
+      <div style="padding:7px 14px;background:var(--bg2);border-bottom:1px solid var(--border);font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--gold);text-transform:uppercase;display:flex;justify-content:space-between;">
+        <span>◈ ETF Heatmap · TradingView</span>
+        <a href="https://www.tradingview.com/?aff_id=142748" target="_blank" rel="noopener" style="color:var(--muted);font-size:8px;text-decoration:none;">TradingView ↗</a>
+      </div>
+      <div class="tradingview-widget-container" style="height:500px;width:100%;">
+        <div class="tradingview-widget-container__widget" style="height:100%;width:100%;"></div>
+        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-etf-heatmap.js" async>
+        {
+          "dataSource": "AllUSEtf",
+          "blockSize": "aum",
+          "blockColor": "change",
+          "grouping": "asset_class",
+          "locale": "en",
+          "colorTheme": "dark",
+          "isTransparent": true,
+          "width": "100%",
+          "height": 500
+        }
+        </script>
+      </div>
+    </div>
+  </div>
+
+  <!-- SEARCH & INFO -->
+  <div class="etf-section" id="etf-search">
+    <div class="etf-two-col">
+
+      <!-- LEFT: Search list -->
+      <div class="etf-col">
+        <div class="etf-col-head">
+          <span>ETF Search</span>
+          <span style="color:var(--muted);font-size:7px;">Ticker · Name · ISIN</span>
+        </div>
+        <div class="etf-col-body">
+          <div class="etf-search-row">
+            <input class="etf-search-input" id="etf-search-input" type="text" placeholder="SPY, MSCI World, IE00B4L5Y983..." oninput="etfSearch(this.value)">
+            <button class="etf-search-btn" onclick="etfSearch(document.getElementById('etf-search-input').value)">Search</button>
+          </div>
+          <table class="etf-table">
+            <thead>
+              <tr>
+                <th>Ticker</th>
+                <th>Name / ISIN</th>
+                <th style="text-align:right">1D%</th>
+                <th style="text-align:right">AUM</th>
+              </tr>
+            </thead>
+            <tbody id="etf-table-body">
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- RIGHT: Info card -->
+      <div class="etf-col">
+        <div class="etf-col-head">
+          <span id="etf-info-title">Certificate Info</span>
+          <span style="color:var(--muted);font-size:7px;">Click an ETF to view</span>
+        </div>
+        <div class="etf-col-body" id="etf-info-body">
+          <div class="info-empty">← Select an ETF to view<br>certificate details</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- TOP ETFs -->
+  <div class="etf-section" id="etf-top">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:var(--border);">
+      <div style="background:var(--bg2);padding:0;">
+        <div class="etf-col-head"><span>Equity ETFs</span></div>
+        <div style="padding:0;"><table class="etf-table" id="top-equity"></table></div>
+      </div>
+      <div style="background:var(--bg2);padding:0;">
+        <div class="etf-col-head"><span>Bond ETFs</span></div>
+        <div style="padding:0;"><table class="etf-table" id="top-bond"></table></div>
+      </div>
+      <div style="background:var(--bg2);padding:0;">
+        <div class="etf-col-head"><span>Commodity ETFs</span></div>
+        <div style="padding:0;"><table class="etf-table" id="top-commodity"></table></div>
+      </div>
+    </div>
+  </div>
+
+</div>
 
 <!-- FOOTER -->
 <div class="page-footer">
