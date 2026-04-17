@@ -270,20 +270,20 @@ body{background:var(--bg4);color:var(--ink);font-family:var(--mono);min-height:1
           <span id="ai-status" style="color:var(--muted);font-size:8px;">⟳</span>
         </div>
         <!-- XENOS_AI_START -->
-        <div id="ai-brief" class="ai-text" style="max-height:160px;overflow-y:auto;">
+        <div id="ai-brief" class="ai-text">
           <p style="color:var(--muted)">Analyzing market conditions...</p>
         </div>
         <!-- XENOS_AI_END -->
       </div>
     </div>
 
-    <!-- AI DECORATIVE IMAGE — fixed bottom block, same level as Economic Map -->
+    <!-- AI DECORATIVE IMAGE — outside panel-body, fixed bottom -->
     <div style="border-top:1px solid var(--border);flex-shrink:0;background:var(--bg);height:320px;display:flex;flex-direction:column;">
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 14px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0;">
+      <div style="padding:7px 14px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0;display:flex;justify-content:space-between;align-items:center;">
         <div style="font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--gold);">✦ AI Intelligence Engine</div>
         <div style="font-size:7px;color:var(--muted);letter-spacing:1px;">XenosFinance</div>
       </div>
-      <div style="flex:1;position:relative;overflow:hidden;">
+      <div style="flex:1;overflow:hidden;">
         <canvas id="xenos-ai-canvas" style="width:100%;height:100%;display:block;background:#080f1a;"></canvas>
       </div>
     </div>
@@ -555,21 +555,36 @@ document.addEventListener('DOMContentLoaded', () => {
     c.width = W;
     c.height = H;
 
+    // Background
     ctx.fillStyle = '#080f1a';
     ctx.fillRect(0, 0, W, H);
 
     // Grid
     ctx.strokeStyle = 'rgba(30,48,80,0.55)';
     ctx.lineWidth = 0.5;
-    for (let x = 0; x < W; x += 20) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
-    for (let y = 0; y < H; y += 20) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+    for (let x = 0; x < W; x += 20) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+    }
+    for (let y = 0; y < H; y += 20) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+    }
 
     // Wave 1 — blue
     ctx.beginPath();
     ctx.strokeStyle = '#3b82f6';
     ctx.lineWidth = 1.5;
     for (let x = 0; x <= W; x++) {
-      const y = H/2 + Math.sin(x*0.033)*40 + Math.sin(x*0.068)*16;
+      const y = H/2 + Math.sin(x*0.033)*(H*0.28) + Math.sin(x*0.068)*(H*0.11);
+      x===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+    }
+    ctx.stroke();
+
+    // Wave 2 — dimmer
+    ctx.beginPath();
+    ctx.strokeStyle = 'rgba(59,130,246,0.28)';
+    ctx.lineWidth = 1;
+    for (let x = 0; x <= W; x++) {
+      const y = H/2 + Math.cos(x*0.024)*(H*0.36) + Math.sin(x*0.052)*(H*0.07);
       x===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
     }
     ctx.stroke();
@@ -577,56 +592,46 @@ document.addEventListener('DOMContentLoaded', () => {
     // Wave fill
     ctx.beginPath();
     for (let x = 0; x <= W; x++) {
-      const y = H/2 + Math.sin(x*0.033)*40 + Math.sin(x*0.068)*16;
+      const y = H/2 + Math.sin(x*0.033)*(H*0.28) + Math.sin(x*0.068)*(H*0.11);
       x===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
     }
     ctx.lineTo(W,H); ctx.lineTo(0,H); ctx.closePath();
-    ctx.fillStyle = 'rgba(59,130,246,0.05)'; ctx.fill();
+    ctx.fillStyle = 'rgba(59,130,246,0.04)'; ctx.fill();
 
-    // Wave 2 — dimmer
-    ctx.beginPath();
-    ctx.strokeStyle = 'rgba(59,130,246,0.25)';
-    ctx.lineWidth = 1;
-    for (let x = 0; x <= W; x++) {
-      const y = H/2 + Math.cos(x*0.024)*55 + Math.sin(x*0.052)*12;
-      x===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
-    }
-    ctx.stroke();
-
-    // Nodes + drop lines
+    // Nodes on wave 1
     ctx.fillStyle = '#3b82f6';
-    for (let i = 0; i <= 10; i++) {
-      const x = (W/10)*i;
-      const y = H/2 + Math.sin(x*0.033)*40 + Math.sin(x*0.068)*16;
+    for (let i = 0; i < 9; i++) {
+      const x = (W/8)*i;
+      const y = H/2 + Math.sin(x*0.033)*(H*0.28) + Math.sin(x*0.068)*(H*0.11);
       ctx.beginPath(); ctx.arc(x,y,2.5,0,Math.PI*2); ctx.fill();
-      ctx.strokeStyle = 'rgba(59,130,246,0.15)'; ctx.lineWidth = 0.5;
+      ctx.strokeStyle = 'rgba(59,130,246,0.2)'; ctx.lineWidth = 0.5;
       ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x,H); ctx.stroke();
     }
 
     // "AI" watermark
-    ctx.fillStyle = 'rgba(59,130,246,0.07)';
-    ctx.font = 'bold 110px monospace';
+    ctx.fillStyle = 'rgba(59,130,246,0.08)';
+    ctx.font = `bold ${Math.round(H*0.55)}px monospace`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText('AI', W/2, H/2+6);
+    ctx.fillText('AI', W/2, H/2+4);
 
     // Subtitle
-    ctx.fillStyle = 'rgba(59,130,246,0.38)';
+    ctx.fillStyle = 'rgba(59,130,246,0.4)';
     ctx.font = '7px monospace';
     ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
-    ctx.fillText('INTELLIGENCE ENGINE · XENOSFINANCE', W/2, H-10);
+    ctx.fillText('INTELLIGENCE ENGINE · XENOSFINANCE', W/2, H-8);
 
     // Corner brackets
-    const bSize = 10;
-    ctx.strokeStyle = 'rgba(59,130,246,0.4)'; ctx.lineWidth = 1;
+    const bSize = 8;
+    ctx.strokeStyle = 'rgba(59,130,246,0.45)'; ctx.lineWidth = 1;
     [[4,4,1,1],[W-4,4,-1,1],[4,H-4,1,-1],[W-4,H-4,-1,-1]].forEach(([x,y,sx,sy]) => {
       ctx.beginPath(); ctx.moveTo(x,y+sy*bSize); ctx.lineTo(x,y); ctx.lineTo(x+sx*bSize,y); ctx.stroke();
     });
   }
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', drawAICanvas);
+    document.addEventListener('DOMContentLoaded', () => setTimeout(drawAICanvas, 100));
   } else {
-    setTimeout(drawAICanvas, 50);
+    setTimeout(drawAICanvas, 100);
   }
   window.addEventListener('resize', drawAICanvas);
 })();
