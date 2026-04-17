@@ -270,14 +270,14 @@ body{background:var(--bg4);color:var(--ink);font-family:var(--mono);min-height:1
           <span id="ai-status" style="color:var(--muted);font-size:8px;">⟳</span>
         </div>
         <!-- XENOS_AI_START -->
-        <div id="ai-brief" class="ai-text">
+        <div id="ai-brief" class="ai-text" style="max-height:160px;overflow-y:auto;">
           <p style="color:var(--muted)">Analyzing market conditions...</p>
         </div>
         <!-- XENOS_AI_END -->
       </div>
     </div>
 
-    <!-- AI DECORATIVE IMAGE — same level as Economic Map / Macro Matrix -->
+    <!-- AI DECORATIVE IMAGE — fixed bottom block, same level as Economic Map -->
     <div style="border-top:1px solid var(--border);flex-shrink:0;background:var(--bg);height:320px;display:flex;flex-direction:column;">
       <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 14px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0;">
         <div style="font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--gold);">✦ AI Intelligence Engine</div>
@@ -581,8 +581,7 @@ document.addEventListener('DOMContentLoaded', () => {
       x===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
     }
     ctx.lineTo(W,H); ctx.lineTo(0,H); ctx.closePath();
-    ctx.fillStyle = 'rgba(59,130,246,0.05)';
-    ctx.fill();
+    ctx.fillStyle = 'rgba(59,130,246,0.05)'; ctx.fill();
 
     // Wave 2 — dimmer
     ctx.beginPath();
@@ -594,7 +593,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     ctx.stroke();
 
-    // Nodes on wave 1
+    // Nodes + drop lines
     ctx.fillStyle = '#3b82f6';
     for (let i = 0; i <= 10; i++) {
       const x = (W/10)*i;
