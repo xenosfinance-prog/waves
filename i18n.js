@@ -1,4 +1,4 @@
-const XENOS_I18N = {
+const XENOS_I18N = { 
   en: {
     nav_news: '📰 News',
     nav_dashboard: '📊 Dashboard',
