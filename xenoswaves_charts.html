@@ -965,7 +965,6 @@ function etfTab(name, btn) {
   document.querySelectorAll('.etf-section').forEach(s => s.classList.remove('active'));
   if (btn && typeof btn === 'object') btn.classList.add('active');
   document.getElementById('etf-' + name).classList.add('active');
-  if (name === 'news') loadETFNews();
   if (name === 'search') etfSearch(document.getElementById('etf-search-input')?.value || '');
   if (name === 'themes') loadThemesPrices();
   if (name === 'vsfutures') {}
@@ -1119,9 +1118,14 @@ function showETFInfo(ticker, switchToSearch) {
 }
 
 async function loadTopETFs() {
+  // Fetch all ETF prices in batches
   const allSyms = ETF_DB.map(e => e.wsym);
-  const prices = await fetchETFPrices(allSyms);
-  etfPrices = {...etfPrices, ...prices};
+  const batchSize = 6;
+  for (let i = 0; i < allSyms.length; i += batchSize) {
+    const batch = allSyms.slice(i, i + batchSize);
+    const prices = await fetchETFPrices(batch);
+    etfPrices = {...etfPrices, ...prices};
+  }
 
   function buildTable(id, filter) {
     const el = document.getElementById(id);
@@ -1153,108 +1157,6 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ── ETF NEWS ──────────────────────────────────────────────────
-let etfNewsCache = [];
-let etfNewsFilter = 'all';
-
-const ETF_NEWS_KEYWORDS = {
-  equity:    ['stock','equit','s&p','nasdaq','index','fund','share','market'],
-  bond:      ['bond','treasury','yield','rate','fixed income','debt','credit'],
-  commodity: ['gold','oil','silver','commodity','copper','energy','metal','gas'],
-  crypto:    ['bitcoin','crypto','ethereum','btc','eth','digital asset','blockchain'],
-  macro:     ['fed','central bank','inflation','gdp','macro','economy','ecb','rate','policy'],
-};
-
-function classifyETFNews(title, summary) {
-  const txt = (title + ' ' + (summary || '')).toLowerCase();
-  for (const [cat, kws] of Object.entries(ETF_NEWS_KEYWORDS)) {
-    if (kws.some(k => txt.includes(k))) return cat;
-  }
-  return 'equity';
-}
-
-async function loadETFNews() {
-  const feed = document.getElementById('etf-news-feed');
-  const status = document.getElementById('etf-news-status');
-  if (!feed) return;
-  if (etfNewsCache.length) { renderETFNews(); return; }
-
-  feed.innerHTML = '<div style="padding:20px;font-family:var(--mono);font-size:10px;color:var(--muted);text-align:center;letter-spacing:2px;">⟳ LOADING...</div>';
-
-  try {
-    const r = await fetch(ETF_WORKER, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({type:'finnhub', action:'market_news', category:'general'}),
-      signal: AbortSignal.timeout(12000)
-    });
-    const d = await r.json();
-    const raw = d.news || [];
-    const seen = new Set();
-    etfNewsCache = raw.filter(a => {
-      if (!a.headline || a.headline.length < 10) return false;
-      const k = a.headline.slice(0,40).toLowerCase();
-      if (seen.has(k)) return false;
-      seen.add(k); return true;
-    }).map(a => ({
-      title: a.headline,
-      desc: a.summary || '',
-      url: a.url || '#',
-      source: a.source || 'Finnhub',
-      cat: classifyETFNews(a.headline, a.summary)
-    }));
-    if (status) status.textContent = '✓ ' + etfNewsCache.length + ' stories';
-    renderETFNews();
-  } catch(e) {
-    feed.innerHTML = '<div style="padding:20px;font-family:var(--mono);font-size:10px;color:var(--muted);text-align:center;">⚠ News unavailable</div>';
-  }
-}
-
-function renderETFNews() {
-  const feed = document.getElementById('etf-news-feed');
-  if (!feed) return;
-  const items = etfNewsFilter === 'all'
-    ? etfNewsCache
-    : etfNewsCache.filter(a => a.cat === etfNewsFilter);
-
-  if (!items.length) {
-    feed.innerHTML = '<div style="padding:20px;font-family:var(--mono);font-size:10px;color:var(--muted);text-align:center;">No stories for this filter</div>';
-    return;
-  }
-
-  const tagColors = {equity:'var(--green2)',bond:'var(--cyan)',commodity:'var(--yellow)',crypto:' var(--gold)',macro:'var(--gold2)'};
-
-  feed.innerHTML = items.map(a => `
-    <div class="etf-news-item">
-      <div class="etf-news-src">${a.source}</div>
-      <div class="etf-news-hl"><a href="${a.url}" target="_blank" rel="noopener">${a.title}</a></div>
-      ${a.desc ? `<div class="etf-news-desc">${a.desc}</div>` : ''}
-      <div class="etf-news-tags">
-        <span class="etf-news-tag" style="color:${tagColors[a.cat]||'var(--muted)'};">${a.cat}</span>
-      </div>
-    </div>`).join('');
-
-  // Update related ETFs panel
-  const related = ETF_DB.filter(e => {
-    if (etfNewsFilter === 'all') return false;
-    return (etfNewsFilter === 'equity' && e.type === 'Equity') ||
-           (etfNewsFilter === 'bond' && e.type === 'Bond') ||
-           (etfNewsFilter === 'commodity' && e.type === 'Commodity') ||
-           (etfNewsFilter === 'crypto' && e.tags.includes('Crypto'));
-  }).slice(0, 5);
-
-  const relEl = document.getElementById('etf-news-related');
-  if (relEl) {
-    relEl.innerHTML = related.length
-      ? related.map(e => `<div style="padding:6px 0;border-bottom:1px solid var(--border2);display:flex;justify-content:space-between;"><span style="color:var(--gold2);">${e.ticker}</span><span style="color:var(--muted);font-size:9px;">${e.ter} TER</span></div>`).join('')
-      : '<span style="color:var(--muted);">Select a filter to see related ETFs</span>';
-  }
-}
-
-function filterETFNews(cat, btn) {
-  document.querySelectorAll('.etf-news-filter').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  etfNewsFilter = cat;
-  renderETFNews();
-}
 
 // ── THEMES PRICES ─────────────────────────────────────────────
 const THEME_SYMS = {
@@ -1266,18 +1168,38 @@ const THEME_SYMS = {
   'th-tlt':'TLT','th-ief':'IEF','th-lqd':'LQD',
 };
 
+// Yahoo Finance symbol map for ETFs not recognized by default
+const ETF_YAHOO_MAP = {
+  'XLE':'XLE','USO':'USO','OIH':'OIH',
+  'QQQ':'QQQ','XLK':'XLK','BOTZ':'BOTZ',
+  'GLD':'GLD','GDX':'GDX','SLV':'SLV',
+  'XLF':'XLF','KRE':'KRE','IAI':'IAI',
+  'DBA':'DBA','WEAT':'WEAT','CORN':'CORN',
+  'TLT':'TLT','IEF':'IEF','LQD':'LQD',
+  'SPY':'SPY','QQQ':'QQQ','IWDA':'IWDA.AS',
+  'CSPX':'CSPX.L','VUSA':'VUSA.AS',
+};
+
 async function loadThemesPrices() {
-  const syms = Object.values(THEME_SYMS);
-  const prices = await fetchETFPrices(syms);
-  etfPrices = {...etfPrices, ...prices};
-  for (const [elId, sym] of Object.entries(THEME_SYMS)) {
-    const el = document.getElementById(elId);
-    if (!el) continue;
-    const p = prices[sym];
-    const chg = p?.change_pct;
-    if (chg == null) { el.textContent = '—'; continue; }
-    el.textContent = (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%';
-    el.style.color = chg >= 0 ? 'var(--green2)' : 'var(--red2)';
+  // Fetch in 3 batches to avoid Worker timeout with many symbols
+  const allEntries = Object.entries(THEME_SYMS);
+  const batchSize = 6;
+  for (let i = 0; i < allEntries.length; i += batchSize) {
+    const batch = allEntries.slice(i, i + batchSize);
+    const syms = batch.map(([,sym]) => sym);
+    try {
+      const prices = await fetchETFPrices(syms);
+      etfPrices = {...etfPrices, ...prices};
+      for (const [elId, sym] of batch) {
+        const el = document.getElementById(elId);
+        if (!el) continue;
+        const p = prices[sym];
+        const chg = p?.change_pct;
+        if (chg == null) continue;
+        el.textContent = (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%';
+        el.style.color = chg >= 0 ? 'var(--green2)' : 'var(--red2)';
+      }
+    } catch(e) {}
   }
 }
 </script>
@@ -1332,25 +1254,12 @@ async function loadThemesPrices() {
   .info-item-label{font-family:var(--mono);font-size:7px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:3px;}
   .info-item-val{font-family:var(--mono);font-size:12px;color:var(--ink);font-weight:700;}
   .info-empty{font-family:var(--mono);font-size:10px;color:var(--muted);text-align:center;padding:40px 20px;letter-spacing:2px;}
-  .etf-news-filter{font-family:var(--mono);font-size:9px;letter-spacing:1px;text-transform:uppercase;padding:4px 10px;background:none;border:1px solid var(--border);color:var(--muted);cursor:pointer;transition:all 0.2s;}
-  .etf-news-filter:hover{color:var(--gold);border-color:var(--gold);}
-  .etf-news-filter.active{color:var(--gold);border-color:var(--gold);background:rgba(59,130,246,0.08);}
-  .etf-news-item{padding:14px;border-bottom:1px solid var(--border);transition:background 0.12s;cursor:pointer;}
-  .etf-news-item:hover{background:rgba(59,130,246,0.04);}
-  .etf-news-src{font-family:var(--mono);font-size:8px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:4px;}
-  .etf-news-hl{font-family:var(--serif);font-size:14px;line-height:1.4;color:var(--ink);margin-bottom:5px;}
-  .etf-news-hl a{color:inherit;text-decoration:none;}
-  .etf-news-hl a:hover{color:var(--gold);}
-  .etf-news-desc{font-size:11px;color:var(--ink2);line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
-  .etf-news-tags{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px;}
-  .etf-news-tag{font-size:8px;letter-spacing:1px;padding:1px 6px;border:1px solid currentColor;}
   @media(max-width:900px){.hm-grid{grid-template-columns:repeat(3,1fr);}.etf-two-col{grid-template-columns:1fr;}}
   </style>
 
   <!-- Sub-tabs -->
   <div class="etf-tabs">
     <button class="etf-tab active" onclick="etfTab('heatmap',this)">Sector Heatmap</button>
-    <button class="etf-tab" onclick="etfTab('news',this)">ETF News</button>
     <button class="etf-tab" onclick="etfTab('themes',this)">Macro Themes</button>
     <button class="etf-tab" onclick="etfTab('vsfutures',this)">ETF vs Futures</button>
     <button class="etf-tab" onclick="etfTab('top',this)">Top ETFs</button>
@@ -1386,44 +1295,6 @@ async function loadThemesPrices() {
         }
         </script>
       </div>
-    </div>
-  </div>
-
-  <!-- SEARCH & INFO -->
-  <!-- ETF NEWS -->
-  <div class="etf-section" id="etf-news">
-    <div style="display:grid;grid-template-columns:1fr 380px;gap:1px;background:var(--border);">
-
-      <!-- LEFT: News feed -->
-      <div style="background:var(--bg2);padding:0;">
-        <div class="etf-col-head">
-          <span>ETF & Markets News</span>
-          <span id="etf-news-status" style="color:var(--muted);font-size:7px;">⟳ Loading...</span>
-        </div>
-        <div id="etf-news-feed" style="max-height:600px;overflow-y:auto;">
-          <div style="padding:20px;font-family:var(--mono);font-size:10px;color:var(--muted);text-align:center;letter-spacing:2px;">⟳ LOADING NEWS...</div>
-        </div>
-      </div>
-
-      <!-- RIGHT: Filter by topic -->
-      <div style="background:var(--bg2);padding:0;">
-        <div class="etf-col-head"><span>Filter by Topic</span></div>
-        <div style="padding:14px;">
-          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;" id="etf-news-filters">
-            <button onclick="filterETFNews('all',this)" class="etf-news-filter active">All</button>
-            <button onclick="filterETFNews('equity',this)" class="etf-news-filter">Equity</button>
-            <button onclick="filterETFNews('bond',this)" class="etf-news-filter">Bonds</button>
-            <button onclick="filterETFNews('commodity',this)" class="etf-news-filter">Commodities</button>
-            <button onclick="filterETFNews('crypto',this)" class="etf-news-filter">Crypto</button>
-            <button onclick="filterETFNews('macro',this)" class="etf-news-filter">Macro</button>
-          </div>
-          <div style="border-top:1px solid var(--border);padding-top:14px;">
-            <div style="font-family:var(--mono);font-size:8px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">Related ETFs</div>
-            <div id="etf-news-related" style="font-family:var(--mono);font-size:10px;color:var(--muted);">—</div>
-          </div>
-        </div>
-      </div>
-
     </div>
   </div>
 
