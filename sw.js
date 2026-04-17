@@ -54,6 +54,7 @@ self.addEventListener('fetch', event => {
     url.hostname.includes('frankfurter') ||
     url.hostname.includes('coingecko') ||
     url.hostname.includes('googleapis') ||
+    url.hostname.includes('gstatic.com') ||
     event.request.method !== 'GET'
   ) {
     return; // let browser handle normally
