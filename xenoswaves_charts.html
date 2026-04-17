@@ -965,7 +965,10 @@ function etfTab(name, btn) {
   document.querySelectorAll('.etf-section').forEach(s => s.classList.remove('active'));
   if (btn && typeof btn === 'object') btn.classList.add('active');
   document.getElementById('etf-' + name).classList.add('active');
+  if (name === 'news') loadETFNews();
   if (name === 'search') etfSearch(document.getElementById('etf-search-input')?.value || '');
+  if (name === 'themes') loadThemesPrices();
+  if (name === 'vsfutures') {}
   if (name === 'top') loadTopETFs();
   if (name === 'heatmap') loadETFHeatmap();
 }
@@ -1148,6 +1151,135 @@ async function loadTopETFs() {
 document.addEventListener('DOMContentLoaded', () => {
   etfSearch('');
 });
+
+// ── ETF NEWS ──────────────────────────────────────────────────
+let etfNewsCache = [];
+let etfNewsFilter = 'all';
+
+const ETF_NEWS_KEYWORDS = {
+  equity:    ['stock','equit','s&p','nasdaq','index','fund','share','market'],
+  bond:      ['bond','treasury','yield','rate','fixed income','debt','credit'],
+  commodity: ['gold','oil','silver','commodity','copper','energy','metal','gas'],
+  crypto:    ['bitcoin','crypto','ethereum','btc','eth','digital asset','blockchain'],
+  macro:     ['fed','central bank','inflation','gdp','macro','economy','ecb','rate','policy'],
+};
+
+function classifyETFNews(title, summary) {
+  const txt = (title + ' ' + (summary || '')).toLowerCase();
+  for (const [cat, kws] of Object.entries(ETF_NEWS_KEYWORDS)) {
+    if (kws.some(k => txt.includes(k))) return cat;
+  }
+  return 'equity';
+}
+
+async function loadETFNews() {
+  const feed = document.getElementById('etf-news-feed');
+  const status = document.getElementById('etf-news-status');
+  if (!feed) return;
+  if (etfNewsCache.length) { renderETFNews(); return; }
+
+  feed.innerHTML = '<div style="padding:20px;font-family:var(--mono);font-size:10px;color:var(--muted);text-align:center;letter-spacing:2px;">⟳ LOADING...</div>';
+
+  try {
+    const r = await fetch(ETF_WORKER, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({type:'finnhub', action:'market_news', category:'general'}),
+      signal: AbortSignal.timeout(12000)
+    });
+    const d = await r.json();
+    const raw = d.news || [];
+    const seen = new Set();
+    etfNewsCache = raw.filter(a => {
+      if (!a.headline || a.headline.length < 10) return false;
+      const k = a.headline.slice(0,40).toLowerCase();
+      if (seen.has(k)) return false;
+      seen.add(k); return true;
+    }).map(a => ({
+      title: a.headline,
+      desc: a.summary || '',
+      url: a.url || '#',
+      source: a.source || 'Finnhub',
+      cat: classifyETFNews(a.headline, a.summary)
+    }));
+    if (status) status.textContent = '✓ ' + etfNewsCache.length + ' stories';
+    renderETFNews();
+  } catch(e) {
+    feed.innerHTML = '<div style="padding:20px;font-family:var(--mono);font-size:10px;color:var(--muted);text-align:center;">⚠ News unavailable</div>';
+  }
+}
+
+function renderETFNews() {
+  const feed = document.getElementById('etf-news-feed');
+  if (!feed) return;
+  const items = etfNewsFilter === 'all'
+    ? etfNewsCache
+    : etfNewsCache.filter(a => a.cat === etfNewsFilter);
+
+  if (!items.length) {
+    feed.innerHTML = '<div style="padding:20px;font-family:var(--mono);font-size:10px;color:var(--muted);text-align:center;">No stories for this filter</div>';
+    return;
+  }
+
+  const tagColors = {equity:'var(--green2)',bond:'var(--cyan)',commodity:'var(--yellow)',crypto:' var(--gold)',macro:'var(--gold2)'};
+
+  feed.innerHTML = items.map(a => `
+    <div class="etf-news-item">
+      <div class="etf-news-src">${a.source}</div>
+      <div class="etf-news-hl"><a href="${a.url}" target="_blank" rel="noopener">${a.title}</a></div>
+      ${a.desc ? `<div class="etf-news-desc">${a.desc}</div>` : ''}
+      <div class="etf-news-tags">
+        <span class="etf-news-tag" style="color:${tagColors[a.cat]||'var(--muted)'};">${a.cat}</span>
+      </div>
+    </div>`).join('');
+
+  // Update related ETFs panel
+  const related = ETF_DB.filter(e => {
+    if (etfNewsFilter === 'all') return false;
+    return (etfNewsFilter === 'equity' && e.type === 'Equity') ||
+           (etfNewsFilter === 'bond' && e.type === 'Bond') ||
+           (etfNewsFilter === 'commodity' && e.type === 'Commodity') ||
+           (etfNewsFilter === 'crypto' && e.tags.includes('Crypto'));
+  }).slice(0, 5);
+
+  const relEl = document.getElementById('etf-news-related');
+  if (relEl) {
+    relEl.innerHTML = related.length
+      ? related.map(e => `<div style="padding:6px 0;border-bottom:1px solid var(--border2);display:flex;justify-content:space-between;"><span style="color:var(--gold2);">${e.ticker}</span><span style="color:var(--muted);font-size:9px;">${e.ter} TER</span></div>`).join('')
+      : '<span style="color:var(--muted);">Select a filter to see related ETFs</span>';
+  }
+}
+
+function filterETFNews(cat, btn) {
+  document.querySelectorAll('.etf-news-filter').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  etfNewsFilter = cat;
+  renderETFNews();
+}
+
+// ── THEMES PRICES ─────────────────────────────────────────────
+const THEME_SYMS = {
+  'th-xle':'XLE','th-uso':'USO','th-oih':'OIH',
+  'th-qqq':'QQQ','th-xlk':'XLK','th-botz':'BOTZ',
+  'th-gld':'GLD','th-gdx':'GDX','th-slv':'SLV',
+  'th-xlf':'XLF','th-kre':'KRE','th-iai':'IAI',
+  'th-dba':'DBA','th-weat':'WEAT','th-corn':'CORN',
+  'th-tlt':'TLT','th-ief':'IEF','th-lqd':'LQD',
+};
+
+async function loadThemesPrices() {
+  const syms = Object.values(THEME_SYMS);
+  const prices = await fetchETFPrices(syms);
+  etfPrices = {...etfPrices, ...prices};
+  for (const [elId, sym] of Object.entries(THEME_SYMS)) {
+    const el = document.getElementById(elId);
+    if (!el) continue;
+    const p = prices[sym];
+    const chg = p?.change_pct;
+    if (chg == null) { el.textContent = '—'; continue; }
+    el.textContent = (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%';
+    el.style.color = chg >= 0 ? 'var(--green2)' : 'var(--red2)';
+  }
+}
 </script>
 
 <!-- TAB: ETF & FUNDS -->
@@ -1200,13 +1332,27 @@ document.addEventListener('DOMContentLoaded', () => {
   .info-item-label{font-family:var(--mono);font-size:7px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:3px;}
   .info-item-val{font-family:var(--mono);font-size:12px;color:var(--ink);font-weight:700;}
   .info-empty{font-family:var(--mono);font-size:10px;color:var(--muted);text-align:center;padding:40px 20px;letter-spacing:2px;}
+  .etf-news-filter{font-family:var(--mono);font-size:9px;letter-spacing:1px;text-transform:uppercase;padding:4px 10px;background:none;border:1px solid var(--border);color:var(--muted);cursor:pointer;transition:all 0.2s;}
+  .etf-news-filter:hover{color:var(--gold);border-color:var(--gold);}
+  .etf-news-filter.active{color:var(--gold);border-color:var(--gold);background:rgba(59,130,246,0.08);}
+  .etf-news-item{padding:14px;border-bottom:1px solid var(--border);transition:background 0.12s;cursor:pointer;}
+  .etf-news-item:hover{background:rgba(59,130,246,0.04);}
+  .etf-news-src{font-family:var(--mono);font-size:8px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:4px;}
+  .etf-news-hl{font-family:var(--serif);font-size:14px;line-height:1.4;color:var(--ink);margin-bottom:5px;}
+  .etf-news-hl a{color:inherit;text-decoration:none;}
+  .etf-news-hl a:hover{color:var(--gold);}
+  .etf-news-desc{font-size:11px;color:var(--ink2);line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+  .etf-news-tags{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px;}
+  .etf-news-tag{font-size:8px;letter-spacing:1px;padding:1px 6px;border:1px solid currentColor;}
   @media(max-width:900px){.hm-grid{grid-template-columns:repeat(3,1fr);}.etf-two-col{grid-template-columns:1fr;}}
   </style>
 
   <!-- Sub-tabs -->
   <div class="etf-tabs">
     <button class="etf-tab active" onclick="etfTab('heatmap',this)">Sector Heatmap</button>
-    <button class="etf-tab" onclick="etfTab('search',this)">Search & Info</button>
+    <button class="etf-tab" onclick="etfTab('news',this)">ETF News</button>
+    <button class="etf-tab" onclick="etfTab('themes',this)">Macro Themes</button>
+    <button class="etf-tab" onclick="etfTab('vsfutures',this)">ETF vs Futures</button>
     <button class="etf-tab" onclick="etfTab('top',this)">Top ETFs</button>
   </div>
 
@@ -1244,46 +1390,265 @@ document.addEventListener('DOMContentLoaded', () => {
   </div>
 
   <!-- SEARCH & INFO -->
-  <div class="etf-section" id="etf-search">
-    <div class="etf-two-col">
+  <!-- ETF NEWS -->
+  <div class="etf-section" id="etf-news">
+    <div style="display:grid;grid-template-columns:1fr 380px;gap:1px;background:var(--border);">
 
-      <!-- LEFT: Search list -->
-      <div class="etf-col">
+      <!-- LEFT: News feed -->
+      <div style="background:var(--bg2);padding:0;">
         <div class="etf-col-head">
-          <span>ETF Search</span>
-          <span style="color:var(--muted);font-size:7px;">Ticker · Name · ISIN</span>
+          <span>ETF & Markets News</span>
+          <span id="etf-news-status" style="color:var(--muted);font-size:7px;">⟳ Loading...</span>
         </div>
-        <div class="etf-col-body">
-          <div class="etf-search-row">
-            <input class="etf-search-input" id="etf-search-input" type="text" placeholder="SPY, MSCI World, IE00B4L5Y983..." oninput="etfSearch(this.value)">
-            <button class="etf-search-btn" onclick="etfSearch(document.getElementById('etf-search-input').value)">Search</button>
+        <div id="etf-news-feed" style="max-height:600px;overflow-y:auto;">
+          <div style="padding:20px;font-family:var(--mono);font-size:10px;color:var(--muted);text-align:center;letter-spacing:2px;">⟳ LOADING NEWS...</div>
+        </div>
+      </div>
+
+      <!-- RIGHT: Filter by topic -->
+      <div style="background:var(--bg2);padding:0;">
+        <div class="etf-col-head"><span>Filter by Topic</span></div>
+        <div style="padding:14px;">
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;" id="etf-news-filters">
+            <button onclick="filterETFNews('all',this)" class="etf-news-filter active">All</button>
+            <button onclick="filterETFNews('equity',this)" class="etf-news-filter">Equity</button>
+            <button onclick="filterETFNews('bond',this)" class="etf-news-filter">Bonds</button>
+            <button onclick="filterETFNews('commodity',this)" class="etf-news-filter">Commodities</button>
+            <button onclick="filterETFNews('crypto',this)" class="etf-news-filter">Crypto</button>
+            <button onclick="filterETFNews('macro',this)" class="etf-news-filter">Macro</button>
           </div>
-          <table class="etf-table">
-            <thead>
-              <tr>
-                <th>Ticker</th>
-                <th>Name / ISIN</th>
-                <th style="text-align:right">1D%</th>
-                <th style="text-align:right">AUM</th>
-              </tr>
-            </thead>
-            <tbody id="etf-table-body">
-            </tbody>
-          </table>
+          <div style="border-top:1px solid var(--border);padding-top:14px;">
+            <div style="font-family:var(--mono);font-size:8px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">Related ETFs</div>
+            <div id="etf-news-related" style="font-family:var(--mono);font-size:10px;color:var(--muted);">—</div>
+          </div>
         </div>
       </div>
 
-      <!-- RIGHT: Info card -->
-      <div class="etf-col">
-        <div class="etf-col-head">
-          <span id="etf-info-title">Certificate Info</span>
-          <span style="color:var(--muted);font-size:7px;">Click an ETF to view</span>
+    </div>
+  </div>
+
+  <!-- MACRO THEMES -->
+  <div class="etf-section" id="etf-themes">
+    <div style="font-family:var(--mono);font-size:8px;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin-bottom:16px;">Thematic ETF clusters · Macro drivers · Key triggers</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);margin-bottom:1px;" id="themes-grid">
+
+      <!-- ENERGY -->
+      <div style="background:var(--bg);padding:0;">
+        <div style="padding:12px 14px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;">
+          <span style="font-size:16px;">🛢️</span>
+          <span style="font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--ink);font-weight:700;">Energy — Oil & Gas</span>
         </div>
-        <div class="etf-col-body" id="etf-info-body">
-          <div class="info-empty">← Select an ETF to view<br>certificate details</div>
+        <div style="padding:14px;">
+          <div style="font-family:var(--mono);font-size:7px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Key ETFs</div>
+          <div style="font-family:var(--mono);">
+            <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border2);font-size:10px;"><span style="color:var(--gold2);font-weight:700;">XLE</span><span style="color:var(--muted);font-size:9px;">Energy Select SPDR</span><span id="th-xle" style="color:var(--muted);">—</span></div>
+            <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border2);font-size:10px;"><span style="color:var(--gold2);font-weight:700;">USO</span><span style="color:var(--muted);font-size:9px;">US Oil Fund</span><span id="th-uso" style="color:var(--muted);">—</span></div>
+            <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:10px;"><span style="color:var(--gold2);font-weight:700;">OIH</span><span style="color:var(--muted);font-size:9px;">Oil Services ETF</span><span id="th-oih" style="color:var(--muted);">—</span></div>
+          </div>
+          <div style="background:var(--bg2);border-left:2px solid var(--gold3);padding:8px 10px;margin:10px 0;">
+            <div style="font-family:var(--mono);font-size:7px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">Macro Scenario</div>
+            <div style="font-family:var(--mono);font-size:10px;color:var(--ink2);line-height:1.6;">OPEC+ cuts + geopolitical risk support Brent premium. Demand softens on global slowdown fears.</div>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:4px;">
+            <span style="font-family:var(--mono);font-size:8px;padding:2px 7px;border:1px solid rgba(248,113,113,0.3);color:var(--red2);background:rgba(248,113,113,0.06);">Iran Deal ↓</span>
+            <span style="font-family:var(--mono);font-size:8px;padding:2px 7px;border:1px solid rgba(251,191,36,0.3);color:var(--yellow);background:rgba(251,191,36,0.06);">OPEC+ Output</span>
+            <span style="font-family:var(--mono);font-size:8px;padding:2px 7px;border:1px solid rgba(52,211,153,0.3);color:var(--green2);background:rgba(52,211,153,0.06);">Supply Shock ↑</span>
+          </div>
         </div>
       </div>
 
+      <!-- AI & TECH -->
+      <div style="background:var(--bg);padding:0;">
+        <div style="padding:12px 14px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;">
+          <span style="font-size:16px;">🧠</span>
+          <span style="font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--ink);font-weight:700;">AI & Technology</span>
+        </div>
+        <div style="padding:14px;">
+          <div style="font-family:var(--mono);font-size:7px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Key ETFs</div>
+          <div style="font-family:var(--mono);">
+            <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border2);font-size:10px;"><span style="color:var(--gold2);font-weight:700;">QQQ</span><span style="color:var(--muted);font-size:9px;">NASDAQ-100 ETF</span><span id="th-qqq" style="color:var(--muted);">—</span></div>
+            <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border2);font-size:10px;"><span style="color:var(--gold2);font-weight:700;">XLK</span><span style="color:var(--muted);font-size:9px;">Technology SPDR</span><span id="th-xlk" style="color:var(--muted);">—</span></div>
+            <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:10px;"><span style="color:var(--gold2);font-weight:700;">BOTZ</span><span style="color:var(--muted);font-size:9px;">AI & Robotics ETF</span><span id="th-botz" style="color:var(--muted);">—</span></div>
+          </div>
+          <div style="background:var(--bg2);border-left:2px solid var(--green2);padding:8px 10px;margin:10px 0;">
+            <div style="font-family:var(--mono);font-size:7px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">Macro Scenario</div>
+            <div style="font-family:var(--mono);font-size:10px;color:var(--ink2);line-height:1.6;">Fed pivot expectations + AI capex supercycle driving multiple expansion. Rate sensitivity remains key risk.</div>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:4px;">
+            <span style="font-family:var(--mono);font-size:8px;padding:2px 7px;border:1px solid rgba(52,211,153,0.3);color:var(--green2);background:rgba(52,211,153,0.06);">Fed Cut ↑</span>
+            <span style="font-family:var(--mono);font-size:8px;padding:2px 7px;border:1px solid rgba(52,211,153,0.3);color:var(--green2);background:rgba(52,211,153,0.06);">Earnings Beat ↑</span>
+            <span style="font-family:var(--mono);font-size:8px;padding:2px 7px;border:1px solid rgba(248,113,113,0.3);color:var(--red2);background:rgba(248,113,113,0.06);">10Y Yield ↑ ↓</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- GOLD -->
+      <div style="background:var(--bg);padding:0;">
+        <div style="padding:12px 14px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;">
+          <span style="font-size:16px;">🪙</span>
+          <span style="font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--ink);font-weight:700;">Gold & Precious Metals</span>
+        </div>
+        <div style="padding:14px;">
+          <div style="font-family:var(--mono);font-size:7px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Key ETFs</div>
+          <div style="font-family:var(--mono);">
+            <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border2);font-size:10px;"><span style="color:var(--gold2);font-weight:700;">GLD</span><span style="color:var(--muted);font-size:9px;">SPDR Gold Shares</span><span id="th-gld" style="color:var(--muted);">—</span></div>
+            <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border2);font-size:10px;"><span style="color:var(--gold2);font-weight:700;">GDX</span><span style="color:var(--muted);font-size:9px;">Gold Miners ETF</span><span id="th-gdx" style="color:var(--muted);">—</span></div>
+            <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:10px;"><span style="color:var(--gold2);font-weight:700;">SLV</span><span style="color:var(--muted);font-size:9px;">iShares Silver</span><span id="th-slv" style="color:var(--muted);">—</span></div>
+          </div>
+          <div style="background:var(--bg2);border-left:2px solid var(--yellow);padding:8px 10px;margin:10px 0;">
+            <div style="font-family:var(--mono);font-size:7px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">Macro Scenario</div>
+            <div style="font-family:var(--mono);font-size:10px;color:var(--ink2);line-height:1.6;">De-dollarization + central bank buying + real rates declining = structural bull market in gold.</div>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:4px;">
+            <span style="font-family:var(--mono);font-size:8px;padding:2px 7px;border:1px solid rgba(52,211,153,0.3);color:var(--green2);background:rgba(52,211,153,0.06);">Real Rates ↓ ↑</span>
+            <span style="font-family:var(--mono);font-size:8px;padding:2px 7px;border:1px solid rgba(52,211,153,0.3);color:var(--green2);background:rgba(52,211,153,0.06);">USD Weak ↑</span>
+            <span style="font-family:var(--mono);font-size:8px;padding:2px 7px;border:1px solid rgba(251,191,36,0.3);color:var(--yellow);background:rgba(251,191,36,0.06);">Risk-Off ↑</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Second row -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);">
+
+      <!-- FINANCIALS -->
+      <div style="background:var(--bg);padding:0;">
+        <div style="padding:12px 14px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;">
+          <span style="font-size:16px;">🏦</span>
+          <span style="font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--ink);font-weight:700;">Financials</span>
+        </div>
+        <div style="padding:14px;">
+          <div style="font-family:var(--mono);font-size:7px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Key ETFs</div>
+          <div style="font-family:var(--mono);">
+            <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border2);font-size:10px;"><span style="color:var(--gold2);font-weight:700;">XLF</span><span style="color:var(--muted);font-size:9px;">Financial Select SPDR</span><span id="th-xlf" style="color:var(--muted);">—</span></div>
+            <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border2);font-size:10px;"><span style="color:var(--gold2);font-weight:700;">KRE</span><span style="color:var(--muted);font-size:9px;">Regional Banks ETF</span><span id="th-kre" style="color:var(--muted);">—</span></div>
+            <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:10px;"><span style="color:var(--gold2);font-weight:700;">IAI</span><span style="color:var(--muted);font-size:9px;">Broker-Dealers ETF</span><span id="th-iai" style="color:var(--muted);">—</span></div>
+          </div>
+          <div style="background:var(--bg2);border-left:2px solid #60a5fa;padding:8px 10px;margin:10px 0;">
+            <div style="font-family:var(--mono);font-size:7px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">Macro Scenario</div>
+            <div style="font-family:var(--mono);font-size:10px;color:var(--ink2);line-height:1.6;">Higher-for-longer rates boost net interest margins. Credit quality and yield curve shape are key drivers.</div>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:4px;">
+            <span style="font-family:var(--mono);font-size:8px;padding:2px 7px;border:1px solid rgba(52,211,153,0.3);color:var(--green2);background:rgba(52,211,153,0.06);">Rates High ↑</span>
+            <span style="font-family:var(--mono);font-size:8px;padding:2px 7px;border:1px solid rgba(248,113,113,0.3);color:var(--red2);background:rgba(248,113,113,0.06);">Curve Invert ↓</span>
+            <span style="font-family:var(--mono);font-size:8px;padding:2px 7px;border:1px solid rgba(251,191,36,0.3);color:var(--yellow);background:rgba(251,191,36,0.06);">Credit Risk</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- AGRI COMMODITIES -->
+      <div style="background:var(--bg);padding:0;">
+        <div style="padding:12px 14px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;">
+          <span style="font-size:16px;">🌾</span>
+          <span style="font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--ink);font-weight:700;">Agricultural Commodities</span>
+        </div>
+        <div style="padding:14px;">
+          <div style="font-family:var(--mono);font-size:7px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Key ETFs</div>
+          <div style="font-family:var(--mono);">
+            <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border2);font-size:10px;"><span style="color:var(--gold2);font-weight:700;">DBA</span><span style="color:var(--muted);font-size:9px;">Agriculture Fund</span><span id="th-dba" style="color:var(--muted);">—</span></div>
+            <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border2);font-size:10px;"><span style="color:var(--gold2);font-weight:700;">WEAT</span><span style="color:var(--muted);font-size:9px;">Wheat ETF</span><span id="th-weat" style="color:var(--muted);">—</span></div>
+            <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:10px;"><span style="color:var(--gold2);font-weight:700;">CORN</span><span style="color:var(--muted);font-size:9px;">Corn ETF</span><span id="th-corn" style="color:var(--muted);">—</span></div>
+          </div>
+          <div style="background:var(--bg2);border-left:2px solid #34d399;padding:8px 10px;margin:10px 0;">
+            <div style="font-family:var(--mono);font-size:7px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">Macro Scenario</div>
+            <div style="font-family:var(--mono);font-size:10px;color:var(--ink2);line-height:1.6;">Climate events, Black Sea conflict and food security concerns drive volatility. Inflation hedge in stagflation.</div>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:4px;">
+            <span style="font-family:var(--mono);font-size:8px;padding:2px 7px;border:1px solid rgba(251,191,36,0.3);color:var(--yellow);background:rgba(251,191,36,0.06);">La Niña / El Niño</span>
+            <span style="font-family:var(--mono);font-size:8px;padding:2px 7px;border:1px solid rgba(248,113,113,0.3);color:var(--red2);background:rgba(248,113,113,0.06);">War / Conflict ↑</span>
+            <span style="font-family:var(--mono);font-size:8px;padding:2px 7px;border:1px solid rgba(52,211,153,0.3);color:var(--green2);background:rgba(52,211,153,0.06);">Inflation Hedge</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- BONDS -->
+      <div style="background:var(--bg);padding:0;">
+        <div style="padding:12px 14px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;">
+          <span style="font-size:16px;">📈</span>
+          <span style="font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--ink);font-weight:700;">Bonds & Fixed Income</span>
+        </div>
+        <div style="padding:14px;">
+          <div style="font-family:var(--mono);font-size:7px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Key ETFs</div>
+          <div style="font-family:var(--mono);">
+            <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border2);font-size:10px;"><span style="color:var(--gold2);font-weight:700;">TLT</span><span style="color:var(--muted);font-size:9px;">20+ Year Treasury</span><span id="th-tlt" style="color:var(--muted);">—</span></div>
+            <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border2);font-size:10px;"><span style="color:var(--gold2);font-weight:700;">IEF</span><span style="color:var(--muted);font-size:9px;">7-10Y Treasury</span><span id="th-ief" style="color:var(--muted);">—</span></div>
+            <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:10px;"><span style="color:var(--gold2);font-weight:700;">LQD</span><span style="color:var(--muted);font-size:9px;">Corp Bond ETF</span><span id="th-lqd" style="color:var(--muted);">—</span></div>
+          </div>
+          <div style="background:var(--bg2);border-left:2px solid #60a5fa;padding:8px 10px;margin:10px 0;">
+            <div style="font-family:var(--mono);font-size:7px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">Macro Scenario</div>
+            <div style="font-family:var(--mono);font-size:10px;color:var(--ink2);line-height:1.6;">Fed pivot expectations driving duration rally. TLT sensitive to every CPI print and Fed speaker.</div>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:4px;">
+            <span style="font-family:var(--mono);font-size:8px;padding:2px 7px;border:1px solid rgba(52,211,153,0.3);color:var(--green2);background:rgba(52,211,153,0.06);">Fed Cut ↑</span>
+            <span style="font-family:var(--mono);font-size:8px;padding:2px 7px;border:1px solid rgba(248,113,113,0.3);color:var(--red2);background:rgba(248,113,113,0.06);">CPI Hot ↓</span>
+            <span style="font-family:var(--mono);font-size:8px;padding:2px 7px;border:1px solid rgba(251,191,36,0.3);color:var(--yellow);background:rgba(251,191,36,0.06);">Duration Risk</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ETF vs FUTURES -->
+  <div class="etf-section" id="etf-vsfutures">
+    <div style="font-family:var(--mono);font-size:8px;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin-bottom:16px;">Professional comparison · Key concepts for traders</div>
+
+    <!-- Comparison table -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:var(--border);margin-bottom:20px;">
+      <div style="background:var(--bg);">
+        <div style="padding:10px 14px;background:var(--bg2);border-bottom:1px solid var(--border);font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;color:#60a5fa;text-align:center;">ETF</div>
+        <div style="padding:14px;font-family:var(--mono);font-size:10px;">
+          <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border2);gap:8px;"><span style="color:var(--muted);font-size:9px;flex-shrink:0;">Structure</span><span style="color:var(--ink2);text-align:right;">Fund holding assets or derivatives</span></div>
+          <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border2);gap:8px;"><span style="color:var(--muted);font-size:9px;flex-shrink:0;">Expiry</span><span style="color:var(--ink2);text-align:right;">None — holds indefinitely</span></div>
+          <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border2);gap:8px;"><span style="color:var(--muted);font-size:9px;flex-shrink:0;">Leverage</span><span style="color:var(--ink2);text-align:right;">1x standard / 2-3x leveraged</span></div>
+          <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border2);gap:8px;"><span style="color:var(--muted);font-size:9px;flex-shrink:0;">Cost</span><span style="color:var(--ink2);text-align:right;">TER: 0.03%–0.75%/yr</span></div>
+          <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border2);gap:8px;"><span style="color:var(--muted);font-size:9px;flex-shrink:0;">Tracking</span><span style="color:var(--ink2);text-align:right;">Tracking error vs spot possible</span></div>
+          <div style="display:flex;justify-content:space-between;padding:7px 0;gap:8px;"><span style="color:var(--muted);font-size:9px;flex-shrink:0;">Best for</span><span style="color:var(--ink2);text-align:right;">Long-term exposure, portfolios</span></div>
+        </div>
+      </div>
+      <div style="background:var(--bg);">
+        <div style="padding:10px 14px;background:var(--bg2);border-bottom:1px solid var(--border);font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--yellow);text-align:center;">Futures</div>
+        <div style="padding:14px;font-family:var(--mono);font-size:10px;">
+          <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border2);gap:8px;"><span style="color:var(--muted);font-size:9px;flex-shrink:0;">Structure</span><span style="color:var(--ink2);text-align:right;">Contract for delivery at set date</span></div>
+          <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border2);gap:8px;"><span style="color:var(--muted);font-size:9px;flex-shrink:0;">Expiry</span><span style="color:var(--ink2);text-align:right;">Monthly/quarterly rollover</span></div>
+          <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border2);gap:8px;"><span style="color:var(--muted);font-size:9px;flex-shrink:0;">Leverage</span><span style="color:var(--ink2);text-align:right;">High — margin-based (10-20x)</span></div>
+          <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border2);gap:8px;"><span style="color:var(--muted);font-size:9px;flex-shrink:0;">Cost</span><span style="color:var(--ink2);text-align:right;">Roll cost + commissions</span></div>
+          <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border2);gap:8px;"><span style="color:var(--muted);font-size:9px;flex-shrink:0;">Tracking</span><span style="color:var(--ink2);text-align:right;">Direct price exposure</span></div>
+          <div style="display:flex;justify-content:space-between;padding:7px 0;gap:8px;"><span style="color:var(--muted);font-size:9px;flex-shrink:0;">Best for</span><span style="color:var(--ink2);text-align:right;">Short-term trading, hedging</span></div>
+        </div>
+      </div>
+      <div style="background:var(--bg);">
+        <div style="padding:10px 14px;background:var(--bg2);border-bottom:1px solid var(--border);font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--green2);text-align:center;">Spot / CFD</div>
+        <div style="padding:14px;font-family:var(--mono);font-size:10px;">
+          <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border2);gap:8px;"><span style="color:var(--muted);font-size:9px;flex-shrink:0;">Structure</span><span style="color:var(--ink2);text-align:right;">Direct ownership or contract</span></div>
+          <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border2);gap:8px;"><span style="color:var(--muted);font-size:9px;flex-shrink:0;">Expiry</span><span style="color:var(--ink2);text-align:right;">None</span></div>
+          <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border2);gap:8px;"><span style="color:var(--muted);font-size:9px;flex-shrink:0;">Leverage</span><span style="color:var(--ink2);text-align:right;">Up to 1:30 (CFD)</span></div>
+          <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border2);gap:8px;"><span style="color:var(--muted);font-size:9px;flex-shrink:0;">Cost</span><span style="color:var(--ink2);text-align:right;">Spread + overnight swap</span></div>
+          <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border2);gap:8px;"><span style="color:var(--muted);font-size:9px;flex-shrink:0;">Tracking</span><span style="color:var(--ink2);text-align:right;">Exact spot price</span></div>
+          <div style="display:flex;justify-content:space-between;padding:7px 0;gap:8px;"><span style="color:var(--muted);font-size:9px;flex-shrink:0;">Best for</span><span style="color:var(--ink2);text-align:right;">Intraday trading, FX</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Concepts -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+      <div style="background:var(--bg2);border:1px solid var(--border);padding:16px;">
+        <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--yellow);margin-bottom:10px;">⚠ Contango & Backwardation</div>
+        <div style="font-family:var(--body);font-size:11px;color:var(--ink2);line-height:1.7;">When futures price &gt; spot = <strong style="color:var(--red2);">Contango</strong>. Rolling contracts in contango costs money — each month you sell cheap and buy expensive. USO (Oil ETF) lost ~80% vs spot WTI over a decade due to this. When futures price &lt; spot = <strong style="color:var(--green2);">Backwardation</strong> — rolling is profitable.</div>
+        <div style="background:var(--bg);border-left:2px solid var(--yellow);padding:8px 10px;margin-top:10px;font-family:var(--mono);font-size:10px;color:var(--yellow);line-height:1.6;">Example: WTI Spot $80 → Jun Futures $83 → Jul Futures $86. Each monthly roll = -$3 loss per contract.</div>
+      </div>
+      <div style="background:var(--bg2);border:1px solid var(--border);padding:16px;">
+        <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;color:#60a5fa;margin-bottom:10px;">📊 Tracking Error</div>
+        <div style="font-family:var(--body);font-size:11px;color:var(--ink2);line-height:1.7;">The divergence between ETF performance and its benchmark. Caused by: management fees, dividend timing, replication method (physical vs synthetic), cash drag, and roll costs for commodity ETFs.</div>
+        <div style="background:var(--bg);border-left:2px solid #60a5fa;padding:8px 10px;margin-top:10px;font-family:var(--mono);font-size:10px;color:#60a5fa;line-height:1.6;">GLD tracks gold spot closely (physical). USO diverges significantly from WTI (futures-based rollover costs).</div>
+      </div>
+    </div>
+
+    <!-- Key takeaway -->
+    <div style="background:rgba(248,113,113,0.06);border:1px solid rgba(248,113,113,0.25);padding:14px 16px;">
+      <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--red2);margin-bottom:8px;">⚠ Key takeaway for oil traders</div>
+      <div style="font-family:var(--body);font-size:11px;color:var(--ink2);line-height:1.7;">USO and similar oil ETFs do <strong style="color:var(--ink);">NOT</strong> track WTI crude directly. They hold front-month futures and roll them monthly. In contango markets, this creates a persistent negative roll yield. A trader long WTI via CFD/futures can be up 10% while USO is flat or negative. Always check whether an ETF uses <strong style="color:var(--ink);">physical replication</strong> or <strong style="color:var(--ink);">futures-based replication</strong> before trading.</div>
     </div>
   </div>
 
