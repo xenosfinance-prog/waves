@@ -1,4 +1,4 @@
-// XenosFinance i18n Engine v1.0
+// XenosFinance i18n Engine v1.0 
 // Lightweight language switcher — no API calls, no dependencies
 
 (function() {
