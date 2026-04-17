@@ -1,4 +1,4 @@
-// XenosFinance i18n Engine v1.0 
+// XenosFinance i18n Engine v1.0
 // Lightweight language switcher — no API calls, no dependencies
 
 (function() {
@@ -10,6 +10,11 @@
   };
 
   let currentLang = localStorage.getItem('xenos_lang') || 'en';
+  // Reset if stored language is no longer available (e.g. Italian was removed)
+  if (!LANGS[currentLang]) {
+    currentLang = 'en';
+    localStorage.setItem('xenos_lang', 'en');
+  }
 
   // Apply translations to all [data-i18n] elements
   function applyLang(lang) {
