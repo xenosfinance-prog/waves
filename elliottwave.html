@@ -2820,10 +2820,10 @@ function drawMiniWave(id){
 
 // Init all drawings on load
 window.addEventListener('load',()=>{
-  renderPublicFeed();
   // Hide all glossary items by default
   document.querySelectorAll('.gloss-item').forEach(el=>el.classList.add('hidden'));
   document.getElementById('glossCount').textContent='Select a category or search to explore terms';
+  try { renderPublicFeed(); } catch(e){ console.warn('renderPublicFeed:', e); }
   function initCanvases(){
     try { drawBasicWave(); } catch(e){ console.error('drawBasicWave:', e); }
     try { drawCorrectivePatterns(); } catch(e){ console.error('drawCorrectivePatterns:', e); }
