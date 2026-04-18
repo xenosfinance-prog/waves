@@ -2092,15 +2092,24 @@ Now write the professional Elliott Wave analysis following the 4-paragraph forma
     });
     if (res) {
       const data = await res.json();
-      let narrative = (data.content?.[0]?.text||'').replace(/\*\*/g,'').replace(/\*/g,'').replace(/^#+\s*/gm,'').trim();
-      if (narrative) {
-        const final = instantOutput.replace('  Loading...', '  '+narrative.split('\n').join('\n  '));
-        txt.textContent = final;
-        lastAnalysis = `Elliott Wave Analysis — ${symbol} ${tf}\n\n${final}`;
+      // Debug: if error from API, show it
+      if (data.error) {
+        txt.textContent = instantOutput.replace('  Loading...', '  API Error: ' + (data.error.message||JSON.stringify(data.error)));
+      } else {
+        let narrative = (data.content?.[0]?.text||'').replace(/\*\*/g,'').replace(/\*/g,'').replace(/^#+\s*/gm,'').trim();
+        if (narrative) {
+          const final = instantOutput.replace('  Loading...', '  '+narrative.split('\n').join('\n  '));
+          txt.textContent = final;
+          lastAnalysis = `Elliott Wave Analysis — ${symbol} ${tf}\n\n${final}`;
+        } else {
+          txt.textContent = instantOutput.replace('  Loading...', '  No response from AI — try again.');
+        }
       }
+    } else {
+      txt.textContent = instantOutput.replace('  Loading...', '  Connection failed — check network.');
     }
   } catch(e) {
-    txt.textContent = instantOutput.replace('  Loading...', '  Analysis unavailable.');
+    txt.textContent = instantOutput.replace('  Loading...', '  Error: ' + e.message);
   }
 
   btn.disabled=false;
@@ -3114,7 +3123,7 @@ function manualCanvasClick(e) {
   if (!candle) return;
 
   // Snap to nearest high or low of that candle
-  const midY = (manualGetChartParams().MT + (manualGetChartParams().MT + manualGetChartParams().CH)) / 2;
+  const midY = manualGetChartParams().MT + manualGetChartParams().CH / 2;
   const snapToHigh = y < midY;
   const snapPrice = snapToHigh ? candle.high : candle.low;
 
@@ -3163,12 +3172,11 @@ function manualRedraw(showCrosshair, crosshairX) {
   const ctx = canvas.getContext('2d');
   if (!manualCanvasState) return;
 
-  // Restore clean chart
-  ctx.save();
+  // Restore clean chart pixel-perfect (no transform during putImageData)
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.putImageData(manualCanvasState, 0, 0);
-  ctx.restore();
-  ctx.scale(2, 2); // re-apply scale
+  // Re-apply 2x scale for all subsequent drawing
+  ctx.setTransform(2, 0, 0, 2, 0, 0);
 
   const { ML, MR, MT, CH, CW, W, H, MB } = manualGetChartParams();
   const minP = ewLastCandles._manualMinP;
@@ -3400,9 +3408,11 @@ function saveManualCanvasState() {
   const canvas = document.getElementById('ewChartCanvas');
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
+  // Save raw pixels without changing transform
+  const prevTransform = ctx.getTransform();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   manualCanvasState = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  ctx.scale(2, 2);
+  ctx.setTransform(prevTransform); // restore exactly as it was
 
   // Store chart bounds for coordinate mapping
   if (ewLastCandles) {
