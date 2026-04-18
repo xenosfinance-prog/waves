@@ -2221,6 +2221,9 @@ function renderEWChartFromAPI(ew, symbol, tf) {
 
   const labelPlaced = [];
 
+  // Build ordered list of existing wave points for neighbour-based isHigh
+  const orderedWpts = waveOrder.map(k => wavePoints[k] ? {key:k, price:wavePoints[k].price} : null).filter(Boolean);
+
   waveOrder.forEach(key => {
     const wp = wavePoints[key];
     if (!wp) return;
@@ -2239,10 +2242,17 @@ function renderEWChartFromAPI(ew, symbol, tf) {
     ctx.fillStyle = col;
     ctx.beginPath(); ctx.arc(x, y, isCur ? 4 : 3, 0, Math.PI*2); ctx.fill();
 
-    // Label direction: highs above, lows below
-    const isHigh = isBearish
-      ? ['0','2','4','B'].includes(label)
-      : ['1','3','5','A','C'].includes(label);
+    // Label direction: use actual price vs neighbours (not hardcoded label lists)
+    const oi = orderedWpts.findIndex(o => o.key === key);
+    const prevP = oi > 0 ? orderedWpts[oi-1].price : null;
+    const nextP = oi < orderedWpts.length-1 ? orderedWpts[oi+1].price : null;
+    let isHigh;
+    if (prevP !== null && nextP !== null) {
+      isHigh = wp.price > prevP && wp.price > nextP;
+      if (!isHigh && !(wp.price < prevP && wp.price < nextP)) isHigh = wp.price > prevP;
+    } else if (prevP !== null) { isHigh = wp.price > prevP; }
+    else if (nextP !== null)   { isHigh = wp.price > nextP; }
+    else                       { isHigh = !isBearish; }
 
     let labelY = isHigh ? y - 30 : y + 30;
     labelY = Math.max(MT+10, Math.min(labelY, MT+CH-10));
@@ -2462,9 +2472,25 @@ function renderEWChart(analysis, symbol, tf, liveData) {
   //   3. Else evenly space
   // After mapping, enforce strict left-to-right order for any gaps.
   const pts = wavePoints.map((wpt, i) => {
-    const isHighPt = isBearish
-      ? ['0','2','4','B'].includes(wpt.label)
-      : ['1','3','5','A','C'].includes(wpt.label);
+    // isHighPt: determine by actual price vs neighbours, not by label list
+    // A pivot is a HIGH if it is higher than the pivot before AND after it
+    // For first/last pivot, compare with the single neighbour
+    const prevPrice = i > 0 ? wavePoints[i-1].price : null;
+    const nextPrice = i < wavePoints.length-1 ? wavePoints[i+1].price : null;
+    let isHighPt;
+    if (prevPrice !== null && nextPrice !== null) {
+      isHighPt = wpt.price > prevPrice && wpt.price > nextPrice;
+      // If not clearly a peak or trough (both neighbours same side), fallback to alternation
+      if (!isHighPt && !(wpt.price < prevPrice && wpt.price < nextPrice)) {
+        isHighPt = wpt.price > prevPrice;
+      }
+    } else if (prevPrice !== null) {
+      isHighPt = wpt.price > prevPrice;
+    } else if (nextPrice !== null) {
+      isHighPt = wpt.price > nextPrice;
+    } else {
+      isHighPt = !isBearish;
+    }
 
     let ci = -1;
 
