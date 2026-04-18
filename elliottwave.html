@@ -938,8 +938,31 @@ canvas { display: block; }
       <button class="admin-tg-btn" id="tgBtn" onclick="sendToTelegram()">📡 Send to Telegram</button>
       <button id="publishFromAnalysisBtn" onclick="publishFromAnalysis()" style="display:none;padding:12px 24px;background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.35);color:#34d399;font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;cursor:pointer;margin-left:8px;">✦ Publish Note</button>
 
-      <div id="ewChartWrap" style="display:none;margin-top:20px;background:var(--bg);border:1px solid var(--border);overflow:hidden;">
+      <!-- Manual Wave Drawing toolbar -->
+      <div id="manualToolbar" style="display:none;margin-top:16px;padding:12px 16px;background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.25);display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <span style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:#3b82f6;text-transform:uppercase;">✏ Manual Mode</span>
+        <span style="font-family:var(--mono);font-size:9px;color:var(--muted);">Next label:</span>
+        <select id="manualLabelSel" style="background:var(--bg2);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:11px;padding:4px 8px;cursor:pointer;">
+          <option value="0">0 — Origin</option>
+          <option value="1">1 — Wave 1</option>
+          <option value="2">2 — Wave 2</option>
+          <option value="3">3 — Wave 3</option>
+          <option value="4">4 — Wave 4</option>
+          <option value="5">5 — Wave 5</option>
+          <option value="A">A — Wave A</option>
+          <option value="B">B — Wave B</option>
+          <option value="C">C — Wave C</option>
+        </select>
+        <button onclick="manualUndo()" style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:#f87171;font-family:var(--mono);font-size:9px;letter-spacing:1px;padding:4px 10px;cursor:pointer;text-transform:uppercase;">↩ Undo</button>
+        <button onclick="manualClear()" style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:#f87171;font-family:var(--mono);font-size:9px;letter-spacing:1px;padding:4px 10px;cursor:pointer;text-transform:uppercase;">✕ Clear</button>
+        <button onclick="manualAnalyze()" style="background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.4);color:#60a5fa;font-family:var(--mono);font-size:9px;letter-spacing:1px;padding:4px 14px;cursor:pointer;text-transform:uppercase;">⚡ Analyze Pivots</button>
+        <span id="manualStatus" style="font-family:var(--mono);font-size:9px;color:var(--muted);margin-left:4px;"></span>
+      </div>
+
+      <div id="ewChartWrap" style="display:none;margin-top:20px;background:var(--bg);border:1px solid var(--border);overflow:hidden;position:relative;">
         <canvas id="ewChartCanvas" style="width:100%;display:block;"></canvas>
+        <!-- Manual mode toggle button overlaid on chart -->
+        <button id="manualToggleBtn" onclick="toggleManualMode()" style="position:absolute;top:8px;left:50%;transform:translateX(-50%);background:rgba(15,23,36,0.85);border:1px solid rgba(59,130,246,0.3);color:#4a6a8a;font-family:var(--mono);font-size:8px;letter-spacing:2px;padding:4px 12px;cursor:pointer;text-transform:uppercase;z-index:10;transition:all 0.2s;" onmouseover="this.style.borderColor='rgba(59,130,246,0.7)';this.style.color='#60a5fa'" onmouseout="if(!manualModeActive)this.style.borderColor='rgba(59,130,246,0.3)';if(!manualModeActive)this.style.color='#4a6a8a'">✏ Draw Waves</button>
       </div>
 
       <div class="analysis-output" id="analysisOutput">
@@ -1863,13 +1886,9 @@ async function runAIAnalysis(){
   const signalDir = ewResult.action.includes('🟢') ? 'LONG'
                   : ewResult.action.includes('🔴') ? 'SHORT' : 'WAIT';
 
-  // trend follows the SIGNAL (active wave direction), not the prior cycle's directionUp
-  const activeTrend = signalDir === 'LONG' ? 'UP' : signalDir === 'SHORT' ? 'DOWN' : (ewResult.directionUp ? 'UP' : 'DOWN');
-
   const chartAnalysis = {
-    trend: activeTrend,
+    trend: ewResult.directionUp ? 'UP' : 'DOWN',
     current_wave: ewResult.waveNum,
-    wave_phase: ewResult.wavePhase,   // 'IMPULSIVE' or 'CORRECTIVE ABC'
     degree: ewResult.degree,
     signal: signalDir,
     key_levels: {
@@ -1888,6 +1907,11 @@ async function runAIAnalysis(){
   };
 
   renderEWChart(chartAnalysis, symbol, tf, liveData);
+  // Save canvas state for manual wave drawing overlay
+  setTimeout(saveManualCanvasState, 50);
+  // Show the Draw Waves button
+  const mBtn = document.getElementById('manualToggleBtn');
+  if (mBtn) mBtn.style.display = 'block';
 
   txt.innerHTML='<span class="analysis-loading">⬡ GENERATING NARRATIVE ANALYSIS...</span>';
 
@@ -2416,34 +2440,20 @@ function renderEWChart(analysis, symbol, tf, liveData) {
   }
 
   // ── Wave overlay ──────────────────────────────────
+  // Build ordered wave points from analysis — only those that exist
+  const wavePoints = [
+    {label:'0',key:'w0',price:wp.w0,impulse:true},
+    {label:'1',key:'w1',price:wp.w1,impulse:true},
+    {label:'2',key:'w2',price:wp.w2,impulse:true},
+    {label:'3',key:'w3',price:wp.w3,impulse:true},
+    {label:'4',key:'w4',price:wp.w4,impulse:true},
+    {label:'5',key:'w5',price:wp.w5,impulse:true},
+    {label:'A',key:'wa',price:wp.wa,impulse:false},
+    {label:'B',key:'wb',price:wp.wb,impulse:false},
+    {label:'C',key:'wc',price:wp.wc,impulse:false},
+  ].filter(p => p.price != null);
+
   const pivMap = (ewLastCandles && ewLastCandles._pivotMap) || {};
-
-  // Determine structure type from wave_phase:
-  // CORRECTIVE ABC/CORRECTIVE → show A,B,C labels only
-  // IMPULSIVE / anything else → show 0,1,2,3,4,5 labels
-  const isCorrectiveABC = (analysis.wave_phase || '').includes('CORRECTIVE');
-
-  const allCandidates = isCorrectiveABC
-    ? [
-        {label:'A', key:'wa', price:wp.wa, impulse:false},
-        {label:'B', key:'wb', price:wp.wb, impulse:false},
-        {label:'C', key:'wc', price:wp.wc, impulse:false},
-      ]
-    : [
-        {label:'0', key:'w0', price:wp.w0, impulse:true},
-        {label:'1', key:'w1', price:wp.w1, impulse:true},
-        {label:'2', key:'w2', price:wp.w2, impulse:true},
-        {label:'3', key:'w3', price:wp.w3, impulse:true},
-        {label:'4', key:'w4', price:wp.w4, impulse:true},
-        {label:'5', key:'w5', price:wp.w5, impulse:true},
-      ];
-
-  // Only confirmed pivots (real candle highs/lows in pivotMap), not Fib estimates
-  const confirmedKeys = new Set(Object.keys(pivMap));
-  const wavePoints = allCandidates.filter(p => p.price != null && confirmedKeys.has(p.key));
-
-  // Active developing wave — project as dashed line to live price
-  const activePrice = liveData?.price || null;
 
   // ── Map each wave point to X (candle bar) and Y (price) ──────
   // Strategy:
@@ -2522,53 +2532,12 @@ function renderEWChart(analysis, symbol, tf, liveData) {
     ctx.lineJoin = 'miter'; ctx.textBaseline = 'alphabetic';
   });
 
-  // ── Active wave projection (dashed from last confirmed pivot → live price) ──
-  if (activePrice && pts.length >= 1) {
-    const lastPt = pts[pts.length - 1];
-    const projY  = toY(activePrice);
-    const projX  = ML + CW - 4;
-    const projCol = isBearish ? '#f59e0b' : '#3b82f6';
-
-    // Dashed projection line
-    ctx.strokeStyle = projCol; ctx.lineWidth = 1.5; ctx.globalAlpha = 0.4;
-    ctx.setLineDash([5, 5]);
-    ctx.beginPath(); ctx.moveTo(lastPt.x, lastPt.y); ctx.lineTo(projX, projY); ctx.stroke();
-    ctx.setLineDash([]); ctx.globalAlpha = 1;
-
-    // Current wave label at tip — ABC if corrective, number if motive
-    const curLabel = analysis.current_wave || '?';
-    const isHighTip = isBearish
-      ? ['0','2','4','B','A'].includes(curLabel)
-      : ['1','3','5','C'].includes(curLabel);
-    const tipLabelY = isHighTip ? projY - 16 : projY + 16;
-    const clampedTipY = Math.max(MT + 10, Math.min(tipLabelY, MT + CH - 10));
-
-    ctx.font = 'bold 13px Arial, sans-serif';
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.lineWidth = 3.5; ctx.lineJoin = 'round';
-    ctx.strokeStyle = 'rgba(6,12,22,0.95)';
-    ctx.strokeText(curLabel, projX - 4, clampedTipY);
-    ctx.fillStyle = projCol; ctx.globalAlpha = 0.8;
-    ctx.fillText(curLabel, projX - 4, clampedTipY);
-    ctx.globalAlpha = 1; ctx.lineJoin = 'miter'; ctx.textBaseline = 'alphabetic';
-
-    // TP1 target arrow (vertical dashed green line)
-    const tp1 = analysis.key_levels?.tp1;
-    if (tp1 && tp1 >= minP && tp1 <= maxP) {
-      const tpY = toY(tp1);
-      ctx.strokeStyle = '#00e676'; ctx.lineWidth = 0.8; ctx.globalAlpha = 0.2;
-      ctx.setLineDash([3, 8]);
-      ctx.beginPath(); ctx.moveTo(projX, projY); ctx.lineTo(projX, tpY); ctx.stroke();
-      ctx.setLineDash([]); ctx.globalAlpha = 1;
-    }
-  }
-
-  // ── NOW price line ────────────────────────────────
+    // ── NOW price line ────────────────────────────────
   if(liveData?.price){
     const ly=toY(liveData.price);
-    ctx.strokeStyle='rgba(255,255,255,0.18)'; ctx.lineWidth=0.8;
-    ctx.setLineDash([2,6]); ctx.beginPath(); ctx.moveTo(ML,ly); ctx.lineTo(W-MR,ly); ctx.stroke();
-    ctx.setLineDash([]); ctx.fillStyle='#7a9ab8'; ctx.globalAlpha=0.6;
+    ctx.strokeStyle='rgba(255,255,255,0.3)'; ctx.lineWidth=1;
+    ctx.setLineDash([2,5]); ctx.beginPath(); ctx.moveTo(ML,ly); ctx.lineTo(W-MR,ly); ctx.stroke();
+    ctx.setLineDash([]); ctx.fillStyle='#aabbcc'; ctx.globalAlpha=0.7;
     ctx.font='9px monospace'; ctx.textAlign='right';
     ctx.fillText('NOW '+liveData.price,W-MR-2,ly-3); ctx.globalAlpha=1;
   }
@@ -2593,10 +2562,7 @@ function renderEWChart(analysis, symbol, tf, liveData) {
   // Wave degree info
   ctx.textAlign='left'; ctx.font='9px monospace'; ctx.fillStyle='#3a5070';
   const waveLabel = {'1':'①','2':'②','3':'③','4':'④','5':'⑤','A':'Ⓐ','B':'Ⓑ','C':'Ⓒ'};
-  const structureType = isCorrectiveABC
-    ? (isBearish ? '· Corrective ABC bearish' : '· Corrective ABC bullish')
-    : (isBearish ? '· Bearish impulse' : '· Bullish impulse');
-  ctx.fillText('Wave '+(waveLabel[analysis.current_wave]||analysis.current_wave)+' active · '+analysis.degree+' '+structureType, ML, H-MB+32);
+  ctx.fillText('Wave '+(waveLabel[analysis.current_wave]||analysis.current_wave)+' active · '+analysis.degree+(isBearish?' · Bearish impulse':' · Bullish impulse'),ML,H-MB+32);
 }
 
 
@@ -3016,6 +2982,427 @@ function drawMiniWave(id){
 }
 
 // Init all drawings on load
+
+// ═══════════════════════════════════════════════════════════════
+// MANUAL WAVE DRAWING ENGINE
+// ═══════════════════════════════════════════════════════════════
+let manualModeActive = false;
+let manualPivots = [];          // [{label, price, candleIdx, x, y}]
+let manualCanvasState = null;   // saved ImageData before overlay
+
+const LABEL_ORDER = ['0','1','2','3','4','5','A','B','C'];
+const LABEL_COLORS = {
+  '0':'#60a5fa','1':'#60a5fa','2':'#60a5fa','3':'#60a5fa','4':'#60a5fa','5':'#60a5fa',
+  'A':'#fcd34d','B':'#fcd34d','C':'#fcd34d'
+};
+
+function toggleManualMode() {
+  manualModeActive = !manualModeActive;
+  const btn = document.getElementById('manualToggleBtn');
+  const toolbar = document.getElementById('manualToolbar');
+  const canvas = document.getElementById('ewChartCanvas');
+
+  if (manualModeActive) {
+    btn.textContent = '✕ Exit Draw Mode';
+    btn.style.borderColor = 'rgba(239,68,68,0.6)';
+    btn.style.color = '#f87171';
+    toolbar.style.display = 'flex';
+    canvas.style.cursor = 'crosshair';
+    canvas.addEventListener('click', manualCanvasClick);
+    canvas.addEventListener('mousemove', manualCanvasHover);
+    canvas.addEventListener('mouseleave', manualCanvasLeave);
+    document.getElementById('manualStatus').textContent = 'Click on candle pivots to place wave labels';
+  } else {
+    btn.textContent = '✏ Draw Waves';
+    btn.style.borderColor = 'rgba(59,130,246,0.3)';
+    btn.style.color = '#4a6a8a';
+    toolbar.style.display = 'none';
+    canvas.style.cursor = 'default';
+    canvas.removeEventListener('click', manualCanvasClick);
+    canvas.removeEventListener('mousemove', manualCanvasHover);
+    canvas.removeEventListener('mouseleave', manualCanvasLeave);
+    // Redraw clean chart
+    if (manualPivots.length > 0) manualRedraw();
+  }
+}
+
+function getManualCanvasCoords(e) {
+  const canvas = document.getElementById('ewChartCanvas');
+  const rect = canvas.getBoundingClientRect();
+  // canvas is 2x scale — convert CSS coords to canvas logical coords
+  const scaleX = canvas.width / (rect.width * 2);
+  const scaleY = canvas.height / (rect.height * 2);
+  const x = (e.clientX - rect.left);
+  const y = (e.clientY - rect.top);
+  return { x, y };
+}
+
+function manualGetChartParams() {
+  const canvas = document.getElementById('ewChartCanvas');
+  const W = canvas.offsetWidth || 860, H = 460;
+  const ML=72, MR=90, MT=44, MB=58;
+  const CW = W - ML - MR, CH = H - MT - MB;
+  return { W, H, ML, MR, MT, MB, CW, CH };
+}
+
+function manualPriceFromY(y, minP, maxP) {
+  const { H, MT, MB, CH } = manualGetChartParams();
+  const pRange = maxP - minP;
+  return maxP - ((y - MT) / CH) * pRange;
+}
+
+function manualXToCandle(x) {
+  const { ML, CW } = manualGetChartParams();
+  if (!ewLastCandles || !ewLastCandles._manualWindow) return -1;
+  const candles = ewLastCandles._manualWindow;
+  const barW = CW / candles.length;
+  const idx = Math.round((x - ML) / barW - 0.5);
+  return Math.max(0, Math.min(idx, candles.length - 1));
+}
+
+function manualCandleToX(idx) {
+  const { ML, CW } = manualGetChartParams();
+  if (!ewLastCandles || !ewLastCandles._manualWindow) return ML;
+  const candles = ewLastCandles._manualWindow;
+  const barW = CW / candles.length;
+  return ML + (idx + 0.5) * barW;
+}
+
+function manualCanvasClick(e) {
+  if (!ewLastCandles || !ewLastCandles._manualWindow) {
+    document.getElementById('manualStatus').textContent = '⚠ Generate analysis first to load candles';
+    return;
+  }
+  if (!ewLastCandles._manualMinP || !ewLastCandles._manualMaxP) return;
+
+  const { x, y } = getManualCanvasCoords(e);
+  const { MT, MB, ML, MR, H, W } = manualGetChartParams();
+
+  // Must be inside chart area
+  if (x < ML || x > W - MR || y < MT || y > H - MB) return;
+
+  const candleIdx = manualXToCandle(x);
+  const candles = ewLastCandles._manualWindow;
+  const candle = candles[candleIdx];
+  if (!candle) return;
+
+  // Snap to nearest high or low of that candle
+  const midY = (manualGetChartParams().MT + (manualGetChartParams().MT + manualGetChartParams().CH)) / 2;
+  const snapToHigh = y < midY;
+  const snapPrice = snapToHigh ? candle.high : candle.low;
+
+  // Get selected label
+  const label = document.getElementById('manualLabelSel').value;
+
+  // Remove existing pivot with same label
+  manualPivots = manualPivots.filter(p => p.label !== label);
+
+  // Add new pivot
+  manualPivots.push({ label, price: snapPrice, candleIdx, isHigh: snapToHigh });
+
+  // Advance label selector to next in sequence
+  const curIdx = LABEL_ORDER.indexOf(label);
+  if (curIdx >= 0 && curIdx < LABEL_ORDER.length - 1) {
+    document.getElementById('manualLabelSel').value = LABEL_ORDER[curIdx + 1];
+  }
+
+  const count = manualPivots.length;
+  document.getElementById('manualStatus').textContent = `${count} pivot${count>1?'s':''} placed — click ⚡ Analyze when ready`;
+
+  manualRedraw();
+}
+
+function manualCanvasHover(e) {
+  if (!ewLastCandles || !ewLastCandles._manualWindow) return;
+  const { x, y } = getManualCanvasCoords(e);
+  const { MT, MB, ML, MR, H, W } = manualGetChartParams();
+  if (x < ML || x > W - MR || y < MT || y > H - MB) return;
+
+  const candleIdx = manualXToCandle(x);
+  const candles = ewLastCandles._manualWindow;
+  const candle = candles[candleIdx];
+  if (!candle) return;
+
+  // Draw vertical crosshair
+  manualRedraw(true, x);
+}
+
+function manualCanvasLeave() {
+  manualRedraw(false);
+}
+
+function manualRedraw(showCrosshair, crosshairX) {
+  const canvas = document.getElementById('ewChartCanvas');
+  const ctx = canvas.getContext('2d');
+  if (!manualCanvasState) return;
+
+  // Restore clean chart
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.putImageData(manualCanvasState, 0, 0);
+  ctx.restore();
+  ctx.scale(2, 2); // re-apply scale
+
+  const { ML, MR, MT, CH, CW, W, H, MB } = manualGetChartParams();
+  const minP = ewLastCandles._manualMinP;
+  const maxP = ewLastCandles._manualMaxP;
+  const pRange = maxP - minP;
+  const toY = p => MT + CH - ((p - minP) / pRange) * CH;
+
+  // Draw crosshair
+  if (showCrosshair && crosshairX) {
+    ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+    ctx.lineWidth = 0.5;
+    ctx.setLineDash([3, 5]);
+    ctx.beginPath(); ctx.moveTo(crosshairX, MT); ctx.lineTo(crosshairX, MT + CH); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // Sort pivots by candle index
+  const sorted = [...manualPivots].sort((a, b) => a.candleIdx - b.candleIdx);
+
+  // Draw polyline
+  if (sorted.length >= 2) {
+    ctx.lineWidth = 1.8;
+    ctx.globalAlpha = 0.75;
+    ctx.setLineDash([]);
+    sorted.forEach((pt, i) => {
+      const x = manualCandleToX(pt.candleIdx);
+      const y = toY(pt.price);
+      const col = LABEL_COLORS[pt.label] || '#60a5fa';
+      ctx.strokeStyle = col;
+      if (i === 0) { ctx.beginPath(); ctx.moveTo(x, y); }
+      else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+
+  // Draw labels + dots
+  sorted.forEach(pt => {
+    const x = manualCandleToX(pt.candleIdx);
+    const y = toY(pt.price);
+    const col = LABEL_COLORS[pt.label] || '#60a5fa';
+    const labelY = pt.isHigh ? y - 14 : y + 14;
+    const clampedY = Math.max(MT + 10, Math.min(labelY, MT + CH - 10));
+
+    // Dot
+    ctx.fillStyle = col;
+    ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2); ctx.fill();
+
+    // Label with dark outline
+    ctx.font = 'bold 13px Arial, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.lineWidth = 3.5; ctx.lineJoin = 'round';
+    ctx.strokeStyle = 'rgba(6,12,22,0.95)';
+    ctx.strokeText(pt.label, x, clampedY);
+    ctx.fillStyle = col;
+    ctx.fillText(pt.label, x, clampedY);
+    ctx.lineJoin = 'miter'; ctx.textBaseline = 'alphabetic';
+  });
+
+  // Fib levels if >= 2 pivots
+  if (sorted.length >= 2) {
+    manualDrawFibs(ctx, sorted, toY, W, ML, MR);
+  }
+}
+
+function manualDrawFibs(ctx, pivots, toY, W, ML, MR) {
+  if (pivots.length < 2) return;
+  const last2 = pivots.slice(-2);
+  const p0 = last2[0].price, p1 = last2[1].price;
+  const size = Math.abs(p1 - p0);
+  const isUp = p1 > p0;
+
+  const fibs = [
+    { level: 0.236, label: '23.6%', col: 'rgba(167,139,250,0.5)' },
+    { level: 0.382, label: '38.2%', col: 'rgba(167,139,250,0.7)' },
+    { level: 0.500, label: '50.0%', col: 'rgba(200,200,200,0.4)' },
+    { level: 0.618, label: '61.8%', col: 'rgba(34,211,238,0.7)' },
+    { level: 0.786, label: '78.6%', col: 'rgba(167,139,250,0.5)' },
+    { level: 1.000, label: '100%',  col: 'rgba(251,191,36,0.6)' },
+    { level: 1.272, label: '127.2%',col: 'rgba(52,211,153,0.5)' },
+    { level: 1.618, label: '161.8%',col: 'rgba(52,211,153,0.7)' },
+    { level: 2.618, label: '261.8%',col: 'rgba(52,211,153,0.5)' },
+  ];
+
+  fibs.forEach(({ level, label, col }) => {
+    const price = isUp ? p0 + size * level : p0 - size * level;
+    const y = toY(price);
+    if (y < 44 || y > 44 + 358) return; // MT + CH approx
+    ctx.strokeStyle = col; ctx.lineWidth = 0.6; ctx.globalAlpha = 0.5;
+    ctx.setLineDash([4, 6]);
+    ctx.beginPath(); ctx.moveTo(ML, y); ctx.lineTo(W - MR, y); ctx.stroke();
+    ctx.setLineDash([]); ctx.globalAlpha = 0.7;
+    ctx.fillStyle = col; ctx.font = '8px monospace'; ctx.textAlign = 'right';
+    ctx.fillText(label + '  ' + price.toFixed(price > 100 ? 2 : 5), W - MR - 2, y - 2);
+    ctx.globalAlpha = 1;
+  });
+}
+
+function manualUndo() {
+  if (manualPivots.length === 0) return;
+  const removed = manualPivots.pop();
+  // Reset selector to removed label
+  document.getElementById('manualLabelSel').value = removed.label;
+  document.getElementById('manualStatus').textContent = `Removed ${removed.label} — ${manualPivots.length} pivot(s) remaining`;
+  manualRedraw();
+}
+
+function manualClear() {
+  manualPivots = [];
+  document.getElementById('manualLabelSel').value = '0';
+  document.getElementById('manualStatus').textContent = 'Cleared — click pivots to start';
+  manualRedraw();
+}
+
+async function manualAnalyze() {
+  if (manualPivots.length < 2) {
+    document.getElementById('manualStatus').textContent = '⚠ Place at least 2 pivots first';
+    return;
+  }
+
+  const sorted = [...manualPivots].sort((a, b) => a.candleIdx - b.candleIdx);
+  const labels = sorted.map(p => p.label);
+  const prices = sorted.map(p => p.price);
+  const lastLabel = labels[labels.length - 1];
+  const lastPrice = prices[prices.length - 1];
+
+  // Determine structure type
+  const isABC = labels.some(l => ['A','B','C'].includes(l));
+  const isMotive = labels.some(l => ['1','2','3','4','5'].includes(l));
+  const dec = lastPrice > 100 ? 2 : 5;
+
+  // Calculate key Fibonacci levels from the last two confirmed pivots
+  const p0 = prices[prices.length - 2];
+  const p1 = prices[prices.length - 1];
+  const size = Math.abs(p1 - p0);
+  const isUp = p1 > p0;
+  const fib618  = isUp ? p1 - size * 0.618 : p1 + size * 0.618;
+  const fib1618 = isUp ? p0 + size * 1.618 : p0 - size * 1.618;
+  const fib100  = isUp ? p0 + size * 1.000 : p0 - size * 1.000;
+
+  document.getElementById('manualStatus').textContent = '⬡ Analyzing structure...';
+
+  // Get symbol/tf context
+  const symbol = document.getElementById('ewSymbol')?.value || document.getElementById('ewSymbolSel')?.value || 'Unknown';
+  const tf = document.getElementById('ewTf')?.value || document.getElementById('ewTfSel')?.value || 'H1';
+  const livePrice = ewLastCandles?._livePrice || lastPrice;
+
+  // Build pivot description for AI
+  const pivotDesc = sorted.map(p =>
+    `  Wave ${p.label}: ${p.price.toFixed(dec)} (${p.isHigh ? 'High' : 'Low'})`
+  ).join('\n');
+
+  const structureDesc = isABC ? 'ABC Corrective' : isMotive ? 'Motive Impulse' : 'Mixed/Transition';
+
+  const systemPrompt = `You are a professional Elliott Wave analyst. The trader has manually identified wave pivots on a real price chart. Your job is to:
+1. Validate the wave count against EW rules
+2. Identify the current wave position and what comes next
+3. Calculate precise targets and invalidation using Fibonacci
+4. Give a clear actionable bias
+
+CRITICAL RULES:
+- If we are finishing Wave C of an ABC correction → BIAS IS LONG (end of correction = buy opportunity)
+- If we are finishing Wave 2 → BIAS IS LONG (Wave 3 upcoming)
+- If we are finishing Wave 5 → BIAS IS SHORT/WAIT (end of impulse, ABC correction coming)
+- If we are finishing Wave B → BIAS IS SHORT (Wave C down coming)
+- If we are finishing Wave 4 → BIAS IS LONG (Wave 5 setup)
+- Wave 3 active → LONG TREND (stay in)
+- Never output markdown, no asterisks, no headers with #. Plain text only.
+- 4 paragraphs maximum.`;
+
+  const userPrompt = `INSTRUMENT: ${symbol} | TIMEFRAME: ${tf} | LIVE PRICE: ${livePrice}
+STRUCTURE TYPE: ${structureDesc}
+
+MANUALLY IDENTIFIED PIVOTS (trader's own count):
+${pivotDesc}
+
+LAST SWING: From ${p0.toFixed(dec)} to ${p1.toFixed(dec)} (${isUp ? 'UP' : 'DOWN'}, size: ${size.toFixed(dec)})
+Fib 61.8% of last swing: ${fib618.toFixed(dec)}
+Fib 100% extension: ${fib100.toFixed(dec)}
+Fib 161.8% extension: ${fib1618.toFixed(dec)}
+
+Based on these trader-identified pivots, provide:
+Paragraph 1 — VALIDATION: Are the pivots EW-valid? Which rules are satisfied or violated? What is the confirmed structure so far?
+Paragraph 2 — CURRENT POSITION: What wave are we in now? What is developing? Is this a buying or selling opportunity and why?
+Paragraph 3 — TARGETS: Next wave target with Fibonacci basis. Exact price levels. Where does this wave fail (invalidation)?
+Paragraph 4 — TRADE SETUP: Entry zone, stop loss level with reason, TP1 and TP2, R:R ratio, one clear sentence on what to do now.`;
+
+  try {
+    const res = await fetch('https://xenos-ai-proxy.xenosfinance.workers.dev', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 700,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userPrompt }]
+      }),
+      signal: AbortSignal.timeout(30000)
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      let text = (data.content?.[0]?.text || '').replace(/\*\*/g,'').replace(/\*/g,'').replace(/^#+\s*/gm,'').trim();
+      if (text) {
+        // Show analysis in the output box
+        const outEl = document.getElementById('analysisText');
+        if (outEl) {
+          const lbl = labels.join('→');
+          outEl.textContent = `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n  ${symbol}  ·  ${tf}  ·  Manual EW Count\n  Pivots: ${lbl}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n  MANUAL WAVE ANALYSIS\n  ${text.split('\n').join('\n  ')}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
+          document.getElementById('analysisOutput').style.display = 'block';
+        }
+        document.getElementById('manualStatus').textContent = '✓ Analysis complete — see below';
+        // Show Telegram button
+        const tgBtn = document.getElementById('tgBtn');
+        if (tgBtn) tgBtn.style.display = 'inline-block';
+      }
+    } else {
+      document.getElementById('manualStatus').textContent = '⚠ Analysis failed — try again';
+    }
+  } catch(e) {
+    document.getElementById('manualStatus').textContent = '⚠ Error: ' + e.message;
+  }
+}
+
+// Hook into renderEWChart to save canvas state for manual overlay
+const _origRenderEWChart = typeof renderEWChart === 'function' ? renderEWChart : null;
+
+function saveManualCanvasState() {
+  const canvas = document.getElementById('ewChartCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  manualCanvasState = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  ctx.scale(2, 2);
+
+  // Store chart bounds for coordinate mapping
+  if (ewLastCandles) {
+    const { ML, MR, MT, MB, CW, CH } = manualGetChartParams();
+    const pivMap0 = ewLastCandles._pivotMap || {};
+    const fullCandles = ewLastCandles.length >= 10 ? ewLastCandles : [];
+    let earliestPivIdx = fullCandles.length;
+    Object.values(pivMap0).forEach(pm => {
+      if (pm && pm.idx !== undefined && pm.idx < earliestPivIdx) earliestPivIdx = pm.idx;
+    });
+    const pivWindowStart = Math.max(0, earliestPivIdx - 5);
+    const candles = fullCandles.slice(pivWindowStart);
+    ewLastCandles._manualWindow = candles;
+
+    // Calc price range same as renderer
+    const allP = [];
+    candles.forEach(cd => allP.push(cd.high, cd.low));
+    if (allP.length > 0) {
+      ewLastCandles._manualMinP = Math.min(...allP) * 0.9992;
+      ewLastCandles._manualMaxP = Math.max(...allP) * 1.0008;
+    }
+    ewLastCandles._livePrice = ewLastCandles[ewLastCandles.length-1]?.close;
+  }
+}
+
+// END MANUAL WAVE DRAWING ENGINE
+
 window.addEventListener('load',()=>{
   // Hide all glossary items by default
   document.querySelectorAll('.gloss-item').forEach(el=>el.classList.add('hidden'));
