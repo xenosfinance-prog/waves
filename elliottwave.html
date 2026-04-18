@@ -218,6 +218,28 @@ canvas { display: block; }
 .analysis-output pre { font-family: var(--mono); font-size: 12px; color: var(--ink2); white-space: pre-wrap; line-height: 1.7; }
 .analysis-loading { font-size: 11px; color: var(--muted); letter-spacing: 2px; }
 
+/* ── PUBLIC WAVE NOTES ── */
+.wave-note {
+  background: var(--bg2); border: 1px solid var(--border);
+  padding: 16px 20px; margin-bottom: 8px;
+  display: flex; align-items: center; gap: 16px;
+  transition: border-color 0.2s;
+}
+.wave-note:hover { border-color: var(--border2); }
+.wave-note-bias {
+  font-size: 9px; letter-spacing: 2px; text-transform: uppercase;
+  padding: 4px 10px; border: 1px solid; white-space: nowrap; flex-shrink: 0;
+}
+.wave-note-bias.bullish { color: var(--green2); border-color: rgba(52,211,153,0.35); background: rgba(16,185,129,0.06); }
+.wave-note-bias.bearish { color: var(--red2); border-color: rgba(248,113,113,0.35); background: rgba(239,68,68,0.06); }
+.wave-note-bias.neutral  { color: var(--muted); border-color: var(--border); }
+.wave-note-asset { font-family: var(--mono); font-size: 13px; color: var(--ink); letter-spacing: 1px; min-width: 80px; }
+.wave-note-setup { font-size: 12px; color: var(--ink2); flex: 1; }
+.wave-note-date  { font-size: 10px; color: var(--muted); white-space: nowrap; }
+.wave-note-del   { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 14px; padding: 0 4px; display: none; }
+.wave-note-del:hover { color: var(--red2); }
+.admin-active .wave-note-del { display: inline; }
+
 /* ── FOOTER ── */
 .page-footer { border-top: 1px solid var(--border); padding: 24px 32px; display: flex; justify-content: space-between; align-items: center; font-size: 10px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; margin-top: 80px; }
 .footer-links { display: flex; gap: 24px; }
@@ -792,23 +814,153 @@ canvas { display: block; }
     <div class="gloss-empty" id="glossEmpty">No terms match your search.</div>
   </div>
 
-  <!-- SECTION 8: LIVE ANALYSIS — FREE + PRO SIDE BY SIDE -->
+  <!-- SECTION 8: LIVE ANALYSIS -->
   <div class="ew-section">
     <div class="ew-section-header">
       <span class="ew-section-num">08 — Live Analysis</span>
       <div class="ew-section-line"></div>
     </div>
-    <h2 class="ew-section-title" data-i18n="label_ew_title">Elliott Wave Analysis</h2>
-    <p class="ew-prose" data-i18n="label_ew_disclaimer">Choose your access level. Free interactive charts for all users — advanced AI analysis for admin and premium subscribers.</p>
+    <h2 class="ew-section-title">Elliott Wave Signals</h2>
+    <p class="ew-prose">Active wave setups published by our analysts. Each note represents a live market read based on the XenosFinance EW Engine v3.0.</p>
 
-    <!-- TWO COLUMN LAYOUT -->
-    <div style="background:var(--bg2);border:1px solid var(--border);padding:48px 40px;text-align:center;margin-top:8px;">
-      <div style="font-size:11px;letter-spacing:4px;color:var(--muted);text-transform:uppercase;margin-bottom:16px;">Work in Progress</div>
-      <div style="font-family:var(--serif);font-size:28px;font-weight:700;margin-bottom:14px;">Live Analysis Coming Soon</div>
-      <div style="font-size:12px;color:var(--muted);line-height:1.8;max-width:480px;margin:0 auto;">
-        We are currently testing and refining our AI-powered Elliott Wave analysis engine. Stay tuned — follow us on Telegram for updates.
+    <!-- PUBLIC WAVE NOTES FEED -->
+    <div id="publicWaveFeed" style="margin-bottom:40px;">
+      <div style="font-size:9px;letter-spacing:4px;color:var(--gold);text-transform:uppercase;margin-bottom:16px;">Active Setups</div>
+      <div id="publicNotesList"></div>
+      <div id="publicNotesEmpty" style="display:none;background:var(--bg2);border:1px solid var(--border);padding:32px;text-align:center;">
+        <div style="font-size:11px;color:var(--muted);letter-spacing:2px;">No active wave setups published yet.</div>
+        <a href="https://t.me/xenosfin" target="_blank" rel="noopener" style="display:inline-block;margin-top:16px;font-family:var(--mono);font-size:10px;color:var(--gold);text-decoration:none;letter-spacing:2px;">📡 Follow @xenosfin for updates</a>
       </div>
-      <a href="https://t.me/xenosfin" target="_blank" rel="noopener" style="display:inline-block;margin-top:24px;padding:10px 28px;background:var(--gold3);color:#fff;font-family:var(--mono);font-size:10px;letter-spacing:3px;text-transform:uppercase;text-decoration:none;">📡 Follow @xenosfin</a>
+    </div>
+
+    <!-- ADMIN LOGIN GATE -->
+    <div class="admin-gate" id="admin-login-area">
+      <div class="admin-gate-title">Analysis Engine — Restricted Access</div>
+      <div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:20px;">
+        <button id="tab-admin-btn" onclick="switchAccessTab('admin')" style="padding:8px 20px;font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;background:none;border:none;border-bottom:2px solid var(--gold);color:var(--gold);cursor:pointer;">Admin</button>
+        <button id="tab-premium-btn" onclick="switchAccessTab('premium')" style="padding:8px 20px;font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);cursor:pointer;">Premium</button>
+      </div>
+      <div id="admin-pw-area">
+        <div class="admin-login-row">
+          <input class="admin-pw-input" type="password" id="adminPw" placeholder="Admin password" onkeydown="if(event.key==='Enter')adminLogin()">
+          <button class="admin-btn" onclick="adminLogin()">Unlock</button>
+        </div>
+      </div>
+      <div id="premium-pw-area" style="display:none;">
+        <div style="font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:1px;margin-bottom:10px;">Enter your premium subscription code to access AI Wave Analysis.</div>
+        <div class="admin-login-row">
+          <input class="admin-pw-input" type="password" id="premiumPw" placeholder="Subscription code" onkeydown="if(event.key==='Enter')premiumLogin()">
+          <button class="admin-btn" onclick="premiumLogin()">Unlock</button>
+        </div>
+      </div>
+      <div class="admin-err" id="adminErr"></div>
+    </div>
+
+    <!-- ADMIN PANEL -->
+    <div class="admin-panel" id="adminPanel">
+
+      <!-- PUBLISH NOTE STRIP (admin only) -->
+      <div id="adminPublishStrip" style="display:none;background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.2);padding:18px 20px;margin-bottom:20px;">
+        <div style="font-size:9px;letter-spacing:4px;color:var(--gold);text-transform:uppercase;margin-bottom:12px;">Publish Wave Note to Public Feed</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr auto auto;gap:10px;align-items:end;">
+          <div>
+            <div class="admin-label">Pair / Asset</div>
+            <input class="admin-input" id="noteAsset" placeholder="e.g. EURUSD" style="width:100%;">
+          </div>
+          <div>
+            <div class="admin-label">Setup Label</div>
+            <input class="admin-input" id="noteSetup" placeholder="e.g. Bullish Setup – Wave 3 in Development" style="width:100%;">
+          </div>
+          <div>
+            <div class="admin-label">Bias</div>
+            <select class="admin-select" id="noteBias" style="width:110px;">
+              <option value="bullish">🟢 Bullish</option>
+              <option value="bearish">🔴 Bearish</option>
+              <option value="neutral">◆ Neutral</option>
+            </select>
+          </div>
+          <div>
+            <button class="admin-btn" onclick="publishNote()" style="white-space:nowrap;">Publish</button>
+          </div>
+        </div>
+        <div id="noteErr" style="font-size:11px;color:var(--red2);margin-top:8px;min-height:16px;"></div>
+      </div>
+
+      <!-- GENERATOR -->
+      <div class="admin-controls">
+        <div>
+          <div class="admin-label">Asset / Pair</div>
+          <select class="admin-select" id="aiSymbol">
+            <optgroup label="FX Majors">
+              <option value="eur/usd">EUR/USD</option>
+              <option value="gbpusd">GBP/USD</option>
+              <option value="usdjpy">USD/JPY</option>
+              <option value="audusd">AUD/USD</option>
+              <option value="usdchf">USD/CHF</option>
+              <option value="usdcad">USD/CAD</option>
+              <option value="nzdusd">NZD/USD</option>
+            </optgroup>
+            <optgroup label="FX Cross">
+              <option value="eurgbp">EUR/GBP</option>
+              <option value="eurjpy">EUR/JPY</option>
+              <option value="gbpjpy">GBP/JPY</option>
+              <option value="cadjpy">CAD/JPY</option>
+              <option value="audnzd">AUD/NZD</option>
+              <option value="eurchf">EUR/CHF</option>
+            </optgroup>
+            <optgroup label="Commodities">
+              <option value="gold">Gold XAU/USD</option>
+              <option value="silver">Silver XAG/USD</option>
+              <option value="oil wti">Oil WTI</option>
+              <option value="brent">Brent Oil</option>
+              <option value="nat gas">Natural Gas</option>
+              <option value="copper">Copper</option>
+            </optgroup>
+            <optgroup label="Indices">
+              <option value="s&p 500">S&amp;P 500</option>
+              <option value="nasdaq">NASDAQ</option>
+              <option value="dow">Dow Jones</option>
+              <option value="dax">DAX</option>
+              <option value="ftse 100">FTSE 100</option>
+            </optgroup>
+            <optgroup label="Crypto">
+              <option value="btc/usd">Bitcoin BTC/USD</option>
+              <option value="eth/usd">Ethereum ETH/USD</option>
+              <option value="sol">Solana SOL</option>
+              <option value="xrp">XRP</option>
+            </optgroup>
+          </select>
+        </div>
+        <div>
+          <div class="admin-label">Timeframe</div>
+          <select class="admin-select" id="aiTf">
+            <option>W1 (Weekly)</option>
+            <option selected>D1 (Daily)</option>
+            <option>H4 (4-Hour)</option>
+            <option>H2 (2-Hour)</option>
+            <option>H1 (1-Hour)</option>
+          </select>
+        </div>
+        <div>
+          <div class="admin-label">Context (optional)</div>
+          <input class="admin-input" id="aiContext" placeholder="e.g. post-NFP, Fed hawkish...">
+        </div>
+      </div>
+
+      <button class="admin-run-btn" id="aiRunBtn" onclick="runAIAnalysis()">⚡ Generate Analysis</button>
+      <button class="admin-tg-btn" id="tgBtn" onclick="sendToTelegram()">📡 Send to Telegram</button>
+      <button id="publishFromAnalysisBtn" onclick="publishFromAnalysis()" style="display:none;padding:12px 24px;background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.35);color:#34d399;font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;cursor:pointer;margin-left:8px;">✦ Publish Note</button>
+
+      <!-- CHART -->
+      <div id="ewChartWrap" style="display:none;margin-top:20px;background:var(--bg);border:1px solid var(--border);padding:0;overflow:hidden;">
+        <canvas id="ewChartCanvas" style="width:100%;display:block;"></canvas>
+      </div>
+
+      <!-- OUTPUT -->
+      <div class="analysis-output" id="analysisOutput">
+        <pre id="analysisText"></pre>
+      </div>
+
     </div>
   </div><!-- end ew-section -->
 
@@ -894,6 +1046,88 @@ function filterTag(tag, btn){
   filterGloss();
 }
 
+// ── WAVE NOTES (public feed + admin publish) ──
+const NOTES_KEY = 'xenos_wave_notes';
+let isAdminUnlocked = false;
+
+function loadNotes() {
+  try { return JSON.parse(localStorage.getItem(NOTES_KEY) || '[]'); }
+  catch(e) { return []; }
+}
+function saveNotes(notes) {
+  localStorage.setItem(NOTES_KEY, JSON.stringify(notes));
+}
+
+function renderPublicFeed() {
+  const notes = loadNotes();
+  const list  = document.getElementById('publicNotesList');
+  const empty = document.getElementById('publicNotesEmpty');
+  list.innerHTML = '';
+  if (!notes.length) { empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+  const wrap = document.getElementById('publicWaveFeed');
+  if (isAdminUnlocked) wrap.classList.add('admin-active');
+  else wrap.classList.remove('admin-active');
+  notes.slice().reverse().forEach((n, ri) => {
+    const idx = notes.length - 1 - ri;
+    const div = document.createElement('div');
+    div.className = 'wave-note';
+    div.innerHTML = `
+      <span class="wave-note-bias ${n.bias}">${n.bias === 'bullish' ? '🟢 Bullish' : n.bias === 'bearish' ? '🔴 Bearish' : '◆ Neutral'}</span>
+      <span class="wave-note-asset">${n.asset}</span>
+      <span class="wave-note-setup">${n.setup}</span>
+      <span class="wave-note-date">${n.date}</span>
+      <button class="wave-note-del" onclick="deleteNote(${idx})" title="Delete">✕</button>
+    `;
+    list.appendChild(div);
+  });
+}
+
+function publishNote() {
+  const asset = document.getElementById('noteAsset').value.trim().toUpperCase();
+  const setup = document.getElementById('noteSetup').value.trim();
+  const bias  = document.getElementById('noteBias').value;
+  const err   = document.getElementById('noteErr');
+  if (!asset) { err.textContent = '⚠ Asset required'; return; }
+  if (!setup) { err.textContent = '⚠ Setup label required'; return; }
+  err.textContent = '';
+  const notes = loadNotes();
+  const now = new Date();
+  notes.push({
+    asset, setup, bias,
+    date: now.toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'}).toUpperCase()
+  });
+  saveNotes(notes);
+  document.getElementById('noteAsset').value = '';
+  document.getElementById('noteSetup').value = '';
+  renderPublicFeed();
+}
+
+function deleteNote(idx) {
+  const notes = loadNotes();
+  notes.splice(idx, 1);
+  saveNotes(notes);
+  renderPublicFeed();
+}
+
+function publishFromAnalysis() {
+  // Pre-fill the publish strip from current analysis
+  const symbolEl = document.getElementById('aiSymbol');
+  const asset = symbolEl ? symbolEl.options[symbolEl.selectedIndex].text : '';
+  const waveEl = document.getElementById('analysisText');
+  const waveMatch = waveEl ? waveEl.textContent.match(/Wave\s+(①|②|③|④|⑤|[1-5ABC])[^\n]*/i) : null;
+  const waveLabel = waveMatch ? waveMatch[0].slice(0,60).trim() : 'Wave setup in development';
+  const biasEl = document.getElementById('noteBias');
+  // detect bias from signal line
+  const sigMatch = waveEl ? waveEl.textContent.match(/SIGNAL\s+(▲ LONG|▼ SHORT|◆ WAIT)/i) : null;
+  if (sigMatch && biasEl) {
+    biasEl.value = sigMatch[1].includes('LONG') ? 'bullish' : sigMatch[1].includes('SHORT') ? 'bearish' : 'neutral';
+  }
+  document.getElementById('noteAsset').value = asset;
+  document.getElementById('noteSetup').value = waveLabel;
+  document.getElementById('adminPublishStrip').scrollIntoView({behavior:'smooth', block:'center'});
+}
+
 // ── ADMIN ──
 function switchAccessTab(tab) {
   const isAdmin = tab === 'admin';
@@ -909,6 +1143,10 @@ function adminLogin(){
   if(pw==='RMG@Manu78'){
     document.getElementById('admin-login-area').style.display='none';
     document.getElementById('adminPanel').style.display='block';
+    document.getElementById('adminPublishStrip').style.display='block';
+    document.getElementById('publishFromAnalysisBtn').style.display='inline-block';
+    isAdminUnlocked = true;
+    renderPublicFeed();
   } else {
     document.getElementById('adminErr').textContent='⚠ Wrong password';
     document.getElementById('adminPw').value='';
@@ -922,6 +1160,7 @@ function premiumLogin(){
   if(PREMIUM_CODES.includes(code)){
     document.getElementById('admin-login-area').style.display='none';
     document.getElementById('adminPanel').style.display='block';
+    // premium: no publish strip
   } else {
     document.getElementById('adminErr').textContent='⚠ Invalid subscription code';
     document.getElementById('premiumPw').value='';
@@ -1691,6 +1930,7 @@ async function runAIAnalysis(){
   txt.textContent = instantOutput;
   lastAnalysis = `Elliott Wave Analysis — ${symbol} ${tf}\n\n${instantOutput}`;
   document.getElementById('tgBtn').style.display='inline-block';
+  if (isAdminUnlocked) document.getElementById('publishFromAnalysisBtn').style.display='inline-block';
 
   try {
     async function fetchWithRetry(body, retries=2) {
@@ -2638,6 +2878,8 @@ function drawMiniWave(id){
 
 // Init all drawings on load
 window.addEventListener('load',()=>{
+  // Init public feed
+  renderPublicFeed();
   // Hide all glossary items by default
   document.querySelectorAll('.gloss-item').forEach(el=>el.classList.add('hidden'));
   document.getElementById('glossCount').textContent='Select a category or search to explore terms';
