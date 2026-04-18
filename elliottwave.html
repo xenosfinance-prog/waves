@@ -886,7 +886,7 @@ canvas { display: block; }
         <div id="noteErr" style="font-size:11px;color:var(--red2);margin-top:8px;min-height:16px;"></div>
       </div>
 
-      <!-- GENERATOR -->
+      <!-- GENERATOR CONTROLS -->
       <div class="admin-controls">
         <div>
           <div class="admin-label">Asset / Pair</div>
@@ -952,7 +952,7 @@ canvas { display: block; }
       <button id="publishFromAnalysisBtn" onclick="publishFromAnalysis()" style="display:none;padding:12px 24px;background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.35);color:#34d399;font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;cursor:pointer;margin-left:8px;">✦ Publish Note</button>
 
       <!-- CHART -->
-      <div id="ewChartWrap" style="display:none;margin-top:20px;background:var(--bg);border:1px solid var(--border);padding:0;overflow:hidden;">
+      <div id="ewChartWrap" style="display:none;margin-top:20px;background:var(--bg);border:1px solid var(--border);overflow:hidden;">
         <canvas id="ewChartCanvas" style="width:100%;display:block;"></canvas>
       </div>
 
@@ -1054,14 +1054,13 @@ function loadNotes() {
   try { return JSON.parse(localStorage.getItem(NOTES_KEY) || '[]'); }
   catch(e) { return []; }
 }
-function saveNotes(notes) {
-  localStorage.setItem(NOTES_KEY, JSON.stringify(notes));
-}
+function saveNotes(notes) { localStorage.setItem(NOTES_KEY, JSON.stringify(notes)); }
 
 function renderPublicFeed() {
   const notes = loadNotes();
   const list  = document.getElementById('publicNotesList');
   const empty = document.getElementById('publicNotesEmpty');
+  if (!list) return;
   list.innerHTML = '';
   if (!notes.length) { empty.style.display = 'block'; return; }
   empty.style.display = 'none';
@@ -1073,7 +1072,7 @@ function renderPublicFeed() {
     const div = document.createElement('div');
     div.className = 'wave-note';
     div.innerHTML = `
-      <span class="wave-note-bias ${n.bias}">${n.bias === 'bullish' ? '🟢 Bullish' : n.bias === 'bearish' ? '🔴 Bearish' : '◆ Neutral'}</span>
+      <span class="wave-note-bias ${n.bias}">${n.bias==='bullish'?'🟢 Bullish':n.bias==='bearish'?'🔴 Bearish':'◆ Neutral'}</span>
       <span class="wave-note-asset">${n.asset}</span>
       <span class="wave-note-setup">${n.setup}</span>
       <span class="wave-note-date">${n.date}</span>
@@ -1093,10 +1092,8 @@ function publishNote() {
   err.textContent = '';
   const notes = loadNotes();
   const now = new Date();
-  notes.push({
-    asset, setup, bias,
-    date: now.toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'}).toUpperCase()
-  });
+  notes.push({ asset, setup, bias,
+    date: now.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}).toUpperCase() });
   saveNotes(notes);
   document.getElementById('noteAsset').value = '';
   document.getElementById('noteSetup').value = '';
@@ -1104,28 +1101,21 @@ function publishNote() {
 }
 
 function deleteNote(idx) {
-  const notes = loadNotes();
-  notes.splice(idx, 1);
-  saveNotes(notes);
-  renderPublicFeed();
+  const notes = loadNotes(); notes.splice(idx,1); saveNotes(notes); renderPublicFeed();
 }
 
 function publishFromAnalysis() {
-  // Pre-fill the publish strip from current analysis
   const symbolEl = document.getElementById('aiSymbol');
   const asset = symbolEl ? symbolEl.options[symbolEl.selectedIndex].text : '';
   const waveEl = document.getElementById('analysisText');
-  const waveMatch = waveEl ? waveEl.textContent.match(/Wave\s+(①|②|③|④|⑤|[1-5ABC])[^\n]*/i) : null;
-  const waveLabel = waveMatch ? waveMatch[0].slice(0,60).trim() : 'Wave setup in development';
+  const waveMatch = waveEl ? waveEl.textContent.match(/Wave[^\n]{0,80}/i) : null;
+  const waveLabel = waveMatch ? waveMatch[0].slice(0,70).trim() : 'Wave setup in development';
   const biasEl = document.getElementById('noteBias');
-  // detect bias from signal line
   const sigMatch = waveEl ? waveEl.textContent.match(/SIGNAL\s+(▲ LONG|▼ SHORT|◆ WAIT)/i) : null;
-  if (sigMatch && biasEl) {
-    biasEl.value = sigMatch[1].includes('LONG') ? 'bullish' : sigMatch[1].includes('SHORT') ? 'bearish' : 'neutral';
-  }
+  if (sigMatch && biasEl) biasEl.value = sigMatch[1].includes('LONG')?'bullish':sigMatch[1].includes('SHORT')?'bearish':'neutral';
   document.getElementById('noteAsset').value = asset;
   document.getElementById('noteSetup').value = waveLabel;
-  document.getElementById('adminPublishStrip').scrollIntoView({behavior:'smooth', block:'center'});
+  document.getElementById('adminPublishStrip').scrollIntoView({behavior:'smooth',block:'center'});
 }
 
 // ── ADMIN ──
@@ -1160,7 +1150,7 @@ function premiumLogin(){
   if(PREMIUM_CODES.includes(code)){
     document.getElementById('admin-login-area').style.display='none';
     document.getElementById('adminPanel').style.display='block';
-    // premium: no publish strip
+    // premium: no publish strip, no publish button
   } else {
     document.getElementById('adminErr').textContent='⚠ Invalid subscription code';
     document.getElementById('premiumPw').value='';
@@ -2243,14 +2233,6 @@ function renderEWChart(analysis, symbol, tf, liveData) {
     return best;
   }
 
-  // Map wave point to X: use proportional spacing across chart width
-  // Wave points are ordered 0→1→2→3→4→5→A→B→C, so we space them evenly
-  function waveX(price, idx) {
-    const total = wavePoints.length;
-    // Distribute wave points across 85% of chart width, leaving room on right
-    return ML + (idx / Math.max(total - 1, 1)) * CW * 0.85;
-  }
-
   // ── Background ────────────────────────────────────
   const bg=ctx.createLinearGradient(0,0,0,H);
   bg.addColorStop(0,'#090f1a'); bg.addColorStop(1,'#0c1523');
@@ -2346,25 +2328,25 @@ function renderEWChart(analysis, symbol, tf, liveData) {
   ].filter(p=>p.price);
 
   const pivMap = (ewLastCandles && ewLastCandles._pivotMap) || {};
-  const dispStart = candleOffset; // pivot idx offset matches smart window start
 
   // Map each wave point to the exact candle bar (X) and exact high/low (Y)
+  // pivMap idx is absolute relative to ewLastCandles (full array)
+  // candles = fullCandles.slice(pivWindowStart, ...), so: localIdx = absIdx - pivWindowStart
   const pts = wavePoints.map((wp2, i) => {
-    // isHigh: bear W0,W2,W4,B = highs; bull W1,W3,W5,A,C = highs
     const isHighPt = isBearish
       ? ['0','2','4','B'].includes(wp2.label)
       : ['1','3','5','A','C'].includes(wp2.label);
 
     let candleIdx = -1;
 
-    // 1. Use pivotMap index if available and in range
+    // 1. Use pivotMap absolute index, convert to local candle window index
     const pm = pivMap[wp2.key];
     if (pm && pm.idx !== undefined) {
-      const di = pm.idx - dispStart;
-      if (di >= 0 && di < candles.length) candleIdx = di;
+      const localIdx = pm.idx - pivWindowStart;
+      if (localIdx >= 0 && localIdx < candles.length) candleIdx = localIdx;
     }
 
-    // 2. Fallback: find candle whose high or low is closest to the pivot price
+    // 2. Fallback: scan candles for closest high or low to pivot price
     if (candleIdx < 0 && useCandles) {
       let bestD = Infinity;
       candles.forEach((c, ci) => {
@@ -2374,10 +2356,10 @@ function renderEWChart(analysis, symbol, tf, liveData) {
     }
 
     // 3. Last resort: even spacing
-    if (candleIdx < 0) candleIdx = Math.round(i / Math.max(wavePoints.length-1,1) * (candles.length-1));
+    if (candleIdx < 0) candleIdx = Math.round(i / Math.max(wavePoints.length - 1, 1) * (candles.length - 1));
 
     const x = toXBar(candleIdx);
-    // Y: use exact candle high or low, not the pivot price approximation
+    // Y: exact high or low of the mapped candle
     const candleY = useCandles && candles[candleIdx]
       ? (isHighPt ? toY(candles[candleIdx].high) : toY(candles[candleIdx].low))
       : toY(wp2.price);
@@ -2396,6 +2378,26 @@ function renderEWChart(analysis, symbol, tf, liveData) {
   const iCol2 = isBearish?'#fcd34d':'#60a5fa';
   const cCol  = isBearish?'#f87171':'#f59e0b';
   const cCol2 = isBearish?'#fca5a5':'#fcd34d';
+
+  // ── Wave polyline ─────────────────────────────────
+  if (pts.length >= 2) {
+    ctx.lineWidth = 1.5; ctx.globalAlpha = 0.55; ctx.setLineDash([]);
+    // Split impulse vs corrective runs for color
+    let runStart = 0;
+    while (runStart < pts.length) {
+      const runType = pts[runStart].impulse;
+      let runEnd = runStart;
+      while (runEnd + 1 < pts.length && pts[runEnd + 1].impulse === runType) runEnd++;
+      ctx.strokeStyle = runType ? (isBearish ? '#f59e0b' : '#3b82f6') : (isBearish ? '#f87171' : '#f59e0b');
+      ctx.beginPath();
+      for (let i = runStart; i <= runEnd; i++) {
+        i === runStart ? ctx.moveTo(pts[i].x, pts[i].y) : ctx.lineTo(pts[i].x, pts[i].y);
+      }
+      ctx.stroke();
+      runStart = runEnd + 1;
+    }
+    ctx.globalAlpha = 1;
+  }
 
   // ── Wave labels: number directly on candle pivot ──────────────
   pts.forEach((pt) => {
@@ -2878,7 +2880,6 @@ function drawMiniWave(id){
 
 // Init all drawings on load
 window.addEventListener('load',()=>{
-  // Init public feed
   renderPublicFeed();
   // Hide all glossary items by default
   document.querySelectorAll('.gloss-item').forEach(el=>el.classList.add('hidden'));
