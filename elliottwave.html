@@ -1863,9 +1863,13 @@ async function runAIAnalysis(){
   const signalDir = ewResult.action.includes('🟢') ? 'LONG'
                   : ewResult.action.includes('🔴') ? 'SHORT' : 'WAIT';
 
+  // trend follows the SIGNAL (active wave direction), not the prior cycle's directionUp
+  const activeTrend = signalDir === 'LONG' ? 'UP' : signalDir === 'SHORT' ? 'DOWN' : (ewResult.directionUp ? 'UP' : 'DOWN');
+
   const chartAnalysis = {
-    trend: ewResult.directionUp ? 'UP' : 'DOWN',
+    trend: activeTrend,
     current_wave: ewResult.waveNum,
+    wave_phase: ewResult.wavePhase,   // 'IMPULSIVE' or 'CORRECTIVE ABC'
     degree: ewResult.degree,
     signal: signalDir,
     key_levels: {
@@ -2412,20 +2416,34 @@ function renderEWChart(analysis, symbol, tf, liveData) {
   }
 
   // ── Wave overlay ──────────────────────────────────
-  // Build ordered wave points from analysis — only those that exist
-  const wavePoints = [
-    {label:'0',key:'w0',price:wp.w0,impulse:true},
-    {label:'1',key:'w1',price:wp.w1,impulse:true},
-    {label:'2',key:'w2',price:wp.w2,impulse:true},
-    {label:'3',key:'w3',price:wp.w3,impulse:true},
-    {label:'4',key:'w4',price:wp.w4,impulse:true},
-    {label:'5',key:'w5',price:wp.w5,impulse:true},
-    {label:'A',key:'wa',price:wp.wa,impulse:false},
-    {label:'B',key:'wb',price:wp.wb,impulse:false},
-    {label:'C',key:'wc',price:wp.wc,impulse:false},
-  ].filter(p => p.price != null);
-
   const pivMap = (ewLastCandles && ewLastCandles._pivotMap) || {};
+
+  // Determine structure type from wave_phase:
+  // CORRECTIVE ABC/CORRECTIVE → show A,B,C labels only
+  // IMPULSIVE / anything else → show 0,1,2,3,4,5 labels
+  const isCorrectiveABC = (analysis.wave_phase || '').includes('CORRECTIVE');
+
+  const allCandidates = isCorrectiveABC
+    ? [
+        {label:'A', key:'wa', price:wp.wa, impulse:false},
+        {label:'B', key:'wb', price:wp.wb, impulse:false},
+        {label:'C', key:'wc', price:wp.wc, impulse:false},
+      ]
+    : [
+        {label:'0', key:'w0', price:wp.w0, impulse:true},
+        {label:'1', key:'w1', price:wp.w1, impulse:true},
+        {label:'2', key:'w2', price:wp.w2, impulse:true},
+        {label:'3', key:'w3', price:wp.w3, impulse:true},
+        {label:'4', key:'w4', price:wp.w4, impulse:true},
+        {label:'5', key:'w5', price:wp.w5, impulse:true},
+      ];
+
+  // Only confirmed pivots (real candle highs/lows in pivotMap), not Fib estimates
+  const confirmedKeys = new Set(Object.keys(pivMap));
+  const wavePoints = allCandidates.filter(p => p.price != null && confirmedKeys.has(p.key));
+
+  // Active developing wave — project as dashed line to live price
+  const activePrice = liveData?.price || null;
 
   // ── Map each wave point to X (candle bar) and Y (price) ──────
   // Strategy:
@@ -2504,12 +2522,53 @@ function renderEWChart(analysis, symbol, tf, liveData) {
     ctx.lineJoin = 'miter'; ctx.textBaseline = 'alphabetic';
   });
 
-    // ── NOW price line ────────────────────────────────
+  // ── Active wave projection (dashed from last confirmed pivot → live price) ──
+  if (activePrice && pts.length >= 1) {
+    const lastPt = pts[pts.length - 1];
+    const projY  = toY(activePrice);
+    const projX  = ML + CW - 4;
+    const projCol = isBearish ? '#f59e0b' : '#3b82f6';
+
+    // Dashed projection line
+    ctx.strokeStyle = projCol; ctx.lineWidth = 1.5; ctx.globalAlpha = 0.4;
+    ctx.setLineDash([5, 5]);
+    ctx.beginPath(); ctx.moveTo(lastPt.x, lastPt.y); ctx.lineTo(projX, projY); ctx.stroke();
+    ctx.setLineDash([]); ctx.globalAlpha = 1;
+
+    // Current wave label at tip — ABC if corrective, number if motive
+    const curLabel = analysis.current_wave || '?';
+    const isHighTip = isBearish
+      ? ['0','2','4','B','A'].includes(curLabel)
+      : ['1','3','5','C'].includes(curLabel);
+    const tipLabelY = isHighTip ? projY - 16 : projY + 16;
+    const clampedTipY = Math.max(MT + 10, Math.min(tipLabelY, MT + CH - 10));
+
+    ctx.font = 'bold 13px Arial, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.lineWidth = 3.5; ctx.lineJoin = 'round';
+    ctx.strokeStyle = 'rgba(6,12,22,0.95)';
+    ctx.strokeText(curLabel, projX - 4, clampedTipY);
+    ctx.fillStyle = projCol; ctx.globalAlpha = 0.8;
+    ctx.fillText(curLabel, projX - 4, clampedTipY);
+    ctx.globalAlpha = 1; ctx.lineJoin = 'miter'; ctx.textBaseline = 'alphabetic';
+
+    // TP1 target arrow (vertical dashed green line)
+    const tp1 = analysis.key_levels?.tp1;
+    if (tp1 && tp1 >= minP && tp1 <= maxP) {
+      const tpY = toY(tp1);
+      ctx.strokeStyle = '#00e676'; ctx.lineWidth = 0.8; ctx.globalAlpha = 0.2;
+      ctx.setLineDash([3, 8]);
+      ctx.beginPath(); ctx.moveTo(projX, projY); ctx.lineTo(projX, tpY); ctx.stroke();
+      ctx.setLineDash([]); ctx.globalAlpha = 1;
+    }
+  }
+
+  // ── NOW price line ────────────────────────────────
   if(liveData?.price){
     const ly=toY(liveData.price);
-    ctx.strokeStyle='rgba(255,255,255,0.3)'; ctx.lineWidth=1;
-    ctx.setLineDash([2,5]); ctx.beginPath(); ctx.moveTo(ML,ly); ctx.lineTo(W-MR,ly); ctx.stroke();
-    ctx.setLineDash([]); ctx.fillStyle='#aabbcc'; ctx.globalAlpha=0.7;
+    ctx.strokeStyle='rgba(255,255,255,0.18)'; ctx.lineWidth=0.8;
+    ctx.setLineDash([2,6]); ctx.beginPath(); ctx.moveTo(ML,ly); ctx.lineTo(W-MR,ly); ctx.stroke();
+    ctx.setLineDash([]); ctx.fillStyle='#7a9ab8'; ctx.globalAlpha=0.6;
     ctx.font='9px monospace'; ctx.textAlign='right';
     ctx.fillText('NOW '+liveData.price,W-MR-2,ly-3); ctx.globalAlpha=1;
   }
@@ -2534,7 +2593,10 @@ function renderEWChart(analysis, symbol, tf, liveData) {
   // Wave degree info
   ctx.textAlign='left'; ctx.font='9px monospace'; ctx.fillStyle='#3a5070';
   const waveLabel = {'1':'①','2':'②','3':'③','4':'④','5':'⑤','A':'Ⓐ','B':'Ⓑ','C':'Ⓒ'};
-  ctx.fillText('Wave '+(waveLabel[analysis.current_wave]||analysis.current_wave)+' active · '+analysis.degree+(isBearish?' · Bearish impulse':' · Bullish impulse'),ML,H-MB+32);
+  const structureType = isCorrectiveABC
+    ? (isBearish ? '· Corrective ABC bearish' : '· Corrective ABC bullish')
+    : (isBearish ? '· Bearish impulse' : '· Bullish impulse');
+  ctx.fillText('Wave '+(waveLabel[analysis.current_wave]||analysis.current_wave)+' active · '+analysis.degree+' '+structureType, ML, H-MB+32);
 }
 
 
