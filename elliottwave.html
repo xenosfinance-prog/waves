@@ -1113,8 +1113,7 @@ function publishFromAnalysis() {
   const waveEl = document.getElementById('analysisText');
   const txt = waveEl ? waveEl.textContent : '';
   // Extract wave description line
-  const waveMatch = txt.match(/Wave [⓪①②③④⑤Ⓐ-ⓒ0-9A-C][^
-]{0,80}/i);
+  const waveMatch = txt.match(/Wave [⓪①②③④⑤Ⓐ-ⓒ0-9A-C][^\r\n]{0,80}/i);
   const waveLabel = waveMatch ? waveMatch[0].replace(/[⓪①②③④⑤]/,'').trim().slice(0,70) : 'Wave setup in development';
   const biasEl = document.getElementById('noteBias');
   const sigMatch = txt.match(/SIGNAL\s+(▲ LONG|▼ SHORT|◆ WAIT)/i);
@@ -2855,7 +2854,9 @@ window.addEventListener('load',()=>{
   function initCanvases(){
     try { drawBasicWave(); } catch(e){ console.error('drawBasicWave:', e); }
     try { drawCorrectivePatterns(); } catch(e){ console.error('drawCorrectivePatterns:', e); }
-    try { drawMiniWave('w1'); } catch(e){ console.error('drawMiniWave:', e); }
+    ['w1','w2','w3','w4','w5','wa','wb','wc'].forEach(id => {
+      try { drawMiniWave(id); } catch(e){ console.error('drawMiniWave '+id+':', e); }
+    });
   }
   if(document.fonts && document.fonts.ready){
     document.fonts.ready.then(initCanvases).catch(()=>setTimeout(initCanvases,400));
