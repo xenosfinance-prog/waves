@@ -1041,21 +1041,48 @@ function loadNotes() {
 function saveNotes(n) { localStorage.setItem(NOTES_KEY, JSON.stringify(n)); }
 
 function renderPublicFeed() {
-  const notes = loadNotes();
-  const list  = document.getElementById('publicNotesList');
-  const empty = document.getElementById('publicNotesEmpty');
+  var notes = loadNotes();
+  var list = document.getElementById('publicNotesList');
+  var empty = document.getElementById('publicNotesEmpty');
   if (!list) return;
   list.innerHTML = '';
-  if (!notes.length) { if(empty) empty.style.display='block'; return; }
-  if(empty) empty.style.display='none';
-  const wrap = document.getElementById('publicWaveFeed');
-  if(wrap) { if(isAdminUnlocked) wrap.classList.add('admin-active'); else wrap.classList.remove('admin-active'); }
-  notes.slice().reverse().forEach((n, ri) => {
-    const idx = notes.length - 1 - ri;
-    const div = document.createElement('div');
-    div.className = 'wave-note';
-    div.innerHTML = `<span class="wave-note-bias ${n.bias}">${n.bias==='bullish'?'🟢 Bullish':n.bias==='bearish'?'🔴 Bearish':'◆ Neutral'}</span><span class="wave-note-asset">${n.asset}</span><span class="wave-note-setup">${n.setup}</span><span class="wave-note-date">${n.date}</span><button class="wave-note-del" onclick="deleteNote(${idx})" title="Delete">✕</button>`;
-    list.appendChild(div);
+  var wrap = document.getElementById('publicWaveFeed');
+  if (wrap) {
+    if (isAdminUnlocked) wrap.classList.add('admin-active');
+    else wrap.classList.remove('admin-active');
+  }
+  if (!notes.length) {
+    if (empty) empty.style.display = 'block';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+  notes.slice().reverse().forEach(function(n, ri) {
+    var realIdx = notes.length - 1 - ri;
+    var row = document.createElement('div');
+    row.className = 'wave-note';
+    var bias = document.createElement('span');
+    bias.className = 'wave-note-bias ' + (n.bias || 'neutral');
+    bias.textContent = n.bias === 'bullish' ? '🟢 Bullish' : n.bias === 'bearish' ? '🔴 Bearish' : '◆ Neutral';
+    var asset = document.createElement('span');
+    asset.className = 'wave-note-asset';
+    asset.textContent = n.asset || '';
+    var setup = document.createElement('span');
+    setup.className = 'wave-note-setup';
+    setup.textContent = n.setup || '';
+    var date = document.createElement('span');
+    date.className = 'wave-note-date';
+    date.textContent = n.date || '';
+    var del = document.createElement('button');
+    del.className = 'wave-note-del';
+    del.title = 'Delete';
+    del.textContent = 'x';
+    (function(i) { del.addEventListener('click', function() { deleteNote(i); }); })(realIdx);
+    row.appendChild(bias);
+    row.appendChild(asset);
+    row.appendChild(setup);
+    row.appendChild(date);
+    row.appendChild(del);
+    list.appendChild(row);
   });
 }
 
@@ -1220,7 +1247,8 @@ function calcRSI(closes, period=14) {
   }
   const ag=gains/period, al=losses/period;
   if (al===0) return 100;
-  return parseFloat((100 - 100/(1+ag/al)).toFixed(1));
+  const rs = ag/al;
+  return parseFloat((100 - 100/(1+rs)).toFixed(1));
 }
 
 function calcMACD(closes) {
