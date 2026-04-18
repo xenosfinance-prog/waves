@@ -1051,27 +1051,27 @@ function renderPublicFeed() {
   if (!notes.length) { if (empty) empty.style.display = 'block'; return; }
   if (empty) empty.style.display = 'none';
   notes.slice().reverse().forEach(function(n, ri) {
-    const realIdx = notes.length - 1 - ri;
-    const biasLabel = n.bias === 'bullish' ? '🟢 Bullish' : n.bias === 'bearish' ? '🔴 Bearish' : '◆ Neutral';
-    const row = document.createElement('div');
+    var realIdx = notes.length - 1 - ri;
+    var biasLabel = n.bias === 'bullish' ? '🟢 Bullish' : n.bias === 'bearish' ? '🔴 Bearish' : '◆ Neutral';
+    var row = document.createElement('div');
     row.className = 'wave-note';
-    const bias = document.createElement('span');
+    var bias = document.createElement('span');
     bias.className = 'wave-note-bias ' + n.bias;
     bias.textContent = biasLabel;
-    const asset = document.createElement('span');
+    var asset = document.createElement('span');
     asset.className = 'wave-note-asset';
     asset.textContent = n.asset;
-    const setup = document.createElement('span');
+    var setup = document.createElement('span');
     setup.className = 'wave-note-setup';
     setup.textContent = n.setup;
-    const date = document.createElement('span');
+    var date = document.createElement('span');
     date.className = 'wave-note-date';
     date.textContent = n.date;
-    const del = document.createElement('button');
+    var del = document.createElement('button');
     del.className = 'wave-note-del';
     del.title = 'Delete';
     del.textContent = '✕';
-    del.addEventListener('click', function() { deleteNote(realIdx); });
+    (function(i){ del.addEventListener('click', function(){ deleteNote(i); }); })(realIdx);
     row.appendChild(bias); row.appendChild(asset); row.appendChild(setup);
     row.appendChild(date); row.appendChild(del);
     list.appendChild(row);
@@ -2656,7 +2656,7 @@ async function sendToTelegram(){
   // Strip any residual markdown, send clean text
   const clean = lastAnalysis
     .replace(/\*\*/g,'').replace(/\*/g,'')
-    .replace(/[_`]/g,'')
+    .replace(/_/g,'')
     .slice(0, 4000);
   try{
     const res=await fetch(WORKER,{
