@@ -1943,16 +1943,124 @@ async function runAIAnalysis(){
         } catch(e){if(i===retries)return null;await new Promise(r=>setTimeout(r,i*1500));}
       }
     }
-    const narrativePrompt = `You are a senior Elliott Wave analyst. Write a concise professional commentary (3 short paragraphs, plain text, no markdown, no asterisks):
-${symbol} | ${tf} | Live: ${livePrice}
-Wave: ${ewResult.waveNum} | Trend: ${chartAnalysis.trend} | Confidence: ${ewResult.confidence}%
-${ewResult.waveDesc} — ${ewResult.waveChar}
-Signal: ${sigTxt} | SL: ${chartAnalysis.key_levels.stop_loss} | TP1: ${chartAnalysis.key_levels.tp1} | TP2: ${chartAnalysis.key_levels.tp2}
-RSI: ${ewResult.rsi} | ${divNote||'no divergence'}
-${ctx_text?'Context: '+ctx_text:''}
-Paragraph 1: wave structure meaning. Paragraph 2: key risk. Paragraph 3: specific levels to watch.`;
+    // ── Build rich market data block for AI ──
+    const corrPattern = ewResult.correctivePattern || 'N/A';
+    const diagType    = ewResult.diagonal || 'none';
+    const altNote     = ewResult.alternance || 'N/A';
+    const w3ext       = ewResult.extended ? 'YES — Extended Wave 3 detected (>161.8% of W1)' : 'No';
+    const truncated   = ewResult.truncated ? 'YES — Truncated Wave 5 (bearish warning)' : 'No';
+    const violations  = Object.keys(ewResult.ewViolations||{}).length > 0
+      ? Object.entries(ewResult.ewViolations).map(([k,v])=>k+': '+v).join('; ')
+      : 'None';
+    const pivotSummary = (() => {
+      const hp = (ewResult.hPvts||[]).slice(-4).map(p=>`H:${p.price}`).join(', ');
+      const lp = (ewResult.lPvts||[]).slice(-4).map(p=>`L:${p.price}`).join(', ');
+      return `Recent Highs [${hp||'none'}] | Recent Lows [${lp||'none'}]`;
+    })();
 
-    const res = await fetchWithRetry({model:'claude-sonnet-4-20250514',max_tokens:400,messages:[{role:'user',content:narrativePrompt}]});
+    const ewSystemPrompt = `You are a professional Elliott Wave analyst with deep mastery of R.N. Elliott's complete theory. You apply ALL of the following frameworks without exception:
+
+IMPULSE WAVES (5-wave motive structure):
+- Waves 1, 3, 5 are impulsive; Waves 2, 4 are corrective
+- RULE 1: Wave 2 never retraces 100% of Wave 1
+- RULE 2: Wave 3 is never the shortest of waves 1, 3, 5
+- RULE 3: Wave 4 never overlaps Wave 1 price territory (exception: diagonal triangles only)
+- Wave 3 typically extends to 161.8% of Wave 1; if >261.8% it is an Extended Wave 3
+- Wave 5 often equals Wave 1 in length; truncation signals weakening trend
+- Guideline of Alternation: W2 and W4 alternate in character (sharp vs flat/sideways)
+- Channel technique: draw base channel through 0-2, project parallel through 1 for W3 target
+
+CORRECTIVE PATTERNS (3-wave, never 5):
+- Zigzag (5-3-5): sharp correction, Wave B retraces 38.2-61.8% of A, Wave C = 100% of A or Fib extension
+- Flat (3-3-5): Wave B retraces ~100% of A; three variants: Regular (C=A), Expanded (C>A origin), Running (C<A)
+- Triangle (3-3-3-3-3): contracting/expanding/ascending/descending; appears ONLY in W4 or WB; thrust = widest part of triangle
+- Double Zigzag (WXY): two zigzags joined by X wave; signals powerful underlying trend
+- Triple Zigzag / Triple Three (WXYXZ): rare, deep complex corrections
+
+DIAGONAL TRIANGLES:
+- Leading Diagonal: appears in Wave 1 or Wave C; overlapping subwaves; W4 overlaps W1
+- Ending Diagonal: appears in Wave 5 or Wave C; exhaustion pattern; sharp reversal follows; throw-over common
+- Both have 5 subwaves but each is a 3-wave corrective structure
+
+FIBONACCI RELATIONSHIPS:
+- Retracements: 23.6%, 38.2%, 50%, 61.8%, 76.4%
+- Extensions: 100%, 127.2%, 138.2%, 161.8%, 200%, 261.8%, 423.6%
+- W2 typical retrace: 50-61.8% of W1; W4 typical retrace: 38.2% of W3
+- W3 target: W1 × 1.618 from W1 start; extended W3: W1 × 2.618 or 4.236
+- W5 = W1 or W1 × 0.618 when W3 extended; C = A × 1.0 or 1.618
+
+DEGREE HIERARCHY (largest to smallest):
+Grand Supercycle → Supercycle → Cycle → Primary → Intermediate → Minor → Minute → Minuette → Sub-Minuette
+
+CONFIRMATION SIGNALS:
+- RSI divergence at W5 top (bearish) or WC bottom (bullish) = high-confidence reversal
+- Volume: peaks at W3, declines at W5 (divergence), low during corrections
+- MACD: histogram peaks in W3, diverges in W5
+- Momentum failure = exhaustion warning
+
+SCENARIO ANALYSIS — YOU MUST ALWAYS PROVIDE:
+1. PRIMARY COUNT: the most probable wave count with confidence level
+2. ALTERNATE COUNT: next most probable structure (e.g. if W4 triangle vs flat; if ABC complete vs WXY continuing)
+3. INVALIDATION LEVEL: exact price that kills the primary count
+4. Identify any active corrective pattern (zigzag, flat, triangle, WXY)
+5. State if any diagonal is present and its type
+6. Apply alternation guideline explicitly
+7. Give Fibonacci-based targets for the developing wave
+
+OUTPUT FORMAT — plain text only, no markdown, no asterisks, no headers with #:
+Write exactly 4 paragraphs separated by blank lines.
+Paragraph 1 — PRIMARY SCENARIO: Current wave position, degree, structure identified, what has completed, what is developing.
+Paragraph 2 — PATTERN & STRUCTURE: Corrective pattern type if applicable, diagonal if present, alternation, Fibonacci relationships observed, internal structure of current wave.
+Paragraph 3 — ALTERNATE SCENARIO: Next most probable count, what would confirm it vs primary, key differentiator.
+Paragraph 4 — TRADE LEVELS: Entry rationale, stop loss logic (what it protects), TP1 and TP2 with Fibonacci basis, R:R, one-sentence invalidation rule.`;
+
+    const ewUserPrompt = `INSTRUMENT: ${symbol} | TIMEFRAME: ${tf} | LIVE PRICE: ${livePrice}
+
+WAVE ENGINE OUTPUT:
+Current Wave: ${ewResult.waveNum} | Phase: ${ewResult.wavePhase||'N/A'}
+Trend Direction: ${chartAnalysis.trend} | Degree: ${ewResult.degree}
+Description: ${ewResult.waveDesc}
+Wave Character: ${ewResult.waveChar}
+Bias: ${ewResult.bias||'N/A'} | Confidence: ${ewResult.confidence}%
+
+STRUCTURE DETAILS:
+Extended W3: ${w3ext}
+Truncated W5: ${truncated}
+Diagonal: ${diagType}
+Corrective Pattern: ${corrPattern}
+Alternation Note: ${altNote}
+EW Rule Violations: ${violations}
+
+PIVOT STRUCTURE:
+${pivotSummary}
+W1 Start: ${ewResult.w1Start} | W1 End: ${ewResult.w1End} | W1 Size: ${ewResult.w1Size?.toFixed(5)||'N/A'}
+W3 End: ${ewResult.w3End||'not yet confirmed'}
+
+INDICATORS:
+RSI(14): ${ewResult.rsi} ${ewResult.rsi>70?'— OVERBOUGHT':ewResult.rsi<30?'— OVERSOLD':'— neutral'}
+MACD Histogram: ${ewResult.macdHist?.toFixed(5)||'N/A'} ${ewResult.macdHist>0?'(bullish momentum)':'(bearish momentum)'}
+ATR: ${ewResult.atr?.toFixed(5)||'N/A'}
+Bearish Divergence: ${ewResult.bearishDiv?'YES — exhaustion signal':'No'}
+Bullish Divergence: ${ewResult.bullishDiv?'YES — reversal signal':'No'}
+SMA20: ${ewResult.sma20?.toFixed(5)||'N/A'} | SMA50: ${ewResult.sma50?.toFixed(5)||'N/A'} | SMA200: ${ewResult.sma200?.toFixed(5)||'N/A'}
+Trend vs SMA20: ${ewResult.trend20?'ABOVE':'BELOW'} | SMA50: ${ewResult.trend50?'ABOVE':'BELOW'} | SMA200: ${ewResult.trend200?'ABOVE':'BELOW'}
+
+KEY LEVELS:
+Entry: ${chartAnalysis.key_levels.entry} | Stop Loss: ${chartAnalysis.key_levels.stop_loss}
+TP1: ${chartAnalysis.key_levels.tp1} | TP2: ${chartAnalysis.key_levels.tp2}
+Invalidation: ${chartAnalysis.key_levels.invalidation}
+R:R: 1:${ewResult.riskReward}
+
+${ctx_text?'ADDITIONAL CONTEXT: '+ctx_text:''}
+
+Now write the professional Elliott Wave analysis following the 4-paragraph format in the system prompt. Use exact prices. Be specific about wave counts. Name the corrective pattern if present.`;
+
+    const res = await fetchWithRetry({
+      model:'claude-sonnet-4-20250514',
+      max_tokens:700,
+      system: ewSystemPrompt,
+      messages:[{role:'user',content:ewUserPrompt}]
+    });
     if (res) {
       const data = await res.json();
       let narrative = (data.content?.[0]?.text||'').replace(/\*\*/g,'').replace(/\*/g,'').replace(/^#+\s*/gm,'').trim();
