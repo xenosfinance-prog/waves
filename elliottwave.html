@@ -223,9 +223,7 @@ canvas { display: block; }
   background: var(--bg2); border: 1px solid var(--border);
   padding: 16px 20px; margin-bottom: 8px;
   display: flex; align-items: center; gap: 16px;
-  transition: border-color 0.2s;
 }
-.wave-note:hover { border-color: var(--border2); }
 .wave-note-bias {
   font-size: 9px; letter-spacing: 2px; text-transform: uppercase;
   padding: 4px 10px; border: 1px solid; white-space: nowrap; flex-shrink: 0;
@@ -860,30 +858,19 @@ canvas { display: block; }
     <div class="admin-panel" id="adminPanel">
 
       <!-- PUBLISH NOTE STRIP (admin only) -->
-      <div id="adminPublishStrip" style="display:none;background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.2);padding:18px 20px;margin-bottom:20px;">
-        <div style="font-size:9px;letter-spacing:4px;color:var(--gold);text-transform:uppercase;margin-bottom:12px;">Publish Wave Note to Public Feed</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr auto auto;gap:10px;align-items:end;">
-          <div>
-            <div class="admin-label">Pair / Asset</div>
-            <input class="admin-input" id="noteAsset" placeholder="e.g. EURUSD" style="width:100%;">
-          </div>
-          <div>
-            <div class="admin-label">Setup Label</div>
-            <input class="admin-input" id="noteSetup" placeholder="e.g. Bullish Setup – Wave 3 in Development" style="width:100%;">
-          </div>
-          <div>
-            <div class="admin-label">Bias</div>
-            <select class="admin-select" id="noteBias" style="width:110px;">
-              <option value="bullish">🟢 Bullish</option>
-              <option value="bearish">🔴 Bearish</option>
-              <option value="neutral">◆ Neutral</option>
-            </select>
-          </div>
-          <div>
-            <button class="admin-btn" onclick="publishNote()" style="white-space:nowrap;">Publish</button>
-          </div>
+      <div id="adminPublishStrip" style="display:none;background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.2);padding:16px 20px;margin-bottom:20px;">
+        <div style="font-size:9px;letter-spacing:4px;color:var(--gold);text-transform:uppercase;margin-bottom:10px;">Publish to Public Feed</div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+          <input class="admin-input" id="noteAsset" placeholder="Asset e.g. EURUSD" style="width:120px;">
+          <input class="admin-input" id="noteSetup" placeholder="Label e.g. Bullish Setup – Wave 3 in Development" style="flex:1;min-width:200px;">
+          <select class="admin-select" id="noteBias" style="width:130px;">
+            <option value="bullish">🟢 Bullish</option>
+            <option value="bearish">🔴 Bearish</option>
+            <option value="neutral">◆ Neutral</option>
+          </select>
+          <button class="admin-btn" onclick="publishNote()">Publish</button>
         </div>
-        <div id="noteErr" style="font-size:11px;color:var(--red2);margin-top:8px;min-height:16px;"></div>
+        <div id="noteErr" style="font-size:11px;color:var(--red2);margin-top:6px;min-height:14px;"></div>
       </div>
 
       <!-- GENERATOR CONTROLS -->
@@ -951,12 +938,10 @@ canvas { display: block; }
       <button class="admin-tg-btn" id="tgBtn" onclick="sendToTelegram()">📡 Send to Telegram</button>
       <button id="publishFromAnalysisBtn" onclick="publishFromAnalysis()" style="display:none;padding:12px 24px;background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.35);color:#34d399;font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;cursor:pointer;margin-left:8px;">✦ Publish Note</button>
 
-      <!-- CHART -->
       <div id="ewChartWrap" style="display:none;margin-top:20px;background:var(--bg);border:1px solid var(--border);overflow:hidden;">
         <canvas id="ewChartCanvas" style="width:100%;display:block;"></canvas>
       </div>
 
-      <!-- OUTPUT -->
       <div class="analysis-output" id="analysisOutput">
         <pre id="analysisText"></pre>
       </div>
@@ -1051,10 +1036,9 @@ const NOTES_KEY = 'xenos_wave_notes';
 let isAdminUnlocked = false;
 
 function loadNotes() {
-  try { return JSON.parse(localStorage.getItem(NOTES_KEY) || '[]'); }
-  catch(e) { return []; }
+  try { return JSON.parse(localStorage.getItem(NOTES_KEY) || '[]'); } catch(e) { return []; }
 }
-function saveNotes(notes) { localStorage.setItem(NOTES_KEY, JSON.stringify(notes)); }
+function saveNotes(n) { localStorage.setItem(NOTES_KEY, JSON.stringify(n)); }
 
 function renderPublicFeed() {
   const notes = loadNotes();
@@ -1062,41 +1046,33 @@ function renderPublicFeed() {
   const empty = document.getElementById('publicNotesEmpty');
   if (!list) return;
   list.innerHTML = '';
-  if (!notes.length) { empty.style.display = 'block'; return; }
-  empty.style.display = 'none';
+  if (!notes.length) { if(empty) empty.style.display='block'; return; }
+  if(empty) empty.style.display='none';
   const wrap = document.getElementById('publicWaveFeed');
-  if (isAdminUnlocked) wrap.classList.add('admin-active');
-  else wrap.classList.remove('admin-active');
+  if(wrap) { if(isAdminUnlocked) wrap.classList.add('admin-active'); else wrap.classList.remove('admin-active'); }
   notes.slice().reverse().forEach((n, ri) => {
     const idx = notes.length - 1 - ri;
     const div = document.createElement('div');
     div.className = 'wave-note';
-    div.innerHTML = `
-      <span class="wave-note-bias ${n.bias}">${n.bias==='bullish'?'🟢 Bullish':n.bias==='bearish'?'🔴 Bearish':'◆ Neutral'}</span>
-      <span class="wave-note-asset">${n.asset}</span>
-      <span class="wave-note-setup">${n.setup}</span>
-      <span class="wave-note-date">${n.date}</span>
-      <button class="wave-note-del" onclick="deleteNote(${idx})" title="Delete">✕</button>
-    `;
+    div.innerHTML = `<span class="wave-note-bias ${n.bias}">${n.bias==='bullish'?'🟢 Bullish':n.bias==='bearish'?'🔴 Bearish':'◆ Neutral'}</span><span class="wave-note-asset">${n.asset}</span><span class="wave-note-setup">${n.setup}</span><span class="wave-note-date">${n.date}</span><button class="wave-note-del" onclick="deleteNote(${idx})" title="Delete">✕</button>`;
     list.appendChild(div);
   });
 }
 
 function publishNote() {
-  const asset = document.getElementById('noteAsset').value.trim().toUpperCase();
-  const setup = document.getElementById('noteSetup').value.trim();
+  const asset = (document.getElementById('noteAsset').value||'').trim().toUpperCase();
+  const setup = (document.getElementById('noteSetup').value||'').trim();
   const bias  = document.getElementById('noteBias').value;
   const err   = document.getElementById('noteErr');
-  if (!asset) { err.textContent = '⚠ Asset required'; return; }
-  if (!setup) { err.textContent = '⚠ Setup label required'; return; }
-  err.textContent = '';
+  if (!asset) { err.textContent='⚠ Asset required'; return; }
+  if (!setup) { err.textContent='⚠ Setup label required'; return; }
+  err.textContent='';
   const notes = loadNotes();
   const now = new Date();
-  notes.push({ asset, setup, bias,
-    date: now.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}).toUpperCase() });
+  notes.push({asset, setup, bias, date: now.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}).toUpperCase()});
   saveNotes(notes);
-  document.getElementById('noteAsset').value = '';
-  document.getElementById('noteSetup').value = '';
+  document.getElementById('noteAsset').value='';
+  document.getElementById('noteSetup').value='';
   renderPublicFeed();
 }
 
@@ -1108,14 +1084,18 @@ function publishFromAnalysis() {
   const symbolEl = document.getElementById('aiSymbol');
   const asset = symbolEl ? symbolEl.options[symbolEl.selectedIndex].text : '';
   const waveEl = document.getElementById('analysisText');
-  const waveMatch = waveEl ? waveEl.textContent.match(/Wave[^\n]{0,80}/i) : null;
-  const waveLabel = waveMatch ? waveMatch[0].slice(0,70).trim() : 'Wave setup in development';
+  const txt = waveEl ? waveEl.textContent : '';
+  // Extract wave description line
+  const waveMatch = txt.match(/Wave [⓪①②③④⑤Ⓐ-ⓒ0-9A-C][^
+]{0,80}/i);
+  const waveLabel = waveMatch ? waveMatch[0].replace(/[⓪①②③④⑤]/,'').trim().slice(0,70) : 'Wave setup in development';
   const biasEl = document.getElementById('noteBias');
-  const sigMatch = waveEl ? waveEl.textContent.match(/SIGNAL\s+(▲ LONG|▼ SHORT|◆ WAIT)/i) : null;
+  const sigMatch = txt.match(/SIGNAL\s+(▲ LONG|▼ SHORT|◆ WAIT)/i);
   if (sigMatch && biasEl) biasEl.value = sigMatch[1].includes('LONG')?'bullish':sigMatch[1].includes('SHORT')?'bearish':'neutral';
   document.getElementById('noteAsset').value = asset;
   document.getElementById('noteSetup').value = waveLabel;
-  document.getElementById('adminPublishStrip').scrollIntoView({behavior:'smooth',block:'center'});
+  const strip = document.getElementById('adminPublishStrip');
+  if(strip) strip.scrollIntoView({behavior:'smooth',block:'center'});
 }
 
 // ── ADMIN ──
@@ -1133,9 +1113,11 @@ function adminLogin(){
   if(pw==='RMG@Manu78'){
     document.getElementById('admin-login-area').style.display='none';
     document.getElementById('adminPanel').style.display='block';
-    document.getElementById('adminPublishStrip').style.display='block';
-    document.getElementById('publishFromAnalysisBtn').style.display='inline-block';
-    isAdminUnlocked = true;
+    const strip=document.getElementById('adminPublishStrip');
+    if(strip) strip.style.display='block';
+    const pubBtn=document.getElementById('publishFromAnalysisBtn');
+    if(pubBtn) pubBtn.style.display='inline-block';
+    isAdminUnlocked=true;
     renderPublicFeed();
   } else {
     document.getElementById('adminErr').textContent='⚠ Wrong password';
@@ -1150,7 +1132,6 @@ function premiumLogin(){
   if(PREMIUM_CODES.includes(code)){
     document.getElementById('admin-login-area').style.display='none';
     document.getElementById('adminPanel').style.display='block';
-    // premium: no publish strip, no publish button
   } else {
     document.getElementById('adminErr').textContent='⚠ Invalid subscription code';
     document.getElementById('premiumPw').value='';
@@ -1920,7 +1901,7 @@ async function runAIAnalysis(){
   txt.textContent = instantOutput;
   lastAnalysis = `Elliott Wave Analysis — ${symbol} ${tf}\n\n${instantOutput}`;
   document.getElementById('tgBtn').style.display='inline-block';
-  if (isAdminUnlocked) document.getElementById('publishFromAnalysisBtn').style.display='inline-block';
+  if(isAdminUnlocked){const pb=document.getElementById('publishFromAnalysisBtn');if(pb)pb.style.display='inline-block';}
 
   try {
     async function fetchWithRetry(body, retries=2) {
@@ -2180,26 +2161,18 @@ function renderEWChart(analysis, symbol, tf, liveData) {
   const kl = analysis.key_levels||{};
   const fibs = analysis.fibonacci_levels||{};
 
-  // ── Smart candle window: show the range that includes all wave pivots ──
+  // ── Candle window: use pivotMap absolute indices to find the right range ──
   const pivMap0 = (ewLastCandles && ewLastCandles._pivotMap) || {};
   const fullCandles = ewLastCandles.length >= 10 ? ewLastCandles : [];
 
-  // Find earliest and latest pivot index in full candles array
+  // Find earliest pivot index (absolute, in fullCandles)
   let earliestPivIdx = fullCandles.length;
-  let latestPivIdx = 0;
   Object.values(pivMap0).forEach(pm => {
-    if (pm && pm.idx !== undefined) {
-      if (pm.idx < earliestPivIdx) earliestPivIdx = pm.idx;
-      if (pm.idx > latestPivIdx) latestPivIdx = pm.idx;
-    }
+    if (pm && pm.idx !== undefined && pm.idx < earliestPivIdx) earliestPivIdx = pm.idx;
   });
-
-  // Window: from earliest pivot (with 5 candle padding) to end of array
-  // Minimum 40 candles, maximum 100
+  // Window starts 5 candles before earliest pivot, always runs to end of array
   const pivWindowStart = Math.max(0, earliestPivIdx - 5);
-  const rawWindow = fullCandles.slice(pivWindowStart);
-  const candles = rawWindow.length >= 10 ? rawWindow.slice(0, Math.min(rawWindow.length, 100)) : fullCandles.slice(-80);
-  const candleOffset = pivWindowStart; // offset for pivot idx mapping
+  const candles = fullCandles.slice(pivWindowStart);
   const useCandles = candles.length >= 10;
 
   // ── Collect all prices for Y scale ────────────────
@@ -2221,17 +2194,6 @@ function renderEWChart(analysis, symbol, tf, liveData) {
   const nBars = useCandles ? candles.length : 9;
   const barW = useCandles ? CW/nBars : CW/8;
   const toXBar = i => ML + (i+0.5)*barW;
-
-  // Find nearest candle index for a given price
-  function nearestCandleIdx(price) {
-    if (!useCandles) return -1;
-    let best=-1, bestDist=Infinity;
-    candles.forEach((c,i)=>{
-      const d=Math.abs(c.close-price);
-      if(d<bestDist){bestDist=d;best=i;}
-    });
-    return best;
-  }
 
   // ── Background ────────────────────────────────────
   const bg=ctx.createLinearGradient(0,0,0,H);
@@ -2315,6 +2277,7 @@ function renderEWChart(analysis, symbol, tf, liveData) {
   }
 
   // ── Wave overlay ──────────────────────────────────
+  // Build ordered wave points from analysis — only those that exist
   const wavePoints = [
     {label:'0',key:'w0',price:wp.w0,impulse:true},
     {label:'1',key:'w1',price:wp.w1,impulse:true},
@@ -2325,108 +2288,85 @@ function renderEWChart(analysis, symbol, tf, liveData) {
     {label:'A',key:'wa',price:wp.wa,impulse:false},
     {label:'B',key:'wb',price:wp.wb,impulse:false},
     {label:'C',key:'wc',price:wp.wc,impulse:false},
-  ].filter(p=>p.price);
+  ].filter(p => p.price != null);
 
   const pivMap = (ewLastCandles && ewLastCandles._pivotMap) || {};
 
-  // Map each wave point to the exact candle bar (X) and exact high/low (Y)
-  // pivMap idx is absolute relative to ewLastCandles (full array)
-  // candles = fullCandles.slice(pivWindowStart, ...), so: localIdx = absIdx - pivWindowStart
-  const pts = wavePoints.map((wp2, i) => {
+  // ── Map each wave point to X (candle bar) and Y (price) ──────
+  // Strategy:
+  //   1. If pivotMap has an exact index → use it (convert absolute→local)
+  //   2. Else scan candles for closest high or low to pivot price
+  //   3. Else evenly space
+  // After mapping, enforce strict left-to-right order for any gaps.
+  const pts = wavePoints.map((wpt, i) => {
     const isHighPt = isBearish
-      ? ['0','2','4','B'].includes(wp2.label)
-      : ['1','3','5','A','C'].includes(wp2.label);
+      ? ['0','2','4','B'].includes(wpt.label)
+      : ['1','3','5','A','C'].includes(wpt.label);
 
-    let candleIdx = -1;
+    let ci = -1;
 
-    // 1. Use pivotMap absolute index, convert to local candle window index
-    const pm = pivMap[wp2.key];
+    // 1. pivotMap exact index
+    const pm = pivMap[wpt.key];
     if (pm && pm.idx !== undefined) {
-      const localIdx = pm.idx - pivWindowStart;
-      if (localIdx >= 0 && localIdx < candles.length) candleIdx = localIdx;
+      const local = pm.idx - pivWindowStart;
+      if (local >= 0 && local < candles.length) ci = local;
     }
 
-    // 2. Fallback: scan candles for closest high or low to pivot price
-    if (candleIdx < 0 && useCandles) {
-      let bestD = Infinity;
-      candles.forEach((c, ci) => {
-        const d = isHighPt ? Math.abs(c.high - wp2.price) : Math.abs(c.low - wp2.price);
-        if (d < bestD) { bestD = d; candleIdx = ci; }
+    // 2. Scan for closest high or low
+    if (ci < 0 && useCandles) {
+      let best = Infinity;
+      candles.forEach((c, j) => {
+        const d = isHighPt ? Math.abs(c.high - wpt.price) : Math.abs(c.low - wpt.price);
+        if (d < best) { best = d; ci = j; }
       });
     }
 
-    // 3. Last resort: even spacing
-    if (candleIdx < 0) candleIdx = Math.round(i / Math.max(wavePoints.length - 1, 1) * (candles.length - 1));
+    // 3. Even spacing fallback
+    if (ci < 0) ci = Math.round(i / Math.max(wavePoints.length - 1, 1) * (candles.length - 1));
 
-    const x = toXBar(candleIdx);
-    // Y: exact high or low of the mapped candle
-    const candleY = useCandles && candles[candleIdx]
-      ? (isHighPt ? toY(candles[candleIdx].high) : toY(candles[candleIdx].low))
-      : toY(wp2.price);
+    const x = toXBar(ci);
+    const y = useCandles && candles[ci]
+      ? (isHighPt ? toY(candles[ci].high) : toY(candles[ci].low))
+      : toY(wpt.price);
 
-    return { ...wp2, x, y: candleY, candleIdx };
+    return { ...wpt, x, y, ci, isHighPt };
   });
 
-  // Ensure X is strictly left-to-right (wave order = time order)
+  // Enforce strict left-to-right (time order must be monotonic)
   for (let i = 1; i < pts.length; i++) {
-    if (pts[i].x <= pts[i-1].x) pts[i].x = pts[i-1].x + Math.max(barW, CW*0.03);
+    if (pts[i].x <= pts[i-1].x) pts[i].x = pts[i-1].x + Math.max(barW, CW * 0.04);
   }
-  pts.forEach(pt => { if (pt.x > ML+CW-4) pt.x = ML+CW-4; });
+  pts.forEach(pt => { if (pt.x > ML + CW - 4) pt.x = ML + CW - 4; });
 
-  // Wave line colors
-  const iCol  = isBearish?'#f59e0b':'#3b82f6';
-  const iCol2 = isBearish?'#fcd34d':'#60a5fa';
-  const cCol  = isBearish?'#f87171':'#f59e0b';
-  const cCol2 = isBearish?'#fca5a5':'#fcd34d';
+  // Colors
+  const iCol2 = isBearish ? '#fcd34d' : '#60a5fa';
+  const cCol2 = isBearish ? '#fca5a5' : '#fcd34d';
 
   // ── Wave polyline ─────────────────────────────────
   if (pts.length >= 2) {
-    ctx.lineWidth = 1.5; ctx.globalAlpha = 0.55; ctx.setLineDash([]);
-    // Split impulse vs corrective runs for color
-    let runStart = 0;
-    while (runStart < pts.length) {
-      const runType = pts[runStart].impulse;
-      let runEnd = runStart;
-      while (runEnd + 1 < pts.length && pts[runEnd + 1].impulse === runType) runEnd++;
-      ctx.strokeStyle = runType ? (isBearish ? '#f59e0b' : '#3b82f6') : (isBearish ? '#f87171' : '#f59e0b');
-      ctx.beginPath();
-      for (let i = runStart; i <= runEnd; i++) {
-        i === runStart ? ctx.moveTo(pts[i].x, pts[i].y) : ctx.lineTo(pts[i].x, pts[i].y);
-      }
-      ctx.stroke();
-      runStart = runEnd + 1;
-    }
+    ctx.lineWidth = 1.5; ctx.globalAlpha = 0.6; ctx.setLineDash([]);
+    ctx.strokeStyle = isBearish ? '#f59e0b' : '#3b82f6';
+    ctx.beginPath();
+    pts.forEach((pt, i) => i === 0 ? ctx.moveTo(pt.x, pt.y) : ctx.lineTo(pt.x, pt.y));
+    ctx.stroke();
     ctx.globalAlpha = 1;
   }
 
-  // ── Wave labels: number directly on candle pivot ──────────────
-  pts.forEach((pt) => {
+  // ── Wave labels ───────────────────────────────────
+  pts.forEach(pt => {
     const isCur = pt.label === analysis.current_wave;
     const col   = pt.impulse ? iCol2 : cCol2;
-
-    // isHigh already computed in pt (bear: 0,2,4,B = highs; bull: 1,3,5,A,C = highs)
-    const isHigh = isBearish
-      ? ['0','2','4','B'].includes(pt.label)
-      : ['1','3','5','A','C'].includes(pt.label);
-
-    // pt.y is already the exact candle high or low Y
-    // Place number just outside: 12px above high, 12px below low
-    const labelY = isHigh ? pt.y - 12 : pt.y + 12;
+    const labelY = pt.isHighPt ? pt.y - 14 : pt.y + 14;
     const clampedY = Math.max(MT + 10, Math.min(labelY, MT + CH - 10));
 
-    // Number with dark outline — readable on any background
-    const fontSize = isCur ? 14 : 12;
-    ctx.font = `bold ${fontSize}px Arial, sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.lineWidth = 3.5;
-    ctx.lineJoin = 'round';
+    ctx.font = `bold ${isCur ? 14 : 12}px Arial, sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.lineWidth = 3.5; ctx.lineJoin = 'round';
     ctx.strokeStyle = 'rgba(6,12,22,0.95)';
     ctx.strokeText(pt.label, pt.x, clampedY);
     ctx.fillStyle = col;
     ctx.fillText(pt.label, pt.x, clampedY);
-    ctx.lineJoin = 'miter';
-    ctx.textBaseline = 'alphabetic';
+    ctx.lineJoin = 'miter'; ctx.textBaseline = 'alphabetic';
   });
 
     // ── NOW price line ────────────────────────────────
