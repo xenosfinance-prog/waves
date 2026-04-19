@@ -1221,9 +1221,9 @@ const EW_SYMBOL_MAP = {
   // Crypto
   'btc/usd':'BTC-USD','btcusd':'BTC-USD','bitcoin':'BTC-USD','btc':'BTC-USD',
   'eth/usd':'ETH-USD','ethusd':'ETH-USD','ethereum':'ETH-USD','eth':'ETH-USD',
-  'sol':'SOLUSD','solana':'SOLUSD','solusd':'SOLUSD',
-  'xrp':'XRPUSD','ripple':'XRPUSD','xrpusd':'XRPUSD',
-  'doge':'DOGEUSD','dogecoin':'DOGEUSD','dogeusd':'DOGEUSD',
+  'sol':'SOL-USD','solana sol':'SOL-USD','solana':'SOL-USD','solusd':'SOL-USD',
+  'xrp':'XRP-USD','ripple':'XRP-USD','xrpusd':'XRP-USD','xrp/usd':'XRP-USD',
+  'doge':'DOGE-USD','dogecoin':'DOGE-USD','dogeusd':'DOGE-USD',
 };
 
 async function fetchLivePrice(symbolInput) {
@@ -2331,7 +2331,9 @@ function renderEWChart(analysis, symbol, tf, liveData) {
   const canvas = document.getElementById('ewChartCanvas');
   if (!wrap || !canvas) return;
   const wp = analysis.wave_points;
-  if (!wp || !wp.w0) { wrap.style.display='none'; return; }
+  // Show canvas if ANY wave point exists (impulse: w0; corrective: wa)
+  const hasAnyWave = wp && (wp.w0 || wp.wa || wp.w1);
+  if (!hasAnyWave) { wrap.style.display='none'; return; }
   wrap.style.display='block';
 
   const W = canvas.offsetWidth||860, H=460;
