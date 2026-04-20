@@ -638,7 +638,7 @@ textarea{resize:vertical;min-height:80px}
         <label>Category</label>
         <select id="f_cat" onchange="autoFillLev()">
           <option>Stock</option><option>ETF</option><option>Forex</option>
-          <option>Crypto</option><option>Index</option><option>Commodity</option><option>Options</option><option>CFD</option>
+          <option>Crypto</option><option>Index</option><option>Commodity</option><option>Options</option>
         </select>
       </div>
       <div class="form-group">
@@ -691,22 +691,13 @@ textarea{resize:vertical;min-height:80px}
       </div>
       <div class="form-group">
         <label>Exchange / Market</label>
-        <select id="f_exch">
-          <option value="CFD">CFD</option>
-          <option value="OTC">OTC</option>
-          <option value="FX">FX</option>
-          <option value="Binance">Binance</option>
-          <option value="NASDAQ">NASDAQ</option>
-          <option value="NYSE">NYSE</option>
-          <option value="NYSE Arca">NYSE Arca</option>
-          <option value="COMEX">COMEX</option>
-          <option value="NYMEX">NYMEX</option>
-          <option value="CME">CME</option>
-          <option value="LSE">LSE</option>
-          <option value="Euronext">Euronext</option>
-        </select>
+        <input type="text" id="f_exch" placeholder="e.g. FX / Binance / NYSE">
       </div>
       <div class="form-group">
+        <label>Commission ($)</label>
+        <input type="number" id="f_comm" step="any" placeholder="0">
+      </div>
+      <div class="form-group full">
         <label>Analysis / Notes (supports markdown)</label>
         <textarea id="f_notes" placeholder="Elliott Wave count, ICT setup, macro thesis..."></textarea>
       </div>
@@ -796,7 +787,6 @@ textarea{resize:vertical;min-height:80px}
       <button class="filter-btn" data-cat="ETF" onclick="setFilter(this,'cat')">ETF</button>
       <button class="filter-btn" data-cat="Index" onclick="setFilter(this,'cat')">Index</button>
       <button class="filter-btn" data-cat="Commodity" onclick="setFilter(this,'cat')">Commodity</button>
-      <button class="filter-btn" data-cat="CFD" onclick="setFilter(this,'cat')">CFD</button>
     </div>
     <div class="filter-sep"></div>
     <div class="filter-group" id="statusFilters">
@@ -891,7 +881,7 @@ if(localStorage.getItem('xf_portfolio_version') !== PORTFOLIO_VERSION){
   localStorage.setItem('xf_portfolio_version', PORTFOLIO_VERSION);
 }
 let trades = JSON.parse(localStorage.getItem('xf_portfolio') || 'null') || seedTrades;
-let nextId = trades.length ? Math.max(...trades.map(t=>parseInt(t.id)||0)) + 1 : 1;
+let nextId = Math.max(...trades.map(t=>t.id)) + 1;
 
 let filterCat = 'All';
 let filterStatus = 'All';
@@ -909,89 +899,69 @@ function mifidLev(cat, asset){
   asset = (asset||'').toUpperCase();
   switch(cat){
     case 'Forex': {
-      // Major pairs → 1:30  |  Minor/cross → 1:20
       const majors = ['EURUSD','GBPUSD','USDJPY','USDCHF','AUDUSD','NZDUSD','USDCAD'];
       const pair = asset.replace('/','').replace('-','');
       return majors.includes(pair) ? 30 : 20;
     }
-    case 'Index':     return 20;  // major indices (S&P, DAX, FTSE)
+    case 'Index':     return 20;
     case 'Commodity':
-      return asset.includes('GOLD') || asset.includes('XAU') ? 20 : 10;
+      return asset.includes('GOLD')||asset.includes('XAU') ? 20 : 10;
     case 'Crypto':    return 2;
-    case 'Stock':     return 5;   // CFD su azioni MiFID retail
-    case 'ETF':       return 5;   // CFD su ETF; se acquisto diretto → 1
-    case 'Options':   return 1;   // options: nessuna leva ulteriore
-    case 'CFD':       return 10;  // generico
+    case 'Stock':     return 5;
+    case 'ETF':       return 5;
+    case 'Options':   return 1;
+    case 'CFD':       return 10;
     default:          return 1;
   }
 }
 
-// ── PnL CALCULATION — per asset class ────────────────────────────────────
-//
-// FOREX  : PnL = diff_pips × pip_value × lots
-//          pip_value ≈ 10 USD per pip per lotto standard (100k unità)
-//          ma per semplicità e correttezza generica:
-//          notional = entry × qty × 100000   (qty = lotti standard)
-//          PnL = diff × qty × 100000 / entry  (per pair con USD come base)
-//          Per ora usiamo la formula generica CFD che funziona su tutti i pair:
-//          PnL = (diff / entry) × notional   dove notional = entry × qty × lev
-//          → equivale a: PnL = diff × qty × lev
-//
-// STOCK/ETF (acquisto diretto, lev=1):
-//          PnL = diff × qty × 1
-//
-// STOCK/ETF (CFD, lev=5):
-//          PnL = diff × qty × lev
-//          (il margine richiesto = entry × qty / lev, ma il PnL è sul nozionale)
-//
-// COMMODITY (Gold in USD/oz, Oil in USD/bbl):
-//          PnL = diff × qty × lev
-//          (Gold: qty = oz, Oil: qty = barili o contratti)
-//
-// CRYPTO (lev=2 MiFID):
-//          PnL = diff × qty × lev
-//
-// INDEX (lev=20):
-//          PnL = diff × qty × lev
-//          (qty = numero contratti/mini-contratti)
-//
-// In tutti i casi la formula unificata è:
-//   gross_pnl = price_diff × qty × leverage
-//   net_pnl   = gross_pnl − commission
-//
-// Il PnL % è calcolato sul MARGINE INIZIALE (capitale a rischio reale):
-//   margin    = entry × qty / leverage   (per lev > 1)
-//   pnl_pct   = gross_pnl / margin × 100
-//               = diff / entry × leverage × 100
+// ── LOT MULTIPLIER — qty sempre in LOTTI ─────────────────────────────────
+// 1 lotto standard, 0.1 mini, 0.01 micro
+// FOREX        : 1 lot = 100.000 unità  → PnL = diff × qty × 100.000
+// GOLD (XAU)   : 1 lot = 100 oz         → PnL = diff × qty × 100
+// SILVER (XAG) : 1 lot = 5.000 oz       → PnL = diff × qty × 5.000
+// OIL/WTI/BRENT: 1 lot = 1.000 barili   → PnL = diff × qty × 1.000
+// NAT GAS      : 1 lot = 10.000 MMBtu   → PnL = diff × qty × 10.000
+// INDICI CFD   : 1 lot = $10/punto      → PnL = diff × qty × 10
+// STOCK/ETF/CRYPTO: qty = unità dirette → PnL = diff × qty × 1
 // ─────────────────────────────────────────────────────────────────────────
+function lotMultiplier(cat, asset){
+  const a = (asset||'').toUpperCase();
+  switch(cat){
+    case 'Forex':
+      return 100000;
+    case 'Commodity': {
+      if(a.includes('GOLD')||a.includes('XAU'))                      return 100;
+      if(a.includes('SILVER')||a.includes('XAG'))                    return 5000;
+      if(a.includes('OIL')||a.includes('WTI')||
+         a.includes('BRENT')||a.includes('CRUDE')||a.includes('CL')) return 1000;
+      if(a.includes('GAS')||a.includes('NGAS')||a.includes('NG'))    return 10000;
+      return 1000;
+    }
+    case 'Index':  return 10;
+    default:       return 1;
+  }
+}
+
 function calcPnL(t){
-  const lev  = t.lev || 1;
   const qty  = t.qty || 1;
+  const mult = lotMultiplier(t.cat, t.asset);
   const diff = t.dir === 'Long' ? t.current - t.entry : t.entry - t.current;
-  const gross = diff * qty * lev;
-  return +(gross - (t.comm || 0)).toFixed(2);
+  return +(diff * qty * mult).toFixed(2);
 }
 
 function calcPnLPct(t){
-  // % sul margine impiegato (capitale reale a rischio)
-  const lev   = t.lev || 1;
-  const diff  = t.dir === 'Long' ? t.current - t.entry : t.entry - t.current;
-  // margin = entry × qty / lev → pnl% = (diff × qty × lev) / (entry × qty / lev) × 100
-  //                                     = diff / entry × lev² × 100  ← SBAGLIATO
-  // Corretto: pnl% sul margine = gross / margin × 100
-  //         = (diff × qty × lev) / (entry × qty / lev) × 100
-  //         = diff × lev² / entry × 100  ← amplificazione corretta della leva
-  // Ma per leggibilità esterna usiamo pnl% sul NOZIONALE (più standard nei broker):
-  //         = diff / entry × 100   (senza leva — movimento % del prezzo)
-  // E mostriamo anche il pnl% sul margine separatamente se serve.
-  // Scelta: % sul nozionale (più intuitivo per confronto tra asset class diversi)
+  // % sul nozionale (movimento % del prezzo)
+  const diff = t.dir === 'Long' ? t.current - t.entry : t.entry - t.current;
+  if(!t.entry) return 0;
   return +((diff / t.entry) * 100).toFixed(2);
 }
 
 function calcMarginPct(t){
-  // % sul margine — quanto ha guadagnato/perso sul capitale impiegato
+  // % sul margine (capitale reale impiegato, amplificato dalla leva)
   const lev  = t.lev || 1;
   const diff = t.dir === 'Long' ? t.current - t.entry : t.entry - t.current;
+  if(!t.entry) return 0;
   return +((diff / t.entry) * 100 * lev).toFixed(2);
 }
 function fmtN(n,dec=2){return n>=0?'+'+n.toFixed(dec):n.toFixed(dec)}
@@ -1340,12 +1310,13 @@ function openEdit(id){
   document.getElementById('f_tp').value=t.tp||'';
   document.getElementById('f_open').value=t.open||'';
   document.getElementById('f_close').value=t.close||'';
-  document.getElementById('f_exch').value=t.exch||'CFD';
+  document.getElementById('f_exch').value=t.exch||'';
+  document.getElementById('f_comm').value=t.comm||0;
   document.getElementById('f_notes').value=t.notes||'';
   document.getElementById('addModal').classList.add('show');
 }
 function clearForm(){
-  ['f_asset','f_entry','f_current','f_qty','f_lev','f_sl','f_tp','f_open','f_close','f_notes'].forEach(id=>{
+  ['f_asset','f_entry','f_current','f_qty','f_lev','f_sl','f_tp','f_open','f_close','f_exch','f_comm','f_notes'].forEach(id=>{
     const el=document.getElementById(id);
     if(el)el.value='';
   });
@@ -1368,7 +1339,7 @@ function saveTrade(){
     open:document.getElementById('f_open').value,
     close:document.getElementById('f_close').value,
     exch:document.getElementById('f_exch').value,
-    comm:0,
+    comm:parseFloat(document.getElementById('f_comm').value)||0,
     notes:document.getElementById('f_notes').value,
   };
   if(editId){const i=trades.findIndex(x=>x.id===editId);trades[i]=t;}
