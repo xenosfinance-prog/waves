@@ -691,14 +691,23 @@ textarea{resize:vertical;min-height:80px}
       </div>
       <div class="form-group">
         <label>Exchange / Market</label>
-        <input type="text" id="f_exch" placeholder="e.g. FX / Binance / NYSE">
-      </div>
-      <div class="form-group">
-        <label>Commission ($)</label>
-        <input type="number" id="f_comm" step="any" placeholder="0">
+        <select id="f_exch">
+          <option value="CFD">CFD</option>
+          <option value="OTC">OTC</option>
+          <option value="FX">FX</option>
+          <option value="Binance">Binance</option>
+          <option value="NASDAQ">NASDAQ</option>
+          <option value="NYSE">NYSE</option>
+          <option value="NYSE Arca">NYSE Arca</option>
+          <option value="COMEX">COMEX</option>
+          <option value="NYMEX">NYMEX</option>
+          <option value="CME">CME</option>
+          <option value="LSE">LSE</option>
+          <option value="Euronext">Euronext</option>
+        </select>
       </div>
       <div class="form-group full">
-        <label>Analysis / Notes (supports markdown)</label>
+        <label>Analysis / Notes</label>
         <textarea id="f_notes" placeholder="Elliott Wave count, ICT setup, macro thesis..."></textarea>
       </div>
     </div>
@@ -716,11 +725,11 @@ textarea{resize:vertical;min-height:80px}
   <div class="page-title">
     <div>
       <h1>Trading <span>Portfolio</span></h1>
-      <p>STOCKS · ETF · FOREX · CRYPTO · COMMODITIES · VERIFIED RESULTS</p>
+      <p>STOCKS · ETF · FOREX · CRYPTO · COMMODITIES</p>
     </div>
     <div class="verified-badge">
       <div class="dot"></div>
-      <span>VERIFIED LIVE PORTFOLIO</span>
+      <span>LIVE PORTFOLIO</span>
     </div>
   </div>
 
@@ -859,29 +868,51 @@ let isPremium = sessionStorage.getItem('xf_premium') === 'true' || isAdmin;
 
 // Seed mock trades
 const seedTrades = [
-  // ── FOREX (dal dashboard) ───────────────────────────────────────────────
-  {id:1,asset:'EUR/USD',cat:'Forex',dir:'Long',status:'Open',entry:1.0820,current:1.0820,qty:1,lev:20,sl:1.0720,tp:1.0980,comm:0,open:'2025-04-20',close:'',exch:'FX',notes:'Aggiorna entry/current/SL/TP con i tuoi livelli reali.'},
-  {id:2,asset:'GBP/USD',cat:'Forex',dir:'Long',status:'Open',entry:1.2950,current:1.2950,qty:1,lev:20,sl:1.2820,tp:1.3150,comm:0,open:'2025-04-20',close:'',exch:'FX',notes:'Aggiorna entry/current/SL/TP con i tuoi livelli reali.'},
-  {id:3,asset:'USD/JPY',cat:'Forex',dir:'Short',status:'Open',entry:142.50,current:142.50,qty:1,lev:20,sl:144.00,tp:139.00,comm:0,open:'2025-04-20',close:'',exch:'FX',notes:'Aggiorna entry/current/SL/TP con i tuoi livelli reali.'},
-  {id:4,asset:'USD/CHF',cat:'Forex',dir:'Short',status:'Open',entry:0.8820,current:0.8820,qty:1,lev:20,sl:0.8920,tp:0.8650,comm:0,open:'2025-04-20',close:'',exch:'FX',notes:'Aggiorna entry/current/SL/TP con i tuoi livelli reali.'},
-  // ── CRYPTO (dal dashboard) ─────────────────────────────────────────────
-  {id:5,asset:'BTC/USD',cat:'Crypto',dir:'Long',status:'Open',entry:84000,current:84000,qty:0.1,lev:1,sl:78000,tp:95000,comm:0,open:'2025-04-20',close:'',exch:'Binance',notes:'Aggiorna entry/current/SL/TP con i tuoi livelli reali.'},
-  {id:6,asset:'ETH/USD',cat:'Crypto',dir:'Long',status:'Open',entry:1600,current:1600,qty:1,lev:1,sl:1450,tp:2000,comm:0,open:'2025-04-20',close:'',exch:'Binance',notes:'Aggiorna entry/current/SL/TP con i tuoi livelli reali.'},
-  // ── COMMODITY (dal dashboard) ──────────────────────────────────────────
-  {id:7,asset:'Gold',cat:'Commodity',dir:'Long',status:'Open',entry:3300,current:3300,qty:1,lev:10,sl:3200,tp:3500,comm:0,open:'2025-04-20',close:'',exch:'COMEX',notes:'Aggiorna entry/current/SL/TP con i tuoi livelli reali.'},
-  {id:8,asset:'WTI Crude',cat:'Commodity',dir:'Long',status:'Open',entry:63.00,current:63.00,qty:1,lev:5,sl:60.00,tp:70.00,comm:0,open:'2025-04-20',close:'',exch:'NYMEX',notes:'Aggiorna entry/current/SL/TP con i tuoi livelli reali.'},
-  // ── STOCK / ETF (dal dashboard) ────────────────────────────────────────
-  {id:9,asset:'AAPL',cat:'Stock',dir:'Long',status:'Open',entry:200.00,current:200.00,qty:10,lev:1,sl:190.00,tp:220.00,comm:0,open:'2025-04-20',close:'',exch:'NASDAQ',notes:'Aggiorna entry/current/SL/TP con i tuoi livelli reali.'},
-  {id:10,asset:'SPY',cat:'ETF',dir:'Long',status:'Open',entry:500.00,current:500.00,qty:5,lev:1,sl:480.00,tp:540.00,comm:0,open:'2025-04-20',close:'',exch:'NYSE Arca',notes:'Aggiorna entry/current/SL/TP con i tuoi livelli reali.'},
+  // ── FOREX ──────────────────────────────────────────────────────────────
+  {id:1, asset:'EUR/USD', cat:'Forex',     dir:'Long',  status:'Open',entry:0,current:0,qty:1,lev:30,sl:0,tp:0,comm:0,open:'2025-04-20',close:'',exch:'OTC',notes:''},
+  {id:2, asset:'GBP/USD', cat:'Forex',     dir:'Long',  status:'Open',entry:0,current:0,qty:1,lev:30,sl:0,tp:0,comm:0,open:'2025-04-20',close:'',exch:'OTC',notes:''},
+  {id:3, asset:'USD/JPY', cat:'Forex',     dir:'Long',  status:'Open',entry:0,current:0,qty:1,lev:30,sl:0,tp:0,comm:0,open:'2025-04-20',close:'',exch:'OTC',notes:''},
+  {id:4, asset:'USD/CHF', cat:'Forex',     dir:'Long',  status:'Open',entry:0,current:0,qty:1,lev:30,sl:0,tp:0,comm:0,open:'2025-04-20',close:'',exch:'OTC',notes:''},
+  // ── COMMODITY ──────────────────────────────────────────────────────────
+  {id:5, asset:'Gold',         cat:'Commodity', dir:'Long',  status:'Open',entry:0,current:0,qty:1,lev:20,sl:0,tp:0,comm:0,open:'2025-04-20',close:'',exch:'CFD',notes:''},
+  {id:6, asset:'WTI Crude',    cat:'Commodity', dir:'Long',  status:'Open',entry:0,current:0,qty:1,lev:10,sl:0,tp:0,comm:0,open:'2025-04-20',close:'',exch:'CFD',notes:''},
+  {id:7, asset:'Silver',       cat:'Commodity', dir:'Long',  status:'Open',entry:0,current:0,qty:1,lev:10,sl:0,tp:0,comm:0,open:'2025-04-20',close:'',exch:'CFD',notes:''},
+  {id:8, asset:'Natural Gas',  cat:'Commodity', dir:'Long',  status:'Open',entry:0,current:0,qty:1,lev:10,sl:0,tp:0,comm:0,open:'2025-04-20',close:'',exch:'CFD',notes:''},
+  // ── CRYPTO ─────────────────────────────────────────────────────────────
+  {id:9,  asset:'BTC/USD', cat:'Crypto', dir:'Long',status:'Open',entry:0,current:0,qty:0.1,lev:2,sl:0,tp:0,comm:0,open:'2025-04-20',close:'',exch:'CFD',notes:''},
+  {id:10, asset:'ETH/USD', cat:'Crypto', dir:'Long',status:'Open',entry:0,current:0,qty:1,  lev:2,sl:0,tp:0,comm:0,open:'2025-04-20',close:'',exch:'CFD',notes:''},
+  // ── INDICES ─────────────────────────────────────────────────────────────
+  {id:11, asset:'S&P 500',  cat:'Index', dir:'Long',status:'Open',entry:0,current:0,qty:1,lev:20,sl:0,tp:0,comm:0,open:'2025-04-20',close:'',exch:'CFD',notes:''},
+  {id:12, asset:'NASDAQ',   cat:'Index', dir:'Long',status:'Open',entry:0,current:0,qty:1,lev:20,sl:0,tp:0,comm:0,open:'2025-04-20',close:'',exch:'CFD',notes:''},
+  {id:13, asset:'DAX 40',   cat:'Index', dir:'Long',status:'Open',entry:0,current:0,qty:1,lev:20,sl:0,tp:0,comm:0,open:'2025-04-20',close:'',exch:'CFD',notes:''},
+  {id:14, asset:'FTSE 100', cat:'Index', dir:'Long',status:'Open',entry:0,current:0,qty:1,lev:20,sl:0,tp:0,comm:0,open:'2025-04-20',close:'',exch:'CFD',notes:''},
+  // ── STOCK — Tech ────────────────────────────────────────────────────────
+  {id:15, asset:'AAPL',  cat:'Stock', dir:'Long',status:'Open',entry:0,current:0,qty:1,lev:5,sl:0,tp:0,comm:0,open:'2025-04-20',close:'',exch:'NASDAQ',notes:''},
+  {id:16, asset:'MSFT',  cat:'Stock', dir:'Long',status:'Open',entry:0,current:0,qty:1,lev:5,sl:0,tp:0,comm:0,open:'2025-04-20',close:'',exch:'NASDAQ',notes:''},
+  {id:17, asset:'NVDA',  cat:'Stock', dir:'Long',status:'Open',entry:0,current:0,qty:1,lev:5,sl:0,tp:0,comm:0,open:'2025-04-20',close:'',exch:'NASDAQ',notes:''},
+  {id:18, asset:'AMZN',  cat:'Stock', dir:'Long',status:'Open',entry:0,current:0,qty:1,lev:5,sl:0,tp:0,comm:0,open:'2025-04-20',close:'',exch:'NASDAQ',notes:''},
+  {id:19, asset:'GOOGL', cat:'Stock', dir:'Long',status:'Open',entry:0,current:0,qty:1,lev:5,sl:0,tp:0,comm:0,open:'2025-04-20',close:'',exch:'NASDAQ',notes:''},
+  {id:20, asset:'META',  cat:'Stock', dir:'Long',status:'Open',entry:0,current:0,qty:1,lev:5,sl:0,tp:0,comm:0,open:'2025-04-20',close:'',exch:'NASDAQ',notes:''},
+  {id:21, asset:'TSLA',  cat:'Stock', dir:'Long',status:'Open',entry:0,current:0,qty:1,lev:5,sl:0,tp:0,comm:0,open:'2025-04-20',close:'',exch:'NASDAQ',notes:''},
+  {id:22, asset:'NFLX',  cat:'Stock', dir:'Long',status:'Open',entry:0,current:0,qty:1,lev:5,sl:0,tp:0,comm:0,open:'2025-04-20',close:'',exch:'NASDAQ',notes:''},
+  // ── STOCK — Finance / Other ─────────────────────────────────────────────
+  {id:23, asset:'JPM',  cat:'Stock', dir:'Long',status:'Open',entry:0,current:0,qty:1,lev:5,sl:0,tp:0,comm:0,open:'2025-04-20',close:'',exch:'NYSE',notes:''},
+  {id:24, asset:'GS',   cat:'Stock', dir:'Long',status:'Open',entry:0,current:0,qty:1,lev:5,sl:0,tp:0,comm:0,open:'2025-04-20',close:'',exch:'NYSE',notes:''},
+  {id:25, asset:'BAC',  cat:'Stock', dir:'Long',status:'Open',entry:0,current:0,qty:1,lev:5,sl:0,tp:0,comm:0,open:'2025-04-20',close:'',exch:'NYSE',notes:''},
+  {id:26, asset:'XOM',  cat:'Stock', dir:'Long',status:'Open',entry:0,current:0,qty:1,lev:5,sl:0,tp:0,comm:0,open:'2025-04-20',close:'',exch:'NYSE',notes:''},
+  {id:27, asset:'CVX',  cat:'Stock', dir:'Long',status:'Open',entry:0,current:0,qty:1,lev:5,sl:0,tp:0,comm:0,open:'2025-04-20',close:'',exch:'NYSE',notes:''},
+  {id:28, asset:'WMT',  cat:'Stock', dir:'Long',status:'Open',entry:0,current:0,qty:1,lev:5,sl:0,tp:0,comm:0,open:'2025-04-20',close:'',exch:'NYSE',notes:''},
+  {id:29, asset:'JNJ',  cat:'Stock', dir:'Long',status:'Open',entry:0,current:0,qty:1,lev:5,sl:0,tp:0,comm:0,open:'2025-04-20',close:'',exch:'NYSE',notes:''},
+  {id:30, asset:'V',    cat:'Stock', dir:'Long',status:'Open',entry:0,current:0,qty:1,lev:5,sl:0,tp:0,comm:0,open:'2025-04-20',close:'',exch:'NYSE',notes:''},
 ];
 
-const PORTFOLIO_VERSION = 'v3';
+const PORTFOLIO_VERSION = 'v4';
 if(localStorage.getItem('xf_portfolio_version') !== PORTFOLIO_VERSION){
   localStorage.removeItem('xf_portfolio');
   localStorage.setItem('xf_portfolio_version', PORTFOLIO_VERSION);
 }
 let trades = JSON.parse(localStorage.getItem('xf_portfolio') || 'null') || seedTrades;
-let nextId = Math.max(...trades.map(t=>t.id)) + 1;
+let nextId = trades.length ? Math.max(...trades.map(t=>parseInt(t.id)||0)) + 1 : 1;
 
 let filterCat = 'All';
 let filterStatus = 'All';
@@ -1310,13 +1341,12 @@ function openEdit(id){
   document.getElementById('f_tp').value=t.tp||'';
   document.getElementById('f_open').value=t.open||'';
   document.getElementById('f_close').value=t.close||'';
-  document.getElementById('f_exch').value=t.exch||'';
-  document.getElementById('f_comm').value=t.comm||0;
+  document.getElementById('f_exch').value=t.exch||'CFD';
   document.getElementById('f_notes').value=t.notes||'';
   document.getElementById('addModal').classList.add('show');
 }
 function clearForm(){
-  ['f_asset','f_entry','f_current','f_qty','f_lev','f_sl','f_tp','f_open','f_close','f_exch','f_comm','f_notes'].forEach(id=>{
+  ['f_asset','f_entry','f_current','f_qty','f_lev','f_sl','f_tp','f_open','f_close','f_notes'].forEach(id=>{
     const el=document.getElementById(id);
     if(el)el.value='';
   });
@@ -1339,7 +1369,7 @@ function saveTrade(){
     open:document.getElementById('f_open').value,
     close:document.getElementById('f_close').value,
     exch:document.getElementById('f_exch').value,
-    comm:parseFloat(document.getElementById('f_comm').value)||0,
+    comm:0,
     notes:document.getElementById('f_notes').value,
   };
   if(editId){const i=trades.findIndex(x=>x.id===editId);trades[i]=t;}
