@@ -1,0 +1,1305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trading Portfolio · XenosFinance</title>
+<meta name="description" content="Live trading portfolio — Stocks, ETFs, Forex, Crypto, Commodities. Verified results with Elliott Wave analysis.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=IBM+Plex+Mono:wght@300;400;500&family=PT+Serif:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#0f1724;
+  --bg2:#131e2e;
+  --bg3:#1a2640;
+  --bg4:#1e2d47;
+  --gold:#3b82f6;
+  --gold2:#60a5fa;
+  --text:#c8d8ea;
+  --text2:#8faabf;
+  --text3:#5a7a95;
+  --green:#22c55e;
+  --green2:#16a34a;
+  --red:#ef4444;
+  --red2:#dc2626;
+  --yellow:#eab308;
+  --yellow2:#ca8a04;
+  --border:#1e3050;
+  --border2:#253d5e;
+  --radius:8px;
+  --shadow:0 4px 24px rgba(0,0,0,.4);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:'PT Serif',serif;
+  font-size:15px;
+  line-height:1.6;
+  min-height:100vh;
+}
+
+/* ── HEADER ─────────────────────────────── */
+header{
+  background:var(--bg2);
+  border-bottom:1px solid var(--border);
+  padding:0 24px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  height:56px;
+  position:sticky;
+  top:0;
+  z-index:100;
+}
+.logo{
+  font-family:'Playfair Display',serif;
+  font-size:1.2rem;
+  font-weight:700;
+  color:var(--gold2);
+  letter-spacing:.02em;
+  text-decoration:none;
+}
+.logo span{color:var(--text2);font-weight:400}
+nav{display:flex;gap:4px;align-items:center}
+nav a{
+  color:var(--text2);
+  text-decoration:none;
+  font-family:'IBM Plex Mono',monospace;
+  font-size:.7rem;
+  padding:6px 12px;
+  border-radius:4px;
+  transition:all .2s;
+  letter-spacing:.05em;
+}
+nav a:hover{color:var(--text);background:var(--bg3)}
+nav a.active{color:var(--gold2);background:rgba(59,130,246,.1)}
+.nav-admin{
+  background:rgba(59,130,246,.15);
+  border:1px solid rgba(59,130,246,.3);
+  color:var(--gold2) !important;
+  cursor:pointer;
+  font-family:'IBM Plex Mono',monospace;
+  font-size:.7rem;
+  padding:6px 12px;
+  border-radius:4px;
+  transition:all .2s;
+  letter-spacing:.05em;
+}
+.nav-admin:hover{background:rgba(59,130,246,.25)}
+.admin-badge{
+  background:var(--green);
+  color:#000;
+  font-family:'IBM Plex Mono',monospace;
+  font-size:.6rem;
+  padding:2px 7px;
+  border-radius:3px;
+  font-weight:600;
+  letter-spacing:.06em;
+}
+
+/* ── MAIN ────────────────────────────────── */
+main{max-width:1400px;margin:0 auto;padding:32px 24px 80px}
+
+/* ── PAGE TITLE ─────────────────────────── */
+.page-title{
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  margin-bottom:32px;
+  flex-wrap:wrap;
+  gap:16px;
+}
+.page-title h1{
+  font-family:'Playfair Display',serif;
+  font-size:2rem;
+  font-weight:700;
+  color:var(--text);
+  line-height:1.2;
+}
+.page-title h1 span{color:var(--gold2)}
+.page-title p{
+  color:var(--text2);
+  font-family:'IBM Plex Mono',monospace;
+  font-size:.72rem;
+  margin-top:6px;
+  letter-spacing:.04em;
+}
+.verified-badge{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  background:rgba(34,197,94,.08);
+  border:1px solid rgba(34,197,94,.25);
+  border-radius:6px;
+  padding:10px 16px;
+}
+.verified-badge .dot{
+  width:8px;height:8px;
+  background:var(--green);
+  border-radius:50%;
+  animation:pulse 2s infinite;
+}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.6;transform:scale(.8)}}
+.verified-badge span{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:.7rem;
+  color:var(--green);
+  letter-spacing:.06em;
+}
+
+/* ── KPI CARDS ───────────────────────────── */
+.kpi-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(190px,1fr));
+  gap:16px;
+  margin-bottom:28px;
+}
+.kpi{
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:20px 22px;
+  position:relative;
+  overflow:hidden;
+  transition:border-color .2s;
+}
+.kpi::after{
+  content:'';
+  position:absolute;
+  top:0;left:0;right:0;
+  height:2px;
+  background:linear-gradient(90deg,transparent,var(--gold),transparent);
+  opacity:.4;
+}
+.kpi:hover{border-color:var(--border2)}
+.kpi-label{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:.65rem;
+  color:var(--text3);
+  letter-spacing:.1em;
+  text-transform:uppercase;
+  margin-bottom:8px;
+}
+.kpi-value{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:1.45rem;
+  font-weight:500;
+  color:var(--text);
+  line-height:1;
+}
+.kpi-value.green{color:var(--green)}
+.kpi-value.red{color:var(--red)}
+.kpi-sub{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:.65rem;
+  color:var(--text3);
+  margin-top:6px;
+}
+.kpi-icon{
+  position:absolute;
+  top:18px;right:18px;
+  font-size:1.2rem;
+  opacity:.25;
+}
+
+/* ── CHARTS ROW ──────────────────────────── */
+.charts-row{
+  display:grid;
+  grid-template-columns:2fr 1fr;
+  gap:16px;
+  margin-bottom:28px;
+}
+@media(max-width:900px){.charts-row{grid-template-columns:1fr}}
+.chart-card{
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:22px;
+}
+.chart-card h3{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:.72rem;
+  color:var(--text3);
+  letter-spacing:.1em;
+  text-transform:uppercase;
+  margin-bottom:18px;
+}
+.chart-wrap{position:relative;height:220px}
+
+/* ── FILTERS ─────────────────────────────── */
+.filter-bar{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  margin-bottom:20px;
+  flex-wrap:wrap;
+}
+.filter-group{display:flex;gap:6px;flex-wrap:wrap}
+.filter-btn{
+  background:var(--bg2);
+  border:1px solid var(--border);
+  color:var(--text2);
+  font-family:'IBM Plex Mono',monospace;
+  font-size:.68rem;
+  padding:6px 14px;
+  border-radius:4px;
+  cursor:pointer;
+  transition:all .15s;
+  letter-spacing:.04em;
+}
+.filter-btn:hover{border-color:var(--border2);color:var(--text)}
+.filter-btn.active{
+  background:rgba(59,130,246,.15);
+  border-color:rgba(59,130,246,.4);
+  color:var(--gold2);
+}
+.filter-sep{width:1px;height:28px;background:var(--border);margin:0 4px}
+select.filter-select{
+  background:var(--bg2);
+  border:1px solid var(--border);
+  color:var(--text2);
+  font-family:'IBM Plex Mono',monospace;
+  font-size:.68rem;
+  padding:6px 12px;
+  border-radius:4px;
+  cursor:pointer;
+  outline:none;
+}
+.filter-right{margin-left:auto;display:flex;gap:8px}
+.btn{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:.68rem;
+  padding:7px 14px;
+  border-radius:4px;
+  cursor:pointer;
+  border:none;
+  transition:all .15s;
+  letter-spacing:.04em;
+}
+.btn-outline{
+  background:transparent;
+  border:1px solid var(--border2);
+  color:var(--text2);
+}
+.btn-outline:hover{color:var(--text);border-color:var(--gold2)}
+.btn-primary{
+  background:var(--gold);
+  color:#fff;
+}
+.btn-primary:hover{background:var(--gold2)}
+.btn-green{background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.3);color:var(--green)}
+.btn-green:hover{background:rgba(34,197,94,.25)}
+
+/* ── TABLE ───────────────────────────────── */
+.table-wrap{
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  overflow:hidden;
+}
+.table-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:16px 20px;
+  border-bottom:1px solid var(--border);
+}
+.table-header h3{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:.72rem;
+  color:var(--text3);
+  letter-spacing:.1em;
+  text-transform:uppercase;
+}
+.table-header .count{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:.65rem;
+  color:var(--text3);
+  background:var(--bg3);
+  padding:3px 8px;
+  border-radius:3px;
+}
+table{width:100%;border-collapse:collapse}
+thead tr{border-bottom:1px solid var(--border)}
+th{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:.62rem;
+  color:var(--text3);
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  padding:10px 14px;
+  text-align:left;
+  cursor:pointer;
+  user-select:none;
+  white-space:nowrap;
+}
+th:hover{color:var(--text2)}
+th.sorted{color:var(--gold2)}
+td{
+  padding:12px 14px;
+  border-bottom:1px solid rgba(30,48,80,.5);
+  font-family:'IBM Plex Mono',monospace;
+  font-size:.72rem;
+  vertical-align:middle;
+  white-space:nowrap;
+}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,.02)}
+.asset-name{
+  font-weight:500;
+  color:var(--text);
+  font-size:.78rem;
+}
+.asset-cat{
+  font-size:.58rem;
+  color:var(--text3);
+  margin-top:2px;
+  letter-spacing:.05em;
+}
+.badge{
+  display:inline-block;
+  padding:3px 8px;
+  border-radius:3px;
+  font-size:.6rem;
+  font-weight:600;
+  letter-spacing:.07em;
+  text-transform:uppercase;
+}
+.badge-open{background:rgba(59,130,246,.15);color:var(--gold2);border:1px solid rgba(59,130,246,.25)}
+.badge-hold{background:rgba(234,179,8,.12);color:var(--yellow);border:1px solid rgba(234,179,8,.25)}
+.badge-closed{background:rgba(34,197,94,.1);color:var(--green);border:1px solid rgba(34,197,94,.2)}
+.badge-liq{background:rgba(239,68,68,.1);color:var(--red);border:1px solid rgba(239,68,68,.2)}
+.dir{
+  font-size:.6rem;
+  font-weight:700;
+  letter-spacing:.08em;
+}
+.dir.long{color:var(--green)}
+.dir.short{color:var(--red)}
+.pnl{font-weight:500}
+.pnl.pos{color:var(--green)}
+.pnl.neg{color:var(--red)}
+.pnl.neu{color:var(--text2)}
+.actions-cell{display:flex;gap:6px}
+.icon-btn{
+  background:transparent;
+  border:1px solid var(--border);
+  color:var(--text3);
+  width:28px;height:28px;
+  border-radius:4px;
+  cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  font-size:.75rem;
+  transition:all .15s;
+}
+.icon-btn:hover{border-color:var(--gold2);color:var(--gold2)}
+.icon-btn.danger:hover{border-color:var(--red);color:var(--red)}
+
+/* ── MODAL ───────────────────────────────── */
+.overlay{
+  display:none;
+  position:fixed;inset:0;
+  background:rgba(0,0,0,.6);
+  backdrop-filter:blur(4px);
+  z-index:200;
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+}
+.overlay.show{display:flex}
+.modal{
+  background:var(--bg2);
+  border:1px solid var(--border2);
+  border-radius:10px;
+  padding:28px;
+  width:100%;
+  max-width:600px;
+  max-height:90vh;
+  overflow-y:auto;
+  box-shadow:var(--shadow);
+}
+.modal h2{
+  font-family:'Playfair Display',serif;
+  font-size:1.3rem;
+  margin-bottom:22px;
+  color:var(--text);
+}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.form-group{display:flex;flex-direction:column;gap:5px}
+.form-group.full{grid-column:1/-1}
+label{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:.62rem;
+  color:var(--text3);
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+input,select,textarea{
+  background:var(--bg3);
+  border:1px solid var(--border);
+  color:var(--text);
+  font-family:'IBM Plex Mono',monospace;
+  font-size:.75rem;
+  padding:9px 12px;
+  border-radius:5px;
+  outline:none;
+  transition:border-color .15s;
+  width:100%;
+}
+input:focus,select:focus,textarea:focus{border-color:var(--gold)}
+textarea{resize:vertical;min-height:80px}
+.modal-actions{
+  display:flex;justify-content:flex-end;
+  gap:10px;margin-top:22px;
+}
+
+/* ── TRADE DETAIL PANEL ──────────────────── */
+.detail-panel{
+  background:var(--bg3);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:22px;
+  margin-top:16px;
+  display:none;
+}
+.detail-panel.show{display:block}
+.detail-panel h4{
+  font-family:'Playfair Display',serif;
+  font-size:1rem;
+  margin-bottom:16px;
+  color:var(--text);
+}
+.detail-row{
+  display:flex;justify-content:space-between;
+  padding:8px 0;
+  border-bottom:1px solid rgba(30,48,80,.5);
+  font-family:'IBM Plex Mono',monospace;
+  font-size:.72rem;
+}
+.detail-row:last-child{border-bottom:none}
+.detail-key{color:var(--text3)}
+.detail-val{color:var(--text);font-weight:500}
+.analysis-text{
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-radius:5px;
+  padding:14px;
+  margin-top:14px;
+  font-size:.78rem;
+  color:var(--text2);
+  line-height:1.7;
+  white-space:pre-wrap;
+}
+
+/* ── PREMIUM LOCK ────────────────────────── */
+.premium-lock{
+  text-align:center;
+  padding:48px 24px;
+  color:var(--text2);
+}
+.premium-lock .lock-icon{
+  font-size:2.5rem;
+  margin-bottom:16px;
+  opacity:.4;
+}
+.premium-lock p{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:.75rem;
+  color:var(--text3);
+  margin-top:8px;
+}
+.btn-premium{
+  display:inline-block;
+  margin-top:20px;
+  background:linear-gradient(135deg,#d97706,#f59e0b);
+  color:#000;
+  font-family:'IBM Plex Mono',monospace;
+  font-size:.72rem;
+  font-weight:700;
+  padding:10px 24px;
+  border-radius:5px;
+  text-decoration:none;
+  letter-spacing:.06em;
+  cursor:pointer;
+  border:none;
+}
+
+/* ── TOAST ───────────────────────────────── */
+.toast{
+  position:fixed;
+  bottom:24px;right:24px;
+  background:var(--bg3);
+  border:1px solid var(--border2);
+  border-radius:6px;
+  padding:12px 18px;
+  font-family:'IBM Plex Mono',monospace;
+  font-size:.72rem;
+  color:var(--text);
+  z-index:999;
+  transform:translateY(80px);
+  opacity:0;
+  transition:all .3s cubic-bezier(.34,1.56,.64,1);
+  max-width:320px;
+}
+.toast.show{transform:translateY(0);opacity:1}
+.toast.green{border-left:3px solid var(--green)}
+.toast.red{border-left:3px solid var(--red)}
+
+/* ── EMPTY STATE ─────────────────────────── */
+.empty-state{
+  text-align:center;
+  padding:60px 20px;
+  color:var(--text3);
+  font-family:'IBM Plex Mono',monospace;
+  font-size:.75rem;
+  letter-spacing:.04em;
+}
+
+/* ── LOGIN ───────────────────────────────── */
+.login-form{
+  display:flex;
+  gap:8px;
+  align-items:center;
+}
+.login-form input{
+  width:200px;
+  padding:7px 12px;
+  font-size:.7rem;
+}
+
+/* ── RESPONSIVE ──────────────────────────── */
+@media(max-width:768px){
+  .form-grid{grid-template-columns:1fr}
+  .filter-bar{flex-direction:column;align-items:flex-start}
+  .filter-right{margin-left:0}
+  .page-title{flex-direction:column;align-items:flex-start}
+  nav{display:none}
+  td,th{padding:8px 10px}
+  main{padding:20px 14px 60px}
+  .kpi-grid{grid-template-columns:repeat(2,1fr)}
+}
+
+/* ── SCROLLBAR ───────────────────────────── */
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--text3)}
+
+/* overflow table */
+.table-scroll{overflow-x:auto}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <a href="index.html" class="logo">◈ Xenos<span>Finance</span></a>
+  <nav>
+    <a href="dashboard.html">📊 Dashboard</a>
+    <a href="trading-signals.html">📡 Signals</a>
+    <a href="elliottwave.html">〜 Elliott Wave</a>
+    <a href="portfolio.html" class="active">⬡ Portfolio</a>
+    <a href="calendar.html">🗓 Calendar</a>
+  </nav>
+  <div style="display:flex;align-items:center;gap:10px">
+    <span id="adminBadge" class="admin-badge" style="display:none">ADMIN</span>
+    <button class="nav-admin" id="adminToggle" onclick="toggleAdminLogin()">Admin</button>
+  </div>
+</header>
+
+<!-- ADMIN LOGIN OVERLAY -->
+<div class="overlay" id="loginOverlay">
+  <div class="modal" style="max-width:380px">
+    <h2>Admin Access</h2>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="adminPwd" placeholder="Enter password..." onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('loginOverlay')">Cancel</button>
+      <button class="btn btn-primary" onclick="doLogin()">Login</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD TRADE MODAL -->
+<div class="overlay" id="addModal">
+  <div class="modal">
+    <h2 id="modalTitle">Add Trade</h2>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Asset Name</label>
+        <input type="text" id="f_asset" placeholder="e.g. EUR/USD, BTC, AAPL">
+      </div>
+      <div class="form-group">
+        <label>Category</label>
+        <select id="f_cat">
+          <option>Stock</option><option>ETF</option><option>Forex</option>
+          <option>Crypto</option><option>Index</option><option>Commodity</option><option>Options</option><option>CFD</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Direction</label>
+        <select id="f_dir">
+          <option value="Long">Long</option>
+          <option value="Short">Short</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Status</label>
+        <select id="f_status">
+          <option value="Open">Open</option>
+          <option value="Hold">Hold</option>
+          <option value="Closed">Closed</option>
+          <option value="Liquidated">Liquidated</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Entry Price</label>
+        <input type="number" id="f_entry" step="any" placeholder="0.00">
+      </div>
+      <div class="form-group">
+        <label>Current / Exit Price</label>
+        <input type="number" id="f_current" step="any" placeholder="0.00">
+      </div>
+      <div class="form-group">
+        <label>Quantity / Lots</label>
+        <input type="number" id="f_qty" step="any" placeholder="1">
+      </div>
+      <div class="form-group">
+        <label>Leverage (x)</label>
+        <input type="number" id="f_lev" placeholder="1">
+      </div>
+      <div class="form-group">
+        <label>Stop Loss</label>
+        <input type="number" id="f_sl" step="any" placeholder="optional">
+      </div>
+      <div class="form-group">
+        <label>Take Profit</label>
+        <input type="number" id="f_tp" step="any" placeholder="optional">
+      </div>
+      <div class="form-group">
+        <label>Open Date</label>
+        <input type="date" id="f_open">
+      </div>
+      <div class="form-group">
+        <label>Close Date</label>
+        <input type="date" id="f_close">
+      </div>
+      <div class="form-group">
+        <label>Exchange / Market</label>
+        <input type="text" id="f_exch" placeholder="e.g. FX / Binance / NYSE">
+      </div>
+      <div class="form-group">
+        <label>Commission ($)</label>
+        <input type="number" id="f_comm" step="any" placeholder="0">
+      </div>
+      <div class="form-group full">
+        <label>Analysis / Notes (supports markdown)</label>
+        <textarea id="f_notes" placeholder="Elliott Wave count, ICT setup, macro thesis..."></textarea>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('addModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveTrade()">Save Trade</button>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<main>
+
+  <!-- PAGE TITLE -->
+  <div class="page-title">
+    <div>
+      <h1>Trading <span>Portfolio</span></h1>
+      <p>STOCKS · ETF · FOREX · CRYPTO · COMMODITIES · VERIFIED RESULTS</p>
+    </div>
+    <div class="verified-badge">
+      <div class="dot"></div>
+      <span>VERIFIED LIVE PORTFOLIO</span>
+    </div>
+  </div>
+
+  <!-- KPI CARDS -->
+  <div class="kpi-grid" id="kpiGrid">
+    <!-- filled by JS -->
+  </div>
+
+  <!-- CHARTS -->
+  <div class="charts-row">
+    <div class="chart-card">
+      <h3>Equity Curve</h3>
+      <div class="chart-wrap"><canvas id="equityChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>Portfolio Allocation</h3>
+      <div class="chart-wrap"><canvas id="pieChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- FILTER BAR -->
+  <div class="filter-bar">
+    <div class="filter-group" id="catFilters">
+      <button class="filter-btn active" data-cat="All" onclick="setFilter(this,'cat')">All</button>
+      <button class="filter-btn" data-cat="Forex" onclick="setFilter(this,'cat')">Forex</button>
+      <button class="filter-btn" data-cat="Crypto" onclick="setFilter(this,'cat')">Crypto</button>
+      <button class="filter-btn" data-cat="Stock" onclick="setFilter(this,'cat')">Stock</button>
+      <button class="filter-btn" data-cat="ETF" onclick="setFilter(this,'cat')">ETF</button>
+      <button class="filter-btn" data-cat="Index" onclick="setFilter(this,'cat')">Index</button>
+      <button class="filter-btn" data-cat="Commodity" onclick="setFilter(this,'cat')">Commodity</button>
+      <button class="filter-btn" data-cat="CFD" onclick="setFilter(this,'cat')">CFD</button>
+    </div>
+    <div class="filter-sep"></div>
+    <div class="filter-group" id="statusFilters">
+      <button class="filter-btn active" data-status="All" onclick="setFilter(this,'status')">All Status</button>
+      <button class="filter-btn" data-status="Open" onclick="setFilter(this,'status')">Open</button>
+      <button class="filter-btn" data-status="Hold" onclick="setFilter(this,'status')">Hold</button>
+      <button class="filter-btn" data-status="Closed" onclick="setFilter(this,'status')">Closed</button>
+      <button class="filter-btn" data-status="Liquidated" onclick="setFilter(this,'status')">Liquidated</button>
+    </div>
+    <div class="filter-right">
+      <button class="btn btn-outline" onclick="exportCSV()">⬇ CSV</button>
+      <button class="btn btn-outline" id="addBtn" onclick="openAddModal()" style="display:none">+ Add Trade</button>
+    </div>
+  </div>
+
+  <!-- TABLE -->
+  <div class="table-wrap">
+    <div class="table-header">
+      <h3>Positions</h3>
+      <span class="count" id="tradeCount">0 trades</span>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th onclick="sortBy('asset')">Asset ▾</th>
+            <th onclick="sortBy('cat')">Category</th>
+            <th onclick="sortBy('dir')">Dir</th>
+            <th onclick="sortBy('status')">Status</th>
+            <th onclick="sortBy('entry')">Entry</th>
+            <th onclick="sortBy('current')">Current</th>
+            <th onclick="sortBy('pnl')">P&L ($)</th>
+            <th onclick="sortBy('pnlpct')">P&L %</th>
+            <th onclick="sortBy('open')">Opened</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="tradeBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- DETAIL PANEL (hidden by default) -->
+  <div class="detail-panel" id="detailPanel"></div>
+
+  <!-- PREMIUM SECTION -->
+  <div style="margin-top:28px">
+    <div class="chart-card">
+      <h3>Advanced Analytics <span style="color:var(--yellow);font-size:.6rem;margin-left:8px">PREMIUM</span></h3>
+      <div id="premiumSection"></div>
+    </div>
+  </div>
+
+</main>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ───────────────────────────────────────────────
+// DATA
+// ───────────────────────────────────────────────
+const ADMIN_PWD = 'RMG@Manu78';
+const PREMIUM_CODES = ['XENOS-PREMIUM-2026','XF-PRO-001','XF-PRO-002','XF-PRO-003'];
+
+let isAdmin = sessionStorage.getItem('xf_admin') === 'true';
+let isPremium = sessionStorage.getItem('xf_premium') === 'true' || isAdmin;
+
+// Seed mock trades
+const seedTrades = [
+  // ── STOCK ──────────────────────────────────────────────────────────────
+  {id:1,asset:'AAPL',cat:'Stock',dir:'Long',status:'Closed',entry:178.50,current:194.20,qty:20,lev:1,sl:170.00,tp:200.00,comm:2,open:'2025-01-10',close:'2025-02-18',exch:'NASDAQ',notes:'EW Wave 3 extension post-earnings. Apple AI integration thesis. FVG fill on daily. Target hit at 194.'},
+  {id:2,asset:'NVDA',cat:'Stock',dir:'Long',status:'Open',entry:820.00,current:1080.00,qty:5,lev:1,sl:770.00,tp:1200.00,comm:3,open:'2025-02-05',close:'',exch:'NASDAQ',notes:'AI/datacenter supercycle. EW impulse Wave 5 projecting 1150-1250. Holding through earnings. Strong SMC structure.'},
+  {id:3,asset:'MSFT',cat:'Stock',dir:'Long',status:'Hold',entry:415.00,current:390.00,qty:10,lev:1,sl:395.00,tp:470.00,comm:2,open:'2025-03-12',close:'',exch:'NASDAQ',notes:'Azure cloud + Copilot AI monetization. EW correction Wave 4 still in play. Waiting for Wave 5 confirmation above 420.'},
+  {id:4,asset:'META',cat:'Stock',dir:'Long',status:'Closed',entry:480.00,current:552.00,qty:8,lev:1,sl:455.00,tp:550.00,comm:2,open:'2025-01-22',close:'2025-03-05',exch:'NASDAQ',notes:'Ad revenue recovery + Llama AI ecosystem. TP reached. Clean EW 5-wave impulse on weekly.'},
+  {id:5,asset:'XOM',cat:'Stock',dir:'Long',status:'Closed',entry:108.40,current:118.90,qty:30,lev:1,sl:103.00,tp:120.00,comm:3,open:'2025-02-01',close:'2025-04-10',exch:'NYSE',notes:'Energy macro tailwind. OPEC+ discipline. Dividend yield attractive. EW Wave 3 on monthly.'},
+  {id:6,asset:'TSLA',cat:'Stock',dir:'Short',status:'Closed',entry:248.00,current:186.00,qty:15,lev:1,sl:265.00,tp:185.00,comm:4,open:'2025-04-02',close:'2025-05-15',exch:'NASDAQ',notes:'Demand destruction + margin compression. EW ABC correction from ATH. Sentiment shift negative. TP near reached.'},
+  {id:7,asset:'JPM',cat:'Stock',dir:'Long',status:'Open',entry:195.00,current:218.00,qty:12,lev:1,sl:185.00,tp:230.00,comm:2,open:'2025-05-01',close:'',exch:'NYSE',notes:'Financials rotation. Higher-for-longer rates benefit NIM. EW impulsive structure. Strong Q1 earnings.'},
+  {id:8,asset:'AMZN',cat:'Stock',dir:'Long',status:'Hold',entry:188.00,current:182.00,qty:10,lev:1,sl:178.00,tp:220.00,comm:2,open:'2025-06-10',close:'',exch:'NASDAQ',notes:'AWS reacceleration. EW Wave 4 pullback — buying opportunity. Watching for break above 192 to confirm Wave 5.'},
+  // ── ETF ────────────────────────────────────────────────────────────────
+  {id:9,asset:'SPY',cat:'ETF',dir:'Long',status:'Closed',entry:524.00,current:498.00,qty:5,lev:1,sl:510.00,tp:560.00,comm:1,open:'2025-03-01',close:'2025-04-20',exch:'NYSE Arca',notes:'Broad market exposure. Stop hit on Fed disappointment. EW warning of extended Wave 5 exhaustion. Loss accepted, lesson: macro risk event sizing.'},
+  {id:10,asset:'QQQ',cat:'ETF',dir:'Long',status:'Open',entry:438.00,current:472.00,qty:8,lev:1,sl:420.00,tp:500.00,comm:1,open:'2025-04-25',close:'',exch:'NASDAQ',notes:'Tech recovery play. EW impulse from April low. Mag7 re-rating. Strong breadth. Targeting prior ATH zone 500-510.'},
+  {id:11,asset:'GLD',cat:'ETF',dir:'Long',status:'Open',entry:218.00,current:296.00,qty:15,lev:1,sl:210.00,tp:310.00,comm:1,open:'2025-01-20',close:'',exch:'NYSE Arca',notes:'Gold ETF tracking XAU. Safe haven + de-dollarization macro thesis. EW Wave III monthly. Central bank buying accelerating.'},
+  {id:12,asset:'XLE',cat:'ETF',dir:'Long',status:'Closed',entry:87.40,current:94.20,qty:20,lev:1,sl:83.00,tp:95.00,comm:1,open:'2025-02-10',close:'2025-04-01',exch:'NYSE Arca',notes:'Energy sector ETF. OPEC+ compliance trade. Dividend yield 3.8%. TP hit cleanly. EW 5-wave impulse on daily.'},
+  {id:13,asset:'VNQ',cat:'ETF',dir:'Long',status:'Hold',entry:88.50,current:84.20,qty:25,lev:1,sl:83.00,tp:98.00,comm:1,open:'2025-05-20',close:'',exch:'NYSE Arca',notes:'REIT ETF. Rate cut anticipation trade. Still in correction. Holding above SL. EW Wave B — expecting Wave C recovery if Fed pivots.'},
+  {id:14,asset:'EEM',cat:'ETF',dir:'Long',status:'Open',entry:42.80,current:46.10,qty:40,lev:1,sl:40.50,tp:50.00,comm:1,open:'2025-06-01',close:'',exch:'NYSE Arca',notes:'Emerging markets ETF. Dollar weakness + China stimulus. EW structure improving. Risk-on macro environment.'},
+  {id:15,asset:'TLT',cat:'ETF',dir:'Long',status:'Hold',entry:92.00,current:96.40,qty:30,lev:1,sl:88.00,tp:105.00,comm:1,open:'2025-07-01',close:'',exch:'NASDAQ',notes:'20Y Treasury ETF. Rates peak thesis. If Fed cuts in H2, bonds rally. EW corrective structure bottomed. Duration risk managed.'},
+  // ── FOREX ──────────────────────────────────────────────────────────────
+  {id:16,asset:'EUR/USD',cat:'Forex',dir:'Short',status:'Closed',entry:1.0921,current:1.0745,qty:2,lev:30,sl:1.1010,tp:1.0700,comm:4,open:'2025-02-10',close:'2025-03-01',exch:'FX',notes:'DXY breakout. EW corrective wave B top. SMC breaker block reject H4.'},
+  {id:17,asset:'USD/JPY',cat:'Forex',dir:'Short',status:'Open',entry:158.20,current:142.40,qty:1,lev:25,sl:160.00,tp:148.00,comm:3,open:'2025-08-05',close:'',exch:'FX',notes:'BOJ rate hike cycle beginning. EW impulsive decline. Major trend reversal confirmed.'},
+  // ── CRYPTO ─────────────────────────────────────────────────────────────
+  {id:18,asset:'BTC/USD',cat:'Crypto',dir:'Long',status:'Open',entry:58200,current:88500,qty:0.15,lev:1,sl:52000,tp:95000,comm:12,open:'2025-03-20',close:'',exch:'Binance',notes:'Major accumulation zone. EW Wave 5 target 90-100k. Institutional ETF inflows.'},
+  // ── COMMODITY ──────────────────────────────────────────────────────────
+  {id:19,asset:'Gold',cat:'Commodity',dir:'Long',status:'Open',entry:2180,current:3320,qty:1,lev:10,sl:2100,tp:3500,comm:6,open:'2025-01-15',close:'',exch:'COMEX',notes:'Safe haven demand. EW Wave III monthly. Central bank accumulation. Dollar weakness structural.'},
+  {id:20,asset:'WTI Crude',cat:'Commodity',dir:'Long',status:'Closed',entry:72.40,current:79.85,qty:10,lev:5,sl:70.00,tp:80.00,comm:8,open:'2025-01-15',close:'2025-02-03',exch:'NYMEX',notes:'EW impulse Wave 3 daily. OPEC+ cuts. ICT FVG fill on entry. Target reached.'},
+];
+
+let trades = JSON.parse(localStorage.getItem('xf_portfolio') || 'null') || seedTrades;
+let nextId = Math.max(...trades.map(t=>t.id)) + 1;
+
+let filterCat = 'All';
+let filterStatus = 'All';
+let sortField = 'open';
+let sortDir = -1;
+let editId = null;
+
+// ───────────────────────────────────────────────
+// CALCULATIONS
+// ───────────────────────────────────────────────
+function calcPnL(t){
+  const diff = t.dir === 'Long' ? t.current - t.entry : t.entry - t.current;
+  const gross = diff * t.qty * (t.lev||1);
+  return +(gross - (t.comm||0)).toFixed(2);
+}
+function calcPnLPct(t){
+  const diff = t.dir === 'Long' ? t.current - t.entry : t.entry - t.current;
+  return +((diff / t.entry) * 100 * (t.lev||1)).toFixed(2);
+}
+function fmtN(n,dec=2){return n>=0?'+'+n.toFixed(dec):n.toFixed(dec)}
+function fmtD(s){if(!s)return '—';const d=new Date(s);return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'2-digit'})}
+function fmtP(n){return n>=0?'$'+n.toFixed(2):'−$'+Math.abs(n).toFixed(2)}
+
+// ───────────────────────────────────────────────
+// SAVE
+// ───────────────────────────────────────────────
+function save(){localStorage.setItem('xf_portfolio',JSON.stringify(trades))}
+
+// ───────────────────────────────────────────────
+// ADMIN
+// ───────────────────────────────────────────────
+function toggleAdminLogin(){
+  if(isAdmin){logout();return}
+  document.getElementById('loginOverlay').classList.add('show');
+  setTimeout(()=>document.getElementById('adminPwd').focus(),100);
+}
+function doLogin(){
+  const pwd = document.getElementById('adminPwd').value;
+  if(pwd === ADMIN_PWD){
+    isAdmin=true; isPremium=true;
+    sessionStorage.setItem('xf_admin','true');
+    sessionStorage.setItem('xf_premium','true');
+    closeModal('loginOverlay');
+    document.getElementById('adminPwd').value='';
+    applyAdminUI();
+    toast('Admin access granted','green');
+  } else {
+    toast('Wrong password','red');
+  }
+}
+function logout(){
+  isAdmin=false;
+  sessionStorage.removeItem('xf_admin');
+  applyAdminUI();
+  toast('Logged out');
+}
+function applyAdminUI(){
+  document.getElementById('adminBadge').style.display = isAdmin?'':'none';
+  document.getElementById('adminToggle').textContent = isAdmin?'Logout':'Admin';
+  document.getElementById('addBtn').style.display = isAdmin?'':'none';
+  render();
+}
+
+// ───────────────────────────────────────────────
+// FILTERS / SORT
+// ───────────────────────────────────────────────
+function setFilter(btn,type){
+  document.querySelectorAll(`#${type==='cat'?'catFilters':'statusFilters'} .filter-btn`).forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  if(type==='cat') filterCat = btn.dataset.cat;
+  else filterStatus = btn.dataset.status;
+  render();
+}
+function sortBy(field){
+  if(sortField===field) sortDir*=-1;
+  else{sortField=field;sortDir=-1;}
+  document.querySelectorAll('th').forEach(t=>t.classList.remove('sorted'));
+  event.target.classList.add('sorted');
+  render();
+}
+function filtered(){
+  return trades.filter(t=>{
+    if(filterCat!=='All' && t.cat!==filterCat) return false;
+    if(filterStatus!=='All' && t.status!==filterStatus) return false;
+    return true;
+  }).sort((a,b)=>{
+    let va,vb;
+    switch(sortField){
+      case 'asset':va=a.asset;vb=b.asset;break;
+      case 'cat':va=a.cat;vb=b.cat;break;
+      case 'dir':va=a.dir;vb=b.dir;break;
+      case 'status':va=a.status;vb=b.status;break;
+      case 'entry':va=a.entry;vb=b.entry;break;
+      case 'current':va=a.current;vb=b.current;break;
+      case 'pnl':va=calcPnL(a);vb=calcPnL(b);break;
+      case 'pnlpct':va=calcPnLPct(a);vb=calcPnLPct(b);break;
+      case 'open':va=a.open;vb=b.open;break;
+      default:va=0;vb=0;
+    }
+    if(va<vb)return -sortDir;
+    if(va>vb)return sortDir;
+    return 0;
+  });
+}
+
+// ───────────────────────────────────────────────
+// KPI
+// ───────────────────────────────────────────────
+function renderKPI(){
+  const all = trades;
+  const totalPnL = all.reduce((s,t)=>s+calcPnL(t),0);
+  const closed = all.filter(t=>t.status==='Closed');
+  const open = all.filter(t=>t.status==='Open'||t.status==='Hold');
+  const winners = closed.filter(t=>calcPnL(t)>0);
+  const winRate = closed.length ? (winners.length/closed.length*100).toFixed(0) : 'N/A';
+  const pnls = all.map(calcPnL);
+  const best = pnls.length?Math.max(...pnls):0;
+  const worst = pnls.length?Math.min(...pnls):0;
+  const bestT = all.find(t=>calcPnL(t)===best);
+  const worstT = all.find(t=>calcPnL(t)===worst);
+
+  document.getElementById('kpiGrid').innerHTML = `
+    <div class="kpi"><div class="kpi-icon">💼</div><div class="kpi-label">Total Trades</div><div class="kpi-value">${all.length}</div><div class="kpi-sub">${open.length} open · ${closed.length} closed</div></div>
+    <div class="kpi"><div class="kpi-icon">${totalPnL>=0?'📈':'📉'}</div><div class="kpi-label">Total P&L</div><div class="kpi-value ${totalPnL>=0?'green':'red'}">${fmtP(totalPnL)}</div><div class="kpi-sub">All positions combined</div></div>
+    <div class="kpi"><div class="kpi-icon">🎯</div><div class="kpi-label">Win Rate</div><div class="kpi-value ${parseFloat(winRate)>=50?'green':'red'}">${winRate}%</div><div class="kpi-sub">${winners.length} / ${closed.length} closed trades</div></div>
+    <div class="kpi"><div class="kpi-icon">🏆</div><div class="kpi-label">Best Trade</div><div class="kpi-value green">+$${best.toFixed(2)}</div><div class="kpi-sub">${bestT?bestT.asset:'—'}</div></div>
+    <div class="kpi"><div class="kpi-icon">⚠️</div><div class="kpi-label">Worst Trade</div><div class="kpi-value red">−$${Math.abs(worst).toFixed(2)}</div><div class="kpi-sub">${worstT?worstT.asset:'—'}</div></div>
+    <div class="kpi"><div class="kpi-icon">📊</div><div class="kpi-label">Avg P&L</div><div class="kpi-value ${totalPnL>=0?'green':'red'}">${all.length?fmtP(totalPnL/all.length):'$0.00'}</div><div class="kpi-sub">Per trade</div></div>
+  `;
+}
+
+// ───────────────────────────────────────────────
+// CHARTS
+// ───────────────────────────────────────────────
+let equityChartInst=null, pieChartInst=null;
+
+function renderCharts(){
+  // Equity curve
+  const sorted = [...trades].filter(t=>t.open).sort((a,b)=>a.open>b.open?1:-1);
+  let running=0;
+  const eqLabels=[],eqData=[];
+  sorted.forEach(t=>{running+=calcPnL(t);eqLabels.push(fmtD(t.open));eqData.push(+running.toFixed(2))});
+
+  const eqColor = running>=0 ? '#22c55e' : '#ef4444';
+  const ctx1=document.getElementById('equityChart').getContext('2d');
+  if(equityChartInst)equityChartInst.destroy();
+  equityChartInst=new Chart(ctx1,{
+    type:'line',
+    data:{labels:eqLabels,datasets:[{
+      label:'Equity',data:eqData,
+      borderColor:eqColor,
+      backgroundColor:`${eqColor}18`,
+      fill:true,
+      tension:.4,
+      pointRadius:3,
+      pointBackgroundColor:eqColor,
+      borderWidth:2
+    }]},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{
+        backgroundColor:'#1a2640',
+        titleColor:'#8faabf',
+        bodyColor:'#c8d8ea',
+        borderColor:'#1e3050',
+        borderWidth:1,
+        callbacks:{label:ctx=>`$${ctx.parsed.y>=0?'+':''}${ctx.parsed.y.toFixed(2)}`}
+      }},
+      scales:{
+        x:{grid:{color:'rgba(30,48,80,.5)'},ticks:{color:'#5a7a95',font:{family:'IBM Plex Mono',size:10}}},
+        y:{grid:{color:'rgba(30,48,80,.5)'},ticks:{color:'#5a7a95',font:{family:'IBM Plex Mono',size:10},callback:v=>'$'+v}}
+      }
+    }
+  });
+
+  // Pie — allocation by category
+  const catMap={};
+  trades.forEach(t=>{catMap[t.cat]=(catMap[t.cat]||0)+1});
+  const pieColors=['#3b82f6','#22c55e','#eab308','#ef4444','#a855f7','#f97316','#06b6d4'];
+  const ctx2=document.getElementById('pieChart').getContext('2d');
+  if(pieChartInst)pieChartInst.destroy();
+  pieChartInst=new Chart(ctx2,{
+    type:'doughnut',
+    data:{
+      labels:Object.keys(catMap),
+      datasets:[{data:Object.values(catMap),backgroundColor:pieColors.slice(0,Object.keys(catMap).length),borderColor:'#0f1724',borderWidth:3}]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{
+        legend:{labels:{color:'#8faabf',font:{family:'IBM Plex Mono',size:10},boxWidth:10,padding:10}},
+        tooltip:{backgroundColor:'#1a2640',borderColor:'#1e3050',borderWidth:1,bodyColor:'#c8d8ea',titleColor:'#8faabf'}
+      },
+      cutout:'65%'
+    }
+  });
+}
+
+// ───────────────────────────────────────────────
+// TABLE
+// ───────────────────────────────────────────────
+function statusBadge(s){
+  const m={Open:'badge-open',Hold:'badge-hold',Closed:'badge-closed',Liquidated:'badge-liq'};
+  return `<span class="badge ${m[s]||'badge-open'}">${s}</span>`;
+}
+function renderTable(){
+  const rows = filtered();
+  document.getElementById('tradeCount').textContent = `${rows.length} trade${rows.length!==1?'s':''}`;
+  const tbody = document.getElementById('tradeBody');
+  if(!rows.length){tbody.innerHTML=`<tr><td colspan="10"><div class="empty-state">No trades match current filters</div></td></tr>`;return}
+  tbody.innerHTML = rows.map(t=>{
+    const pnl=calcPnL(t), pct=calcPnLPct(t);
+    const cls=pnl>0?'pos':pnl<0?'neg':'neu';
+    return `<tr>
+      <td>
+        <div class="asset-name">${t.asset}</div>
+        <div class="asset-cat">${t.exch||''}</div>
+      </td>
+      <td><span style="color:var(--text2);font-size:.68rem">${t.cat}</span></td>
+      <td><span class="dir ${t.dir.toLowerCase()}">${t.dir.toUpperCase()}</span></td>
+      <td>${statusBadge(t.status)}</td>
+      <td>${typeof t.entry==='number'?t.entry.toLocaleString('en-US',{maximumFractionDigits:5}):'—'}</td>
+      <td>${typeof t.current==='number'?t.current.toLocaleString('en-US',{maximumFractionDigits:5}):'—'}</td>
+      <td class="pnl ${cls}">${fmtP(pnl)}</td>
+      <td class="pnl ${cls}">${fmtN(pct)}%</td>
+      <td style="color:var(--text3)">${fmtD(t.open)}</td>
+      <td>
+        <div class="actions-cell">
+          <button class="icon-btn" title="Detail" onclick="showDetail(${t.id})">↗</button>
+          ${isAdmin?`<button class="icon-btn" title="Edit" onclick="openEdit(${t.id})">✎</button><button class="icon-btn danger" title="Delete" onclick="deleteTrade(${t.id})">✕</button>`:''}
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ───────────────────────────────────────────────
+// DETAIL PANEL
+// ───────────────────────────────────────────────
+let detailOpen = null;
+function showDetail(id){
+  const panel = document.getElementById('detailPanel');
+  if(detailOpen===id){panel.classList.remove('show');detailOpen=null;return;}
+  const t = trades.find(x=>x.id===id);
+  if(!t)return;
+  detailOpen=id;
+  const pnl=calcPnL(t),pct=calcPnLPct(t);
+  panel.innerHTML=`
+    <h4>${t.asset} — Trade Detail</h4>
+    <div class="detail-row"><span class="detail-key">Direction</span><span class="detail-val dir ${t.dir.toLowerCase()}">${t.dir}</span></div>
+    <div class="detail-row"><span class="detail-key">Status</span><span class="detail-val">${statusBadge(t.status)}</span></div>
+    <div class="detail-row"><span class="detail-key">Entry Price</span><span class="detail-val">${t.entry}</span></div>
+    <div class="detail-row"><span class="detail-key">Current Price</span><span class="detail-val">${t.current}</span></div>
+    <div class="detail-row"><span class="detail-key">Qty / Lots</span><span class="detail-val">${t.qty}</span></div>
+    <div class="detail-row"><span class="detail-key">Leverage</span><span class="detail-val">×${t.lev||1}</span></div>
+    <div class="detail-row"><span class="detail-key">Stop Loss</span><span class="detail-val">${t.sl||'—'}</span></div>
+    <div class="detail-row"><span class="detail-key">Take Profit</span><span class="detail-val">${t.tp||'—'}</span></div>
+    <div class="detail-row"><span class="detail-key">Commission</span><span class="detail-val">$${t.comm||0}</span></div>
+    <div class="detail-row"><span class="detail-key">P&L</span><span class="detail-val pnl ${pnl>=0?'pos':'neg'}">${fmtP(pnl)}</span></div>
+    <div class="detail-row"><span class="detail-key">P&L %</span><span class="detail-val pnl ${pct>=0?'pos':'neg'}">${fmtN(pct)}%</span></div>
+    <div class="detail-row"><span class="detail-key">Opened</span><span class="detail-val">${fmtD(t.open)}</span></div>
+    <div class="detail-row"><span class="detail-key">Closed</span><span class="detail-val">${fmtD(t.close)}</span></div>
+    ${t.notes?`<div class="analysis-text">${t.notes}</div>`:''}
+  `;
+  panel.classList.add('show');
+  panel.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+// ───────────────────────────────────────────────
+// PREMIUM ANALYTICS
+// ───────────────────────────────────────────────
+function renderPremium(){
+  const section = document.getElementById('premiumSection');
+  if(!isPremium){
+    section.innerHTML=`
+      <div class="premium-lock">
+        <div class="lock-icon">🔒</div>
+        <div style="font-family:'Playfair Display',serif;font-size:1.1rem;color:var(--text)">Premium Analytics</div>
+        <p>Sharpe ratio, max drawdown, risk/reward, full trade history, and strategy statistics.</p>
+        <button class="btn-premium" onclick="unlockPremium()">Unlock Premium</button>
+      </div>
+    `;
+    return;
+  }
+  // Compute advanced stats
+  const closed = trades.filter(t=>t.status==='Closed');
+  const pnls = closed.map(calcPnL);
+  const returns = closed.map(calcPnLPct);
+  const wins = pnls.filter(p=>p>0);
+  const losses = pnls.filter(p=>p<0);
+  const avgWin = wins.length ? wins.reduce((a,b)=>a+b)/wins.length : 0;
+  const avgLoss = losses.length ? Math.abs(losses.reduce((a,b)=>a+b)/losses.length) : 0;
+  const rr = avgLoss ? (avgWin/avgLoss).toFixed(2) : '∞';
+  const avgR = returns.length ? returns.reduce((a,b)=>a+b)/returns.length : 0;
+  const stdDev = returns.length ? Math.sqrt(returns.reduce((a,b)=>a+(b-avgR)**2,0)/returns.length) : 0;
+  const sharpe = stdDev ? (avgR/stdDev).toFixed(2) : 'N/A';
+  // Drawdown
+  let peak=0, dd=0, maxDD=0, run=0;
+  [...trades].sort((a,b)=>a.open>b.open?1:-1).forEach(t=>{
+    run+=calcPnL(t);
+    if(run>peak)peak=run;
+    dd=peak-run;
+    if(dd>maxDD)maxDD=dd;
+  });
+
+  section.innerHTML=`
+    <div class="kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));margin-bottom:0">
+      <div class="kpi"><div class="kpi-label">Sharpe Ratio</div><div class="kpi-value ${parseFloat(sharpe)>=1?'green':'red'}">${sharpe}</div><div class="kpi-sub">Risk-adjusted return</div></div>
+      <div class="kpi"><div class="kpi-label">Avg Risk/Reward</div><div class="kpi-value green">${rr}:1</div><div class="kpi-sub">Win avg / Loss avg</div></div>
+      <div class="kpi"><div class="kpi-label">Max Drawdown</div><div class="kpi-value red">−$${maxDD.toFixed(2)}</div><div class="kpi-sub">Historical peak-trough</div></div>
+      <div class="kpi"><div class="kpi-label">Avg Win</div><div class="kpi-value green">+$${avgWin.toFixed(2)}</div><div class="kpi-sub">${wins.length} winning trades</div></div>
+      <div class="kpi"><div class="kpi-label">Avg Loss</div><div class="kpi-value red">−$${avgLoss.toFixed(2)}</div><div class="kpi-sub">${losses.length} losing trades</div></div>
+      <div class="kpi"><div class="kpi-label">Profit Factor</div><div class="kpi-value ${wins.reduce((a,b)=>a+b,0)/Math.abs(losses.reduce((a,b)=>a+b,1))>=1?'green':'red'}">${losses.length?Math.abs(wins.reduce((a,b)=>a+b,0)/losses.reduce((a,b)=>a+b,-1)).toFixed(2):'∞'}</div><div class="kpi-sub">Gross profit / gross loss</div></div>
+    </div>
+  `;
+}
+function unlockPremium(){
+  const code = prompt('Enter your premium access code:');
+  if(PREMIUM_CODES.includes(code)){
+    isPremium=true;
+    sessionStorage.setItem('xf_premium','true');
+    toast('Premium unlocked!','green');
+    renderPremium();
+  } else {
+    toast('Invalid code','red');
+  }
+}
+
+// ───────────────────────────────────────────────
+// MODAL
+// ───────────────────────────────────────────────
+function closeModal(id){document.getElementById(id).classList.remove('show')}
+function openAddModal(){
+  editId=null;
+  document.getElementById('modalTitle').textContent='Add Trade';
+  clearForm();
+  document.getElementById('f_open').value=new Date().toISOString().split('T')[0];
+  document.getElementById('addModal').classList.add('show');
+}
+function openEdit(id){
+  const t=trades.find(x=>x.id===id);
+  if(!t)return;
+  editId=id;
+  document.getElementById('modalTitle').textContent='Edit Trade';
+  document.getElementById('f_asset').value=t.asset;
+  document.getElementById('f_cat').value=t.cat;
+  document.getElementById('f_dir').value=t.dir;
+  document.getElementById('f_status').value=t.status;
+  document.getElementById('f_entry').value=t.entry;
+  document.getElementById('f_current').value=t.current;
+  document.getElementById('f_qty').value=t.qty;
+  document.getElementById('f_lev').value=t.lev||1;
+  document.getElementById('f_sl').value=t.sl||'';
+  document.getElementById('f_tp').value=t.tp||'';
+  document.getElementById('f_open').value=t.open||'';
+  document.getElementById('f_close').value=t.close||'';
+  document.getElementById('f_exch').value=t.exch||'';
+  document.getElementById('f_comm').value=t.comm||0;
+  document.getElementById('f_notes').value=t.notes||'';
+  document.getElementById('addModal').classList.add('show');
+}
+function clearForm(){
+  ['f_asset','f_entry','f_current','f_qty','f_lev','f_sl','f_tp','f_open','f_close','f_exch','f_comm','f_notes'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el)el.value='';
+  });
+}
+function saveTrade(){
+  const asset=document.getElementById('f_asset').value.trim();
+  if(!asset){toast('Asset name required','red');return}
+  const t={
+    id: editId||nextId++,
+    asset,
+    cat:document.getElementById('f_cat').value,
+    dir:document.getElementById('f_dir').value,
+    status:document.getElementById('f_status').value,
+    entry:parseFloat(document.getElementById('f_entry').value)||0,
+    current:parseFloat(document.getElementById('f_current').value)||0,
+    qty:parseFloat(document.getElementById('f_qty').value)||1,
+    lev:parseFloat(document.getElementById('f_lev').value)||1,
+    sl:parseFloat(document.getElementById('f_sl').value)||null,
+    tp:parseFloat(document.getElementById('f_tp').value)||null,
+    open:document.getElementById('f_open').value,
+    close:document.getElementById('f_close').value,
+    exch:document.getElementById('f_exch').value,
+    comm:parseFloat(document.getElementById('f_comm').value)||0,
+    notes:document.getElementById('f_notes').value,
+  };
+  if(editId){const i=trades.findIndex(x=>x.id===editId);trades[i]=t;}
+  else trades.push(t);
+  save();render();
+  closeModal('addModal');
+  toast(editId?'Trade updated':'Trade added','green');
+}
+function deleteTrade(id){
+  if(!confirm('Delete this trade?'))return;
+  trades=trades.filter(t=>t.id!==id);
+  save();render();
+  toast('Trade deleted');
+}
+
+// ───────────────────────────────────────────────
+// EXPORT
+// ───────────────────────────────────────────────
+function exportCSV(){
+  const rows=[['Asset','Category','Direction','Status','Entry','Current','PnL','PnL%','Qty','Leverage','SL','TP','Exchange','Comm','Opened','Closed','Notes']];
+  trades.forEach(t=>{
+    rows.push([t.asset,t.cat,t.dir,t.status,t.entry,t.current,calcPnL(t).toFixed(2),calcPnLPct(t).toFixed(2),t.qty,t.lev||1,t.sl||'',t.tp||'',t.exch||'',t.comm||0,t.open||'',t.close||'',`"${(t.notes||'').replace(/"/g,'""')}"`]);
+  });
+  const csv=rows.map(r=>r.join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download=`xenos_portfolio_${new Date().toISOString().split('T')[0]}.csv`;
+  a.click();
+  toast('CSV exported','green');
+}
+
+// ───────────────────────────────────────────────
+// TOAST
+// ───────────────────────────────────────────────
+let toastTimer=null;
+function toast(msg,type=''){
+  const el=document.getElementById('toast');
+  el.textContent=msg;
+  el.className='toast show'+(type?' '+type:'');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>el.classList.remove('show'),3000);
+}
+
+// ───────────────────────────────────────────────
+// RENDER
+// ───────────────────────────────────────────────
+function render(){
+  renderKPI();
+  renderCharts();
+  renderTable();
+  renderPremium();
+}
+
+// ───────────────────────────────────────────────
+// INIT
+// ───────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded',()=>{
+  applyAdminUI();
+  // Close overlay on backdrop click
+  document.querySelectorAll('.overlay').forEach(ov=>{
+    ov.addEventListener('click',e=>{if(e.target===ov)ov.classList.remove('show')});
+  });
+});
+</script>
+</body>
+</html>
