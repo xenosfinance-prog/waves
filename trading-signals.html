@@ -339,7 +339,7 @@ body{background:var(--bg);color:var(--ink);font-family:var(--mono);min-height:10
       <span data-i18n="section_options_signals">◎ OPTIONS SIGNALS</span> <span class="tab-count" id="count-options">—</span>
     </button>
     <button class="type-tab" id="tab-closed" onclick="switchTab('closed')">
-      <span data-i18n="section_closed_positions">✓ CLOSED POSITIONS</span> <span class="tab-count" id="count-closed">—</span>
+      <span data-i18n="section_closed_positions">✓ CLOSED POSITIONS</span>
     </button>
   </div>
 
@@ -544,7 +544,6 @@ async function loadSignals() {
   ].sort((a, b) => new Date(b.timestamp||b.saved_at||0) - new Date(a.timestamp||a.saved_at||0));
   document.getElementById('count-cfd').textContent     = allSignals.cfd.filter(s => isOpen(s)).length;
   document.getElementById('count-options').textContent = allSignals.options.filter(s => isOpen(s)).length;
-  document.getElementById('count-closed').textContent  = allSignals.closed.length;
   document.getElementById('last-updated').textContent  =
     'Updated ' + new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) + ' · Auto-refresh every 5 min';
   if (currentTab === 'closed') renderClosed();
@@ -948,7 +947,7 @@ async function deleteClosedSignal(event, idx) {
       allSignals.closed.splice(idx, 1);
       const srcType = s.signal_type === 'options' ? 'options' : 'cfd';
       allSignals[srcType] = allSignals[srcType].filter(x => x._filename !== s._filename);
-      document.getElementById('count-closed').textContent = allSignals.closed.length;
+      // count-closed removed
       showToast('🗑 Closed position deleted');
       renderClosed();
     } else {
