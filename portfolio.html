@@ -863,66 +863,78 @@ textarea{resize:vertical;min-height:80px}
 const ADMIN_PWD = 'RMG@Manu78';
 const PREMIUM_CODES = ['XENOS-PREMIUM-2026','XF-PRO-001','XF-PRO-002','XF-PRO-003'];
 
-let isAdmin = localStorage.getItem('xf_admin') === 'true';
-let isPremium = localStorage.getItem('xf_premium') === 'true' || isAdmin;
+let isAdmin = sessionStorage.getItem('xf_admin') === 'true';
+let isPremium = sessionStorage.getItem('xf_premium') === 'true' || isAdmin;
 
 // Seed mock trades
 const seedTrades = [
-  // ── FOREX ──────────────────────────────────────────────────────────────
-  {id:1, asset:'EUR/USD', cat:'Forex',     dir:'Long',  status:'Open',entry:0,current:0,qty:1,lev:30,sl:0,tp:0,comm:0,open:'2025-04-20',close:'',exch:'OTC',notes:''},
-  {id:2, asset:'GBP/USD', cat:'Forex',     dir:'Long',  status:'Open',entry:0,current:0,qty:1,lev:30,sl:0,tp:0,comm:0,open:'2025-04-20',close:'',exch:'OTC',notes:''},
-  {id:3, asset:'USD/JPY', cat:'Forex',     dir:'Long',  status:'Open',entry:0,current:0,qty:1,lev:30,sl:0,tp:0,comm:0,open:'2025-04-20',close:'',exch:'OTC',notes:''},
-  {id:4, asset:'USD/CHF', cat:'Forex',     dir:'Long',  status:'Open',entry:0,current:0,qty:1,lev:30,sl:0,tp:0,comm:0,open:'2025-04-20',close:'',exch:'OTC',notes:''},
-  // ── COMMODITY ──────────────────────────────────────────────────────────
-  {id:5, asset:'Gold',         cat:'Commodity', dir:'Long',  status:'Open',entry:0,current:0,qty:1,lev:20,sl:0,tp:0,comm:0,open:'2025-04-20',close:'',exch:'CFD',notes:''},
-  {id:6, asset:'WTI Crude',    cat:'Commodity', dir:'Long',  status:'Open',entry:0,current:0,qty:1,lev:10,sl:0,tp:0,comm:0,open:'2025-04-20',close:'',exch:'CFD',notes:''},
-  {id:7, asset:'Silver',       cat:'Commodity', dir:'Long',  status:'Open',entry:0,current:0,qty:1,lev:10,sl:0,tp:0,comm:0,open:'2025-04-20',close:'',exch:'CFD',notes:''},
-  {id:8, asset:'Natural Gas',  cat:'Commodity', dir:'Long',  status:'Open',entry:0,current:0,qty:1,lev:10,sl:0,tp:0,comm:0,open:'2025-04-20',close:'',exch:'CFD',notes:''},
-  // ── CRYPTO ─────────────────────────────────────────────────────────────
-  {id:9,  asset:'BTC/USD', cat:'Crypto', dir:'Long',status:'Open',entry:0,current:0,qty:0.1,lev:2,sl:0,tp:0,comm:0,open:'2025-04-20',close:'',exch:'CFD',notes:''},
-  {id:10, asset:'ETH/USD', cat:'Crypto', dir:'Long',status:'Open',entry:0,current:0,qty:1,  lev:2,sl:0,tp:0,comm:0,open:'2025-04-20',close:'',exch:'CFD',notes:''},
-  // ── INDICES ─────────────────────────────────────────────────────────────
-  {id:11, asset:'S&P 500',  cat:'Index', dir:'Long',status:'Open',entry:0,current:0,qty:1,lev:20,sl:0,tp:0,comm:0,open:'2025-04-20',close:'',exch:'CFD',notes:''},
-  {id:12, asset:'NASDAQ',   cat:'Index', dir:'Long',status:'Open',entry:0,current:0,qty:1,lev:20,sl:0,tp:0,comm:0,open:'2025-04-20',close:'',exch:'CFD',notes:''},
-  {id:13, asset:'DAX 40',   cat:'Index', dir:'Long',status:'Open',entry:0,current:0,qty:1,lev:20,sl:0,tp:0,comm:0,open:'2025-04-20',close:'',exch:'CFD',notes:''},
-  {id:14, asset:'FTSE 100', cat:'Index', dir:'Long',status:'Open',entry:0,current:0,qty:1,lev:20,sl:0,tp:0,comm:0,open:'2025-04-20',close:'',exch:'CFD',notes:''},
-  // ── STOCK — Tech ────────────────────────────────────────────────────────
-  {id:15, asset:'AAPL',  cat:'Stock', dir:'Long',status:'Open',entry:0,current:0,qty:1,lev:5,sl:0,tp:0,comm:0,open:'2025-04-20',close:'',exch:'NASDAQ',notes:''},
-  {id:16, asset:'MSFT',  cat:'Stock', dir:'Long',status:'Open',entry:0,current:0,qty:1,lev:5,sl:0,tp:0,comm:0,open:'2025-04-20',close:'',exch:'NASDAQ',notes:''},
-  {id:17, asset:'NVDA',  cat:'Stock', dir:'Long',status:'Open',entry:0,current:0,qty:1,lev:5,sl:0,tp:0,comm:0,open:'2025-04-20',close:'',exch:'NASDAQ',notes:''},
-  {id:18, asset:'AMZN',  cat:'Stock', dir:'Long',status:'Open',entry:0,current:0,qty:1,lev:5,sl:0,tp:0,comm:0,open:'2025-04-20',close:'',exch:'NASDAQ',notes:''},
-  {id:19, asset:'GOOGL', cat:'Stock', dir:'Long',status:'Open',entry:0,current:0,qty:1,lev:5,sl:0,tp:0,comm:0,open:'2025-04-20',close:'',exch:'NASDAQ',notes:''},
-  {id:20, asset:'META',  cat:'Stock', dir:'Long',status:'Open',entry:0,current:0,qty:1,lev:5,sl:0,tp:0,comm:0,open:'2025-04-20',close:'',exch:'NASDAQ',notes:''},
-  {id:21, asset:'TSLA',  cat:'Stock', dir:'Long',status:'Open',entry:0,current:0,qty:1,lev:5,sl:0,tp:0,comm:0,open:'2025-04-20',close:'',exch:'NASDAQ',notes:''},
-  {id:22, asset:'NFLX',  cat:'Stock', dir:'Long',status:'Open',entry:0,current:0,qty:1,lev:5,sl:0,tp:0,comm:0,open:'2025-04-20',close:'',exch:'NASDAQ',notes:''},
-  // ── STOCK — Finance / Other ─────────────────────────────────────────────
-  {id:23, asset:'JPM',  cat:'Stock', dir:'Long',status:'Open',entry:0,current:0,qty:1,lev:5,sl:0,tp:0,comm:0,open:'2025-04-20',close:'',exch:'NYSE',notes:''},
-  {id:24, asset:'GS',   cat:'Stock', dir:'Long',status:'Open',entry:0,current:0,qty:1,lev:5,sl:0,tp:0,comm:0,open:'2025-04-20',close:'',exch:'NYSE',notes:''},
-  {id:25, asset:'BAC',  cat:'Stock', dir:'Long',status:'Open',entry:0,current:0,qty:1,lev:5,sl:0,tp:0,comm:0,open:'2025-04-20',close:'',exch:'NYSE',notes:''},
-  {id:26, asset:'XOM',  cat:'Stock', dir:'Long',status:'Open',entry:0,current:0,qty:1,lev:5,sl:0,tp:0,comm:0,open:'2025-04-20',close:'',exch:'NYSE',notes:''},
-  {id:27, asset:'CVX',  cat:'Stock', dir:'Long',status:'Open',entry:0,current:0,qty:1,lev:5,sl:0,tp:0,comm:0,open:'2025-04-20',close:'',exch:'NYSE',notes:''},
-  {id:28, asset:'WMT',  cat:'Stock', dir:'Long',status:'Open',entry:0,current:0,qty:1,lev:5,sl:0,tp:0,comm:0,open:'2025-04-20',close:'',exch:'NYSE',notes:''},
-  {id:29, asset:'JNJ',  cat:'Stock', dir:'Long',status:'Open',entry:0,current:0,qty:1,lev:5,sl:0,tp:0,comm:0,open:'2025-04-20',close:'',exch:'NYSE',notes:''},
-  {id:30, asset:'V',    cat:'Stock', dir:'Long',status:'Open',entry:0,current:0,qty:1,lev:5,sl:0,tp:0,comm:0,open:'2025-04-20',close:'',exch:'NYSE',notes:''},
+  // ── FOREX — mini lots (0.1) | entry 13 apr, current 20 apr ────────────
+  // EUR/USD Long: dollaro debole, EUR forte su dati macro US
+  {id:1, asset:'EUR/USD',cat:'Forex',    dir:'Long', status:'Open',entry:1.1150,current:1.1750,qty:0.1,lev:30,sl:1.1050,tp:1.1900,comm:0,open:'2026-04-13',close:'',exch:'OTC',notes:'DXY weakness + ECB hawkish. EW impulso rialzista confermato.'},
+  // GBP/USD Long: sterling forte su dati UK positivi
+  {id:2, asset:'GBP/USD',cat:'Forex',    dir:'Long', status:'Open',entry:1.3200,current:1.3520,qty:0.1,lev:30,sl:1.3100,tp:1.3700,comm:0,open:'2026-04-13',close:'',exch:'OTC',notes:'GBP strength vs USD. Break sopra 1.32 confermato su H4.'},
+  // USD/JPY Short: BOJ hawkish, yen forte
+  {id:3, asset:'USD/JPY',cat:'Forex',    dir:'Short',status:'Open',entry:158.50,current:142.50,qty:0.1,lev:30,sl:160.00,tp:140.00,comm:0,open:'2026-04-13',close:'',exch:'OTC',notes:'BOJ rialzo tassi. USD/JPY in trend ribassista. EW Wave 3 al ribasso.'},
+  // USD/CHF Short: CHF safe haven su tensioni ME
+  {id:4, asset:'USD/CHF',cat:'Forex',    dir:'Short',status:'Open',entry:0.9100,current:0.8220,qty:0.1,lev:20,sl:0.9200,tp:0.8100,comm:0,open:'2026-04-13',close:'',exch:'OTC',notes:'CHF safe haven. USD debole strutturalmente.'},
+
+  // ── COMMODITY — mini lots ──────────────────────────────────────────────
+  // Gold Long: safe haven + banche centrali acquistano
+  {id:5, asset:'Gold',       cat:'Commodity',dir:'Long', status:'Open',entry:4721.00,current:4878.00,qty:0.01,lev:20,sl:4600.00,tp:5200.00,comm:0,open:'2026-04-13',close:'',exch:'CFD',notes:'Gold EW Wave III monthly. Geopolitica ME + de-dollarizzazione. Central bank buying record.'},
+  // WTI Short: ceasefire Hormuz → petrolio scende
+  {id:6, asset:'WTI Crude',  cat:'Commodity',dir:'Short',status:'Open',entry:103.00,current:88.98,qty:0.01,lev:10,sl:108.00,tp:80.00,comm:0,open:'2026-04-13',close:'',exch:'CFD',notes:'Short su petrolio: ceasefire Hormuz in corso. Pressione ribassista da riapertura stretto.'},
+  // Silver Long: momentum metalli
+  {id:7, asset:'Silver',     cat:'Commodity',dir:'Long', status:'Open',entry:74.44,current:80.00,qty:0.01,lev:10,sl:71.00,tp:88.00,comm:0,open:'2026-04-13',close:'',exch:'CFD',notes:'Silver segue Gold. Ratio XAU/XAG favorevole long silver.'},
+  // Natural Gas Short: record produzione domestica USA
+  {id:8, asset:'Natural Gas',cat:'Commodity',dir:'Short',status:'Open',entry:2.85,current:2.70,qty:0.1,lev:10,sl:3.10,tp:2.20,comm:0,open:'2026-04-13',close:'',exch:'CFD',notes:'Nat Gas bearish: produzione USA ai massimi storici. Inventari sopra media stagionale.'},
+
+  // ── CRYPTO — micro ─────────────────────────────────────────────────────
+  {id:9,  asset:'BTC/USD',cat:'Crypto',dir:'Long',status:'Open',entry:71188.00,current:75000.00,qty:0.01,lev:2,sl:66000.00,tp:85000.00,comm:0,open:'2026-04-13',close:'',exch:'CFD',notes:'BTC accumulation zone. ETF inflows istituzionali. EW Wave 5 in sviluppo.'},
+  {id:10, asset:'ETH/USD',cat:'Crypto',dir:'Long',status:'Open',entry:1580.00,current:1620.00,qty:0.1,lev:2,sl:1450.00,tp:2000.00,comm:0,open:'2026-04-13',close:'',exch:'CFD',notes:'ETH segue BTC. Upgrade network in arrivo. Accumulation confermato.'},
+
+  // ── INDICI — micro (0.01 lotti) ────────────────────────────────────────
+  {id:11, asset:'S&P 500', cat:'Index',dir:'Long', status:'Open',entry:6600.00,current:7050.00,qty:0.01,lev:20,sl:6400.00,tp:7500.00,comm:0,open:'2026-04-13',close:'',exch:'CFD',notes:'SPX rimbalzo da supporto. Earnings season positiva. Fed on hold favorevole equity.'},
+  {id:12, asset:'NASDAQ',  cat:'Index',dir:'Long', status:'Open',entry:20500.00,current:21800.00,qty:0.01,lev:20,sl:19800.00,tp:23000.00,comm:0,open:'2026-04-13',close:'',exch:'CFD',notes:'Tech recovery. Mag7 riaccelera su AI. EW impulso da aprile low.'},
+  {id:13, asset:'DAX 40',  cat:'Index',dir:'Short',status:'Open',entry:21000.00,current:21500.00,qty:0.01,lev:20,sl:21500.00,tp:19500.00,comm:0,open:'2026-04-13',close:'',exch:'CFD',notes:'DAX short: esposizione energia europea penalizzata da crisi Hormuz. EW correzione attesa.'},
+  {id:14, asset:'FTSE 100',cat:'Index',dir:'Long', status:'Open',entry:8200.00,current:8300.00,qty:0.01,lev:20,sl:8000.00,tp:8700.00,comm:0,open:'2026-04-13',close:'',exch:'CFD',notes:'FTSE Long: energy sector pesante su FTSE favorito da oil elevato. Dividend yield attrattivo.'},
+
+  // ── STOCK TECH — mini (1 azione = unità, qty mini) ─────────────────────
+  {id:15, asset:'AAPL', cat:'Stock',dir:'Long', status:'Open',entry:248.00,current:270.75,qty:1,lev:5,sl:235.00,tp:295.00,comm:0,open:'2026-04-13',close:'',exch:'NASDAQ',notes:'Apple AI integration + iPhone cycle. EW Wave 3 extension.'},
+  {id:16, asset:'MSFT', cat:'Stock',dir:'Long', status:'Open',entry:390.00,current:419.10,qty:1,lev:5,sl:375.00,tp:450.00,comm:0,open:'2026-04-13',close:'',exch:'NASDAQ',notes:'Azure AI reacceleration. Copilot monetization. EW impulsivo su weekly.'},
+  {id:17, asset:'NVDA', cat:'Stock',dir:'Long', status:'Open',entry:185.00,current:198.56,qty:1,lev:5,sl:170.00,tp:230.00,comm:0,open:'2026-04-13',close:'',exch:'NASDAQ',notes:'AI datacenter supercycle. Blackwell demand record. EW Wave 5 in sviluppo.'},
+  {id:18, asset:'AMZN', cat:'Stock',dir:'Long', status:'Open',entry:230.00,current:248.27,qty:1,lev:5,sl:215.00,tp:275.00,comm:0,open:'2026-04-13',close:'',exch:'NASDAQ',notes:'AWS reacceleration + AI inference. EW impulso da marzo low.'},
+  {id:19, asset:'GOOGL',cat:'Stock',dir:'Long', status:'Open',entry:310.00,current:337.53,qty:1,lev:5,sl:295.00,tp:370.00,comm:0,open:'2026-04-13',close:'',exch:'NASDAQ',notes:'Gemini AI + cloud growth. Earnings beat Q1. Break sopra 320 confermato.'},
+  {id:20, asset:'META', cat:'Stock',dir:'Long', status:'Open',entry:580.00,current:620.00,qty:1,lev:5,sl:555.00,tp:680.00,comm:0,open:'2026-04-13',close:'',exch:'NASDAQ',notes:'Meta AI + ad revenue recovery. Llama ecosystem. EW impulso weekly.'},
+  // TSLA Short: domanda EV debole, margini compressi
+  {id:21, asset:'TSLA', cat:'Stock',dir:'Short',status:'Open',entry:280.00,current:270.00,qty:1,lev:5,sl:295.00,tp:220.00,comm:0,open:'2026-04-13',close:'',exch:'NASDAQ',notes:'TSLA short: demand destruction EV + brand damage. EW ABC correction da ATH.'},
+  {id:22, asset:'NFLX', cat:'Stock',dir:'Long', status:'Open',entry:1050.00,current:1100.00,qty:1,lev:5,sl:1000.00,tp:1200.00,comm:0,open:'2026-04-13',close:'',exch:'NASDAQ',notes:'Netflix subscriber growth + ads tier ramp. EW Wave 3 mensile.'},
+
+  // ── STOCK FINANCE / ENERGY ─────────────────────────────────────────────
+  {id:23, asset:'JPM', cat:'Stock',dir:'Long', status:'Open',entry:290.00,current:310.29,qty:1,lev:5,sl:278.00,tp:340.00,comm:0,open:'2026-04-13',close:'',exch:'NYSE',notes:'JPM Q1 earnings beat. NIM favorevole da tassi alti. Financials rotation.'},
+  {id:24, asset:'GS',  cat:'Stock',dir:'Long', status:'Open',entry:580.00,current:610.00,qty:1,lev:5,sl:555.00,tp:660.00,comm:0,open:'2026-04-13',close:'',exch:'NYSE',notes:'Goldman: M&A pipeline recovery + trading desk forte su volatilità.'},
+  // BAC Short: esposizione credito consumer in deterioramento
+  {id:25, asset:'BAC', cat:'Stock',dir:'Short',status:'Open',entry:46.00,current:45.00,qty:1,lev:5,sl:48.50,tp:38.00,comm:0,open:'2026-04-13',close:'',exch:'NYSE',notes:'BAC short: consumer credit stress crescente. EW distribuzione su H4.'},
+  {id:26, asset:'XOM', cat:'Stock',dir:'Long', status:'Open',entry:108.00,current:115.00,qty:1,lev:5,sl:102.00,tp:128.00,comm:0,open:'2026-04-13',close:'',exch:'NYSE',notes:'XOM: beneficia da oil elevato. OPEC+ discipline. Dividend yield 3.8%.'},
+  {id:27, asset:'CVX', cat:'Stock',dir:'Long', status:'Open',entry:152.00,current:160.00,qty:1,lev:5,sl:144.00,tp:178.00,comm:0,open:'2026-04-13',close:'',exch:'NYSE',notes:'CVX: integrated energy. Cashflow forte da oil sopra 100. Buyback programma.'},
+  {id:28, asset:'WMT', cat:'Stock',dir:'Long', status:'Open',entry:95.00,current:102.00,qty:1,lev:5,sl:90.00,tp:115.00,comm:0,open:'2026-04-13',close:'',exch:'NYSE',notes:'WMT difensivo in scenario inflazione. Consumer staples rotation.'},
+  // JNJ Short: litigation risk + patent cliff
+  {id:29, asset:'JNJ', cat:'Stock',dir:'Short',status:'Open',entry:162.00,current:162.00,qty:1,lev:5,sl:168.00,tp:148.00,comm:0,open:'2026-04-13',close:'',exch:'NYSE',notes:'JNJ short: patent cliff + talc litigation risk. EW distribuzione su daily.'},
+  {id:30, asset:'V',   cat:'Stock',dir:'Long', status:'Open',entry:335.00,current:355.00,qty:1,lev:5,sl:320.00,tp:380.00,comm:0,open:'2026-04-13',close:'',exch:'NYSE',notes:'Visa: consumer spending resiliente. Cross-border volume recovery. EW Wave 3.'},
 ];
 
-// Carica trades dal localStorage - NON resetta mai i dati esistenti
-// Se il localStorage è vuoto o corrotto, usa seedTrades come base
-let trades;
+const PORTFOLIO_VERSION = 'v5';
+// Forza reset se versione diversa o localStorage corrotto
 try {
   const stored = JSON.parse(localStorage.getItem('xf_portfolio') || 'null');
-  if(Array.isArray(stored) && stored.length > 0){
-    // Dati esistenti → li mantiene intatti
-    trades = stored;
-  } else {
-    // Primo carico → usa seedTrades
-    trades = JSON.parse(JSON.stringify(seedTrades));
-    localStorage.setItem('xf_portfolio', JSON.stringify(trades));
+  if(localStorage.getItem('xf_portfolio_version') !== PORTFOLIO_VERSION || !Array.isArray(stored)){
+    localStorage.removeItem('xf_portfolio');
+    localStorage.setItem('xf_portfolio_version', PORTFOLIO_VERSION);
   }
 } catch(e){
-  trades = JSON.parse(JSON.stringify(seedTrades));
-  localStorage.setItem('xf_portfolio', JSON.stringify(trades));
+  localStorage.removeItem('xf_portfolio');
+  localStorage.setItem('xf_portfolio_version', PORTFOLIO_VERSION);
 }
+let trades = JSON.parse(localStorage.getItem('xf_portfolio') || 'null') || seedTrades;
 let nextId = trades.length ? Math.max(...trades.map(t=>parseInt(t.id)||0)) + 1 : 1;
 
 let filterCat = 'All';
@@ -1027,8 +1039,8 @@ function doLogin(){
   const pwd = document.getElementById('adminPwd').value;
   if(pwd === ADMIN_PWD){
     isAdmin=true; isPremium=true;
-    localStorage.setItem('xf_admin','true');
-    localStorage.setItem('xf_premium','true');
+    sessionStorage.setItem('xf_admin','true');
+    sessionStorage.setItem('xf_premium','true');
     closeModal('loginOverlay');
     document.getElementById('adminPwd').value='';
     applyAdminUI();
@@ -1039,7 +1051,7 @@ function doLogin(){
 }
 function logout(){
   isAdmin=false;
-  localStorage.removeItem('xf_admin');
+  sessionStorage.removeItem('xf_admin');
   applyAdminUI();
   toast('Logged out');
 }
@@ -1315,7 +1327,7 @@ function unlockPremium(){
   const code = prompt('Enter your premium access code:');
   if(PREMIUM_CODES.includes(code)){
     isPremium=true;
-    localStorage.setItem('xf_premium','true');
+    sessionStorage.setItem('xf_premium','true');
     toast('Premium unlocked!','green');
     renderPremium();
   } else {
