@@ -771,7 +771,7 @@ textarea{resize:vertical;min-height:80px}
   <div class="table-wrap">
     <div class="table-header">
       <h3>Positions</h3>
-      <span class="count" id="tradeCount">0 trades</span>
+      <span class="count" id="tradeCount"></span>
     </div>
     <div class="table-scroll">
       <table>
@@ -822,33 +822,27 @@ let isPremium = sessionStorage.getItem('xf_premium') === 'true' || isAdmin;
 
 // Seed mock trades
 const seedTrades = [
-  // ── STOCK ──────────────────────────────────────────────────────────────
-  {id:1,asset:'AAPL',cat:'Stock',dir:'Long',status:'Closed',entry:178.50,current:194.20,qty:20,lev:1,sl:170.00,tp:200.00,comm:2,open:'2025-01-10',close:'2025-02-18',exch:'NASDAQ',notes:'EW Wave 3 extension post-earnings. Apple AI integration thesis. FVG fill on daily. Target hit at 194.'},
-  {id:2,asset:'NVDA',cat:'Stock',dir:'Long',status:'Open',entry:820.00,current:1080.00,qty:5,lev:1,sl:770.00,tp:1200.00,comm:3,open:'2025-02-05',close:'',exch:'NASDAQ',notes:'AI/datacenter supercycle. EW impulse Wave 5 projecting 1150-1250. Holding through earnings. Strong SMC structure.'},
-  {id:3,asset:'MSFT',cat:'Stock',dir:'Long',status:'Hold',entry:415.00,current:390.00,qty:10,lev:1,sl:395.00,tp:470.00,comm:2,open:'2025-03-12',close:'',exch:'NASDAQ',notes:'Azure cloud + Copilot AI monetization. EW correction Wave 4 still in play. Waiting for Wave 5 confirmation above 420.'},
-  {id:4,asset:'META',cat:'Stock',dir:'Long',status:'Closed',entry:480.00,current:552.00,qty:8,lev:1,sl:455.00,tp:550.00,comm:2,open:'2025-01-22',close:'2025-03-05',exch:'NASDAQ',notes:'Ad revenue recovery + Llama AI ecosystem. TP reached. Clean EW 5-wave impulse on weekly.'},
-  {id:5,asset:'XOM',cat:'Stock',dir:'Long',status:'Closed',entry:108.40,current:118.90,qty:30,lev:1,sl:103.00,tp:120.00,comm:3,open:'2025-02-01',close:'2025-04-10',exch:'NYSE',notes:'Energy macro tailwind. OPEC+ discipline. Dividend yield attractive. EW Wave 3 on monthly.'},
-  {id:6,asset:'TSLA',cat:'Stock',dir:'Short',status:'Closed',entry:248.00,current:186.00,qty:15,lev:1,sl:265.00,tp:185.00,comm:4,open:'2025-04-02',close:'2025-05-15',exch:'NASDAQ',notes:'Demand destruction + margin compression. EW ABC correction from ATH. Sentiment shift negative. TP near reached.'},
-  {id:7,asset:'JPM',cat:'Stock',dir:'Long',status:'Open',entry:195.00,current:218.00,qty:12,lev:1,sl:185.00,tp:230.00,comm:2,open:'2025-05-01',close:'',exch:'NYSE',notes:'Financials rotation. Higher-for-longer rates benefit NIM. EW impulsive structure. Strong Q1 earnings.'},
-  {id:8,asset:'AMZN',cat:'Stock',dir:'Long',status:'Hold',entry:188.00,current:182.00,qty:10,lev:1,sl:178.00,tp:220.00,comm:2,open:'2025-06-10',close:'',exch:'NASDAQ',notes:'AWS reacceleration. EW Wave 4 pullback — buying opportunity. Watching for break above 192 to confirm Wave 5.'},
-  // ── ETF ────────────────────────────────────────────────────────────────
-  {id:9,asset:'SPY',cat:'ETF',dir:'Long',status:'Closed',entry:524.00,current:498.00,qty:5,lev:1,sl:510.00,tp:560.00,comm:1,open:'2025-03-01',close:'2025-04-20',exch:'NYSE Arca',notes:'Broad market exposure. Stop hit on Fed disappointment. EW warning of extended Wave 5 exhaustion. Loss accepted, lesson: macro risk event sizing.'},
-  {id:10,asset:'QQQ',cat:'ETF',dir:'Long',status:'Open',entry:438.00,current:472.00,qty:8,lev:1,sl:420.00,tp:500.00,comm:1,open:'2025-04-25',close:'',exch:'NASDAQ',notes:'Tech recovery play. EW impulse from April low. Mag7 re-rating. Strong breadth. Targeting prior ATH zone 500-510.'},
-  {id:11,asset:'GLD',cat:'ETF',dir:'Long',status:'Open',entry:218.00,current:296.00,qty:15,lev:1,sl:210.00,tp:310.00,comm:1,open:'2025-01-20',close:'',exch:'NYSE Arca',notes:'Gold ETF tracking XAU. Safe haven + de-dollarization macro thesis. EW Wave III monthly. Central bank buying accelerating.'},
-  {id:12,asset:'XLE',cat:'ETF',dir:'Long',status:'Closed',entry:87.40,current:94.20,qty:20,lev:1,sl:83.00,tp:95.00,comm:1,open:'2025-02-10',close:'2025-04-01',exch:'NYSE Arca',notes:'Energy sector ETF. OPEC+ compliance trade. Dividend yield 3.8%. TP hit cleanly. EW 5-wave impulse on daily.'},
-  {id:13,asset:'VNQ',cat:'ETF',dir:'Long',status:'Hold',entry:88.50,current:84.20,qty:25,lev:1,sl:83.00,tp:98.00,comm:1,open:'2025-05-20',close:'',exch:'NYSE Arca',notes:'REIT ETF. Rate cut anticipation trade. Still in correction. Holding above SL. EW Wave B — expecting Wave C recovery if Fed pivots.'},
-  {id:14,asset:'EEM',cat:'ETF',dir:'Long',status:'Open',entry:42.80,current:46.10,qty:40,lev:1,sl:40.50,tp:50.00,comm:1,open:'2025-06-01',close:'',exch:'NYSE Arca',notes:'Emerging markets ETF. Dollar weakness + China stimulus. EW structure improving. Risk-on macro environment.'},
-  {id:15,asset:'TLT',cat:'ETF',dir:'Long',status:'Hold',entry:92.00,current:96.40,qty:30,lev:1,sl:88.00,tp:105.00,comm:1,open:'2025-07-01',close:'',exch:'NASDAQ',notes:'20Y Treasury ETF. Rates peak thesis. If Fed cuts in H2, bonds rally. EW corrective structure bottomed. Duration risk managed.'},
-  // ── FOREX ──────────────────────────────────────────────────────────────
-  {id:16,asset:'EUR/USD',cat:'Forex',dir:'Short',status:'Closed',entry:1.0921,current:1.0745,qty:2,lev:30,sl:1.1010,tp:1.0700,comm:4,open:'2025-02-10',close:'2025-03-01',exch:'FX',notes:'DXY breakout. EW corrective wave B top. SMC breaker block reject H4.'},
-  {id:17,asset:'USD/JPY',cat:'Forex',dir:'Short',status:'Open',entry:158.20,current:142.40,qty:1,lev:25,sl:160.00,tp:148.00,comm:3,open:'2025-08-05',close:'',exch:'FX',notes:'BOJ rate hike cycle beginning. EW impulsive decline. Major trend reversal confirmed.'},
-  // ── CRYPTO ─────────────────────────────────────────────────────────────
-  {id:18,asset:'BTC/USD',cat:'Crypto',dir:'Long',status:'Open',entry:58200,current:88500,qty:0.15,lev:1,sl:52000,tp:95000,comm:12,open:'2025-03-20',close:'',exch:'Binance',notes:'Major accumulation zone. EW Wave 5 target 90-100k. Institutional ETF inflows.'},
-  // ── COMMODITY ──────────────────────────────────────────────────────────
-  {id:19,asset:'Gold',cat:'Commodity',dir:'Long',status:'Open',entry:2180,current:3320,qty:1,lev:10,sl:2100,tp:3500,comm:6,open:'2025-01-15',close:'',exch:'COMEX',notes:'Safe haven demand. EW Wave III monthly. Central bank accumulation. Dollar weakness structural.'},
-  {id:20,asset:'WTI Crude',cat:'Commodity',dir:'Long',status:'Closed',entry:72.40,current:79.85,qty:10,lev:5,sl:70.00,tp:80.00,comm:8,open:'2025-01-15',close:'2025-02-03',exch:'NYMEX',notes:'EW impulse Wave 3 daily. OPEC+ cuts. ICT FVG fill on entry. Target reached.'},
+  // ── FOREX (dal dashboard) ───────────────────────────────────────────────
+  {id:1,asset:'EUR/USD',cat:'Forex',dir:'Long',status:'Open',entry:1.0820,current:1.0820,qty:1,lev:20,sl:1.0720,tp:1.0980,comm:0,open:'2025-04-20',close:'',exch:'FX',notes:'Aggiorna entry/current/SL/TP con i tuoi livelli reali.'},
+  {id:2,asset:'GBP/USD',cat:'Forex',dir:'Long',status:'Open',entry:1.2950,current:1.2950,qty:1,lev:20,sl:1.2820,tp:1.3150,comm:0,open:'2025-04-20',close:'',exch:'FX',notes:'Aggiorna entry/current/SL/TP con i tuoi livelli reali.'},
+  {id:3,asset:'USD/JPY',cat:'Forex',dir:'Short',status:'Open',entry:142.50,current:142.50,qty:1,lev:20,sl:144.00,tp:139.00,comm:0,open:'2025-04-20',close:'',exch:'FX',notes:'Aggiorna entry/current/SL/TP con i tuoi livelli reali.'},
+  {id:4,asset:'USD/CHF',cat:'Forex',dir:'Short',status:'Open',entry:0.8820,current:0.8820,qty:1,lev:20,sl:0.8920,tp:0.8650,comm:0,open:'2025-04-20',close:'',exch:'FX',notes:'Aggiorna entry/current/SL/TP con i tuoi livelli reali.'},
+  // ── CRYPTO (dal dashboard) ─────────────────────────────────────────────
+  {id:5,asset:'BTC/USD',cat:'Crypto',dir:'Long',status:'Open',entry:84000,current:84000,qty:0.1,lev:1,sl:78000,tp:95000,comm:0,open:'2025-04-20',close:'',exch:'Binance',notes:'Aggiorna entry/current/SL/TP con i tuoi livelli reali.'},
+  {id:6,asset:'ETH/USD',cat:'Crypto',dir:'Long',status:'Open',entry:1600,current:1600,qty:1,lev:1,sl:1450,tp:2000,comm:0,open:'2025-04-20',close:'',exch:'Binance',notes:'Aggiorna entry/current/SL/TP con i tuoi livelli reali.'},
+  // ── COMMODITY (dal dashboard) ──────────────────────────────────────────
+  {id:7,asset:'Gold',cat:'Commodity',dir:'Long',status:'Open',entry:3300,current:3300,qty:1,lev:10,sl:3200,tp:3500,comm:0,open:'2025-04-20',close:'',exch:'COMEX',notes:'Aggiorna entry/current/SL/TP con i tuoi livelli reali.'},
+  {id:8,asset:'WTI Crude',cat:'Commodity',dir:'Long',status:'Open',entry:63.00,current:63.00,qty:1,lev:5,sl:60.00,tp:70.00,comm:0,open:'2025-04-20',close:'',exch:'NYMEX',notes:'Aggiorna entry/current/SL/TP con i tuoi livelli reali.'},
+  // ── STOCK / ETF (dal dashboard) ────────────────────────────────────────
+  {id:9,asset:'AAPL',cat:'Stock',dir:'Long',status:'Open',entry:200.00,current:200.00,qty:10,lev:1,sl:190.00,tp:220.00,comm:0,open:'2025-04-20',close:'',exch:'NASDAQ',notes:'Aggiorna entry/current/SL/TP con i tuoi livelli reali.'},
+  {id:10,asset:'SPY',cat:'ETF',dir:'Long',status:'Open',entry:500.00,current:500.00,qty:5,lev:1,sl:480.00,tp:540.00,comm:0,open:'2025-04-20',close:'',exch:'NYSE Arca',notes:'Aggiorna entry/current/SL/TP con i tuoi livelli reali.'},
 ];
 
+const PORTFOLIO_VERSION = 'v3';
+if(localStorage.getItem('xf_portfolio_version') !== PORTFOLIO_VERSION){
+  localStorage.removeItem('xf_portfolio');
+  localStorage.setItem('xf_portfolio_version', PORTFOLIO_VERSION);
+}
 let trades = JSON.parse(localStorage.getItem('xf_portfolio') || 'null') || seedTrades;
 let nextId = Math.max(...trades.map(t=>t.id)) + 1;
 
@@ -973,11 +967,8 @@ function renderKPI(){
   const worstT = all.find(t=>calcPnL(t)===worst);
 
   document.getElementById('kpiGrid').innerHTML = `
-    <div class="kpi"><div class="kpi-icon">💼</div><div class="kpi-label">Total Trades</div><div class="kpi-value">${all.length}</div><div class="kpi-sub">${open.length} open · ${closed.length} closed</div></div>
     <div class="kpi"><div class="kpi-icon">${totalPnL>=0?'📈':'📉'}</div><div class="kpi-label">Total P&L</div><div class="kpi-value ${totalPnL>=0?'green':'red'}">${fmtP(totalPnL)}</div><div class="kpi-sub">All positions combined</div></div>
-    <div class="kpi"><div class="kpi-icon">🎯</div><div class="kpi-label">Win Rate</div><div class="kpi-value ${parseFloat(winRate)>=50?'green':'red'}">${winRate}%</div><div class="kpi-sub">${winners.length} / ${closed.length} closed trades</div></div>
-    <div class="kpi"><div class="kpi-icon">🏆</div><div class="kpi-label">Best Trade</div><div class="kpi-value green">+$${best.toFixed(2)}</div><div class="kpi-sub">${bestT?bestT.asset:'—'}</div></div>
-    <div class="kpi"><div class="kpi-icon">⚠️</div><div class="kpi-label">Worst Trade</div><div class="kpi-value red">−$${Math.abs(worst).toFixed(2)}</div><div class="kpi-sub">${worstT?worstT.asset:'—'}</div></div>
+    <div class="kpi"><div class="kpi-icon">🎯</div><div class="kpi-label">Win Rate</div><div class="kpi-value ${parseFloat(winRate)>=50?'green':'red'}">${winRate}%</div><div class="kpi-sub">Closed positions</div></div>
     <div class="kpi"><div class="kpi-icon">📊</div><div class="kpi-label">Avg P&L</div><div class="kpi-value ${totalPnL>=0?'green':'red'}">${all.length?fmtP(totalPnL/all.length):'$0.00'}</div><div class="kpi-sub">Per trade</div></div>
   `;
 }
@@ -1058,7 +1049,7 @@ function statusBadge(s){
 }
 function renderTable(){
   const rows = filtered();
-  document.getElementById('tradeCount').textContent = `${rows.length} trade${rows.length!==1?'s':''}`;
+  document.getElementById('tradeCount').textContent = '';
   const tbody = document.getElementById('tradeBody');
   if(!rows.length){tbody.innerHTML=`<tr><td colspan="10"><div class="empty-state">No trades match current filters</div></td></tr>`;return}
   tbody.innerHTML = rows.map(t=>{
