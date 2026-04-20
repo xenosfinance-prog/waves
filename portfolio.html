@@ -907,7 +907,14 @@ const seedTrades = [
 ];
 
 const PORTFOLIO_VERSION = 'v4';
-if(localStorage.getItem('xf_portfolio_version') !== PORTFOLIO_VERSION){
+// Forza reset se versione diversa o localStorage corrotto
+try {
+  const stored = JSON.parse(localStorage.getItem('xf_portfolio') || 'null');
+  if(localStorage.getItem('xf_portfolio_version') !== PORTFOLIO_VERSION || !Array.isArray(stored)){
+    localStorage.removeItem('xf_portfolio');
+    localStorage.setItem('xf_portfolio_version', PORTFOLIO_VERSION);
+  }
+} catch(e){
   localStorage.removeItem('xf_portfolio');
   localStorage.setItem('xf_portfolio_version', PORTFOLIO_VERSION);
 }
