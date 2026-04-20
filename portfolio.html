@@ -691,13 +691,22 @@ textarea{resize:vertical;min-height:80px}
       </div>
       <div class="form-group">
         <label>Exchange / Market</label>
-        <input type="text" id="f_exch" placeholder="e.g. FX / Binance / NYSE">
+        <select id="f_exch">
+          <option value="CFD">CFD</option>
+          <option value="OTC">OTC</option>
+          <option value="FX">FX</option>
+          <option value="Binance">Binance</option>
+          <option value="NASDAQ">NASDAQ</option>
+          <option value="NYSE">NYSE</option>
+          <option value="NYSE Arca">NYSE Arca</option>
+          <option value="COMEX">COMEX</option>
+          <option value="NYMEX">NYMEX</option>
+          <option value="CME">CME</option>
+          <option value="LSE">LSE</option>
+          <option value="Euronext">Euronext</option>
+        </select>
       </div>
       <div class="form-group">
-        <label>Commission ($)</label>
-        <input type="number" id="f_comm" step="any" placeholder="0">
-      </div>
-      <div class="form-group full">
         <label>Analysis / Notes (supports markdown)</label>
         <textarea id="f_notes" placeholder="Elliott Wave count, ICT setup, macro thesis..."></textarea>
       </div>
@@ -882,7 +891,7 @@ if(localStorage.getItem('xf_portfolio_version') !== PORTFOLIO_VERSION){
   localStorage.setItem('xf_portfolio_version', PORTFOLIO_VERSION);
 }
 let trades = JSON.parse(localStorage.getItem('xf_portfolio') || 'null') || seedTrades;
-let nextId = Math.max(...trades.map(t=>t.id)) + 1;
+let nextId = trades.length ? Math.max(...trades.map(t=>parseInt(t.id)||0)) + 1 : 1;
 
 let filterCat = 'All';
 let filterStatus = 'All';
@@ -1331,13 +1340,12 @@ function openEdit(id){
   document.getElementById('f_tp').value=t.tp||'';
   document.getElementById('f_open').value=t.open||'';
   document.getElementById('f_close').value=t.close||'';
-  document.getElementById('f_exch').value=t.exch||'';
-  document.getElementById('f_comm').value=t.comm||0;
+  document.getElementById('f_exch').value=t.exch||'CFD';
   document.getElementById('f_notes').value=t.notes||'';
   document.getElementById('addModal').classList.add('show');
 }
 function clearForm(){
-  ['f_asset','f_entry','f_current','f_qty','f_lev','f_sl','f_tp','f_open','f_close','f_exch','f_comm','f_notes'].forEach(id=>{
+  ['f_asset','f_entry','f_current','f_qty','f_lev','f_sl','f_tp','f_open','f_close','f_notes'].forEach(id=>{
     const el=document.getElementById(id);
     if(el)el.value='';
   });
@@ -1360,7 +1368,7 @@ function saveTrade(){
     open:document.getElementById('f_open').value,
     close:document.getElementById('f_close').value,
     exch:document.getElementById('f_exch').value,
-    comm:parseFloat(document.getElementById('f_comm').value)||0,
+    comm:0,
     notes:document.getElementById('f_notes').value,
   };
   if(editId){const i=trades.findIndex(x=>x.id===editId);trades[i]=t;}
