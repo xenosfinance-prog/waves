@@ -636,7 +636,7 @@ textarea{resize:vertical;min-height:80px}
       </div>
       <div class="form-group">
         <label>Category</label>
-        <select id="f_cat">
+        <select id="f_cat" onchange="autoFillLev()">
           <option>Stock</option><option>ETF</option><option>Forex</option>
           <option>Crypto</option><option>Index</option><option>Commodity</option><option>Options</option><option>CFD</option>
         </select>
@@ -670,8 +670,8 @@ textarea{resize:vertical;min-height:80px}
         <input type="number" id="f_qty" step="any" placeholder="1">
       </div>
       <div class="form-group">
-        <label>Leverage (x)</label>
-        <input type="number" id="f_lev" placeholder="1">
+        <label>Leverage (x) <span id="levHint" style="color:var(--gold2);font-size:.58rem;letter-spacing:0"></span></label>
+        <input type="number" id="f_lev" placeholder="1" min="1">
       </div>
       <div class="form-group">
         <label>Stop Loss</label>
@@ -723,6 +723,42 @@ textarea{resize:vertical;min-height:80px}
       <span>VERIFIED LIVE PORTFOLIO</span>
     </div>
   </div>
+
+  <!-- COMING SOON BLOCK -->
+  <div id="comingSoonBlock" style="
+    text-align:center;
+    padding:80px 24px 100px;
+    max-width:540px;
+    margin:0 auto;
+  ">
+    <div style="font-size:2.8rem;margin-bottom:20px;opacity:.35">⬡</div>
+    <div style="
+      font-family:'Playfair Display',serif;
+      font-size:1.8rem;
+      color:var(--text);
+      margin-bottom:12px;
+      font-weight:700;
+    ">Portfolio — Coming Soon</div>
+    <div style="
+      font-family:'IBM Plex Mono',monospace;
+      font-size:.72rem;
+      color:var(--text3);
+      letter-spacing:.06em;
+      line-height:1.8;
+    ">
+      CALIBRAZIONE POSIZIONI IN CORSO<br>
+      IL PORTAFOGLIO SARÀ DISPONIBILE A BREVE
+    </div>
+    <div style="
+      margin-top:32px;
+      display:inline-block;
+      width:48px;height:2px;
+      background:linear-gradient(90deg,transparent,var(--gold2),transparent);
+    "></div>
+  </div>
+
+  <!-- PORTFOLIO CONTENT — nascosto finché posizioni sono calibrate -->
+  <div id="portfolioContent" style="display:none">
 
   <!-- KPI CARDS -->
   <div class="kpi-grid" id="kpiGrid">
@@ -783,8 +819,8 @@ textarea{resize:vertical;min-height:80px}
             <th onclick="sortBy('status')">Status</th>
             <th onclick="sortBy('entry')">Entry</th>
             <th onclick="sortBy('current')">Current</th>
-            <th onclick="sortBy('pnl')">P&L ($)</th>
-            <th onclick="sortBy('pnlpct')">P&L %</th>
+            <th onclick="sortBy('pnl')"">P&L ($)</th>
+            <th onclick="sortBy('pnlpct')"">P&L %</th>
             <th onclick="sortBy('open')">Opened</th>
             <th>Actions</th>
           </tr>
@@ -804,6 +840,8 @@ textarea{resize:vertical;min-height:80px}
       <div id="premiumSection"></div>
     </div>
   </div>
+
+  </div><!-- /portfolioContent -->
 
 </main>
 
@@ -855,14 +893,97 @@ let editId = null;
 // ───────────────────────────────────────────────
 // CALCULATIONS
 // ───────────────────────────────────────────────
-function calcPnL(t){
-  const diff = t.dir === 'Long' ? t.current - t.entry : t.entry - t.current;
-  const gross = diff * t.qty * (t.lev||1);
-  return +(gross - (t.comm||0)).toFixed(2);
+// ── MiFID II DEFAULT LEVERAGE ─────────────────────────────────────────────
+// Called when adding a new trade — sets the leverage field automatically.
+// User can always override manually.
+function mifidLev(cat, asset){
+  asset = (asset||'').toUpperCase();
+  switch(cat){
+    case 'Forex': {
+      // Major pairs → 1:30  |  Minor/cross → 1:20
+      const majors = ['EURUSD','GBPUSD','USDJPY','USDCHF','AUDUSD','NZDUSD','USDCAD'];
+      const pair = asset.replace('/','').replace('-','');
+      return majors.includes(pair) ? 30 : 20;
+    }
+    case 'Index':     return 20;  // major indices (S&P, DAX, FTSE)
+    case 'Commodity':
+      return asset.includes('GOLD') || asset.includes('XAU') ? 20 : 10;
+    case 'Crypto':    return 2;
+    case 'Stock':     return 5;   // CFD su azioni MiFID retail
+    case 'ETF':       return 5;   // CFD su ETF; se acquisto diretto → 1
+    case 'Options':   return 1;   // options: nessuna leva ulteriore
+    case 'CFD':       return 10;  // generico
+    default:          return 1;
+  }
 }
-function calcPnLPct(t){
+
+// ── PnL CALCULATION — per asset class ────────────────────────────────────
+//
+// FOREX  : PnL = diff_pips × pip_value × lots
+//          pip_value ≈ 10 USD per pip per lotto standard (100k unità)
+//          ma per semplicità e correttezza generica:
+//          notional = entry × qty × 100000   (qty = lotti standard)
+//          PnL = diff × qty × 100000 / entry  (per pair con USD come base)
+//          Per ora usiamo la formula generica CFD che funziona su tutti i pair:
+//          PnL = (diff / entry) × notional   dove notional = entry × qty × lev
+//          → equivale a: PnL = diff × qty × lev
+//
+// STOCK/ETF (acquisto diretto, lev=1):
+//          PnL = diff × qty × 1
+//
+// STOCK/ETF (CFD, lev=5):
+//          PnL = diff × qty × lev
+//          (il margine richiesto = entry × qty / lev, ma il PnL è sul nozionale)
+//
+// COMMODITY (Gold in USD/oz, Oil in USD/bbl):
+//          PnL = diff × qty × lev
+//          (Gold: qty = oz, Oil: qty = barili o contratti)
+//
+// CRYPTO (lev=2 MiFID):
+//          PnL = diff × qty × lev
+//
+// INDEX (lev=20):
+//          PnL = diff × qty × lev
+//          (qty = numero contratti/mini-contratti)
+//
+// In tutti i casi la formula unificata è:
+//   gross_pnl = price_diff × qty × leverage
+//   net_pnl   = gross_pnl − commission
+//
+// Il PnL % è calcolato sul MARGINE INIZIALE (capitale a rischio reale):
+//   margin    = entry × qty / leverage   (per lev > 1)
+//   pnl_pct   = gross_pnl / margin × 100
+//               = diff / entry × leverage × 100
+// ─────────────────────────────────────────────────────────────────────────
+function calcPnL(t){
+  const lev  = t.lev || 1;
+  const qty  = t.qty || 1;
   const diff = t.dir === 'Long' ? t.current - t.entry : t.entry - t.current;
-  return +((diff / t.entry) * 100 * (t.lev||1)).toFixed(2);
+  const gross = diff * qty * lev;
+  return +(gross - (t.comm || 0)).toFixed(2);
+}
+
+function calcPnLPct(t){
+  // % sul margine impiegato (capitale reale a rischio)
+  const lev   = t.lev || 1;
+  const diff  = t.dir === 'Long' ? t.current - t.entry : t.entry - t.current;
+  // margin = entry × qty / lev → pnl% = (diff × qty × lev) / (entry × qty / lev) × 100
+  //                                     = diff / entry × lev² × 100  ← SBAGLIATO
+  // Corretto: pnl% sul margine = gross / margin × 100
+  //         = (diff × qty × lev) / (entry × qty / lev) × 100
+  //         = diff × lev² / entry × 100  ← amplificazione corretta della leva
+  // Ma per leggibilità esterna usiamo pnl% sul NOZIONALE (più standard nei broker):
+  //         = diff / entry × 100   (senza leva — movimento % del prezzo)
+  // E mostriamo anche il pnl% sul margine separatamente se serve.
+  // Scelta: % sul nozionale (più intuitivo per confronto tra asset class diversi)
+  return +((diff / t.entry) * 100).toFixed(2);
+}
+
+function calcMarginPct(t){
+  // % sul margine — quanto ha guadagnato/perso sul capitale impiegato
+  const lev  = t.lev || 1;
+  const diff = t.dir === 'Long' ? t.current - t.entry : t.entry - t.current;
+  return +((diff / t.entry) * 100 * lev).toFixed(2);
 }
 function fmtN(n,dec=2){return n>=0?'+'+n.toFixed(dec):n.toFixed(dec)}
 function fmtD(s){if(!s)return '—';const d=new Date(s);return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'2-digit'})}
@@ -901,10 +1022,21 @@ function logout(){
   applyAdminUI();
   toast('Logged out');
 }
+function autoFillLev(){
+  const cat   = document.getElementById('f_cat').value;
+  const asset = document.getElementById('f_asset').value;
+  const lev   = mifidLev(cat, asset);
+  document.getElementById('f_lev').value = lev;
+  document.getElementById('levHint').textContent = `MiFID II max: 1:${lev}`;
+}
 function applyAdminUI(){
-  document.getElementById('adminBadge').style.display = isAdmin?'':'none';
-  document.getElementById('adminToggle').textContent = isAdmin?'Logout':'Admin';
-  document.getElementById('addBtn').style.display = isAdmin?'':'none';
+  const cs = document.getElementById('comingSoonBlock');
+  const pc = document.getElementById('portfolioContent');
+  document.getElementById('adminBadge').style.display = isAdmin ? '' : 'none';
+  document.getElementById('adminToggle').textContent  = isAdmin ? 'Logout' : 'Admin';
+  document.getElementById('addBtn').style.display     = isAdmin ? '' : 'none';
+  if(cs) cs.style.display = isAdmin ? 'none' : '';
+  if(pc) pc.style.display = isAdmin ? ''     : 'none';
   render();
 }
 
@@ -1178,6 +1310,7 @@ function openAddModal(){
   editId=null;
   document.getElementById('modalTitle').textContent='Add Trade';
   clearForm();
+  autoFillLev();
   document.getElementById('f_open').value=new Date().toISOString().split('T')[0];
   document.getElementById('addModal').classList.add('show');
 }
