@@ -986,8 +986,8 @@ const ETF_DB = [
   {ticker:'USO',  name:'United States Oil Fund',        isin:'US91232N1081', wsym:'USO',     aum:'$1.4B', ter:'0.60%', bench:'WTI Crude',    type:'Commodity', dist:'None',      incep:'Apr 2006', tags:['Commodity','Oil','USD']},
   {ticker:'TLT',  name:'iShares 20+ Year Treasury',    isin:'US4642874659', wsym:'TLT',     aum:'$52B',  ter:'0.15%', bench:'ICE 20+Y US',  type:'Bond',      dist:'Monthly',   incep:'Jul 2002', tags:['Bond','Long Duration','USD']},
   {ticker:'XLK',  name:'Technology Select Sector SPDR',isin:'US81369Y8030', wsym:'XLK',     aum:'$64B',  ter:'0.09%', bench:'S&P Tech Sec.',type:'Equity',    dist:'Quarterly', incep:'Dec 1998', tags:['Equity','Technology','USD']},
-  {ticker:'CSPX', name:'iShares Core S&P 500 UCITS',   isin:'IE00B5BMR087', wsym:'CSPX.L', aum:'$80B',  ter:'0.07%', bench:'S&P 500',      type:'Equity',    dist:'Accumulating',incep:'May 2010',tags:['Equity','US Large Cap','USD','UCITS']},
-  {ticker:'VUSA', name:'Vanguard S&P 500 UCITS ETF',   isin:'IE00B3XXRP09', wsym:'VUSA.AS',aum:'$42B',  ter:'0.07%', bench:'S&P 500',      type:'Equity',    dist:'Quarterly', incep:'May 2012', tags:['Equity','US Large Cap','EUR','UCITS']},
+  {ticker:'CSPX', name:'iShares Core S&P 500 UCITS',   isin:'IE00B5BMR087', wsym:'CSPX.L',  aum:'$80B',  ter:'0.07%', bench:'S&P 500',      type:'Equity',    dist:'Accumulating',incep:'May 2010',tags:['Equity','US Large Cap','USD','UCITS']},
+  {ticker:'VUSA', name:'Vanguard S&P 500 UCITS ETF',   isin:'IE00B3XXRP09', wsym:'VUSA.AS', aum:'$42B',  ter:'0.07%', bench:'S&P 500',      type:'Equity',    dist:'Quarterly', incep:'May 2012', tags:['Equity','US Large Cap','EUR','UCITS']},
   {ticker:'SLV',  name:'iShares Silver Trust',          isin:'US46428Q1094', wsym:'SLV',     aum:'$10B',  ter:'0.50%', bench:'Silver Spot',  type:'Commodity', dist:'None',      incep:'Apr 2006', tags:['Commodity','Silver','USD']},
 ];
 
@@ -1060,17 +1060,28 @@ function etfSearch(query) {
     return `<tr onclick="showETFInfo('${e.ticker}')" style="cursor:pointer;transition:background 0.15s;">
       <td class="etf-ticker-cell">${e.ticker}</td>
       <td class="etf-name-cell">${e.name}<span class="etf-isin">${e.isin}</span></td>
-      <td class="${chgCls}">${chgStr}</td>
+      <td class="${chgCls}" id="etf-chg-${e.ticker}">${chgStr}</td>
       <td class="etf-aum">${e.aum}</td>
     </tr>`;
   }).join('');
 
-  // Fetch prices for visible ETFs
-  const syms = results.map(e => e.wsym);
-  fetchETFPrices(syms).then(prices => {
-    etfPrices = {...etfPrices, ...prices};
-    etfSearch(query);
-  });
+  // Fetch prices and update only the change cells — no full re-render
+  const syms = results.filter(e => !etfPrices[e.wsym]).map(e => e.wsym);
+  if (syms.length > 0) {
+    fetchETFPrices(syms).then(prices => {
+      etfPrices = {...etfPrices, ...prices};
+      results.forEach(e => {
+        const cell = document.getElementById('etf-chg-' + e.ticker);
+        if (!cell) return;
+        const p = etfPrices[e.wsym];
+        const chg = p?.change_pct;
+        if (chg == null) return;
+        const chgStr = (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%';
+        cell.textContent = chgStr;
+        cell.className = chg >= 0 ? 'etf-chg-up' : 'etf-chg-dn';
+      });
+    });
+  }
 }
 
 function showETFInfo(ticker, switchToSearch) {
@@ -1131,7 +1142,7 @@ async function loadTopETFs() {
     const el = document.getElementById(id);
     if (!el) return;
     const rows = ETF_DB.filter(e => e.type === filter).map(e => {
-      const p = prices[e.wsym];
+      const p = etfPrices[e.wsym];   // ← fix: era 'prices' (fuori scope), ora 'etfPrices'
       const chg = p?.change_pct;
       const chgStr = chg != null ? (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%' : '—';
       const chgColor = chg == null ? '' : chg >= 0 ? 'color:var(--green2)' : 'color:var(--red2)';
