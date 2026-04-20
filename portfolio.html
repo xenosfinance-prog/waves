@@ -582,7 +582,77 @@ textarea{resize:vertical;min-height:80px}
   .kpi-grid{grid-template-columns:repeat(2,1fr)}
 }
 
-/* ── SCROLLBAR ───────────────────────────── */
+/* ── ACCOUNT SUMMARY ─────────────────────────── */
+.account-summary{
+  background:linear-gradient(135deg,var(--bg2) 0%,var(--bg3) 100%);
+  border:1px solid var(--border2);
+  border-radius:var(--radius);
+  padding:0;
+  margin-bottom:20px;
+  display:grid;
+  grid-template-columns:repeat(5,1fr);
+  position:relative;
+  overflow:hidden;
+}
+.account-summary::before{
+  content:'';
+  position:absolute;
+  top:0;left:0;right:0;
+  height:2px;
+  background:linear-gradient(90deg,var(--gold),var(--gold2),transparent);
+}
+.acc-item{
+  padding:16px 20px;
+  border-right:1px solid var(--border);
+}
+.acc-item:last-child{border-right:none}
+.acc-label{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:.58rem;
+  color:var(--text3);
+  letter-spacing:.1em;
+  text-transform:uppercase;
+  margin-bottom:6px;
+}
+.acc-value{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:1.15rem;
+  font-weight:600;
+  color:var(--text);
+  line-height:1;
+}
+.acc-value.green{color:var(--green)}
+.acc-value.red{color:var(--red)}
+.acc-value.gold{color:var(--gold2)}
+.acc-sub{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:.58rem;
+  color:var(--text3);
+  margin-top:5px;
+}
+.acc-bar{
+  height:3px;
+  background:var(--bg);
+  border-radius:2px;
+  margin-top:8px;
+  overflow:hidden;
+}
+.acc-bar-fill{
+  height:100%;
+  border-radius:2px;
+  transition:width .4s ease;
+}
+@media(max-width:900px){
+  .account-summary{grid-template-columns:repeat(3,1fr)}
+  .acc-item:nth-child(3){border-right:none}
+  .acc-item{border-bottom:1px solid var(--border)}
+}
+@media(max-width:600px){
+  .account-summary{grid-template-columns:repeat(2,1fr)}
+  .acc-item:nth-child(2n){border-right:none}
+}
+
+
 ::-webkit-scrollbar{width:6px;height:6px}
 ::-webkit-scrollbar-track{background:var(--bg)}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
@@ -769,6 +839,37 @@ textarea{resize:vertical;min-height:80px}
   <!-- PORTFOLIO CONTENT — nascosto finché posizioni sono calibrate -->
   <div id="portfolioContent" style="display:none">
 
+  <!-- ACCOUNT SUMMARY -->
+  <div class="account-summary" id="accountSummary">
+    <div class="acc-item">
+      <div class="acc-label">Initial Capital</div>
+      <div class="acc-value gold">$30,000.00</div>
+      <div class="acc-sub">Base USD</div>
+    </div>
+    <div class="acc-item">
+      <div class="acc-label">Equity</div>
+      <div class="acc-value" id="acc-equity">—</div>
+      <div class="acc-sub" id="acc-equity-sub">—</div>
+    </div>
+    <div class="acc-item">
+      <div class="acc-label">Total P&amp;L</div>
+      <div class="acc-value" id="acc-pnl">—</div>
+      <div class="acc-sub" id="acc-pnl-pct">—</div>
+    </div>
+    <div class="acc-item">
+      <div class="acc-label">Margin Used</div>
+      <div class="acc-value" id="acc-margin">—</div>
+      <div class="acc-sub">
+        <div class="acc-bar"><div class="acc-bar-fill" id="acc-margin-bar" style="width:0%;background:var(--gold)"></div></div>
+      </div>
+    </div>
+    <div class="acc-item">
+      <div class="acc-label">Free Margin</div>
+      <div class="acc-value" id="acc-free">—</div>
+      <div class="acc-sub" id="acc-free-sub">—</div>
+    </div>
+  </div>
+
   <!-- KPI CARDS -->
   <div class="kpi-grid" id="kpiGrid">
     <!-- filled by JS -->
@@ -949,7 +1050,48 @@ let editId = null;
 // ── MiFID II DEFAULT LEVERAGE ─────────────────────────────────────────────
 // Called when adding a new trade — sets the leverage field automatically.
 // User can always override manually.
-function mifidLev(cat, asset){
+const INITIAL_CAPITAL = 30000;
+
+function calcMargin(t){
+  // Margine = nozionale / leva
+  // Nozionale = entry × qty × lotMultiplier
+  const mult = lotMultiplier(t.cat, t.asset);
+  const lev  = t.lev || 1;
+  return (t.entry * t.qty * mult) / lev;
+}
+
+function renderAccountSummary(){
+  const openTrades = trades.filter(t => t.status === 'Open' || t.status === 'Hold');
+  const totalPnL   = trades.reduce((s,t) => s + calcPnL(t), 0);
+  const equity     = INITIAL_CAPITAL + totalPnL;
+  const marginUsed = openTrades.reduce((s,t) => s + calcMargin(t), 0);
+  const freeMargin = equity - marginUsed;
+  const marginPct  = equity > 0 ? Math.min((marginUsed / equity) * 100, 100) : 0;
+  const pnlPct     = (totalPnL / INITIAL_CAPITAL) * 100;
+
+  const pnlCls   = totalPnL  >= 0 ? 'green' : 'red';
+  const freeCls  = freeMargin >= 0 ? 'green' : 'red';
+  const barColor = marginPct > 80 ? 'var(--red)' : marginPct > 50 ? 'var(--yellow)' : 'var(--gold2)';
+
+  document.getElementById('acc-equity').className     = 'acc-value ' + pnlCls;
+  document.getElementById('acc-equity').textContent   = '$' + equity.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+  document.getElementById('acc-equity-sub').textContent = (pnlPct >= 0 ? '+' : '') + pnlPct.toFixed(2) + '% vs capital';
+
+  document.getElementById('acc-pnl').className        = 'acc-value ' + pnlCls;
+  document.getElementById('acc-pnl').textContent      = (totalPnL >= 0 ? '+$' : '-$') + Math.abs(totalPnL).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+  document.getElementById('acc-pnl-pct').textContent  = (pnlPct >= 0 ? '+' : '') + pnlPct.toFixed(2) + '%';
+
+  document.getElementById('acc-margin').className     = 'acc-value gold';
+  document.getElementById('acc-margin').textContent   = '$' + marginUsed.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+  document.getElementById('acc-margin-bar').style.width       = marginPct.toFixed(1) + '%';
+  document.getElementById('acc-margin-bar').style.background  = barColor;
+
+  document.getElementById('acc-free').className       = 'acc-value ' + freeCls;
+  document.getElementById('acc-free').textContent     = '$' + Math.abs(freeMargin).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+  document.getElementById('acc-free-sub').textContent = marginPct.toFixed(1) + '% margin used';
+}
+
+
   asset = (asset||'').toUpperCase();
   switch(cat){
     case 'Forex': {
@@ -1440,6 +1582,7 @@ function toast(msg,type=''){
 // RENDER
 // ───────────────────────────────────────────────
 function render(){
+  renderAccountSummary();
   renderKPI();
   renderCharts();
   renderTable();
