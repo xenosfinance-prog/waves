@@ -964,8 +964,8 @@ textarea{resize:vertical;min-height:80px}
 const ADMIN_PWD = 'RMG@Manu78';
 const PREMIUM_CODES = ['XENOS-PREMIUM-2026','XF-PRO-001','XF-PRO-002','XF-PRO-003'];
 
-let isAdmin = sessionStorage.getItem('xf_admin') === 'true';
-let isPremium = sessionStorage.getItem('xf_premium') === 'true' || isAdmin;
+let isAdmin = localStorage.getItem('xf_admin') === 'true';
+let isPremium = localStorage.getItem('xf_premium') === 'true' || isAdmin;
 
 // Seed mock trades
 const seedTrades = [
@@ -1092,6 +1092,7 @@ function renderAccountSummary(){
 }
 
 
+function mifidLev(cat, asset){
   asset = (asset||'').toUpperCase();
   switch(cat){
     case 'Forex': {
@@ -1181,8 +1182,8 @@ function doLogin(){
   const pwd = document.getElementById('adminPwd').value;
   if(pwd === ADMIN_PWD){
     isAdmin=true; isPremium=true;
-    sessionStorage.setItem('xf_admin','true');
-    sessionStorage.setItem('xf_premium','true');
+    localStorage.setItem('xf_admin','true');
+    localStorage.setItem('xf_premium','true');
     closeModal('loginOverlay');
     document.getElementById('adminPwd').value='';
     applyAdminUI();
@@ -1193,7 +1194,7 @@ function doLogin(){
 }
 function logout(){
   isAdmin=false;
-  sessionStorage.removeItem('xf_admin');
+  localStorage.removeItem('xf_admin');
   applyAdminUI();
   toast('Logged out');
 }
@@ -1469,7 +1470,7 @@ function unlockPremium(){
   const code = prompt('Enter your premium access code:');
   if(PREMIUM_CODES.includes(code)){
     isPremium=true;
-    sessionStorage.setItem('xf_premium','true');
+    localStorage.setItem('xf_premium','true');
     toast('Premium unlocked!','green');
     renderPremium();
   } else {
