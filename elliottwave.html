@@ -965,14 +965,6 @@ canvas { display: block; }
         <button id="manualToggleBtn" onclick="toggleManualMode()" style="position:absolute;top:8px;left:50%;transform:translateX(-50%);background:rgba(15,23,36,0.85);border:1px solid rgba(59,130,246,0.3);color:#4a6a8a;font-family:var(--mono);font-size:8px;letter-spacing:2px;padding:4px 12px;cursor:pointer;text-transform:uppercase;z-index:10;transition:all 0.2s;" onmouseover="this.style.borderColor='rgba(59,130,246,0.7)';this.style.color='#60a5fa'" onmouseout="if(!manualModeActive)this.style.borderColor='rgba(59,130,246,0.3)';if(!manualModeActive)this.style.color='#4a6a8a'">✏ Draw Waves</button>
       </div>
 
-      <!-- LIVE TV CHART -->
-      <div id="tvChartWrap" style="display:none;margin-top:16px;border:1px solid var(--border);border-radius:4px;overflow:hidden;">
-        <div style="background:var(--bg2);border-bottom:1px solid var(--border);padding:7px 14px;display:flex;align-items:center;justify-content:space-between;">
-          <span style="font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);">● Live Chart</span>
-          <span style="font-family:var(--mono);font-size:8px;color:var(--border2);letter-spacing:1px;">REAL-TIME</span>
-        </div>
-        <div id="tvChartContainer" style="height:480px;"></div>
-      </div>
 
       <div class="analysis-output" id="analysisOutput">
         <pre id="analysisText"></pre>
@@ -1234,86 +1226,6 @@ const EW_SYMBOL_MAP = {
   'xrp':'XRP-USD','ripple':'XRP-USD','xrpusd':'XRP-USD','xrp/usd':'XRP-USD',
   'doge':'DOGE-USD','dogecoin':'DOGE-USD','dogeusd':'DOGE-USD',
 };
-
-// ── TRADINGVIEW LIVE CHART ────────────────────────────────────────────────
-// Maps internal symbol keys → TradingView symbols (exchange:pair format)
-const TV_SYMBOL_MAP = {
-  'eurusd':'FX:EURUSD','eur/usd':'FX:EURUSD',
-  'gbpusd':'FX:GBPUSD','gbp/usd':'FX:GBPUSD',
-  'usdjpy':'FX:USDJPY','usd/jpy':'FX:USDJPY',
-  'audusd':'FX:AUDUSD','aud/usd':'FX:AUDUSD',
-  'usdchf':'FX:USDCHF','usd/chf':'FX:USDCHF',
-  'usdcad':'FX:USDCAD','usd/cad':'FX:USDCAD',
-  'nzdusd':'FX:NZDUSD','nzd/usd':'FX:NZDUSD',
-  'eurgbp':'FX:EURGBP','eurjpy':'FX:EURJPY',
-  'gbpjpy':'FX:GBPJPY','cadjpy':'FX:CADJPY',
-  'audnzd':'FX:AUDNZD','eurchf':'FX:EURCHF',
-  'gold':'OANDA:XAUUSD','xauusd':'OANDA:XAUUSD','xau/usd':'OANDA:XAUUSD',
-  'silver':'OANDA:XAGUSD','xagusd':'OANDA:XAGUSD',
-  'oil wti':'NYMEX:CL1!','wti':'NYMEX:CL1!','usoil':'NYMEX:CL1!',
-  'brent':'ICEEUR:B1!','brent oil':'ICEEUR:B1!',
-  'nat gas':'NYMEX:NG1!','natgas':'NYMEX:NG1!','natural gas':'NYMEX:NG1!',
-  'copper':'COMEX:HG1!',
-  's&p 500':'SP:SPX','sp500':'SP:SPX',
-  'nasdaq':'NASDAQ:NDX',
-  'dow':'DJ:DJI',
-  'dax':'XETR:DAX',
-  'ftse 100':'SPREADEX:FTSE','ftse':'SPREADEX:FTSE',
-  'btc/usd':'BITSTAMP:BTCUSD','btcusd':'BITSTAMP:BTCUSD','btc':'BITSTAMP:BTCUSD',
-  'eth/usd':'BITSTAMP:ETHUSD','ethusd':'BITSTAMP:ETHUSD','eth':'BITSTAMP:ETHUSD',
-  'sol':'BINANCE:SOLUSDT','xrp':'BITSTAMP:XRPUSD',
-};
-
-// TF selector value → TradingView interval
-const TV_TF_MAP = {
-  'W1 (Weekly)':'W','D1 (Daily)':'D','H4 (4-Hour)':'240',
-  'H2 (2-Hour)':'120','H1 (1-Hour)':'60','M30 (30-Min)':'30','M15 (15-Min)':'15',
-};
-
-let tvWidget = null;
-
-function loadTVChart(symbolKey, tfLabel){
-  const wrap = document.getElementById('tvChartWrap');
-  const container = document.getElementById('tvChartContainer');
-  if(!wrap || !container) return;
-
-  const tvSym  = TV_SYMBOL_MAP[symbolKey.toLowerCase()] || 'FX:EURUSD';
-  const tvInt  = TV_TF_MAP[tfLabel] || 'D';
-
-  // Clear previous widget
-  container.innerHTML = '';
-
-  // Build iframe URL — Advanced Chart embed with indicator, no toolbar shown
-  const params = new URLSearchParams({
-    symbol:    tvSym,
-    interval:  tvInt,
-    theme:     'dark',
-    style:     '1',
-    locale:    'en',
-    hide_top_toolbar:  '1',
-    hide_legend:       '0',
-    hide_side_toolbar: '1',
-    allow_symbol_change: '0',
-    save_image:  '0',
-    calendar:    '0',
-    studies:     JSON.stringify(['PUB;KvrhsPTp']),  // silent — no name shown
-    backgroundColor: '0f1724',
-    gridColor:   '1e3050',
-    withdateranges: '0',
-    details:    '0',
-    hotlist:    '0',
-    watchlist:  '0',
-  });
-
-  const iframe = document.createElement('iframe');
-  iframe.src = `https://www.tradingview.com/widgetembed/?${params.toString()}`;
-  iframe.style.cssText = 'width:100%;height:480px;border:none;display:block;';
-  iframe.setAttribute('frameborder','0');
-  iframe.setAttribute('allowtransparency','true');
-  iframe.setAttribute('scrolling','no');
-  container.appendChild(iframe);
-  wrap.style.display = 'block';
-}
 
 async function fetchLivePrice(symbolInput) {
   const key = symbolInput.trim().toLowerCase();
@@ -2424,13 +2336,6 @@ function renderEWChart(analysis, symbol, tf, liveData) {
   const hasAnyWave = wp && (wp.w0 || wp.wa || wp.w1);
   if (!hasAnyWave) { wrap.style.display='none'; return; }
   wrap.style.display='block';
-
-  // Load live TV chart below canvas
-  const symbolEl = document.getElementById('aiSymbol');
-  const symKey   = symbolEl ? symbolEl.value : 'eur/usd';
-  const tfEl     = document.getElementById('aiTf');
-  const tfLabel  = tfEl ? tfEl.value : 'D1 (Daily)';
-  loadTVChart(symKey, tfLabel);
 
   const W = canvas.offsetWidth||860, H=460;
   canvas.width=W*2; canvas.height=H*2;
