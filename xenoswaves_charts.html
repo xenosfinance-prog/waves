@@ -947,8 +947,16 @@ function switchTab(name, btn) {
   if (btn) btn.classList.add('active');
   window.scrollTo({top: 160, behavior: 'smooth'});
   if (name === 'macro' && !Object.keys(macroCache).length) fetchMacroData();
-  if (name === 'etf') { loadETFHeatmap(); loadTopETFs(); }
+  if (name === 'etf') { loadETFHeatmap(); loadTopETFs(); loadThemesPrices(); }
 }
+
+// Auto-refresh ETF prices every 60s when ETF tab is active
+setInterval(() => {
+  if (document.getElementById('panel-etf')?.classList.contains('active')) {
+    loadETFHeatmap();
+    loadThemesPrices();
+  }
+}, 60000);
 
 document.addEventListener('DOMContentLoaded', () => {
   if (document.getElementById('panel-macro')?.classList.contains('active')) fetchMacroData();
@@ -993,17 +1001,23 @@ const ETF_DB = [
 
 let etfPrices = {};
 
-async function fetchETFPrices(symbols) {
-  try {
-    const r = await fetch(ETF_WORKER, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({type:'prices', pairs: symbols}),
-      signal: AbortSignal.timeout(12000)
-    });
-    if (!r.ok) return {};
-    const d = await r.json();
-    return d.prices || {};
-  } catch(e) { return {}; }
+async function fetchETFPrices(symbols, retries = 2) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const r = await fetch(ETF_WORKER, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({type:'prices', pairs: symbols}),
+        signal: AbortSignal.timeout(15000)
+      });
+      if (!r.ok) throw new Error('Worker ' + r.status);
+      const d = await r.json();
+      return d.prices || {};
+    } catch(e) {
+      if (attempt === retries) return {};
+      await new Promise(r => setTimeout(r, 1500 * (attempt + 1)));
+    }
+  }
+  return {};
 }
 
 // Sector heatmap data
@@ -1025,15 +1039,25 @@ const SECTOR_ETFS = [
 async function loadETFHeatmap() {
   const grid = document.getElementById('etf-hm-grid');
   if (!grid) return;
+  // Show loading skeletons
+  grid.innerHTML = SECTOR_ETFS.map(s =>
+    `<div class="hm-cell hm-neu" style="opacity:.5"><div class="hm-name">${s.name}</div><div class="hm-val">⟳</div></div>`
+  ).join('');
   const syms = SECTOR_ETFS.map(s => s.sym);
   const prices = await fetchETFPrices(syms);
   etfPrices = {...etfPrices, ...prices};
   grid.innerHTML = SECTOR_ETFS.map(s => {
     const p = prices[s.sym];
     const chg = p?.change_pct;
-    const cls = chg == null ? 'hm-neu' : chg >= 0.3 ? 'hm-up' : chg <= -0.3 ? 'hm-dn' : 'hm-neu';
+    const price = p?.price;
+    const cls = chg == null ? 'hm-neu' : chg >= 1 ? 'hm-up' : chg <= -1 ? 'hm-dn' : chg >= 0 ? 'hm-up-mild' : 'hm-dn-mild';
     const val = chg != null ? (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%' : '—';
-    return `<div class="hm-cell ${cls}"><div class="hm-name">${s.name}</div><div class="hm-val">${val}</div></div>`;
+    const priceStr = price != null ? '$' + price.toFixed(2) : '';
+    return `<div class="hm-cell ${cls}" onclick="etfSearch('${s.sym}');etfTab('search',document.querySelectorAll('.etf-tab')[1])" style="cursor:pointer">
+      <div class="hm-name">${s.name}</div>
+      <div class="hm-val">${val}</div>
+      ${priceStr ? `<div style="font-family:var(--mono);font-size:9px;opacity:.7;margin-top:2px">${priceStr}</div>` : ''}
+    </div>`;
   }).join('');
 }
 
@@ -1232,8 +1256,10 @@ async function loadThemesPrices() {
   .hm-cell{padding:12px 8px;text-align:center;}
   .hm-name{font-family:var(--mono);font-size:8px;letter-spacing:1px;color:rgba(200,216,234,0.7);margin-bottom:4px;}
   .hm-val{font-family:var(--mono);font-size:13px;font-weight:700;}
-  .hm-up{background:rgba(16,185,129,0.2);color:#34d399;}
-  .hm-dn{background:rgba(239,68,68,0.15);color:#f87171;}
+  .hm-up{background:rgba(16,185,129,0.25);color:#34d399;}
+  .hm-up-mild{background:rgba(16,185,129,0.10);color:#6ee7b7;}
+  .hm-dn{background:rgba(239,68,68,0.20);color:#f87171;}
+  .hm-dn-mild{background:rgba(239,68,68,0.08);color:#fca5a5;}
   .hm-neu{background:rgba(30,48,80,0.5);color:#5a7a9a;}
   .etf-two-col{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);}
   .etf-col{background:var(--bg2);padding:0;}
