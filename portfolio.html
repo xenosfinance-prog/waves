@@ -797,9 +797,14 @@ textarea{resize:vertical;min-height:80px}
       <h1>Trading <span>Portfolio</span></h1>
       <p>STOCKS · ETF · FOREX · CRYPTO · COMMODITIES</p>
     </div>
-    <div class="verified-badge">
-      <div class="dot"></div>
-      <span>LIVE PORTFOLIO</span>
+    <div style="display:flex;align-items:center;gap:12px">
+      <div id="priceStatus" style="font-family:'IBM Plex Mono',monospace;font-size:.68rem">
+        <span style="color:var(--text3)">⟳ Loading prices...</span>
+      </div>
+      <div class="verified-badge">
+        <div class="dot"></div>
+        <span>LIVE PORTFOLIO</span>
+      </div>
     </div>
   </div>
 
@@ -1605,11 +1610,136 @@ function render(){
   renderPremium();
 }
 
+// ── LIVE PRICE UPDATE ────────────────────────────────────────────────────
+const WORKER_URL = 'https://xenos-ai-proxy.xenosfinance.workers.dev';
+const PRICE_INTERVAL = 5 * 60 * 1000; // 5 minuti
+let priceTimer = null;
+let lastUpdate = null;
+
+// Mappa asset del portfolio → simbolo Yahoo Finance che il Worker accetta
+const PORTFOLIO_SYM_MAP = {
+  // Forex
+  'EUR/USD':     'EURUSD=X',
+  'GBP/USD':     'GBPUSD=X',
+  'USD/JPY':     'USDJPY=X',
+  'USD/CHF':     'USDCHF=X',
+  'AUD/USD':     'AUDUSD=X',
+  'NZD/USD':     'NZDUSD=X',
+  'USD/CAD':     'USDCAD=X',
+  'GBP/JPY':     'GBPJPY=X',
+  'EUR/JPY':     'EURJPY=X',
+  // Commodity
+  'Gold':        'GC=F',
+  'WTI Crude':   'CL=F',
+  'Silver':      'SI=F',
+  'Natural Gas': 'NG=F',
+  'Crude Oil':   'CL=F',
+  'Oil':         'CL=F',
+  'WTI':         'CL=F',
+  // Crypto
+  'BTC/USD':     'BTC-USD',
+  'ETH/USD':     'ETH-USD',
+  'BTC':         'BTC-USD',
+  'ETH':         'ETH-USD',
+  // Indici
+  'S&P 500':     '^GSPC',
+  'NASDAQ':      '^IXIC',
+  'DAX 40':      '^GDAXI',
+  'DAX':         '^GDAXI',
+  'FTSE 100':    '^FTSE',
+  'FTSE':        '^FTSE',
+  // Stock
+  'AAPL':'AAPL','MSFT':'MSFT','NVDA':'NVDA','AMZN':'AMZN',
+  'GOOGL':'GOOGL','META':'META','TSLA':'TSLA','NFLX':'NFLX',
+  'JPM':'JPM','GS':'GS','BAC':'BAC','XOM':'XOM',
+  'CVX':'CVX','WMT':'WMT','JNJ':'JNJ','V':'V',
+  'SPY':'SPY','QQQ':'QQQ','GLD':'GLD','TLT':'TLT',
+};
+
+function getYFSymbol(asset){
+  return PORTFOLIO_SYM_MAP[asset] || PORTFOLIO_SYM_MAP[asset.toUpperCase()] || null;
+}
+
+async function fetchLivePrices(){
+  // Raccogli simboli unici dalle posizioni aperte
+  const openTrades = trades.filter(t => t.status === 'Open' || t.status === 'Hold');
+  const symMap = {}; // yfSym → [trade ids]
+  openTrades.forEach(t => {
+    const sym = getYFSymbol(t.asset);
+    if(!sym) return;
+    if(!symMap[sym]) symMap[sym] = [];
+    symMap[sym].push(t.id);
+  });
+
+  const pairs = Object.keys(symMap);
+  if(!pairs.length) return;
+
+  try {
+    showPriceStatus('updating');
+    const r = await fetch(WORKER_URL, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({type:'prices', pairs}),
+      signal: AbortSignal.timeout(15000)
+    });
+    if(!r.ok) throw new Error('Worker ' + r.status);
+    const data = await r.json();
+    const prices = data.prices || {};
+
+    let updated = 0;
+    pairs.forEach(sym => {
+      const p = prices[sym];
+      if(!p || !p.price) return;
+      const ids = symMap[sym];
+      ids.forEach(id => {
+        const t = trades.find(x => x.id === id);
+        if(!t) return;
+        t.current = +p.price.toFixed(
+          t.cat === 'Forex' ? 5 :
+          t.cat === 'Crypto' ? 2 :
+          t.cat === 'Index' ? 0 : 2
+        );
+        updated++;
+      });
+    });
+
+    if(updated > 0){
+      save();
+      render();
+      lastUpdate = new Date();
+      showPriceStatus('ok', updated);
+    }
+  } catch(e){
+    showPriceStatus('error');
+    console.warn('Live price update failed:', e);
+  }
+}
+
+function showPriceStatus(state, count){
+  const el = document.getElementById('priceStatus');
+  if(!el) return;
+  if(state === 'updating'){
+    el.innerHTML = '<span style="color:var(--text3)">⟳ Updating prices...</span>';
+  } else if(state === 'ok'){
+    const t = lastUpdate ? lastUpdate.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) : '';
+    el.innerHTML = `<span style="color:var(--green)">● Live</span> <span style="color:var(--text3);font-size:.6rem">${count} prices · ${t}</span>`;
+  } else {
+    el.innerHTML = '<span style="color:var(--red)">⚠ Price update failed</span>';
+  }
+}
+
+function startLivePrices(){
+  fetchLivePrices(); // primo fetch immediato
+  if(priceTimer) clearInterval(priceTimer);
+  priceTimer = setInterval(fetchLivePrices, PRICE_INTERVAL);
+}
+
 // ───────────────────────────────────────────────
 // INIT
 // ───────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded',()=>{
   applyAdminUI();
+  startLivePrices();
   // Close overlay on backdrop click
   document.querySelectorAll('.overlay').forEach(ov=>{
     ov.addEventListener('click',e=>{if(e.target===ov)ov.classList.remove('show')});
