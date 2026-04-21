@@ -1053,11 +1053,26 @@ let editId = null;
 const INITIAL_CAPITAL = 30000;
 
 function calcMargin(t){
-  // Margine = nozionale / leva
-  // Nozionale = entry × qty × lotMultiplier
-  const mult = lotMultiplier(t.cat, t.asset);
+  // Margine = nozionale_USD / leva
   const lev  = t.lev || 1;
-  return (t.entry * t.qty * mult) / lev;
+  const qty  = t.qty || 1;
+  const a    = (t.asset||'').toUpperCase().replace('/','').replace('-','');
+
+  if(t.cat === 'Forex'){
+    // 1 lotto standard = 100,000 unità della valuta BASE
+    const units = 100000 * qty;
+    // Se la valuta BASE è USD (USD/JPY, USD/CHF, USD/CAD, USD/NOK...):
+    // nozionale già in USD = units
+    // Se la valuta BASE è altra (EUR/USD, GBP/USD, AUD/USD...):
+    // nozionale in USD = units × prezzo entry
+    const usdBase = a.startsWith('USD');
+    const notionalUSD = usdBase ? units : units * (t.entry || 1);
+    return notionalUSD / lev;
+  }
+
+  // Per tutti gli altri: nozionale = entry × qty × lotMultiplier
+  const mult = lotMultiplier(t.cat, t.asset);
+  return (t.entry * qty * mult) / lev;
 }
 
 function renderAccountSummary(){
