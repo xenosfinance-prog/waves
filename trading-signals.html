@@ -1080,7 +1080,7 @@ function closeAdminLogin() {
 
 function doAdminLogin() {
   const pw = document.getElementById('admin-pw').value;
-  if (pw === 'RMG@Manu78') {
+  if (pw === 'RMG@Manu78' || pw === 'RMG@manu78') {
     isAdmin = true;
     sessionStorage.setItem('xf_admin', 'true');
     closeAdminLogin();
@@ -1583,31 +1583,90 @@ async function runAIInterpreter() {
   btn.textContent = '⟳ Analysing...';
   body.innerHTML = '<span style="color:var(--muted);letter-spacing:1px;">✦ AI is reading the signals...</span>';
 
+  // Build enriched signal data for the prompt
   const signalSummary = cached.data.map(r => {
     const label = (sig) => sig ? sig.l : '—';
-    const overall = overallSig([r.sig5m, r.sig15m, r.sig1h, r.sig4h, r.sig1d]);
+    const score = (sig) => sig ? sig.sc : 0;
+
     const p = r.price;
     const priceStr = !p ? '—' : p > 1000 ? Math.round(p).toLocaleString() : p > 10 ? p.toFixed(2) : p.toFixed(4);
-    return `${r.pair.s} | Price: ${priceStr} | 5M: ${label(r.sig5m)} | 15M: ${label(r.sig15m)} | 1H: ${label(r.sig1h)} | 4H: ${label(r.sig4h)} | 1D: ${label(r.sig1d)} | Overall: ${overall ? overall.l : '—'}`;
-  }).join('\n');
 
-  const prompt = `You are an expert binary options and short-term trading analyst for XenosFinance.
+    // Weighted confluence: 1D and 4H carry more weight than short TFs
+    const weights = { sig5m: 1, sig15m: 1, sig1h: 2, sig4h: 3, sig1d: 4 };
+    const weightedScore = Object.entries(weights).reduce((acc, [key, w]) => acc + score(r[key]) * w, 0);
+    const totalWeight = Object.values(weights).reduce((a, b) => a + b, 0);
+    const avgScore = weightedScore / totalWeight;
 
-Here are the current technical signals for ${tab === 'forex' ? 'Forex major pairs' : 'Crypto pairs'} (signals computed from RSI, MACD, EMA-20, EMA-50 across timeframes):
+    // HTF bias: 4H + 1D only
+    const htfScore = score(r.sig4h) * 3 + score(r.sig1d) * 4;
+    const htfBias = htfScore > 2 ? 'BULLISH' : htfScore < -2 ? 'BEARISH' : 'MIXED';
 
+    // Timeframe alignment: how many TFs agree with the weighted direction
+    const dir = avgScore > 0 ? 1 : avgScore < 0 ? -1 : 0;
+    const tfArray = [r.sig5m, r.sig15m, r.sig1h, r.sig4h, r.sig1d];
+    const aligned = tfArray.filter(s => s && Math.sign(s.sc) === dir).length;
+    const conflicted = tfArray.filter(s => s && Math.sign(s.sc) !== 0 && Math.sign(s.sc) !== dir).length;
+
+    // Market regime estimate: 1D strong = trending, mixed = ranging
+    const d1sc = score(r.sig1d);
+    const regime = Math.abs(d1sc) >= 2 ? 'TRENDING' : Math.abs(avgScore) < 0.3 ? 'RANGING' : 'TRANSITION';
+
+    // Optimal expiry logic based on alignment
+    let expiry = '—';
+    if (aligned >= 4) expiry = tab === 'crypto' ? '15–30 min' : '30–60 min';
+    else if (aligned === 3 && Math.abs(d1sc) >= 1) expiry = tab === 'crypto' ? '5–15 min' : '15–30 min';
+    else if (aligned === 2) expiry = '5 min (risky)';
+    else expiry = 'AVOID — no clear window';
+
+    // Confidence score out of 100
+    const confidence = Math.min(100, Math.round(
+      (aligned / 5) * 50 +
+      (Math.abs(avgScore) / 2) * 30 +
+      (conflicted === 0 ? 20 : conflicted === 1 ? 10 : 0)
+    ));
+
+    return [
+      `${r.pair.s} | Price: ${priceStr}`,
+      `  HTF Bias (4H+1D): ${htfBias} | Market Regime: ${regime}`,
+      `  5M: ${label(r.sig5m)} | 15M: ${label(r.sig15m)} | 1H: ${label(r.sig1h)} | 4H: ${label(r.sig4h)} | 1D: ${label(r.sig1d)}`,
+      `  TF Alignment: ${aligned}/5 agree | Conflicts: ${conflicted} | Weighted Score: ${avgScore.toFixed(2)}`,
+      `  Suggested Expiry: ${expiry} | Signal Confidence: ${confidence}%`,
+    ].join('\n');
+  }).join('\n\n');
+
+  const prompt = `You are a senior options trading analyst at XenosFinance with 15+ years of experience in Forex and Crypto derivatives.
+
+TASK: Analyze the following multi-timeframe signal data and provide professional binary options guidance. The signals are computed from RSI, MACD, EMA-20/50 with weighted confluence scoring (1D×4, 4H×3, 1H×2, 15M×1, 5M×1). The HTF Bias (4H+1D) is the PRIMARY directional filter — never go against it unless all 5 TFs disagree with it.
+
+MARKET: ${tab === 'forex' ? 'Forex Major Pairs' : 'Crypto Pairs'}
+SESSION: ${new Date().toUTCString()}
+
+--- SIGNAL DATA ---
 ${signalSummary}
+---
 
-Provide a concise professional analysis for binary options traders. For each pair with at least one non-neutral signal:
-1. **Action**: CALL, PUT, or AVOID (if conflicting)
-2. **Best expiry**: 5 min, 15 min, 30 min, or 1 hour — choose based on where timeframes align most
-3. **Strength**: Strong / Moderate / Weak
-4. **Reason**: 1-2 sentences (mention which timeframes agree)
+ANALYSIS RULES:
+1. HTF FIRST: Only trade when HTF Bias aligns with short-TF momentum. If HTF=MIXED → AVOID unless 4+ TFs agree.
+2. REGIME FILTER: In RANGING markets, prefer mean-reversion setups (shorter expiry, lower confidence). In TRENDING markets, ride momentum (longer expiry, higher confidence).
+3. CONFLUENCE THRESHOLD: Recommend CALL/PUT only when Alignment ≥ 3/5 AND Weighted Score |x| > 0.4. Otherwise → AVOID.
+4. CONFLICT PENALTY: If Conflicts ≥ 2, reduce confidence by 20% and shorten expiry or AVOID.
+5. EXPIRY LOGIC: Use the pre-calculated Suggested Expiry as your base, but adjust: trending + strong 1D → longer; ranging + conflicts → shorter or avoid.
+6. CRYPTO ADJUSTMENT: Crypto is 2–3× more volatile than Forex — reduce expiry by one step for crypto pairs vs equivalent Forex setup.
 
-Format each as:
-**PAIR** → CALL/PUT | Expiry: Xmin | Strength: X | Reason: ...
+FOR EACH PAIR provide:
+**[PAIR]** → [CALL / PUT / AVOID]
+Expiry: [time] | Confidence: [%] | Regime: [TRENDING/RANGING/TRANSITION]
+HTF Bias: [BULLISH/BEARISH/MIXED] | Alignment: [X/5]
+Rationale: [2-3 sentences — mention which TFs drive the call, whether HTF confirms, and any key risk]
 
-End with a 2-sentence "Market Overview" on overall sentiment.
-Always close with: ⚠ Educational purposes only — not financial advice.`;
+After all pairs, add:
+**── MARKET OVERVIEW ──**
+[3 sentences on overall ${tab} sentiment, dominant regime, and whether it's a high or low-probability session for binary options]
+
+**── RISK WARNINGS ──**
+[2 sentences on current risks: ranging market trap, news risk, thin liquidity, etc.]
+
+Always end with: ⚠ Educational purposes only — not financial advice. XenosFinance does not execute trades.`;
 
   try {
     // Retry logic — handle Cloudflare 529 rate limit with automatic backoff
@@ -1652,6 +1711,13 @@ Always close with: ⚠ Educational purposes only — not financial advice.`;
       .replace(/\bCALL\b/g, '<span style="color:var(--green2);font-weight:700;">CALL</span>')
       .replace(/\bPUT\b/g, '<span style="color:var(--red2);font-weight:700;">PUT</span>')
       .replace(/\bAVOID\b/g, '<span style="color:#f59e0b;font-weight:700;">AVOID</span>')
+      .replace(/\bTRENDING\b/g, '<span style="color:var(--green2);">TRENDING</span>')
+      .replace(/\bRANGING\b/g, '<span style="color:#f59e0b;">RANGING</span>')
+      .replace(/\bTRANSITION\b/g, '<span style="color:var(--muted);">TRANSITION</span>')
+      .replace(/\bBULLISH\b/g, '<span style="color:var(--green2);">BULLISH</span>')
+      .replace(/\bBEARISH\b/g, '<span style="color:var(--red2);">BEARISH</span>')
+      .replace(/\bMIXED\b/g, '<span style="color:#f59e0b;">MIXED</span>')
+      .replace(/(── .+ ──)/g, '<div style="margin:16px 0 8px;padding-bottom:6px;border-bottom:1px solid var(--border);color:var(--gold2);font-size:10px;letter-spacing:2px;">$1</div>')
       .replace(/(⚠[^\n]+)/g, '<div style="margin-top:14px;padding:8px 12px;border-left:2px solid var(--border);color:var(--muted);font-size:10px;letter-spacing:1px;">$1</div>')
       .replace(/\n\n/g, '<br><br>')
       .replace(/\n/g, '<br>');
