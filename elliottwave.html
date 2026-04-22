@@ -234,8 +234,8 @@ canvas { display: block; }
 .wave-note-asset { font-family: var(--mono); font-size: 13px; color: var(--ink); letter-spacing: 1px; min-width: 80px; }
 .wave-note-setup { font-size: 12px; color: var(--ink2); flex: 1; }
 .wave-note-date  { font-size: 10px; color: var(--muted); white-space: nowrap; }
-.wave-note-del   { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 14px; padding: 0 4px; display: none; }
-.wave-note-del:hover { color: var(--red2); }
+.wave-note-del   { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.3); color: var(--red2); cursor: pointer; font-size: 10px; letter-spacing: 1px; padding: 3px 10px; display: none; font-family: var(--mono); text-transform: uppercase; transition: all 0.2s; }
+.wave-note-del:hover { background: rgba(239,68,68,0.2); border-color: var(--red2); }
 .admin-active .wave-note-del { display: inline; }
 
 /* ── FOOTER ── */
@@ -1056,19 +1056,68 @@ function filterTag(tag, btn){
 }
 
 // ── WAVE NOTES (public feed + admin publish) ──
-const NOTES_KEY = 'xenos_wave_notes';
+// Notes are stored on GitHub (same pattern as CFD/Options signals) so they
+// appear on ALL devices and browsers — not just the one that published them.
+const NOTES_GH_FILE = 'wave_notes/notes.json';
+const NOTES_WORKER  = 'https://xenos-ai-proxy.xenosfinance.workers.dev';
+const NOTES_REPO    = 'xenosfinance-prog/waves';
 let isAdminUnlocked = false;
+let _notesCache = null; // in-memory cache to avoid repeated GH fetches
 
-function loadNotes() {
-  try { return JSON.parse(localStorage.getItem(NOTES_KEY) || '[]'); } catch(e) { return []; }
+async function loadNotes() {
+  // 1. Return in-memory cache if available
+  if (_notesCache !== null) return _notesCache;
+  try {
+    // 2. Try raw GitHub (fast, no auth, public repo)
+    const url = `https://raw.githubusercontent.com/${NOTES_REPO}/main/${NOTES_GH_FILE}?t=${Date.now()}`;
+    const r = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    if (r.ok) {
+      const data = await r.json();
+      _notesCache = Array.isArray(data) ? data : [];
+      return _notesCache;
+    }
+  } catch(e) {}
+  // 3. Fallback: empty array (file may not exist yet)
+  _notesCache = [];
+  return _notesCache;
 }
-function saveNotes(n) { localStorage.setItem(NOTES_KEY, JSON.stringify(n)); }
 
-function renderPublicFeed() {
-  var notes = loadNotes();
+async function saveNotes(notes) {
+  _notesCache = notes; // update in-memory immediately
+  try {
+    // Get current SHA (needed for PUT)
+    const getRes = await fetch(NOTES_WORKER, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'github', method: 'GET',
+        url: `https://api.github.com/repos/${NOTES_REPO}/contents/${NOTES_GH_FILE}` })
+    });
+    const gd = await getRes.json();
+    const sha = gd.data?.sha || null; // null = file doesn't exist yet (first save)
+
+    const content = btoa(unescape(encodeURIComponent(JSON.stringify(notes, null, 2))));
+    const payload = { message: 'update wave notes', content };
+    if (sha) payload.sha = sha;
+
+    await fetch(NOTES_WORKER, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'github', method: 'PUT',
+        url: `https://api.github.com/repos/${NOTES_REPO}/contents/${NOTES_GH_FILE}`,
+        payload })
+    });
+  } catch(e) {
+    console.warn('saveNotes GitHub error:', e.message);
+  }
+}
+
+async function renderPublicFeed() {
   var list = document.getElementById('publicNotesList');
   var empty = document.getElementById('publicNotesEmpty');
   if (!list) return;
+  // Show loading indicator while fetching from GitHub
+  if (_notesCache === null) {
+    list.innerHTML = '<div style="font-size:10px;color:var(--muted);letter-spacing:2px;padding:16px 0;">⟳ Loading setups...</div>';
+  }
+  var notes = await loadNotes();
   list.innerHTML = '';
   var wrap = document.getElementById('publicWaveFeed');
   if (wrap) {
@@ -1098,9 +1147,14 @@ function renderPublicFeed() {
     date.textContent = n.date || '';
     var del = document.createElement('button');
     del.className = 'wave-note-del';
-    del.title = 'Delete';
-    del.textContent = 'x';
-    (function(i) { del.addEventListener('click', function() { deleteNote(i); }); })(realIdx);
+    del.title = 'Delete this setup';
+    del.textContent = '🗑 Delete';
+    (function(i, asset) {
+      del.addEventListener('click', function(e) {
+        e.stopPropagation();
+        if (confirm('Delete setup for ' + (asset||'this note') + '?')) deleteNote(i);
+      });
+    })(realIdx, n.asset);
     row.appendChild(bias);
     row.appendChild(asset);
     row.appendChild(setup);
@@ -1110,25 +1164,30 @@ function renderPublicFeed() {
   });
 }
 
-function publishNote() {
+async function publishNote() {
   const asset = (document.getElementById('noteAsset').value||'').trim().toUpperCase();
   const setup = (document.getElementById('noteSetup').value||'').trim();
   const bias  = document.getElementById('noteBias').value;
   const err   = document.getElementById('noteErr');
+  const btn   = document.querySelector('#adminPublishStrip .admin-btn');
   if (!asset) { err.textContent='⚠ Asset required'; return; }
   if (!setup) { err.textContent='⚠ Setup label required'; return; }
   err.textContent='';
-  const notes = loadNotes();
+  if (btn) { btn.disabled=true; btn.textContent='Saving...'; }
+  const notes = await loadNotes();
   const now = new Date();
   notes.push({asset, setup, bias, date: now.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}).toUpperCase()});
-  saveNotes(notes);
+  await saveNotes(notes);
   document.getElementById('noteAsset').value='';
   document.getElementById('noteSetup').value='';
-  renderPublicFeed();
+  if (btn) { btn.disabled=false; btn.textContent='Publish'; }
+  err.textContent='✓ Published';
+  setTimeout(()=>{ err.textContent=''; }, 3000);
+  await renderPublicFeed();
 }
 
-function deleteNote(idx) {
-  const notes = loadNotes(); notes.splice(idx,1); saveNotes(notes); renderPublicFeed();
+async function deleteNote(idx) {
+  const notes = await loadNotes(); notes.splice(idx,1); await saveNotes(notes); await renderPublicFeed();
 }
 
 function publishFromAnalysis() {
@@ -1160,7 +1219,7 @@ function switchAccessTab(tab) {
 
 function adminLogin(){
   const pw=document.getElementById('adminPw').value;
-  if(pw==='RMG@Manu78'){
+  if(pw==='RMG@Manu78' || pw==='RMG@manu78'){
     document.getElementById('admin-login-area').style.display='none';
     document.getElementById('adminPanel').style.display='block';
     const strip=document.getElementById('adminPublishStrip');
@@ -1414,8 +1473,12 @@ function countElliottWavesDeepscan(candles) {
   const bearishDiv = p>=Math.max(...closes.slice(-20))*0.998 && rv<Math.max(...rsiWin)-5;
   const bullishDiv = p<=Math.min(...closes.slice(-20))*1.002 && rv>Math.min(...rsiWin)+5;
 
-  // ── Pivot detection — use real candle highs/lows ──
-  const wPiv = Math.max(3, Math.floor(n200/25));
+  // ── Pivot detection — adaptive lookback ──
+  // Larger lookback = fewer, higher-quality pivots (less noise)
+  // For short candle series use smaller window; for long series use bigger
+  const wPiv = candles.length >= 150 ? Math.max(5, Math.floor(n200 / 20))
+             : candles.length >= 80  ? Math.max(4, Math.floor(n200 / 18))
+             : Math.max(3, Math.floor(n200 / 15));
   const allPivots = getPivotStructure(c200, wPiv);
 
   // ── EW STRUCTURAL SEARCH ──
@@ -1478,8 +1541,36 @@ function countElliottWavesDeepscan(candles) {
           if (!bull && W4.price >= W1.price) continue;
         }
 
-        // ── Score this count by how many pivots confirmed + recency ──
-        const score = seq.length * 10 + (pivots.length - start); // longer = better, more recent start = better
+        // ── Score this count — quality-weighted ──
+        // Base: confirmed pivots × 10
+        // Bonus: W3 dominance (must be strongest impulse wave)
+        // Bonus: W2 retrace in 38-79% golden zone
+        // Penalty: W2 retrace > 78.6% (too deep)
+        // Penalty: W3 barely larger than W1 (weak structure)
+        // Prefer more RECENT start positions (later start = fresher count)
+        let score = seq.length * 10;
+
+        // W2 quality: golden zone 38.2-78.6%
+        if (w2Ret >= 0.382 && w2Ret <= 0.786) score += 15;
+        else if (w2Ret > 0.786) score -= 20; // dangerously deep W2
+
+        // W3 dominance bonus
+        if (W3 && w3Size > 0) {
+          if (w3Size > w1Size * 1.618) score += 20; // classic extended W3
+          else if (w3Size > w1Size * 1.0) score += 10; // W3 longer than W1 (good)
+          else score -= 15; // W3 shorter than W1 (suspicious)
+        }
+
+        // W4 retrace quality (if present): should be 23.6-50% of W3
+        if (W4 && W3 && w3Size > 0) {
+          const w4Ret = Math.abs(W4.price - W3.price) / w3Size;
+          if (w4Ret >= 0.236 && w4Ret <= 0.618) score += 10;
+          else if (w4Ret > 0.618) score -= 10;
+        }
+
+        // Recency bonus: more recent starting pivot = fresher wave count
+        score += Math.floor((start / Math.max(pivots.length - 1, 1)) * 20);
+
         if (!best || score > best.score) {
           best = { W0, W1, W2, W3, W4, W5, bull, w1Size, w3Size, w3Ext, score, waveCount: seq.length };
         }
@@ -1512,7 +1603,17 @@ function countElliottWavesDeepscan(candles) {
         if (bearABC && WB.price >= WA.price) continue;
         if (!bearABC && WB.price <= WA.price) continue;
 
-        const score = (WC ? 30 : 20) + (pivots.length - start);
+        // B retrace quality: should be 38.2-78.6% of A (not 100%+)
+        let score = (WC ? 30 : 20) + (pivots.length - start);
+        const bRet = Math.abs(WB.price - WA.price + (WC ? Math.abs(WC.price - WB.price) : 0));
+        const bRetRatio = WC ? Math.abs(WB.price - WA.price) / aSize : 1;
+        // Prefer B retracing 38-79% of A
+        if (bRetRatio >= 0.382 && bRetRatio <= 0.786) score += 10;
+        // If C exists, prefer C ≈ A (zigzag) or C > A (expanded)
+        if (WC) {
+          const cSize = Math.abs(WC.price - WB.price);
+          if (cSize >= aSize * 0.85 && cSize <= aSize * 1.5) score += 15;
+        }
         if (!best || score > best.score) {
           best = { WA, WB, WC, bearABC, aSize, score };
         }
@@ -1544,8 +1645,14 @@ function countElliottWavesDeepscan(candles) {
   hPvts = allPivots.filter(x=>x.type==='H');
   lPvts = allPivots.filter(x=>x.type==='L');
 
-  // Choose which structure to use
-  const useImpulse = impulse && (!abc || impulse.waveCount >= 4 || impulse.score >= abc.score);
+  // Choose which structure to use — prefer impulse only when it has a clearly
+  // dominant W3 AND at least 4 confirmed pivots; otherwise prefer ABC if its score is competitive
+  const impulseHasDominantW3 = impulse && impulse.W3 && impulse.w3Size >= impulse.w1Size * 1.0;
+  const useImpulse = impulse && (
+    (impulse.waveCount >= 5) ||                                          // 5+ pivots confirmed → trust impulse
+    (impulse.waveCount >= 4 && impulseHasDominantW3) ||                  // 4 pivots + W3 dominant
+    (impulse.waveCount >= 4 && (!abc || impulse.score > abc.score + 10)) // 4 pivots + clearly beats ABC
+  ) && (!abc || impulse.score >= abc.score - 5);                         // don't pick impulse if ABC is much better
 
   if (useImpulse) {
     const I = impulse;
