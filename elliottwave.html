@@ -1901,6 +1901,150 @@ function detectTrend(candles) {
 }
 
 async function runAIAnalysis(){
+  const symbolEl  = document.getElementById('aiSymbol');
+  const symbolVal = symbolEl.options ? symbolEl.options[symbolEl.selectedIndex].value : 'eur/usd';
+  const symbol    = symbolEl.options ? symbolEl.options[symbolEl.selectedIndex].text : symbolVal.toUpperCase();
+  const tf        = document.getElementById('aiTf').value;
+  const ctx_text  = document.getElementById('aiContext').value;
+  const btn       = document.getElementById('aiRunBtn');
+  const out       = document.getElementById('analysisOutput');
+  const txt       = document.getElementById('analysisText');
+
+  // ── Map frontend TF label → server TF key ──
+  const TF_MAP = {
+    'W1 (Weekly)':'W1','D1 (Daily)':'D1',
+    'H4 (4-Hour)':'H4','H2 (2-Hour)':'H1','H1 (1-Hour)':'H1',
+  };
+  const serverTF = TF_MAP[tf] || 'H1';
+
+  btn.disabled=true; btn.textContent='⟳ Analysing...';
+  out.style.display='block';
+  txt.innerHTML='<span class="analysis-loading">⬡ RUNNING XENOS EW ENGINE v3.0 (SERVER)...</span>';
+  document.getElementById('tgBtn').style.display='none';
+
+  try {
+    const res = await fetch('https://waves-production-ddbf.up.railway.app/ew-chart', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ symbol: symbolVal, tf: serverTF, narrative: true }),
+      signal: AbortSignal.timeout(60000)
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(()=>({}));
+      throw new Error(err.error || `Server error ${res.status}`);
+    }
+
+    const ew = await res.json();
+    const livePrice = ew.live_price;
+    const dec = livePrice > 100 ? 2 : 5;
+
+    // Store candles for manual wave drawing
+    if (ew.candles && ew.candles.length) {
+      ewLastCandles = ew.candles.map(c=>({
+        datetime:c.datetime, open:c.open, high:c.high, low:c.low, close:c.close, volume:c.volume||0
+      }));
+    }
+
+    // Render canvas chart using server wave points
+    const chartAnalysis = {
+      trend:        ew.trend,
+      current_wave: ew.current_wave,
+      degree:       ew.degree,
+      signal:       ew.signal,
+      key_levels: {
+        entry:       livePrice,
+        stop_loss:   ew.invalidation,
+        tp1:         ew.tp1,
+        tp2:         ew.tp2,
+        invalidation:ew.invalidation,
+      },
+      fibonacci_levels: {
+        fib618_w1:  ew.fib_618,
+        fib1618_w1: ew.fib_1618,
+        fib382_w3:  null,
+      },
+      wave_points: (() => {
+        // Convert server wave_points [{idx,price,type,label}] to internal format
+        const wp = {}; (ew.wave_points||[]).forEach(p => {
+          const key = {'0':'w0','1':'w1','2':'w2','3':'w3','4':'w4','5':'w5','A':'wa','B':'wb','C':'wc'}[p.label];
+          if (key) wp[key] = p.price;
+        });
+        return wp;
+      })(),
+    };
+
+    // Build pivotMap for manual overlay
+    const pivotMap = {};
+    (ew.wave_points||[]).forEach(p => {
+      const key = {'0':'w0','1':'w1','2':'w2','3':'w3','4':'w4','5':'w5','A':'wa','B':'wb','C':'wc'}[p.label];
+      if (key) pivotMap[key] = { price: p.price, idx: p.idx, date:'' };
+    });
+    ewLastCandles._pivotMap = pivotMap;
+
+    const liveData = { price: livePrice };
+    renderEWChart(chartAnalysis, symbol, serverTF, liveData);
+    setTimeout(saveManualCanvasState, 50);
+    const mBtn = document.getElementById('manualToggleBtn');
+    if (mBtn) mBtn.style.display = 'block';
+
+    // Build output text
+    const sig = ew.signal==='LONG'?'▲ LONG':ew.signal==='SHORT'?'▼ SHORT':'◆ WAIT';
+    const trend = ew.trend==='UP'?'▲ UPTREND':'▼ DOWNTREND';
+    const divNote = ew.bearish_div ? '⚠ Bearish RSI divergence — momentum weakening'
+                  : ew.bullish_div ? '✓ Bullish RSI divergence — momentum building' : null;
+    const diagNote = ew.diagonal ? `Diagonal: ${ew.diagonal}` : null;
+    const corrNote = ew.corrective_pattern ? `Pattern: ${ew.corrective_pattern}` : null;
+    const actionClean = (ew.bias||'').replace(/🟢|🔴|⚠️/g,'').trim();
+    const mtf4 = ew.mtf_4h;
+    const mtfNote = mtf4 ? `4H: Wave ${mtf4.wave_num} — ${mtf4.bias} (conf ${mtf4.confidence}%)${mtf4.diagonal?' ['+mtf4.diagonal+']':''}` : null;
+
+    const output = [
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+      `  ${symbol}  ·  ${tf}  ·  Live: ${livePrice}`,
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+      ``,`WAVE STRUCTURE`,
+      `  ${ew.wave_desc}`,
+      `  ${trend}  ·  Degree: ${ew.degree}  ·  Confidence: ${ew.confidence}%`,
+      ``,`MARKET CONTEXT`,
+      `  ${ew.wave_char}`,
+      divNote?`  ${divNote}`:null,
+      diagNote?`  ${diagNote}`:null,
+      corrNote?`  ${corrNote}`:null,
+      mtfNote?`  MTF ${mtfNote}`:null,
+      ``,`KEY LEVELS`,
+      `  Entry      ${livePrice}`,
+      `  Stop Loss  ${ew.invalidation}`,
+      `  Target 1   ${ew.tp1}`,
+      `  Target 2   ${ew.tp2}`,
+      `  R:R        1:${ew.risk_reward}`,
+      ``,`SIGNAL  ${sig}`,
+      `  ${actionClean}`,
+      ``,`INDICATORS`,
+      `  RSI(14): ${ew.rsi}${ew.rsi>70?' — Overbought':ew.rsi<30?' — Oversold':''}`,
+      `  MACD: ${ew.macd_hist>0?'+':''}${ew.macd_hist?.toFixed?.(5)||'n/a'}  ${ew.macd_hist>0?'Bullish':'Bearish'} momentum`,
+      `  ATR: ${ew.atr}`,
+      ``,
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+      `  ANALYSIS`,
+      ew.narrative ? `  ${ew.narrative.replace(/\n/g,'\n  ')}` : `  Loading narrative...`,
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+    ].filter(l=>l!==null).join('\n');
+
+    txt.textContent = output;
+    lastAnalysis = `Elliott Wave Analysis — ${symbol} ${tf}\n\n${output}`;
+    document.getElementById('tgBtn').style.display='inline-block';
+    if(isAdminUnlocked){ const pb=document.getElementById('publishFromAnalysisBtn'); if(pb)pb.style.display='inline-block'; }
+
+  } catch(e) {
+    txt.innerHTML=`<span style="color:var(--red2);font-family:var(--mono);font-size:11px;">⚠ Analysis failed: ${e.message}</span>`;
+  }
+
+  btn.disabled=false; btn.textContent='⚡ Generate Analysis';
+}
+
+// ── LEGACY: kept for reference but no longer called ──
+async function _runAIAnalysis_legacy(){
   const symbolEl=document.getElementById('aiSymbol');
   const symbolVal = symbolEl.options ? symbolEl.options[symbolEl.selectedIndex].value : 'eur/usd';
   const symbol    = symbolEl.options ? symbolEl.options[symbolEl.selectedIndex].text : symbolVal.toUpperCase();
@@ -2222,10 +2366,7 @@ Now write the professional Elliott Wave analysis following the 4-paragraph forma
 
   btn.disabled=false;
   btn.textContent='⚡ Generate Analysis';
-}
-
-
-// ── ELLIOTT WAVE CHART RENDERER (from Railway API) ────────────────
+} // end _runAIAnalysis_legacy
 function renderEWChartFromAPI(ew, symbol, tf) {
   const wrap   = document.getElementById('ewChartWrap');
   const canvas = document.getElementById('ewChartCanvas');
