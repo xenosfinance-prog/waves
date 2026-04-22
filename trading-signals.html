@@ -1611,12 +1611,32 @@ async function runAIInterpreter() {
     const d1sc = score(r.sig1d);
     const regime = Math.abs(d1sc) >= 2 ? 'TRENDING' : Math.abs(avgScore) < 0.3 ? 'RANGING' : 'TRANSITION';
 
-    // Optimal expiry logic based on alignment
-    let expiry = '—';
-    if (aligned >= 4) expiry = tab === 'crypto' ? '15–30 min' : '30–60 min';
-    else if (aligned === 3 && Math.abs(d1sc) >= 1) expiry = tab === 'crypto' ? '5–15 min' : '15–30 min';
-    else if (aligned === 2) expiry = '5 min (risky)';
-    else expiry = 'AVOID — no clear window';
+    // Optimal expiry — available strikes: 15m, 30m, 1hr, 2hr, 4hr, Daily, Weekly
+    let expiry = 'AVOID';
+    if (aligned >= 4 && conflicted === 0) {
+      if (regime === 'TRENDING' && Math.abs(d1sc) >= 2) {
+        expiry = tab === 'crypto' ? '2hr' : '4hr';
+      } else if (regime === 'TRENDING') {
+        expiry = tab === 'crypto' ? '1hr' : '2hr';
+      } else {
+        expiry = tab === 'crypto' ? '30m' : '1hr';
+      }
+    } else if (aligned >= 3 && conflicted <= 1) {
+      if (regime === 'TRENDING' && Math.abs(d1sc) >= 2) {
+        expiry = tab === 'crypto' ? '1hr' : '2hr';
+      } else if (regime === 'TRENDING') {
+        expiry = tab === 'crypto' ? '30m' : '1hr';
+      } else {
+        expiry = '30m';
+      }
+    } else if (aligned >= 3 && conflicted === 0 && regime === 'RANGING') {
+      expiry = '15m';
+    } else if (aligned === 2 && conflicted === 0 && regime === 'TRENDING') {
+      expiry = '15m';
+    }
+    if (aligned === 5 && Math.abs(d1sc) >= 2 && conflicted === 0) {
+      expiry = tab === 'crypto' ? '4hr' : 'Daily';
+    }
 
     // Confidence score out of 100
     const confidence = Math.min(100, Math.round(
@@ -1650,8 +1670,8 @@ ANALYSIS RULES:
 2. REGIME FILTER: In RANGING markets, prefer mean-reversion setups (shorter expiry, lower confidence). In TRENDING markets, ride momentum (longer expiry, higher confidence).
 3. CONFLUENCE THRESHOLD: Recommend CALL/PUT only when Alignment ≥ 3/5 AND Weighted Score |x| > 0.4. Otherwise → AVOID.
 4. CONFLICT PENALTY: If Conflicts ≥ 2, reduce confidence by 20% and shorten expiry or AVOID.
-5. EXPIRY LOGIC: Use the pre-calculated Suggested Expiry as your base, but adjust: trending + strong 1D → longer; ranging + conflicts → shorter or avoid.
-6. CRYPTO ADJUSTMENT: Crypto is 2–3× more volatile than Forex — reduce expiry by one step for crypto pairs vs equivalent Forex setup.
+5. EXPIRY LOGIC: Use ONLY these exact expiry values: 15m, 30m, 1hr, 2hr, 4hr, Daily, Weekly. Use the pre-calculated Suggested Expiry as your base, but adjust: trending + strong 1D → longer; ranging + conflicts → shorter or AVOID. Weekly is only for exceptional full-alignment trending setups.
+6. CRYPTO ADJUSTMENT: Crypto is 2–3× more volatile than Forex — reduce expiry by one step for crypto pairs vs equivalent Forex setup (e.g. if Forex → 2hr, Crypto → 1hr).
 
 FOR EACH PAIR provide:
 **[PAIR]** → [CALL / PUT / AVOID]
