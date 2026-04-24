@@ -317,6 +317,7 @@ canvas { display: block; }
 <script src="/i18n.js"></script>
 <script src="/i18n-engine.js"></script>
 <script src="/xf-hand.js"></script>
+<script src="/xf-hand.js"></script>
 </head>
 <body>
 
@@ -960,10 +961,46 @@ canvas { display: block; }
         <span id="manualStatus" style="font-family:var(--mono);font-size:9px;color:var(--muted);margin-left:4px;"></span>
       </div>
 
-      <div id="ewChartWrap" style="display:none;margin-top:20px;background:var(--bg);border:1px solid var(--border);overflow:hidden;position:relative;">
-        <canvas id="ewChartCanvas" style="width:100%;display:block;"></canvas>
-        <!-- Manual mode toggle button overlaid on chart -->
-        <button id="manualToggleBtn" onclick="toggleManualMode()" style="position:absolute;top:8px;left:50%;transform:translateX(-50%);background:rgba(15,23,36,0.85);border:1px solid rgba(59,130,246,0.3);color:#4a6a8a;font-family:var(--mono);font-size:8px;letter-spacing:2px;padding:4px 12px;cursor:pointer;text-transform:uppercase;z-index:10;transition:all 0.2s;" onmouseover="this.style.borderColor='rgba(59,130,246,0.7)';this.style.color='#60a5fa'" onmouseout="if(!manualModeActive)this.style.borderColor='rgba(59,130,246,0.3)';if(!manualModeActive)this.style.color='#4a6a8a'">✏ Draw Waves</button>
+      <!-- EW SKETCH PAPER — replaces canvas chart -->
+      <div id="ewChartWrap" style="display:none;margin-top:20px;position:relative;">
+        <div id="ewPaper" style="background:#faf8f3;border:1px solid #e0d8c8;position:relative;overflow:hidden;height:320px;">
+          <div style="position:absolute;left:52px;top:0;bottom:0;width:1px;background:#e8a0a0;opacity:0.45;"></div>
+          <canvas id="ewSketchCanvas" style="display:block;width:100%;height:100%;"></canvas>
+          <!-- Hand SVG for sketch animation -->
+          <div id="ewHandWrap" style="position:absolute;pointer-events:none;opacity:0;transition:left 0.05s linear,top 0.05s linear;">
+            <svg width="100" height="120" viewBox="0 0 100 120" style="filter:drop-shadow(0 2px 6px rgba(0,0,0,0.18));">
+              <defs>
+                <linearGradient id="ewsk" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#f9d8bb"/><stop offset="100%" stop-color="#ecb890"/></linearGradient>
+                <linearGradient id="ewskd" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#e0a06e"/><stop offset="100%" stop-color="#cc8850"/></linearGradient>
+                <linearGradient id="ewslv" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2a4080"/><stop offset="100%" stop-color="#182858"/></linearGradient>
+                <linearGradient id="ewpen" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#1a3a78"/><stop offset="45%" stop-color="#3a6ab0"/><stop offset="100%" stop-color="#1a3a78"/></linearGradient>
+              </defs>
+              <g transform="rotate(-28,50,105)">
+                <rect x="15" y="84" width="45" height="30" rx="7" fill="url(#ewslv)" stroke="#0f1f50" stroke-width="1"/>
+                <rect x="17" y="84" width="41" height="5" rx="2.5" fill="#3a5aaa" opacity="0.4"/>
+                <path d="M22 86 Q20 68 24 54 Q26 45 30 42 Q34 39 37 43 Q40 47 38 57 L37 72" fill="url(#ewsk)" stroke="#c8906a" stroke-width="0.8"/>
+                <path d="M30 86 Q28 65 30 52 Q31 44 35 42 Q40 41 41 48 Q43 55 41 65 L40 77" fill="url(#ewsk)" stroke="#c8906a" stroke-width="0.8"/>
+                <path d="M38 86 Q37 66 39 53 Q40 46 44 44 Q48 43 49 50 Q51 57 49 67 L48 80" fill="url(#ewsk)" stroke="#c8906a" stroke-width="0.8"/>
+                <path d="M46 88 Q46 70 48 58 Q49 52 52 50 Q55 49 56 55 Q57 62 55 72 L54 85" fill="url(#ewsk)" stroke="#c8906a" stroke-width="0.8"/>
+                <path d="M15 86 Q13 76 11 67 Q9 56 12 48 Q15 40 19 42 Q23 44 22 54 L21 86" fill="url(#ewsk)" stroke="#c8906a" stroke-width="0.8"/>
+                <path d="M15 86 Q30 95 55 89 Q58 94 56 103 Q54 112 37 114 Q18 112 14 102 Q12 93 15 86Z" fill="url(#ewsk)" stroke="#c8906a" stroke-width="0.85"/>
+                <path d="M23 92 Q35 97 52 92" fill="none" stroke="#c8906a" stroke-width="0.4" opacity="0.5"/>
+                <ellipse cx="22" cy="42" rx="3.5" ry="2.4" fill="url(#ewskd)" stroke="#b87050" stroke-width="0.5"/>
+                <ellipse cx="33" cy="41" rx="3.5" ry="2.4" fill="url(#ewskd)" stroke="#b87050" stroke-width="0.5"/>
+                <ellipse cx="42" cy="45" rx="3.5" ry="2.4" fill="url(#ewskd)" stroke="#b87050" stroke-width="0.5"/>
+                <ellipse cx="50" cy="51" rx="3.5" ry="2.4" fill="url(#ewskd)" stroke="#b87050" stroke-width="0.5"/>
+                <g transform="rotate(15,35,44)">
+                  <rect x="32" y="4" width="6" height="42" rx="3" fill="url(#ewpen)" stroke="#0f205a" stroke-width="0.5"/>
+                  <rect x="32.5" y="4" width="1.5" height="42" fill="#6090cc" opacity="0.28" rx="0.7"/>
+                  <rect x="32" y="4" width="6" height="6" rx="2.5" fill="#999" stroke="#777" stroke-width="0.4"/>
+                  <polygon points="35,46 32,52 38,52" fill="#1a1a1a" stroke="#111" stroke-width="0.4"/>
+                  <line x1="35" y1="52" x2="35" y2="57" stroke="#444" stroke-width="1.1" stroke-linecap="round"/>
+                  <line x1="35" y1="57" x2="37" y2="62" stroke="#333" stroke-width="0.7" stroke-linecap="round"/>
+                </g>
+              </g>
+            </svg>
+          </div>
+        </div>
       </div>
 
 
@@ -1869,6 +1906,7 @@ async function runAIAnalysis(){
 
   btn.textContent='Analysing...';
   txt.innerHTML='<span class="analysis-loading">⬡ RUNNING XENOS EW ENGINE v3.0...</span>';
+  if(window.XF) XF.start(txt);
 
   const dec = liveData.price > 100 ? 2 : 5;
   const livePrice = liveData.price;
@@ -1909,12 +1947,9 @@ async function runAIAnalysis(){
     wave_points: ewResult.wavePoints,
   };
 
-  renderEWChart(chartAnalysis, symbol, tf, liveData);
-  // Save canvas state for manual wave drawing overlay
-  setTimeout(saveManualCanvasState, 50);
-  // Show the Draw Waves button
-  const mBtn = document.getElementById('manualToggleBtn');
-  if (mBtn) mBtn.style.display = 'block';
+  renderEWSketch(chartAnalysis, symbol, tf);
+  // Show chart wrap
+  document.getElementById('ewChartWrap').style.display='block';
 
   txt.innerHTML='<span class="analysis-loading">⬡ GENERATING NARRATIVE ANALYSIS...</span>';
 
@@ -2114,12 +2149,10 @@ Now write the professional Elliott Wave analysis following the 4-paragraph forma
     txt.textContent = instantOutput.replace('  Loading...', '  Error: ' + e.message);
   }
 
+  if(window.XF) XF.stop();
   btn.disabled=false;
   btn.textContent='⚡ Generate Analysis';
 }
-
-
-// ── ELLIOTT WAVE CHART RENDERER (from Railway API) ────────────────
 function renderEWChartFromAPI(ew, symbol, tf) {
   const wrap   = document.getElementById('ewChartWrap');
   const canvas = document.getElementById('ewChartCanvas');
@@ -3462,6 +3495,240 @@ window.addEventListener('load',()=>{
     setTimeout(initCanvases, 400);
   }
 });
+
+// ═══════════════════════════════════════════════════════════════
+// EW SKETCH ENGINE — draws wave pattern on white paper with hand
+// ═══════════════════════════════════════════════════════════════
+var _ewSkTimers = [];
+function _ewSkClr(){ _ewSkTimers.forEach(clearTimeout); _ewSkTimers.length=0; }
+function _ewSkT(ms,fn){ var id=setTimeout(fn,ms); _ewSkTimers.push(id); }
+
+function renderEWSketch(analysis, symbol, tf) {
+  _ewSkClr();
+  var paper  = document.getElementById('ewPaper');
+  var canvas = document.getElementById('ewSketchCanvas');
+  var hand   = document.getElementById('ewHandWrap');
+  if (!paper || !canvas || !hand) return;
+
+  var W = paper.clientWidth;
+  var H = paper.clientHeight;
+  canvas.width  = W;
+  canvas.height = H;
+  var ctx = canvas.getContext('2d');
+  ctx.clearRect(0,0,W,H);
+
+  var isUp   = analysis.trend === 'UP';
+  var waveN  = analysis.current_wave || '?';
+  var kl     = analysis.key_levels || {};
+  var entry  = kl.entry, sl = kl.stop_loss, tp1 = kl.tp1, tp2 = kl.tp2;
+  var dec    = entry > 100 ? 2 : 5;
+  var fmtP   = function(v){ return v ? parseFloat(v).toFixed(dec) : '—'; };
+
+  var mainCol  = isUp ? '#1a3a6e' : '#7f1d1d';
+  var corrCol  = '#374151';
+
+  // ── Build wave points layout ──
+  var pts;
+  var wp = analysis.wave_points || {};
+
+  // If we have real wave_points from the engine, use them to scale positions
+  var waveKeys = isUp
+    ? ['W0','W1','W2','W3','W4','W5']
+    : ['W0','W1','W2','W3','W4','W5'];
+
+  var hasPrices = Object.keys(wp).length >= 3;
+
+  if (hasPrices) {
+    // Map real prices to canvas Y coordinates
+    var prices = waveKeys.map(function(k){ return wp[k] ? wp[k].price : null; }).filter(Boolean);
+    if (prices.length < 3) hasPrices = false;
+  }
+
+  if (hasPrices) {
+    var allPrices = waveKeys.map(function(k){ return wp[k] ? wp[k].price : null; }).filter(Boolean);
+    if (entry) allPrices.push(entry);
+    var pMin = Math.min.apply(null, allPrices) * 0.9995;
+    var pMax = Math.max.apply(null, allPrices) * 1.0005;
+    var pRange = pMax - pMin || 1;
+    var padX = 60, padY = 40;
+    var wChart = W - padX * 2;
+    var hChart = H - padY * 2;
+
+    function toX(i, total){ return padX + (i / (total-1)) * wChart; }
+    function toY(price){ return padY + hChart - ((price - pMin) / pRange * hChart); }
+
+    var validKeys = waveKeys.filter(function(k){ return wp[k] && wp[k].price; });
+    pts = validKeys.map(function(k, i){
+      return {
+        x: toX(i, validKeys.length),
+        y: toY(wp[k].price),
+        lbl: k.replace('W',''),
+        side: (i===0) ? 'below' : ((wp[k].price > (wp[validKeys[i-1]]||{price:0}).price) === isUp ? 'above' : 'below')
+      };
+    });
+  } else {
+    // Fallback: stylized proportional layout
+    if (isUp) {
+      pts = [
+        {x:.07*W, y:.82*H, lbl:'0', side:'below'},
+        {x:.22*W, y:.34*H, lbl:'1', side:'above'},
+        {x:.33*W, y:.54*H, lbl:'2', side:'below'},
+        {x:.55*W, y:.11*H, lbl:'3', side:'above'},
+        {x:.65*W, y:.37*H, lbl:'4', side:'below'},
+        {x:.82*W, y:.09*H, lbl:'5', side:'above'},
+      ];
+    } else {
+      pts = [
+        {x:.07*W, y:.14*H, lbl:'0', side:'above'},
+        {x:.22*W, y:.64*H, lbl:'1', side:'below'},
+        {x:.33*W, y:.40*H, lbl:'2', side:'above'},
+        {x:.55*W, y:.86*H, lbl:'3', side:'below'},
+        {x:.65*W, y:.58*H, lbl:'4', side:'above'},
+        {x:.82*W, y:.88*H, lbl:'5', side:'below'},
+      ];
+    }
+  }
+
+  // ── Fib levels ──
+  var fibLevels = [];
+  if (tp2)  fibLevels.push({y: hasPrices ? (function(){var p=parseFloat(tp2); return 40+(H-80)-((p-pMin)/pRange*(H-80));})() : (isUp?.12*H:.88*H), lbl:'TP2  '+fmtP(tp2), col:'#059669'});
+  if (tp1)  fibLevels.push({y: hasPrices ? (function(){var p=parseFloat(tp1); return 40+(H-80)-((p-pMin)/pRange*(H-80));})() : (isUp?.28*H:.72*H), lbl:'TP1  '+fmtP(tp1), col:'#3b82f6'});
+  if (sl)   fibLevels.push({y: hasPrices ? (function(){var p=parseFloat(sl);  return 40+(H-80)-((p-pMin)/pRange*(H-80));})() : (isUp?.58*H:.42*H), lbl:'SL   '+fmtP(sl),  col:'#dc2626'});
+
+  // ── Helpers ──
+  function mvHand(x,y){
+    hand.style.left = (x-34)+'px';
+    hand.style.top  = (y-62)+'px';
+  }
+  function showHand(x,y){ hand.style.opacity='1'; mvHand(x,y); }
+  function hideHand(){ hand.style.opacity='0'; }
+
+  function sketchLine(x1,y1,x2,y2,col,lw,dash,cb){
+    var dist = Math.hypot(x2-x1,y2-y1);
+    var steps = Math.max(10, Math.round(dist/5));
+    var i=0;
+    ctx.save();
+    ctx.strokeStyle=col; ctx.lineWidth=lw; ctx.lineCap='round'; ctx.lineJoin='round';
+    if(dash) ctx.setLineDash(dash); else ctx.setLineDash([]);
+    function step(){
+      if(i>=steps){ctx.restore();if(cb)cb();return;}
+      var p0=i/steps, p1=(i+1)/steps;
+      var sx=x1+(x2-x1)*p0+(Math.random()-.5)*1.2;
+      var sy=y1+(y2-y1)*p0+(Math.random()-.5)*1.2;
+      var ex=x1+(x2-x1)*p1+(Math.random()-.5)*1.2;
+      var ey=y1+(y2-y1)*p1+(Math.random()-.5)*1.2;
+      ctx.beginPath();ctx.moveTo(sx,sy);ctx.lineTo(ex,ey);ctx.stroke();
+      mvHand(ex,ey);
+      i++;
+      _ewSkTimers.push(setTimeout(step, 13+Math.random()*6));
+    }
+    step();
+  }
+
+  function drawLabel(x,y,text,col,circle){
+    ctx.save();
+    if(circle){
+      ctx.beginPath();ctx.arc(x,y,12,0,Math.PI*2);
+      ctx.fillStyle='rgba(250,248,243,0.95)';ctx.fill();
+      ctx.strokeStyle=col;ctx.lineWidth=1.4;ctx.stroke();
+      ctx.fillStyle=col;ctx.font='bold 12px serif';
+      ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText(text,x,y+1);
+    } else {
+      ctx.fillStyle=col;ctx.font='bold 9px IBM Plex Mono,monospace';
+      ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(text,x,y);
+    }
+    ctx.restore();
+  }
+
+  function drawFibLine(fy,lbl,col,cb){
+    ctx.save();
+    ctx.strokeStyle=col;ctx.lineWidth=0.7;ctx.setLineDash([5,4]);ctx.globalAlpha=0.5;
+    ctx.beginPath();ctx.moveTo(50,fy);ctx.lineTo(W-50,fy);ctx.stroke();
+    ctx.setLineDash([]);ctx.globalAlpha=1;
+    ctx.fillStyle=col;ctx.font='9px IBM Plex Mono,monospace';
+    ctx.textAlign='right';ctx.textBaseline='middle';
+    ctx.fillText(lbl,W-52,fy-6);
+    ctx.restore();
+    if(cb)cb();
+  }
+
+  function drawInfoBox(){
+    var bw=152,bh=110,bx=W-160,by=H-118;
+    ctx.save();
+    ctx.fillStyle='rgba(250,248,243,0.97)';
+    ctx.strokeStyle='#1e3050';ctx.lineWidth=1;
+    ctx.beginPath();ctx.roundRect(bx,by,bw,bh,4);ctx.fill();ctx.stroke();
+    ctx.fillStyle='#1e3050';ctx.font='bold 9px IBM Plex Mono,monospace';ctx.textAlign='left';
+    ctx.fillText(symbol+' · '+tf,bx+10,by+14);
+    ctx.fillStyle=isUp?'#059669':'#dc2626';
+    ctx.font='bold 10px IBM Plex Mono,monospace';
+    ctx.fillText((isUp?'BULLISH':'BEARISH')+' · Wave '+waveN,bx+10,by+28);
+    ctx.fillStyle='#5a7a9a';ctx.font='9px IBM Plex Mono,monospace';
+    ctx.fillText('Conf: '+(analysis.confidence||'—')+'%',bx+10,by+42);
+    ctx.fillStyle='#1e3050';
+    ctx.fillText('Entry  '+fmtP(entry),bx+10,by+56);
+    ctx.fillStyle='#dc2626';ctx.fillText('SL     '+fmtP(sl),bx+10,by+69);
+    ctx.fillStyle='#059669';ctx.fillText('TP1    '+fmtP(tp1),bx+10,by+82);
+    ctx.fillText('TP2    '+fmtP(tp2),bx+10,by+95);
+    ctx.restore();
+  }
+
+  // ── Draw grid ──
+  ctx.save();ctx.strokeStyle='#ece8df';ctx.lineWidth=0.4;
+  for(var gy=0;gy<H;gy+=32){ctx.beginPath();ctx.moveTo(0,gy);ctx.lineTo(W,gy);ctx.stroke();}
+  ctx.restore();
+
+  // ── Header ──
+  ctx.save();
+  ctx.fillStyle='#1e3050';ctx.font='bold 11px IBM Plex Mono,monospace';ctx.textAlign='left';
+  ctx.fillText(symbol+' · '+tf+' · Wave '+waveN,60,20);
+  ctx.fillStyle='#5a7a9a';ctx.font='9px IBM Plex Mono,monospace';
+  ctx.fillText('XenosFinance · AI Elliott Wave Sketch',60,33);
+  ctx.restore();
+
+  // ── Start animation ──
+  showHand(pts[0].x, pts[0].y);
+
+  var seg = 0;
+  function nextSeg(){
+    if(seg >= pts.length-1){ afterWave(); return; }
+    var from=pts[seg], to=pts[seg+1];
+    var goingUp = to.y < from.y;
+    var segCol = (isUp && goingUp) || (!isUp && !goingUp) ? mainCol : corrCol;
+    sketchLine(from.x,from.y,to.x,to.y,segCol,2.2,null,function(){
+      seg++;
+      _ewSkTimers.push(setTimeout(nextSeg,65));
+    });
+  }
+  _ewSkTimers.push(setTimeout(nextSeg, 250));
+
+  function afterWave(){
+    var delay = 0;
+    pts.forEach(function(p, i){
+      _ewSkTimers.push(setTimeout(function(){
+        mvHand(p.x,p.y);
+        var isCircle = (p.lbl !== '0');
+        var offY = p.side==='above' ? -22 : 22;
+        drawLabel(p.x, p.y+offY, p.lbl, mainCol, isCircle);
+      }, delay));
+      delay += 200;
+    });
+
+    fibLevels.forEach(function(f, i){
+      _ewSkTimers.push(setTimeout(function(){
+        drawFibLine(f.y, f.lbl, f.col, null);
+      }, delay + i*150));
+    });
+    delay += fibLevels.length*150 + 180;
+
+    _ewSkTimers.push(setTimeout(function(){
+      drawInfoBox();
+      hideHand();
+    }, delay));
+  }
+}
+
 </script>
 </body>
 </html>
