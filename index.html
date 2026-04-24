@@ -121,6 +121,7 @@ body{background:var(--bg4);color:var(--ink);font-family:var(--mono);min-height:1
 </style>
 <script src="/i18n.js"></script>
 <script src="/i18n-engine.js"></script>
+<script src="/xf-hand.js"></script>
 </head>
 <body>
 
@@ -535,6 +536,7 @@ async function loadNews() {
 
 async function loadAIBrief(headlines) {
   const el = document.getElementById('ai-brief');
+  if(window.XF && el) XF.start(el);
   const st = document.getElementById('ai-status');
   if (!el || !headlines.length) return;
   if (st) st.textContent = '⟳ generating';
@@ -548,11 +550,12 @@ async function loadAIBrief(headlines) {
     const data = await res.json();
     const text = data?.content?.[0]?.text || '';
     if (!text) throw new Error('empty');
-    el.innerHTML = text.split('\n').filter(l => l.trim()).map(p => `<p>${p}</p>`).join('');
+    if(window.XF && el){ XF.stop(); XF.typeInto(el, text.split('\n').filter(l=>l.trim()).map(p=>`<p>${p}</p>`).join(''), 12, null); } else if(el) { el.innerHTML = text.split('\n').filter(l => l.trim()).map(p => `<p>${p}</p>`).join(''); }
     const n = new Date();
     const hm = n.getHours().toString().padStart(2,'0') + ':' + n.getMinutes().toString().padStart(2,'0');
     if (st) st.textContent = '✓ ' + hm;
   } catch(e) {
+    if(window.XF) XF.stop();
     if (el) el.innerHTML = '<p style="color:var(--muted)">AI brief unavailable</p>';
     if (st) st.textContent = '⚠';
   }
