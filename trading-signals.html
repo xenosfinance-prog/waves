@@ -280,6 +280,7 @@ body{background:var(--bg);color:var(--ink);font-family:var(--mono);min-height:10
 </script>
 <script src="/i18n.js"></script>
 <script src="/i18n-engine.js"></script>
+<script src="/hand-writer.js"></script>
 </head>
 <body>
 
@@ -1586,6 +1587,9 @@ async function runAIInterpreter() {
   btn.textContent = '⟳ Analysing...';
   body.innerHTML = '<span style="color:var(--muted);letter-spacing:1px;">✦ AI is reading the signals...</span>';
 
+  // ── START HAND ANIMATION ──
+  if (window.HandWriter) HandWriter.start(body);
+
   // Build enriched signal data for the prompt
   const signalSummary = cached.data.map(r => {
     const label = (sig) => sig ? sig.l : '—';
@@ -1755,6 +1759,7 @@ Always end with: ⚠ Educational purposes only — not financial advice. XenosFi
 
   btn.disabled = false;
   btn.textContent = '⟳ Analyse';
+  if (window.HandWriter) HandWriter.stop();
 }
 </script>
 <!-- ADMIN LOGIN POPUP -->

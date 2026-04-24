@@ -316,6 +316,7 @@ canvas { display: block; }
 </script>
 <script src="/i18n.js"></script>
 <script src="/i18n-engine.js"></script>
+<script src="/hand-writer.js"></script>
 </head>
 <body>
 
@@ -1926,6 +1927,9 @@ async function runAIAnalysis(){
   txt.innerHTML='<span class="analysis-loading">⬡ RUNNING XENOS EW ENGINE v3.0 (SERVER)...</span>';
   document.getElementById('tgBtn').style.display='none';
 
+  // ── START HAND ANIMATION ──
+  if (window.HandWriter) HandWriter.start(txt);
+
   try {
     const res = await fetch('https://waves-production-ddbf.up.railway.app/ew-chart', {
       method:'POST',
@@ -2044,6 +2048,7 @@ async function runAIAnalysis(){
     txt.innerHTML=`<span style="color:var(--red2);font-family:var(--mono);font-size:11px;">⚠ Analysis failed: ${e.message}</span>`;
   }
 
+  if (window.HandWriter) HandWriter.stop();
   btn.disabled=false; btn.textContent='⚡ Generate Analysis';
 }
 
