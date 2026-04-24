@@ -140,6 +140,7 @@ body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:10
 </style>
 <script src="/i18n.js"></script>
 <script src="/i18n-engine.js"></script>
+<script src="/xf-hand.js"></script>
 </head>
 <body>
 <div class="masthead">
@@ -655,6 +656,7 @@ async function runIntermarketAI() {
   btn.textContent = '⟳ Analysing...';
   status.textContent = '⟳ Fetching live data...';
   body.innerHTML = '<span style="color:var(--muted);letter-spacing:1px;">✦ Fetching live prices and generating analysis...</span>';
+  if(window.XF) XF.start(body);
 
   // Always fetch fresh prices for the analysis
   try {
@@ -738,6 +740,7 @@ Be concise, professional, data-driven. Use the actual prices provided. No discla
     const now = new Date();
     const hm = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
 
+    if(window.XF) XF.stop();
     body.innerHTML = `
       <div style="font-size:9px;color:var(--muted);letter-spacing:2px;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;">
         <span>✦ INTERMARKET ANALYSIS · XENOSFINANCE AI</span>
@@ -749,6 +752,7 @@ Be concise, professional, data-driven. Use the actual prices provided. No discla
     status.textContent = `✓ ${hm} CET`;
 
   } catch(e) {
+    if(window.XF) XF.stop();
     body.innerHTML = `<span style="color:var(--red2);letter-spacing:1px;">⚠ Analysis failed: ${e.message}. Please try again.</span>`;
     status.textContent = '⚠ Error';
   }

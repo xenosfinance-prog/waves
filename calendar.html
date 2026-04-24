@@ -196,6 +196,7 @@ body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:10
 </script>
 <script src="/i18n.js"></script>
 <script src="/i18n-engine.js"></script>
+<script src="/xf-hand.js"></script>
 </head>
 <body>
 <div class="masthead">
@@ -680,7 +681,8 @@ async function analyzeEvent(evIdx) {
 
   panel.style.display = '';
   if (btn) { btn.textContent = '✕ Close'; }
-  inner.innerHTML = `<div class="ai-panel-header">⚡ AI Market Analysis</div><div class="ai-loading">Analyzing ${ev.name}...</div>`;
+  inner.innerHTML = `<div class="ai-panel-header">⚡ AI Market Analysis</div><div class="ai-panel-text" id="ai-txt-${evIdx}">Analyzing ${ev.name}...</div>`;
+  if(window.XF) XF.start(inner);
 
   const hasActual   = ev.actual   && ev.actual   !== '—' && ev.actual   !== '';
   const hasForecast = ev.forecast && ev.forecast !== '—' && ev.forecast !== '';
@@ -731,9 +733,13 @@ Write a concise forward-looking institutional briefing (4-6 sentences, Bloomberg
     if (!text || badPhrases.some(p => text.toLowerCase().startsWith(p.toLowerCase().slice(0,15)))) {
       text = ev.name + ' is a key market event for ' + ev.country + ' assets.' + (hasForecast ? ' Consensus is positioned at ' + ev.forecast + '.' : '') + ' Watch for volatility around the release — any deviation from expectations could trigger sharp directional moves in related currency pairs and fixed income.';
     }
-    inner.innerHTML = `<div class="ai-panel-header">⚡ AI Market Analysis · ${ev.name}</div><div class="ai-panel-text">${text}</div>`;
+    if(window.XF) XF.stop();
+    const atxt=inner.querySelector('.ai-panel-text');
+    inner.querySelector('.ai-panel-header').textContent='⚡ AI Market Analysis · '+ev.name;
+    if(atxt && window.XF){ XF.typeInto(atxt, text.replace(/\n/g,'<br>'), 12, null); } else { inner.innerHTML=`<div class="ai-panel-header">⚡ AI Market Analysis · ${ev.name}</div><div class="ai-panel-text">${text}</div>`; }
   } catch(e) {
-    inner.innerHTML = `<div class="ai-panel-header">⚡ AI Market Analysis</div><div class="ai-panel-text" style="color:var(--red2)">Analysis failed. Check connection.</div>`;
+    if(window.XF) XF.stop();
+    inner.innerHTML=`<div class="ai-panel-header">⚡ AI Market Analysis</div><div class="ai-panel-text" style="color:var(--red2)">Analysis failed. Check connection.</div>`;
   }
 }
 
