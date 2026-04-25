@@ -6,7 +6,7 @@
  *        or: XF.panRead(element)
  *        or: XF.start(element)   ← generic hover/pan while AI loads
  *        or: XF.stop()
- */
+ */ 
 (function(g){
 'use strict';
 
