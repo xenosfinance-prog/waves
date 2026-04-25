@@ -317,7 +317,6 @@ canvas { display: block; }
 <script src="/i18n.js"></script>
 <script src="/i18n-engine.js"></script>
 <script src="/xf-hand.js"></script>
-<script src="/xf-hand.js"></script>
 </head>
 <body>
 
@@ -1103,15 +1102,47 @@ function filterTag(tag, btn){
 
 // ── WAVE NOTES (public feed + admin publish) ──
 const NOTES_KEY = 'xenos_wave_notes';
+const NOTES_GH_FILE = 'wave_notes/notes.json';
+const REPO = 'xenosfinance-prog/waves';
 let isAdminUnlocked = false;
 
-function loadNotes() {
+// ── GitHub-backed notes storage ──
+async function loadNotes() {
+  try {
+    const url = `https://raw.githubusercontent.com/${REPO}/main/${NOTES_GH_FILE}?t=${Date.now()}`;
+    const r = await fetch(url, { signal: AbortSignal.timeout(6000) });
+    if (r.ok) return await r.json();
+  } catch(e) {}
+  // Fallback to localStorage for offline/error
   try { return JSON.parse(localStorage.getItem(NOTES_KEY) || '[]'); } catch(e) { return []; }
 }
-function saveNotes(n) { localStorage.setItem(NOTES_KEY, JSON.stringify(n)); }
 
-function renderPublicFeed() {
-  var notes = loadNotes();
+async function saveNotes(notes) {
+  // Mirror to localStorage immediately
+  localStorage.setItem(NOTES_KEY, JSON.stringify(notes));
+  // Save to GitHub via Worker
+  try {
+    const WORKER = 'https://xenos-ai-proxy.xenosfinance.workers.dev';
+    const getRes = await fetch(WORKER, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ type:'github', method:'GET',
+        url:`https://api.github.com/repos/${REPO}/contents/${NOTES_GH_FILE}` })
+    });
+    const gd = await getRes.json();
+    const sha = gd.data?.sha || null;
+    const content = btoa(unescape(encodeURIComponent(JSON.stringify(notes, null, 2))));
+    const payload = { message: 'update wave notes', content };
+    if (sha) payload.sha = sha;
+    await fetch(WORKER, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ type:'github', method:'PUT',
+        url:`https://api.github.com/repos/${REPO}/contents/${NOTES_GH_FILE}`, payload })
+    });
+  } catch(e) { console.warn('saveNotes GitHub:', e); }
+}
+
+async function renderPublicFeed() {
+  var notes = await loadNotes();
   var list = document.getElementById('publicNotesList');
   var empty = document.getElementById('publicNotesEmpty');
   if (!list) return;
@@ -1156,25 +1187,26 @@ function renderPublicFeed() {
   });
 }
 
-function publishNote() {
+async function publishNote() {
   const asset = (document.getElementById('noteAsset').value||'').trim().toUpperCase();
   const setup = (document.getElementById('noteSetup').value||'').trim();
   const bias  = document.getElementById('noteBias').value;
   const err   = document.getElementById('noteErr');
   if (!asset) { err.textContent='⚠ Asset required'; return; }
   if (!setup) { err.textContent='⚠ Setup label required'; return; }
-  err.textContent='';
-  const notes = loadNotes();
+  err.textContent='Saving...';
+  const notes = await loadNotes();
   const now = new Date();
   notes.push({asset, setup, bias, date: now.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}).toUpperCase()});
-  saveNotes(notes);
+  await saveNotes(notes);
   document.getElementById('noteAsset').value='';
   document.getElementById('noteSetup').value='';
+  err.textContent='';
   renderPublicFeed();
 }
 
-function deleteNote(idx) {
-  const notes = loadNotes(); notes.splice(idx,1); saveNotes(notes); renderPublicFeed();
+async function deleteNote(idx) {
+  const notes = await loadNotes(); notes.splice(idx,1); await saveNotes(notes); renderPublicFeed();
 }
 
 function publishFromAnalysis() {
@@ -1956,8 +1988,10 @@ async function runAIAnalysis(){
   };
 
   renderEWSketch(chartAnalysis, symbol, tf);
-  // Show chart wrap
-  document.getElementById('ewChartWrap').style.display='block';
+  // Show chart wrap with delay so canvas gets proper dimensions
+  var wrap = document.getElementById('ewChartWrap');
+  wrap.style.display = 'block';
+  setTimeout(function(){ renderEWSketch(chartAnalysis, symbol, tf); }, 120);
 
   txt.innerHTML='<span class="analysis-loading">⬡ GENERATING NARRATIVE ANALYSIS...</span>';
 
