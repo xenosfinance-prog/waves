@@ -56,7 +56,7 @@ function _inject(){
 
 function _clearTimers(){ _timers.forEach(clearTimeout); _timers.length=0; }
 
-// Pen tip offset: ~26px from left, ~123px from top of 120×140 SVG
+// Pen tip offset for 140x160 blue hand: ~40px from left, ~79px from top
 function _moveTo(x,y){
   if(!_el)return;
   _el.style.left=(x-26)+'px';
