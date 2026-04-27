@@ -3559,15 +3559,21 @@ function renderEWSketch(analysis, symbol, tf) {
   var ctx = canvas.getContext('2d');
   ctx.clearRect(0,0,W,H);
 
-  var isUp   = analysis.trend === 'UP';
-  var waveN  = analysis.current_wave || '?';
+  var waveN  = (analysis.current_wave || '?').toString().toUpperCase();
   var kl     = analysis.key_levels || {};
   var entry  = kl.entry, sl = kl.stop_loss, tp1 = kl.tp1, tp2 = kl.tp2;
   var dec    = entry > 100 ? 2 : 5;
   var fmtP   = function(v){ return v ? parseFloat(v).toFixed(dec) : '—'; };
 
-  var mainCol  = isUp ? '#1a3a6e' : '#7f1d1d';
-  var corrCol  = '#374151';
+  // ── Detect pattern type from wave label ──
+  var isABC = ['A','B','C','🅐','🅑','🅒'].indexOf(waveN) >= 0;
+  var isUp  = analysis.trend === 'UP';
+  // For ABC: corrective means opposite direction of main trend
+  // If in wave C bearish correction → draw downward ABC
+  var drawUp = isABC ? (analysis.bias === 'BULLISH' || isUp) : isUp;
+
+  var mainCol = drawUp ? '#1a3a6e' : '#7f1d1d';
+  var corrCol = '#374151';
 
   // ── Build wave points layout ──
   var pts;
@@ -3610,7 +3616,24 @@ function renderEWSketch(analysis, symbol, tf) {
     });
   } else {
     // Fallback: stylized proportional layout
-    if (isUp) {
+    if (isABC) {
+      // ABC corrective pattern — 3 waves
+      if (drawUp) {
+        pts = [
+          {x:.08*W, y:.75*H, lbl:'0', side:'below'},
+          {x:.32*W, y:.22*H, lbl:'A', side:'above'},
+          {x:.54*W, y:.48*H, lbl:'B', side:'below'},
+          {x:.82*W, y:.16*H, lbl:'C', side:'above'},
+        ];
+      } else {
+        pts = [
+          {x:.08*W, y:.22*H, lbl:'0', side:'above'},
+          {x:.32*W, y:.75*H, lbl:'A', side:'below'},
+          {x:.54*W, y:.48*H, lbl:'B', side:'above'},
+          {x:.82*W, y:.82*H, lbl:'C', side:'below'},
+        ];
+      }
+    } else if (drawUp) {
       pts = [
         {x:.07*W, y:.82*H, lbl:'0', side:'below'},
         {x:.22*W, y:.34*H, lbl:'1', side:'above'},
@@ -3703,9 +3726,9 @@ function renderEWSketch(analysis, symbol, tf) {
     ctx.beginPath();ctx.roundRect(bx,by,bw,bh,4);ctx.fill();ctx.stroke();
     ctx.fillStyle='#1e3050';ctx.font='bold 9px IBM Plex Mono,monospace';ctx.textAlign='left';
     ctx.fillText(symbol+' · '+tf,bx+10,by+14);
-    ctx.fillStyle=isUp?'#059669':'#dc2626';
+    ctx.fillStyle=drawUp?'#059669':'#dc2626';
     ctx.font='bold 10px IBM Plex Mono,monospace';
-    ctx.fillText((isUp?'BULLISH':'BEARISH')+' · Wave '+waveN,bx+10,by+28);
+    ctx.fillText((drawUp?'BULLISH':'BEARISH')+' · Wave '+waveN,bx+10,by+28);
     ctx.fillStyle='#5a7a9a';ctx.font='9px IBM Plex Mono,monospace';
     ctx.fillText('Conf: '+(analysis.confidence||'—')+'%',bx+10,by+42);
     ctx.fillStyle='#1e3050';
@@ -3724,7 +3747,7 @@ function renderEWSketch(analysis, symbol, tf) {
   // ── Header ──
   ctx.save();
   ctx.fillStyle='#1e3050';ctx.font='bold 11px IBM Plex Mono,monospace';ctx.textAlign='left';
-  ctx.fillText(symbol+' · '+tf+' · Wave '+waveN,60,20);
+  ctx.fillText(symbol+' · '+tf+' · '+(isABC?'ABC Correction':'Wave '+waveN),60,20);
   ctx.fillStyle='#5a7a9a';ctx.font='9px IBM Plex Mono,monospace';
   ctx.fillText('XenosFinance · AI Elliott Wave Sketch',60,33);
   ctx.restore();
@@ -3737,7 +3760,7 @@ function renderEWSketch(analysis, symbol, tf) {
     if(seg >= pts.length-1){ afterWave(); return; }
     var from=pts[seg], to=pts[seg+1];
     var goingUp = to.y < from.y;
-    var segCol = (isUp && goingUp) || (!isUp && !goingUp) ? mainCol : corrCol;
+    var segCol = (drawUp && goingUp) || (!drawUp && !goingUp) ? mainCol : corrCol;
     sketchLine(from.x,from.y,to.x,to.y,segCol,2.2,null,function(){
       seg++;
       _ewSkTimers.push(setTimeout(nextSeg,65));
