@@ -122,12 +122,41 @@ YOUR TASK: Assign Elliott Wave labels to these pivots.
 STRICT RULES:
 1. Use ALL pivots listed — do not skip any
 2. For IMPULSE (5 pivots): labels must be 1,2,3,4,5 in chronological order
-3. For CORRECTIVE (3 pivots): labels must be A,B,C in chronological order  
+3. For CORRECTIVE (3 pivots): labels must be A,B,C in chronological order
 4. idx, price, type must be EXACTLY as shown — do not change them
 5. EW rules: wave 2 cannot go beyond wave 0/start, wave 3 cannot be shortest, wave 4 cannot enter wave 1 territory
-6. "signal": LONG if last wave points up, SHORT if points down, WAIT if unclear
+6. SIGNAL must be COHERENT with the wave count — follow these rules EXACTLY:
+   - Impulse UP (trend=UP, waves 1-5 rising): LONG if in waves 1,2,3,4 still developing; WAIT if wave 5 terminal
+   - Impulse DOWN (trend=DOWN): SHORT if in waves 1,2,3,4; WAIT if wave 5 terminal
+   - Corrective ABC after UP impulse (trend=DOWN correction): WAIT during wave A, SHORT on wave B completion, WAIT during wave C
+   - Corrective ABC after DOWN impulse (trend=UP correction): WAIT during wave A, LONG on wave B completion, WAIT during wave C
+   - NEVER signal LONG during a bearish ABC correction wave A or C
+   - NEVER signal SHORT during a bullish ABC correction wave A or C
 7. "invalidation": the price level that invalidates the count
-8. "tp1": conservative target, "tp2": extended target
+8. "tp1": conservative target, "tp2": extended target — must be CONSISTENT with signal direction
+   - LONG: tp1 and tp2 must be ABOVE current price
+   - SHORT: tp1 and tp2 must be BELOW current price
+
+Respond ONLY with valid JSON, no markdown:
+{{
+  "pattern": "Impulse",
+  "trend": "UP",
+  "current_wave": "5",
+  "degree": "Minor",
+  "confidence": 78,
+  "wave_points": [
+    {{"label":"1","idx":5,"price":1.0820,"type":"low"}},
+    {{"label":"2","idx":18,"price":1.0950,"type":"high"}},
+    {{"label":"3","idx":26,"price":1.0865,"type":"low"}},
+    {{"label":"4","idx":48,"price":1.1120,"type":"high"}},
+    {{"label":"5","idx":57,"price":1.1010,"type":"low"}}
+  ],
+  "invalidation": 1.0819,
+  "tp1": 1.1250,
+  "tp2": 1.1380,
+  "signal": "LONG",
+  "narrative": "3 sentences: wave structure, key risk, levels to watch. Plain text only."
+}}
 
 Respond ONLY with valid JSON, no markdown:
 {{
@@ -162,7 +191,40 @@ Respond ONLY with valid JSON, no markdown:
         raw = raw.split("```")[1]
         if raw.startswith("json"):
             raw = raw[4:]
-    return json.loads(raw.strip())
+    result = json.loads(raw.strip())
+
+    # ── Server-side signal coherence check ──────────────────────────────────────
+    pattern      = result.get("pattern", "").lower()
+    current_wave = str(result.get("current_wave", "")).upper()
+    trend        = result.get("trend", "UP")
+    signal       = result.get("signal", "WAIT")
+    tp1          = result.get("tp1")
+    tp2          = result.get("tp2")
+
+    # Corrective ABC: signal must match corrective direction
+    if "corrective" in pattern or current_wave in ["A", "B", "C"]:
+        if trend == "DOWN":
+            # Bearish correction after uptrend: expect SHORT or WAIT
+            if signal == "LONG":
+                result["signal"] = "WAIT"
+                signal = "WAIT"
+        elif trend == "UP":
+            # Bullish correction after downtrend: expect LONG or WAIT
+            if signal == "SHORT":
+                result["signal"] = "WAIT"
+                signal = "WAIT"
+
+    # TP coherence: LONG → TPs must be above live_price; SHORT → below
+    if tp1 and tp2:
+        if signal == "LONG" and (float(tp1) < live_price or float(tp2) < live_price):
+            # Swap or fix TPs
+            result["tp1"] = round(live_price * 1.005, dp)
+            result["tp2"] = round(live_price * 1.012, dp)
+        elif signal == "SHORT" and (float(tp1) > live_price or float(tp2) > live_price):
+            result["tp1"] = round(live_price * 0.995, dp)
+            result["tp2"] = round(live_price * 0.988, dp)
+
+    return result
 
 # ── Plotly chart builder ───────────────────────────────────────────────────────
 def build_plotly_chart(df: pd.DataFrame, ai_result: dict, symbol: str, tf: str, dp: int):
