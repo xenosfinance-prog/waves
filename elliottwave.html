@@ -1913,6 +1913,7 @@ function countElliottWavesDeepscan(candles) {
     directionUp, w1Start, w1End, w1Size, w3End,
     invalidation:inv, nextTarget:nt, conservativeTarget:ct,
     correctivePattern:cp, extended:wn==='3'?w3Ext:false,
+    bearABC: abc ? abc.bearABC : null,
     diagonal, truncated, alternance:alt,
     bearishDiv, bullishDiv, ewViolations,
     riskReward:rr, pivots:allPivots, pivotsRecent,
@@ -2082,6 +2083,7 @@ async function runAIAnalysis(){
     wave_points:        ewResult.wavePoints,
     pivot_map:          ewResult.pivotMap,
     corrective_pattern: ewResult.correctivePattern || null,
+    bear_abc:           ewResult.bearABC === true,
   };
 
   // ── No count available — show clean message, skip sketch and AI ──
@@ -3333,15 +3335,17 @@ function renderEWSketch(analysis, symbol, tf) {
   // ── Detect pattern type from wave label ──
   var isABC = ['A','B','C'].indexOf(waveN) >= 0;
   var isUp  = analysis.trend === 'UP';
-  // drawUp = direction of the sketch lines
+  // drawUp = direction the sketch lines go (UP = lines go upward overall)
   // For impulse: matches trend direction
-  // For ABC: use signal direction (SHORT = bearish/down ABC, LONG = bullish/up ABC)
+  // For ABC: use bear_abc flag directly (true = bearish ABC = sketch goes DOWN = drawUp false)
   var drawUp;
   if (isABC) {
-    var sig = (analysis.signal || '').toString().toUpperCase();
-    if (sig === 'LONG')       drawUp = true;
-    else if (sig === 'SHORT') drawUp = false;
-    else                      drawUp = isUp;
+    if (typeof analysis.bear_abc === 'boolean') {
+      drawUp = !analysis.bear_abc; // bearish ABC → sketch goes down → drawUp=false
+    } else {
+      // fallback: derive from first→second orderedPt direction (set after pts built)
+      drawUp = isUp;
+    }
   } else {
     drawUp = isUp;
   }
