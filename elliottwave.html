@@ -2,6 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
 <meta property="og:title" content="Free Elliott Wave Analysis — Forex & Crypto | XenosFinance">
 <meta property="og:description" content="Free AI-powered Elliott Wave analysis for EUR/USD, GBP/USD, Gold, Bitcoin and major markets. Professional wave counts, key levels and market forecasts updated in real time.">
 <meta property="og:type" content="website">
@@ -3338,14 +3341,55 @@ function renderEWSketch(analysis, symbol, tf) {
   }
   _ewSkTimers.push(setTimeout(nextSeg, 250));
 
+  function drawCurrentWaveHighlight(x, y, col) {
+    // Outer glow ring
+    ctx.save();
+    ctx.beginPath(); ctx.arc(x, y, 22, 0, Math.PI*2);
+    ctx.strokeStyle = col; ctx.lineWidth = 1.5;
+    ctx.globalAlpha = 0.25; ctx.setLineDash([4,3]); ctx.stroke();
+    ctx.setLineDash([]);
+    // Second glow ring
+    ctx.beginPath(); ctx.arc(x, y, 18, 0, Math.PI*2);
+    ctx.globalAlpha = 0.18; ctx.lineWidth = 1; ctx.stroke();
+    ctx.globalAlpha = 1;
+    // Filled circle (slightly larger than normal)
+    ctx.beginPath(); ctx.arc(x, y, 14, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(250,248,243,0.97)'; ctx.fill();
+    ctx.strokeStyle = col; ctx.lineWidth = 2.2; ctx.stroke();
+    // "NOW" badge above
+    ctx.fillStyle = col;
+    ctx.font = 'bold 7px IBM Plex Mono,monospace';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('NOW', x, y - 26);
+    ctx.restore();
+  }
+
   function afterWave(){
     var delay = 0;
+    // Determine which label is the current wave
+    var curLbl = waveN; // e.g. 'A', 'B', 'C', '1', '2', etc.
+
     pts.forEach(function(p, i){
       _ewSkTimers.push(setTimeout(function(){
         mvHand(p.x,p.y);
+        var isCurrent = (p.lbl === curLbl);
         var isCircle = (p.lbl !== '0');
         var offY = p.side==='above' ? -22 : 22;
-        drawLabel(p.x, p.y+offY, p.lbl, mainCol, isCircle);
+        if (isCurrent) {
+          // Draw highlight first (behind label)
+          drawCurrentWaveHighlight(p.x, p.y + offY, mainCol);
+          // Then draw label on top (bigger circle)
+          ctx.save();
+          ctx.beginPath(); ctx.arc(p.x, p.y+offY, 14, 0, Math.PI*2);
+          ctx.fillStyle = 'rgba(250,248,243,0.97)'; ctx.fill();
+          ctx.strokeStyle = mainCol; ctx.lineWidth = 2.2; ctx.stroke();
+          ctx.fillStyle = mainCol; ctx.font = 'bold 13px serif';
+          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillText(p.lbl, p.x, p.y+offY+1);
+          ctx.restore();
+        } else {
+          drawLabel(p.x, p.y+offY, p.lbl, mainCol, isCircle);
+        }
       }, delay));
       delay += 200;
     });
