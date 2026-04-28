@@ -3394,11 +3394,12 @@ function renderEWSketch(analysis, symbol, tf) {
     var pMin = Math.min.apply(null, allP) * 0.995;
     var pMax = Math.max.apply(null, allP) * 1.005;
 
+    lwDiv.style.background = '#0f1724';
     _ewLWChartInst = LightweightCharts.createChart(lwDiv, {
       width:  W,
       height: H,
       layout: {
-        background: { color: '#0f1724' },
+        background: { type: 'solid', color: '#0f1724' },
         textColor:  '#5a7a9a',
         fontSize:   10,
         fontFamily: "'IBM Plex Mono', monospace",
@@ -3417,7 +3418,7 @@ function renderEWSketch(analysis, symbol, tf) {
         borderColor:     '#1e3050',
         timeVisible:     true,
         secondsVisible:  false,
-        barSpacing:      Math.max(4, Math.floor(W / showN)),
+        barSpacing:      Math.max(3, Math.min(12, Math.floor((W - 80) / showN))),
       },
       handleScroll: false,
       handleScale:  false,
@@ -3505,11 +3506,15 @@ function renderEWSketch(analysis, symbol, tf) {
     // We need to translate pivot prices to canvas Y coords
     // Use the price scale via coordinateToPrice inverse
     // Wait for chart to render then compute
+    var _lwDataRef = lwData;
+    var _lwStartIdx = startIdx;
+    var _lwChart = _ewLWChartInst;
     _ewSkTimers.push(setTimeout(function(){
       _drawEWOverlay(analysis, orderedPts, hasPrices, W, H, ctx, canvas, hand,
                      drawUp, mainCol, corrCol, scenarioOnly, waveN, symbol, tf,
-                     fmtP, entry, sl, tp1, tp2, dec, isABC);
-    }, 150));
+                     fmtP, entry, sl, tp1, tp2, dec, isABC,
+                     _lwChart, _lwDataRef, _lwStartIdx);
+    }, 200));
 
   } else {
     // No LW charts — fallback: draw candles on canvas manually
@@ -3552,44 +3557,59 @@ function _drawCandlesFallback(ctx, candles, W, H) {
 
 function _drawEWOverlay(analysis, orderedPts, hasPrices, W, H, ctx, canvas, hand,
                          drawUp, mainCol, corrCol, scenarioOnly, waveN, symbol, tf,
-                         fmtP, entry, sl, tp1, tp2, dec, isABC) {
-  // ── Compute price→Y mapping ──
-  // Use LW chart's price scale if available, else compute from pivots
-  var pMin, pMax, pRange, padX=50, padY=20, padR=90;
+                         fmtP, entry, sl, tp1, tp2, dec, isABC,
+                         lwChart, lwData, lwStartIdx) {
+  // ── Compute pivot coords ──
+  // Use LW chart's priceToCoordinate + timeToCoordinate for pixel-perfect alignment
+  var padX=50, padY=20, padR=90;
   var cW = W - padX - padR;
   var cH = H - padY * 2;
 
+  // Fallback price mapping (used when LW chart not available)
+  var pMin, pMax, pRange;
   if (hasPrices) {
-    var allPrices = orderedPts.map(function(p){ return p.price; });
-    if (entry) allPrices.push(entry);
-    if (sl)    allPrices.push(sl);
-    if (tp1)   allPrices.push(tp1);
-    if (tp2)   allPrices.push(tp2);
-    // Also include candle range
-    var candles = (typeof ewLastCandles !== 'undefined' && ewLastCandles.length >= 10) ? ewLastCandles.slice(-80) : [];
-    candles.forEach(function(c){ allPrices.push(c.high, c.low); });
-    pMin = Math.min.apply(null, allPrices) * 0.995;
-    pMax = Math.max.apply(null, allPrices) * 1.005;
+    var allPrices2 = orderedPts.map(function(p){ return p.price; });
+    var candles2 = (typeof ewLastCandles !== 'undefined' && ewLastCandles.length >= 10) ? ewLastCandles.slice(-80) : [];
+    candles2.forEach(function(c){ allPrices2.push(c.high||c.close, c.low||c.close); });
+    pMin = Math.min.apply(null, allPrices2) * 0.995;
+    pMax = Math.max.apply(null, allPrices2) * 1.005;
     pRange = pMax - pMin || 1;
   }
 
-  function toX(idx, total){ return padX + (idx / Math.max(total-1,1)) * cW; }
-  function toY(price){ return padY + cH - ((price - pMin) / pRange * cH); }
+  function toXfallback(idx, total){ return padX + (idx / Math.max(total-1,1)) * cW; }
+  function toYfallback(price){ return padY + cH - ((price - pMin) / pRange * cH); }
+
+  function getPivotCoords(op, i, total) {
+    var x, y;
+    // Try LW chart coordinate conversion first
+    if (lwChart && lwData && lwData.length > 0 && op.idx != null && op.idx !== 999999) {
+      try {
+        var totalCandles = (typeof ewLastCandles !== 'undefined') ? ewLastCandles.length : 0;
+        var relIdx = op.idx - (lwStartIdx || 0);
+        relIdx = Math.max(0, Math.min(relIdx, lwData.length - 1));
+        var candleTime = lwData[relIdx] ? lwData[relIdx].time : null;
+        if (candleTime) {
+          var xCoord = lwChart.timeScale().timeToCoordinate(candleTime);
+          var yCoord = lwChart.priceScale('right').priceToCoordinate(op.price);
+          if (xCoord != null && yCoord != null && xCoord > 0 && yCoord > 0) {
+            return { x: xCoord, y: yCoord };
+          }
+        }
+      } catch(e) {}
+    }
+    // Fallback
+    return { x: toXfallback(i, total), y: toYfallback(op.price) };
+  }
 
   // Map orderedPts to canvas coords
   var pts = [];
   if (hasPrices) {
     pts = orderedPts.map(function(op, i){
+      var coords = getPivotCoords(op, i, orderedPts.length);
       var prevPrice = i > 0 ? orderedPts[i-1].price : null;
       var side = (i===0) ? 'below' : (op.price > prevPrice ? 'above' : 'below');
       var lblMap = {w0:'0',w1:'1',w2:'2',w3:'3',w4:'4',w5:'5',wa:'A',wb:'B',wc:'C',wlive:''};
-      return {
-        x:    toX(i, orderedPts.length),
-        y:    toY(op.price),
-        lbl:  lblMap[op.k] || op.k,
-        side: side,
-        k:    op.k
-      };
+      return { x: coords.x, y: coords.y, lbl: lblMap[op.k] || op.k, side: side, k: op.k };
     });
   } else {
     // Fallback proportional layout
