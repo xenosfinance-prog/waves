@@ -1582,8 +1582,16 @@ function countElliottWavesDeepscan(candles) {
   }
 
   // ── Run both searches ──
-  const impulse = tryImpulse(allPivots);
-  const abc     = tryABC(allPivots);
+  const impulseRaw = tryImpulse(allPivots);
+  const abcRaw     = tryABC(allPivots);
+
+  // ── Minimum quality thresholds ──
+  // Impulse: need at least W0+W1+W2+W3 (4 pivots = waveCount >= 4)
+  //          score must be meaningful (avoids random 3-pivot noise)
+  const impulse = (impulseRaw && impulseRaw.waveCount >= 4) ? impulseRaw : null;
+  // ABC: need at least WA+WB confirmed + aSize must be > 0.2% of price (not noise)
+  const abcMinSize = p * 0.002;
+  const abc = (abcRaw && abcRaw.WB && abcRaw.aSize >= abcMinSize) ? abcRaw : null;
 
   // ── Determine current wave position ──
   // Prefer impulse if it has more confirmed waves, else prefer ABC
@@ -1623,68 +1631,129 @@ function countElliottWavesDeepscan(candles) {
     // But if price hasn't broken W3 level → we might still be in W4
     const wavePosition = confirmed.length; // 2=in W2, 3=in W3, 4=in W4, 5=in W5, 6=completed
 
+    // ── RULE VALIDATION HELPERS ──
+    const w1Len = w1Size;
+    const w3Len = I.W3 && I.W2 ? Math.abs(I.W3.price - I.W2.price) : 0;
+    const w5Len = I.W5 && I.W4 ? Math.abs(I.W5.price - I.W4.price) : 0;
+
     if (wavePosition === 2) {
       wn='2'; wp2='CORRECTIVE';
-      wd='Wave ② — Retracement';
-      wc2='W2 retracing W1. Cannot breach W0 origin.';
-      const w2Ret = Math.abs(p - w1End)/w1Size;
-      if (w2Ret > 0.786) { ewViolations.w2_deep = 'W2 >78.6% retrace — borderline'; }
-      inv  = directionUp ? I.W0.price : I.W0.price;
+      cp = identifyCorrectivePattern(allPivots.slice(-6)); // classify W2 pattern for alternation
+      const w2Ret = w1Size > 0 ? Math.abs(p - w1End)/w1Size : 0;
+      const w2RetPct = (w2Ret*100).toFixed(1);
+      // RULE I — W2 never 100%
+      if (w2Ret >= 1.0) {
+        ewViolations.w2_invalid = 'RULE I VIOLATED — W2 retraced 100%+ of W1. Count invalid.';
+      } else if (w2Ret > 0.786) {
+        ewViolations.w2_deep = `W2 at ${w2RetPct}% — deep retracement, approaching 78.6% limit`;
+      }
+      // Typical retracement levels
+      const w2Level = w2Ret <= 0.55 ? '50%' : w2Ret <= 0.65 ? '61.8% (most common)' : w2Ret <= 0.72 ? '61.8–76.4%' : '76.4%';
+      wd = `Wave ② — Retracement (${w2RetPct}% of W1)`;
+      wc2 = `W2 retracing W1 at ${w2Level}. RULE I: cannot breach W0 origin (${I.W0.price.toFixed(dec)}). Pattern: ${cp}.`;
+      inv  = I.W0.price;
       nt   = directionUp ? w1End + w1Size*1.618 : w1End - w1Size*1.618;
-      ct   = directionUp ? w1End + w1Size        : w1End - w1Size;
+      ct   = directionUp ? w1End + w1Size*1.0   : w1End - w1Size*1.0;
       const ez = fibRet(w1Start, w1End, 0.618);
-      action = directionUp ? `🟢 LONG — Entry ${ez.toFixed(dec)} (61.8% W1)` : `🔴 SHORT — Entry ${ez.toFixed(dec)}`;
+      action = directionUp ? `🟢 LONG — Entry zone ${fibRet(w1Start,w1End,0.618).toFixed(dec)}–${fibRet(w1Start,w1End,0.786).toFixed(dec)}` : `🔴 SHORT — Entry zone ${fibRet(w1Start,w1End,0.618).toFixed(dec)}–${fibRet(w1Start,w1End,0.786).toFixed(dec)}`;
+      alt = `W2: ${cp}`;
+
     } else if (wavePosition === 3) {
       wn='3'; wp2='IMPULSIVE';
-      wd = 'Wave ③' + (w3Ext?' — EXTENDED':'') + ' — Dominant Impulse';
-      wc2 = w3Ext ? '⚡ Extended Wave 3 — maximum momentum, subdivides into 9 subwaves.' : 'Strongest wave. Never the shortest.';
-      inv  = directionUp ? w1End : w1End;
+      // RULE II — W3 never shortest. Check vs W1 length (W5 not yet known)
+      if (w3Len > 0 && w1Len > 0 && w3Len < w1Len * 0.9) {
+        ewViolations.w3_short_warning = `W3 (${w3Len.toFixed(dec)}) shorter than W1 (${w1Len.toFixed(dec)}) — RULE II risk`;
+      }
+      const w3Ratio = w1Len > 0 ? w3Len/w1Len : 0;
+      w3Ext = w3Ratio >= 1.618;
+      const w3Label = w3Ratio >= 2.618 ? ' — EXTENDED (261.8%)' : w3Ratio >= 1.618 ? ' — EXTENDED (161.8%)' : w3Ratio >= 1.0 ? ' — Standard' : '';
+      wd = `Wave ③${w3Label} — Dominant Impulse (${(w3Ratio*100).toFixed(0)}% of W1)`;
+      wc2 = w3Ext
+        ? `⚡ Extended W3 — ${(w3Ratio*100).toFixed(0)}% of W1. Max momentum. RULE II: W3 is never the shortest impulse wave.`
+        : `Strongest wave at ${(w3Ratio*100).toFixed(0)}% of W1. Target: ${(directionUp?w1End+w1Size*1.618:w1End-w1Size*1.618).toFixed(dec)} (161.8%). RULE II: must not be shortest.`;
+      inv  = w1End;
       nt   = directionUp ? w1End + w1Size*(w3Ext?4.236:2.618) : w1End - w1Size*(w3Ext?4.236:2.618);
       ct   = directionUp ? w1End + w1Size*1.618 : w1End - w1Size*1.618;
-      action = directionUp ? '🟢 LONG (trend) — Trail stop below EMA21' : '🔴 SHORT (trend) — Trail stop above EMA21';
+      action = directionUp ? '🟢 LONG (trend) — Trail stop below W2 low' : '🔴 SHORT (trend) — Trail stop above W2 high';
+
     } else if (wavePosition === 4) {
       wn='4'; wp2='CORRECTIVE';
-      wd='Wave ④ — Consolidation';
       cp = identifyCorrectivePattern(allPivots);
       const w4Ret = w3End ? Math.abs(p - w3End)/Math.abs(w3End - w1End) : 0;
-      const truncW5 = w4Ret > 0.618;
-      wd += truncW5 ? ' (deep — W5 truncation risk)' : w4Ret > 0.5 ? ' (50% retrace)' : ' (38.2% retrace)';
-      // Rule: W4 cannot invade W1
-      if (directionUp && p <= w1End) { ewViolations.w4_invades_w1 = 'W4 entered W1 zone — count invalid'; }
-      if (!directionUp && p >= w1End) { ewViolations.w4_invades_w1 = 'W4 entered W1 zone — count invalid'; }
-      wc2 = `${cp}. Alternates with W2. W4 must stay above W1 top (${w1End.toFixed(dec)}).`;
-      if (truncW5) wc2 += ' Deep W4 (>61.8%) — W5 may be truncated. Prepare for reversal.';
-      inv  = directionUp ? w1End : w1End;
+      const w4RetPct = (w4Ret*100).toFixed(1);
+      // RULE III — W4 cannot overlap W1
+      if (directionUp && p <= w1End) {
+        ewViolations.w4_invades_w1 = `RULE III VIOLATED — W4 (${p.toFixed(dec)}) entered W1 territory (${w1End.toFixed(dec)}). Count invalid unless diagonal.`;
+      } else if (!directionUp && p >= w1End) {
+        ewViolations.w4_invades_w1 = `RULE III VIOLATED — W4 (${p.toFixed(dec)}) entered W1 territory (${w1End.toFixed(dec)}). Count invalid unless diagonal.`;
+      }
+      // Triangle not allowed in W2 (ok here in W4)
+      const isDiagW4 = diagonal && diagonal.includes('Diagonal');
+      const w4Level = w4Ret <= 0.30 ? '23.6%' : w4Ret <= 0.42 ? '38.2% (most common)' : w4Ret <= 0.55 ? '50%' : '61.8% (deep)';
+      wd = `Wave ④ — Consolidation (${w4RetPct}% of W3)`;
+      // Alternation guideline vs W2
+      const w2pat = alt !== 'N/A' ? alt.replace('W2: ','') : '';
+      const altNote4 = w2pat.includes('Zigzag') ? `W4 should be Flat/Triangle (alternation vs W2 Zigzag).`
+                     : w2pat.includes('Flat')    ? `W4 should be Zigzag/sharp (alternation vs W2 Flat).`
+                     : `GUIDELINE: W4 alternates in character with W2.`;
+      wc2 = `${cp} at ${w4Level}. RULE III: must stay above W1 (${w1End.toFixed(dec)}). ${altNote4}`;
+      if (w4Ret > 0.618) wc2 += ` Deep W4 — W5 truncation risk.`;
+      inv  = w1End;
       const w3s = w3End ? Math.abs(w3End - w1End) : w1Size;
       nt   = directionUp ? (w3End||w1End) + w3s*0.618 : (w3End||w1End) - w3s*0.618;
       ct   = directionUp ? (w3End||w1End) + w3s*0.382 : (w3End||w1End) - w3s*0.382;
       const ez4 = w3End ? fibRet(w1End, w3End, 0.382) : p;
-      action = directionUp ? `🟢 LONG — Entry ${ez4.toFixed(dec)} (38.2% W3 retrace)` : `🔴 SHORT — Entry ${ez4.toFixed(dec)}`;
-      alt = `W4: ${cp} — alternation vs W2`;
+      action = directionUp ? `🟢 LONG — Entry ${ez4.toFixed(dec)} (38.2% W3). Watch ${w4Level}` : `🔴 SHORT — Entry ${ez4.toFixed(dec)}`;
+      alt = (alt !== 'N/A' ? alt + ' | ' : '') + `W4: ${cp}`;
+
     } else if (wavePosition === 5) {
       wn='5'; wp2='IMPULSIVE';
       diagonal = detectDiagonal(allPivots, directionUp);
-      const w4Ret = (I.W4 && w3End) ? Math.abs(I.W4.price - w3End)/Math.abs(w3End-w1End) : 0;
+      const w4p = I.W4 ? I.W4.price : null;
+      const w4Ret = (w4p && w3End) ? Math.abs(w4p - w3End)/Math.abs(w3End-w1End) : 0;
       truncated = w4Ret > 0.618;
+      // RULE II check: W5 must not make W3 the shortest
+      if (w5Len > 0 && w3Len > 0 && w5Len > w3Len) {
+        ewViolations.w3_shortest_risk = `W5 (${w5Len.toFixed(dec)}) > W3 (${w3Len.toFixed(dec)}) — verify W3 is not shortest`;
+      }
+      // W5 = W1 equality guideline
+      const w5eq = (w1Size * 1.0);
+      const w5ext = w1Size * 1.618;
       wd = 'Wave ⑤ — Terminal Impulse' + (truncated?' [TRUNCATED ⚠️]':'') + (diagonal?` [${diagonal}]`:'');
-      wc2 = '⚠️ RSI divergence expected. End of impulse — ABC correction follows.';
-      if (bearishDiv && directionUp) wc2 = '⚠️ BEARISH DIVERGENCE CONFIRMED — W5 exhaustion signal.';
-      if (bullishDiv && !directionUp) wc2 = '⚠️ BULLISH DIVERGENCE CONFIRMED — W5 exhaustion signal.';
-      inv  = directionUp ? (I.W4 ? I.W4.price : p-av*1.5) : (I.W4 ? I.W4.price : p+av*1.5);
-      nt   = directionUp ? p + w1Size*(truncated?0.382:0.618) : p - w1Size*(truncated?0.382:0.618);
-      ct   = directionUp ? p + w1Size*0.382 : p - w1Size*0.382;
-      action = '⚠️ Terminal phase — trail stops, no new entries. ABC correction imminent.';
-      ewViolations = {}; // W5 valid by definition if we got here
+      if (bearishDiv && directionUp) {
+        wc2 = `⚠️ BEARISH RSI DIVERGENCE — W5 exhaustion confirmed. End of impulse. ABC correction imminent. W5 equality target: ${(directionUp?w4p+w5eq:w4p-w5eq)?.toFixed(dec)||'—'}.`;
+      } else if (bullishDiv && !directionUp) {
+        wc2 = `⚠️ BULLISH RSI DIVERGENCE — W5 exhaustion confirmed. End of impulse. ABC correction imminent.`;
+      } else {
+        wc2 = `Terminal wave. Momentum divergence expected. W5 equality (=W1): ${w4p?(directionUp?w4p+w5eq:w4p-w5eq).toFixed(dec):'—'} | W5 ext (161.8%): ${w4p?(directionUp?w4p+w5ext:w4p-w5ext).toFixed(dec):'—'}. ABC correction follows completion.`;
+      }
+      if (diagonal) wc2 += ` ${diagonal} — W4 overlap of W1 territory is valid in diagonals only.`;
+      inv  = directionUp ? (w4p||p-av*1.5) : (w4p||p+av*1.5);
+      nt   = w4p ? (directionUp ? w4p+w5ext : w4p-w5ext) : (directionUp ? p+w1Size*0.618 : p-w1Size*0.618);
+      ct   = w4p ? (directionUp ? w4p+w5eq  : w4p-w5eq)  : (directionUp ? p+w1Size*0.382 : p-w1Size*0.382);
+      action = `⚠️ Terminal W5 — trail stops only, no new entries. ${bearishDiv||bullishDiv?'Divergence confirmed — reversal imminent.':'Watch for momentum divergence.'}`;
+
     } else {
-      // All 5 waves complete — in corrective phase
+      // All 5 waves complete — Wave A starting
       wn='A'; wp2='CORRECTIVE ABC';
       wd='Wave 🅐 — First Corrective Leg';
-      wc2='5-wave impulse complete. ABC correction underway.';
+      // W5 length check for equality with W1 (wave equality guideline)
       const cycleHigh = directionUp ? (I.W5||I.W3||I.W1).price : (I.W0||I.W2).price;
       const cycleLow  = directionUp ? I.W0.price : (I.W5||I.W3||I.W1).price;
+      // RULE II final check: W3 must not be shortest
+      if (w3Len > 0 && w5Len > 0 && w1Len > 0) {
+        const shortest = Math.min(w1Len, w3Len, w5Len);
+        if (shortest === w3Len) ewViolations.w3_is_shortest = 'RULE II VIOLATED — W3 is shortest impulse wave. Recount required.';
+      }
+      const w4last = I.W4 ? I.W4.price : cycleHigh;
+      const aTarget382 = fibRet(cycleHigh, cycleLow, 0.382);
+      const aTarget618 = fibRet(cycleHigh, cycleLow, 0.618);
+      wc2 = `5-wave impulse complete. ABC correction underway. Wave A internal structure: 5 waves (zigzag) or 3 waves (flat). Watch for Wave B bounce at ${aTarget382.toFixed(dec)}–${aTarget618.toFixed(dec)}.`;
+      if (bearishDiv && directionUp) wc2 += ' ⚠️ Bearish divergence confirmed impulse exhaustion.';
+      if (bullishDiv && !directionUp) wc2 += ' ✓ Bullish divergence confirmed impulse exhaustion.';
       inv  = directionUp ? cycleHigh*1.001 : cycleLow*0.999;
-      nt   = fibRet(cycleHigh, cycleLow, 0.618);
-      ct   = fibRet(cycleHigh, cycleLow, 0.382);
+      nt   = aTarget618;
+      ct   = aTarget382;
       action = directionUp ? '🔴 SHORT — Corrective leg A in progress' : '🟢 LONG — Corrective leg A in progress';
     }
 
@@ -1720,32 +1789,76 @@ function countElliottWavesDeepscan(candles) {
     const WA=A.WA, WB=A.WB, WC=A.WC;
     const aSize = A.aSize;
 
+    // ── Classify corrective pattern per EW rules ──
+    const bSize = WB ? Math.abs(WB.price - WA.price) : 0;
+    const cSize = WC ? Math.abs(WC.price - WB.price) : 0;
+    const bRatio = aSize > 0 ? bSize / aSize : 0;
+    const cRatio = aSize > 0 ? cSize / aSize : 0;
+    // Zigzag: B retraces 38.2–61.8% of A; C = 100–161.8% of A
+    // Regular Flat: B ~85–105% of A; C ≈ A
+    // Expanded Flat: B > 105% of A; C > A (C > A origin)
+    // Running Flat: B > 85% of A; C < A (correction weak)
+    let abcType;
+    if (bRatio > 1.05)                        abcType = 'Expanded Flat (3-3-5)';
+    else if (bRatio >= 0.85 && cRatio < 0.9) abcType = 'Running Flat (3-3-5)';
+    else if (bRatio >= 0.85)                  abcType = 'Regular Flat (3-3-5)';
+    else if (bRatio >= 0.382 && bRatio <= 0.618) abcType = 'Zigzag (5-3-5)';
+    else                                      abcType = 'Zigzag (5-3-5)';
+    cp = abcType;
+
+    // B ratio validation
+    const bPct = (bRatio*100).toFixed(1);
+    if (bRatio >= 1.0 && !abcType.includes('Expanded')) {
+      ewViolations.wb_exceeds_wa = `Wave B (${bPct}% of A) exceeds Wave A start — Expanded Flat or invalid count`;
+    }
+
     if (!WC) {
-      // In Wave B
+      // ── Wave B in progress ──
       wn='B'; wp2='CORRECTIVE ABC';
-      wd='Wave 🅑 — Corrective Bounce';
-      wc2='Volume declining. Should not exceed WA start. Prepare for Wave C.';
+      const bLevel = bRatio <= 0.42 ? '38.2%' : bRatio <= 0.55 ? '50%' : bRatio <= 0.68 ? '61.8% (most common)' : bRatio <= 0.79 ? '76.4%' : '~100% (Flat B)';
+      wd = `Wave 🅑 — Corrective Bounce (${bPct}% of A)`;
+      wc2 = `${abcType} — Wave B at ${bLevel} of Wave A. CLASSIC BULL/BEAR TRAP — volume declining, move lacks conviction. `;
+      wc2 += A.bearABC
+        ? `Resistance at WA origin (${WA.price.toFixed(dec)}). Wave C down to follow.`
+        : `Support at WA origin (${WA.price.toFixed(dec)}). Wave C up to follow.`;
+      if (bRatio > 1.0) wc2 += ` ⚠️ B exceeds A start — Expanded Flat structure.`;
       inv  = A.bearABC ? WA.price*1.001 : WA.price*0.999;
-      nt   = fibRet(WB.price, WA.price, 0.618);
-      ct   = fibRet(WB.price, WA.price, 0.5);
-      action = A.bearABC ? '⚠️ AVOID LONGS — Bull trap. Prepare SHORT for Wave C.' : '⚠️ AVOID SHORTS — Bear trap. Prepare LONG for Wave C.';
+      // C targets from B
+      const cT100 = A.bearABC ? WB.price - aSize      : WB.price + aSize;
+      const cT162 = A.bearABC ? WB.price - aSize*1.618 : WB.price + aSize*1.618;
+      nt   = cT162;
+      ct   = cT100;
+      action = A.bearABC
+        ? `⚠️ BULL TRAP — Do not buy. Wave C SHORT target: ${cT100.toFixed(dec)} (100%A) / ${cT162.toFixed(dec)} (161.8%A)`
+        : `⚠️ BEAR TRAP — Do not sell. Wave C LONG target: ${cT100.toFixed(dec)} (100%A) / ${cT162.toFixed(dec)} (161.8%A)`;
+
     } else {
-      // In Wave C (or C complete)
+      // ── Wave C in progress ──
       wn='C'; wp2='CORRECTIVE ABC';
-      const cRet = Math.abs(p - WB.price)/aSize;
-      const cComplete = cRet >= 0.9;
-      wd = 'Wave 🅒 — Final Corrective Leg' + (cComplete?' [NEAR COMPLETION]':'');
-      wc2 = `Target: ${(A.bearABC?WB.price-aSize:WB.price+aSize).toFixed(dec)} (100%A) / ${(A.bearABC?WB.price-aSize*1.236:WB.price+aSize*1.236).toFixed(dec)} (123.6%A).`;
-      if (bullishDiv && A.bearABC)  wc2 += ' ✓ BULLISH DIVERGENCE — end of correction signal.';
-      if (bearishDiv && !A.bearABC) wc2 += ' ⚠️ BEARISH DIVERGENCE — end of correction signal.';
+      const cRet2 = aSize > 0 ? Math.abs(p - WB.price)/aSize : 0;
+      const cPct  = (cRet2*100).toFixed(1);
+      const cComplete = cRet2 >= 0.9;
+      const c100  = A.bearABC ? WB.price - aSize        : WB.price + aSize;
+      const c1236 = A.bearABC ? WB.price - aSize*1.236  : WB.price + aSize*1.236;
+      const c1618 = A.bearABC ? WB.price - aSize*1.618  : WB.price + aSize*1.618;
+      wd = `Wave 🅒 — Final Corrective Leg (${cPct}% of A)` + (cComplete?' [NEAR COMPLETION]':'');
+      // Wave C is internally a 5-wave structure
+      wc2 = `${abcType} — Wave C is internally a 5-wave structure (most powerful corrective leg). `;
+      wc2 += `Targets: ${c100.toFixed(dec)} (100%A) | ${c1236.toFixed(dec)} (123.6%A) | ${c1618.toFixed(dec)} (161.8%A). `;
+      if (cComplete) wc2 += `Near completion zone — watch for momentum divergence and reversal pattern.`;
+      if (bullishDiv && A.bearABC)  wc2 += ' ✓ BULLISH DIVERGENCE confirmed — end of correction signal.';
+      if (bearishDiv && !A.bearABC) wc2 += ' ⚠️ BEARISH DIVERGENCE confirmed — end of correction signal.';
       inv  = A.bearABC ? WA.price*1.001 : WA.price*0.999;
-      nt   = A.bearABC ? WB.price - aSize*1.236 : WB.price + aSize*1.236;
-      ct   = A.bearABC ? WB.price - aSize        : WB.price + aSize;
-      // C complete = BUY opportunity; C in progress = SHORT
+      nt   = c1618;
+      ct   = c100;
       if (cComplete) {
-        action = A.bearABC ? '🟢 LONG SETUP — Wave C near completion. End of correction.' : '🔴 SHORT SETUP — Wave C near completion.';
+        action = A.bearABC
+          ? `🟢 LONG SETUP — Wave C near completion at ${cPct}%. Wait for reversal confirmation.`
+          : `🔴 SHORT SETUP — Wave C near completion at ${cPct}%. Wait for reversal confirmation.`;
       } else {
-        action = A.bearABC ? '🔴 SHORT — Riding Wave C down. Target: '+ct.toFixed(dec) : '🟢 LONG — Riding Wave C up.';
+        action = A.bearABC
+          ? `🔴 SCENARIO — Wave C down to ${ct.toFixed(dec)} (100%A) / ${nt.toFixed(dec)} (161.8%A)`
+          : `🟢 SCENARIO — Wave C up to ${ct.toFixed(dec)} (100%A) / ${nt.toFixed(dec)} (161.8%A)`;
       }
     }
 
@@ -1764,12 +1877,12 @@ function countElliottWavesDeepscan(candles) {
 
     w1Start = WA.price; w1End = WB.price; w1Size = aSize;
   } else {
-    // No valid structure found
-    wn='?'; wp2='TRANSITION'; directionUp = p > s50e;
-    wd='Structure developing — insufficient pivots';
-    wc2='Market in transition. Wait for key level breakout.';
-    inv = p - av*1.5; nt = p + av*2.0; ct = p + av*1.0;
-    action='⏳ WAIT — No confirmed EW structure.';
+    // No valid wave count available
+    wn='?'; wp2='NO COUNT'; directionUp = p > s50e;
+    wd='No valid wave count available';
+    wc2='Insufficient pivot structure on this timeframe. Try a higher timeframe or wait for more price action to develop.';
+    inv = p; nt = p; ct = p;
+    action='⏳ NO COUNT — Cannot identify a valid Elliott Wave structure on this timeframe.';
   }
 
   // ── Bias & signal ──
@@ -1966,8 +2079,39 @@ async function runAIAnalysis(){
       fib1618_w1: parseFloat((ewResult.w1End + ewResult.w1Size*1.618).toFixed(dec)),
       fib382_w3:  ewResult.w3End ? parseFloat(fibRet(ewResult.w1End, ewResult.w3End, 0.382).toFixed(dec)) : null,
     },
-    wave_points: ewResult.wavePoints,
+    wave_points:        ewResult.wavePoints,
+    pivot_map:          ewResult.pivotMap,
+    corrective_pattern: ewResult.correctivePattern || null,
   };
+
+  // ── No count available — show clean message, skip sketch and AI ──
+  if (ewResult.waveNum === '?') {
+    var wrap = document.getElementById('ewChartWrap');
+    wrap.style.display = 'none';
+    txt.textContent = [
+      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+      '  ' + symbol + '  ·  ' + tf + '  ·  Live: ' + livePrice,
+      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+      '',
+      '  ⬡ NO VALID WAVE COUNT AVAILABLE',
+      '',
+      '  The Elliott Wave engine cannot identify a confirmed',
+      '  wave structure on this timeframe.',
+      '',
+      '  Possible reasons:',
+      '  · Insufficient pivot structure (not enough swings)',
+      '  · Market in choppy / transitional phase',
+      '  · Candle data too limited for this timeframe',
+      '',
+      '  → Try a higher timeframe (4H, Daily)',
+      '  → Wait for more price action to develop',
+      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+    ].join('\n');
+    lastAnalysis = txt.textContent;
+    document.getElementById('tgBtn').style.display = 'none';
+    btn.disabled = false; btn.textContent = '⚡ Generate Analysis';
+    return;
+  }
 
   renderEWSketch(chartAnalysis, symbol, tf);
   // Show chart wrap with delay so canvas gets proper dimensions
@@ -1986,6 +2130,59 @@ async function runAIAnalysis(){
   const corrNote = ewResult.correctivePattern ? `Correction: ${ewResult.correctivePattern}` : null;
   const actionClean = ewResult.action.replace(/🟢|🔴|⚠️/g,'').trim();
 
+  // Waves where signal is not actionable — show scenario only
+  const scenarioOnlyWaves = ['A','B','C','1','2','3','4'];
+  const isScenarioOnly = scenarioOnlyWaves.indexOf(ewResult.waveNum) >= 0;
+
+  // Build SCENARIO block for corrective/internal waves
+  const scenarioLines = (() => {
+    const wn = ewResult.waveNum;
+    const isABCWave = ['A','B','C'].indexOf(wn) >= 0;
+    const dec2 = livePrice > 100 ? 2 : 5;
+    const kl = chartAnalysis.key_levels;
+
+    if (isABCWave) {
+      const bearABC = ewResult.directionUp === false || (ewResult.action && ewResult.action.includes('SHORT — Riding'));
+      const corrName = ewResult.correctivePattern || 'ABC Correction';
+      let lines = [
+        `CORRECTION TYPE  ${corrName}`,
+        `  ${bearABC ? '▼ Bearish correction in progress' : '▲ Bullish correction in progress'}`,
+        ``,
+        `SCENARIO`,
+      ];
+      if (wn === 'A') {
+        lines.push(`  Wave A underway — first leg of correction.`);
+        lines.push(`  Expect bounce (Wave B) before continuation.`);
+        lines.push(`  Wave B target: ${kl.tp1 || '—'} — ${kl.tp2 || '—'}`);
+        lines.push(`  Invalidation above: ${kl.stop_loss || '—'}`);
+      } else if (wn === 'B') {
+        lines.push(`  Wave B bounce — counter-trend, do not chase.`);
+        lines.push(`  Wave C will resume correction after B completes.`);
+        lines.push(`  Wave C target zone: ${kl.tp1 || '—'} — ${kl.tp2 || '—'}`);
+        lines.push(`  Invalidation: ${kl.stop_loss || '—'} (exceeds Wave A origin)`);
+      } else if (wn === 'C') {
+        const cComplete = ewResult.waveDesc && ewResult.waveDesc.includes('NEAR COMPLETION');
+        lines.push(cComplete
+          ? `  Wave C near completion — correction almost done.`
+          : `  Wave C in progress — final leg of correction.`);
+        lines.push(`  Completion zone: ${kl.tp1 || '—'} (100%A) / ${kl.tp2 || '—'} (123.6%A)`);
+        lines.push(`  Wait for reversal confirmation before entry.`);
+        lines.push(`  Invalidation: ${kl.stop_loss || '—'}`);
+      }
+      return lines;
+    } else {
+      // Internal impulse wave (1,2,3,4)
+      const trendDir = ewResult.directionUp ? '▲ UP' : '▼ DOWN';
+      return [
+        `SCENARIO  ${trendDir} IMPULSE — Wave ${wn} in progress`,
+        `  Impulse sequence developing. Not yet at signal wave.`,
+        `  Watch for Wave 5 completion for entry setup.`,
+        `  Key level: ${kl.stop_loss || '—'} (invalidation)`,
+        `  Next target zone: ${kl.tp1 || '—'} — ${kl.tp2 || '—'}`,
+      ];
+    }
+  })();
+
   const instantOutput = [
     `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
     `  ${symbol}  ·  ${tf}  ·  Live: ${livePrice}`,
@@ -1996,14 +2193,20 @@ async function runAIAnalysis(){
     ``,`MARKET CONTEXT`,
     `  ${ewResult.waveChar}`,
     divNote?`  ${divNote}`:null, diagNote?`  ${diagNote}`:null, corrNote?`  ${corrNote}`:null,
-    ``,`KEY LEVELS`,
-    `  Entry      ${livePrice}`,
-    `  Stop Loss  ${chartAnalysis.key_levels.stop_loss}`,
-    `  Target 1   ${chartAnalysis.key_levels.tp1}`,
-    `  Target 2   ${chartAnalysis.key_levels.tp2}`,
-    `  R:R        1:${ewResult.riskReward}`,
-    ``,`SIGNAL  ${sigTxt}`,
-    `  ${actionClean}`,
+    ``,
+    ...(isScenarioOnly
+      ? scenarioLines
+      : [
+          `KEY LEVELS`,
+          `  Entry      ${livePrice}`,
+          `  Stop Loss  ${chartAnalysis.key_levels.stop_loss}`,
+          `  Target 1   ${chartAnalysis.key_levels.tp1}`,
+          `  Target 2   ${chartAnalysis.key_levels.tp2}`,
+          `  R:R        1:${ewResult.riskReward}`,
+          ``,`SIGNAL  ${sigTxt}`,
+          `  ${actionClean}`,
+        ]
+    ),
     ``,`INDICATORS`,
     `  RSI(14): ${ewResult.rsi}${ewResult.rsi>70?' — Overbought':ewResult.rsi<30?' — Oversold':''}`,
     `  MACD: ${ewResult.macdHist>0?'+':''}${ewResult.macdHist?.toFixed(5)||'n/a'}  ${ewResult.macdHist>0?'Bullish':'Bearish'} momentum`,
@@ -3292,7 +3495,9 @@ function renderEWSketch(analysis, symbol, tf) {
   }
 
   function drawInfoBox(){
-    var bw=152,bh=110,bx=W-160,by=H-118;
+    var corrPat = analysis.corrective_pattern;
+    var showCorrPat = !!(corrPat && isABC);
+    var bw=152,bh=showCorrPat?122:110,bx=W-160,by=H-(showCorrPat?130:118);
     ctx.save();
     ctx.fillStyle='rgba(250,248,243,0.97)';
     ctx.strokeStyle='#1e3050';ctx.lineWidth=1;
@@ -3303,12 +3508,21 @@ function renderEWSketch(analysis, symbol, tf) {
     ctx.font='bold 10px IBM Plex Mono,monospace';
     ctx.fillText((drawUp?'BULLISH':'BEARISH')+' · Wave '+waveN,bx+10,by+28);
     ctx.fillStyle='#5a7a9a';ctx.font='9px IBM Plex Mono,monospace';
-    ctx.fillText('Conf: '+(analysis.confidence||'—')+'%',bx+10,by+42);
+    // Show corrective pattern type if available
+    var corrPat = analysis.corrective_pattern;
+    if (corrPat && isABC) {
+      var shortPat = corrPat.split('(')[0].trim(); // e.g. "Zigzag" or "Expanded Flat"
+      ctx.fillText(shortPat, bx+10, by+42);
+      ctx.fillText('Conf: '+(analysis.confidence||'—')+'%', bx+10, by+54);
+    } else {
+      ctx.fillText('Conf: '+(analysis.confidence||'—')+'%',bx+10,by+42);
+    }
+    var yOff = showCorrPat ? 12 : 0;
     ctx.fillStyle='#1e3050';
-    ctx.fillText('Entry  '+fmtP(entry),bx+10,by+56);
-    ctx.fillStyle='#dc2626';ctx.fillText('SL     '+fmtP(sl),bx+10,by+69);
-    ctx.fillStyle='#059669';ctx.fillText('TP1    '+fmtP(tp1),bx+10,by+82);
-    ctx.fillText('TP2    '+fmtP(tp2),bx+10,by+95);
+    ctx.fillText('Entry  '+fmtP(entry),bx+10,by+56+yOff);
+    ctx.fillStyle='#dc2626';ctx.fillText('SL     '+fmtP(sl),bx+10,by+69+yOff);
+    ctx.fillStyle='#059669';ctx.fillText('TP1    '+fmtP(tp1),bx+10,by+82+yOff);
+    ctx.fillText('TP2    '+fmtP(tp2),bx+10,by+95+yOff);
     ctx.restore();
   }
 
@@ -3316,6 +3530,54 @@ function renderEWSketch(analysis, symbol, tf) {
   ctx.save();ctx.strokeStyle='#ece8df';ctx.lineWidth=0.4;
   for(var gy=0;gy<H;gy+=32){ctx.beginPath();ctx.moveTo(0,gy);ctx.lineTo(W,gy);ctx.stroke();}
   ctx.restore();
+
+  // ── Candles (real data, semitransparent background layer) ──
+  (function(){
+    var candles = (typeof ewLastCandles !== 'undefined' && ewLastCandles.length >= 10) ? ewLastCandles : [];
+    if (!candles.length || !hasPrices) return;
+
+    // Use same price scale as sketch (pMin/pRange already set above)
+    var padX = 40, padRight = 40;
+    var cW = W - padX - padRight;
+    var cH = H - 80; // same as sketch (padY=40 top+bottom)
+    var n = Math.min(candles.length, 120); // show last 120 candles max
+    var slice = candles.slice(-n);
+    var bW = cW / n;
+
+    // Price scale: use sketch pMin/pRange if hasPrices, else compute from candles
+    var cMin = pMin, cRange = pRange;
+    if (!hasPrices || cRange <= 0) {
+      var highs = slice.map(function(c){return c.high||c.close;});
+      var lows  = slice.map(function(c){return c.low||c.close;});
+      cMin = Math.min.apply(null,lows)*0.999;
+      var cMax = Math.max.apply(null,highs)*1.001;
+      cRange = cMax - cMin || 1;
+    }
+
+    function cToY(p){ return 40 + cH - ((p - cMin) / cRange * cH); }
+
+    ctx.save();
+    slice.forEach(function(c, i){
+      var x = padX + i * bW + bW * 0.5;
+      var bull = (c.close || 0) >= (c.open || 0);
+      var col  = bull ? 'rgba(16,185,129,0.28)' : 'rgba(239,68,68,0.25)';
+      var scol = bull ? 'rgba(16,185,129,0.45)' : 'rgba(239,68,68,0.42)';
+      var oY = cToY(c.open  || c.close);
+      var cY = cToY(c.close || c.open);
+      var hY = cToY(c.high  || Math.max(c.open||0, c.close||0));
+      var lY = cToY(c.low   || Math.min(c.open||0, c.close||0));
+      // Wick
+      ctx.strokeStyle = scol; ctx.lineWidth = 0.7;
+      ctx.beginPath(); ctx.moveTo(x, hY); ctx.lineTo(x, lY); ctx.stroke();
+      // Body
+      var bH = Math.max(Math.abs(oY - cY), 1);
+      ctx.fillStyle = col;
+      ctx.fillRect(x - bW * 0.34, Math.min(oY, cY), bW * 0.68, bH);
+      ctx.strokeStyle = scol; ctx.lineWidth = 0.6;
+      ctx.strokeRect(x - bW * 0.34, Math.min(oY, cY), bW * 0.68, bH);
+    });
+    ctx.restore();
+  })();
 
   // ── Header ──
   ctx.save();
