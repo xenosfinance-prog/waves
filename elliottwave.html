@@ -1868,11 +1868,14 @@ function countElliottWavesDeepscan(candles) {
     if (WB) pivotMap['wb'] = absABC(WB, 0);
     if (WC) pivotMap['wc'] = absABC(WC, 0);
     else    pivotMap['wc'] = { price:p, idx:candles.length-1, date:'' };
+    // Add live price as 'wlive' so sketch shows current position after WC pivot
+    if (WC) pivotMap['wlive'] = { price:p, idx:candles.length-1, date:'' };
 
     wavePointPrices = {
       wa: WA?.price||null,
       wb: WB?.price||null,
       wc: WC?.price||p,
+      wlive: WC ? p : null,
     };
 
     w1Start = WA.price; w1End = WB.price; w1Size = aSize;
@@ -3360,7 +3363,7 @@ function renderEWSketch(analysis, symbol, tf) {
   var wp = analysis.wave_points || {};
 
   // Choose key sequence based on structure type
-  var waveKeys = isABC ? ['wa','wb','wc'] : ['w0','w1','w2','w3','w4','w5'];
+  var waveKeys = isABC ? ['wa','wb','wc','wlive'] : ['w0','w1','w2','w3','w4','w5'];
 
   // Filter to keys that have a valid numeric price
   var validKeys = waveKeys.filter(function(k){
@@ -3382,7 +3385,7 @@ function renderEWSketch(analysis, symbol, tf) {
     function toX(i, total){ return padX + (i / Math.max(total-1,1)) * wChart; }
     function toY(price){ return padY + hChart - ((price - pMin) / pRange * hChart); }
 
-    var lblMap = {w0:'0',w1:'1',w2:'2',w3:'3',w4:'4',w5:'5',wa:'A',wb:'B',wc:'C'};
+    var lblMap = {w0:'0',w1:'1',w2:'2',w3:'3',w4:'4',w5:'5',wa:'A',wb:'B',wc:'C',wlive:''};
     pts = validKeys.map(function(k, i){
       var price = parseFloat(wp[k]);
       var prevPrice = i > 0 ? parseFloat(wp[validKeys[i-1]]) : null;
@@ -3639,12 +3642,34 @@ function renderEWSketch(analysis, symbol, tf) {
       _ewSkTimers.push(setTimeout(function(){
         mvHand(p.x,p.y);
         var isCurrent = (p.lbl === curLbl);
-        var isCircle = (p.lbl !== '0');
+        var isLive    = (p.lbl === '');  // wlive point — no label
+        var isCircle  = (p.lbl !== '0' && !isLive);
         var offY = p.side==='above' ? -22 : 22;
-        if (isCurrent) {
-          // Draw highlight first (behind label)
+        if (isLive) {
+          // Draw live price indicator — arrow pointing in direction + "NOW" badge
+          var arrDir = drawUp ? -1 : 1; // bearish = arrow points down
+          ctx.save();
+          ctx.strokeStyle = mainCol; ctx.lineWidth = 1.2; ctx.globalAlpha = 0.22;
+          ctx.setLineDash([4,3]);
+          ctx.beginPath(); ctx.arc(p.x, p.y, 22, 0, Math.PI*2); ctx.stroke();
+          ctx.beginPath(); ctx.arc(p.x, p.y, 17, 0, Math.PI*2); ctx.stroke();
+          ctx.setLineDash([]); ctx.globalAlpha = 1;
+          // Arrow body
+          ctx.beginPath(); ctx.moveTo(p.x, p.y - 10*arrDir); ctx.lineTo(p.x, p.y + 10*arrDir);
+          ctx.strokeStyle = mainCol; ctx.lineWidth = 2; ctx.stroke();
+          // Arrowhead
+          ctx.beginPath();
+          ctx.moveTo(p.x, p.y + 10*arrDir);
+          ctx.lineTo(p.x - 5, p.y + 4*arrDir);
+          ctx.lineTo(p.x + 5, p.y + 4*arrDir);
+          ctx.closePath(); ctx.fillStyle = mainCol; ctx.fill();
+          // NOW label
+          ctx.fillStyle = mainCol; ctx.font = 'bold 7px IBM Plex Mono,monospace';
+          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillText('NOW', p.x, p.y - 28);
+          ctx.restore();
+        } else if (isCurrent) {
           drawCurrentWaveHighlight(p.x, p.y + offY, mainCol);
-          // Then draw label on top (bigger circle)
           ctx.save();
           ctx.beginPath(); ctx.arc(p.x, p.y+offY, 14, 0, Math.PI*2);
           ctx.fillStyle = 'rgba(250,248,243,0.97)'; ctx.fill();
