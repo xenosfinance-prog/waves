@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
 <meta property="og:title" content="Free Elliott Wave Analysis — Forex & Crypto | XenosFinance">
@@ -944,9 +945,11 @@ canvas { display: block; }
 
       <!-- EW SKETCH PAPER — replaces canvas chart -->
       <div id="ewChartWrap" style="display:none;margin-top:20px;position:relative;">
-        <div id="ewPaper" style="background:#faf8f3;border:1px solid #e0d8c8;position:relative;overflow:hidden;height:320px;">
-          <div style="position:absolute;left:52px;top:0;bottom:0;width:1px;background:#e8a0a0;opacity:0.45;"></div>
-          <canvas id="ewSketchCanvas" style="display:block;width:100%;height:100%;"></canvas>
+        <div id="ewPaper" style="background:#0f1724;border:1px solid #1e3050;position:relative;overflow:hidden;height:380px;">
+          <!-- Lightweight Charts container — real candles -->
+          <div id="ewLWChart" style="position:absolute;inset:0;width:100%;height:100%;"></div>
+          <!-- Canvas overlay — EW sketch animation on top of candles -->
+          <canvas id="ewSketchCanvas" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;"></canvas>
           <!-- Hand SVG for sketch animation -->
           <div id="ewHandWrap" style="position:absolute;pointer-events:none;opacity:0;transition:left 0.05s linear,top 0.05s linear;">
             <svg width="140" height="160" viewBox="0 0 140 160" style="filter:drop-shadow(0 2px 6px rgba(0,0,0,0.15));">
@@ -2087,6 +2090,7 @@ async function runAIAnalysis(){
     pivot_map:          ewResult.pivotMap,
     corrective_pattern: ewResult.correctivePattern || null,
     bear_abc:           ewResult.bearABC === true,
+    scenario_only:      ['A','B','C','1','2','3','4'].indexOf(ewResult.waveNum) >= 0,
   };
 
   // ── No count available — show clean message, skip sketch and AI ──
@@ -2147,7 +2151,7 @@ async function runAIAnalysis(){
     const kl = chartAnalysis.key_levels;
 
     if (isABCWave) {
-      const bearABC = ewResult.directionUp === false || (ewResult.action && ewResult.action.includes('SHORT — Riding'));
+      const bearABC = ewResult.bearABC === true;
       const corrName = ewResult.correctivePattern || 'ABC Correction';
       let lines = [
         `CORRECTION TYPE  ${corrName}`,
@@ -3312,22 +3316,35 @@ window.addEventListener('load',()=>{
 // EW SKETCH ENGINE — draws wave pattern on white paper with hand
 // ═══════════════════════════════════════════════════════════════
 var _ewSkTimers = [];
-function _ewSkClr(){ _ewSkTimers.forEach(clearTimeout); _ewSkTimers.length=0; }
-function _ewSkT(ms,fn){ var id=setTimeout(fn,ms); _ewSkTimers.push(id); }
+var _ewLWChartInst = null; // global LW chart instance
+
+function _ewSkClr(){
+  _ewSkTimers.forEach(clearTimeout);
+  _ewSkTimers.length = 0;
+}
 
 function renderEWSketch(analysis, symbol, tf) {
   _ewSkClr();
+
   var paper  = document.getElementById('ewPaper');
   var canvas = document.getElementById('ewSketchCanvas');
+  var lwDiv  = document.getElementById('ewLWChart');
   var hand   = document.getElementById('ewHandWrap');
-  if (!paper || !canvas || !hand) return;
+  if (!paper || !canvas || !lwDiv || !hand) return;
 
-  var W = paper.clientWidth;
-  var H = paper.clientHeight;
+  var W = paper.clientWidth || 800;
+  var H = paper.clientHeight || 380;
   canvas.width  = W;
   canvas.height = H;
   var ctx = canvas.getContext('2d');
-  ctx.clearRect(0,0,W,H);
+  ctx.clearRect(0, 0, W, H);
+
+  // ── Destroy previous LW chart ──
+  if (_ewLWChartInst) {
+    try { _ewLWChartInst.remove(); } catch(e){}
+    _ewLWChartInst = null;
+  }
+  lwDiv.innerHTML = '';
 
   var waveN  = (analysis.current_wave || '?').toString().toUpperCase();
   var kl     = analysis.key_levels || {};
@@ -3335,367 +3352,422 @@ function renderEWSketch(analysis, symbol, tf) {
   var dec    = entry > 100 ? 2 : 5;
   var fmtP   = function(v){ return v ? parseFloat(v).toFixed(dec) : '—'; };
 
-  // ── Detect pattern type from wave label ──
-  var isABC = ['A','B','C'].indexOf(waveN) >= 0;
-  var isUp  = analysis.trend === 'UP';
-  // drawUp = direction the sketch lines go (UP = lines go upward overall)
-  // For impulse: matches trend direction
-  // For ABC: use bear_abc flag directly (true = bearish ABC = sketch goes DOWN = drawUp false)
-  var drawUp;
-  if (isABC) {
-    if (typeof analysis.bear_abc === 'boolean') {
-      drawUp = !analysis.bear_abc; // bearish ABC → sketch goes down → drawUp=false
-    } else {
-      // fallback: derive from first→second orderedPt direction (set after pts built)
-      drawUp = isUp;
-    }
-  } else {
-    drawUp = isUp;
-  }
+  var isABC      = ['A','B','C'].indexOf(waveN) >= 0;
+  var isUp       = analysis.trend === 'UP';
+  var drawUp     = isABC ? !analysis.bear_abc : isUp;
+  var mainCol    = drawUp ? '#3b82f6' : '#ef4444';
+  var corrCol    = '#6b7280';
+  var scenarioOnly = analysis.scenario_only === true;
 
-  var mainCol = drawUp ? '#1a3a6e' : '#7f1d1d';
-  var corrCol = '#374151';
-
-  // ── Build wave points layout ──
-  var pts;
-  // wave_points from engine: {w0:price, w1:price, ..., wa:price, wb:price, wc:price}
-  // values are PLAIN NUMBERS, not objects
-  var wp = analysis.wave_points || {};
-
-  // Choose key sequence based on structure type
+  // ── Build pts from pivot_map ──
+  var wp  = analysis.wave_points || {};
+  var pm  = analysis.pivot_map   || {};
+  var lblMap = {w0:'0',w1:'1',w2:'2',w3:'3',w4:'4',w5:'5',wa:'A',wb:'B',wc:'C',wlive:''};
   var waveKeys = isABC ? ['wa','wb','wc','wlive'] : ['w0','w1','w2','w3','w4','w5'];
 
-  // Filter to keys that have a valid numeric price
-  var validKeys = waveKeys.filter(function(k){
-    return wp[k] != null && !isNaN(parseFloat(wp[k])) && parseFloat(wp[k]) > 0;
+  var orderedPts = [];
+  waveKeys.forEach(function(k){
+    var pmEntry = pm[k];
+    var wpPrice = wp[k];
+    var price   = pmEntry ? parseFloat(pmEntry.price) : (wpPrice != null ? parseFloat(wpPrice) : null);
+    var idx     = pmEntry ? pmEntry.idx : null;
+    if (price != null && !isNaN(price) && price > 0) {
+      orderedPts.push({ k:k, price:price, idx: idx != null ? idx : 999999 });
+    }
   });
-  var hasPrices = validKeys.length >= 2;
+  orderedPts.sort(function(a,b){ return a.idx - b.idx; });
+
+  var hasPrices = orderedPts.length >= 2;
+
+  // ── Init Lightweight Chart ──
+  var candles = (typeof ewLastCandles !== 'undefined' && ewLastCandles.length >= 10) ? ewLastCandles : [];
+
+  if (candles.length >= 10 && typeof LightweightCharts !== 'undefined') {
+    // Show only last N candles for clarity
+    var showN = 80;
+    var slice = candles.slice(-showN);
+
+    // Build price range from pivots + candles for good fit
+    var pivPrices = hasPrices ? orderedPts.map(function(p){ return p.price; }) : [];
+    var candlePrices = slice.reduce(function(acc,c){ acc.push(c.high,c.low); return acc; }, []);
+    var allP = pivPrices.concat(candlePrices);
+    var pMin = Math.min.apply(null, allP) * 0.995;
+    var pMax = Math.max.apply(null, allP) * 1.005;
+
+    _ewLWChartInst = LightweightCharts.createChart(lwDiv, {
+      width:  W,
+      height: H,
+      layout: {
+        background: { color: '#0f1724' },
+        textColor:  '#5a7a9a',
+        fontSize:   10,
+        fontFamily: "'IBM Plex Mono', monospace",
+      },
+      grid: {
+        vertLines: { color: 'rgba(255,255,255,0.03)' },
+        horzLines: { color: 'rgba(255,255,255,0.03)' },
+      },
+      crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+      rightPriceScale: {
+        borderColor: '#1e3050',
+        textColor:   '#5a7a9a',
+        scaleMargins: { top: 0.08, bottom: 0.08 },
+      },
+      timeScale: {
+        borderColor:     '#1e3050',
+        timeVisible:     true,
+        secondsVisible:  false,
+        barSpacing:      Math.max(4, Math.floor(W / showN)),
+      },
+      handleScroll: false,
+      handleScale:  false,
+    });
+
+    var candleSeries = _ewLWChartInst.addCandlestickSeries({
+      upColor:        'rgba(16,185,129,0.55)',
+      downColor:      'rgba(239,68,68,0.50)',
+      borderUpColor:  'rgba(16,185,129,0.80)',
+      borderDownColor:'rgba(239,68,68,0.75)',
+      wickUpColor:    'rgba(16,185,129,0.65)',
+      wickDownColor:  'rgba(239,68,68,0.60)',
+    });
+
+    // Format candle data for LW Charts
+    var lwData = slice.map(function(c, i){
+      var t = c.datetime ? Math.floor(new Date(c.datetime).getTime()/1000)
+                         : Math.floor(Date.now()/1000) - (slice.length - i) * 3600;
+      return { time: t, open: c.open, high: c.high, low: c.low, close: c.close };
+    }).filter(function(c){ return c.open > 0 && c.close > 0; });
+
+    // Deduplicate timestamps
+    var seen = {};
+    lwData = lwData.filter(function(c){
+      if (seen[c.time]) return false;
+      seen[c.time] = true;
+      return true;
+    });
+
+    candleSeries.setData(lwData);
+
+    // ── EW Pivot markers on LW Chart ──
+    if (hasPrices && lwData.length > 0) {
+      var markers = [];
+      var totalCandles = candles.length;
+      var startIdx = totalCandles - showN;
+
+      orderedPts.forEach(function(op){
+        if (op.k === 'wlive') return; // skip live point — drawn on canvas
+        var relIdx = op.idx - startIdx;
+        if (relIdx < 0 || relIdx >= lwData.length) return;
+        var candleTime = lwData[Math.min(relIdx, lwData.length-1)].time;
+        var lbl = lblMap[op.k] || op.k;
+        var isHigh = (op.k === 'wa' && analysis.bear_abc) || // WA is H for bearish ABC
+                     op.k === 'w1' || op.k === 'w3' || op.k === 'w5' ||
+                     (op.k === 'wb' && !analysis.bear_abc) ||
+                     (op.k === 'wc' && !analysis.bear_abc);
+        markers.push({
+          time:     candleTime,
+          position: isHigh ? 'aboveBar' : 'belowBar',
+          color:    mainCol,
+          shape:    'circle',
+          text:     lbl,
+          size:     1,
+        });
+      });
+
+      if (markers.length > 0) {
+        markers.sort(function(a,b){ return a.time - b.time; });
+        candleSeries.setMarkers(markers);
+      }
+    }
+
+    // ── Scenario projection line (dashed, right side) ──
+    if (hasPrices && !scenarioOnly) {
+      var lastLW = lwData[lwData.length-1];
+      var projCol = drawUp ? 'rgba(59,130,246,0.5)' : 'rgba(239,68,68,0.5)';
+      var projTarget = drawUp ? (tp1 || entry * 1.02) : (tp1 || entry * 0.98);
+      var projLine = _ewLWChartInst.addLineSeries({
+        color:     projCol,
+        lineWidth: 1,
+        lineStyle: LightweightCharts.LineStyle.Dashed,
+        lastValueVisible: false,
+        priceLineVisible: false,
+      });
+      projLine.setData([
+        { time: lastLW.time, value: entry },
+        { time: lastLW.time + 3600 * 8, value: projTarget },
+      ]);
+    }
+
+    _ewLWChartInst.timeScale().fitContent();
+
+    // Compute canvas coords from LW chart price scale for overlay drawing
+    // We need to translate pivot prices to canvas Y coords
+    // Use the price scale via coordinateToPrice inverse
+    // Wait for chart to render then compute
+    _ewSkTimers.push(setTimeout(function(){
+      _drawEWOverlay(analysis, orderedPts, hasPrices, W, H, ctx, canvas, hand,
+                     drawUp, mainCol, corrCol, scenarioOnly, waveN, symbol, tf,
+                     fmtP, entry, sl, tp1, tp2, dec, isABC);
+    }, 150));
+
+  } else {
+    // No LW charts — fallback: draw candles on canvas manually
+    _drawCandlesFallback(ctx, candles, W, H);
+    _drawEWOverlay(analysis, orderedPts, hasPrices, W, H, ctx, canvas, hand,
+                   drawUp, mainCol, corrCol, scenarioOnly, waveN, symbol, tf,
+                   fmtP, entry, sl, tp1, tp2, dec, isABC);
+  }
+}
+
+function _drawCandlesFallback(ctx, candles, W, H) {
+  if (!candles.length) return;
+  var slice = candles.slice(-80);
+  var highs = slice.map(function(c){ return c.high||c.close; });
+  var lows  = slice.map(function(c){ return c.low||c.close; });
+  var pMin  = Math.min.apply(null,lows)*0.999;
+  var pMax  = Math.max.apply(null,highs)*1.001;
+  var pRange = pMax - pMin || 1;
+  var padX=50, padY=20, padR=90;
+  var cW=W-padX-padR, cH=H-padY*2;
+  var bW = cW/slice.length;
+  ctx.save();
+  slice.forEach(function(c,i){
+    var x=padX+i*bW+bW*0.5;
+    var bull=(c.close||0)>=(c.open||0);
+    var oY=padY+cH-((( c.open||c.close)-pMin)/pRange*cH);
+    var cY=padY+cH-(((c.close||c.open)-pMin)/pRange*cH);
+    var hY=padY+cH-(((c.high||Math.max(c.open||0,c.close||0))-pMin)/pRange*cH);
+    var lY=padY+cH-(((c.low||Math.min(c.open||0,c.close||0))-pMin)/pRange*cH);
+    ctx.strokeStyle=bull?'rgba(16,185,129,0.55)':'rgba(239,68,68,0.5)';
+    ctx.lineWidth=0.7;
+    ctx.beginPath(); ctx.moveTo(x,hY); ctx.lineTo(x,lY); ctx.stroke();
+    ctx.fillStyle=bull?'rgba(16,185,129,0.35)':'rgba(239,68,68,0.3)';
+    var bH=Math.max(Math.abs(oY-cY),1);
+    ctx.fillRect(x-bW*0.34,Math.min(oY,cY),bW*0.68,bH);
+    ctx.strokeRect(x-bW*0.34,Math.min(oY,cY),bW*0.68,bH);
+  });
+  ctx.restore();
+}
+
+function _drawEWOverlay(analysis, orderedPts, hasPrices, W, H, ctx, canvas, hand,
+                         drawUp, mainCol, corrCol, scenarioOnly, waveN, symbol, tf,
+                         fmtP, entry, sl, tp1, tp2, dec, isABC) {
+  // ── Compute price→Y mapping ──
+  // Use LW chart's price scale if available, else compute from pivots
+  var pMin, pMax, pRange, padX=50, padY=20, padR=90;
+  var cW = W - padX - padR;
+  var cH = H - padY * 2;
 
   if (hasPrices) {
-    var allPrices = validKeys.map(function(k){ return parseFloat(wp[k]); });
+    var allPrices = orderedPts.map(function(p){ return p.price; });
     if (entry) allPrices.push(entry);
     if (sl)    allPrices.push(sl);
-    var pMin = Math.min.apply(null, allPrices) * 0.9990;
-    var pMax = Math.max.apply(null, allPrices) * 1.0010;
-    var pRange = pMax - pMin || 1;
-    var padX = 60, padY = 40;
-    var wChart = W - padX * 2;
-    var hChart = H - padY * 2;
+    if (tp1)   allPrices.push(tp1);
+    if (tp2)   allPrices.push(tp2);
+    // Also include candle range
+    var candles = (typeof ewLastCandles !== 'undefined' && ewLastCandles.length >= 10) ? ewLastCandles.slice(-80) : [];
+    candles.forEach(function(c){ allPrices.push(c.high, c.low); });
+    pMin = Math.min.apply(null, allPrices) * 0.995;
+    pMax = Math.max.apply(null, allPrices) * 1.005;
+    pRange = pMax - pMin || 1;
+  }
 
-    function toX(i, total){ return padX + (i / Math.max(total-1,1)) * wChart; }
-    function toY(price){ return padY + hChart - ((price - pMin) / pRange * hChart); }
+  function toX(idx, total){ return padX + (idx / Math.max(total-1,1)) * cW; }
+  function toY(price){ return padY + cH - ((price - pMin) / pRange * cH); }
 
-    var lblMap = {w0:'0',w1:'1',w2:'2',w3:'3',w4:'4',w5:'5',wa:'A',wb:'B',wc:'C',wlive:''};
-    pts = validKeys.map(function(k, i){
-      var price = parseFloat(wp[k]);
-      var prevPrice = i > 0 ? parseFloat(wp[validKeys[i-1]]) : null;
-      var side = (i === 0) ? 'below' : (price > prevPrice ? 'above' : 'below');
+  // Map orderedPts to canvas coords
+  var pts = [];
+  if (hasPrices) {
+    pts = orderedPts.map(function(op, i){
+      var prevPrice = i > 0 ? orderedPts[i-1].price : null;
+      var side = (i===0) ? 'below' : (op.price > prevPrice ? 'above' : 'below');
+      var lblMap = {w0:'0',w1:'1',w2:'2',w3:'3',w4:'4',w5:'5',wa:'A',wb:'B',wc:'C',wlive:''};
       return {
-        x: toX(i, validKeys.length),
-        y: toY(price),
-        lbl: lblMap[k] || k,
-        side: side
+        x:    toX(i, orderedPts.length),
+        y:    toY(op.price),
+        lbl:  lblMap[op.k] || op.k,
+        side: side,
+        k:    op.k
       };
     });
   } else {
-    // Fallback: stylized proportional layout
+    // Fallback proportional layout
     if (isABC) {
-      // ABC corrective pattern — 3 waves
-      if (drawUp) {
-        pts = [
-          {x:.08*W, y:.75*H, lbl:'0', side:'below'},
-          {x:.32*W, y:.22*H, lbl:'A', side:'above'},
-          {x:.54*W, y:.48*H, lbl:'B', side:'below'},
-          {x:.82*W, y:.16*H, lbl:'C', side:'above'},
-        ];
-      } else {
-        pts = [
-          {x:.08*W, y:.22*H, lbl:'0', side:'above'},
-          {x:.32*W, y:.75*H, lbl:'A', side:'below'},
-          {x:.54*W, y:.48*H, lbl:'B', side:'above'},
-          {x:.82*W, y:.82*H, lbl:'C', side:'below'},
-        ];
-      }
-    } else if (drawUp) {
-      pts = [
-        {x:.07*W, y:.82*H, lbl:'0', side:'below'},
-        {x:.22*W, y:.34*H, lbl:'1', side:'above'},
-        {x:.33*W, y:.54*H, lbl:'2', side:'below'},
-        {x:.55*W, y:.11*H, lbl:'3', side:'above'},
-        {x:.65*W, y:.37*H, lbl:'4', side:'below'},
-        {x:.82*W, y:.09*H, lbl:'5', side:'above'},
-      ];
+      pts = drawUp
+        ? [{x:.08*W,y:.72*H,lbl:'0',side:'below'},{x:.30*W,y:.20*H,lbl:'A',side:'above'},{x:.55*W,y:.50*H,lbl:'B',side:'below'},{x:.88*W,y:.12*H,lbl:'C',side:'above'}]
+        : [{x:.08*W,y:.22*H,lbl:'0',side:'above'},{x:.30*W,y:.72*H,lbl:'A',side:'below'},{x:.55*W,y:.42*H,lbl:'B',side:'above'},{x:.88*W,y:.80*H,lbl:'C',side:'below'}];
     } else {
-      pts = [
-        {x:.07*W, y:.14*H, lbl:'0', side:'above'},
-        {x:.22*W, y:.64*H, lbl:'1', side:'below'},
-        {x:.33*W, y:.40*H, lbl:'2', side:'above'},
-        {x:.55*W, y:.86*H, lbl:'3', side:'below'},
-        {x:.65*W, y:.58*H, lbl:'4', side:'above'},
-        {x:.82*W, y:.88*H, lbl:'5', side:'below'},
-      ];
+      pts = drawUp
+        ? [{x:.06*W,y:.80*H,lbl:'0',side:'below'},{x:.22*W,y:.28*H,lbl:'1',side:'above'},{x:.34*W,y:.52*H,lbl:'2',side:'below'},{x:.55*W,y:.09*H,lbl:'3',side:'above'},{x:.67*W,y:.36*H,lbl:'4',side:'below'},{x:.84*W,y:.09*H,lbl:'5',side:'above'}]
+        : [{x:.06*W,y:.18*H,lbl:'0',side:'above'},{x:.22*W,y:.70*H,lbl:'1',side:'below'},{x:.34*W,y:.42*H,lbl:'2',side:'above'},{x:.55*W,y:.88*H,lbl:'3',side:'below'},{x:.67*W,y:.60*H,lbl:'4',side:'above'},{x:.84*W,y:.88*H,lbl:'5',side:'below'}];
     }
   }
 
-  // ── Fib levels ──
-  var fibLevels = [];
-  if (tp2)  fibLevels.push({y: hasPrices ? (function(){var p=parseFloat(tp2); return 40+(H-80)-((p-pMin)/pRange*(H-80));})() : (isUp?.12*H:.88*H), lbl:'TP2  '+fmtP(tp2), col:'#059669'});
-  if (tp1)  fibLevels.push({y: hasPrices ? (function(){var p=parseFloat(tp1); return 40+(H-80)-((p-pMin)/pRange*(H-80));})() : (isUp?.28*H:.72*H), lbl:'TP1  '+fmtP(tp1), col:'#3b82f6'});
-  if (sl)   fibLevels.push({y: hasPrices ? (function(){var p=parseFloat(sl);  return 40+(H-80)-((p-pMin)/pRange*(H-80));})() : (isUp?.58*H:.42*H), lbl:'SL   '+fmtP(sl),  col:'#dc2626'});
+  // ── Header overlay (top-left on canvas) ──
+  ctx.save();
+  ctx.fillStyle = 'rgba(15,23,36,0.75)';
+  ctx.fillRect(0, 0, W * 0.55, 42);
+  ctx.fillStyle = '#c8d8ea';
+  ctx.font = 'bold 11px IBM Plex Mono,monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText(symbol + ' · ' + tf + ' · ' + (isABC ? 'ABC Correction' : 'Wave ' + waveN), 12, 16);
+  ctx.fillStyle = '#5a7a9a';
+  ctx.font = '9px IBM Plex Mono,monospace';
+  ctx.fillText('XenosFinance · AI Elliott Wave Sketch', 12, 30);
+  ctx.restore();
 
   // ── Helpers ──
-  function mvHand(x,y){
-    hand.style.left = (x-40)+'px';
-    hand.style.top  = (y-79)+'px';
-  }
+  function mvHand(x,y){ hand.style.left=(x-40)+'px'; hand.style.top=(y-79)+'px'; }
   function showHand(x,y){ hand.style.opacity='1'; mvHand(x,y); }
   function hideHand(){ hand.style.opacity='0'; }
 
-  function sketchLine(x1,y1,x2,y2,col,lw,dash,cb){
-    var dist = Math.hypot(x2-x1,y2-y1);
-    var steps = Math.max(10, Math.round(dist/5));
+  function sketchLine(x1,y1,x2,y2,col,lw,cb){
+    var dist=Math.hypot(x2-x1,y2-y1);
+    var steps=Math.max(10,Math.round(dist/4));
     var i=0;
-    ctx.save();
-    ctx.strokeStyle=col; ctx.lineWidth=lw; ctx.lineCap='round'; ctx.lineJoin='round';
-    if(dash) ctx.setLineDash(dash); else ctx.setLineDash([]);
+    ctx.save(); ctx.strokeStyle=col; ctx.lineWidth=lw; ctx.lineCap='round'; ctx.lineJoin='round';
     function step(){
-      if(i>=steps){ctx.restore();if(cb)cb();return;}
+      if(i>=steps){ ctx.restore(); if(cb)cb(); return; }
       var p0=i/steps, p1=(i+1)/steps;
-      var sx=x1+(x2-x1)*p0+(Math.random()-.5)*1.2;
-      var sy=y1+(y2-y1)*p0+(Math.random()-.5)*1.2;
-      var ex=x1+(x2-x1)*p1+(Math.random()-.5)*1.2;
-      var ey=y1+(y2-y1)*p1+(Math.random()-.5)*1.2;
-      ctx.beginPath();ctx.moveTo(sx,sy);ctx.lineTo(ex,ey);ctx.stroke();
-      mvHand(ex,ey);
-      i++;
-      _ewSkTimers.push(setTimeout(step, 13+Math.random()*6));
+      var sx=x1+(x2-x1)*p0+(Math.random()-.5)*0.7;
+      var sy=y1+(y2-y1)*p0+(Math.random()-.5)*0.7;
+      var ex=x1+(x2-x1)*p1+(Math.random()-.5)*0.7;
+      var ey=y1+(y2-y1)*p1+(Math.random()-.5)*0.7;
+      ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(ex,ey); ctx.stroke();
+      mvHand(ex,ey); i++;
+      _ewSkTimers.push(setTimeout(step, 10+Math.random()*5));
     }
     step();
   }
 
-  function drawLabel(x,y,text,col,circle){
-    ctx.save();
-    if(circle){
-      ctx.beginPath();ctx.arc(x,y,12,0,Math.PI*2);
-      ctx.fillStyle='rgba(250,248,243,0.95)';ctx.fill();
-      ctx.strokeStyle=col;ctx.lineWidth=1.4;ctx.stroke();
-      ctx.fillStyle=col;ctx.font='bold 12px serif';
-      ctx.textAlign='center';ctx.textBaseline='middle';
-      ctx.fillText(text,x,y+1);
-    } else {
-      ctx.fillStyle=col;ctx.font='bold 9px IBM Plex Mono,monospace';
-      ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(text,x,y);
+  function drawWaveLabel(x, y, lbl, col, isCurrent) {
+    if (lbl === '') return; // skip wlive — drawn separately
+    var r = isCurrent ? 13 : 10;
+    if (isCurrent) {
+      ctx.save();
+      ctx.strokeStyle=col; ctx.lineWidth=1; ctx.globalAlpha=0.2; ctx.setLineDash([3,3]);
+      ctx.beginPath(); ctx.arc(x,y,20,0,Math.PI*2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(x,y,16,0,Math.PI*2); ctx.stroke();
+      ctx.setLineDash([]); ctx.globalAlpha=1;
+      ctx.fillStyle=col; ctx.font='bold 7px IBM Plex Mono,monospace';
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText('NOW', x, y-25);
+      ctx.restore();
     }
+    // White circle with colored border
+    ctx.save();
+    ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2);
+    ctx.fillStyle='rgba(255,255,255,0.95)'; ctx.fill();
+    ctx.strokeStyle=col; ctx.lineWidth=isCurrent?2:1.5; ctx.stroke();
+    // Label text
+    ctx.fillStyle='#1e3050'; ctx.font='bold '+(isCurrent?12:10)+'px serif';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(lbl, x, y+1);
+    ctx.restore();
+    // Small dot on pivot
+    ctx.save(); ctx.fillStyle=col; ctx.globalAlpha=0.8;
+    ctx.beginPath(); ctx.arc(x, y+(y<H/2?r+3:-r-3), 2.5, 0, Math.PI*2); ctx.fill();
     ctx.restore();
   }
 
-  function drawFibLine(fy,lbl,col,cb){
+  function drawInfoBox() {
+    var bw=130, bh=100;
+    var bx = W - padR + 4, by = padY;
     ctx.save();
-    ctx.strokeStyle=col;ctx.lineWidth=0.7;ctx.setLineDash([5,4]);ctx.globalAlpha=0.5;
-    ctx.beginPath();ctx.moveTo(50,fy);ctx.lineTo(W-50,fy);ctx.stroke();
-    ctx.setLineDash([]);ctx.globalAlpha=1;
-    ctx.fillStyle=col;ctx.font='9px IBM Plex Mono,monospace';
-    ctx.textAlign='right';ctx.textBaseline='middle';
-    ctx.fillText(lbl,W-52,fy-6);
-    ctx.restore();
-    if(cb)cb();
-  }
-
-  function drawInfoBox(){
+    ctx.fillStyle='rgba(10,16,28,0.92)';
+    ctx.strokeStyle='#2a3a55'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.roundRect(bx, by, bw, bh, 4); ctx.fill(); ctx.stroke();
+    ctx.fillStyle='#7a94b0'; ctx.font='8px IBM Plex Mono,monospace'; ctx.textAlign='left';
+    ctx.fillText(symbol+' · '+tf, bx+8, by+13);
+    ctx.fillStyle=drawUp?'#34d399':'#f87171'; ctx.font='bold 9px IBM Plex Mono,monospace';
+    ctx.fillText((drawUp?'BULLISH':'BEARISH')+' · Wave '+waveN, bx+8, by+27);
+    // Corrective pattern
     var corrPat = analysis.corrective_pattern;
-    var showCorrPat = !!(corrPat && isABC);
-    var bw=152,bh=showCorrPat?122:110,bx=W-160,by=H-(showCorrPat?130:118);
-    ctx.save();
-    ctx.fillStyle='rgba(250,248,243,0.97)';
-    ctx.strokeStyle='#1e3050';ctx.lineWidth=1;
-    ctx.beginPath();ctx.roundRect(bx,by,bw,bh,4);ctx.fill();ctx.stroke();
-    ctx.fillStyle='#1e3050';ctx.font='bold 9px IBM Plex Mono,monospace';ctx.textAlign='left';
-    ctx.fillText(symbol+' · '+tf,bx+10,by+14);
-    ctx.fillStyle=drawUp?'#059669':'#dc2626';
-    ctx.font='bold 10px IBM Plex Mono,monospace';
-    ctx.fillText((drawUp?'BULLISH':'BEARISH')+' · Wave '+waveN,bx+10,by+28);
-    ctx.fillStyle='#5a7a9a';ctx.font='9px IBM Plex Mono,monospace';
-    // Show corrective pattern type if available
-    var corrPat = analysis.corrective_pattern;
+    var yOff = 0;
     if (corrPat && isABC) {
-      var shortPat = corrPat.split('(')[0].trim(); // e.g. "Zigzag" or "Expanded Flat"
-      ctx.fillText(shortPat, bx+10, by+42);
-      ctx.fillText('Conf: '+(analysis.confidence||'—')+'%', bx+10, by+54);
-    } else {
-      ctx.fillText('Conf: '+(analysis.confidence||'—')+'%',bx+10,by+42);
+      ctx.fillStyle='#5a7a9a'; ctx.font='8px IBM Plex Mono,monospace';
+      ctx.fillText(corrPat.split('(')[0].trim(), bx+8, by+40);
+      yOff = 12;
     }
-    var yOff = showCorrPat ? 12 : 0;
-    ctx.fillStyle='#1e3050';
-    ctx.fillText('Entry  '+fmtP(entry),bx+10,by+56+yOff);
-    ctx.fillStyle='#dc2626';ctx.fillText('SL     '+fmtP(sl),bx+10,by+69+yOff);
-    ctx.fillStyle='#059669';ctx.fillText('TP1    '+fmtP(tp1),bx+10,by+82+yOff);
-    ctx.fillText('TP2    '+fmtP(tp2),bx+10,by+95+yOff);
+    ctx.fillStyle='#5a7a9a'; ctx.font='8px IBM Plex Mono,monospace';
+    ctx.fillText('Conf: '+(analysis.confidence||'—')+'%', bx+8, by+40+yOff);
+    if (!scenarioOnly) {
+      ctx.fillStyle='#c8d8ea';
+      ctx.fillText('Entry  '+fmtP(entry), bx+8, by+54+yOff);
+      ctx.fillStyle='#f87171'; ctx.fillText('SL     '+fmtP(sl),  bx+8, by+66+yOff);
+      ctx.fillStyle='#34d399'; ctx.fillText('TP1    '+fmtP(tp1), bx+8, by+78+yOff);
+      ctx.fillText('TP2    '+fmtP(tp2), bx+8, by+90+yOff);
+    }
     ctx.restore();
   }
 
-  // ── Draw grid ──
-  ctx.save();ctx.strokeStyle='#ece8df';ctx.lineWidth=0.4;
-  for(var gy=0;gy<H;gy+=32){ctx.beginPath();ctx.moveTo(0,gy);ctx.lineTo(W,gy);ctx.stroke();}
-  ctx.restore();
+  // ── Animation ──
+  var curLbl = waveN;
+  var seg = 0;
 
-  // ── Candles (real data, semitransparent background layer) ──
-  (function(){
-    var candles = (typeof ewLastCandles !== 'undefined' && ewLastCandles.length >= 10) ? ewLastCandles : [];
-    if (!candles.length || !hasPrices) return;
-
-    // Use same price scale as sketch (pMin/pRange already set above)
-    var padX = 40, padRight = 40;
-    var cW = W - padX - padRight;
-    var cH = H - 80; // same as sketch (padY=40 top+bottom)
-    var n = Math.min(candles.length, 120); // show last 120 candles max
-    var slice = candles.slice(-n);
-    var bW = cW / n;
-
-    // Price scale: use sketch pMin/pRange if hasPrices, else compute from candles
-    var cMin = pMin, cRange = pRange;
-    if (!hasPrices || cRange <= 0) {
-      var highs = slice.map(function(c){return c.high||c.close;});
-      var lows  = slice.map(function(c){return c.low||c.close;});
-      cMin = Math.min.apply(null,lows)*0.999;
-      var cMax = Math.max.apply(null,highs)*1.001;
-      cRange = cMax - cMin || 1;
-    }
-
-    function cToY(p){ return 40 + cH - ((p - cMin) / cRange * cH); }
-
-    ctx.save();
-    slice.forEach(function(c, i){
-      var x = padX + i * bW + bW * 0.5;
-      var bull = (c.close || 0) >= (c.open || 0);
-      var col  = bull ? 'rgba(16,185,129,0.28)' : 'rgba(239,68,68,0.25)';
-      var scol = bull ? 'rgba(16,185,129,0.45)' : 'rgba(239,68,68,0.42)';
-      var oY = cToY(c.open  || c.close);
-      var cY = cToY(c.close || c.open);
-      var hY = cToY(c.high  || Math.max(c.open||0, c.close||0));
-      var lY = cToY(c.low   || Math.min(c.open||0, c.close||0));
-      // Wick
-      ctx.strokeStyle = scol; ctx.lineWidth = 0.7;
-      ctx.beginPath(); ctx.moveTo(x, hY); ctx.lineTo(x, lY); ctx.stroke();
-      // Body
-      var bH = Math.max(Math.abs(oY - cY), 1);
-      ctx.fillStyle = col;
-      ctx.fillRect(x - bW * 0.34, Math.min(oY, cY), bW * 0.68, bH);
-      ctx.strokeStyle = scol; ctx.lineWidth = 0.6;
-      ctx.strokeRect(x - bW * 0.34, Math.min(oY, cY), bW * 0.68, bH);
-    });
-    ctx.restore();
-  })();
-
-  // ── Header ──
-  ctx.save();
-  ctx.fillStyle='#1e3050';ctx.font='bold 11px IBM Plex Mono,monospace';ctx.textAlign='left';
-  ctx.fillText(symbol+' · '+tf+' · '+(isABC?'ABC Correction':'Wave '+waveN),60,20);
-  ctx.fillStyle='#5a7a9a';ctx.font='9px IBM Plex Mono,monospace';
-  ctx.fillText('XenosFinance · AI Elliott Wave Sketch',60,33);
-  ctx.restore();
-
-  // ── Start animation ──
   showHand(pts[0].x, pts[0].y);
 
-  var seg = 0;
-  function nextSeg(){
-    if(seg >= pts.length-1){ afterWave(); return; }
-    var from=pts[seg], to=pts[seg+1];
-    var goingUp = to.y < from.y;
-    var segCol = (drawUp && goingUp) || (!drawUp && !goingUp) ? mainCol : corrCol;
-    sketchLine(from.x,from.y,to.x,to.y,segCol,2.2,null,function(){
+  function nextSeg() {
+    if (seg >= pts.length - 1) { afterLabels(); return; }
+    var from = pts[seg], to = pts[seg+1];
+    var isMainLeg = isABC
+      ? (seg===0 || seg===2)         // A and C legs
+      : (seg===0||seg===2||seg===4); // waves 1,3,5
+    var col = isMainLeg ? mainCol : corrCol;
+    sketchLine(from.x, from.y, to.x, to.y, col, 1.8, function(){
       seg++;
-      _ewSkTimers.push(setTimeout(nextSeg,65));
+      _ewSkTimers.push(setTimeout(nextSeg, 60));
     });
   }
-  _ewSkTimers.push(setTimeout(nextSeg, 250));
 
-  function drawCurrentWaveHighlight(x, y, col) {
-    // Outer glow ring
-    ctx.save();
-    ctx.beginPath(); ctx.arc(x, y, 22, 0, Math.PI*2);
-    ctx.strokeStyle = col; ctx.lineWidth = 1.5;
-    ctx.globalAlpha = 0.25; ctx.setLineDash([4,3]); ctx.stroke();
-    ctx.setLineDash([]);
-    // Second glow ring
-    ctx.beginPath(); ctx.arc(x, y, 18, 0, Math.PI*2);
-    ctx.globalAlpha = 0.18; ctx.lineWidth = 1; ctx.stroke();
-    ctx.globalAlpha = 1;
-    // Filled circle (slightly larger than normal)
-    ctx.beginPath(); ctx.arc(x, y, 14, 0, Math.PI*2);
-    ctx.fillStyle = 'rgba(250,248,243,0.97)'; ctx.fill();
-    ctx.strokeStyle = col; ctx.lineWidth = 2.2; ctx.stroke();
-    // "NOW" badge above
-    ctx.fillStyle = col;
-    ctx.font = 'bold 7px IBM Plex Mono,monospace';
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText('NOW', x, y - 26);
-    ctx.restore();
-  }
+  _ewSkTimers.push(setTimeout(nextSeg, 200));
 
-  function afterWave(){
+  function afterLabels() {
     var delay = 0;
-    // Determine which label is the current wave
-    var curLbl = waveN; // e.g. 'A', 'B', 'C', '1', '2', etc.
-
-    pts.forEach(function(p, i){
+    pts.forEach(function(p, i) {
       _ewSkTimers.push(setTimeout(function(){
-        mvHand(p.x,p.y);
-        var isCurrent = (p.lbl === curLbl);
-        var isLive    = (p.lbl === '');  // wlive point — no label
-        var isCircle  = (p.lbl !== '0' && !isLive);
-        var offY = p.side==='above' ? -22 : 22;
+        mvHand(p.x, p.y);
+        var isLive    = (p.lbl === '');
+        var isCurrent = (p.lbl === curLbl) && !isLive;
+        var offY = (i===0) ? 14 : (p.side==='above' ? -18 : 18);
+
         if (isLive) {
-          // Draw live price indicator — arrow pointing in direction + "NOW" badge
-          var arrDir = drawUp ? -1 : 1; // bearish = arrow points down
+          // Arrow pointing in trade direction
+          var dir = drawUp ? -1 : 1;
           ctx.save();
-          ctx.strokeStyle = mainCol; ctx.lineWidth = 1.2; ctx.globalAlpha = 0.22;
-          ctx.setLineDash([4,3]);
-          ctx.beginPath(); ctx.arc(p.x, p.y, 22, 0, Math.PI*2); ctx.stroke();
-          ctx.beginPath(); ctx.arc(p.x, p.y, 17, 0, Math.PI*2); ctx.stroke();
-          ctx.setLineDash([]); ctx.globalAlpha = 1;
-          // Arrow body
-          ctx.beginPath(); ctx.moveTo(p.x, p.y - 10*arrDir); ctx.lineTo(p.x, p.y + 10*arrDir);
-          ctx.strokeStyle = mainCol; ctx.lineWidth = 2; ctx.stroke();
-          // Arrowhead
+          ctx.strokeStyle=mainCol; ctx.lineWidth=1; ctx.globalAlpha=0.2; ctx.setLineDash([3,3]);
+          ctx.beginPath(); ctx.arc(p.x,p.y,18,0,Math.PI*2); ctx.stroke();
+          ctx.setLineDash([]); ctx.globalAlpha=1;
+          ctx.strokeStyle=mainCol; ctx.lineWidth=1.8;
+          ctx.beginPath(); ctx.moveTo(p.x,p.y-8*dir); ctx.lineTo(p.x,p.y+8*dir); ctx.stroke();
           ctx.beginPath();
-          ctx.moveTo(p.x, p.y + 10*arrDir);
-          ctx.lineTo(p.x - 5, p.y + 4*arrDir);
-          ctx.lineTo(p.x + 5, p.y + 4*arrDir);
-          ctx.closePath(); ctx.fillStyle = mainCol; ctx.fill();
-          // NOW label
-          ctx.fillStyle = mainCol; ctx.font = 'bold 7px IBM Plex Mono,monospace';
-          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-          ctx.fillText('NOW', p.x, p.y - 28);
+          ctx.moveTo(p.x,p.y+8*dir);
+          ctx.lineTo(p.x-5,p.y+3*dir);
+          ctx.lineTo(p.x+5,p.y+3*dir);
+          ctx.closePath(); ctx.fillStyle=mainCol; ctx.fill();
+          ctx.fillStyle=mainCol; ctx.font='bold 7px IBM Plex Mono,monospace';
+          ctx.textAlign='center'; ctx.textBaseline='middle';
+          ctx.fillText('NOW', p.x, p.y-22);
           ctx.restore();
-        } else if (isCurrent) {
-          drawCurrentWaveHighlight(p.x, p.y + offY, mainCol);
-          ctx.save();
-          ctx.beginPath(); ctx.arc(p.x, p.y+offY, 14, 0, Math.PI*2);
-          ctx.fillStyle = 'rgba(250,248,243,0.97)'; ctx.fill();
-          ctx.strokeStyle = mainCol; ctx.lineWidth = 2.2; ctx.stroke();
-          ctx.fillStyle = mainCol; ctx.font = 'bold 13px serif';
-          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-          ctx.fillText(p.lbl, p.x, p.y+offY+1);
-          ctx.restore();
+        } else if (p.lbl !== '0') {
+          drawWaveLabel(p.x, p.y+offY, p.lbl, mainCol, isCurrent);
         } else {
-          drawLabel(p.x, p.y+offY, p.lbl, mainCol, isCircle);
+          // Origin — plain text
+          ctx.save(); ctx.fillStyle='#5a7a9a';
+          ctx.font='bold 9px IBM Plex Mono,monospace';
+          ctx.textAlign='center'; ctx.textBaseline='middle';
+          ctx.fillText('0', p.x, p.y+offY);
+          ctx.restore();
         }
       }, delay));
       delay += 200;
     });
 
-    fibLevels.forEach(function(f, i){
-      _ewSkTimers.push(setTimeout(function(){
-        drawFibLine(f.y, f.lbl, f.col, null);
-      }, delay + i*150));
-    });
-    delay += fibLevels.length*150 + 180;
-
     _ewSkTimers.push(setTimeout(function(){
       drawInfoBox();
       hideHand();
-    }, delay));
+    }, delay + 100));
   }
 }
 
