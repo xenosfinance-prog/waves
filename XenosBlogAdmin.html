@@ -907,62 +907,6 @@ async function generateArticle() {
   btnText.textContent = 'Genera Articolo';
 }
 
-  // ── START HAND ANIMATION ──
-  document.getElementById('articleDisplay').classList.add('visible');
-  var artBodyEl = document.getElementById('artBody');
-
-  var marketLabels = { forex:'FOREX', commodities:'COMMODITIES', equity:'EQUITY', crypto:'CRYPTO', macro:'MACRO', geopolitics:'GEOPOLITICA', multi:'MULTI-MARKET' };
-  var techLabels = { elliott:'ELLIOTT WAVE', technical:'ANALISI TECNICA', orderflow:'ORDER FLOW', macro_analysis:'MACRO', sentiment:'SENTIMENT', educational:'EDUCATIVO', outlook:'OUTLOOK' };
-
-  try {
-    status.textContent = pasteText ? 'Reformatting your text...' : 'Writing article...';
-    var response = await fetch(WORKER_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 2500, messages: [{ role: 'user', content: buildPrompt(lang,market,tech,tone,length,topic,pasteText) }] })
-    });
-    if (!response.ok) throw new Error('HTTP ' + response.status);
-    var data = await response.json();
-    if (data.error) throw new Error(data.error);
-    var text = data.content.map(function(i){ return i.text||''; }).join('');
-    var m = text.match(/\{[\s\S]*\}/);
-    if (!m) throw new Error('JSON non trovato');
-    var article = JSON.parse(m[0]);
-    currentArticle = Object.assign({}, article, {
-      categoryLabel: marketLabels[market] + ' · ' + techLabels[tech],
-      market: market, tech: tech, lang: lang, date: new Date().toISOString()
-    });
-    document.getElementById('artCategory').textContent = currentArticle.categoryLabel;
-    document.getElementById('artTitle').textContent     = currentArticle.title;
-    document.getElementById('artReadTime').textContent  = '⏱ ' + currentArticle.readTime;
-    var d2=new Date(); document.getElementById('artDate').textContent='📅 '+d2.getDate()+' '+monthsIT[d2.getMonth()]+' '+d2.getFullYear();
-    document.getElementById('publishStatus').textContent='';
-    var html='<p>'+currentArticle.intro+'</p>';
-    currentArticle.sections.forEach(function(s){html+='<h2>'+s.heading+'</h2><p>'+s.content+'</p>';});
-    html+='<blockquote>'+currentArticle.quote+'</blockquote><h3>// Conclusione</h3><p>'+currentArticle.conclusion+'</p>';
-    var display=document.getElementById('articleDisplay');
-    display.classList.add('visible');
-    display.scrollIntoView({behavior:'smooth',block:'start'});
-    var artBody=document.getElementById('artBody');
-    artBody.innerHTML='';
-    document.getElementById('genPasteText').value='';
-    setTimeout(function(){
-      XF.typeInto(artBody,html,14,function(){
-        status.textContent=pasteText?'✓ Text reformatted!':'✓ Articolo generato!';
-        setTimeout(function(){status.textContent='';},3000);
-      });
-    },700);
-  } catch(err) {
-    status.textContent = '⚠ Errore: ' + err.message;
-    console.error(err);
-  }
-
-  // ── STOP HAND ANIMATION ──
-  btn.disabled = false;
-  btnIcon.textContent = '✦';
-  btnText.textContent = 'Genera Articolo';
-}
-
 // ── RENDER ──
 function renderArticle(a) {
   document.getElementById('artCategory').textContent = a.categoryLabel;
