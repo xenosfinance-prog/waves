@@ -385,6 +385,19 @@ var XF=(function(){
       <label class="gen-label">✎ Paste your own text — optional · AI will reformat it in XenosFinance style</label>
       <textarea class="gen-input" id="genPasteText" rows="5" placeholder="Paste your raw notes, analysis or draft here (optional). If filled, AI will rewrite and structure it professionally — same style as auto-generated articles. Leave empty to generate from scratch." style="resize:vertical;line-height:1.7;width:100%;font-family:'Inter',sans-serif;font-size:0.85rem;"></textarea>
     </div>
+    <div class="gen-field" style="grid-column:1/-1;">
+      <label class="gen-label">🎯 Asset / Report focus — optional · AI structures the article around this specific subject</label>
+      <input class="gen-input" id="genAsset" type="text" placeholder="es. Brent Crude Oil, WTI, Gold XAU/USD, EUR/USD, Fed Minutes April 2026, EIA Report..." style="width:100%;">
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;align-items:center;">
+        <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:2px;color:var(--dim);text-transform:uppercase;">⚡ Quick:</span>
+        <button type="button" onclick="document.getElementById('genAsset').value=this.dataset.v;" data-v="Brent Crude Oil" style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:1px;padding:4px 10px;background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.25);color:var(--gold);cursor:pointer;" onmouseover="this.style.background='rgba(59,130,246,0.18)'" onmouseout="this.style.background='rgba(59,130,246,0.08)'">🛢 Brent</button>
+        <button type="button" onclick="document.getElementById('genAsset').value=this.dataset.v;" data-v="WTI Crude Oil" style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:1px;padding:4px 10px;background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.25);color:var(--gold);cursor:pointer;" onmouseover="this.style.background='rgba(59,130,246,0.18)'" onmouseout="this.style.background='rgba(59,130,246,0.08)'">🔴 WTI</button>
+        <button type="button" onclick="document.getElementById('genAsset').value=this.dataset.v;" data-v="Gold XAU/USD" style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:1px;padding:4px 10px;background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.25);color:var(--gold);cursor:pointer;" onmouseover="this.style.background='rgba(59,130,246,0.18)'" onmouseout="this.style.background='rgba(59,130,246,0.08)'">🥇 Gold</button>
+        <button type="button" onclick="document.getElementById('genAsset').value=this.dataset.v;" data-v="EUR/USD" style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:1px;padding:4px 10px;background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.25);color:var(--gold);cursor:pointer;" onmouseover="this.style.background='rgba(59,130,246,0.18)'" onmouseout="this.style.background='rgba(59,130,246,0.08)'">💶 EUR/USD</button>
+        <button type="button" onclick="document.getElementById('genAsset').value=this.dataset.v;" data-v="Fed Minutes" style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:1px;padding:4px 10px;background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.25);color:var(--gold);cursor:pointer;" onmouseover="this.style.background='rgba(59,130,246,0.18)'" onmouseout="this.style.background='rgba(59,130,246,0.08)'">🏛 Fed Minutes</button>
+        <button type="button" onclick="document.getElementById('genAsset').value=this.dataset.v;" data-v="EIA Crude Oil Inventory Report" style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:1px;padding:4px 10px;background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.25);color:var(--gold);cursor:pointer;" onmouseover="this.style.background='rgba(59,130,246,0.18)'" onmouseout="this.style.background='rgba(59,130,246,0.08)'">📊 EIA Report</button>
+      </div>
+    </div>
   </div>
   <div class="gen-actions">
     <button class="btn-generate" id="generateBtn" onclick="generateArticle()">
@@ -805,7 +818,7 @@ function fromBase64(b64) {
 }
 
 // ── PROMPT ──
-function buildPrompt(lang, market, tech, tone, length, topic, pasteText) {
+function buildPrompt(lang, market, tech, tone, length, topic, pasteText, asset) {
   var langInstr = { russo:'russo (termini tecnici finanziari in inglese)', italiano:'italiano professionale', inglese:'English (professional financial tone)' };
   var marketDesc = { forex:'Forex — EUR/USD, GBP/USD, USD/JPY, ecc.', commodities:'Commodities — oro, petrolio WTI, gas naturale, argento', equity:'Mercati azionari — S&P 500, Nasdaq, Dow Jones', crypto:'Criptovalute — Bitcoin, Ethereum', macro:'Macroeconomia — banche centrali, tassi, inflazione', geopolitics:'Geopolitica e impatto sui mercati finanziari', multi:'Overview globale multi-mercato' };
   var techDesc = { elliott:'Elliott Wave Theory — onde impulsive e correttive, conteggio, target, invalidazione', technical:'Analisi Tecnica — supporti, resistenze, pattern, RSI, MACD, medie mobili', orderflow:'Order Flow e Volume Profile — volumi, liquidità, delta, imbalance', macro_analysis:'Analisi Macroeconomica — dati economici, banche centrali, correlazioni', sentiment:'Sentiment e posizionamento istituzionale — COT, fear&greed', educational:'Articolo educativo — spiega concetti in modo chiaro', outlook:'Outlook e scenari direzionali con probabilità e catalizzatori' };
@@ -813,15 +826,17 @@ function buildPrompt(lang, market, tech, tone, length, topic, pasteText) {
 
   var baseInstr = 'Sei un analista finanziario senior di livello istituzionale per XenosFinance. Scrivi un articolo in lingua ' + langInstr[lang] + ' sul mercato: ' + marketDesc[market] + '. Tecnica: ' + techDesc[tech] + '. Stile: ' + tone + ', professionale come Bloomberg o Il Sole 24 Ore. Lunghezza: ' + lengthDesc[length] + '.';
 
+  var assetLine = (asset && asset.trim()) ? '\n\nFocus esclusivo su: ' + asset.trim() + '. L\'intero articolo deve ruotare attorno a questo specifico asset o report.' : '';
+
   var contentInstr;
   if (pasteText && pasteText.trim().length > 20) {
-    contentInstr = '\n\nHai ricevuto il seguente testo grezzo dall\'autore — riscrivilo e strutturalo professionalmente mantenendo le idee originali, aggiungendo profondità analitica e rispettando lo stile XenosFinance:\n\n"""\n' + pasteText.trim() + '\n"""';
+    contentInstr = '\n\nHai ricevuto il seguente testo grezzo dall\'autore — riscrivilo e strutturalo professionalmente mantenendo TUTTI i dati e le idee originali senza aggiungere informazioni non presenti, rispettando lo stile XenosFinance' + (asset && asset.trim() ? ' e mantenendo il focus su ' + asset.trim() : '') + ':\n\n"""\n' + pasteText.trim() + '\n"""';
   } else {
-    var topicLine = topic ? 'Argomento specifico: "' + topic + '"' : 'Scegli un argomento attuale su ' + marketDesc[market];
+    var topicLine = topic ? 'Argomento specifico: "' + topic + '"' : (asset && asset.trim() ? 'Scrivi un\'analisi completa su ' + asset.trim() : 'Scegli un argomento attuale su ' + marketDesc[market]);
     contentInstr = '\n\n' + topicLine + '.';
   }
 
-  return baseInstr + contentInstr + '\n\nRispondi SOLO con JSON valido, senza markdown, senza testo fuori dal JSON.\n\n{"title":"titolo","readTime":"X min lettura","intro":"paragrafo intro","sections":[{"heading":"Sezione 1","content":"testo 1"},{"heading":"Sezione 2","content":"testo 2"},{"heading":"Sezione 3","content":"testo 3"}],"quote":"citazione o statistica","conclusion":"conclusione con outlook","excerpt":"riassunto 15-20 parole"}';
+  return baseInstr + assetLine + contentInstr + '\n\nRispondi SOLO con JSON valido, senza markdown, senza testo fuori dal JSON.\n\n{"title":"titolo","readTime":"X min lettura","intro":"paragrafo intro","sections":[{"heading":"Sezione 1","content":"testo 1"},{"heading":"Sezione 2","content":"testo 2"},{"heading":"Sezione 3","content":"testo 3"}],"quote":"citazione o statistica","conclusion":"conclusione con outlook","excerpt":"riassunto 15-20 parole"}';
 }
 
 // ── GENERA ──
@@ -839,6 +854,7 @@ async function generateArticle() {
   var length    = document.getElementById('genLength').value;
   var topic     = document.getElementById('genTopic').value.trim();
   var pasteText = document.getElementById('genPasteText').value.trim();
+  var asset     = document.getElementById('genAsset') ? document.getElementById('genAsset').value.trim() : '';
 
   btn.disabled = true;
   btnIcon.innerHTML = '<div class="spinner"></div>';
@@ -852,7 +868,7 @@ async function generateArticle() {
     var response = await fetch(WORKER_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 2500, messages: [{ role: 'user', content: buildPrompt(lang,market,tech,tone,length,topic,pasteText) }] })
+      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 2500, messages: [{ role: 'user', content: buildPrompt(lang,market,tech,tone,length,topic,pasteText,asset) }] })
     });
     if (!response.ok) throw new Error('HTTP ' + response.status);
     var data = await response.json();
@@ -894,6 +910,7 @@ async function generateArticle() {
         status.textContent = pasteText ? '✓ Text reformatted!' : '✓ Articolo generato!';
         setTimeout(function(){ status.textContent=''; }, 3000);
         document.getElementById('genPasteText').value = '';
+        if(document.getElementById('genAsset')) document.getElementById('genAsset').value = '';
       });
     }, 600);
 
