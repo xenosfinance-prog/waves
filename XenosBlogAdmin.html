@@ -718,8 +718,11 @@ window.addEventListener('DOMContentLoaded', function() {
     isAdmin = true;
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('adminPanel').style.display = 'block';
+    loadArticlesFromGitHub();
+  } else {
+    document.getElementById('loginScreen').style.display = 'flex';
+    setTimeout(function(){ document.getElementById('loginPw').focus(); }, 100);
   }
-  loadArticlesFromGitHub();
 });
 
 function doLogin() {
@@ -729,6 +732,7 @@ function doLogin() {
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('adminPanel').style.display = 'block';
     document.getElementById('adminPanel').scrollIntoView({ behavior:'smooth' });
+    loadArticlesFromGitHub();
   } else {
     document.getElementById('loginErr').textContent = '⚠ Password errata';
     document.getElementById('loginPw').value = '';
