@@ -947,11 +947,11 @@ canvas { display: block; }
       <div id="ewChartWrap" style="display:none;margin-top:20px;position:relative;">
         <div id="ewPaper" style="background:#0f1724;border:1px solid #1e3050;position:relative;overflow:hidden;height:380px;">
           <!-- Lightweight Charts container — real candles -->
-          <div id="ewLWChart" style="position:absolute;inset:0;width:100%;height:100%;"></div>
+          <div id="ewLWChart" style="position:absolute;inset:0;width:100%;height:100%;z-index:1;"></div>
           <!-- Canvas overlay — EW sketch animation on top of candles -->
-          <canvas id="ewSketchCanvas" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;"></canvas>
+          <canvas id="ewSketchCanvas" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:5;"></canvas>
           <!-- Hand SVG for sketch animation -->
-          <div id="ewHandWrap" style="position:absolute;pointer-events:none;opacity:0;transition:left 0.05s linear,top 0.05s linear;">
+          <div id="ewHandWrap" style="position:absolute;pointer-events:none;opacity:0;transition:left 0.05s linear,top 0.05s linear;z-index:10;">
             <svg width="140" height="160" viewBox="0 0 140 160" style="filter:drop-shadow(0 2px 6px rgba(0,0,0,0.15));">
   <g transform="rotate(-25,70,140)">
     <rect x="22" y="118" width="64" height="38" rx="6" fill="#1e3a6e" stroke="#0f1f4a" stroke-width="1.2"/>
@@ -2302,19 +2302,26 @@ CONFIRMATION SIGNALS:
 
 SCENARIO ANALYSIS — YOU MUST ALWAYS PROVIDE:
 1. PRIMARY COUNT: the most probable wave count with confidence level
-2. ALTERNATE COUNT: next most probable structure (e.g. if W4 triangle vs flat; if ABC complete vs WXY continuing)
+2. ALTERNATE COUNT: next most probable structure
 3. INVALIDATION LEVEL: exact price that kills the primary count
 4. Identify any active corrective pattern (zigzag, flat, triangle, WXY)
-5. State if any diagonal is present and its type
-6. Apply alternation guideline explicitly
-7. Give Fibonacci-based targets for the developing wave
+5. Apply alternation guideline explicitly
+6. Give Fibonacci-based targets for the developing wave
+
+CRITICAL RULE — READ BEFORE WRITING:
+If the WAVE ENGINE OUTPUT shows Current Wave = A, B, C, 1, 2, 3, or 4 — this is a SCENARIO ONLY wave.
+DO NOT provide trade entry, stop loss, or take profit in Paragraph 4.
+DO NOT invent or suggest any trade setup for these waves.
+Instead, Paragraph 4 must describe ONLY: what to watch for, what confirms the next wave, and the exact invalidation price.
+
+If Current Wave = 5 — you MAY provide full trade levels in Paragraph 4.
 
 OUTPUT FORMAT — plain text only, no markdown, no asterisks, no headers with #:
 Write exactly 4 paragraphs separated by blank lines.
 Paragraph 1 — PRIMARY SCENARIO: Current wave position, degree, structure identified, what has completed, what is developing.
-Paragraph 2 — PATTERN & STRUCTURE: Corrective pattern type if applicable, diagonal if present, alternation, Fibonacci relationships observed, internal structure of current wave.
-Paragraph 3 — ALTERNATE SCENARIO: Next most probable count, what would confirm it vs primary, key differentiator.
-Paragraph 4 — TRADE LEVELS: Entry rationale, stop loss logic (what it protects), TP1 and TP2 with Fibonacci basis, R:R, one-sentence invalidation rule.`;
+Paragraph 2 — PATTERN & STRUCTURE: Corrective pattern type if applicable, Fibonacci relationships, internal structure.
+Paragraph 3 — ALTERNATE SCENARIO: Next most probable count and what would confirm or invalidate it.
+Paragraph 4 — If Wave 5: Entry rationale, SL logic, TP1/TP2 with Fibonacci basis, R:R, invalidation rule. If ANY other wave: What to watch for next, confirmation signals, invalidation level only. NO trade setup.`;
 
     const ewUserPrompt = `INSTRUMENT: ${symbol} | TIMEFRAME: ${tf} | LIVE PRICE: ${livePrice}
 
@@ -2347,11 +2354,14 @@ Bullish Divergence: ${ewResult.bullishDiv?'YES — reversal signal':'No'}
 SMA20: ${ewResult.sma20?.toFixed(5)||'N/A'} | SMA50: ${ewResult.sma50?.toFixed(5)||'N/A'} | SMA200: ${ewResult.sma200?.toFixed(5)||'N/A'}
 Trend vs SMA20: ${ewResult.trend20?'ABOVE':'BELOW'} | SMA50: ${ewResult.trend50?'ABOVE':'BELOW'} | SMA200: ${ewResult.trend200?'ABOVE':'BELOW'}
 
-KEY LEVELS:
+${!isScenarioOnly ? `KEY LEVELS (Wave 5 signal):
 Entry: ${chartAnalysis.key_levels.entry} | Stop Loss: ${chartAnalysis.key_levels.stop_loss}
 TP1: ${chartAnalysis.key_levels.tp1} | TP2: ${chartAnalysis.key_levels.tp2}
 Invalidation: ${chartAnalysis.key_levels.invalidation}
-R:R: 1:${ewResult.riskReward}
+R:R: 1:${ewResult.riskReward}` : `SCENARIO CONTEXT (NO trade setup — scenario wave only):
+Invalidation level: ${chartAnalysis.key_levels.stop_loss}
+Next wave target zone: ${chartAnalysis.key_levels.tp1} — ${chartAnalysis.key_levels.tp2}
+Do NOT provide entry, stop loss, or take profit. Describe scenario only.`}
 
 ${ctx_text?'ADDITIONAL CONTEXT: '+ctx_text:''}
 
