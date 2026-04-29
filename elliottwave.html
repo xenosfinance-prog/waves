@@ -320,7 +320,6 @@ canvas { display: block; }
 </script>
 <script src="/i18n.js"></script>
 <script src="/i18n-engine.js"></script>
-<script src="/xf-hand.js"></script>
 </head>
 <body>
 
@@ -2122,11 +2121,10 @@ async function runAIAnalysis(){
     return;
   }
 
-  renderEWSketch(chartAnalysis, symbol, tf);
-  // Show chart wrap with delay so canvas gets proper dimensions
+  // Show wrap FIRST so canvas has real dimensions, then render
   var wrap = document.getElementById('ewChartWrap');
   wrap.style.display = 'block';
-  setTimeout(function(){ renderEWSketch(chartAnalysis, symbol, tf); }, 120);
+  setTimeout(function(){ renderEWSketch(chartAnalysis, symbol, tf); }, 180);
 
   txt.innerHTML='<span class="analysis-loading">⬡ GENERATING NARRATIVE ANALYSIS...</span>';
 
