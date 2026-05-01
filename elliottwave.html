@@ -3607,25 +3607,56 @@ function renderEWSketch(analysis, symbol, tf){
     // ── Animate hand over EW lines using real LW coords ──
     if(!hasPrices) return;
 
-    function getCoord(op){
-      var t = pivotTime(op);
-      if(!t) return null;
-      return _lwCoords(_ewLWChartInst, op.price, t);
+    // ── Compute canvas coords from price scale ──
+    // Use LW chart visible range to build a math mapping price→Y, time→X
+    // This is reliable and doesn't depend on DOM timing
+    var allPrices = orderedPts.map(function(p){return p.price;});
+    lwData.forEach(function(c){ allPrices.push(c.high,c.low); });
+    var pMin2 = Math.min.apply(null,allPrices)*0.994;
+    var pMax2 = Math.max.apply(null,allPrices)*1.006;
+    var pRange2 = pMax2-pMin2||1;
+
+    // LW chart has right price scale — estimate its width
+    var priceScaleW = 60; // approximate px for right price scale
+    var timeScaleH  = 22; // approximate px for time scale at bottom
+    var chartW = W - priceScaleW;
+    var chartH = H - timeScaleH;
+
+    function priceToY(price){
+      return timeScaleH + (chartH - timeScaleH) * (1 - (price-pMin2)/pRange2);
     }
 
-    // Build pts list from real chart coords
+    // Map candle index → X position
+    var totalBars = lwData.length;
+    function idxToX(idx){
+      var relIdx = idx - startIdx;
+      relIdx = Math.max(0, Math.min(relIdx, totalBars-1));
+      // LW charts: bars fill from left, last bar near right edge (minus price scale)
+      return (relIdx / Math.max(totalBars-1,1)) * (chartW - 8) + 4;
+    }
+
+    // Try LW native coords first, fall back to math
+    function getBestCoord(op){
+      // Try native LW coords
+      var t = pivotTime(op);
+      if(t && _ewLWChartInst){
+        try{
+          var nx = _ewLWChartInst.timeScale().timeToCoordinate(t);
+          var ny = _ewLWChartInst.priceScale('right').priceToCoordinate(op.price);
+          if(nx!=null && ny!=null && nx>0 && nx<W && ny>0 && ny<H)
+            return {x:nx, y:ny};
+        }catch(e){}
+      }
+      // Math fallback — always works
+      return {x: idxToX(op.idx), y: priceToY(op.price)};
+    }
+
     var pts = [];
-    orderedPts.forEach(function(op){
-      var coord = getCoord(op);
-      if(!coord) return;
-      var lbl   = lblMap[op.k]||op.k;
-      var prev  = pts.length>0 ? orderedPts[pts.length] : null;
-      var above = pts.length>0 ? (op.price > orderedPts[pts.length-1].price) : false;
-      pts.push({x:coord.x, y:coord.y, lbl:lbl, above:above, k:op.k, price:op.price});
-    });
-    // Fix 'above' using correct prev price
-    pts.forEach(function(p,i){
-      if(i>0) p.above = p.price > pts[i-1].price;
+    orderedPts.forEach(function(op, i){
+      var coord = getBestCoord(op);
+      var lbl = lblMap[op.k]||op.k;
+      pts.push({x:coord.x, y:coord.y, lbl:lbl, k:op.k, price:op.price,
+                above: i>0 ? op.price>orderedPts[i-1].price : false});
     });
 
     if(pts.length<2){ hand.style.opacity='0'; return; }
