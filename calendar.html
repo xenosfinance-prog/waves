@@ -785,7 +785,10 @@ async function fetchLiveCalendar(weekStr) {
       if (!dateRaw || !name) return;
       // Find matching static event and patch actual
       const existing = EVENTS.find(e => evKey(e.date, e.name) === evKey(dateRaw, name));
-      if (existing && !existing.actual) existing.actual = actual.slice(0,12);
+      // Only patch if not manually saved by admin
+      const manualKey = 'xf_actual_' + dateRaw + '_' + String(name).slice(0,20).replace(/\s/g,'_');
+      const hasManual = localStorage.getItem(manualKey);
+      if (existing && !hasManual) existing.actual = actual.slice(0,12);
     });
   }
 
@@ -957,6 +960,8 @@ async function refreshActuals() {
     fetchLiveCalendar('week2'),
     fetchLiveCalendar('week3'),
   ]);
+  // Re-apply manual actuals AFTER live fetch — manual data always wins
+  loadSavedActuals();
   renderWeekTabs();
   renderCalendar();
   renderHighlights();
@@ -999,18 +1004,24 @@ function editActual(e, date, name, el) {
 
 // Load saved actuals from localStorage on init
 function loadSavedActuals() {
+  // Load manually entered actuals — these ALWAYS win over API data
+  const saved = {};
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
-    if (!key.startsWith('xf_actual_')) continue;
+    if (!key || !key.startsWith('xf_actual_')) continue;
     const val = localStorage.getItem(key);
-    if (!val) continue;
-    // key format: xf_actual_DATE_NAME
+    if (val) saved[key] = val;
+  }
+  Object.entries(saved).forEach(([key, val]) => {
     const parts = key.replace('xf_actual_', '').split('_');
     const date = parts[0];
-    const namePart = parts.slice(1).join(' ').toLowerCase();
-    const ev = EVENTS.find(e => e.date === date && e.name.toLowerCase().replace(/\s/g,'_').startsWith(namePart.slice(0,15)));
-    if (ev && !ev.actual) ev.actual = val;
-  }
+    const namePart = parts.slice(1).join('_').toLowerCase();
+    const ev = EVENTS.find(e =>
+      e.date === date &&
+      e.name.toLowerCase().replace(/\s/g,'_').startsWith(namePart.slice(0,15))
+    );
+    if (ev) ev.actual = val; // no !ev.actual check — manual always wins
+  });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
