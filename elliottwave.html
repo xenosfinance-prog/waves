@@ -3464,7 +3464,7 @@ function renderEWSketch(analysis, symbol, tf){
 
   // ── Candle data ──
   var candles = (typeof ewLastCandles!=='undefined' && ewLastCandles.length>=10) ? ewLastCandles : [];
-  var showN   = Math.min(candles.length, 100);
+  var showN   = candles.length; // show all candles so pivot indices always in range
   var slice   = candles.slice(-showN);
 
   if(!slice.length){
@@ -3504,7 +3504,7 @@ function renderEWSketch(analysis, symbol, tf){
   lwData.sort(function(a,b){return a.time-b.time;});
   if(!lwData.length) return;
 
-  var startIdx = candles.length - showN;
+  var startIdx = 0; // showN = all candles so startIdx is always 0
 
   // ── Create LW chart ──
   lwDiv.style.background='#0f1724';
@@ -3564,6 +3564,7 @@ function renderEWSketch(analysis, symbol, tf){
   // ── After chart renders: overlay labels with canvas using real coords ──
   _ewSkTimers.push(setTimeout(function(){
     if(!_ewLWChartInst) return;
+    if(!orderedPts || orderedPts.length < 2) return;
 
     // Draw header on canvas
     ctx.save();
@@ -3629,10 +3630,12 @@ function renderEWSketch(analysis, symbol, tf){
     // Map candle index → X position
     var totalBars = lwData.length;
     function idxToX(idx){
+      // idx is absolute candle index in ewLastCandles
+      // Map to position in lwData (which now = all candles)
       var relIdx = idx - startIdx;
+      // Clamp to visible range but don't skip
       relIdx = Math.max(0, Math.min(relIdx, totalBars-1));
-      // LW charts: bars fill from left, last bar near right edge (minus price scale)
-      return (relIdx / Math.max(totalBars-1,1)) * (chartW - 8) + 4;
+      return (relIdx / Math.max(totalBars-1,1)) * (chartW - priceScaleW) + 4;
     }
 
     // Try LW native coords first, fall back to math
@@ -3757,7 +3760,7 @@ function renderEWSketch(analysis, symbol, tf){
 
     _ewSkTimers.push(setTimeout(animSeg, 100));
 
-  }, 300));
+  }, 500));
 }
 
 </script>
