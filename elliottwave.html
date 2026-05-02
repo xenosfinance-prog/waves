@@ -1492,78 +1492,66 @@ function countElliottWavesDeepscan(candles) {
   // Returns best count object or null
 
   function tryImpulse(pivots) {
-    // Need at least 5 alternating pivots: L-H-L-H-L (bull) or H-L-H-L-H (bear)
-    // Try every possible starting pivot
-    let best = null;
+    // Returns top-2 valid impulse counts for alternate scenario engine
+    const candidates = [];
     for (let start = 0; start <= pivots.length - 3; start++) {
       const p0 = pivots[start];
-      // Try both directions
       for (const bull of [true, false]) {
-        // p0 must be correct type for direction
         if (bull && p0.type !== 'L') continue;
         if (!bull && p0.type !== 'H') continue;
-
-        // Collect alternating pivots from start
         const seq = [p0];
         for (let j = start+1; j < pivots.length && seq.length < 6; j++) {
-          const expected = seq.length % 2 === 0
-            ? (bull ? 'L' : 'H')
-            : (bull ? 'H' : 'L');
+          const expected = seq.length % 2 === 0 ? (bull ? 'L' : 'H') : (bull ? 'H' : 'L');
           if (pivots[j].type === expected) seq.push(pivots[j]);
         }
-        if (seq.length < 3) continue; // need at least W0,W1,W2
-
-        // Label: seq[0]=W0, seq[1]=W1, seq[2]=W2, seq[3]=W3, seq[4]=W4, seq[5]=W5
+        if (seq.length < 3) continue;
         const W0=seq[0], W1=seq[1], W2=seq[2], W3=seq[3]||null, W4=seq[4]||null, W5=seq[5]||null;
-
-        // ── Rule 1: W2 never retraces beyond W0 ──
         if (bull && W2.price <= W0.price) continue;
         if (!bull && W2.price >= W0.price) continue;
-
         const w1Size = Math.abs(W1.price - W0.price);
         if (w1Size === 0) continue;
-
-        // ── Rule 2: W2 retrace check (not >100% of W1) ──
         const w2Ret = Math.abs(W2.price - W1.price) / w1Size;
         if (w2Ret >= 1.0) continue;
-
-        // ── W3 check ──
         let w3Size = 0, w3Ext = false;
         if (W3) {
           w3Size = Math.abs(W3.price - W2.price);
           w3Ext = w3Size > w1Size * 1.618;
-          // Rule 3: W3 not shortest — check vs W1, vs W5 if present
           if (W5) {
             const w5Size = Math.abs(W5.price - W4.price);
-            if (w3Size < w1Size && w3Size < w5Size) continue; // W3 shortest — invalid
+            if (w3Size < w1Size && w3Size < w5Size) continue;
           }
         }
-
-        // ── W4 check ──
         if (W4 && W3) {
-          // Rule 4: W4 must not enter W1 territory
           if (bull && W4.price <= W1.price) continue;
           if (!bull && W4.price >= W1.price) continue;
         }
-
-        // ── Score this count by how many pivots confirmed + recency ──
-        const score = seq.length * 10 + (pivots.length - start); // longer = better, more recent start = better
-        if (!best || score > best.score) {
-          best = { W0, W1, W2, W3, W4, W5, bull, w1Size, w3Size, w3Ext, score, waveCount: seq.length };
+        // Enriched score: more confirmed waves + fibonacci alignment bonus
+        let score = seq.length * 10 + (pivots.length - start);
+        if (W3) {
+          const fibRatio = w3Size / w1Size;
+          if (fibRatio >= 1.5 && fibRatio <= 1.7) score += 8;  // near 161.8%
+          if (fibRatio >= 2.5 && fibRatio <= 2.7) score += 5;  // near 261.8%
         }
+        if (W2) {
+          const w2RatioFib = Math.abs(W2.price - W1.price) / w1Size;
+          if (w2RatioFib >= 0.55 && w2RatioFib <= 0.65) score += 5; // near 61.8%
+          if (w2RatioFib >= 0.45 && w2RatioFib <= 0.55) score += 3; // near 50%
+        }
+        candidates.push({ W0, W1, W2, W3, W4, W5, bull, w1Size, w3Size, w3Ext, score, waveCount: seq.length });
       }
     }
-    return best;
+    candidates.sort((a,b) => b.score - a.score);
+    return candidates; // return ALL sorted candidates
   }
 
-  function tryABC(pivots) {
-    let best = null;
+  function tryABCAll(pivots) {
+    // Returns top-2 valid ABC counts
+    const candidates = [];
     for (let start = 0; start <= pivots.length - 2; start++) {
       const WA = pivots[start];
       for (const bearABC of [true, false]) {
         if (bearABC && WA.type !== 'H') continue;
         if (!bearABC && WA.type !== 'L') continue;
-
         const wbType = bearABC ? 'L' : 'H';
         const wcType = bearABC ? 'H' : 'L';
         let WB = null, WC = null;
@@ -1572,34 +1560,105 @@ function countElliottWavesDeepscan(candles) {
           if (WB && !WC && pivots[j].type === wcType) { WC = pivots[j]; break; }
         }
         if (!WB) continue;
-
         const aSize = Math.abs(WB.price - WA.price);
         if (aSize === 0) continue;
-
-        // B must not exceed A start
         if (bearABC && WB.price >= WA.price) continue;
         if (!bearABC && WB.price <= WA.price) continue;
-
-        const score = (WC ? 30 : 20) + (pivots.length - start);
-        if (!best || score > best.score) {
-          best = { WA, WB, WC, bearABC, aSize, score };
-        }
+        // Enriched score
+        let score = (WC ? 30 : 20) + (pivots.length - start);
+        const bRatio = WB ? Math.abs(WB.price - WA.price) / aSize : 0;
+        if (bRatio >= 0.55 && bRatio <= 0.65) score += 5; // B near 61.8% = zigzag
+        if (bRatio >= 0.85 && bRatio <= 1.05) score += 4; // B near 100% = flat
+        candidates.push({ WA, WB, WC, bearABC, aSize, score });
       }
     }
-    return best;
+    candidates.sort((a,b) => b.score - a.score);
+    return candidates;
   }
 
-  // ── Run both searches ──
-  const impulseRaw = tryImpulse(allPivots);
-  const abcRaw     = tryABC(allPivots);
+  // ── Run both searches — returns sorted candidate arrays ──
+  const impulseCandidates = tryImpulse(allPivots);
+  const abcCandidates     = tryABCAll(allPivots);
 
   // ── Minimum quality thresholds ──
-  // Impulse: need at least W0+W1+W2+W3 (4 pivots = waveCount >= 4)
-  //          score must be meaningful (avoids random 3-pivot noise)
-  const impulse = (impulseRaw && impulseRaw.waveCount >= 4) ? impulseRaw : null;
-  // ABC: need at least WA+WB confirmed + aSize must be > 0.2% of price (not noise)
   const abcMinSize = p * 0.002;
+  const impulse = impulseCandidates.find(c => c.waveCount >= 4) || null;
+  const impulseAlt = impulseCandidates.filter(c => c.waveCount >= 4 && c !== impulse)[0] || null;
+  const abcRaw  = abcCandidates[0] || null;
+  const abcAlt  = abcCandidates.find(c => c !== abcRaw && c.aSize >= abcMinSize) || null;
   const abc = (abcRaw && abcRaw.WB && abcRaw.aSize >= abcMinSize) ? abcRaw : null;
+
+  // ── Triangle detection ──
+  function tryTriangle(pivots) {
+    // ABCDE: 5 overlapping corrective waves within converging trendlines
+    if (pivots.length < 5) return null;
+    const recent = pivots.slice(-10);
+    if (recent.length < 5) return null;
+    // Need alternating H/L sequence of at least 5
+    const seq = [recent[0]];
+    for (let i = 1; i < recent.length && seq.length < 5; i++) {
+      if (recent[i].type !== seq[seq.length-1].type) seq.push(recent[i]);
+    }
+    if (seq.length < 5) return null;
+    const highs = seq.filter(p=>p.type==='H').map(p=>p.price);
+    const lows  = seq.filter(p=>p.type==='L').map(p=>p.price);
+    if (highs.length < 2 || lows.length < 2) return null;
+    // Contracting: highs decreasing, lows increasing
+    const hDesc = highs.every((h,i) => i===0 || h < highs[i-1]);
+    const lAsc  = lows.every((l,i)  => i===0 || l > lows[i-1]);
+    if (hDesc && lAsc) {
+      return { type: 'Contracting Triangle', waves: seq,
+               score: 25, note: 'ABCDE converging — thrust out of triangle expected' };
+    }
+    // Expanding: highs increasing, lows decreasing
+    const hAsc  = highs.every((h,i) => i===0 || h > highs[i-1]);
+    const lDesc = lows.every((l,i)  => i===0 || l < lows[i-1]);
+    if (hAsc && lDesc) {
+      return { type: 'Expanding Triangle', waves: seq,
+               score: 20, note: 'ABCDE expanding — volatile, avoid trading inside' };
+    }
+    return null;
+  }
+  const triangleRaw = tryTriangle(allPivots);
+
+  // ── Market structure (HH/HL/LH/LL) ──
+  function calcMarketStructure(pivots) {
+    if (pivots.length < 4) return { structure: 'UNDEFINED', bos: false, choch: false };
+    const recent = pivots.slice(-8);
+    const highs = recent.filter(x=>x.type==='H').map(x=>x.price);
+    const lows  = recent.filter(x=>x.type==='L').map(x=>x.price);
+    if (highs.length < 2 || lows.length < 2) return { structure: 'UNDEFINED', bos: false, choch: false };
+    const hhCount = highs.filter((h,i)=>i>0&&h>highs[i-1]).length;
+    const hlCount = lows.filter((l,i)=>i>0&&l>lows[i-1]).length;
+    const lhCount = highs.filter((h,i)=>i>0&&h<highs[i-1]).length;
+    const llCount = lows.filter((l,i)=>i>0&&l<lows[i-1]).length;
+    let structure = 'RANGING';
+    if (hhCount > lhCount && hlCount > llCount) structure = 'BULLISH (HH+HL)';
+    else if (lhCount > hhCount && llCount > hlCount) structure = 'BEARISH (LH+LL)';
+    else if (hhCount > 0 && llCount > 0) structure = 'RANGING/TRANSITION';
+    // Break of structure: last high broken or last low broken
+    const lastHigh = highs[highs.length-1];
+    const lastLow  = lows[lows.length-1];
+    const prevHigh = highs[highs.length-2];
+    const prevLow  = lows[lows.length-2];
+    const bos = lastHigh > prevHigh || lastLow < prevLow;
+    const choch = (structure.includes('BULLISH') && lastLow < prevLow) ||
+                  (structure.includes('BEARISH') && lastHigh > prevHigh);
+    return { structure, bos, choch, lastHigh, lastLow };
+  }
+  const mktStructure = calcMarketStructure(allPivots);
+
+  // ── Probabilistic scenario scoring ──
+  function calcScenarioProbabilities(primary, alt, isImpulse) {
+    if (!alt) return { primaryPct: 75, altPct: 25, tailPct: 0 };
+    const pScore = primary.score || 1;
+    const aScore = alt.score || 1;
+    const total  = pScore + aScore;
+    const primaryPct = Math.round((pScore / total) * 80); // cap at 80%
+    const altPct     = Math.round((aScore / total) * 70); // cap at 70%
+    const tailPct    = Math.max(5, 100 - primaryPct - altPct);
+    return { primaryPct, altPct, tailPct };
+  }
 
   // ── Determine current wave position ──
   // Prefer impulse if it has more confirmed waves, else prefer ABC
@@ -1933,6 +1992,53 @@ function countElliottWavesDeepscan(candles) {
     sma20:s20, sma50:s50e, sma200:s200e,
     trend20, trend50, trend200,
     hPvts, lPvts, hRec, lRec,
+    mktStructure,
+    trianglePattern: triangleRaw,
+    altScenario: (function(){
+      // Build alternate scenario description
+      const primIsImpulse = useImpulse;
+      let altDesc = null, altProb = 25;
+      if (primIsImpulse) {
+        // Primary = impulse → Alt = ABC or opposite impulse
+        if (impulseAlt && impulseAlt.score > 0) {
+          const altDir = impulseAlt.bull ? 'Bullish' : 'Bearish';
+          const altWaves = impulseAlt.waveCount;
+          const probs = calcScenarioProbabilities(impulse, impulseAlt, true);
+          altDesc = `${altDir} impulse count (${altWaves} pivots)`;
+          altProb = probs.altPct;
+        } else if (abc) {
+          const altDir = abc.bearABC ? 'Bearish' : 'Bullish';
+          altDesc = `${altDir} ABC correction already complete — new impulse starting`;
+          altProb = 30;
+        }
+      } else if (abc) {
+        // Primary = ABC → Alt = impulse continuation or different ABC
+        if (impulse && impulse.waveCount >= 4) {
+          const altDir = impulse.bull ? 'Bullish' : 'Bearish';
+          altDesc = `${altDir} impulse still in progress (${impulse.waveCount} waves confirmed)`;
+          altProb = 30;
+        } else if (abcAlt) {
+          const altDir = abcAlt.bearABC ? 'Bearish' : 'Bullish';
+          altDesc = `${altDir} ABC variant — different pivot as WA origin`;
+          altProb = 25;
+        }
+        if (triangleRaw) {
+          altDesc = triangleRaw.type + ' — ' + triangleRaw.note;
+          altProb = 20;
+        }
+      }
+      const probs = calcScenarioProbabilities(
+        useImpulse ? impulse : abc,
+        useImpulse ? impulseAlt : (abcAlt || impulse),
+        useImpulse
+      );
+      return {
+        description: altDesc || 'Insufficient data for alternate count',
+        probability: altProb,
+        primaryProbability: probs.primaryPct,
+        tailProbability: probs.tailPct,
+      };
+    })(),
   };
 }
 
@@ -2096,6 +2202,8 @@ async function runAIAnalysis(){
     corrective_pattern: ewResult.correctivePattern || null,
     bear_abc:           ewResult.bearABC === true,
     scenario_only:      ['A','B','C','1','2','3','4'].indexOf(ewResult.waveNum) >= 0,
+    mkt_structure:      ewResult.mktStructure || null,
+    alt_scenario:       ewResult.altScenario || null,
   };
 
   // ── No count available — show clean message, skip sketch and AI ──
@@ -2220,6 +2328,13 @@ async function runAIAnalysis(){
           `  ${actionClean}`,
         ]
     ),
+    ``,`MARKET STRUCTURE`,
+    `  ${ewResult.mktStructure?.structure || 'N/A'}${ewResult.mktStructure?.bos?' · Break of Structure detected':''}${ewResult.mktStructure?.choch?' · ⚠️ Change of Character':''}`,
+    ``,`SCENARIOS`,
+    `  PRIMARY  (${ewResult.altScenario?.primaryProbability||65}%)  ${ewResult.waveDesc}`,
+    `  ALT      (${ewResult.altScenario?.probability||25}%)  ${ewResult.altScenario?.description||'N/A'}`,
+    ewResult.trianglePattern?`  TRIANGLE  ${ewResult.trianglePattern.type} — ${ewResult.trianglePattern.note}`:null,
+    `  INVALIDATION: ${chartAnalysis.key_levels.stop_loss||'—'}`,
     ``,`INDICATORS`,
     `  RSI(14): ${ewResult.rsi}${ewResult.rsi>70?' — Overbought':ewResult.rsi<30?' — Oversold':''}`,
     `  MACD: ${ewResult.macdHist>0?'+':''}${ewResult.macdHist?.toFixed(5)||'n/a'}  ${ewResult.macdHist>0?'Bullish':'Bearish'} momentum`,
@@ -2324,7 +2439,7 @@ OUTPUT FORMAT — plain text only, no markdown, no asterisks, no headers with #:
 Write exactly 4 SHORT paragraphs (2-3 sentences each), separated by blank lines. Be concise and direct.
 P1 — PRIMARY SCENARIO: Wave position, structure, what is developing.
 P2 — PATTERN & STRUCTURE: Corrective type if applicable, key Fibonacci levels.
-P3 — ALTERNATE SCENARIO: Next most probable count, key differentiator.
+P3 — ALTERNATE SCENARIO: State PRIMARY probability (X%) and ALTERNATE probability (Y%). What confirms or kills each count. Key price differentiator between the two.
 P4 — If Wave 5: Entry/SL/TP with Fibonacci basis, one-line invalidation. If other wave: What confirms next wave, invalidation level only. NO trade setup.`;
 
     const ewUserPrompt = `INSTRUMENT: ${symbol} | TIMEFRAME: ${tf} | LIVE PRICE: ${livePrice}
@@ -2358,6 +2473,13 @@ Bullish Divergence: ${ewResult.bullishDiv?'YES — reversal signal':'No'}
 SMA20: ${ewResult.sma20?.toFixed(5)||'N/A'} | SMA50: ${ewResult.sma50?.toFixed(5)||'N/A'} | SMA200: ${ewResult.sma200?.toFixed(5)||'N/A'}
 Trend vs SMA20: ${ewResult.trend20?'ABOVE':'BELOW'} | SMA50: ${ewResult.trend50?'ABOVE':'BELOW'} | SMA200: ${ewResult.trend200?'ABOVE':'BELOW'}
 
+MARKET STRUCTURE: ${ewResult.mktStructure?.structure||'N/A'}${ewResult.mktStructure?.bos?' · Break of Structure':''}${ewResult.mktStructure?.choch?' · ⚠ Change of Character':''}
+
+PROBABILISTIC SCENARIOS:
+PRIMARY (${ewResult.altScenario?.primaryProbability||65}%): ${ewResult.waveDesc}
+ALTERNATE (${ewResult.altScenario?.probability||25}%): ${ewResult.altScenario?.description||'Insufficient data'}
+${ewResult.trianglePattern?'TRIANGLE: '+ewResult.trianglePattern.type+' — '+ewResult.trianglePattern.note:''}
+
 ${!isScenarioOnly ? `KEY LEVELS (Wave 5 signal):
 Entry: ${chartAnalysis.key_levels.entry} | Stop Loss: ${chartAnalysis.key_levels.stop_loss}
 TP1: ${chartAnalysis.key_levels.tp1} | TP2: ${chartAnalysis.key_levels.tp2}
@@ -2369,7 +2491,7 @@ Do NOT provide entry, stop loss, or take profit. Describe scenario only.`}
 
 ${ctx_text?'ADDITIONAL CONTEXT: '+ctx_text:''}
 
-Now write the professional Elliott Wave analysis following the 4-paragraph format in the system prompt. Use exact prices. Be specific about wave counts. Name the corrective pattern if present.`;
+Now write the professional Elliott Wave analysis. In paragraph 3, explicitly state the PRIMARY scenario with its probability and the ALTERNATE scenario with its probability. Use exact prices. Be concise.`;
 
     const res = await fetchWithRetry({
       model:'claude-sonnet-4-20250514',
