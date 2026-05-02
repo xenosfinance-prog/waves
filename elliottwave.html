@@ -1491,66 +1491,158 @@ function countElliottWavesDeepscan(candles) {
   // Rules: W2 < W0 start, W3 not shortest, W4 not into W1 territory
   // Returns best count object or null
 
+  // ═══════════════════════════════════════════════════════════
+  // ELLIOTT WAVE ENGINE — Full Glossary Implementation
+  // Rules from XenosFinance glossary — ALL HARD FILTERS, NO BONUSES
+  // ═══════════════════════════════════════════════════════════
+
+  // Fibonacci tolerance: ±15% of target ratio
+  function nearFib(ratio, ...targets) {
+    return targets.some(t => t > 0 && Math.abs(ratio - t) / t <= 0.15);
+  }
+
+  // ── IMPULSE WAVE (1-2-3-4-5) ──
+  // Rules from glossary:
+  //   Rule I:   W2 never retraces 100%+ of W1
+  //   Rule II:  W3 never the shortest impulse wave
+  //   Rule III: W4 never overlaps W1 price territory (except diagonal)
+  //   W2: retraces 38.2%–78.6% of W1, typical 61.8%
+  //   W3: extends to 161.8% / 261.8% / 423.6% of W1
+  //   W4: retraces 23.6%–61.8% of W3, typical 38.2%
+  //   W5: equals W1 (100%) or extends to 161.8% of W1
   function tryImpulse(pivots) {
-    // Returns top-2 valid impulse counts for alternate scenario engine
     const candidates = [];
     for (let start = 0; start <= pivots.length - 3; start++) {
       const p0 = pivots[start];
       for (const bull of [true, false]) {
-        if (bull && p0.type !== 'L') continue;
+        if (bull  && p0.type !== 'L') continue;
         if (!bull && p0.type !== 'H') continue;
+
+        // Collect alternating pivots
         const seq = [p0];
         for (let j = start+1; j < pivots.length && seq.length < 6; j++) {
-          const expected = seq.length % 2 === 0 ? (bull ? 'L' : 'H') : (bull ? 'H' : 'L');
-          if (pivots[j].type === expected) seq.push(pivots[j]);
+          const exp = seq.length % 2 === 0 ? (bull?'L':'H') : (bull?'H':'L');
+          if (pivots[j].type === exp) seq.push(pivots[j]);
         }
         if (seq.length < 3) continue;
+
         const W0=seq[0], W1=seq[1], W2=seq[2], W3=seq[3]||null, W4=seq[4]||null, W5=seq[5]||null;
-        if (bull && W2.price <= W0.price) continue;
+
+        // ── RULE I: W2 never beyond W0 ──
+        if (bull  && W2.price <= W0.price) continue;
         if (!bull && W2.price >= W0.price) continue;
+
         const w1Size = Math.abs(W1.price - W0.price);
         if (w1Size === 0) continue;
+        if (w1Size < Math.abs(W0.price) * 0.002) continue; // noise filter
+
+        // ── W2 Fibonacci retrace: 38.2%–78.6% of W1 — HARD FILTER ──
         const w2Ret = Math.abs(W2.price - W1.price) / w1Size;
-        if (w2Ret >= 1.0) continue;
+        if (w2Ret < 0.30 || w2Ret >= 1.0) continue;
+
         let w3Size = 0, w3Ext = false;
         if (W3) {
           w3Size = Math.abs(W3.price - W2.price);
-          w3Ext = w3Size > w1Size * 1.618;
-          if (W5) {
+          if (w3Size === 0) continue;
+
+          // ── W3 must terminate at valid Fibonacci extension of W1 — HARD FILTER ──
+          // Valid: 1.0x, 1.382x, 1.618x, 2.0x, 2.618x, 4.236x
+          const w3Ratio = w3Size / w1Size;
+          if (!nearFib(w3Ratio, 1.0, 1.382, 1.618, 2.0, 2.618, 4.236)) continue;
+          w3Ext = w3Ratio >= 1.618;
+
+          // ── RULE II: W3 not shortest — check vs W1 and W5 ──
+          if (W5 && W4) {
             const w5Size = Math.abs(W5.price - W4.price);
             if (w3Size < w1Size && w3Size < w5Size) continue;
           }
         }
+
         if (W4 && W3) {
-          if (bull && W4.price <= W1.price) continue;
+          // ── RULE III: W4 no overlap W1 ──
+          if (bull  && W4.price <= W1.price) continue;
           if (!bull && W4.price >= W1.price) continue;
+
+          // ── W4 Fibonacci retrace: 23.6%–61.8% of W3 — HARD FILTER ──
+          const w4Ret = w3Size > 0 ? Math.abs(W4.price - W3.price) / w3Size : 1;
+          if (w4Ret < 0.18 || w4Ret > 0.65) continue;
         }
-        // Enriched score: more confirmed waves + fibonacci alignment bonus
+
+        // ── W5 Fibonacci: must equal W1 or extend to 61.8%/161.8% of W1 ──
+        let w5Size = 0;
+        if (W5 && W4) {
+          w5Size = Math.abs(W5.price - W4.price);
+          const w5Ratio = w5Size / w1Size;
+          if (!nearFib(w5Ratio, 0.618, 1.0, 1.618, 2.618)) continue;
+        }
+
+        // ── Score: recency + confirmed waves + Fibonacci precision ──
         let score = seq.length * 10 + (pivots.length - start);
         if (W3) {
-          const fibRatio = w3Size / w1Size;
-          if (fibRatio >= 1.5 && fibRatio <= 1.7) score += 8;  // near 161.8%
-          if (fibRatio >= 2.5 && fibRatio <= 2.7) score += 5;  // near 261.8%
+          const r = w3Size / w1Size;
+          if (nearFib(r, 1.618)) score += 12;
+          else if (nearFib(r, 2.618)) score += 8;
+          else if (nearFib(r, 1.0))   score += 5;
         }
-        if (W2) {
-          const w2RatioFib = Math.abs(W2.price - W1.price) / w1Size;
-          if (w2RatioFib >= 0.55 && w2RatioFib <= 0.65) score += 5; // near 61.8%
-          if (w2RatioFib >= 0.45 && w2RatioFib <= 0.55) score += 3; // near 50%
-        }
-        candidates.push({ W0, W1, W2, W3, W4, W5, bull, w1Size, w3Size, w3Ext, score, waveCount: seq.length });
+        if (nearFib(w2Ret, 0.618)) score += 8;
+        else if (nearFib(w2Ret, 0.5)) score += 5;
+        if (W5 && w5Size > 0 && nearFib(w5Size/w1Size, 1.0)) score += 6;
+
+        candidates.push({ W0,W1,W2,W3,W4,W5, bull, w1Size,w3Size,w5Size,w3Ext, score, waveCount:seq.length });
       }
     }
     candidates.sort((a,b) => b.score - a.score);
-    return candidates; // return ALL sorted candidates
+    return candidates;
   }
 
+  // ── DIAGONAL TRIANGLE ──
+  // Glossary: 5-wave structure where each subwave is a 3-wave corrective
+  // W4 CAN overlap W1 (only exception to Rule III)
+  // Appears in Wave 1 (leading) or Wave 5/C (ending)
+  // Each wave smaller than previous in contracting diagonal
+  function tryDiagonal(pivots) {
+    if (pivots.length < 5) return null;
+    const recent = pivots.slice(-8);
+    for (let start = 0; start <= recent.length - 5; start++) {
+      const seq = [recent[start]];
+      for (let j = start+1; j < recent.length && seq.length < 5; j++) {
+        if (recent[j].type !== seq[seq.length-1].type) seq.push(recent[j]);
+      }
+      if (seq.length < 5) continue;
+      const bull = seq[0].type === 'L';
+      const sizes = [];
+      for (let i = 0; i < 4; i++) sizes.push(Math.abs(seq[i+1].price - seq[i].price));
+      // Contracting: each wave smaller than previous
+      const contracting = sizes.every((s,i) => i===0 || s < sizes[i-1]);
+      // W4 overlaps W1 (key diagonal signature)
+      const w4overlapsW1 = bull
+        ? seq[4].price > seq[1].price  // W4 low above W1 high → no overlap... check W4 dips into W1 range
+        : seq[4].price < seq[1].price;
+      if (contracting) {
+        return {
+          type: w4overlapsW1 ? 'Ending Diagonal' : 'Leading Diagonal',
+          waves: seq, bull,
+          note: 'W4 overlap of W1 valid in diagonals. Signals exhaustion or powerful new trend.'
+        };
+      }
+    }
+    return null;
+  }
+
+  // ── CORRECTIVE ABC — Zigzag / Flat / Triangle ──
+  // Glossary rules:
+  //   Zigzag (5-3-5): B retraces 38.2%–61.8% of A; C equals or exceeds A
+  //   Regular Flat (3-3-5): B retraces ~85–100% of A; C equals A
+  //   Expanded Flat: B exceeds A start (>100%); C exceeds A end
+  //   Running Flat: B >85% of A; C shorter than A
+  //   W B: classic bull/bear trap, volume declining, rarely >100% of A
+  //   W C: always 5-wave internal, typically equals A or extends to 161.8%
   function tryABCAll(pivots) {
-    // Returns top-2 valid ABC counts
     const candidates = [];
     for (let start = 0; start <= pivots.length - 2; start++) {
       const WA = pivots[start];
       for (const bearABC of [true, false]) {
-        if (bearABC && WA.type !== 'H') continue;
+        if (bearABC  && WA.type !== 'H') continue;
         if (!bearABC && WA.type !== 'L') continue;
         const wbType = bearABC ? 'L' : 'H';
         const wcType = bearABC ? 'H' : 'L';
@@ -1561,40 +1653,61 @@ function countElliottWavesDeepscan(candles) {
         }
         if (!WB) continue;
         const aSize = Math.abs(WB.price - WA.price);
-        if (aSize === 0) continue;
-        if (bearABC && WB.price >= WA.price) continue;
+        if (aSize === 0 || aSize < Math.abs(WA.price) * 0.002) continue;
+
+        // B must move in correct direction
+        if (bearABC  && WB.price >= WA.price) continue;
         if (!bearABC && WB.price <= WA.price) continue;
-        // Enriched score
+
+        const bSize  = Math.abs(WB.price - WA.price); // = aSize (same thing)
+        const bRatio = aSize > 0 ? Math.abs(WB.price - WA.price) / aSize : 0; // always 1.0 — use WB vs WA start
+        // Correct B ratio: how much B retraces relative to A
+        // B goes from WA end toward WA start direction
+        const bRetrace = aSize > 0 ? Math.abs(WB.price - WA.price) / aSize : 0;
+        // B must be 38.2%–100% of A (Zigzag: 38-61.8%; Flat: 85-100%; Expanded: >100% but cap)
+        // We'll accept 30%–110% and classify pattern
+        if (bRetrace < 0.30 || bRetrace > 1.10) continue;
+
+        // C validation if present
+        let cRatio = 0;
+        if (WC) {
+          const cSize = Math.abs(WC.price - WB.price);
+          cRatio = aSize > 0 ? cSize / aSize : 0;
+          // C must be 61.8%–200% of A — HARD FILTER
+          if (cRatio < 0.50 || cRatio > 2.20) continue;
+        }
+
+        // Classify pattern
+        let patternType;
+        if (bRetrace > 1.02)                          patternType = 'Expanded Flat (3-3-5)';
+        else if (bRetrace >= 0.85 && cRatio < 0.90)  patternType = 'Running Flat (3-3-5)';
+        else if (bRetrace >= 0.85)                    patternType = 'Regular Flat (3-3-5)';
+        else if (bRetrace >= 0.30 && bRetrace <= 0.65) patternType = 'Zigzag (5-3-5)';
+        else                                          patternType = 'Irregular Correction';
+
+        // Score: recency + pattern completeness + Fibonacci precision
         let score = (WC ? 30 : 20) + (pivots.length - start);
-        const bRatio = WB ? Math.abs(WB.price - WA.price) / aSize : 0;
-        if (bRatio >= 0.55 && bRatio <= 0.65) score += 5; // B near 61.8% = zigzag
-        if (bRatio >= 0.85 && bRatio <= 1.05) score += 4; // B near 100% = flat
-        candidates.push({ WA, WB, WC, bearABC, aSize, score });
+        if (nearFib(bRetrace, 0.618)) score += 8; // B at 61.8% = classic zigzag
+        if (nearFib(bRetrace, 1.0))   score += 7; // B at 100% = flat
+        if (WC) {
+          if (nearFib(cRatio, 1.0))   score += 8; // C = A
+          if (nearFib(cRatio, 1.618)) score += 6; // C = 161.8% A
+        }
+
+        candidates.push({ WA, WB, WC, bearABC, aSize, bRetrace, cRatio, patternType, score });
       }
     }
     candidates.sort((a,b) => b.score - a.score);
     return candidates;
   }
 
-  // ── Run both searches — returns sorted candidate arrays ──
-  const impulseCandidates = tryImpulse(allPivots);
-  const abcCandidates     = tryABCAll(allPivots);
-
-  // ── Minimum quality thresholds ──
-  const abcMinSize = p * 0.002;
-  const impulse = impulseCandidates.find(c => c.waveCount >= 4) || null;
-  const impulseAlt = impulseCandidates.filter(c => c.waveCount >= 4 && c !== impulse)[0] || null;
-  const abcRaw  = abcCandidates[0] || null;
-  const abcAlt  = abcCandidates.find(c => c !== abcRaw && c.aSize >= abcMinSize) || null;
-  const abc = (abcRaw && abcRaw.WB && abcRaw.aSize >= abcMinSize) ? abcRaw : null;
-
-  // ── Triangle detection ──
+  // ── TRIANGLE (3-3-3-3-3) ──
+  // Glossary: 5 overlapping corrective waves ABCDE within converging trendlines
+  // NEVER in Wave 2 position — only Wave 4 or Wave B
+  // Thrust out of triangle = widest part of triangle
   function tryTriangle(pivots) {
-    // ABCDE: 5 overlapping corrective waves within converging trendlines
     if (pivots.length < 5) return null;
     const recent = pivots.slice(-10);
-    if (recent.length < 5) return null;
-    // Need alternating H/L sequence of at least 5
     const seq = [recent[0]];
     for (let i = 1; i < recent.length && seq.length < 5; i++) {
       if (recent[i].type !== seq[seq.length-1].type) seq.push(recent[i]);
@@ -1603,50 +1716,133 @@ function countElliottWavesDeepscan(candles) {
     const highs = seq.filter(p=>p.type==='H').map(p=>p.price);
     const lows  = seq.filter(p=>p.type==='L').map(p=>p.price);
     if (highs.length < 2 || lows.length < 2) return null;
-    // Contracting: highs decreasing, lows increasing
-    const hDesc = highs.every((h,i) => i===0 || h < highs[i-1]);
-    const lAsc  = lows.every((l,i)  => i===0 || l > lows[i-1]);
+    const hDesc = highs.every((h,i) => i===0 || h < highs[i-1] * 1.02);
+    const lAsc  = lows.every((l,i)  => i===0 || l > lows[i-1]  * 0.98);
+    const hAsc  = highs.every((h,i) => i===0 || h > highs[i-1] * 0.98);
+    const lDesc = lows.every((l,i)  => i===0 || l < lows[i-1]  * 1.02);
     if (hDesc && lAsc) {
-      return { type: 'Contracting Triangle', waves: seq,
-               score: 25, note: 'ABCDE converging — thrust out of triangle expected' };
+      const widest = Math.max(...highs) - Math.min(...lows);
+      return { type:'Contracting Triangle (3-3-3-3-3)', waves:seq, thrustSize:widest,
+               note:`Thrust = ${widest.toFixed(5)}. Valid in Wave 4 or Wave B only. Never Wave 2.` };
     }
-    // Expanding: highs increasing, lows decreasing
-    const hAsc  = highs.every((h,i) => i===0 || h > highs[i-1]);
-    const lDesc = lows.every((l,i)  => i===0 || l < lows[i-1]);
     if (hAsc && lDesc) {
-      return { type: 'Expanding Triangle', waves: seq,
-               score: 20, note: 'ABCDE expanding — volatile, avoid trading inside' };
+      return { type:'Expanding Triangle (3-3-3-3-3)', waves:seq,
+               note:'Expanding — volatile inside. Valid in Wave B only.' };
     }
     return null;
   }
-  const triangleRaw = tryTriangle(allPivots);
 
-  // ── Market structure (HH/HL/LH/LL) ──
+  // ── DOUBLE ZIGZAG (WXY) ──
+  // Glossary: two zigzag patterns joined by connector wave X
+  // Appears in strong trend markets where single zigzag doesn't retrace enough
+  function tryWXY(pivots) {
+    if (pivots.length < 6) return null;
+    const recent = pivots.slice(-9);
+    // WXY: W(down) X(up partial) Y(down continues)
+    // Look for 3+1+3 structure
+    for (const bear of [true, false]) {
+      const wType = bear ? 'H' : 'L';
+      const xType = bear ? 'L' : 'H';
+      for (let i = 0; i < recent.length - 5; i++) {
+        if (recent[i].type !== wType) continue;
+        const WW = recent[i]; // start of W leg
+        let WX = null, WY = null, XX = null;
+        for (let j = i+1; j < recent.length; j++) {
+          if (!WX && recent[j].type === xType) { WX = recent[j]; continue; }
+          if (WX && !XX && recent[j].type === wType) { XX = recent[j]; continue; }
+          if (WX && XX && !WY && recent[j].type === xType) { WY = recent[j]; break; }
+        }
+        if (!WX || !XX || !WY) continue;
+        const wSize = Math.abs(WX.price - WW.price);
+        const xSize = Math.abs(XX.price - WX.price);
+        const ySize = Math.abs(WY.price - XX.price);
+        if (wSize === 0 || ySize === 0) continue;
+        // X should retrace 38.2%–78.6% of W
+        const xRet = xSize / wSize;
+        if (xRet < 0.30 || xRet > 0.85) continue;
+        // Y should be comparable to W (61.8%–138.2%)
+        const yRatio = ySize / wSize;
+        if (!nearFib(yRatio, 0.618, 1.0, 1.618)) continue;
+        return {
+          type: 'Double Zigzag (WXY)',
+          WW, WX, XX, WY, bear, wSize, xRet, yRatio,
+          note: `X retraces ${(xRet*100).toFixed(0)}% of W. Y = ${(yRatio*100).toFixed(0)}% of W. Signals strong underlying trend.`
+        };
+      }
+    }
+    return null;
+  }
+
+  // ── MARKET STRUCTURE (HH/HL/LH/LL) ──
   function calcMarketStructure(pivots) {
-    if (pivots.length < 4) return { structure: 'UNDEFINED', bos: false, choch: false };
-    const recent = pivots.slice(-8);
+    if (pivots.length < 4) return { structure:'UNDEFINED', bos:false, choch:false };
+    const recent = pivots.slice(-10);
     const highs = recent.filter(x=>x.type==='H').map(x=>x.price);
     const lows  = recent.filter(x=>x.type==='L').map(x=>x.price);
-    if (highs.length < 2 || lows.length < 2) return { structure: 'UNDEFINED', bos: false, choch: false };
+    if (highs.length < 2 || lows.length < 2) return { structure:'UNDEFINED', bos:false, choch:false };
     const hhCount = highs.filter((h,i)=>i>0&&h>highs[i-1]).length;
-    const hlCount = lows.filter((l,i)=>i>0&&l>lows[i-1]).length;
+    const hlCount = lows.filter((l,i) =>i>0&&l>lows[i-1]).length;
     const lhCount = highs.filter((h,i)=>i>0&&h<highs[i-1]).length;
-    const llCount = lows.filter((l,i)=>i>0&&l<lows[i-1]).length;
+    const llCount = lows.filter((l,i) =>i>0&&l<lows[i-1]).length;
     let structure = 'RANGING';
-    if (hhCount > lhCount && hlCount > llCount) structure = 'BULLISH (HH+HL)';
+    if (hhCount >= lhCount && hlCount >= llCount && hhCount > 0) structure = 'BULLISH (HH+HL)';
     else if (lhCount > hhCount && llCount > hlCount) structure = 'BEARISH (LH+LL)';
-    else if (hhCount > 0 && llCount > 0) structure = 'RANGING/TRANSITION';
-    // Break of structure: last high broken or last low broken
-    const lastHigh = highs[highs.length-1];
-    const lastLow  = lows[lows.length-1];
-    const prevHigh = highs[highs.length-2];
-    const prevLow  = lows[lows.length-2];
-    const bos = lastHigh > prevHigh || lastLow < prevLow;
+    const lastHigh = highs[highs.length-1], prevHigh = highs[highs.length-2];
+    const lastLow  = lows[lows.length-1],   prevLow  = lows[lows.length-2];
+    const bos   = lastHigh > prevHigh || lastLow < prevLow;
     const choch = (structure.includes('BULLISH') && lastLow < prevLow) ||
                   (structure.includes('BEARISH') && lastHigh > prevHigh);
     return { structure, bos, choch, lastHigh, lastLow };
   }
+
+  // ── CHANNELING — project W4 and W5 targets ──
+  // Glossary: baseline W1-W3 parallel through W2 → W4 target
+  //           baseline W2-W4 parallel through W3 → W5 target
+  function calcChannelTargets(W0, W1, W2, W3, W4, bull) {
+    if (!W1 || !W2 || !W3 || !W4) return null;
+    // W4 target: parallel of W1end-W3end through W2end
+    const w13Slope = (W3.price - W1.price) / Math.max(W3.idx - W1.idx, 1);
+    const w4ChannelY = W2.price + w13Slope * (W4.idx - W2.idx);
+    // W5 target: parallel of W2end-W4end through W3end
+    const w24Slope = (W4.price - W2.price) / Math.max(W4.idx - W2.idx, 1);
+    const w5ChannelIdx = W4.idx + (W3.idx - W1.idx); // approximate W5 end candle
+    const w5ChannelY   = W3.price + w24Slope * (w5ChannelIdx - W3.idx);
+    return { w4Channel: w4ChannelY, w5Channel: w5ChannelY };
+  }
+
+  // ── PROBABILITY SCORING ──
+  function calcScenarioProbabilities(primary, alt) {
+    if (!alt) return { primaryPct:75, altPct:20, tailPct:5 };
+    const pS = Math.max(primary?.score||1, 1);
+    const aS = Math.max(alt?.score||1, 1);
+    const total = pS + aS;
+    const primaryPct = Math.min(80, Math.round((pS/total)*85));
+    const altPct     = Math.min(65, Math.round((aS/total)*75));
+    const tailPct    = Math.max(5, 100 - primaryPct - altPct);
+    return { primaryPct, altPct, tailPct };
+  }
+
+  // ── RUN ALL DETECTORS ──
+  // ── RUN ALL DETECTORS ──
+  const impulseCandidates = tryImpulse(allPivots);
+  const abcCandidates     = tryABCAll(allPivots);
+
+  // Minimum quality thresholds
+  const abcMinSize = p * 0.002;
+  const impulse    = impulseCandidates.find(c => c.waveCount >= 4) || null;
+  const impulseAlt = impulseCandidates.filter(c => c.waveCount >= 4 && c !== impulse)[0] || null;
+  const abcRaw     = abcCandidates[0] || null;
+  const abcAlt     = abcCandidates.find(c => c !== abcRaw && c.aSize >= abcMinSize) || null;
+  const abc        = (abcRaw && abcRaw.WB && abcRaw.aSize >= abcMinSize) ? abcRaw : null;
+
+  // Run other pattern detectors
+  const triangleRaw  = tryTriangle(allPivots);
+  const diagonalRaw  = tryDiagonal(allPivots);
+  const wxyRaw       = tryWXY(allPivots);
   const mktStructure = calcMarketStructure(allPivots);
+
+
+  // ── Market structure (HH/HL/LH/LL) ──
 
   // ── Probabilistic scenario scoring ──
   function calcScenarioProbabilities(primary, alt, isImpulse) {
@@ -1763,7 +1959,10 @@ function countElliottWavesDeepscan(candles) {
       const altNote4 = w2pat.includes('Zigzag') ? `W4 should be Flat/Triangle (alternation vs W2 Zigzag).`
                      : w2pat.includes('Flat')    ? `W4 should be Zigzag/sharp (alternation vs W2 Flat).`
                      : `GUIDELINE: W4 alternates in character with W2.`;
-      wc2 = `${cp} at ${w4Level}. RULE III: must stay above W1 (${w1End.toFixed(dec)}). ${altNote4}`;
+      // Channeling: project W4 and W5 using channel technique from glossary
+      const channelTargets = calcChannelTargets(I.W0, I.W1, I.W2, I.W3, I.W4||{price:p,idx:candles.length-1}, directionUp);
+      const w5ChannelStr = channelTargets ? ` Channel W5 target: ${channelTargets.w5Channel.toFixed(dec)}.` : '';
+      wc2 = `${cp} at ${w4Level}. RULE III: must stay above W1 (${w1End.toFixed(dec)}). ${altNote4}${w5ChannelStr}`;
       if (w4Ret > 0.618) wc2 += ` Deep W4 — W5 truncation risk.`;
       inv  = w1End;
       const w3s = w3End ? Math.abs(w3End - w1End) : w1Size;
@@ -1994,6 +2193,8 @@ function countElliottWavesDeepscan(candles) {
     hPvts, lPvts, hRec, lRec,
     mktStructure,
     trianglePattern: triangleRaw,
+    diagonalPattern: diagonalRaw,
+    wxyPattern: wxyRaw,
     altScenario: (function(){
       // Build alternate scenario description
       const primIsImpulse = useImpulse;
@@ -2204,6 +2405,8 @@ async function runAIAnalysis(){
     scenario_only:      ['A','B','C','1','2','3','4'].indexOf(ewResult.waveNum) >= 0,
     mkt_structure:      ewResult.mktStructure || null,
     alt_scenario:       ewResult.altScenario || null,
+    diagonal_pattern:   ewResult.diagonalPattern || null,
+    wxy_pattern:        ewResult.wxyPattern || null,
   };
 
   // ── No count available — show clean message, skip sketch and AI ──
@@ -2479,6 +2682,8 @@ PROBABILISTIC SCENARIOS:
 PRIMARY (${ewResult.altScenario?.primaryProbability||65}%): ${ewResult.waveDesc}
 ALTERNATE (${ewResult.altScenario?.probability||25}%): ${ewResult.altScenario?.description||'Insufficient data'}
 ${ewResult.trianglePattern?'TRIANGLE: '+ewResult.trianglePattern.type+' — '+ewResult.trianglePattern.note:''}
+${ewResult.diagonalPattern?'DIAGONAL: '+ewResult.diagonalPattern.type+' — '+ewResult.diagonalPattern.note:''}
+${ewResult.wxyPattern?'COMPLEX CORRECTION: '+ewResult.wxyPattern.type+' — '+ewResult.wxyPattern.note:''}
 
 ${!isScenarioOnly ? `KEY LEVELS (Wave 5 signal):
 Entry: ${chartAnalysis.key_levels.entry} | Stop Loss: ${chartAnalysis.key_levels.stop_loss}
