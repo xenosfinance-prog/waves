@@ -1465,7 +1465,17 @@ function countElliottWavesDeepscan(candles) {
   const av     = calcATR(candles) || (p*0.01);
   const dec    = p > 100 ? 2 : 5;
 
-  const n200   = Math.min(200, candles.length);
+  // Timeframe-based lookback window
+  // D1/W1 use fewer candles — current structure is in recent months, not years
+  const tfRaw = (typeof tf !== 'undefined' ? tf : '').split(' ')[0];
+  const nLookback = {
+    'W1': Math.min(100, candles.length),
+    'D1': Math.min(120, candles.length),
+    'H4': Math.min(150, candles.length),
+    'H2': Math.min(150, candles.length),
+    'H1': Math.min(180, candles.length),
+  }[tfRaw] || Math.min(150, candles.length);
+  const n200   = nLookback;
   const c200   = candles.slice(-n200);
   const c200Offset = candles.length - n200;
 
@@ -1483,7 +1493,8 @@ function countElliottWavesDeepscan(candles) {
   const bullishDiv = p<=Math.min(...closes.slice(-20))*1.002 && rv>Math.min(...rsiWin)+5;
 
   // ── Pivot detection — use real candle highs/lows ──
-  const wPiv = Math.max(3, Math.floor(n200/25));
+  // Tighter pivot window = more recent, local pivots (not multi-year swings)
+  const wPiv = Math.max(3, Math.min(8, Math.floor(n200/20)));
   const allPivots = getPivotStructure(c200, wPiv);
 
   // ── EW STRUCTURAL SEARCH ──
@@ -2708,7 +2719,7 @@ ${ctx_text?'ADDITIONAL CONTEXT: '+ctx_text:''}
 Now write the professional Elliott Wave analysis. In paragraph 3, explicitly state the PRIMARY scenario with its probability and the ALTERNATE scenario with its probability. Use exact prices. Be concise.`;
 
     const res = await fetchWithRetry({
-      model:'claude-sonnet-4-20250514',
+      model:'claude-haiku-4-5-20251001',
       max_tokens:500,
       system: ewSystemPrompt,
       messages:[{role:'user',content:ewUserPrompt}]
@@ -3723,7 +3734,9 @@ function renderEWSketch(analysis, symbol, tf){
   // ── Candles ──
   var candles = (typeof ewLastCandles!=='undefined' && ewLastCandles.length>=10) ? ewLastCandles : [];
   // showN must match n200 used by engine so pivot indices align perfectly
-  var n200    = Math.min(200, candles.length);
+  var tfKey2  = tf ? tf.split(' ')[0] : 'H1';
+  var nLookup = {'W1':100,'D1':120,'H4':150,'H2':150,'H1':180};
+  var n200    = Math.min(nLookup[tfKey2]||150, candles.length);
   var showN   = n200;
   var slice   = candles.slice(-showN);
 
