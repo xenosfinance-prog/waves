@@ -2023,26 +2023,50 @@ function countElliottWavesDeepscan(candles) {
       // All 5 waves complete — Wave A starting
       wn='A'; wp2='CORRECTIVE ABC';
       wd='Wave 🅐 — First Corrective Leg';
-      // W5 length check for equality with W1 (wave equality guideline)
       const cycleHigh = directionUp ? (I.W5||I.W3||I.W1).price : (I.W0||I.W2).price;
       const cycleLow  = directionUp ? I.W0.price : (I.W5||I.W3||I.W1).price;
-      // RULE II final check: W3 must not be shortest
+      // RULE II final check
       if (w3Len > 0 && w5Len > 0 && w1Len > 0) {
         const shortest = Math.min(w1Len, w3Len, w5Len);
         if (shortest === w3Len) ewViolations.w3_is_shortest = 'RULE II VIOLATED — W3 is shortest impulse wave. Recount required.';
       }
-      const w4last = I.W4 ? I.W4.price : cycleHigh;
       const aTarget382 = fibRet(cycleHigh, cycleLow, 0.382);
       const aTarget618 = fibRet(cycleHigh, cycleLow, 0.618);
-      wc2 = `5-wave impulse complete. ABC correction underway. Wave A internal structure: 5 waves (zigzag) or 3 waves (flat). Watch for Wave B bounce at ${aTarget382.toFixed(dec)}–${aTarget618.toFixed(dec)}.`;
-      if (bearishDiv && directionUp) wc2 += ' ⚠️ Bearish divergence confirmed impulse exhaustion.';
-      if (bullishDiv && !directionUp) wc2 += ' ✓ Bullish divergence confirmed impulse exhaustion.';
-      inv  = directionUp ? cycleHigh*1.001 : cycleLow*0.999;
-      nt   = aTarget618;
-      ct   = aTarget382;
-      action = directionUp ? '🔴 SHORT — Corrective leg A in progress' : '🟢 LONG — Corrective leg A in progress';
+      // Wave A size from cycleHigh to current price
+      const waSizeNow = Math.abs(p - cycleHigh);
+      const cycleSize = Math.abs(cycleHigh - cycleLow);
+      // If Wave A has already retraced >120% of cycle — this is not Wave A, more likely deeper structure
+      if (cycleSize > 0 && waSizeNow / cycleSize > 1.20) {
+        wn='?'; wp2='NO COUNT';
+        wd='No valid wave count available';
+        wc2='Wave A exceeds 120% of prior impulse — count invalid. Likely a different wave degree.';
+        inv = p; nt = p; ct = p;
+        action = '⏳ NO COUNT';
+      } else {
+        wc2 = `5-wave impulse complete. ABC correction underway. `;
+        wc2 += directionUp
+          ? `Wave A decline targeting ${aTarget382.toFixed(dec)} (38.2%) — ${aTarget618.toFixed(dec)} (61.8%). `
+          : `Wave A rally targeting ${aTarget382.toFixed(dec)} (38.2%) — ${aTarget618.toFixed(dec)} (61.8%). `;
+        if (bearishDiv && directionUp)  wc2 += '⚠️ Bearish divergence confirmed impulse exhaustion.';
+        if (bullishDiv && !directionUp) wc2 += '✓ Bullish divergence confirmed impulse exhaustion.';
+        inv  = directionUp ? cycleHigh*1.001 : cycleLow*0.999;
+        nt   = aTarget618;
+        ct   = aTarget382;
+        action = directionUp
+          ? '🔴 SCENARIO — Wave A correction DOWN. Target: '+ct.toFixed(dec)+'–'+nt.toFixed(dec)
+          : '🟢 SCENARIO — Wave A correction UP. Target: '+ct.toFixed(dec)+'–'+nt.toFixed(dec);
+        // Build pivotMap for Wave A using actual impulse pivots
+        const absI = (piv) => piv ? { price:piv.price, idx:piv.idx+c200Offset, date:piv.date||'' } : null;
+        // WA origin = W5 end (or W3 if no W5)
+        pivotMap['wa'] = absI(I.W5||I.W3||I.W1);
+        // WB = current price (Wave A still in progress, no WB confirmed yet)
+        // Don't set WB/WC — only WA and live
+        pivotMap['wlive'] = { price:p, idx:candles.length-1, date:'' };
+        wavePointPrices = { wa: (I.W5||I.W3||I.W1)?.price||null, wb:null, wc:null, wlive:p };
+      }
     }
-
+    // ── Build pivotMap for impulse waves (Wave A sets its own above) ──
+    if (wn !== 'A') {
     // ── Build pivotMap (absolute candle indices) ──
     const abs = (piv) => piv ? { price:piv.price, idx:piv.idx+c200Offset, date:piv.date||'' } : null;
     if (I.W0) pivotMap['w0'] = abs(I.W0);
@@ -2067,6 +2091,7 @@ function countElliottWavesDeepscan(candles) {
       wb: wn==='B'?p:null,
       wc: wn==='C'?p:null,
     };
+    }
 
   } else if (abc) {
     // ABC corrective structure
