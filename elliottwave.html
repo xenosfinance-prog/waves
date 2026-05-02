@@ -1,4 +1,4 @@
-<!DOCTYPE html>  
+<!DOCTYPE html> 
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -1668,13 +1668,19 @@ function countElliottWavesDeepscan(candles) {
         // We'll accept 30%–110% and classify pattern
         if (bRetrace < 0.30 || bRetrace > 1.10) continue;
 
-        // C validation if present
+        // C validation — hard Fibonacci filter on both confirmed WC and live price estimate
         let cRatio = 0;
         if (WC) {
           const cSize = Math.abs(WC.price - WB.price);
           cRatio = aSize > 0 ? cSize / aSize : 0;
-          // C must be 61.8%–200% of A — HARD FILTER
+          // C must be 50%–220% of A — HARD FILTER
           if (cRatio < 0.50 || cRatio > 2.20) continue;
+        } else {
+          // No confirmed WC yet — check if live price would make a credible C
+          // If live price would create C ratio > 220% of A, this ABC is invalid
+          const cSizeLive = Math.abs(p - WB.price);
+          const cRatioLive = aSize > 0 ? cSizeLive / aSize : 0;
+          if (cRatioLive > 2.20) continue; // live price too far from WB — invalid ABC
         }
 
         // Classify pattern
@@ -1833,7 +1839,10 @@ function countElliottWavesDeepscan(candles) {
   const impulseAlt = impulseCandidates.filter(c => c.waveCount >= 4 && c !== impulse)[0] || null;
   const abcRaw     = abcCandidates[0] || null;
   const abcAlt     = abcCandidates.find(c => c !== abcRaw && c.aSize >= abcMinSize) || null;
-  const abc        = (abcRaw && abcRaw.WB && abcRaw.aSize >= abcMinSize) ? abcRaw : null;
+  // ABC validity: WA must be recent (not ancient pivot far from current price)
+  // aSize must be < 60% of current price (WA can't be from 3 years ago)
+  const abcMaxSize  = p * 0.60;
+  const abc         = (abcRaw && abcRaw.WB && abcRaw.aSize >= abcMinSize && abcRaw.aSize <= abcMaxSize) ? abcRaw : null;
 
   // Run other pattern detectors
   const triangleRaw  = tryTriangle(allPivots);
