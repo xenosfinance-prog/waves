@@ -3508,7 +3508,9 @@ function renderEWSketch(analysis, symbol, tf){
 
   // ── Candles ──
   var candles = (typeof ewLastCandles!=='undefined' && ewLastCandles.length>=10) ? ewLastCandles : [];
-  var showN   = Math.min(candles.length, 120);
+  // showN must match n200 used by engine so pivot indices align perfectly
+  var n200    = Math.min(200, candles.length);
+  var showN   = n200;
   var slice   = candles.slice(-showN);
 
   // ── Price scale — unified for both candles and EW pivots ──
@@ -3533,6 +3535,8 @@ function renderEWSketch(analysis, symbol, tf){
   function candleX(i,total){ return padX+(i/(Math.max(total-1,1)))*cW; }
   // Map pivot index to X via candle array
   function pivotX(idx){
+    // idx is absolute (already has c200Offset applied by engine)
+    // startIdx = candles.length - showN = candles.length - n200 = c200Offset
     var startIdx = candles.length - showN;
     var rel = idx - startIdx;
     rel = Math.max(0, Math.min(rel, showN-1));
