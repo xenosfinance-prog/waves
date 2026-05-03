@@ -950,11 +950,11 @@ canvas { display: block; }
 
       <!-- EW SKETCH PAPER — replaces canvas chart -->
       <div id="ewChartWrap" style="display:none;margin-top:20px;position:relative;">
-        <div id="ewPaper" style="background:#0f1724;border:1px solid #1e3050;position:relative;overflow:hidden;height:380px;">
+        <div id="ewPaper" style="background:#faf8f3;border:1px solid #d4c9b8;border-radius:4px;position:relative;overflow:visible;height:440px;">
           <!-- Lightweight Charts container — real candles -->
           <div id="ewLWChart" style="position:absolute;inset:0;width:100%;height:100%;z-index:1;"></div>
           <!-- Canvas overlay — EW sketch animation on top of candles -->
-          <canvas id="ewSketchCanvas" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:5;"></canvas>
+          <canvas id="ewSketchCanvas" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:5;display:block;"></canvas>
           <!-- Hand SVG for sketch animation -->
           <div id="ewHandWrap" style="position:absolute;pointer-events:none;opacity:0;transition:left 0.05s linear,top 0.05s linear;z-index:10;">
             <svg width="140" height="160" viewBox="0 0 140 160" style="filter:drop-shadow(0 2px 6px rgba(0,0,0,0.15));">
@@ -2840,8 +2840,8 @@ function renderEWSketch(analysis, symbol, tf){
     var kl=analysis.key_levels||{};
     var fP=function(v){return v?parseFloat(v).toFixed(dec):'—';};
     var corrPat=analysis.corrective_pattern;
-    var bw=130, bh=scenOnly?70:108;
-    var bx=W-padR+4, by=padY;
+    var bw=140, bh=scenOnly?82:122;
+    var bx=W-bw-6, by=padY+4; // keep inside canvas
     ctx.save();
     ctx.fillStyle='rgba(250,248,243,0.96)';
     ctx.strokeStyle='#c8b8a0'; ctx.lineWidth=1;
@@ -2916,22 +2916,34 @@ function renderEWSketch(analysis, symbol, tf){
   // ── Draw wave label circle ──
   function drawLabel(x,y,lbl,isCurrent){
     if(lbl==='') return;
-    var r=isCurrent?13:10;
+    var r=isCurrent?15:11;
     if(isCurrent){
+      // Triple ring — unmissable current wave indicator
       ctx.save();
-      ctx.strokeStyle=mainCol; ctx.lineWidth=0.8; ctx.globalAlpha=0.2; ctx.setLineDash([3,3]);
-      ctx.beginPath(); ctx.arc(x,y,20,0,Math.PI*2); ctx.stroke();
+      ctx.strokeStyle=mainCol;
+      ctx.globalAlpha=0.08; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.arc(x,y,30,0,Math.PI*2); ctx.stroke();
+      ctx.globalAlpha=0.15; ctx.lineWidth=1.2;
+      ctx.beginPath(); ctx.arc(x,y,23,0,Math.PI*2); ctx.stroke();
+      ctx.globalAlpha=0.28; ctx.setLineDash([3,2]); ctx.lineWidth=1;
+      ctx.beginPath(); ctx.arc(x,y,18,0,Math.PI*2); ctx.stroke();
       ctx.setLineDash([]); ctx.globalAlpha=1;
-      ctx.fillStyle=mainCol; ctx.font='bold 7px IBM Plex Mono,monospace';
+      // Filled glow background
+      ctx.beginPath(); ctx.arc(x,y,r+3,0,Math.PI*2);
+      ctx.fillStyle=mainCol; ctx.globalAlpha=0.10; ctx.fill();
+      ctx.globalAlpha=1;
+      // NOW badge
+      ctx.fillStyle=mainCol; ctx.font='bold 8px IBM Plex Mono,monospace';
       ctx.textAlign='center'; ctx.textBaseline='middle';
-      ctx.fillText('NOW',x,y-(r+12));
+      ctx.fillText('NOW',x,y-(r+18));
       ctx.restore();
     }
     ctx.save();
     ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2);
-    ctx.fillStyle='rgba(250,248,243,0.97)'; ctx.fill();
-    ctx.strokeStyle=mainCol; ctx.lineWidth=isCurrent?2:1.4; ctx.stroke();
-    ctx.fillStyle=mainCol; ctx.font='bold '+(isCurrent?12:10)+'px serif';
+    ctx.fillStyle='rgba(250,248,243,0.98)'; ctx.fill();
+    ctx.strokeStyle=mainCol; ctx.lineWidth=isCurrent?2.8:1.5; ctx.stroke();
+    ctx.fillStyle=isCurrent?mainCol:'#2a3a4a';
+    ctx.font='bold '+(isCurrent?14:11)+'px serif';
     ctx.textAlign='center'; ctx.textBaseline='middle';
     ctx.fillText(lbl,x,y+1);
     ctx.restore();
@@ -2952,13 +2964,18 @@ function renderEWSketch(analysis, symbol, tf){
   }
 
   function afterLines(){
+    // Dynamic offset — proportional to canvas height
+    var baseOff = Math.max(28, Math.round(H * 0.08));  // 8% of canvas height
+    var curOff  = Math.max(38, Math.round(H * 0.10));  // current wave: 10% — more visible
+
     var delay=0;
     pts.forEach(function(p,i){
       _ewSkTimers.push(setTimeout(function(){
         mvHand(p.x,p.y);
-        var offY = i===0 ? 14 : (p.above?-20:20);
         var isCurrent = p.lbl===waveN;
-        var isLive = p.k==='wlive';
+        var isLive    = p.k==='wlive';
+        var off       = isCurrent ? curOff : baseOff;
+        var offY      = i===0 ? off : (p.above ? -off : off);
 
         if(isLive){
           var dir=drawUp?-1:1;
@@ -2975,13 +2992,29 @@ function renderEWSketch(analysis, symbol, tf){
           ctx.fillText('NOW',p.x,p.y-22);
           ctx.restore();
         } else if(p.lbl==='0'){
-          ctx.save(); ctx.fillStyle='#7a8a9a';
-          ctx.font='bold 9px IBM Plex Mono,monospace';
+          // Origin: small dot + text
+          ctx.save();
+          ctx.fillStyle=mainCol; ctx.globalAlpha=0.5;
+          ctx.beginPath(); ctx.arc(p.x,p.y,3,0,Math.PI*2); ctx.fill();
+          ctx.globalAlpha=1;
+          ctx.fillStyle='#7a8a9a'; ctx.font='bold 9px IBM Plex Mono,monospace';
           ctx.textAlign='center'; ctx.textBaseline='middle';
           ctx.fillText('0',p.x,p.y+offY);
           ctx.restore();
         } else {
-          drawLabel(p.x, p.y+offY, p.lbl, isCurrent);
+          // Draw connector line from pivot point to label
+          var r = isCurrent ? 13 : 10;
+          var lx = p.x, ly = p.y + offY;
+          ctx.save();
+          ctx.strokeStyle=mainCol; ctx.lineWidth=0.7; ctx.globalAlpha=0.3; ctx.setLineDash([2,2]);
+          ctx.beginPath(); ctx.moveTo(p.x, p.y + (offY>0?3:-3)); ctx.lineTo(lx, ly + (offY>0?-r:r));
+          ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha=1;
+          // Pivot dot
+          ctx.fillStyle=mainCol; ctx.globalAlpha=0.7;
+          ctx.beginPath(); ctx.arc(p.x,p.y,3,0,Math.PI*2); ctx.fill();
+          ctx.globalAlpha=1;
+          ctx.restore();
+          drawLabel(lx, ly, p.lbl, isCurrent);
         }
       },delay));
       delay+=220;
