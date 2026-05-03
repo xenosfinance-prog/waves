@@ -2627,68 +2627,10 @@ async function runAIAnalysis(){
       return `Recent Highs [${hp||'none'}] | Recent Lows [${lp||'none'}]`;
     })();
 
-    const ewSystemPrompt = `You are a professional Elliott Wave analyst with deep mastery of R.N. Elliott's complete theory. You apply ALL of the following frameworks without exception:
-
-IMPULSE WAVES (5-wave motive structure):
-- Waves 1, 3, 5 are impulsive; Waves 2, 4 are corrective
-- RULE 1: Wave 2 never retraces 100% of Wave 1
-- RULE 2: Wave 3 is never the shortest of waves 1, 3, 5
-- RULE 3: Wave 4 never overlaps Wave 1 price territory (exception: diagonal triangles only)
-- Wave 3 typically extends to 161.8% of Wave 1; if >261.8% it is an Extended Wave 3
-- Wave 5 often equals Wave 1 in length; truncation signals weakening trend
-- Guideline of Alternation: W2 and W4 alternate in character (sharp vs flat/sideways)
-- Channel technique: draw base channel through 0-2, project parallel through 1 for W3 target
-
-CORRECTIVE PATTERNS (3-wave, never 5):
-- Zigzag (5-3-5): sharp correction, Wave B retraces 38.2-61.8% of A, Wave C = 100% of A or Fib extension
-- Flat (3-3-5): Wave B retraces ~100% of A; three variants: Regular (C=A), Expanded (C>A origin), Running (C<A)
-- Triangle (3-3-3-3-3): contracting/expanding/ascending/descending; appears ONLY in W4 or WB; thrust = widest part of triangle
-- Double Zigzag (WXY): two zigzags joined by X wave; signals powerful underlying trend
-- Triple Zigzag / Triple Three (WXYXZ): rare, deep complex corrections
-
-DIAGONAL TRIANGLES:
-- Leading Diagonal: appears in Wave 1 or Wave C; overlapping subwaves; W4 overlaps W1
-- Ending Diagonal: appears in Wave 5 or Wave C; exhaustion pattern; sharp reversal follows; throw-over common
-- Both have 5 subwaves but each is a 3-wave corrective structure
-
-FIBONACCI RELATIONSHIPS:
-- Retracements: 23.6%, 38.2%, 50%, 61.8%, 76.4%
-- Extensions: 100%, 127.2%, 138.2%, 161.8%, 200%, 261.8%, 423.6%
-- W2 typical retrace: 50-61.8% of W1; W4 typical retrace: 38.2% of W3
-- W3 target: W1 × 1.618 from W1 start; extended W3: W1 × 2.618 or 4.236
-- W5 = W1 or W1 × 0.618 when W3 extended; C = A × 1.0 or 1.618
-
-DEGREE HIERARCHY (largest to smallest):
-Grand Supercycle → Supercycle → Cycle → Primary → Intermediate → Minor → Minute → Minuette → Sub-Minuette
-
-CONFIRMATION SIGNALS:
-- RSI divergence at W5 top (bearish) or WC bottom (bullish) = high-confidence reversal
-- Volume: peaks at W3, declines at W5 (divergence), low during corrections
-- MACD: histogram peaks in W3, diverges in W5
-- Momentum failure = exhaustion warning
-
-SCENARIO ANALYSIS — YOU MUST ALWAYS PROVIDE:
-1. PRIMARY COUNT: the most probable wave count with confidence level
-2. ALTERNATE COUNT: next most probable structure
-3. INVALIDATION LEVEL: exact price that kills the primary count
-4. Identify any active corrective pattern (zigzag, flat, triangle, WXY)
-5. Apply alternation guideline explicitly
-6. Give Fibonacci-based targets for the developing wave
-
-CRITICAL RULE — READ BEFORE WRITING:
-If the WAVE ENGINE OUTPUT shows Current Wave = A, B, C, 1, 2, 3, or 4 — this is a SCENARIO ONLY wave.
-DO NOT provide trade entry, stop loss, or take profit in Paragraph 4.
-DO NOT invent or suggest any trade setup for these waves.
-Instead, Paragraph 4 must describe ONLY: what to watch for, what confirms the next wave, and the exact invalidation price.
-
-If Current Wave = 5 — you MAY provide full trade levels in Paragraph 4.
-
-OUTPUT FORMAT — plain text only, no markdown, no asterisks, no headers with #:
-Write exactly 4 SHORT paragraphs (2-3 sentences each), separated by blank lines. Be concise and direct.
-P1 — PRIMARY SCENARIO: Wave position, structure, what is developing.
-P2 — PATTERN & STRUCTURE: Corrective type if applicable, key Fibonacci levels.
-P3 — ALTERNATE SCENARIO: State PRIMARY probability (X%) and ALTERNATE probability (Y%). What confirms or kills each count. Key price differentiator between the two.
-P4 — If Wave 5: Entry/SL/TP with Fibonacci basis, one-line invalidation. If other wave: What confirms next wave, invalidation level only. NO trade setup.`;
+    const ewSystemPrompt = `Elliott Wave analyst. Use only the engine data provided. No markdown, no headers, no bullet points.
+EW rules: W2<100% W1. W3 never shortest. W4 no overlap W1. W3 at 1.618/2.618x W1. W4 retraces 23-62% W3. W5=W1 or 1.618x W1. ABC: B=38-100% A, C=50-162% A.
+Wave 5 only: include entry/SL/TP. All other waves: scenario only, no trade levels.
+Output format: EXACTLY 3 sentences, max 80 words total, plain text.`;
 
     const ewUserPrompt = `INSTRUMENT: ${symbol} | TIMEFRAME: ${tf} | LIVE PRICE: ${livePrice}
 
@@ -2741,11 +2683,11 @@ Do NOT provide entry, stop loss, or take profit. Describe scenario only.`}
 
 ${ctx_text?'ADDITIONAL CONTEXT: '+ctx_text:''}
 
-Now write the professional Elliott Wave analysis. In paragraph 3, explicitly state the PRIMARY scenario with its probability and the ALTERNATE scenario with its probability. Use exact prices. Be concise.`;
+Now write the 3-sentence analysis. Maximum 80 words. No formatting, no headers.`;
 
     const res = await fetchWithRetry({
       model:'claude-haiku-4-5-20251001',
-      max_tokens:500,
+      max_tokens:300,
       system: ewSystemPrompt,
       messages:[{role:'user',content:ewUserPrompt}]
     });
