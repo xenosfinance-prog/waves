@@ -1850,10 +1850,26 @@ function countElliottWavesDeepscan(candles) {
   const impulseAlt = impulseCandidates.filter(c => c.waveCount >= 4 && c !== impulse)[0] || null;
   const abcRaw     = abcCandidates[0] || null;
   const abcAlt     = abcCandidates.find(c => c !== abcRaw && c.aSize >= abcMinSize) || null;
-  // ABC validity: WA must be recent (not ancient pivot far from current price)
-  // aSize must be < 60% of current price (WA can't be from 3 years ago)
-  const abcMaxSize  = p * 0.60;
-  const abc         = (abcRaw && abcRaw.WB && abcRaw.aSize >= abcMinSize && abcRaw.aSize <= abcMaxSize) ? abcRaw : null;
+  // ABC validity filters
+  const abcMaxSize = p * 0.50; // WA can't be more than 50% away from current price
+  function abcStillActive(a) {
+    if (!a || !a.WB) return false;
+    if (a.aSize < abcMinSize || a.aSize > abcMaxSize) return false;
+    // If WC confirmed: price must still be within 15% of WC (structure recent)
+    if (a.WC) {
+      const distFromWC = Math.abs(p - a.WC.price) / a.aSize;
+      if (distFromWC > 1.5) return false; // price moved far from WC — structure complete
+    }
+    // Price must be within the ABC price range (not fully reversed)
+    const abcHigh = Math.max(a.WA.price, a.WB.price, a.WC ? a.WC.price : p);
+    const abcLow  = Math.min(a.WA.price, a.WB.price, a.WC ? a.WC.price : p);
+    const abcRange = abcHigh - abcLow;
+    // Live price should be within 50% of abcRange from the structure
+    if (p > abcHigh + abcRange * 0.50) return false;
+    if (p < abcLow  - abcRange * 0.50) return false;
+    return true;
+  }
+  const abc = abcStillActive(abcRaw) ? abcRaw : null;
 
   // Run other pattern detectors
   const triangleRaw  = tryTriangle(allPivots);
