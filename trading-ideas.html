@@ -202,9 +202,11 @@ body{background:var(--bg4);color:var(--ink);font-family:var(--mono);min-height:1
   <div class="toolbar">
     <div class="filters" id="filters">
       <button class="filter-btn active" data-filter="all">All</button>
-      <button class="filter-btn" data-filter="LONG">Long</button>
-      <button class="filter-btn" data-filter="SHORT">Short</button>
-      <button class="filter-btn" data-filter="NEUTRAL">Neutral</button>
+      <button class="filter-btn" data-filter="forex">Forex</button>
+      <button class="filter-btn" data-filter="commodities">Commodities</button>
+      <button class="filter-btn" data-filter="crypto">Crypto</button>
+      <button class="filter-btn" data-filter="indices">Indices</button>
+      <button class="filter-btn" data-filter="stocks">Stocks</button>
     </div>
     <div class="toolbar-right">
       <span class="ideas-count" id="ideas-count"></span>
@@ -290,6 +292,26 @@ body{background:var(--bg4);color:var(--ink);font-family:var(--mono);min-height:1
 const GITHUB_RAW='https://raw.githubusercontent.com/xenosfinance-prog/waves/main/trading_ideas/ideas.json';
 const CACHE_KEY='xf_trading_ideas_v1';
 const CACHE_TTL=5*60*1000;
+// Category map derived from MARKETS cat field
+const CAT_MAP = {
+  forex:       ['EURUSD','GBPUSD','USDJPY','AUDUSD','USDCHF','USDCAD','NZDUSD'],
+  commodities: ['GOLD','SILVER','OIL','NGAS'],
+  crypto:      ['BTCUSD','ETHUSD','XRPUSD','SOLUSD','DOGEUSD','ZECUSD'],
+  indices:     ['SPY','NASDAQ','DJI'],
+  stocks:      ['AAPL','MSFT','JPM','V','UNH','HD','MCD','CAT','BA','DIS','NVDA','GOOGL','AMZN','META','TSLA'],
+};
+
+function getCategory(ticker) {
+  if (!ticker) return 'other';
+  const t = ticker.toUpperCase();
+  for (const [cat, tickers] of Object.entries(CAT_MAP)) {
+    if (tickers.includes(t)) return cat;
+  }
+  if (t.includes('USD') && t.length === 6) return 'forex';
+  if (['BTC','ETH','XRP','SOL','DOGE','BNB','ADA'].some(c => t.includes(c))) return 'crypto';
+  return 'other';
+}
+
 let allIdeas=[],activeFilter='all';
 
 (function(){
@@ -362,11 +384,11 @@ async function loadIdeas(force=false){
 
 function renderGrid(){
   const grid=document.getElementById('ideas-grid');
-  const ideas=activeFilter==='all'?allIdeas:allIdeas.filter(i=>(i.bias||'').toUpperCase()===activeFilter);
+  const ideas=activeFilter==='all'?allIdeas:allIdeas.filter(i=>getCategory(i.ticker)===activeFilter);
   document.getElementById('ideas-count').textContent=ideas.length+' idea'+(ideas.length!==1?'s':'');
   if(!ideas.length){
     grid.innerHTML=`<div class="state-box">
-      <p style="font-size:13px">No trading ideas found${activeFilter!=='all'?' for: '+activeFilter:''}.</p>
+      <p style="font-size:13px">No trading ideas found${activeFilter!=='all'?' in: '+activeFilter:''}.</p>
       <p style="margin-top:8px;font-size:10px;letter-spacing:1px;">RUN /ELLIOTT OR /AI ON TELEGRAM TO GENERATE IDEAS</p>
     </div>`;
     return;
