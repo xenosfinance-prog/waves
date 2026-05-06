@@ -401,11 +401,12 @@ body{background:var(--bg);color:var(--ink);font-family:var(--mono);min-height:10
     <div class="notify-box">
       <div class="notify-title">Be First at Launch</div>
       <p class="notify-sub">Premium is coming soon. Leave your email and we'll notify you the moment subscriptions open.<br>No spam. Unsubscribe anytime.</p>
-      <div class="notify-form">
-        <input class="notify-input" type="email" id="notify-email" placeholder="your@email.com">
-        <button class="notify-btn" onclick="handleNotify()">Notify Me</button>
-      </div>
-      <div id="notify-success">✓ You're on the list. We'll be in touch soon.</div>
+      <div data-fs-error style="display:none;color:#e05252;font-size:11px;letter-spacing:1px;margin-bottom:10px;"></div>
+      <form id="notify-form" class="notify-form">
+        <input class="notify-input" type="email" id="notify-email" name="email" placeholder="your@email.com" data-fs-field required>
+        <button class="notify-btn" type="submit" data-fs-submit-btn>Notify Me</button>
+      </form>
+      <div data-fs-success id="notify-success">✓ You're on the list. We'll be in touch soon.</div>
       <p class="notify-note">Or follow <a href="https://t.me/xenosfin" target="_blank" style="color:var(--gold2);text-decoration:none;">@xenosfin on Telegram</a> for real-time updates.</p>
     </div>
   </section>
@@ -517,25 +518,10 @@ function toggleFaq(el) {
 }
 
 // Notify form
-function handleNotify() {
-  const input = document.getElementById('notify-email');
-  const email = input.value.trim();
-  if (!email || !email.includes('@')) {
-    input.style.borderColor = 'var(--red)';
-    setTimeout(() => { input.style.borderColor = ''; }, 2000);
-    return;
-  }
-  // Store in localStorage for now — replace with backend call when ready
-  const list = JSON.parse(localStorage.getItem('xf_notify_list') || '[]');
-  if (!list.includes(email)) { list.push(email); localStorage.setItem('xf_notify_list', JSON.stringify(list)); }
-  input.value = '';
-  document.getElementById('notify-success').style.display = 'block';
-}
-
-// Enter key on notify input
-document.getElementById('notify-email').addEventListener('keydown', function(e) {
-  if (e.key === 'Enter') handleNotify();
-});
+// Formspree Ajax — initialized after DOM ready
+window.formspree = window.formspree || function () { (formspree.q = formspree.q || []).push(arguments); };
+formspree('initForm', { formElement: '#notify-form', formId: 'xykopzwy' });
 </script>
+<script src="https://unpkg.com/@formspree/ajax@1" defer></script>
 </body>
 </html>
