@@ -278,38 +278,48 @@ body{background:var(--bg4);color:var(--ink);font-family:var(--mono);min-height:1
 
 <script>
 const GITHUB_RAW='https://raw.githubusercontent.com/xenosfinance-prog/waves/main/trading_ideas/ideas.json';
-const CACHE_KEY='xf_trading_ideas_v4';
+// ── v5: bump cache key every time to force fresh load after fix ──
+const CACHE_KEY='xf_trading_ideas_v5';
 const CACHE_TTL=5*60*1000;
 
-// ── Fix double-encoded UTF-8 strings (Â· → ·, Ã© → é, etc.) ──────────────
-// This happens when UTF-8 bytes are incorrectly stored/read as latin-1
+// ── Fix double-encoded UTF-8 strings ─────────────────────────────────────────
+// Problem: bot on Railway saves JSON with UTF-8 text, but the text was already
+// incorrectly decoded as latin-1 first, so it gets double-encoded.
+// Result: · (U+00B7, UTF-8: C2 B7) becomes Â· (U+00C2 + U+00B7)
+//         🥇 (UTF-8: F0 9F A5 87) becomes ð\x9f¥\x87 (4 latin-1 chars)
+//
+// Fix: treat each char as a latin-1 byte, re-decode the byte sequence as UTF-8.
+// Always attempt this — no pre-check needed since we validate the result.
 function fixStr(s) {
   if (!s || typeof s !== 'string') return s;
-  // Fast check: only process if corruption markers present
-  if (!s.includes('\xC3') && !s.includes('\xC2') && !s.includes('Â') && !s.includes('Ã')) return s;
+  // Only fix if string contains chars > 0x7F (non-ASCII)
+  let hasHigh = false;
+  for (let i = 0; i < s.length; i++) {
+    if (s.charCodeAt(i) > 0x7F) { hasHigh = true; break; }
+  }
+  if (!hasHigh) return s;
   try {
+    // Treat each JS char as a latin-1 byte value
     const bytes = new Uint8Array(s.length);
     for (let i = 0; i < s.length; i++) bytes[i] = s.charCodeAt(i) & 0xFF;
-    const decoded = new TextDecoder('utf-8').decode(bytes);
-    // Only use decoded version if it looks better (fewer corruption markers)
-    const corruptCount = (s.match(/[ÂÃ]/g) || []).length;
-    const decodedCorrupt = (decoded.match(/[ÂÃ]/g) || []).length;
-    return decodedCorrupt < corruptCount ? decoded : s;
+    const fixed = new TextDecoder('utf-8').decode(bytes);
+    // Sanity check: fixed should have fewer or equal non-ASCII chars
+    // If decode failed (invalid UTF-8), TextDecoder replaces with U+FFFD
+    if (fixed.includes('\uFFFD')) return s; // decode failed, keep original
+    return fixed;
   } catch(e) { return s; }
 }
 
-// Apply fixStr to all string fields of an idea object
 function fixIdeaEncoding(idea) {
   if (!idea) return idea;
-  const fields = ['analysis','name','wave_phase','emoji','ticker'];
   const fixed = {...idea};
-  for (const f of fields) {
+  for (const f of ['analysis','name','wave_phase','emoji','ticker','wave_icon']) {
     if (fixed[f]) fixed[f] = fixStr(fixed[f]);
   }
   return fixed;
 }
 
-// ── Emoji fallback map: fixes broken [TAG] / (TAG) format from Railway ──────
+// ── Emoji fallback map ────────────────────────────────────────────────────────
 const EMOJI_MAP = {
   'BTCUSDT':'₿',  'BTCUSD':'₿',   'BTC':'₿',
   'ETHUSDT':'💎', 'ETHUSD':'💎',  'ETH':'💎',
@@ -337,14 +347,13 @@ const EMOJI_MAP = {
 };
 
 function resolveEmoji(emoji, ticker) {
-  if (!emoji) return EMOJI_MAP[ticker] || '📊';
-  if (/^\[.*\]$/.test(emoji) || /^\(.*\)$/.test(emoji) || /^[A-Z0-9\s\[\]()_-]+$/.test(emoji)) {
+  // Always try to fix encoding first
+  const e = fixStr(emoji) || '';
+  if (!e || /^\[.*\]$/.test(e) || /^\(.*\)$/.test(e) || /^[A-Z0-9\s\[\]()_-]+$/.test(e)) {
     const base = ticker ? ticker.replace('USDT','').replace('USD','') : '';
     return EMOJI_MAP[ticker] || EMOJI_MAP[base] || '📊';
   }
-  // Also fix double-encoded emoji
-  const fixed = fixStr(emoji);
-  return fixed || EMOJI_MAP[ticker] || '📊';
+  return e;
 }
 
 const CAT_MAP = {
@@ -419,6 +428,13 @@ function waveIcon(wn){
   return m[wn]||wn||'?';
 }
 
+// ── Clear old cache versions on load ─────────────────────────────────────────
+(function clearOldCache(){
+  ['v1','v2','v3','v4'].forEach(v => {
+    try { localStorage.removeItem('xf_trading_ideas_'+v); } catch(e){}
+  });
+})();
+
 async function loadIdeas(force=false){
   const btn=document.getElementById('refresh-btn');
   btn.classList.add('spinning');
@@ -436,10 +452,10 @@ async function loadIdeas(force=false){
   try{
     const res=await fetch(GITHUB_RAW+'?t='+Date.now());
     if(!res.ok) throw new Error('HTTP '+res.status);
-    // ── UTF-8 safe decode ──────────────────────────────────────
     const buf=await res.arrayBuffer();
     const text=new TextDecoder('utf-8').decode(buf);
     const parsed=JSON.parse(text);
+    // Apply encoding fix to every idea
     allIdeas=Array.isArray(parsed) ? parsed.map(fixIdeaEncoding) : [];
     localStorage.setItem(CACHE_KEY,JSON.stringify({ts:Date.now(),data:allIdeas}));
   }catch(e){
