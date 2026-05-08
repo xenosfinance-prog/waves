@@ -2371,6 +2371,10 @@ function drawFreeCanvas(candles, wavePts, isBull, sl, tp1, tp2, livePrice, symNa
   const nBars = candles.length || 80;
   const barW = CW / nBars;
   const toX = i => ML + (i + 0.5) * barW;
+  // Server always indexes within its last-200-bar window.
+  // If we have more candles, offset the wave pivot indices accordingly.
+  const wvOffset = Math.max(0, candles.length - 200);
+  const toXwv = i => toX(i + wvOffset);
 
   // Background
   ctx.fillStyle = '#090f1a'; ctx.fillRect(0, 0, W, H);
@@ -2437,7 +2441,7 @@ function drawFreeCanvas(candles, wavePts, isBull, sl, tp1, tp2, livePrice, symNa
     ctx.lineJoin='round'; ctx.lineCap='round';
     ctx.beginPath();
     wavePts.forEach((p, i) => {
-      const x=toX(p.i), y=toY(p.price);
+      const x=toXwv(p.i), y=toY(p.price);
       i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
     });
     ctx.stroke();
@@ -2446,7 +2450,7 @@ function drawFreeCanvas(candles, wavePts, isBull, sl, tp1, tp2, livePrice, symNa
 
   // Dots + labels — exactly like demo
   wavePts.forEach(p => {
-    const x=toX(p.i), y=toY(p.price);
+    const x=toXwv(p.i), y=toY(p.price);
     const isCur = p.label === curWave;
     // Dot
     ctx.fillStyle='rgba(6,12,22,0.92)';
@@ -2779,11 +2783,11 @@ function renderEWSketch(analysis, symbol, tf){
   function candleX(i,total){ return padX+(i/(Math.max(total-1,1)))*cW; }
   // Map pivot index to X via candle array
   function pivotX(idx){
-    // idx is absolute (already has c200Offset applied by engine)
-    // startIdx = candles.length - showN = candles.length - n200 = c200Offset
-    var startIdx = candles.length - showN;
-    var rel = idx - startIdx;
-    rel = Math.max(0, Math.min(rel, showN-1));
+    // Server always works on last 200 candles (indices 0..199 relative to that slice).
+    // showN = min(200, candles.length), so server idx is already relative to slice start.
+    // If candles.length > 200 the server idx is 0-based within its own 200-bar window,
+    // which maps directly onto our slice (slice = candles.slice(-showN)).
+    var rel = Math.max(0, Math.min(idx, showN-1));
     return candleX(rel, showN);
   }
 
