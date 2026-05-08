@@ -419,7 +419,7 @@ function buildCard(idea){
       ${imgHtml}
       <div class="card-img-placeholder" style="${phStyle}"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="1"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
       <button class="delete-btn" onclick="deleteIdea('${idea.id}',event)" title="Delete">✕</button>
-      <div class="card-wave-tag">Wave ${waveIcon(idea.wave_num)} · ${idea.wave_phase||'MTF'}</div>
+      <div class="card-wave-tag">Wave ${waveIcon(idea.wave_num)} · ${(idea.wave_phase||'MTF').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
       <div class="card-badge ${badgeCls}">${bias}</div>
     </div>
     <div class="card-body">
@@ -435,7 +435,7 @@ function buildCard(idea){
         <div class="card-meta-item"><span class="meta-label">Target</span><span class="meta-val" style="color:var(--green)">${fmtPrice(idea.target,idea.ticker)}</span></div>
         <div class="card-meta-item"><span class="meta-label">Inval.</span><span class="meta-val" style="color:var(--red)">${fmtPrice(idea.invalidation,idea.ticker)}</span></div>
       </div>
-      <div class="card-analysis">${idea.analysis||'Analysis not available.'}</div>
+      <div class="card-analysis">${(idea.analysis||'Analysis not available.').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
       <div class="conf-row">
         <span class="conf-label">Confidence</span>
         <div class="conf-track"><div class="conf-fill" style="width:${conf}%;background:${confColor}"></div></div>
