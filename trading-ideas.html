@@ -379,7 +379,9 @@ async function loadIdeas(force=false){
   try{
     const res=await fetch(GITHUB_RAW+'?t='+Date.now());
     if(!res.ok)throw new Error('HTTP '+res.status);
-    allIdeas=await res.json();
+    const buf=await res.arrayBuffer();
+    const text=new TextDecoder('utf-8').decode(buf);
+    allIdeas=JSON.parse(text);
     if(!Array.isArray(allIdeas))allIdeas=[];
     localStorage.setItem(CACHE_KEY,JSON.stringify({ts:Date.now(),data:allIdeas}));
   }catch(e){
@@ -403,6 +405,12 @@ function renderGrid(){
   }
   grid.innerHTML=ideas.map(idea=>buildCard(idea)).join('');
   grid.querySelectorAll('.idea-card').forEach((el,i)=>{
+    // Set emoji via textContent to preserve UTF-8 encoding
+    const emojiEl=el.querySelector('.card-ticker');
+    if(emojiEl){
+      const emoji=ideas[i].emoji||'';
+      if(emoji) emojiEl.textContent=emoji+' '+emojiEl.textContent;
+    }
     el.addEventListener('click',()=>openModal(ideas[i]));
   });
 }
@@ -425,7 +433,7 @@ function buildCard(idea){
     <div class="card-body">
       <div class="card-top">
         <div>
-          <div class="card-ticker">${idea.emoji||''} ${idea.ticker||'—'}</div>
+          <div class="card-ticker" data-emoji="${(idea.emoji||'').replace(/"/g,'')}">${idea.ticker||'—'}</div>
           <div class="card-name">${idea.name||''}</div>
         </div>
         <div class="card-date">${fmtDateShort(idea.timestamp)}</div>
