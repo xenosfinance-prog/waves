@@ -300,13 +300,61 @@ body{background:var(--bg4);color:var(--ink);font-family:var(--mono);min-height:1
 const GITHUB_RAW='https://raw.githubusercontent.com/xenosfinance-prog/waves/main/trading_ideas/ideas.json';
 const CACHE_KEY='xf_trading_ideas_v3';
 const CACHE_TTL=5*60*1000;
-// Category map derived from MARKETS cat field
+
+// ── Emoji fallback map: fixes broken [TAG] / (TAG) format from Railway ──────
+const EMOJI_MAP = {
+  // Crypto
+  'BTCUSDT':'₿',  'BTCUSD':'₿',   'BTC':'₿',
+  'ETHUSDT':'💎', 'ETHUSD':'💎',  'ETH':'💎',
+  'SOLUSDT':'☀️', 'SOLUSD':'☀️', 'SOL':'☀️',
+  'BNBUSDT':'🔶', 'BNBUSD':'🔶',  'BNB':'🔶',
+  'XRPUSDT':'💧', 'XRPUSD':'💧',  'XRP':'💧',
+  'DOGEUSD':'🐶', 'DOGE':'🐶',
+  'ZECUSD':'🔒',  'ZEC':'🔒',
+  // Commodities
+  'GOLD':'🥇',   'XAUUSD':'🥇',
+  'SILVER':'🥈', 'XAGUSD':'🥈',
+  'OIL':'🛢️',   'WTI':'🛢️',
+  'NGAS':'⛽',   'GAS':'⛽',
+  // FX
+  'EURUSD':'💶', 'GBPUSD':'💷', 'USDJPY':'💴',
+  'AUDUSD':'🇦🇺','USDCHF':'🇨🇭','USDCAD':'🇨🇦','NZDUSD':'🇳🇿',
+  'EURGBP':'💶', 'EURJPY':'💶', 'GBPJPY':'💷',
+  // Indices
+  'SPY':'📊', 'NASDAQ':'📈', 'DJI':'🇺🇸',
+  // Stocks
+  'AAPL':'🍎','MSFT':'🪟','NVDA':'🎮','GOOGL':'🔍',
+  'META':'👥','AMZN':'📦','TSLA':'⚡','AMD':'💻',
+  'JPM':'🏦','GS':'💰','BAC':'🏛️','WFC':'🐎',
+  'MS':'📊','C':'🌐','BLK':'🖤',
+  'V':'💳','UNH':'🏥','HD':'🏠','MCD':'🍔',
+  'CAT':'🚜','BA':'✈️','DIS':'🏰','KO':'🥤',
+  'WMT':'🛒','JNJ':'💊','PG':'🧴','MMM':'🔧',
+  'ORCL':'☁️','CRM':'💼','PLTR':'🔭',
+};
+
+// Returns a valid emoji, replacing broken [TAG] / (TAG) strings
+function resolveEmoji(emoji, ticker) {
+  if (!emoji) return EMOJI_MAP[ticker] || '📊';
+  // Detect broken ASCII-only format: [XRP], (GOLD), BTC, etc.
+  if (/^\[.*\]$/.test(emoji) || /^\(.*\)$/.test(emoji) || /^[A-Z0-9\s\[\]()_-]+$/.test(emoji)) {
+    const base = ticker ? ticker.replace('USDT','').replace('USD','') : '';
+    return EMOJI_MAP[ticker] || EMOJI_MAP[base] || '📊';
+  }
+  return emoji;
+}
+
+// Category map
 const CAT_MAP = {
-  forex:       ['EURUSD','GBPUSD','USDJPY','AUDUSD','USDCHF','USDCAD','NZDUSD'],
-  commodities: ['GOLD','SILVER','OIL','NGAS'],
-  crypto:      ['BTCUSD','ETHUSD','XRPUSD','SOLUSD','DOGEUSD','ZECUSD'],
+  forex:       ['EURUSD','GBPUSD','USDJPY','AUDUSD','USDCHF','USDCAD','NZDUSD',
+                'EURGBP','EURJPY','GBPJPY','AUDJPY','CADJPY','CHFJPY'],
+  commodities: ['GOLD','SILVER','OIL','NGAS','XAUUSD'],
+  crypto:      ['BTCUSD','ETHUSD','XRPUSD','SOLUSD','DOGEUSD','ZECUSD',
+                'BTCUSDT','ETHUSDT','XRPUSDT','SOLUSDT','BNBUSDT'],
   indices:     ['SPY','NASDAQ','DJI'],
-  stocks:      ['AAPL','MSFT','JPM','V','UNH','HD','MCD','CAT','BA','DIS','NVDA','GOOGL','AMZN','META','TSLA'],
+  stocks:      ['AAPL','MSFT','JPM','V','UNH','HD','MCD','CAT','BA','DIS',
+                'NVDA','GOOGL','AMZN','META','TSLA','AMD','ORCL','CRM','PLTR',
+                'GS','BAC','WFC','MS','C','BLK','KO','WMT','JNJ','PG','MMM'],
 };
 
 function getCategory(ticker) {
@@ -315,12 +363,12 @@ function getCategory(ticker) {
   for (const [cat, tickers] of Object.entries(CAT_MAP)) {
     if (tickers.includes(t)) return cat;
   }
-  if (t.includes('USD') && t.length === 6) return 'forex';
+  if (t.length === 6 && t.includes('USD')) return 'forex';
   if (['BTC','ETH','XRP','SOL','DOGE','BNB','ADA'].some(c => t.includes(c))) return 'crypto';
   return 'other';
 }
 
-let allIdeas=[],activeFilter='all';
+let allIdeas=[], activeFilter='all';
 
 (function(){
   const mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -332,34 +380,36 @@ let allIdeas=[],activeFilter='all';
     if(ld)ld.textContent=mo[n.getMonth()]+' '+n.getDate()+', '+n.getFullYear();
     if(lt)lt.textContent='UPDATED AT '+hm+' CET';
   }
-  tick();setInterval(tick,30000);
+  tick(); setInterval(tick,30000);
 })();
 
 function fmtPrice(v,ticker){
-  if(!v||v===0)return'—';
-  if(ticker&&(ticker.includes('BTC')||ticker.includes('ETH')))return v.toLocaleString('en-US',{maximumFractionDigits:0});
-  if(v>1000)return v.toLocaleString('en-US',{maximumFractionDigits:1});
-  if(v>10)return v.toFixed(2);
+  if(!v||v===0) return '—';
+  if(ticker&&(ticker.includes('BTC')||ticker.includes('ETH')))
+    return v.toLocaleString('en-US',{maximumFractionDigits:0});
+  if(v>1000) return v.toLocaleString('en-US',{maximumFractionDigits:1});
+  if(v>10)   return v.toFixed(2);
   return v.toFixed(4);
 }
 function fmtRR(idea){
-  const p=idea.price||0,t=idea.target||0,inv=idea.invalidation||0;
-  if(!p||!t||!inv)return'—';
-  const reward=Math.abs(t-p),risk=Math.abs(p-inv);
-  if(!risk)return'—';
-  return(reward/risk).toFixed(1)+'x';
+  const p=idea.price||0, t=idea.target||0, inv=idea.invalidation||0;
+  if(!p||!t||!inv) return '—';
+  const reward=Math.abs(t-p), risk=Math.abs(p-inv);
+  if(!risk) return '—';
+  return (reward/risk).toFixed(1)+'x';
 }
 function fmtDate(ts){
-  if(!ts)return'—';
+  if(!ts) return '—';
   const d=new Date(ts);
-  return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})+' · '+d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+  return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})
+    +' · '+d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
 }
 function fmtDateShort(ts){
-  if(!ts)return'—';
-  const d=new Date(ts),now=new Date(),diff=Math.floor((now-d)/60000);
-  if(diff<1)return'just now';
-  if(diff<60)return diff+'m ago';
-  if(diff<1440)return Math.floor(diff/60)+'h ago';
+  if(!ts) return '—';
+  const d=new Date(ts), now=new Date(), diff=Math.floor((now-d)/60000);
+  if(diff<1)    return 'just now';
+  if(diff<60)   return diff+'m ago';
+  if(diff<1440) return Math.floor(diff/60)+'h ago';
   return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short'});
 }
 function waveIcon(wn){
@@ -378,11 +428,11 @@ async function loadIdeas(force=false){
   }
   try{
     const res=await fetch(GITHUB_RAW+'?t='+Date.now());
-    if(!res.ok)throw new Error('HTTP '+res.status);
+    if(!res.ok) throw new Error('HTTP '+res.status);
     const buf=await res.arrayBuffer();
     const text=new TextDecoder('utf-8').decode(buf);
     allIdeas=JSON.parse(text);
-    if(!Array.isArray(allIdeas))allIdeas=[];
+    if(!Array.isArray(allIdeas)) allIdeas=[];
     localStorage.setItem(CACHE_KEY,JSON.stringify({ts:Date.now(),data:allIdeas}));
   }catch(e){
     console.error('load ideas:',e);
@@ -394,8 +444,11 @@ async function loadIdeas(force=false){
 
 function renderGrid(){
   const grid=document.getElementById('ideas-grid');
-  const ideas=activeFilter==='all'?allIdeas:allIdeas.filter(i=>getCategory(i.ticker)===activeFilter);
-  document.getElementById('ideas-count').textContent=ideas.length+' idea'+(ideas.length!==1?'s':'');
+  const ideas=activeFilter==='all'
+    ? allIdeas
+    : allIdeas.filter(i=>getCategory(i.ticker)===activeFilter);
+  document.getElementById('ideas-count').textContent=
+    ideas.length+' idea'+(ideas.length!==1?'s':'');
   if(!ideas.length){
     grid.innerHTML=`<div class="state-box">
       <p style="font-size:13px">No trading ideas found${activeFilter!=='all'?' in: '+activeFilter:''}.</p>
@@ -403,29 +456,32 @@ function renderGrid(){
     </div>`;
     return;
   }
-  grid.innerHTML=ideas.map(idea=>buildCard(idea)).join('');
+  grid.innerHTML=ideas.map((idea,idx)=>buildCard(idea,idx)).join('');
+  // Attach click handlers with index reference
   grid.querySelectorAll('.idea-card').forEach((el,i)=>{
-    // Set emoji via textContent to preserve UTF-8 encoding
-    const emojiEl=el.querySelector('.card-ticker');
-    if(emojiEl){
-      const emoji=ideas[i].emoji||'';
-      if(emoji) emojiEl.textContent=emoji+' '+emojiEl.textContent;
-    }
-    el.addEventListener('click',()=>openModal(ideas[i]));
+    el.addEventListener('click', ()=>openModal(ideas[i]));
   });
 }
 
-function buildCard(idea){
+function buildCard(idea, idx){
   const bias=(idea.bias||'NEUTRAL').toUpperCase();
   const badgeCls=bias==='LONG'?'badge-long':bias==='SHORT'?'badge-short':'badge-neutral';
   const conf=idea.confidence||0;
   const confColor=bias==='LONG'?'var(--green)':bias==='SHORT'?'var(--red)':'var(--gold)';
-  const imgHtml=idea.image_url?`<img src="${idea.image_url}" alt="${idea.ticker} chart" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">` :'';
+  const imgHtml=idea.image_url
+    ?`<img src="${idea.image_url}" alt="${idea.ticker} chart" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+    :'';
   const phStyle=idea.image_url?'display:none':'';
+
+  // ── Resolve emoji: handles broken [TAG] format ──
+  const emoji=resolveEmoji(idea.emoji, idea.ticker);
+
   return `<div class="idea-card">
     <div class="card-img">
       ${imgHtml}
-      <div class="card-img-placeholder" style="${phStyle}"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="1"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+      <div class="card-img-placeholder" style="${phStyle}">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="1"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      </div>
       <button class="delete-btn" onclick="deleteIdea('${idea.id}',event)" title="Delete">✕</button>
       <div class="card-wave-tag">Wave ${waveIcon(idea.wave_num)} · ${(idea.wave_phase||'MTF').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
       <div class="card-badge ${badgeCls}">${bias}</div>
@@ -433,7 +489,7 @@ function buildCard(idea){
     <div class="card-body">
       <div class="card-top">
         <div>
-          <div class="card-ticker" data-emoji="${(idea.emoji||'').replace(/"/g,'')}">${idea.ticker||'—'}</div>
+          <div class="card-ticker">${emoji} ${idea.ticker||'—'}</div>
           <div class="card-name">${idea.name||''}</div>
         </div>
         <div class="card-date">${fmtDateShort(idea.timestamp)}</div>
@@ -459,12 +515,14 @@ function buildCard(idea){
 }
 
 function openModal(idea){
+  if(!idea) return;
   const bias=(idea.bias||'NEUTRAL').toUpperCase();
   const color=bias==='LONG'?'var(--green)':bias==='SHORT'?'var(--red)':'var(--gold)';
   const img=document.getElementById('modal-img');
   img.style.display=idea.image_url?'block':'none';
-  if(idea.image_url)img.src=idea.image_url;
-  document.getElementById('modal-ticker').textContent=(idea.emoji||'')+' '+(idea.ticker||'—');
+  if(idea.image_url) img.src=idea.image_url;
+  const emoji=resolveEmoji(idea.emoji, idea.ticker);
+  document.getElementById('modal-ticker').textContent=emoji+' '+(idea.ticker||'—');
   document.getElementById('modal-name').textContent=idea.name||'';
   document.getElementById('modal-bias').innerHTML=`<span style="color:${color}">${bias}</span>`;
   document.getElementById('modal-wave').textContent='Wave '+waveIcon(idea.wave_num)+(idea.wave_phase?' · '+idea.wave_phase:'');
@@ -480,66 +538,67 @@ function openModal(idea){
 }
 
 function closeModal(e){
-  if(e&&e.target!==document.getElementById('modal-overlay'))return;
+  if(e&&e.target!==document.getElementById('modal-overlay')) return;
   document.getElementById('modal-overlay').classList.remove('open');
   document.body.style.overflow='';
 }
 
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
+
 document.getElementById('filters').addEventListener('click',e=>{
-  if(!e.target.classList.contains('filter-btn'))return;
+  if(!e.target.classList.contains('filter-btn')) return;
   document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
   e.target.classList.add('active');
   activeFilter=e.target.dataset.filter;
   renderGrid();
 });
 
-const WORKER = 'https://xenos-ai-proxy.xenosfinance.workers.dev';
-let isAdmin = false;
+const WORKER='https://xenos-ai-proxy.xenosfinance.workers.dev';
+let isAdmin=false;
 
-async function simpleHash(str) {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+async function simpleHash(str){
+  const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(str));
   return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
 }
 
-async function toggleAdmin() {
-  if (isAdmin) {
-    isAdmin = false;
+async function toggleAdmin(){
+  if(isAdmin){
+    isAdmin=false;
     document.getElementById('admin-btn').classList.remove('admin-active');
     document.getElementById('ideas-grid').classList.remove('admin-mode');
     return;
   }
-  const pwd = prompt('Admin password:');
-  if (!pwd) return;
-  const hash = await simpleHash(pwd);
-  const refHash = await simpleHash('RMG@Manu78');
-  if (hash !== refHash) { alert('❌ Password errata'); return; }
-  isAdmin = true;
+  const pwd=prompt('Admin password:');
+  if(!pwd) return;
+  const hash=await simpleHash(pwd);
+  const refHash=await simpleHash('RMG@Manu78');
+  if(hash!==refHash){alert('❌ Password errata');return;}
+  isAdmin=true;
   document.getElementById('admin-btn').classList.add('admin-active');
   document.getElementById('ideas-grid').classList.add('admin-mode');
 }
 
-async function deleteIdea(ideaId, e) {
+async function deleteIdea(ideaId,e){
   e.stopPropagation();
-  if (!confirm(`Eliminare questa Trading Idea?`)) return;
-  try {
-    const res = await fetch(WORKER, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'delete-idea', idea_id: ideaId, admin_pwd: 'RMG@Manu78' })
+  if(!confirm('Eliminare questa Trading Idea?')) return;
+  try{
+    const res=await fetch(WORKER,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({type:'delete-idea',idea_id:ideaId,admin_pwd:'RMG@Manu78'})
     });
-    const data = await res.json();
-    if (!data.ok) { alert('❌ Errore: ' + (data.error || 'unknown')); return; }
-    allIdeas = allIdeas.filter(i => i.id !== ideaId);
-    localStorage.setItem(CACHE_KEY, JSON.stringify({ts: Date.now(), data: allIdeas}));
+    const data=await res.json();
+    if(!data.ok){alert('❌ Errore: '+(data.error||'unknown'));return;}
+    allIdeas=allIdeas.filter(i=>i.id!==ideaId);
+    localStorage.setItem(CACHE_KEY,JSON.stringify({ts:Date.now(),data:allIdeas}));
     renderGrid();
     document.getElementById('ideas-grid').classList.add('admin-mode');
-  } catch(err) {
-    alert('❌ Errore: ' + err.message);
+  }catch(err){
+    alert('❌ Errore: '+err.message);
   }
 }
 
-
+loadIdeas();
 </script>
 </body>
 </html>
