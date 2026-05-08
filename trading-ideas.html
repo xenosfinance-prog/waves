@@ -379,7 +379,8 @@ async function loadIdeas(force=false){
   try{
     const res=await fetch(GITHUB_RAW+'?t='+Date.now());
     if(!res.ok)throw new Error('HTTP '+res.status);
-    allIdeas=await res.json();
+    const rawText=await res.text();
+    allIdeas=JSON.parse(decodeURIComponent(escape(rawText)));
     if(!Array.isArray(allIdeas))allIdeas=[];
     localStorage.setItem(CACHE_KEY,JSON.stringify({ts:Date.now(),data:allIdeas}));
   }catch(e){
