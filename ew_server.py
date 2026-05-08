@@ -511,9 +511,12 @@ def get_wave_position(primary, live_price, dp, atr):
                        f"Invalidation beyond W0 ({W0['price']:.{dec}f}).")
             inv = W0["price"]
             nt  = W1["price"] + w1s*1.618 if bull else W1["price"] - w1s*1.618
+            # entry near W2 support/resistance, tp toward W3
+            # a618 is the buy zone (below live for bull), nt is W3 target
+            entry_w2 = a618  # ideal entry at 61.8% retrace
             return wn, desc, scenario, {
-                "entry":round(live,dec),"stop_loss":round(inv,dec),
-                "tp1":round(a618,dec),"tp2":round(nt,dec)
+                "entry":round(entry_w2,dec),"stop_loss":round(inv,dec),
+                "tp1":round(nt,dec),"tp2":round(W1["price"] + w1s*2.618 if bull else W1["price"] - w1s*2.618,dec)
             }
 
         if wn == "3":
@@ -540,9 +543,11 @@ def get_wave_position(primary, live_price, dp, atr):
             scenario = (f"RULE III: W4 must stay above W1 ({W1['price']:.{dec}f}). "
                        f"Target zone {t382:.{dec}f}–{t618:.{dec}f} (38.2–61.8% W3). "
                        f"W5 equality target: {w5eq:.{dec}f}.")
+            # entry near W4 support, tp toward W5
+            entry_w4 = t382  # ideal entry at 38.2% retrace of W3
             return wn, desc, scenario, {
-                "entry":round(live,dec),"stop_loss":round(W1["price"],dec),
-                "tp1":round(t382,dec),"tp2":round(w5eq,dec)
+                "entry":round(entry_w4,dec),"stop_loss":round(t618,dec),
+                "tp1":round(w5eq,dec),"tp2":round(W3["price"] + w1s*1.618 if bull else W3["price"] - w1s*1.618,dec)
             }
 
         if wn == "5":
