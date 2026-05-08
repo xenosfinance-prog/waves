@@ -731,13 +731,18 @@ def ew_chart():
                 w = prim_data.get(k)
                 if w: wave_points[label] = {"price":w["price"],"idx":w["idx"],"date":w["date"]}
 
-        # Determine bearABC
+        # Determine bearABC — must be consistent with trend and wave direction
         bear_abc = False
         if primary["type"] == "abc":
             bear_abc = prim_data.get("bear", False)
         elif wave_num == "A":
-            pdata = primary.get("data",{})
-            bear_abc = pdata.get("bull", False)  # if impulse was bull, correction is bearish
+            # Wave A after a completed impulse — direction of ABC depends on prior impulse
+            pdata = primary.get("data", {})
+            if "bull" in pdata:
+                bear_abc = pdata["bull"]   # bull impulse → bearish ABC correction
+            else:
+                # Fallback: infer from trend — if trend is DOWN, correction is bearish
+                bear_abc = (wave_num == "A")  # Wave A always starts the correction direction
 
         candles = [{"datetime":str(i)[:16],
                     "open":round(float(r["Open"]),dp),
@@ -755,6 +760,7 @@ def ew_chart():
             "trend":            "UP" if (primary["type"]=="impulse" and prim_data.get("bull")) or
                                          (primary["type"]=="abc" and not prim_data.get("bear")) else "DOWN",
             "bear_abc":         bear_abc,
+            "correction_dir":   "BEARISH" if bear_abc else "BULLISH",
             "degree":           "Primary",
             "confidence":       p_prob,
             "key_levels":       key_levels,
