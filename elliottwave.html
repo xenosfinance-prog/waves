@@ -2736,7 +2736,12 @@ function renderEWSketch(analysis, symbol, tf){
 
   var wp  = analysis.wave_points||{};
   var pm  = analysis.pivot_map  ||{};
-  var lblMap = {w0:'0',w1:'1',w2:'2',w3:'3',w4:'4',w5:'5',wa:'A',wb:'B',wc:'C',wlive:''};
+  // For Wave A in progress: wa=origin(no label), wlive=current A position(label A)
+  // For completed ABC: wa=A end, wb=B end, wc=C end (labels on endpoints)
+  var waveInProgress = isABC && !wp['wb'] && wp['wlive'];
+  var lblMap = waveInProgress
+    ? {w0:'0',w1:'1',w2:'2',w3:'3',w4:'4',w5:'5',wa:'',wb:'B',wc:'C',wlive:'A'}
+    : {w0:'0',w1:'1',w2:'2',w3:'3',w4:'4',w5:'5',wa:'A',wb:'B',wc:'C',wlive:''};
   var waveKeys = isABC ? ['wa','wb','wc','wlive'] : ['w0','w1','w2','w3','w4','w5'];
 
   var orderedPts = [];
@@ -2998,13 +3003,21 @@ function renderEWSketch(analysis, symbol, tf){
         // For impulse: alternating up/down based on wave direction
         var offY;
         if (i === 0) {
-          // Origin point: for bearABC the origin is a HIGH so label above
+          // Origin point: bearABC origin is HIGH (label above), bull origin is LOW (label below)
           offY = (isABC && analysis.bear_abc) ? -off : off;
         } else {
           offY = p.above ? -off : off;
         }
+        // Clamp label Y to stay within canvas bounds (with radius margin)
+        var labelR = isCurrent ? 15 : 11;
+        var rawLY  = p.y + offY;
+        var minLY  = padY + labelR + 4;
+        var maxLY  = H - padY - labelR - 4;
+        if (rawLY < minLY) offY = minLY - p.y;
+        if (rawLY > maxLY) offY = maxLY - p.y;
 
-        if(isLive){
+        if(isLive && p.lbl===''){
+          // Live price marker with arrow (only when no wave label on this point)
           var dir=drawUp?-1:1;
           ctx.save();
           ctx.strokeStyle=mainCol; ctx.lineWidth=0.8; ctx.globalAlpha=0.18; ctx.setLineDash([3,3]);
@@ -3018,15 +3031,27 @@ function renderEWSketch(analysis, symbol, tf){
           ctx.textAlign='center'; ctx.textBaseline='middle';
           ctx.fillText('NOW',p.x,p.y-22);
           ctx.restore();
-        } else if(p.lbl==='0'){
-          // Origin: small dot + text
+        } else if(isLive && p.lbl!==''){
+          // wlive carries a wave label (Wave A in progress) — draw label circle at live price
+          var r2 = 13;
+          ctx.save();
+          // small NOW text above
+          ctx.fillStyle=mainCol; ctx.font='bold 7px IBM Plex Mono,monospace';
+          ctx.textAlign='center'; ctx.textBaseline='middle';
+          ctx.fillText('NOW',p.x,p.y+offY-(r2+10));
+          ctx.restore();
+          drawLabel(p.x, p.y+offY, p.lbl, true);
+        } else if(p.lbl==='0' || (p.lbl==='' && !isLive)){
+          // Origin/unlabelled pivot: small dot only
           ctx.save();
           ctx.fillStyle=mainCol; ctx.globalAlpha=0.5;
           ctx.beginPath(); ctx.arc(p.x,p.y,3,0,Math.PI*2); ctx.fill();
           ctx.globalAlpha=1;
-          ctx.fillStyle='#7a8a9a'; ctx.font='bold 9px IBM Plex Mono,monospace';
-          ctx.textAlign='center'; ctx.textBaseline='middle';
-          ctx.fillText('0',p.x,p.y+offY);
+          if(p.lbl==='0'){
+            ctx.fillStyle='#7a8a9a'; ctx.font='bold 9px IBM Plex Mono,monospace';
+            ctx.textAlign='center'; ctx.textBaseline='middle';
+            ctx.fillText('0',p.x,p.y+offY);
+          }
           ctx.restore();
         } else {
           // Draw connector line from pivot point to label
