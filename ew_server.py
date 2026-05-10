@@ -726,11 +726,30 @@ def ew_chart():
             for k,label in [("W0","w0"),("W1","w1"),("W2","w2"),("W3","w3"),("W4","w4"),("W5","w5")]:
                 w = prim_data.get(k)
                 if w: wave_points[label] = {"price":w["price"],"idx":w["idx"],"date":w["date"]}
-            # If impulse complete (W5 exists) and we are in Wave A, add wa = W5
-            # so the sketch correctly draws the A leg starting from the W5 pivot
-            if wave_num == "A" and prim_data.get("W5"):
-                w5 = prim_data["W5"]
-                wave_points["wa"] = {"price":w5["price"],"idx":w5["idx"],"date":w5["date"]}
+            # If impulse complete and we are in Wave A correction,
+            # find the most recent significant pivot as ABC origin
+            # Use W5 only if it's in the recent 40% of candles, else use last pivot
+            if wave_num == "A":
+                n_candles = len(df)
+                recent_threshold = int(n_candles * 0.60)  # last 40% of candles
+                bull_impulse = prim_data.get("bull", True)
+                # Look for last H pivot (bull impulse top) or L pivot (bear impulse bottom)
+                origin_type = "H" if bull_impulse else "L"
+                # First try W5 if it's recent enough
+                w5 = prim_data.get("W5")
+                if w5 and w5["idx"] >= recent_threshold:
+                    wave_points["wa"] = {"price":w5["price"],"idx":w5["idx"],"date":w5["date"]}
+                else:
+                    # Fall back to most recent pivot of the correct type
+                    recent_pivots = [p for p in pivots if p["type"]==origin_type and p["idx"]>=recent_threshold]
+                    if recent_pivots:
+                        best = max(recent_pivots, key=lambda p: p["significance"])
+                        wave_points["wa"] = {"price":best["price"],"idx":best["idx"],"date":best["date"]}
+                    elif w5:
+                        wave_points["wa"] = {"price":w5["price"],"idx":w5["idx"],"date":w5["date"]}
+                # Clear w0-w5 so canvas only draws ABC legs
+                for k in ["w0","w1","w2","w3","w4","w5"]:
+                    wave_points.pop(k, None)
         else:
             # Pure ABC structure
             for k,label in [("WA","wa"),("WB","wb"),("WC","wc")]:
