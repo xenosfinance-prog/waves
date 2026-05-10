@@ -2151,7 +2151,7 @@ async function runAIAnalysis(){
     const chartAnalysis = {
       current_wave:       data.current_wave,
       trend:              data.trend || 'UP',
-      bear_abc:           data.bear_abc || false,
+      bear_abc:           data.bear_abc === true || data.correction_dir === 'BEARISH' || false,
       confidence:         data.confidence || 30,
       degree:             data.degree || 'Primary',
       corrective_pattern: data.corrective_pattern || null,
@@ -2873,7 +2873,20 @@ function renderEWSketch(analysis, symbol, tf){
     orderedPts.forEach(function(op,i){
       var x = op.idx!==999999 ? pivotX(op.idx) : candleX(i, orderedPts.length);
       var y = toY(op.price);
-      var above = i>0 ? op.price>orderedPts[i-1].price : false;
+      // Determine label position: HIGH pivots label above, LOW pivots label below
+      // For ABC bear: wa=HIGH(origin/top), wb=LOW(end of A leg), wc=LOW(target)
+      // For ABC bull: wa=LOW(origin/bottom), wb=HIGH(end of A leg), wc=HIGH(target)
+      // For impulse: alternating based on direction
+      var above;
+      if (isABC) {
+        var bearA = analysis.bear_abc;
+        if (op.k === 'wa') above = bearA;          // bear: origin is HIGH → above
+        else if (op.k === 'wb') above = !bearA;    // bear: WB is LOW end of A → below; bull: WB is HIGH → above
+        else if (op.k === 'wc') above = !bearA;    // bear: WC target is LOW → below
+        else above = i>0 ? op.price>orderedPts[i-1].price : false;
+      } else {
+        above = i>0 ? op.price>orderedPts[i-1].price : false;
+      }
       pts.push({x:x, y:y, lbl:lblMap[op.k]||op.k, k:op.k, price:op.price, above:above});
     });
   } else {
@@ -2959,7 +2972,14 @@ function renderEWSketch(analysis, symbol, tf){
   function nextSeg(){
     if(seg>=pts.length-1){ afterLines(); return; }
     var from=pts[seg], to=pts[seg+1];
-    if(from.k==='wlive'||to.k==='wlive'){seg++;_ewSkTimers.push(setTimeout(nextSeg,40));return;}
+    if(from.k==='wlive'||to.k==='wlive'){
+      // Draw dashed projection line to live price
+      ctx.save();
+      ctx.strokeStyle=mainCol; ctx.lineWidth=1.4; ctx.setLineDash([5,4]); ctx.globalAlpha=0.55;
+      ctx.beginPath(); ctx.moveTo(from.x,from.y); ctx.lineTo(to.x,to.y); ctx.stroke();
+      ctx.setLineDash([]); ctx.globalAlpha=1; ctx.restore();
+      seg++; _ewSkTimers.push(setTimeout(nextSeg,40)); return;
+    }
     var isMain=isABC?(seg===0||seg===2):(seg===0||seg===2||seg===4);
     sketchLine(from.x,from.y,to.x,to.y,isMain?mainCol:corrCol,2.0,function(){
       seg++; _ewSkTimers.push(setTimeout(nextSeg,60));
@@ -2978,7 +2998,15 @@ function renderEWSketch(analysis, symbol, tf){
         var isCurrent = p.lbl===waveN;
         var isLive    = p.k==='wlive';
         var off       = isCurrent ? curOff : baseOff;
-        var offY      = i===0 ? off : (p.above ? -off : off);
+        // For ABC: label direction depends on pivot type (H=above, L=below)
+        // For impulse: alternating up/down based on wave direction
+        var offY;
+        if (i === 0) {
+          // Origin point: for bearABC the origin is a HIGH so label above
+          offY = (isABC && analysis.bear_abc) ? -off : off;
+        } else {
+          offY = p.above ? -off : off;
+        }
 
         if(isLive){
           var dir=drawUp?-1:1;

@@ -726,23 +726,28 @@ def ew_chart():
             for k,label in [("W0","w0"),("W1","w1"),("W2","w2"),("W3","w3"),("W4","w4"),("W5","w5")]:
                 w = prim_data.get(k)
                 if w: wave_points[label] = {"price":w["price"],"idx":w["idx"],"date":w["date"]}
+            # If impulse complete (W5 exists) and we are in Wave A, add wa = W5
+            # so the sketch correctly draws the A leg starting from the W5 pivot
+            if wave_num == "A" and prim_data.get("W5"):
+                w5 = prim_data["W5"]
+                wave_points["wa"] = {"price":w5["price"],"idx":w5["idx"],"date":w5["date"]}
         else:
+            # Pure ABC structure
             for k,label in [("WA","wa"),("WB","wb"),("WC","wc")]:
                 w = prim_data.get(k)
                 if w: wave_points[label] = {"price":w["price"],"idx":w["idx"],"date":w["date"]}
 
+        # Add live price as wlive endpoint so canvas draws current position
+        last_idx = len(df) - 1
+        wave_points["wlive"] = {"price": round(live, dp), "idx": last_idx, "date": str(df.index[-1])[:10]}
+
         # Determine bearABC — must be consistent with trend and wave direction
         bear_abc = False
         if primary["type"] == "abc":
-            bear_abc = prim_data.get("bear", False)
+            bear_abc = bool(prim_data.get("bear", False))
         elif wave_num == "A":
-            # Wave A after a completed impulse — direction of ABC depends on prior impulse
-            pdata = primary.get("data", {})
-            if "bull" in pdata:
-                bear_abc = pdata["bull"]   # bull impulse → bearish ABC correction
-            else:
-                # Fallback: infer from trend — if trend is DOWN, correction is bearish
-                bear_abc = (wave_num == "A")  # Wave A always starts the correction direction
+            # Wave A after completed impulse: bull impulse → bearish ABC (price falls)
+            bear_abc = bool(prim_data.get("bull", True))
 
         candles = [{"datetime":str(i)[:16],
                     "open":round(float(r["Open"]),dp),
