@@ -336,6 +336,103 @@ document.getElementById('headerDate').textContent = monthsEN[d0.getMonth()].toUp
 
 var urlSlug = new URLSearchParams(window.location.search).get('slug');
 
+
+function generateArticleImage(title, category, market) {
+  var W = 1200, H = 630;
+  var mk = (market || 'multi').toLowerCase();
+  var themes = {
+    forex:       { bg1:'#050d1a', bg2:'#0a1628', a:'#3b82f6', a2:'#60a5fa', a3:'#1d4ed8', label:'FOREX',       icon:'₣' },
+    commodities: { bg1:'#120a00', bg2:'#1c1000', a:'#f59e0b', a2:'#fbbf24', a3:'#92400e', label:'COMMODITIES', icon:'◈' },
+    equity:      { bg1:'#001a0e', bg2:'#00220f', a:'#10b981', a2:'#34d399', a3:'#065f46', label:'EQUITY',       icon:'▲' },
+    crypto:      { bg1:'#0d0520', bg2:'#130828', a:'#8b5cf6', a2:'#a78bfa', a3:'#4c1d95', label:'CRYPTO',       icon:'₿' },
+    macro:       { bg1:'#1a0505', bg2:'#220808', a:'#ef4444', a2:'#f87171', a3:'#991b1b', label:'MACRO',        icon:'◉' },
+    multi:       { bg1:'#050d1a', bg2:'#0a1628', a:'#3b82f6', a2:'#60a5fa', a3:'#1d4ed8', label:'GLOBAL',       icon:'◈' },
+  };
+  var th = themes[mk] || themes.multi;
+  var catLabel = (category || th.label).toUpperCase().substring(0, 40);
+  var titleShort = title && title.length > 110 ? title.substring(0, 108) + '…' : (title || '');
+
+  var canvas = document.createElement('canvas');
+  canvas.width = W; canvas.height = H;
+  var ctx = canvas.getContext('2d');
+
+  // Background gradient
+  var bg = ctx.createLinearGradient(0, 0, W, H);
+  bg.addColorStop(0, th.bg1); bg.addColorStop(0.6, th.bg2); bg.addColorStop(1, '#030810');
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+
+  // Grid lines
+  ctx.strokeStyle = th.a + '20'; ctx.lineWidth = 1;
+  for (var y = 0; y <= H; y += 60) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+  for (var x = 0; x <= W; x += 80) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+
+  // Chart decoration right side
+  ctx.save(); ctx.globalAlpha = 0.22;
+  var cx = W*0.68, cy = H*0.5;
+  if (mk === 'commodities') {
+    var bars = [[.3,.7],[.65,.4],[.35,.8],[.75,.55],[.5,.85],[.8,.6],[.55,.9],[.85,.7]];
+    var bw=40, bh=240;
+    bars.forEach(function(b,i){
+      var x0 = cx-170+i*55, up = b[1]>b[0], col = up?'#10b981':'#ef4444';
+      ctx.strokeStyle=col; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.moveTo(x0+bw/2, cy-bh/2+.1*bh); ctx.lineTo(x0+bw/2, cy+bh/2-.1*bh); ctx.stroke();
+      ctx.fillStyle=col;
+      ctx.fillRect(x0, cy-bh/2+Math.min(b[0],b[1])*bh, bw, Math.max(Math.abs(b[1]-b[0])*bh,4));
+    });
+  } else {
+    var pts = [.50,.58,.52,.65,.55,.70,.62,.75,.68,.80,.72,.78,.74];
+    ctx.beginPath();
+    pts.forEach(function(p,i){ var px=cx-220+i/(pts.length-1)*480, py=cy+110-p*220; i===0?ctx.moveTo(px,py):ctx.lineTo(px,py); });
+    ctx.strokeStyle=th.a; ctx.lineWidth=3; ctx.globalAlpha=0.5; ctx.stroke();
+    ctx.lineTo(cx+260,cy+110); ctx.lineTo(cx-220,cy+110); ctx.closePath();
+    var ag=ctx.createLinearGradient(0,cy-110,0,cy+110); ag.addColorStop(0,th.a+'40'); ag.addColorStop(1,th.a+'00');
+    ctx.fillStyle=ag; ctx.globalAlpha=0.2; ctx.fill();
+  }
+  ctx.restore();
+
+  // Left accent strip
+  var strip = ctx.createLinearGradient(0,0,0,H);
+  strip.addColorStop(0,th.a); strip.addColorStop(0.5,th.a2); strip.addColorStop(1,th.a3);
+  ctx.fillStyle=strip; ctx.fillRect(0,0,6,H);
+
+  // Category label
+  ctx.globalAlpha=1; ctx.font='bold 13px monospace'; ctx.fillStyle=th.a2; ctx.textAlign='left';
+  ctx.fillText('// '+catLabel, 44, 56);
+  var lg=ctx.createLinearGradient(44,0,600,0); lg.addColorStop(0,th.a); lg.addColorStop(1,th.a+'00');
+  ctx.fillStyle=lg; ctx.fillRect(44,64,400,2);
+
+  // Title — auto-size
+  var maxW=W-96, fontSize=42, lines2=[];
+  for (var fs=42; fs>=22; fs-=2) {
+    ctx.font='bold '+fs+'px Arial,sans-serif';
+    var wds=titleShort.split(' '), tmp=[], cur='';
+    wds.forEach(function(w){ var t=cur?cur+' '+w:w; if(ctx.measureText(t).width>maxW&&cur){tmp.push(cur);cur=w;}else cur=t; });
+    if(cur) tmp.push(cur);
+    if(tmp.length<=3){fontSize=fs;lines2=tmp;break;} lines2=tmp;
+  }
+  ctx.font='bold '+fontSize+'px Arial,sans-serif'; ctx.fillStyle='#ffffff'; ctx.globalAlpha=1;
+  var lh=Math.round(fontSize*1.3), titleY=100+lh;
+  lines2.slice(0,3).forEach(function(line,i){ ctx.fillText(line,44,titleY+i*lh); });
+
+  // Ghost icon
+  ctx.font='bold 280px Arial,sans-serif'; ctx.fillStyle=th.a; ctx.globalAlpha=0.04; ctx.textAlign='right';
+  ctx.fillText(th.icon, W-40, H*0.78);
+
+  // Bottom bar
+  var barG=ctx.createLinearGradient(0,H-48,W,H-48);
+  barG.addColorStop(0,'rgba(8,14,26,0.95)'); barG.addColorStop(1,'rgba(8,14,26,0.80)');
+  ctx.fillStyle=barG; ctx.globalAlpha=1; ctx.fillRect(0,H-48,W,48);
+  ctx.textAlign='left'; ctx.font='bold 14px monospace'; ctx.fillStyle=th.a; ctx.fillText('XENOS',44,H-18);
+  ctx.fillStyle='#c8d8ea'; ctx.fillText('FINANCE',104,H-18);
+  ctx.font='400 11px monospace'; ctx.fillStyle='#3a5575'; ctx.fillText('· AI MARKET INTELLIGENCE',210,H-18);
+  var now=new Date();
+  var ds=now.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}).toUpperCase();
+  ctx.textAlign='right'; ctx.font='400 11px monospace'; ctx.fillStyle='#2a4060'; ctx.fillText(ds,W-40,H-18);
+
+  ctx.globalAlpha=1;
+  return canvas.toDataURL('image/jpeg',0.92);
+}
+
 async function loadGrid() {
   try {
     var res = await fetch(GITHUB_RAW + 'articles/index.json?t=' + Date.now());
@@ -355,9 +452,15 @@ async function loadGrid() {
         var d = new Date(a.publishedAt);
         dateStr = monthsEN[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear();
       }
-      var thumbHtml = a.imageUrl
-        ? '<div class="card-thumb"><img src="' + a.imageUrl + '" alt="" loading="lazy" onerror="this.parentElement.className=\'card-thumb-placeholder\';this.parentElement.innerHTML=\'<span>XENOSFINANCE</span>\'"></div>'
-        : '<div class="card-thumb-placeholder"><span>XENOSFINANCE</span></div>';
+      // Generate image via Canvas if no imageUrl
+      var thumbHtml;
+      if (a.imageUrl) {
+        thumbHtml = '<div class="card-thumb"><img src="' + a.imageUrl + '" alt="" loading="lazy" onerror="this.src=generateArticleImage(this.closest(\'.blog-card\').dataset.title||\'\',(this.closest(\'.blog-card\').dataset.cat||\'\'),(this.closest(\'.blog-card\').dataset.market||\'multi\'))"></div>';
+      } else {
+        var mk = (a.market || 'multi');
+        var genImg = generateArticleImage(a.title || '', a.category || '', mk);
+        thumbHtml = '<div class="card-thumb"><img src="' + genImg + '" alt="" loading="lazy"></div>';
+      }
       card.innerHTML =
         thumbHtml +
         '<div class="card-body">' +
