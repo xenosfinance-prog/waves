@@ -909,6 +909,18 @@ canvas { display: block; }
         </div>
         <div class="admin-label">Your EW Reading</div>
         <textarea class="admin-textarea" id="aiReading" placeholder="Describe your wave count as you see it on TradingView. Example:&#10;&#10;I see a completed 5-wave impulse up from 1.0780. Wave 1: 1.0780-1.0920. Wave 2 retraced to 1.0850 (61.8%). Wave 3 extended to 1.1080 (161.8%). Wave 4 flat correction to 1.0990. Wave 5 terminal at 1.1150 with bearish RSI divergence. Now starting ABC correction. Wave A target 38.2% at 1.0935, 61.8% at 1.0815. SL above 1.1150." style="min-height:140px;"></textarea>
+        <div class="admin-label" style="margin-top:12px;">TradingView Screenshot (optional)</div>
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+          <label style="display:inline-flex;align-items:center;gap:8px;padding:10px 18px;background:var(--bg);border:1px solid var(--border2);color:var(--gold2);font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--border2)'">
+            📎 Upload Chart Image
+            <input type="file" id="chartImageInput" accept="image/*" style="display:none;" onchange="previewChartImage(this)">
+          </label>
+          <span id="chartImageName" style="font-size:10px;color:var(--muted);letter-spacing:1px;"></span>
+          <button id="chartImageClear" onclick="clearChartImage()" style="display:none;padding:6px 12px;background:transparent;border:1px solid var(--border);color:var(--muted);font-family:var(--mono);font-size:9px;cursor:pointer;">✕ Remove</button>
+        </div>
+        <div id="chartImagePreview" style="display:none;margin-top:10px;border:1px solid var(--border);border-radius:2px;overflow:hidden;max-height:220px;">
+          <img id="chartImageThumb" src="" alt="Chart preview" style="width:100%;max-height:220px;object-fit:cover;display:block;">
+        </div>
       </div>
 
       <button class="admin-run-btn" id="aiRunBtn" onclick="runAIAnalysis()">⚡ Generate Analysis</button>
@@ -1135,13 +1147,95 @@ async function renderPublicFeed() {
     del.title = 'Delete';
     del.textContent = 'x';
     (function(i) { del.addEventListener('click', function() { deleteNote(i); }); })(realIdx);
+    // Chart image
+    if (n.imageUrl) {
+      var imgWrap = document.createElement('div');
+      imgWrap.style.cssText = 'width:100%;margin:10px 0 6px;border-radius:2px;overflow:hidden;max-height:320px;';
+      var img = document.createElement('img');
+      img.src = n.imageUrl;
+      img.alt = (n.asset||'') + ' chart';
+      img.style.cssText = 'width:100%;max-height:320px;object-fit:cover;display:block;';
+      img.onerror = function(){ this.parentElement.style.display='none'; };
+      imgWrap.appendChild(img);
+      row.appendChild(imgWrap);
+    }
+
     row.appendChild(bias);
     row.appendChild(asset);
     row.appendChild(setup);
     row.appendChild(date);
     row.appendChild(del);
+
+    // Analysis text (collapsible)
+    if (n.analysis) {
+      var analysisWrap = document.createElement('div');
+      analysisWrap.style.cssText = 'width:100%;margin-top:10px;';
+      var toggleBtn = document.createElement('button');
+      toggleBtn.textContent = '▶ View Analysis';
+      toggleBtn.style.cssText = 'background:none;border:1px solid var(--border2);color:var(--gold2);font-family:var(--mono);font-size:9px;letter-spacing:2px;padding:4px 10px;cursor:pointer;text-transform:uppercase;margin-bottom:8px;';
+      var analysisPre = document.createElement('pre');
+      analysisPre.style.cssText = 'display:none;font-family:var(--mono);font-size:11px;color:var(--ink2);line-height:1.7;white-space:pre-wrap;background:var(--bg);border:1px solid var(--border);padding:14px;margin-top:6px;';
+      analysisPre.textContent = n.analysis;
+      toggleBtn.onclick = function(){
+        var open = analysisPre.style.display !== 'none';
+        analysisPre.style.display = open ? 'none' : 'block';
+        toggleBtn.textContent = open ? '▶ View Analysis' : '▼ Hide Analysis';
+      };
+      analysisWrap.appendChild(toggleBtn);
+      analysisWrap.appendChild(analysisPre);
+      row.appendChild(analysisWrap);
+    }
+
     list.appendChild(row);
   });
+}
+
+async // ── Chart image upload helpers ───────────────────────────────────────────────
+let _chartImageBase64 = null;
+let _chartImageMime   = null;
+
+function previewChartImage(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    _chartImageBase64 = e.target.result.split(',')[1];
+    _chartImageMime   = file.type || 'image/jpeg';
+    document.getElementById('chartImageName').textContent = file.name;
+    document.getElementById('chartImageThumb').src = e.target.result;
+    document.getElementById('chartImagePreview').style.display = 'block';
+    document.getElementById('chartImageClear').style.display  = 'inline-block';
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearChartImage() {
+  _chartImageBase64 = null; _chartImageMime = null;
+  document.getElementById('chartImageInput').value = '';
+  document.getElementById('chartImageName').textContent = '';
+  document.getElementById('chartImagePreview').style.display = 'none';
+  document.getElementById('chartImageClear').style.display   = 'none';
+}
+
+async function uploadChartImageToGitHub(base64, mime, filename) {
+  const WORKER = 'https://xenos-ai-proxy.xenosfinance.workers.dev';
+  try {
+    const r = await fetch(WORKER, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        type: 'github_upload',
+        path: 'wave_notes/charts/' + filename,
+        content: base64,
+        message: 'EW chart: ' + filename
+      })
+    });
+    const d = await r.json();
+    return d.raw_url || null;
+  } catch(e) {
+    console.warn('Chart upload failed:', e);
+    return null;
+  }
 }
 
 async function publishNote() {
@@ -1152,12 +1246,29 @@ async function publishNote() {
   if (!asset) { err.textContent='⚠ Asset required'; return; }
   if (!setup) { err.textContent='⚠ Setup label required'; return; }
   err.textContent='Saving...';
+
+  // Upload chart image if present
+  let imageUrl = null;
+  if (_chartImageBase64) {
+    err.textContent='Uploading chart image...';
+    const ext = (_chartImageMime||'image/jpeg').split('/')[1] || 'jpg';
+    const fname = asset.toLowerCase().replace('/','') + '_' + Date.now() + '.' + ext;
+    imageUrl = await uploadChartImageToGitHub(_chartImageBase64, _chartImageMime, fname);
+  }
+
   const notes = await loadNotes();
   const now = new Date();
-  notes.push({asset, setup, bias, date: now.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}).toUpperCase()});
+  const analysisText = document.getElementById('analysisText') ? document.getElementById('analysisText').textContent : '';
+  notes.push({
+    asset, setup, bias,
+    date: now.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}).toUpperCase(),
+    imageUrl: imageUrl || null,
+    analysis: analysisText ? analysisText.substring(0, 2000) : ''
+  });
   await saveNotes(notes);
   document.getElementById('noteAsset').value='';
   document.getElementById('noteSetup').value='';
+  clearChartImage();
   err.textContent='';
   renderPublicFeed();
 }
