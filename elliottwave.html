@@ -885,65 +885,30 @@ canvas { display: block; }
         <div id="noteErr" style="font-size:11px;color:var(--red2);margin-top:6px;min-height:14px;"></div>
       </div>
 
-      <!-- GENERATOR CONTROLS -->
-      <div class="admin-controls">
-        <div>
-          <div class="admin-label">Asset / Pair</div>
-          <select class="admin-select" id="aiSymbol">
-            <optgroup label="FX Majors">
-              <option value="eur/usd">EUR/USD</option>
-              <option value="gbpusd">GBP/USD</option>
-              <option value="usdjpy">USD/JPY</option>
-              <option value="audusd">AUD/USD</option>
-              <option value="usdchf">USD/CHF</option>
-              <option value="usdcad">USD/CAD</option>
-              <option value="nzdusd">NZD/USD</option>
-            </optgroup>
-            <optgroup label="FX Cross">
-              <option value="eurgbp">EUR/GBP</option>
-              <option value="eurjpy">EUR/JPY</option>
-              <option value="gbpjpy">GBP/JPY</option>
-              <option value="cadjpy">CAD/JPY</option>
-              <option value="audnzd">AUD/NZD</option>
-              <option value="eurchf">EUR/CHF</option>
-            </optgroup>
-            <optgroup label="Commodities">
-              <option value="gold">Gold XAU/USD</option>
-              <option value="silver">Silver XAG/USD</option>
-              <option value="oil wti">Oil WTI</option>
-              <option value="brent">Brent Oil</option>
-              <option value="nat gas">Natural Gas</option>
-              <option value="copper">Copper</option>
-            </optgroup>
-            <optgroup label="Indices">
-              <option value="s&p 500">S&amp;P 500</option>
-              <option value="nasdaq">NASDAQ</option>
-              <option value="dow">Dow Jones</option>
-              <option value="dax">DAX</option>
-              <option value="ftse 100">FTSE 100</option>
-            </optgroup>
-            <optgroup label="Crypto">
-              <option value="btc/usd">Bitcoin BTC/USD</option>
-              <option value="eth/usd">Ethereum ETH/USD</option>
-              <option value="sol">Solana SOL</option>
-              <option value="xrp">XRP</option>
-            </optgroup>
-          </select>
+      <!-- MY EW READING → AI ANALYSIS -->
+      <div style="margin-bottom:16px;">
+        <div class="admin-label">Asset / Pair</div>
+        <input class="admin-input" id="aiSymbol" placeholder="e.g. EURUSD, Gold, Oil WTI, BTC/USD" style="width:260px;margin-bottom:12px;">
+        <div style="display:flex;gap:12px;margin-bottom:12px;">
+          <div style="flex:0 0 180px;">
+            <div class="admin-label">Timeframe</div>
+            <select class="admin-select" id="aiTf">
+              <option>W1 (Weekly)</option>
+              <option selected>D1 (Daily)</option>
+              <option>H4 (4-Hour)</option>
+              <option>H2 (2-Hour)</option>
+              <option>H1 (1-Hour)</option>
+              <option>M30 (30-Min)</option>
+              <option>M15 (15-Min)</option>
+            </select>
+          </div>
+          <div style="flex:1;">
+            <div class="admin-label">Live Price (optional)</div>
+            <input class="admin-input" id="aiContext" placeholder="e.g. 1.0845, 2312.50">
+          </div>
         </div>
-        <div>
-          <div class="admin-label">Timeframe</div>
-          <select class="admin-select" id="aiTf">
-            <option>W1 (Weekly)</option>
-            <option selected>D1 (Daily)</option>
-            <option>H4 (4-Hour)</option>
-            <option>H2 (2-Hour)</option>
-            <option>H1 (1-Hour)</option>
-          </select>
-        </div>
-        <div>
-          <div class="admin-label">Context (optional)</div>
-          <input class="admin-input" id="aiContext" placeholder="e.g. post-NFP, Fed hawkish...">
-        </div>
+        <div class="admin-label">Your EW Reading</div>
+        <textarea class="admin-textarea" id="aiReading" placeholder="Describe your wave count as you see it on TradingView. Example:&#10;&#10;I see a completed 5-wave impulse up from 1.0780. Wave 1: 1.0780-1.0920. Wave 2 retraced to 1.0850 (61.8%). Wave 3 extended to 1.1080 (161.8%). Wave 4 flat correction to 1.0990. Wave 5 terminal at 1.1150 with bearish RSI divergence. Now starting ABC correction. Wave A target 38.2% at 1.0935, 61.8% at 1.0815. SL above 1.1150." style="min-height:140px;"></textarea>
       </div>
 
       <button class="admin-run-btn" id="aiRunBtn" onclick="runAIAnalysis()">⚡ Generate Analysis</button>
@@ -2087,169 +2052,86 @@ function detectTrend(candles) {
 }
 
 async function runAIAnalysis(){
-  const symbolEl  = document.getElementById('aiSymbol');
-  const symbolVal = symbolEl.options ? symbolEl.options[symbolEl.selectedIndex].value : 'eur/usd';
-  const symbol    = symbolEl.options ? symbolEl.options[symbolEl.selectedIndex].text : symbolVal.toUpperCase();
+  const symbolVal = (document.getElementById('aiSymbol').value || '').trim();
+  const symbol    = symbolVal.toUpperCase() || 'UNKNOWN';
   const tf        = document.getElementById('aiTf').value;
+  const reading   = (document.getElementById('aiReading').value || '').trim();
+  const livePrice = (document.getElementById('aiContext').value || '').trim();
   const btn       = document.getElementById('aiRunBtn');
   const out       = document.getElementById('analysisOutput');
   const txt       = document.getElementById('analysisText');
 
-  btn.disabled=true; btn.textContent='Analysing...';
+  if (!symbolVal) { alert('Please enter the asset / pair.'); return; }
+  if (!reading)   { alert('Please describe your EW reading.'); return; }
+
+  btn.disabled=true; btn.textContent='Generating...';
   out.style.display='block';
-  txt.innerHTML='<span class="analysis-loading">⬡ CONTACTING RAILWAY SERVER...</span>';
+  txt.innerHTML='<span class="analysis-loading">⬡ CLAUDE AI ANALYSIS IN PROGRESS...</span>';
   document.getElementById('tgBtn').style.display='none';
+  document.getElementById('publishFromAnalysisBtn').style.display='none';
 
   try {
-    // Call Railway EW Server v3 directly — no JS engine
-    const res = await fetch('https://waves-production-ddbf.up.railway.app/ew-chart', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ symbol: symbolVal, tf: tf }),
-      signal: AbortSignal.timeout(90000)
+    const prompt = `You are a senior Elliott Wave analyst at an institutional trading desk.
+The analyst has identified the following wave structure on ${symbol} (${tf}):
+
+${reading}
+${livePrice ? 'Current live price: ' + livePrice : ''}
+
+Based on this wave reading, write a complete professional EW analysis in ENGLISH.
+Use EXACTLY this 4-section format with NO markdown, NO asterisks:
+
+🎯 Major Takeaways
+- Main scenario: [one sentence — setup, entry near current price, targets, stop]
+- Alternative scenario: [one sentence — what changes if key level breaks]
+
+📈 Main Scenario
+[2-3 sentences. Precise entry, TP1, TP2, SL based on the wave reading. R:R.]
+
+📉 Alternative Scenario
+[1-2 sentences. Key invalidation level and what wave structure follows.]
+
+🔍 Analysis
+[3-4 sentences. Detail the wave structure: sub-waves, degree, key Fibonacci levels from the reading, why this count is valid. Reference specific price levels from the analyst's reading.]
+
+Keep it professional, precise, under 280 words. Use the EXACT price levels from the analyst's reading.`;
+
+    const WORKER = 'https://xenos-ai-proxy.xenosfinance.workers.dev';
+    const res = await fetch(WORKER, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'claude',
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 900,
+        messages: [{ role: 'user', content: prompt }]
+      }),
+      signal: AbortSignal.timeout(60000)
     });
 
-    if (!res.ok) {
-      const err = await res.json().catch(()=>({}));
-      throw new Error(err.error || 'Server error ' + res.status);
-    }
+    if (!res.ok) throw new Error('Worker error ' + res.status);
 
     const data = await res.json();
-
-    // Handle no-count response
-    if (data.no_count || !data.current_wave || data.current_wave === '?') {
-      txt.textContent = [
-        '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
-        '  ' + symbol + '  ·  ' + tf + '  ·  Live: ' + (data.live_price||'—'),
-        '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
-        '',
-        '  ⬡ NO VALID WAVE COUNT AVAILABLE',
-        '',
-        '  ' + (data.error || 'Insufficient pivot structure on this timeframe.'),
-        '',
-        '  → Try a higher timeframe (4H, Daily)',
-        '  → Wait for more price action to develop',
-        '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
-      ].join('\n');
-      btn.disabled=false; btn.textContent='⚡ Generate Analysis';
-      return;
+    // Extract Claude's text from response
+    let analysisText = '';
+    if (data.content && data.content[0]) {
+      analysisText = data.content[0].text || '';
+    } else if (data.error) {
+      throw new Error(data.error.message || 'API error');
     }
+    if (!analysisText) throw new Error('Empty response from AI');
 
-    // Store candles for sketch
-    const candles = data.candles || [];
-    ewLastCandles = candles;
-
-    // Build chartAnalysis from server response
-    const dp = (data.live_price||1) > 100 ? 2 : 5;
-    const kl = data.key_levels || {};
-
-    // Build pivot_map from wave_points
-    const wp  = data.wave_points || {};
-    const pm  = {};
-    Object.entries(wp).forEach(([k,v]) => { if(v) pm[k] = v; });
-
-    const chartAnalysis = {
-      current_wave:       data.current_wave,
-      trend:              data.trend || 'UP',
-      bear_abc:           data.bear_abc === true || data.correction_dir === 'BEARISH' || false,
-      confidence:         data.confidence || 30,
-      degree:             data.degree || 'Primary',
-      corrective_pattern: data.corrective_pattern || null,
-      scenario_only:      data.scenario_only !== false,
-      key_levels: {
-        entry:      kl.entry      || data.live_price,
-        stop_loss:  kl.stop_loss  || 0,
-        tp1:        kl.tp1        || 0,
-        tp2:        kl.tp2        || 0,
-        invalidation: kl.stop_loss || 0,
-      },
-      wave_points:  wp,
-      pivot_map:    pm,
-      mkt_structure: data.market_structure || null,
-      alt_scenario:  data.alt_scenario || null,
-    };
-
-    // Show chart
-    const wrap = document.getElementById('ewChartWrap');
-    wrap.style.display = 'block';
-    setTimeout(function(){ renderEWSketch(chartAnalysis, symbol, tf); }, 180);
-
-    // Build instant output text
-    const wn         = data.current_wave || '?';
-    const waveDesc   = data.wave_desc || '';
-    const scenario   = data.scenario || '';
-    const ind        = data.indicators || {};
-    const mkt        = data.market_structure || {};
-    const alt        = data.alt_scenario || {};
-    const pProb      = data.primary_prob || data.confidence || 65;
-    const livePrice  = data.live_price || 0;
-    const vp         = null;
-
-    const isScenarioOnly = data.scenario_only !== false;
-    const trendTxt = data.trend==='UP' ? '▲ UPTREND' : '▼ DOWNTREND';
-    const dec      = dp;
-
-    const scenarioLines = [];
-    if (isScenarioOnly) {
-      const isABC = ['A','B','C'].indexOf(wn) >= 0;
-      if (isABC) {
-        // bear_abc=true means price is falling in this correction (bearish ABC)
-        const bearABC = data.correction_dir ? (data.correction_dir === 'BEARISH') : data.bear_abc;
-        scenarioLines.push(`CORRECTION TYPE  ${data.corrective_pattern || 'ABC Correction'}`);
-        scenarioLines.push(`  ${bearABC ? '▼ Bearish correction in progress' : '▲ Bullish correction in progress'}`);
-        scenarioLines.push(``);
-      }
-      scenarioLines.push(`SCENARIO`);
-      scenario.split('. ').filter(s=>s.trim()).forEach(s=>{
-        scenarioLines.push('  ' + s.trim() + (s.trim().endsWith('.')?'':'.'));
-      });
-    }
-
-    const instantLines = [
+    const header = [
       '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
-      `  ${symbol}  ·  ${tf}  ·  Live: ${livePrice.toFixed ? livePrice.toFixed(dp) : livePrice}`,
+      `  ${symbol}  ·  ${tf}${livePrice ? '  ·  Live: ' + livePrice : ''}`,
       '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
       '',
-      'WAVE STRUCTURE',
-      `  ${waveDesc}`,
-      `  ${trendTxt}  ·  Degree: ${data.degree||'Primary'}  ·  Confidence: ${pProb}%`,
-      '',
-      'MARKET CONTEXT',
-      `  ${scenario}`,
-      '',
-      ...scenarioLines,
-      ...(isScenarioOnly ? [] : [
-        'KEY LEVELS',
-        `  Entry      ${(kl.entry||livePrice).toFixed ? (kl.entry||livePrice).toFixed(dp) : '—'}`,
-        `  Stop Loss  ${kl.stop_loss ? kl.stop_loss.toFixed(dp) : '—'}`,
-        `  Target 1   ${kl.tp1 ? kl.tp1.toFixed(dp) : '—'}`,
-        `  Target 2   ${kl.tp2 ? kl.tp2.toFixed(dp) : '—'}`,
-        '',
-      ]),
-      'MARKET STRUCTURE',
-      `  ${mkt.structure||'N/A'}${mkt.bos?' · Break of Structure':''}${mkt.choch?' · ⚠ Change of Character':''}`,
-      '',
-      'SCENARIOS',
-      `  PRIMARY  (${pProb}%)  ${waveDesc}`,
-      `  ALT      (${alt.probability||20}%)  ${alt.description||'N/A'}`,
-      '',
-      'INDICATORS',
-      `  RSI(14): ${ind.rsi||'—'}${(ind.rsi||0)>70?' — Overbought':(ind.rsi||0)<30?' — Oversold':''}`,
-      `  MACD: ${ind.macd_hist>0?'+':''}${(ind.macd_hist||0).toFixed(dp)}  ${(ind.macd_hist||0)>0?'Bullish':'Bearish'} momentum`,
-      `  ATR: ${(ind.atr||0).toFixed ? (ind.atr||0).toFixed(dp) : '—'}`,
-      `  MTF: ${data.mtf_context||'N/A'}`,
-      '',
-      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
-      '  ANALYSIS',
-      `  ${data.analysis_text || 'Loading...'}`,
-      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
-    ].filter(l=>l!==null);
+    ].join('\n');
 
-    txt.textContent = instantLines.join('\n');
+    txt.textContent = header + analysisText;
     lastAnalysis = txt.textContent;
 
-    // Show telegram button
-    document.getElementById('tgBtn').style.display='inline-flex';
+    document.getElementById('tgBtn').style.display = 'inline-flex';
+    document.getElementById('publishFromAnalysisBtn').style.display = 'inline-block';
     btn.disabled=false; btn.textContent='⚡ Generate Analysis';
 
   } catch(e) {
