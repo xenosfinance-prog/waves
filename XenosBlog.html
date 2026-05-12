@@ -454,8 +454,11 @@ async function loadGrid() {
       }
       // Generate image via Canvas if no imageUrl
       var thumbHtml;
-      if (a.imageUrl) {
-        thumbHtml = '<div class="card-thumb"><img src="' + a.imageUrl + '" alt="" loading="lazy" onerror="this.src=generateArticleImage(this.closest(\'.blog-card\').dataset.title||\'\',(this.closest(\'.blog-card\').dataset.cat||\'\'),(this.closest(\'.blog-card\').dataset.market||\'multi\'))"></div>';
+      // Use Gemini category images for bot-generated articles (raw.githubusercontent canvas images)
+      // and for articles with no imageUrl
+      var useGemini = !a.imageUrl || (a.imageUrl && a.imageUrl.indexOf('brief-') > -1) || (a.imageUrl && a.imageUrl.indexOf('-img.jpg') > -1 && a.imageUrl.indexOf('article-') === -1);
+      if (a.imageUrl && !useGemini) {
+        thumbHtml = '<div class="card-thumb"><img src="' + a.imageUrl + '" alt="" loading="lazy"></div>';
       } else {
         var title2  = (a.title || '').toLowerCase();
         var cat2    = (a.category || '').toLowerCase();
