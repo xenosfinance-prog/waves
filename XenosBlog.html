@@ -457,36 +457,34 @@ async function loadGrid() {
       if (a.imageUrl) {
         thumbHtml = '<div class="card-thumb"><img src="' + a.imageUrl + '" alt="" loading="lazy" onerror="this.src=generateArticleImage(this.closest(\'.blog-card\').dataset.title||\'\',(this.closest(\'.blog-card\').dataset.cat||\'\'),(this.closest(\'.blog-card\').dataset.market||\'multi\'))"></div>';
       } else {
-        // Use category-based static image first, fallback to canvas generator
-        var mk = (a.market || 'multi').toLowerCase();
-        var catStr = (a.category || '').toLowerCase();
-        var BLOG_IMGS = {
-          'forex':       'https://raw.githubusercontent.com/xenosfinance-prog/waves/main/assets/blog/forex.png',
+        var mk2 = (a.market || 'multi').toLowerCase();
+        var cat2 = (a.category || '').toLowerCase();
+        var BIMGS = {
+          'forex': 'https://raw.githubusercontent.com/xenosfinance-prog/waves/main/assets/blog/forex.png',
           'commodities': 'https://raw.githubusercontent.com/xenosfinance-prog/waves/main/assets/blog/commodities.png',
-          'equity':      'https://raw.githubusercontent.com/xenosfinance-prog/waves/main/assets/blog/equity.png',
-          'crypto':      'https://raw.githubusercontent.com/xenosfinance-prog/waves/main/assets/blog/crypto.png',
-          'macro':       'https://raw.githubusercontent.com/xenosfinance-prog/waves/main/assets/blog/macro.png',
-          'premarket':   'https://raw.githubusercontent.com/xenosfinance-prog/waves/main/assets/blog/premarket.png',
-          'calendar':    'https://raw.githubusercontent.com/xenosfinance-prog/waves/main/assets/blog/calendar.png',
+          'equity': 'https://raw.githubusercontent.com/xenosfinance-prog/waves/main/assets/blog/equity.png',
+          'crypto': 'https://raw.githubusercontent.com/xenosfinance-prog/waves/main/assets/blog/crypto.png',
+          'macro': 'https://raw.githubusercontent.com/xenosfinance-prog/waves/main/assets/blog/macro.png',
+          'premarket': 'https://raw.githubusercontent.com/xenosfinance-prog/waves/main/assets/blog/premarket.png',
+          'calendar': 'https://raw.githubusercontent.com/xenosfinance-prog/waves/main/assets/blog/calendar.png',
           'elliottwave': 'https://raw.githubusercontent.com/xenosfinance-prog/waves/main/assets/blog/elliottwave.png',
-          'energy':      'https://raw.githubusercontent.com/xenosfinance-prog/waves/main/assets/blog/energy.png',
-          'geopolitics': 'https://raw.githubusercontent.com/xenosfinance-prog/waves/main/assets/blog/geopolitics.png',
+          'energy': 'https://raw.githubusercontent.com/xenosfinance-prog/waves/main/assets/blog/energy.png',
+          'geopolitics': 'https://raw.githubusercontent.com/xenosfinance-prog/waves/main/assets/blog/geopolitics.png'
         };
-        // Match by market first, then by category string keywords
-        var staticImg = BLOG_IMGS[mk] || null;
-        if (!staticImg) {
-          if (catStr.indexOf('forex') > -1 || catStr.indexOf('fx') > -1) staticImg = BLOG_IMGS['forex'];
-          else if (catStr.indexOf('crypto') > -1) staticImg = BLOG_IMGS['crypto'];
-          else if (catStr.indexOf('commodit') > -1) staticImg = BLOG_IMGS['commodities'];
-          else if (catStr.indexOf('equit') > -1) staticImg = BLOG_IMGS['equity'];
-          else if (catStr.indexOf('pre-market') > -1 || catStr.indexOf('premarket') > -1) staticImg = BLOG_IMGS['premarket'];
-          else if (catStr.indexOf('calendar') > -1) staticImg = BLOG_IMGS['calendar'];
-          else if (catStr.indexOf('elliott') > -1 || catStr.indexOf('wave') > -1) staticImg = BLOG_IMGS['elliottwave'];
-          else if (catStr.indexOf('energy') > -1 || catStr.indexOf('eia') > -1) staticImg = BLOG_IMGS['energy'];
-          else if (catStr.indexOf('geopolit') > -1) staticImg = BLOG_IMGS['geopolitics'];
-          else staticImg = BLOG_IMGS['macro'];
+        var sImg = BIMGS[mk2] || null;
+        if (!sImg) {
+          if (cat2.indexOf('forex') > -1 || cat2.indexOf('fx') > -1) sImg = BIMGS['forex'];
+          else if (cat2.indexOf('crypto') > -1) sImg = BIMGS['crypto'];
+          else if (cat2.indexOf('commodit') > -1) sImg = BIMGS['commodities'];
+          else if (cat2.indexOf('equit') > -1) sImg = BIMGS['equity'];
+          else if (cat2.indexOf('pre-market') > -1 || cat2.indexOf('premarket') > -1) sImg = BIMGS['premarket'];
+          else if (cat2.indexOf('calendar') > -1) sImg = BIMGS['calendar'];
+          else if (cat2.indexOf('elliott') > -1 || cat2.indexOf('wave') > -1) sImg = BIMGS['elliottwave'];
+          else if (cat2.indexOf('energy') > -1 || cat2.indexOf('eia') > -1) sImg = BIMGS['energy'];
+          else if (cat2.indexOf('geopolit') > -1) sImg = BIMGS['geopolitics'];
+          else sImg = BIMGS['macro'];
         }
-        thumbHtml = '<div class="card-thumb"><img src="' + staticImg + '" alt="" loading="lazy" onerror="this.src=generateArticleImage(\'' + (a.title||'').replace(/\'/g,\'\\\'\')+'\',' + '\'' + mk + '\'' + ',\'' + mk + '\')"></div>';
+        thumbHtml = '<div class="card-thumb"><img src="' + sImg + '" alt="" loading="lazy" onerror="this.style.display='none'"></div>';
       }
       card.innerHTML =
         thumbHtml +
