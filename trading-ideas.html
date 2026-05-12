@@ -492,15 +492,22 @@ function renderGrid(){
 
 function buildCard(idea, idx){
   const bias=(idea.bias||'NEUTRAL').toUpperCase();
-  const badgeCls=bias==='LONG'?'badge-long':bias==='SHORT'?'badge-short':'badge-neutral';
+  const isMKO = idea.source==='MKO';
+  const isLong = bias==='LONG'||bias==='BUY';
+  const isShort = bias==='SHORT'||bias==='SELL';
+  const badgeCls=isLong?'badge-long':isShort?'badge-short':'badge-neutral';
+  const badgeLabel=isLong?'BUY':isShort?'SELL':'NEUTRAL';
   const conf=idea.confidence||0;
-  const confColor=bias==='LONG'?'var(--green)':bias==='SHORT'?'var(--red)':'var(--gold)';
+  const confColor=isLong?'var(--green)':isShort?'var(--red)':'var(--gold)';
   const imgHtml=idea.image_url
     ?`<img src="${idea.image_url}" alt="${idea.ticker} chart" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
     :'';
   const phStyle=idea.image_url?'display:none':'';
   const emoji=resolveEmoji(idea.emoji, idea.ticker);
-  const analysis=idea.analysis||'Analysis not available.';
+  const waveTag = isMKO ? 'Wave ? · MKO Signal' : `Wave ${waveIcon(idea.wave_num)} · ${(idea.wave_phase||'MTF').replace(/</g,'&lt;').replace(/>/g,'&gt;')}`;
+  const signalLine = isMKO
+    ? `${emoji} XENOS MKO · ${idea.name||idea.ticker} · ${isLong?'▲ LONG':'▼ SHORT'}`
+    : `${emoji} XENOS EW · ${idea.name||idea.ticker} · ${isLong?'▲ LONG':isShort?'▼ SHORT':'◆ NEUTRAL'}`;
 
   return `<div class="idea-card">
     <div class="card-img">
@@ -509,8 +516,8 @@ function buildCard(idea, idx){
         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="1"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
       </div>
       <button class="delete-btn" onclick="deleteIdea('${idea.id}',event)" title="Delete">✕</button>
-      <div class="card-wave-tag">Wave ${waveIcon(idea.wave_num)} · ${(idea.wave_phase||'MTF').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
-      <div class="card-badge ${badgeCls}">${bias}</div>
+      <div class="card-wave-tag">${waveTag}</div>
+      <div class="card-badge ${badgeCls}">${badgeLabel}</div>
     </div>
     <div class="card-body">
       <div class="card-top">
@@ -525,11 +532,11 @@ function buildCard(idea, idx){
         <div class="card-meta-item"><span class="meta-label">Target</span><span class="meta-val" style="color:var(--green)">${fmtPrice(idea.target,idea.ticker)}</span></div>
         <div class="card-meta-item"><span class="meta-label">Inval.</span><span class="meta-val" style="color:var(--red)">${fmtPrice(idea.invalidation,idea.ticker)}</span></div>
       </div>
-      <div class="card-signal">${emoji} <span style="color:var(--muted);font-size:9px;letter-spacing:1px;font-family:var(--mono);">XENOS MKO · ${idea.name||idea.ticker} · ${bias==='LONG'?'▲':'▼'} ${bias}</span></div>
+      <div class="card-signal">${signalLine}</div>
       <div class="conf-row">
-        <span class="conf-label">Score: ${idea.score||7}/10</span>
+        <span class="conf-label">${isMKO?'Score: '+(idea.score||7)+'/10 ░░░░░ HIGH PROBABILITY...':'Confidence'}</span>
         <div class="conf-track"><div class="conf-fill" style="width:${conf}%;background:${confColor}"></div></div>
-        <span class="conf-val">HIGH PROBABILITY...</span>
+        <span class="conf-val">${isMKO?'':conf+'%'}</span>
       </div>
       <div class="card-levels">
         <div class="level-item"><span class="level-label">Target</span><span class="level-val green">${fmtPrice(idea.target,idea.ticker)}</span></div>
@@ -539,7 +546,6 @@ function buildCard(idea, idx){
     </div>
   </div>`;
 }
-
 function openModal(idea){
   if(!idea) return;
   const bias=(idea.bias||'NEUTRAL').toUpperCase();
