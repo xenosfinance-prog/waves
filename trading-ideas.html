@@ -79,6 +79,7 @@ body{background:var(--bg4);color:var(--ink);font-family:var(--mono);min-height:1
 .badge-neutral{background:rgba(59,130,246,0.1);color:var(--gold);border:1px solid rgba(59,130,246,0.25);}
 .card-wave-tag{position:absolute;top:8px;left:8px;font-size:9px;color:var(--muted);background:rgba(8,15,26,0.88);padding:3px 8px;border-radius:2px;font-family:var(--mono);letter-spacing:1px;backdrop-filter:blur(4px);}
 .card-body{padding:12px 14px 14px;}
+.card-signal{font-size:11px;color:var(--ink2);margin-bottom:8px;display:flex;align-items:center;gap:6px;}
 .card-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;}
 .card-ticker{font-size:15px;font-weight:500;color:var(--ink);letter-spacing:-0.3px;}
 .card-name{font-size:10px;color:var(--muted);margin-top:2px;letter-spacing:0.5px;}
@@ -524,11 +525,11 @@ function buildCard(idea, idx){
         <div class="card-meta-item"><span class="meta-label">Target</span><span class="meta-val" style="color:var(--green)">${fmtPrice(idea.target,idea.ticker)}</span></div>
         <div class="card-meta-item"><span class="meta-label">Inval.</span><span class="meta-val" style="color:var(--red)">${fmtPrice(idea.invalidation,idea.ticker)}</span></div>
       </div>
-      <div class="card-analysis">${analysis.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+      <div class="card-signal">${emoji} <span style="color:var(--muted);font-size:9px;letter-spacing:1px;font-family:var(--mono);">XENOS MKO · ${idea.name||idea.ticker} · ${bias==='LONG'?'▲':'▼'} ${bias}</span></div>
       <div class="conf-row">
-        <span class="conf-label">Confidence</span>
+        <span class="conf-label">Score: ${idea.score||7}/10</span>
         <div class="conf-track"><div class="conf-fill" style="width:${conf}%;background:${confColor}"></div></div>
-        <span class="conf-val">${conf}%</span>
+        <span class="conf-val">HIGH PROBABILITY...</span>
       </div>
       <div class="card-levels">
         <div class="level-item"><span class="level-label">Target</span><span class="level-val green">${fmtPrice(idea.target,idea.ticker)}</span></div>
