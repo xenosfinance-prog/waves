@@ -396,14 +396,14 @@ function generateArticleImage(title, category, market) {
   ctx.fillStyle=strip; ctx.fillRect(0,0,6,H);
 
   // Category label
-  ctx.globalAlpha=1; ctx.font='bold 11px monospace'; ctx.fillStyle=th.a2; ctx.textAlign='left';
-  ctx.fillText('// '+catLabel, 44, 48);
+  ctx.globalAlpha=1; ctx.font='bold 13px monospace'; ctx.fillStyle=th.a2; ctx.textAlign='left';
+  ctx.fillText('// '+catLabel, 44, 56);
   var lg=ctx.createLinearGradient(44,0,600,0); lg.addColorStop(0,th.a); lg.addColorStop(1,th.a+'00');
-  ctx.fillStyle=lg; ctx.fillRect(44,58,300,1.5);
+  ctx.fillStyle=lg; ctx.fillRect(44,64,400,2);
 
   // Title — auto-size
   var maxW=W-96, fontSize=42, lines2=[];
-  for (var fs=28; fs>=13; fs-=2) {
+  for (var fs=42; fs>=22; fs-=2) {
     ctx.font='bold '+fs+'px Arial,sans-serif';
     var wds=titleShort.split(' '), tmp=[], cur='';
     wds.forEach(function(w){ var t=cur?cur+' '+w:w; if(ctx.measureText(t).width>maxW&&cur){tmp.push(cur);cur=w;}else cur=t; });
@@ -411,23 +411,23 @@ function generateArticleImage(title, category, market) {
     if(tmp.length<=3){fontSize=fs;lines2=tmp;break;} lines2=tmp;
   }
   ctx.font='bold '+fontSize+'px Arial,sans-serif'; ctx.fillStyle='#ffffff'; ctx.globalAlpha=1;
-  var lh=Math.round(fontSize*1.25), titleY=82+lh;
+  var lh=Math.round(fontSize*1.3), titleY=100+lh;
   lines2.slice(0,3).forEach(function(line,i){ ctx.fillText(line,44,titleY+i*lh); });
 
   // Ghost icon
-  ctx.font='bold 180px Arial,sans-serif'; ctx.fillStyle=th.a; ctx.globalAlpha=0.04; ctx.textAlign='right';
+  ctx.font='bold 280px Arial,sans-serif'; ctx.fillStyle=th.a; ctx.globalAlpha=0.04; ctx.textAlign='right';
   ctx.fillText(th.icon, W-40, H*0.78);
 
   // Bottom bar
   var barG=ctx.createLinearGradient(0,H-48,W,H-48);
   barG.addColorStop(0,'rgba(8,14,26,0.95)'); barG.addColorStop(1,'rgba(8,14,26,0.80)');
   ctx.fillStyle=barG; ctx.globalAlpha=1; ctx.fillRect(0,H-48,W,48);
-  ctx.textAlign='left'; ctx.font='bold 11px monospace'; ctx.fillStyle=th.a; ctx.fillText('XENOS',44,H-18);
+  ctx.textAlign='left'; ctx.font='bold 14px monospace'; ctx.fillStyle=th.a; ctx.fillText('XENOS',44,H-18);
   ctx.fillStyle='#c8d8ea'; ctx.fillText('FINANCE',104,H-18);
-  ctx.font='400 9px monospace'; ctx.fillStyle='#3a5575'; ctx.fillText('· AI MARKET INTELLIGENCE',210,H-18);
+  ctx.font='400 11px monospace'; ctx.fillStyle='#3a5575'; ctx.fillText('· AI MARKET INTELLIGENCE',210,H-18);
   var now=new Date();
   var ds=now.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}).toUpperCase();
-  ctx.textAlign='right'; ctx.font='400 9px monospace'; ctx.fillStyle='#2a4060'; ctx.fillText(ds,W-40,H-18);
+  ctx.textAlign='right'; ctx.font='400 11px monospace'; ctx.fillStyle='#2a4060'; ctx.fillText(ds,W-40,H-18);
 
   ctx.globalAlpha=1;
   return canvas.toDataURL('image/jpeg',0.92);
@@ -457,9 +457,36 @@ async function loadGrid() {
       if (a.imageUrl) {
         thumbHtml = '<div class="card-thumb"><img src="' + a.imageUrl + '" alt="" loading="lazy" onerror="this.src=generateArticleImage(this.closest(\'.blog-card\').dataset.title||\'\',(this.closest(\'.blog-card\').dataset.cat||\'\'),(this.closest(\'.blog-card\').dataset.market||\'multi\'))"></div>';
       } else {
-        var mk = (a.market || 'multi');
-        var genImg = generateArticleImage(a.title || '', a.category || '', mk);
-        thumbHtml = '<div class="card-thumb"><img src="' + genImg + '" alt="" loading="lazy"></div>';
+        // Use category-based static image first, fallback to canvas generator
+        var mk = (a.market || 'multi').toLowerCase();
+        var catStr = (a.category || '').toLowerCase();
+        var BLOG_IMGS = {
+          'forex':       'https://raw.githubusercontent.com/xenosfinance-prog/waves/main/assets/blog/forex.png',
+          'commodities': 'https://raw.githubusercontent.com/xenosfinance-prog/waves/main/assets/blog/commodities.png',
+          'equity':      'https://raw.githubusercontent.com/xenosfinance-prog/waves/main/assets/blog/equity.png',
+          'crypto':      'https://raw.githubusercontent.com/xenosfinance-prog/waves/main/assets/blog/crypto.png',
+          'macro':       'https://raw.githubusercontent.com/xenosfinance-prog/waves/main/assets/blog/macro.png',
+          'premarket':   'https://raw.githubusercontent.com/xenosfinance-prog/waves/main/assets/blog/premarket.png',
+          'calendar':    'https://raw.githubusercontent.com/xenosfinance-prog/waves/main/assets/blog/calendar.png',
+          'elliottwave': 'https://raw.githubusercontent.com/xenosfinance-prog/waves/main/assets/blog/elliottwave.png',
+          'energy':      'https://raw.githubusercontent.com/xenosfinance-prog/waves/main/assets/blog/energy.png',
+          'geopolitics': 'https://raw.githubusercontent.com/xenosfinance-prog/waves/main/assets/blog/geopolitics.png',
+        };
+        // Match by market first, then by category string keywords
+        var staticImg = BLOG_IMGS[mk] || null;
+        if (!staticImg) {
+          if (catStr.indexOf('forex') > -1 || catStr.indexOf('fx') > -1) staticImg = BLOG_IMGS['forex'];
+          else if (catStr.indexOf('crypto') > -1) staticImg = BLOG_IMGS['crypto'];
+          else if (catStr.indexOf('commodit') > -1) staticImg = BLOG_IMGS['commodities'];
+          else if (catStr.indexOf('equit') > -1) staticImg = BLOG_IMGS['equity'];
+          else if (catStr.indexOf('pre-market') > -1 || catStr.indexOf('premarket') > -1) staticImg = BLOG_IMGS['premarket'];
+          else if (catStr.indexOf('calendar') > -1) staticImg = BLOG_IMGS['calendar'];
+          else if (catStr.indexOf('elliott') > -1 || catStr.indexOf('wave') > -1) staticImg = BLOG_IMGS['elliottwave'];
+          else if (catStr.indexOf('energy') > -1 || catStr.indexOf('eia') > -1) staticImg = BLOG_IMGS['energy'];
+          else if (catStr.indexOf('geopolit') > -1) staticImg = BLOG_IMGS['geopolitics'];
+          else staticImg = BLOG_IMGS['macro'];
+        }
+        thumbHtml = '<div class="card-thumb"><img src="' + staticImg + '" alt="" loading="lazy" onerror="this.src=generateArticleImage(\'' + (a.title||'').replace(/\'/g,\'\\\'\')+'\',' + '\'' + mk + '\'' + ',\'' + mk + '\')"></div>';
       }
       card.innerHTML =
         thumbHtml +
