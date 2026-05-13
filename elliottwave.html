@@ -248,6 +248,28 @@ canvas { display: block; }
 .wave-note-del:hover { color: var(--red2); }
 .admin-active .wave-note-del { display: inline; }
 
+/* ── TV CHART UPLOAD ── */
+.tv-upload-zone {
+  border: 1px dashed var(--border2); background: var(--bg); padding: 24px;
+  text-align: center; cursor: pointer; transition: all 0.2s; margin-bottom: 14px;
+  position: relative;
+}
+.tv-upload-zone:hover, .tv-upload-zone.drag-over {
+  border-color: var(--gold); background: rgba(59,130,246,0.05);
+}
+.tv-upload-zone input[type=file] { display:none; }
+.tv-upload-label { font-size: 10px; letter-spacing: 3px; color: var(--muted); text-transform: uppercase; line-height: 2; }
+.tv-upload-label span { color: var(--gold); }
+.tv-upload-preview { display: none; position: relative; margin-bottom: 14px; }
+.tv-upload-preview img { max-width: 100%; max-height: 320px; display: block; border: 1px solid var(--border); object-fit: contain; }
+.tv-upload-clear {
+  position: absolute; top: 6px; right: 6px; background: rgba(0,0,0,0.6);
+  border: none; color: #fff; font-size: 13px; padding: 2px 8px; cursor: pointer;
+  font-family: var(--mono); letter-spacing: 1px;
+}
+.tv-upload-clear:hover { background: var(--red); }
+.tv-upload-badge { display: inline-block; margin-bottom: 10px; padding: 3px 10px; font-size: 9px; letter-spacing: 2px; text-transform: uppercase; background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3); color: var(--green2); }
+
 /* ── FOOTER ── */
 .page-footer { border-top: 1px solid var(--border); padding: 24px 32px; display: flex; justify-content: space-between; align-items: center; font-size: 10px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; margin-top: 80px; }
 .footer-links { display: flex; gap: 24px; }
@@ -909,6 +931,24 @@ canvas { display: block; }
         </div>
         <div class="admin-label">Your EW Reading</div>
         <textarea class="admin-textarea" id="aiReading" placeholder="Describe your wave count as you see it on TradingView. Example:&#10;&#10;I see a completed 5-wave impulse up from 1.0780. Wave 1: 1.0780-1.0920. Wave 2 retraced to 1.0850 (61.8%). Wave 3 extended to 1.1080 (161.8%). Wave 4 flat correction to 1.0990. Wave 5 terminal at 1.1150 with bearish RSI divergence. Now starting ABC correction. Wave A target 38.2% at 1.0935, 61.8% at 1.0815. SL above 1.1150." style="min-height:140px;"></textarea>
+      </div>
+
+      <!-- TV CHART UPLOAD -->
+      <div class="admin-label" style="margin-bottom:6px;">TradingView Chart Upload <span style="color:var(--muted);font-size:9px;letter-spacing:1px;">(optional — attach your labelled chart for visual AI analysis)</span></div>
+      <div class="tv-upload-zone" id="tvUploadZone" onclick="document.getElementById('tvChartInput').click()" ondragover="tvDragOver(event)" ondragleave="tvDragLeave(event)" ondrop="tvDrop(event)">
+        <input type="file" id="tvChartInput" accept="image/*" onchange="tvFileSelected(event)">
+        <div class="tv-upload-label">
+          Drop your TradingView screenshot here<br>
+          or <span>click to browse</span><br>
+          <span style="color:var(--muted);font-size:9px;">PNG · JPG · WEBP — max 10 MB</span>
+        </div>
+      </div>
+      <div class="tv-upload-preview" id="tvPreview">
+        <span class="tv-upload-badge">✓ Chart attached — AI will analyse labels visually</span>
+        <div style="position:relative;display:inline-block;width:100%;">
+          <img id="tvPreviewImg" src="" alt="TradingView chart">
+          <button class="tv-upload-clear" onclick="tvClearImage(event)" title="Remove chart">✕</button>
+        </div>
       </div>
 
       <button class="admin-run-btn" id="aiRunBtn" onclick="runAIAnalysis()">⚡ Generate Analysis</button>
@@ -2051,6 +2091,49 @@ function detectTrend(candles) {
   return (trending === emaSignal) ? trending : (higherHighs > lowerLows ? 'UP' : 'DOWN');
 }
 
+// ── TV CHART UPLOAD ──────────────────────────────────────────────
+var _tvImageB64 = null; // base64 data (no prefix)
+var _tvImageMime = 'image/png';
+
+function tvDragOver(e){
+  e.preventDefault(); e.stopPropagation();
+  document.getElementById('tvUploadZone').classList.add('drag-over');
+}
+function tvDragLeave(e){
+  document.getElementById('tvUploadZone').classList.remove('drag-over');
+}
+function tvDrop(e){
+  e.preventDefault(); e.stopPropagation();
+  document.getElementById('tvUploadZone').classList.remove('drag-over');
+  var files = e.dataTransfer.files;
+  if(files && files[0]) tvLoadFile(files[0]);
+}
+function tvFileSelected(e){
+  if(e.target.files && e.target.files[0]) tvLoadFile(e.target.files[0]);
+}
+function tvLoadFile(file){
+  if(!file.type.startsWith('image/')){ alert('Please upload an image file (PNG, JPG, WEBP).'); return; }
+  if(file.size > 10*1024*1024){ alert('Image too large — max 10 MB.'); return; }
+  _tvImageMime = file.type || 'image/png';
+  var reader = new FileReader();
+  reader.onload = function(ev){
+    var dataUrl = ev.target.result;
+    _tvImageB64 = dataUrl.split(',')[1]; // strip data: prefix
+    document.getElementById('tvPreviewImg').src = dataUrl;
+    document.getElementById('tvPreview').style.display = 'block';
+    document.getElementById('tvUploadZone').style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+function tvClearImage(e){
+  if(e){ e.stopPropagation(); }
+  _tvImageB64 = null;
+  document.getElementById('tvPreviewImg').src = '';
+  document.getElementById('tvPreview').style.display = 'none';
+  document.getElementById('tvUploadZone').style.display = 'block';
+  document.getElementById('tvChartInput').value = '';
+}
+
 async function runAIAnalysis(){
   const symbolVal = (document.getElementById('aiSymbol').value || '').trim();
   const symbol    = symbolVal.toUpperCase() || 'UNKNOWN';
@@ -2062,7 +2145,7 @@ async function runAIAnalysis(){
   const txt       = document.getElementById('analysisText');
 
   if (!symbolVal) { alert('Please enter the asset / pair.'); return; }
-  if (!reading)   { alert('Please describe your EW reading.'); return; }
+  if (!reading && !_tvImageB64) { alert('Please describe your EW reading or upload a chart.'); return; }
 
   btn.disabled=true; btn.textContent='Generating...';
   out.style.display='block';
@@ -2071,7 +2154,34 @@ async function runAIAnalysis(){
   document.getElementById('publishFromAnalysisBtn').style.display='none';
 
   try {
-    const prompt = `You are a senior Elliott Wave analyst at an institutional trading desk.
+    const hasImage = !!_tvImageB64;
+
+    const promptText = hasImage
+      ? `You are a senior Elliott Wave analyst at an institutional trading desk.
+The analyst has uploaded a TradingView chart of ${symbol} (${tf}) with Elliott Wave labels already drawn on it.
+${reading ? 'The analyst also adds this note:\n' + reading : ''}
+${livePrice ? 'Current live price: ' + livePrice : ''}
+
+IMPORTANT: First, carefully examine the chart image and identify all Elliott Wave labels visible (wave numbers/letters, trendlines, Fibonacci levels, pivots). Then write your analysis based on what you SEE in the chart combined with the analyst notes above.
+
+Write a complete professional EW analysis in ENGLISH.
+Use EXACTLY this 4-section format with NO markdown, NO asterisks:
+
+🎯 Major Takeaways
+- Main scenario: [one sentence — setup, entry near current price, targets, stop]
+- Alternative scenario: [one sentence — what changes if key level breaks]
+
+📈 Main Scenario
+[2-3 sentences. Precise entry, TP1, TP2, SL based on the wave labels visible in the chart. R:R.]
+
+📉 Alternative Scenario
+[1-2 sentences. Key invalidation level and what wave structure follows.]
+
+🔍 Analysis
+[3-4 sentences. Reference the specific wave labels, price levels and Fibonacci levels visible in the chart. Confirm or flag any EW rule violations you observe visually.]
+
+Keep it professional, precise, under 300 words.`
+      : `You are a senior Elliott Wave analyst at an institutional trading desk.
 The analyst has identified the following wave structure on ${symbol} (${tf}):
 
 ${reading}
@@ -2095,6 +2205,14 @@ Use EXACTLY this 4-section format with NO markdown, NO asterisks:
 
 Keep it professional, precise, under 280 words. Use the EXACT price levels from the analyst's reading.`;
 
+    // Build message content — multimodal if image present
+    const msgContent = hasImage
+      ? [
+          { type: 'image', source: { type: 'base64', media_type: _tvImageMime, data: _tvImageB64 } },
+          { type: 'text', text: promptText }
+        ]
+      : promptText;
+
     const WORKER = 'https://xenos-ai-proxy.xenosfinance.workers.dev';
     const res = await fetch(WORKER, {
       method: 'POST',
@@ -2102,10 +2220,10 @@ Keep it professional, precise, under 280 words. Use the EXACT price levels from 
       body: JSON.stringify({
         type: 'claude',
         model: 'claude-sonnet-4-20250514',
-        max_tokens: 900,
-        messages: [{ role: 'user', content: prompt }]
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: msgContent }]
       }),
-      signal: AbortSignal.timeout(60000)
+      signal: AbortSignal.timeout(90000)
     });
 
     if (!res.ok) throw new Error('Worker error ' + res.status);
