@@ -1208,40 +1208,64 @@ async function deleteNote(idx) {
 
 async function publishFromAnalysis() {
   const btn = document.getElementById('publishFromAnalysisBtn');
+  const reset = () => { if(btn){ btn.disabled=false; btn.textContent='✦ Publish Note'; } };
   if(btn){ btn.disabled=true; btn.textContent='Publishing...'; }
 
-  const symbolEl = document.getElementById('aiSymbol');
-  const asset = symbolEl ? (symbolEl.options[symbolEl.selectedIndex]?.text || symbolEl.value || '').toUpperCase() : '';
-  const tf = (document.getElementById('aiTf')?.value || '').toUpperCase();
-  const txt = document.getElementById('analysisText')?.textContent || '';
+  try {
+    const symbolEl = document.getElementById('aiSymbol');
+    const asset = symbolEl ? (symbolEl.options[symbolEl.selectedIndex]?.text || symbolEl.value || '').toUpperCase() : '';
+    const tf = (document.getElementById('aiTf')?.value || '').toUpperCase();
+    const txt = document.getElementById('analysisText')?.textContent || '';
 
-  // Detect bias from analysis text
-  let bias = 'neutral';
-  if (/main scenario[^\n]*(long|bullish|\u25b2)/i.test(txt)) bias = 'bullish';
-  else if (/main scenario[^\n]*(short|bearish|\u25bc)/i.test(txt)) bias = 'bearish';
+    let bias = 'neutral';
+    if (/main scenario[^
+]*(long|bullish|▲)/i.test(txt)) bias = 'bullish';
+    else if (/main scenario[^
+]*(short|bearish|▼)/i.test(txt)) bias = 'bearish';
+    else if (/bullish scenario/i.test(txt)) bias = 'bullish';
+    else if (/bearish scenario/i.test(txt)) bias = 'bearish';
 
-  // Build setup label from Major Takeaways / first meaningful line
-  const takeLine = txt.match(/Main scenario[:\-]?\s*([^\n]{10,100})/i);
-  const setup = takeLine ? takeLine[1].trim().slice(0,80) : 'AI Wave Analysis';
+    const takeLine = txt.match(/Main scenario[:\-]?\s*([^
+]{10,100})/i)
+                  || txt.match(/Bullish Scenario[^
+]*
+([^
+]{10,100})/i);
+    const setup = takeLine ? takeLine[1].trim().slice(0,80) : 'AI Wave Analysis';
 
-  if(!asset){ alert('No asset found — run the analysis first.'); if(btn){btn.disabled=false;btn.textContent='\u2736 Publish Note';} return; }
+    if(!asset){ alert('No asset found — run the analysis first.'); reset(); return; }
 
-  const notes = await loadNotes();
-  const label = asset + (tf ? ' \u00b7 ' + tf : '');
-  notes.push({
-    asset: label,
-    setup: setup,
-    bias,
-    date: new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}).toUpperCase()
-  });
-  await saveNotes(notes);
-  renderPublicFeed();
+    // Save to localStorage immediately (instant), GitHub in background
+    const notes = await Promise.race([
+      loadNotes(),
+      new Promise((_,rej) => setTimeout(() => rej(new Error('timeout')), 5000))
+    ]).catch(() => {
+      try { return JSON.parse(localStorage.getItem(NOTES_KEY) || '[]'); } catch(e) { return []; }
+    });
 
-  if(btn){ btn.disabled=false; btn.textContent='\u2736 Published \u2713'; setTimeout(()=>{ btn.textContent='\u2736 Publish Note'; },3000); }
+    const label = asset + (tf ? ' · ' + tf : '');
+    notes.push({
+      asset: label, setup, bias,
+      date: new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}).toUpperCase()
+    });
 
-  // Scroll to public feed
-  const feed = document.getElementById('publicWaveFeed');
-  if(feed) setTimeout(()=>feed.scrollIntoView({behavior:'smooth', block:'start'}), 300);
+    // Save to localStorage immediately so UI updates now
+    localStorage.setItem(NOTES_KEY, JSON.stringify(notes));
+    renderPublicFeed();
+    if(btn){ btn.disabled=false; btn.textContent='✦ Published ✓'; setTimeout(()=>{ btn.textContent='✦ Publish Note'; },3000); }
+
+    // Scroll to feed
+    const feed = document.getElementById('publicWaveFeed');
+    if(feed) setTimeout(()=>feed.scrollIntoView({behavior:'smooth', block:'start'}), 200);
+
+    // Save to GitHub in background (non-blocking)
+    saveNotes(notes).catch(e => console.warn('GitHub save failed (note still saved locally):', e));
+
+  } catch(e) {
+    console.error('publishFromAnalysis error:', e);
+    alert('Error publishing: ' + e.message);
+    reset();
+  }
 }
 
 // ── ADMIN ──
@@ -2569,47 +2593,45 @@ async function sendToTelegram(){
   const shortCaption = capLines.join('\n').slice(0, 1020);
 
   try{
+    const timeout = ms => new Promise((_,rej) => setTimeout(()=>rej(new Error('Request timed out after '+ms/1000+'s')), ms));
+
     if(_tvImageB64){
-      // Step 1: send photo with short caption (stays under 1024 chars)
-      const photoRes = await fetch(WORKER,{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({
-          type: 'telegram_photo',
-          image_base64: _tvImageB64,
-          image_mime: _tvImageMime,
-          caption: shortCaption
-        })
-      });
+      // Send photo with short caption
+      const photoRes = await Promise.race([
+        fetch(WORKER,{
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ type:'telegram_photo', image_base64:_tvImageB64, image_mime:_tvImageMime, caption:shortCaption })
+        }),
+        timeout(30000)
+      ]);
       const photoData = await photoRes.json();
 
-      // Step 2: send full analysis as separate text message
-      const textRes = await fetch(WORKER,{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({
-          type: 'telegram',
-          text: fullText.slice(0, 4000)
-        })
-      });
+      // Send full analysis as text
+      const textRes = await Promise.race([
+        fetch(WORKER,{
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ type:'telegram', text: fullText.slice(0,4000) })
+        }),
+        timeout(15000)
+      ]);
       const textData = await textRes.json();
 
-      if(photoData.ok || photoData.result){
-        alert('Chart + Full Analysis sent to Telegram ✓');
-      } else {
-        console.warn('Photo failed, sent text only:', photoData);
-        alert('Analysis sent to Telegram (text only) ✓');
-      }
+      if(photoData.ok || photoData.result) alert('Chart + Analysis sent to Telegram ✓');
+      else if(textData.ok || textData.result) alert('Analysis sent to Telegram (text only — photo failed) ✓');
+      else alert('Telegram error: ' + JSON.stringify(photoData));
+
     } else {
-      // No chart — send full text only
-      const res = await fetch(WORKER,{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ type:'telegram', text: fullText.slice(0,4000) })
-      });
+      // No chart — text only
+      const res = await Promise.race([
+        fetch(WORKER,{
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ type:'telegram', text: fullText.slice(0,4000) })
+        }),
+        timeout(15000)
+      ]);
       const d = await res.json();
       if(d.ok||d.result) alert('Analysis sent to Telegram ✓');
-      else alert('Error: '+JSON.stringify(d));
+      else alert('Telegram error: '+JSON.stringify(d));
     }
   }catch(e){ alert('Error: '+e.message); }
   finally{ btn.disabled=false; btn.textContent='📡 Send to Telegram'; }
