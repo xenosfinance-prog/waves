@@ -2178,61 +2178,62 @@ async function runAIAnalysis(){
     const hasImage = !!_tvImageB64;
 
     const promptText = hasImage
-      ? `You are a senior market analyst at an institutional trading desk with deep expertise in Elliott Wave Theory, technical analysis, price action, and market structure.
+      ? `You are a senior market analyst at an institutional trading desk with deep expertise in Elliott Wave Theory, technical analysis, and price action.
 
 The analyst has uploaded a chart of ${symbol} (${tf}).
 ${reading ? 'Analyst note: ' + reading : ''}
 ${livePrice ? 'Current live price: ' + livePrice : ''}
 
 STEP 1 — IDENTIFY CHART TYPE:
-Carefully examine the chart. Determine which of these best describes it:
-A) Chart with Elliott Wave labels (numbered waves 1-2-3-4-5 or A-B-C, Fibonacci levels, EW trendlines)
-B) Chart with classical technical indicators (SMA, EMA, RSI, MACD, VWAP, Volume Profile, Bollinger Bands, etc.) without EW labels
+A) Chart WITH explicit Elliott Wave labels (wave numbers 1-2-3-4-5 or letters A-B-C drawn on the chart, Fibonacci retracement levels, EW trendlines)
+B) Chart with technical indicators (SMA, EMA, RSI, MACD, VWAP, Volume Profile, etc.) WITHOUT explicit EW wave labels
 
-STEP 2 — WRITE ANALYSIS based on chart type:
+STEP 2 — WRITE ANALYSIS IN ENGLISH:
 
-If TYPE A (Elliott Wave chart): write using this format exactly:
+If TYPE A (Elliott Wave labels visible), use EXACTLY this format:
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  ${symbol}  ·  ${tf}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🎯 Major Takeaways
-- Main scenario: [setup, entry, targets, stop — one sentence]
-- Alternative: [invalidation level and alternate count — one sentence]
-
-🌊 Wave Structure
-[2-3 sentences. Identify current wave position, sub-waves visible, degree. Reference specific price levels from the labels.]
+- Main scenario: [one sentence — current wave, entry zone, TP1, TP2, SL]
+- Alternative scenario: [one sentence — invalidation level and alternate count]
 
 📈 Main Scenario
-[2-3 sentences. Entry zone, TP1, TP2, SL. R:R ratio. Why this wave count is valid.]
+[2-3 sentences. Entry zone, TP1, TP2, SL with exact price levels. R:R ratio.]
 
 📉 Alternative Scenario
-[1-2 sentences. Key level that invalidates the count and what follows.]
+[1-2 sentences. The exact level that invalidates the count and what follows.]
 
-🔍 Confirmation
-[2-3 sentences. RSI/MACD/volume context if visible. Fibonacci confluences. EW rule compliance.]
+🔍 Analysis
+[3-4 sentences. Reference specific wave labels, Fibonacci levels, price levels visible. RSI/indicator context if visible. EW rule compliance.]
 
-If TYPE B (Technical indicators chart): write using this format exactly:
-📊 Market Structure · ${symbol} ${tf}
-[2-3 sentences. Price position vs moving averages, trend direction, key structure levels visible.]
+If TYPE B (Technical indicators only, no EW labels), use EXACTLY this format:
 
-🎯 Key Levels
-Support: [list levels from chart]
-Resistance: [list levels from chart]
+[Full asset name] (${symbol}) · ${tf}
 
-📈 Bullish Scenario ([X]%)
-[2-3 sentences. Entry, TP1, TP2, SL. Trigger condition. R:R.]
+📊 Market Structure
+[2-3 sentences. Price position vs moving averages with exact values, trend direction, key structure levels and supply/demand zones visible on the chart.]
 
-📉 Bearish Scenario ([X]%)
-[2-3 sentences. Entry, TP1, TP2, SL. Trigger condition. R:R.]
+🌊 Elliott Wave Reading
+[2-3 sentences. Identify the most probable wave count from the visible price structure, even without explicit labels. State main hypothesis and alternative count.]
 
-📉 Indicators Reading
-[3-4 sentences. Read each visible indicator: SMA positions and slope, RSI level and zone, VWAP relation, Volume Profile nodes (HVN/LVN), MACD if visible. Be specific with values you can read from the chart.]
+📈 Indicators
+[One bullet per visible indicator. Format: "- INDICATOR NAME (color if relevant): exact value — interpretation". Cover all SMAs/EMAs with values and slope, RSI with exact value and zone, VWAP position, Volume Profile nodes (HVN/LVN with price zones), MACD if visible.]
 
-⚠️ Invalidation
-[One sentence. The level that cancels the primary scenario.]
+🎯 Trading Scenarios
+Bullish Scenario (X%) [2-3 sentences. Entry zone, TP1, TP2, SL with exact levels. Trigger condition.]
+Bearish Scenario (X%) [2-3 sentences. Entry zone, TP1, TP2, SL with exact levels. Trigger condition.]
 
-RULES FOR BOTH TYPES:
+⚠️ Key Levels
+- Resistance: [levels separated by /]
+- Support: [levels separated by /]
+
+RULES (both types):
+- Write everything in ENGLISH
 - No markdown, no asterisks, no bold
-- Use exact price levels you can see in the chart
-- Professional and concise — under 320 words total
-- Always give a directional bias with probability %`
+- Use exact price levels visible in the chart
+- Under 380 words total`
 
       : `You are a senior Elliott Wave analyst at an institutional trading desk.
 The analyst has identified the following wave structure on ${symbol} (${tf}):
@@ -2240,26 +2241,25 @@ The analyst has identified the following wave structure on ${symbol} (${tf}):
 ${reading}
 ${livePrice ? 'Current live price: ' + livePrice : ''}
 
-Based on this wave reading, write a complete professional EW analysis in ENGLISH.
-Use EXACTLY this format with NO markdown, NO asterisks:
+Write a complete professional EW analysis in ENGLISH using EXACTLY this format, NO markdown, NO asterisks:
 
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  ${symbol}  ·  ${tf}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🎯 Major Takeaways
 - Main scenario: [one sentence — setup, entry near current price, targets, stop]
 - Alternative scenario: [one sentence — what changes if key level breaks]
 
-🌊 Wave Structure
-[2 sentences. Current wave position, degree, key sub-waves.]
-
 📈 Main Scenario
-[2-3 sentences. Precise entry, TP1, TP2, SL based on the wave reading. R:R.]
+[2-3 sentences. Precise entry, TP1, TP2, SL. R:R.]
 
 📉 Alternative Scenario
 [1-2 sentences. Key invalidation level and what wave structure follows.]
 
 🔍 Analysis
-[2-3 sentences. Key Fibonacci levels, why this count is valid, specific price levels.]
+[3-4 sentences. Current wave position, sub-waves, degree, key Fibonacci levels, why this count is valid. Use the EXACT price levels from the analyst's reading.]
 
-Keep it professional, precise, under 280 words. Use the EXACT price levels from the analyst's reading.`;
+Keep it professional, precise, under 280 words.`
 
     // Build message content — multimodal if image present
     const msgContent = hasImage
