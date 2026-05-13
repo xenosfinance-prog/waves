@@ -1206,21 +1206,42 @@ async function deleteNote(idx) {
   const notes = await loadNotes(); notes.splice(idx,1); await saveNotes(notes); renderPublicFeed();
 }
 
-function publishFromAnalysis() {
+async function publishFromAnalysis() {
+  const btn = document.getElementById('publishFromAnalysisBtn');
+  if(btn){ btn.disabled=true; btn.textContent='Publishing...'; }
+
   const symbolEl = document.getElementById('aiSymbol');
-  const asset = symbolEl ? symbolEl.options[symbolEl.selectedIndex].text : '';
-  const waveEl = document.getElementById('analysisText');
-  const txt = waveEl ? waveEl.textContent : '';
-  // Extract wave description line
-  const waveMatch = txt.match(/Wave [⓪①②③④⑤Ⓐ-ⓒ0-9A-C][^\r\n]{0,80}/i);
-  const waveLabel = waveMatch ? waveMatch[0].replace(/[⓪①②③④⑤]/,'').trim().slice(0,70) : 'Wave setup in development';
-  const biasEl = document.getElementById('noteBias');
-  const sigMatch = txt.match(/SIGNAL\s+(▲ LONG|▼ SHORT|◆ WAIT)/i);
-  if (sigMatch && biasEl) biasEl.value = sigMatch[1].includes('LONG')?'bullish':sigMatch[1].includes('SHORT')?'bearish':'neutral';
-  document.getElementById('noteAsset').value = asset;
-  document.getElementById('noteSetup').value = waveLabel;
-  const strip = document.getElementById('adminPublishStrip');
-  if(strip) strip.scrollIntoView({behavior:'smooth',block:'center'});
+  const asset = symbolEl ? (symbolEl.options[symbolEl.selectedIndex]?.text || symbolEl.value || '').toUpperCase() : '';
+  const tf = (document.getElementById('aiTf')?.value || '').toUpperCase();
+  const txt = document.getElementById('analysisText')?.textContent || '';
+
+  // Detect bias from analysis text
+  let bias = 'neutral';
+  if (/main scenario[^\n]*(long|bullish|\u25b2)/i.test(txt)) bias = 'bullish';
+  else if (/main scenario[^\n]*(short|bearish|\u25bc)/i.test(txt)) bias = 'bearish';
+
+  // Build setup label from Major Takeaways / first meaningful line
+  const takeLine = txt.match(/Main scenario[:\-]?\s*([^\n]{10,100})/i);
+  const setup = takeLine ? takeLine[1].trim().slice(0,80) : 'AI Wave Analysis';
+
+  if(!asset){ alert('No asset found — run the analysis first.'); if(btn){btn.disabled=false;btn.textContent='\u2736 Publish Note';} return; }
+
+  const notes = await loadNotes();
+  const label = asset + (tf ? ' \u00b7 ' + tf : '');
+  notes.push({
+    asset: label,
+    setup: setup,
+    bias,
+    date: new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}).toUpperCase()
+  });
+  await saveNotes(notes);
+  renderPublicFeed();
+
+  if(btn){ btn.disabled=false; btn.textContent='\u2736 Published \u2713'; setTimeout(()=>{ btn.textContent='\u2736 Publish Note'; },3000); }
+
+  // Scroll to public feed
+  const feed = document.getElementById('publicWaveFeed');
+  if(feed) setTimeout(()=>feed.scrollIntoView({behavior:'smooth', block:'start'}), 300);
 }
 
 // ── ADMIN ──
@@ -2157,30 +2178,62 @@ async function runAIAnalysis(){
     const hasImage = !!_tvImageB64;
 
     const promptText = hasImage
-      ? `You are a senior Elliott Wave analyst at an institutional trading desk.
-The analyst has uploaded a TradingView chart of ${symbol} (${tf}) with Elliott Wave labels already drawn on it.
-${reading ? 'The analyst also adds this note:\n' + reading : ''}
+      ? `You are a senior market analyst at an institutional trading desk with deep expertise in Elliott Wave Theory, technical analysis, price action, and market structure.
+
+The analyst has uploaded a chart of ${symbol} (${tf}).
+${reading ? 'Analyst note: ' + reading : ''}
 ${livePrice ? 'Current live price: ' + livePrice : ''}
 
-IMPORTANT: First, carefully examine the chart image and identify all Elliott Wave labels visible (wave numbers/letters, trendlines, Fibonacci levels, pivots). Then write your analysis based on what you SEE in the chart combined with the analyst notes above.
+STEP 1 — IDENTIFY CHART TYPE:
+Carefully examine the chart. Determine which of these best describes it:
+A) Chart with Elliott Wave labels (numbered waves 1-2-3-4-5 or A-B-C, Fibonacci levels, EW trendlines)
+B) Chart with classical technical indicators (SMA, EMA, RSI, MACD, VWAP, Volume Profile, Bollinger Bands, etc.) without EW labels
 
-Write a complete professional EW analysis in ENGLISH.
-Use EXACTLY this 4-section format with NO markdown, NO asterisks:
+STEP 2 — WRITE ANALYSIS based on chart type:
 
+If TYPE A (Elliott Wave chart): write using this format exactly:
 🎯 Major Takeaways
-- Main scenario: [one sentence — setup, entry near current price, targets, stop]
-- Alternative scenario: [one sentence — what changes if key level breaks]
+- Main scenario: [setup, entry, targets, stop — one sentence]
+- Alternative: [invalidation level and alternate count — one sentence]
+
+🌊 Wave Structure
+[2-3 sentences. Identify current wave position, sub-waves visible, degree. Reference specific price levels from the labels.]
 
 📈 Main Scenario
-[2-3 sentences. Precise entry, TP1, TP2, SL based on the wave labels visible in the chart. R:R.]
+[2-3 sentences. Entry zone, TP1, TP2, SL. R:R ratio. Why this wave count is valid.]
 
 📉 Alternative Scenario
-[1-2 sentences. Key invalidation level and what wave structure follows.]
+[1-2 sentences. Key level that invalidates the count and what follows.]
 
-🔍 Analysis
-[3-4 sentences. Reference the specific wave labels, price levels and Fibonacci levels visible in the chart. Confirm or flag any EW rule violations you observe visually.]
+🔍 Confirmation
+[2-3 sentences. RSI/MACD/volume context if visible. Fibonacci confluences. EW rule compliance.]
 
-Keep it professional, precise, under 300 words.`
+If TYPE B (Technical indicators chart): write using this format exactly:
+📊 Market Structure · ${symbol} ${tf}
+[2-3 sentences. Price position vs moving averages, trend direction, key structure levels visible.]
+
+🎯 Key Levels
+Support: [list levels from chart]
+Resistance: [list levels from chart]
+
+📈 Bullish Scenario ([X]%)
+[2-3 sentences. Entry, TP1, TP2, SL. Trigger condition. R:R.]
+
+📉 Bearish Scenario ([X]%)
+[2-3 sentences. Entry, TP1, TP2, SL. Trigger condition. R:R.]
+
+📉 Indicators Reading
+[3-4 sentences. Read each visible indicator: SMA positions and slope, RSI level and zone, VWAP relation, Volume Profile nodes (HVN/LVN), MACD if visible. Be specific with values you can read from the chart.]
+
+⚠️ Invalidation
+[One sentence. The level that cancels the primary scenario.]
+
+RULES FOR BOTH TYPES:
+- No markdown, no asterisks, no bold
+- Use exact price levels you can see in the chart
+- Professional and concise — under 320 words total
+- Always give a directional bias with probability %`
+
       : `You are a senior Elliott Wave analyst at an institutional trading desk.
 The analyst has identified the following wave structure on ${symbol} (${tf}):
 
@@ -2188,11 +2241,14 @@ ${reading}
 ${livePrice ? 'Current live price: ' + livePrice : ''}
 
 Based on this wave reading, write a complete professional EW analysis in ENGLISH.
-Use EXACTLY this 4-section format with NO markdown, NO asterisks:
+Use EXACTLY this format with NO markdown, NO asterisks:
 
 🎯 Major Takeaways
 - Main scenario: [one sentence — setup, entry near current price, targets, stop]
 - Alternative scenario: [one sentence — what changes if key level breaks]
+
+🌊 Wave Structure
+[2 sentences. Current wave position, degree, key sub-waves.]
 
 📈 Main Scenario
 [2-3 sentences. Precise entry, TP1, TP2, SL based on the wave reading. R:R.]
@@ -2201,7 +2257,7 @@ Use EXACTLY this 4-section format with NO markdown, NO asterisks:
 [1-2 sentences. Key invalidation level and what wave structure follows.]
 
 🔍 Analysis
-[3-4 sentences. Detail the wave structure: sub-waves, degree, key Fibonacci levels from the reading, why this count is valid. Reference specific price levels from the analyst's reading.]
+[2-3 sentences. Key Fibonacci levels, why this count is valid, specific price levels.]
 
 Keep it professional, precise, under 280 words. Use the EXACT price levels from the analyst's reading.`;
 
@@ -2490,48 +2546,70 @@ async function sendToTelegram(){
   const btn = document.getElementById('tgBtn');
   btn.disabled = true; btn.textContent = '📡 Sending...';
 
-  // Clean analysis text
-  const clean = lastAnalysis
-    .replace(/\*\*/g,'').replace(/\*/g,'')
-    .replace(/_/g,'')
-    .slice(0, 1020); // Telegram caption limit ~1024
+  // Full clean text (no truncation)
+  const fullText = lastAnalysis
+    .replace(/\*\*/g,'').replace(/\*/g,'').replace(/_/g,'').trim();
+
+  // Build compact professional caption (fits Telegram 1024 char limit)
+  const symbolEl = document.getElementById('aiSymbol');
+  const assetName = symbolEl ? (symbolEl.options[symbolEl.selectedIndex]?.text || symbolEl.value || '') : '';
+  const tf = document.getElementById('aiTf')?.value || '';
+  // Extract key lines from analysis for caption
+  const lines = fullText.split('\n').filter(l => l.trim().length > 0);
+  const takeaway = lines.find(l => /main scenario/i.test(l)) || '';
+  const bullish  = lines.find(l => /bullish scenario|📈/i.test(l)) || '';
+  const bearish  = lines.find(l => /bearish scenario|📉/i.test(l)) || '';
+  const keyLvl   = lines.find(l => /key level|support|resistance|invalidation/i.test(l)) || '';
+  const capLines = ['📊 ' + assetName + (tf ? ' · ' + tf : '') + ' — XenosFinance'];
+  if(takeaway) capLines.push(takeaway.trim().slice(0,120));
+  if(bullish)  capLines.push(bullish.trim().slice(0,100));
+  if(bearish)  capLines.push(bearish.trim().slice(0,100));
+  if(keyLvl)   capLines.push(keyLvl.trim().slice(0,100));
+  capLines.push('\nFull analysis on @xenosfin');
+  const shortCaption = capLines.join('\n').slice(0, 1020);
 
   try{
     if(_tvImageB64){
-      // ── Send chart as photo with analysis as caption ──
-      const res = await fetch(WORKER,{
+      // Step 1: send photo with short caption (stays under 1024 chars)
+      const photoRes = await fetch(WORKER,{
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify({
           type: 'telegram_photo',
           image_base64: _tvImageB64,
           image_mime: _tvImageMime,
-          caption: clean,
-          parse_mode: 'HTML'
+          caption: shortCaption
         })
       });
-      const d = await res.json();
-      if(d.ok||d.result){ alert('Chart + Analysis sent to Telegram ✓'); }
-      else {
-        // Fallback: send text only if photo fails
-        console.warn('Photo send failed, sending text only:', d);
-        await fetch(WORKER,{
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({type:'telegram', text: lastAnalysis.replace(/\*\*/g,'').replace(/\*/g,'').replace(/_/g,'').slice(0,4000), parse_mode:'HTML'})
-        });
-        alert('Sent to Telegram (text only — photo upload failed) ✓');
+      const photoData = await photoRes.json();
+
+      // Step 2: send full analysis as separate text message
+      const textRes = await fetch(WORKER,{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          type: 'telegram',
+          text: fullText.slice(0, 4000)
+        })
+      });
+      const textData = await textRes.json();
+
+      if(photoData.ok || photoData.result){
+        alert('Chart + Full Analysis sent to Telegram ✓');
+      } else {
+        console.warn('Photo failed, sent text only:', photoData);
+        alert('Analysis sent to Telegram (text only) ✓');
       }
     } else {
-      // ── No chart — send text only as before ──
+      // No chart — send full text only
       const res = await fetch(WORKER,{
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({type:'telegram', text: lastAnalysis.replace(/\*\*/g,'').replace(/\*/g,'').replace(/_/g,'').slice(0,4000), parse_mode:'HTML'})
+        body: JSON.stringify({ type:'telegram', text: fullText.slice(0,4000) })
       });
       const d = await res.json();
-      if(d.ok||d.result) alert('Sent to Telegram ✓');
-      else alert('Error sending: '+JSON.stringify(d));
+      if(d.ok||d.result) alert('Analysis sent to Telegram ✓');
+      else alert('Error: '+JSON.stringify(d));
     }
   }catch(e){ alert('Error: '+e.message); }
   finally{ btn.disabled=false; btn.textContent='📡 Send to Telegram'; }
