@@ -2487,21 +2487,53 @@ function drawFreeCanvas(candles, wavePts, isBull, sl, tp1, tp2, livePrice, symNa
 async function sendToTelegram(){
   if(!lastAnalysis) return;
   const WORKER='https://xenos-ai-proxy.xenosfinance.workers.dev';
-  // Strip any residual markdown, send clean text
+  const btn = document.getElementById('tgBtn');
+  btn.disabled = true; btn.textContent = '📡 Sending...';
+
+  // Clean analysis text
   const clean = lastAnalysis
     .replace(/\*\*/g,'').replace(/\*/g,'')
     .replace(/_/g,'')
-    .slice(0, 4000);
+    .slice(0, 1020); // Telegram caption limit ~1024
+
   try{
-    const res=await fetch(WORKER,{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({type:'telegram',text:clean,parse_mode:'HTML'})
-    });
-    const d=await res.json();
-    if(d.ok||d.result) alert('Sent to Telegram ✓');
-    else alert('Error sending: '+JSON.stringify(d));
+    if(_tvImageB64){
+      // ── Send chart as photo with analysis as caption ──
+      const res = await fetch(WORKER,{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          type: 'telegram_photo',
+          photo_b64: _tvImageB64,
+          photo_mime: _tvImageMime,
+          caption: clean
+        })
+      });
+      const d = await res.json();
+      if(d.ok||d.result){ alert('Chart + Analysis sent to Telegram ✓'); }
+      else {
+        // Fallback: send text only if photo fails
+        console.warn('Photo send failed, sending text only:', d);
+        await fetch(WORKER,{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({type:'telegram', text: lastAnalysis.replace(/\*\*/g,'').replace(/\*/g,'').replace(/_/g,'').slice(0,4000), parse_mode:'HTML'})
+        });
+        alert('Sent to Telegram (text only — photo upload failed) ✓');
+      }
+    } else {
+      // ── No chart — send text only as before ──
+      const res = await fetch(WORKER,{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({type:'telegram', text: lastAnalysis.replace(/\*\*/g,'').replace(/\*/g,'').replace(/_/g,'').slice(0,4000), parse_mode:'HTML'})
+      });
+      const d = await res.json();
+      if(d.ok||d.result) alert('Sent to Telegram ✓');
+      else alert('Error sending: '+JSON.stringify(d));
+    }
   }catch(e){ alert('Error: '+e.message); }
+  finally{ btn.disabled=false; btn.textContent='📡 Send to Telegram'; }
 }
 
 // ── CANVAS DIAGRAMS ──
