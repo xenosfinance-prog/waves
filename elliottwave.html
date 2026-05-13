@@ -1,4 +1,4 @@
-<!DOCTYPE html>  
+<!DOCTYPE html> 
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -1218,20 +1218,13 @@ async function publishFromAnalysis() {
     const txt = document.getElementById('analysisText')?.textContent || '';
 
     let bias = 'neutral';
-    if (/main scenario[^
-]*(long|bullish|▲)/i.test(txt)) bias = 'bullish';
-    else if (/main scenario[^
-]*(short|bearish|▼)/i.test(txt)) bias = 'bearish';
+    if (/main scenario[^\r\n]*(long|bullish)/i.test(txt)) bias = 'bullish';
+    else if (/main scenario[^\r\n]*(short|bearish)/i.test(txt)) bias = 'bearish';
     else if (/bullish scenario/i.test(txt)) bias = 'bullish';
     else if (/bearish scenario/i.test(txt)) bias = 'bearish';
 
-    const takeLine = txt.match(/Main scenario[:\-]?\s*([^
-]{10,100})/i)
-                  || txt.match(/Bullish Scenario[^
-]*
-([^
-]{10,100})/i);
-    const setup = takeLine ? takeLine[1].trim().slice(0,80) : 'AI Wave Analysis';
+    const takeLine = txt.match(/Main scenario[^\r\n]{0,20}[^\r\n]{0,100}/i);
+    const setup = takeLine ? takeLine[0].replace(/Main scenario[^:\-]*/i,'').replace(/^[:\- ]+/,'').trim().slice(0,80) || 'AI Wave Analysis' : 'AI Wave Analysis';
 
     if(!asset){ alert('No asset found — run the analysis first.'); reset(); return; }
 
@@ -2807,23 +2800,23 @@ function drawMiniWave(id){
 // Init all drawings on load
 
 
-window.addEventListener('load',()=>{
-  // Hide all glossary items by default
+function initCanvases(){
+  try { drawBasicWave(); } catch(e){ console.error('drawBasicWave:', e); }
+  try { drawCorrectivePatterns(); } catch(e){ console.error('drawCorrectivePatterns:', e); }
+  ['w1','w2','w3','w4','w5','wa','wb','wc'].forEach(id => {
+    try { drawMiniWave(id); } catch(e){ console.error('drawMiniWave '+id+':', e); }
+  });
+}
+
+window.addEventListener('load', function() {
   document.querySelectorAll('.gloss-item').forEach(el=>el.classList.add('hidden'));
-  document.getElementById('glossCount').textContent='Select a category or search to explore terms';
+  var gc = document.getElementById('glossCount');
+  if(gc) gc.textContent='Select a category or search to explore terms';
   try { renderPublicFeed(); } catch(e){ console.warn('renderPublicFeed:', e); }
-  function initCanvases(){
-    try { drawBasicWave(); } catch(e){ console.error('drawBasicWave:', e); }
-    try { drawCorrectivePatterns(); } catch(e){ console.error('drawCorrectivePatterns:', e); }
-    ['w1','w2','w3','w4','w5','wa','wb','wc'].forEach(id => {
-      try { drawMiniWave(id); } catch(e){ console.error('drawMiniWave '+id+':', e); }
-    });
-  }
-  if(document.fonts && document.fonts.ready){
-    document.fonts.ready.then(initCanvases).catch(()=>setTimeout(initCanvases,400));
-  } else {
-    setTimeout(initCanvases, 400);
-  }
+  // Run canvases immediately + retry to handle font loading race
+  setTimeout(initCanvases, 100);
+  setTimeout(initCanvases, 600);
+  setTimeout(initCanvases, 1500);
 });
 
 // ═══════════════════════════════════════════════════════════════
