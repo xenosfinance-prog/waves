@@ -2504,9 +2504,10 @@ async function sendToTelegram(){
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify({
           type: 'telegram_photo',
-          photo_b64: _tvImageB64,
-          photo_mime: _tvImageMime,
-          caption: clean
+          image_base64: _tvImageB64,
+          image_mime: _tvImageMime,
+          caption: clean,
+          parse_mode: 'HTML'
         })
       });
       const d = await res.json();
