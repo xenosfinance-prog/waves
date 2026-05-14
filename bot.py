@@ -5132,10 +5132,13 @@ async def cmd_futures(u, c):
             if not single_sym:
                 await u.message.reply_text(
                     f"❌ Asset non trovato: <code>{arg}</code>\n\n"
-                    f"<b>Crypto:</b> BTC ETH SOL BNB XRP\n"
-                    f"<b>Commodities:</b> GOLD OIL SILVER NGAS\n"
-                    f"<b>FX:</b> EURUSD GBPUSD USDJPY XAUUSD\n\n"
-                    f"<i>Uso: /futures | /futures BTC | /futures scan</i>",
+                    f"<b>Crypto:</b> BTC ETH SOL BNB XRP ADA AVAX DOGE DOT LINK\n"
+                    f"<b>Commodities:</b> GOLD SILVER OIL BRENT NGAS COPPER WHEAT CORN PLATINUM\n"
+                    f"<b>FX Majors:</b> EURUSD GBPUSD USDJPY AUDUSD USDCHF USDCAD NZDUSD\n"
+                    f"<b>FX Crosses:</b> EURJPY GBPJPY AUDJPY CADJPY EURGBP EURAUD EURCAD\n"
+                    f"<b>Indices:</b> SPY QQQ DAX FTSE NKY\n"
+                    f"<b>Stocks:</b> NVDA AAPL MSFT META TSLA AMZN GOOGL\n\n"
+                    f"<i>Uso: /futures | /futures NVDA | /futures scan</i>",
                     parse_mode="HTML"
                 )
                 return
