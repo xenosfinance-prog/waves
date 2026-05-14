@@ -977,23 +977,25 @@ async function publishToBlog() {
       existingArticles = JSON.parse(fromBase64(idxRes.data.content));
     }
 
-    // 2. Generate auto-image and save it
+    // 2. Assign static blog image based on market/category (same as XenosBlog.html)
     var slug = 'article-' + Date.now();
-    var imageUrl = null;
-    try {
-      status.textContent = 'Generating image...';
-      var imgB64 = await generateArticleImage(currentArticle.title, currentArticle.categoryLabel, currentArticle.market, currentArticle.tech);
-      if (imgB64) {
-        var imgPath = 'articles/' + slug + '-img.jpg';
-        var imgRes = await githubRequest(apiBase + '/' + imgPath, 'PUT', {
-          message: 'Image: ' + currentArticle.title,
-          content: imgB64, branch: GITHUB_BRANCH
-        });
-        if (imgRes.status === 200 || imgRes.status === 201) {
-          imageUrl = 'https://raw.githubusercontent.com/' + GITHUB_REPO + '/main/' + imgPath;
-        }
-      }
-    } catch(imgErr) { console.warn('Auto-image failed:', imgErr.message); }
+    var BLOG_IMG_BASE = 'https://xenosfinance.com/assets/blog/';
+    function getStaticBlogImage(market, category, title) {
+      var mk = (market || '').toLowerCase();
+      var cat = (category || '').toLowerCase();
+      var ttl = (title || '').toLowerCase();
+      if (mk === 'forex' || cat.indexOf('forex') > -1 || cat.indexOf('fx market') > -1 || ttl.indexOf('fx brief') > -1) return BLOG_IMG_BASE + 'forex.png';
+      if (mk === 'crypto' || cat.indexOf('crypto') > -1 || ttl.indexOf('crypto') > -1) return BLOG_IMG_BASE + 'crypto.png';
+      if (mk === 'commodities' || cat.indexOf('commodit') > -1 || ttl.indexOf('commodit') > -1 || ttl.indexOf('oil') > -1 || ttl.indexOf('gold') > -1 || ttl.indexOf('wti') > -1) return BLOG_IMG_BASE + 'commodities.png';
+      if (mk === 'equity' || cat.indexOf('equit') > -1 || ttl.indexOf('equity') > -1) return BLOG_IMG_BASE + 'equity.png';
+      if (cat.indexOf('pre-market') > -1 || ttl.indexOf('pre-market') > -1) return BLOG_IMG_BASE + 'premarket.png';
+      if (cat.indexOf('calendar') > -1 || ttl.indexOf('calendar') > -1) return BLOG_IMG_BASE + 'calendar.png';
+      if (cat.indexOf('elliott') > -1 || ttl.indexOf('elliott') > -1 || ttl.indexOf('wave') > -1) return BLOG_IMG_BASE + 'elliottwave.png';
+      if (cat.indexOf('energy') > -1 || cat.indexOf('eia') > -1 || ttl.indexOf('energy') > -1) return BLOG_IMG_BASE + 'energy.png';
+      if (cat.indexOf('geopolit') > -1 || ttl.indexOf('geopolit') > -1) return BLOG_IMG_BASE + 'geopolitics.png';
+      return BLOG_IMG_BASE + 'macro.png';
+    }
+    var imageUrl = getStaticBlogImage(currentArticle.market, currentArticle.categoryLabel, currentArticle.title);
 
     // 3. Salva articolo
     status.textContent = 'Publishing...';
