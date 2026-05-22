@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Daily Market Education — XenosFinance</title>
+<meta name="description" content="Daily educational content on technical analysis, fundamental analysis, trading psychology, risk management and more.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&family=PT+Serif:ital,wght@0,400;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f1724;
+    --bg2: #141e2e;
+    --bg3: #1a2540;
+    --gold: #3b82f6;
+    --gold-dim: rgba(59,130,246,0.15);
+    --gold-border: rgba(59,130,246,0.3);
+    --text: #e8eaf0;
+    --text-dim: #8899aa;
+    --accent: #f0c040;
+    --accent-dim: rgba(240,192,64,0.12);
+    --green: #22c55e;
+    --red: #ef4444;
+    --border: rgba(255,255,255,0.06);
+    --radius: 12px;
+    --font-display: 'Playfair Display', Georgia, serif;
+    --font-mono: 'IBM Plex Mono', monospace;
+    --font-body: 'PT Serif', Georgia, serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    line-height: 1.7;
+    min-height: 100vh;
+  }
+
+  /* ── NAV (same style as site) ── */
+  nav {
+    background: rgba(15,23,36,0.95);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .nav-logo {
+    font-family: var(--font-display);
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--text);
+    text-decoration: none;
+    letter-spacing: 0.03em;
+  }
+  .nav-logo span { color: var(--gold); }
+  .nav-links { display: flex; gap: 24px; }
+  .nav-links a {
+    color: var(--text-dim);
+    text-decoration: none;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    transition: color 0.2s;
+  }
+  .nav-links a:hover, .nav-links a.active { color: var(--gold); }
+
+  /* ── HERO ── */
+  .hero {
+    border-bottom: 1px solid var(--border);
+    padding: 64px 24px 48px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 50%;
+    transform: translateX(-50%);
+    width: 600px; height: 300px;
+    background: radial-gradient(ellipse, rgba(59,130,246,0.08) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--gold-dim);
+    border: 1px solid var(--gold-border);
+    color: var(--gold);
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 6px 16px;
+    border-radius: 100px;
+    margin-bottom: 20px;
+  }
+  .hero-badge::before { content: '●'; font-size: 0.5rem; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  .hero h1 {
+    font-family: var(--font-display);
+    font-size: clamp(2rem, 5vw, 3.2rem);
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.02em;
+    margin-bottom: 16px;
+    line-height: 1.2;
+  }
+  .hero h1 em { color: var(--gold); font-style: italic; }
+  .hero p {
+    color: var(--text-dim);
+    font-size: 1rem;
+    max-width: 520px;
+    margin: 0 auto;
+    font-family: var(--font-body);
+  }
+
+  /* ── MAIN LAYOUT ── */
+  .container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  /* ── TODAY FEATURED ── */
+  .today-section {
+    padding: 40px 0 0;
+  }
+  .section-label {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .today-card {
+    background: var(--bg2);
+    border: 1px solid var(--gold-border);
+    border-radius: var(--radius);
+    padding: 32px;
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 48px;
+    box-shadow: 0 0 40px rgba(59,130,246,0.06);
+  }
+  .today-card::before {
+    content: 'TODAY';
+    position: absolute;
+    top: 20px; right: 20px;
+    background: var(--gold-dim);
+    color: var(--gold);
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.1em;
+    padding: 4px 10px;
+    border-radius: 4px;
+    border: 1px solid var(--gold-border);
+  }
+  .today-date {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    margin-bottom: 12px;
+    letter-spacing: 0.06em;
+  }
+  .today-content {
+    white-space: pre-wrap;
+    font-family: var(--font-body);
+    font-size: 0.95rem;
+    line-height: 1.75;
+    color: var(--text);
+  }
+  .today-content .separator { color: var(--gold); opacity: 0.5; }
+  .today-content .section-title {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    letter-spacing: 0.1em;
+    color: var(--gold);
+    text-transform: uppercase;
+  }
+
+  /* Skeleton loading */
+  .skeleton {
+    background: linear-gradient(90deg, var(--bg3) 25%, var(--bg2) 50%, var(--bg3) 75%);
+    background-size: 400% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: 6px;
+  }
+  @keyframes shimmer { 0%{background-position:100% 0} 100%{background-position:-100% 0} }
+  .skeleton-line { height: 14px; margin-bottom: 10px; }
+  .skeleton-line.w80 { width: 80%; }
+  .skeleton-line.w60 { width: 60%; }
+  .skeleton-line.w95 { width: 95%; }
+
+  /* ── ARCHIVE GRID ── */
+  .archive-section { padding: 0 0 80px; }
+  .archive-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+  }
+  .archive-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    cursor: pointer;
+    transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .archive-card:hover {
+    border-color: var(--gold-border);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+  }
+  .archive-card-date {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    letter-spacing: 0.08em;
+    margin-bottom: 8px;
+  }
+  .archive-card-day {
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 10px;
+  }
+  .archive-card-preview {
+    font-size: 0.82rem;
+    color: var(--text-dim);
+    line-height: 1.5;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .archive-card-arrow {
+    position: absolute;
+    bottom: 16px; right: 16px;
+    color: var(--gold);
+    font-size: 1rem;
+    opacity: 0;
+    transition: opacity 0.2s, transform 0.2s;
+  }
+  .archive-card:hover .archive-card-arrow {
+    opacity: 1;
+    transform: translateX(4px);
+  }
+
+  .no-posts {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    letter-spacing: 0.06em;
+  }
+  .no-posts .icon { font-size: 2.5rem; margin-bottom: 16px; }
+
+  /* ── MODAL ── */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.75);
+    backdrop-filter: blur(4px);
+    z-index: 200;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 40px 16px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s;
+    overflow-y: auto;
+  }
+  .modal-overlay.open { opacity: 1; pointer-events: all; }
+  .modal {
+    background: var(--bg2);
+    border: 1px solid var(--gold-border);
+    border-radius: 16px;
+    width: 100%;
+    max-width: 720px;
+    padding: 36px;
+    box-shadow: 0 24px 80px rgba(0,0,0,0.6);
+    transform: translateY(20px);
+    transition: transform 0.25s;
+    position: relative;
+  }
+  .modal-overlay.open .modal { transform: translateY(0); }
+  .modal-close {
+    position: absolute;
+    top: 16px; right: 16px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem;
+    transition: color 0.2s, border-color 0.2s;
+  }
+  .modal-close:hover { color: var(--text); border-color: var(--gold-border); }
+  .modal-date {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--gold);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+  .modal-content {
+    white-space: pre-wrap;
+    font-family: var(--font-body);
+    font-size: 0.93rem;
+    line-height: 1.8;
+    color: var(--text);
+  }
+
+  /* ── FILTERS ── */
+  .filters {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 24px;
+  }
+  .filter-btn {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 6px 14px;
+    border-radius: 100px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .filter-btn:hover, .filter-btn.active {
+    background: var(--gold-dim);
+    border-color: var(--gold-border);
+    color: var(--gold);
+  }
+
+  /* ── LOAD MORE ── */
+  .load-more-wrap { text-align: center; margin-top: 32px; }
+  .btn-load {
+    background: transparent;
+    border: 1px solid var(--gold-border);
+    color: var(--gold);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 12px 28px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .btn-load:hover { background: var(--gold-dim); }
+  .btn-load:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* ── ADMIN PANEL ── */
+  .admin-fab {
+    position: fixed;
+    bottom: 24px; right: 24px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    font-size: 1.1rem;
+    z-index: 50;
+    transition: all 0.2s;
+    opacity: 0.5;
+  }
+  .admin-fab:hover { opacity: 1; border-color: var(--gold-border); }
+
+  .admin-panel {
+    position: fixed;
+    bottom: 80px; right: 24px;
+    background: var(--bg2);
+    border: 1px solid var(--gold-border);
+    border-radius: var(--radius);
+    padding: 20px;
+    width: 280px;
+    z-index: 50;
+    display: none;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.5);
+  }
+  .admin-panel.open { display: block; }
+  .admin-panel h4 {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 14px;
+  }
+  .admin-input {
+    width: 100%;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    padding: 8px 12px;
+    border-radius: 6px;
+    outline: none;
+    margin-bottom: 10px;
+    transition: border-color 0.2s;
+  }
+  .admin-input:focus { border-color: var(--gold-border); }
+  .admin-btn {
+    width: 100%;
+    background: var(--gold-dim);
+    border: 1px solid var(--gold-border);
+    color: var(--gold);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 9px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.2s;
+    margin-bottom: 8px;
+  }
+  .admin-btn:hover { background: rgba(59,130,246,0.25); }
+  .admin-btn.danger {
+    color: var(--red);
+    background: rgba(239,68,68,0.1);
+    border-color: rgba(239,68,68,0.3);
+  }
+  .admin-status {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    color: var(--text-dim);
+    margin-top: 8px;
+    min-height: 20px;
+  }
+  .admin-status.ok { color: var(--green); }
+  .admin-status.err { color: var(--red); }
+
+  @media (max-width: 600px) {
+    .hero { padding: 48px 16px 36px; }
+    .today-card { padding: 20px; }
+    .modal { padding: 24px; }
+    .nav-links { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="index.html" class="nav-logo">Xenos<span>Finance</span></a>
+  <div class="nav-links">
+    <a href="index.html">Home</a>
+    <a href="xenoswaves_charts.html">Markets</a>
+    <a href="signals.html">Signals</a>
+    <a href="trading-ideas.html">Ideas</a>
+    <a href="daily-education.html" class="active">Education</a>
+    <a href="XenosBlog.html">Blog</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-badge">Auto-generated daily</div>
+  <h1>Daily Market<br><em>Education</em></h1>
+  <p>Professional educational content on TA, FA, risk management, trading psychology and more — every trading day.</p>
+</section>
+
+<div class="container">
+
+  <!-- TODAY FEATURED -->
+  <section class="today-section">
+    <div class="section-label">Today's Edition</div>
+    <div class="today-card" id="todayCard">
+      <!-- Skeleton -->
+      <div class="today-date skeleton skeleton-line w60"></div>
+      <div class="today-content" id="todayContent">
+        <div class="skeleton skeleton-line w95"></div>
+        <div class="skeleton skeleton-line w80"></div>
+        <div class="skeleton skeleton-line w95"></div>
+        <div class="skeleton skeleton-line w60"></div>
+        <div class="skeleton skeleton-line w80"></div>
+        <div class="skeleton skeleton-line w95"></div>
+        <div class="skeleton skeleton-line w70"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ARCHIVE -->
+  <section class="archive-section">
+    <div class="section-label">Archive</div>
+
+    <div class="filters" id="filters">
+      <button class="filter-btn active" onclick="setFilter('all', this)">All</button>
+      <button class="filter-btn" onclick="setFilter('monday', this)">Monday</button>
+      <button class="filter-btn" onclick="setFilter('tuesday', this)">Tuesday</button>
+      <button class="filter-btn" onclick="setFilter('wednesday', this)">Wednesday</button>
+      <button class="filter-btn" onclick="setFilter('thursday', this)">Thursday</button>
+      <button class="filter-btn" onclick="setFilter('friday', this)">Friday</button>
+    </div>
+
+    <div class="archive-grid" id="archiveGrid">
+      <!-- populated by JS -->
+    </div>
+
+    <div class="load-more-wrap" id="loadMoreWrap" style="display:none">
+      <button class="btn-load" id="loadMoreBtn" onclick="loadMore()">Load More</button>
+    </div>
+  </section>
+
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+  <div class="modal" id="modal">
+    <button class="modal-close" onclick="closeModalDirect()">✕</button>
+    <div class="modal-date" id="modalDate"></div>
+    <div class="modal-content" id="modalContent"></div>
+  </div>
+</div>
+
+<!-- ADMIN FAB -->
+<button class="admin-fab" id="adminFab" onclick="toggleAdminPanel()">⚙</button>
+<div class="admin-panel" id="adminPanel">
+  <h4>Admin Panel</h4>
+  <input type="password" class="admin-input" id="adminPwd" placeholder="Password">
+  <button class="admin-btn" onclick="adminLogin()">Login</button>
+  <div id="adminActions" style="display:none">
+    <button class="admin-btn" onclick="adminDelete()">Delete Selected Post</button>
+    <button class="admin-btn" onclick="refreshPage()">Refresh Feed</button>
+  </div>
+  <div class="admin-status" id="adminStatus"></div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+// CONFIG
+// ─────────────────────────────────────────────
+const WORKER_URL = 'https://xenos-ai-proxy.xenosfinance.workers.dev';
+const GITHUB_RAW = 'https://raw.githubusercontent.com/xenosfinance-prog/waves/main';
+const ADMIN_PASSWORD = 'RMG@Manu78';
+
+// ─────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────
+let allPosts = [];
+let visibleCount = 9;
+let activeFilter = 'all';
+let isAdmin = false;
+let selectedPostDate = null;
+
+// ─────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────
+async function init() {
+  await loadIndex();
+}
+
+async function loadIndex() {
+  try {
+    const ts = Date.now();
+    const res = await fetch(`${GITHUB_RAW}/daily_education/index.json?t=${ts}`);
+    if (!res.ok) throw new Error('index not found');
+    const data = await res.json();
+    allPosts = data.posts || [];
+    renderToday();
+    renderArchive();
+  } catch (e) {
+    // No posts yet
+    renderTodayEmpty();
+    renderArchiveEmpty();
+  }
+}
+
+// ─────────────────────────────────────────────
+// TODAY CARD
+// ─────────────────────────────────────────────
+async function renderToday() {
+  if (!allPosts.length) { renderTodayEmpty(); return; }
+
+  const latest = allPosts[0];
+  try {
+    const res = await fetch(`${GITHUB_RAW}/${latest.file}?t=${Date.now()}`);
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+
+    const dateEl = document.createElement('div');
+    dateEl.className = 'today-date';
+    dateEl.textContent = formatDateFull(latest.date);
+
+    const contentEl = document.createElement('div');
+    contentEl.className = 'today-content';
+    contentEl.textContent = data.content;
+
+    const card = document.getElementById('todayCard');
+    card.innerHTML = '';
+    card.appendChild(dateEl);
+    card.appendChild(contentEl);
+
+  } catch(e) {
+    renderTodayEmpty();
+  }
+}
+
+function renderTodayEmpty() {
+  const card = document.getElementById('todayCard');
+  card.innerHTML = `
+    <div class="no-posts">
+      <div class="icon">📚</div>
+      <div>No content published yet.</div>
+      <div style="margin-top:8px;font-size:0.75rem;">Daily education posts will appear here automatically.</div>
+    </div>`;
+}
+
+// ─────────────────────────────────────────────
+// ARCHIVE
+// ─────────────────────────────────────────────
+function renderArchive() {
+  const grid = document.getElementById('archiveGrid');
+  grid.innerHTML = '';
+
+  // Skip today (index 0) in archive
+  let posts = allPosts.slice(1);
+
+  if (activeFilter !== 'all') {
+    posts = posts.filter(p => p.day_name.toLowerCase() === activeFilter);
+  }
+
+  if (!posts.length) {
+    grid.innerHTML = `<div class="no-posts" style="grid-column:1/-1">
+      <div class="icon">📂</div>
+      <div>No archived posts yet.</div>
+    </div>`;
+    document.getElementById('loadMoreWrap').style.display = 'none';
+    return;
+  }
+
+  const toShow = posts.slice(0, visibleCount);
+  toShow.forEach(p => {
+    const card = document.createElement('div');
+    card.className = 'archive-card';
+    card.onclick = () => openModal(p);
+    card.innerHTML = `
+      <div class="archive-card-date">${formatDateShort(p.date)}</div>
+      <div class="archive-card-day">${p.day_name}</div>
+      <div class="archive-card-preview" id="preview-${p.date}">Loading...</div>
+      <div class="archive-card-arrow">→</div>`;
+    grid.appendChild(card);
+    loadPreview(p);
+  });
+
+  const loadMoreWrap = document.getElementById('loadMoreWrap');
+  if (posts.length > visibleCount) {
+    loadMoreWrap.style.display = 'block';
+    document.getElementById('loadMoreBtn').disabled = false;
+  } else {
+    loadMoreWrap.style.display = 'none';
+  }
+}
+
+async function loadPreview(post) {
+  try {
+    const res = await fetch(`${GITHUB_RAW}/${post.file}?t=${Date.now()}`);
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    const el = document.getElementById(`preview-${post.date}`);
+    if (el) {
+      // Take first 200 chars of meaningful content
+      const text = data.content
+        .replace(/━+/g, '')
+        .replace(/\n{3,}/g, '\n')
+        .trim()
+        .substring(0, 180) + '...';
+      el.textContent = text;
+    }
+  } catch(e) {
+    const el = document.getElementById(`preview-${post.date}`);
+    if (el) el.textContent = 'Educational content for ' + post.day_name;
+  }
+}
+
+function renderArchiveEmpty() {
+  document.getElementById('archiveGrid').innerHTML = `
+    <div class="no-posts" style="grid-column:1/-1">
+      <div class="icon">📂</div>
+      <div>Archive is empty.</div>
+    </div>`;
+}
+
+function loadMore() {
+  visibleCount += 9;
+  renderArchive();
+}
+
+function setFilter(day, btn) {
+  activeFilter = day;
+  visibleCount = 9;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderArchive();
+}
+
+// ─────────────────────────────────────────────
+// MODAL
+// ─────────────────────────────────────────────
+async function openModal(post) {
+  selectedPostDate = post.date;
+  document.getElementById('modalDate').textContent = formatDateFull(post.date) + ' — ' + post.day_name;
+  document.getElementById('modalContent').textContent = 'Loading...';
+  document.getElementById('modalOverlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+
+  try {
+    const res = await fetch(`${GITHUB_RAW}/${post.file}?t=${Date.now()}`);
+    const data = await res.json();
+    document.getElementById('modalContent').textContent = data.content;
+  } catch(e) {
+    document.getElementById('modalContent').textContent = 'Error loading content.';
+  }
+}
+
+function closeModal(e) {
+  if (e.target === document.getElementById('modalOverlay')) closeModalDirect();
+}
+function closeModalDirect() {
+  document.getElementById('modalOverlay').classList.remove('open');
+  document.body.style.overflow = '';
+  selectedPostDate = null;
+}
+
+// ─────────────────────────────────────────────
+// ADMIN
+// ─────────────────────────────────────────────
+function toggleAdminPanel() {
+  document.getElementById('adminPanel').classList.toggle('open');
+}
+
+function adminLogin() {
+  const pwd = document.getElementById('adminPwd').value;
+  if (pwd === ADMIN_PASSWORD) {
+    isAdmin = true;
+    document.getElementById('adminActions').style.display = 'block';
+    setAdminStatus('Logged in ✓', 'ok');
+    document.getElementById('adminPwd').style.display = 'none';
+    document.querySelector('#adminPanel .admin-btn').style.display = 'none';
+  } else {
+    setAdminStatus('Wrong password', 'err');
+  }
+}
+
+async function adminDelete() {
+  if (!isAdmin) return;
+  const date = selectedPostDate || allPosts[0]?.date;
+  if (!date) { setAdminStatus('No post selected', 'err'); return; }
+
+  if (!confirm(`Delete post for ${date}?`)) return;
+
+  setAdminStatus('Deleting...', '');
+  try {
+    const res = await fetch(`${WORKER_URL}/delete-education`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ date, password: ADMIN_PASSWORD })
+    });
+    const data = await res.json();
+    if (data.success) {
+      setAdminStatus('Deleted ✓', 'ok');
+      closeModalDirect();
+      await loadIndex();
+    } else {
+      setAdminStatus(data.error || 'Error', 'err');
+    }
+  } catch(e) {
+    setAdminStatus('Network error', 'err');
+  }
+}
+
+function refreshPage() { window.location.reload(); }
+
+function setAdminStatus(msg, cls) {
+  const el = document.getElementById('adminStatus');
+  el.textContent = msg;
+  el.className = 'admin-status ' + cls;
+}
+
+// ─────────────────────────────────────────────
+// UTILS
+// ─────────────────────────────────────────────
+function formatDateFull(dateStr) {
+  const d = new Date(dateStr + 'T12:00:00Z');
+  return d.toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+}
+function formatDateShort(dateStr) {
+  const d = new Date(dateStr + 'T12:00:00Z');
+  return d.toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+// Keyboard close modal
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModalDirect(); });
+
+// Start
+init();
+</script>
+</body>
+</html>
