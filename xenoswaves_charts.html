@@ -92,15 +92,22 @@ body { background: var(--bg); color: var(--ink); font-family: var(--mono); min-h
 .masthead-name span { color: var(--gold); }
 .masthead-sub { font-size: 10px; letter-spacing: 5px; color: var(--muted); margin-top: 6px; text-transform: uppercase; }
 .masthead-nav {
-  display: flex; justify-content: center; gap: 0;
+  display: flex; justify-content: center; gap: 0; flex-wrap: nowrap;
   border-top: 1px solid var(--border); background: var(--bg2);
+  overflow-x: auto; scrollbar-width: none;
 }
+.masthead-nav::-webkit-scrollbar { display: none; }
 .masthead-nav a {
-  font-size: 11px; letter-spacing: 3px; text-transform: uppercase;
-  padding: 11px 36px; color: var(--muted); text-decoration: none;
-  border-bottom: 3px solid transparent; transition: all 0.2s; display: inline-block;
+  font-size: 9.5px; letter-spacing: 1.5px; text-transform: uppercase;
+  padding: 11px 16px; color: var(--muted); text-decoration: none;
+  border-bottom: 3px solid transparent; transition: all 0.2s;
+  display: inline-block; white-space: nowrap; flex-shrink: 0;
 }
 .masthead-nav a:hover, .masthead-nav a.active { color: var(--gold); border-bottom-color: var(--gold); }
+@media (max-width: 900px) {
+  .masthead-nav { justify-content: flex-start; }
+  .masthead-nav a { padding: 9px 12px; font-size: 8.5px; letter-spacing: 1px; }
+}
 .ticker-bar {
   background: var(--bg2); border-bottom: 1px solid var(--border);
   padding: 7px 0; overflow: hidden; font-size: 11px;
