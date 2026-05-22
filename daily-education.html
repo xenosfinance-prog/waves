@@ -200,6 +200,74 @@
     color: var(--gold);
     text-transform: uppercase;
   }
+  /* ── RENDERED CONTENT ── */
+  .edu-section { margin-bottom: 28px; }
+  .edu-section-title {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    letter-spacing: 0.12em;
+    color: var(--gold);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--gold-border);
+  }
+  .edu-paragraph {
+    font-family: var(--font-body);
+    font-size: 0.93rem;
+    line-height: 1.75;
+    color: var(--text);
+    margin-bottom: 10px;
+  }
+  .edu-paragraph b { color: var(--accent); font-weight: 600; }
+  .edu-list { list-style: none; padding: 0; margin: 8px 0 12px 0; }
+  .edu-list li {
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+    line-height: 1.65;
+    color: var(--text-dim);
+    padding: 3px 0 3px 18px;
+    position: relative;
+  }
+  .edu-list li::before { content: '—'; position: absolute; left: 0; color: var(--gold); font-size: 0.75rem; }
+  .edu-list li b { color: var(--text); font-weight: 600; }
+  .edu-pro-tip {
+    background: rgba(240,192,64,0.08);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 8px 8px 0;
+    padding: 12px 16px;
+    margin: 14px 0;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--accent);
+    letter-spacing: 0.03em;
+    line-height: 1.6;
+  }
+  .edu-smart-rule {
+    background: var(--gold-dim);
+    border-left: 3px solid var(--gold);
+    border-radius: 0 8px 8px 0;
+    padding: 12px 16px;
+    margin: 14px 0;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--gold);
+    letter-spacing: 0.03em;
+    line-height: 1.6;
+  }
+  .edu-footer {
+    text-align: center;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
 
   /* Skeleton loading */
   .skeleton {
@@ -624,7 +692,7 @@ async function renderToday() {
 
     const contentEl = document.createElement('div');
     contentEl.className = 'today-content';
-    contentEl.textContent = data.content;
+    contentEl.innerHTML = formatEduContent(data.content);
 
     const card = document.getElementById('todayCard');
     card.innerHTML = '';
@@ -747,7 +815,7 @@ async function openModal(post) {
   try {
     const res = await fetch(`${GITHUB_RAW}/${post.file}?t=${Date.now()}`);
     const data = await res.json();
-    document.getElementById('modalContent').textContent = data.content;
+    document.getElementById('modalContent').innerHTML = formatEduContent(data.content);
   } catch(e) {
     document.getElementById('modalContent').textContent = 'Error loading content.';
   }
@@ -831,6 +899,109 @@ function formatDateShort(dateStr) {
 
 // Keyboard close modal
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModalDirect(); });
+
+// ─────────────────────────────────────────────
+// CONTENT FORMATTER — strips Telegram markdown, renders rich HTML
+// ─────────────────────────────────────────────
+function formatEduContent(raw) {
+  if (!raw) return '';
+
+  // Split into lines
+  const lines = raw.split('\n');
+  let html = '';
+  let inList = false;
+  let inSection = false;
+
+  const closeList = () => { if (inList) { html += '</ul>'; inList = false; } };
+  const closeSection = () => { if (inSection) { html += '</div>'; inSection = false; } };
+
+  // Bold: *text* → <b>text</b>
+  const parseBold = (text) => text.replace(/\*([^*]+)\*/g, '<b>$1</b>');
+
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i].trim();
+
+    // Skip separator lines (━━━ etc)
+    if (/^[━─═\-]{3,}$/.test(line)) {
+      closeList();
+      if (inSection) html += '<hr class="edu-separator">';
+      continue;
+    }
+
+    // Main header (DAILY MARKET EDUCATION)
+    if (/^📚\s*DAILY MARKET EDUCATION/i.test(line)) {
+      closeList(); closeSection();
+      continue; // already shown in today-date area
+    }
+
+    // Footer
+    if (/educational purpose only/i.test(line)) {
+      closeList(); closeSection();
+      html += '<div class="edu-footer">⚠️ Educational purpose only</div>';
+      continue;
+    }
+
+    // Empty line
+    if (!line) {
+      closeList();
+      continue;
+    }
+
+    // PRO TIP / SMART MONEY RULE — special callout
+    if (/^(PRO TIP|💡\s*PRO TIP)/i.test(line)) {
+      closeList();
+      const rest = line.replace(/^(💡\s*)?(PRO TIP)\s*[:\-]?\s*/i, '');
+      // grab next non-empty lines until next section
+      let tipText = rest;
+      while (i + 1 < lines.length && lines[i+1].trim() && !/^[📊📈🧠⚠️💡🔑]/.test(lines[i+1].trim()) && !/^(SMART MONEY|PRO TIP|━)/i.test(lines[i+1].trim())) {
+        i++;
+        tipText += ' ' + lines[i].trim();
+      }
+      html += `<div class="edu-pro-tip">💡 <b>PRO TIP</b> — ${parseBold(tipText)}</div>`;
+      continue;
+    }
+
+    if (/^(SMART MONEY RULE|🔑\s*SMART MONEY)/i.test(line)) {
+      closeList();
+      const rest = line.replace(/^(🔑\s*)?(SMART MONEY RULE)\s*[:\-]?\s*/i, '');
+      let tipText = rest;
+      while (i + 1 < lines.length && lines[i+1].trim() && !/^[📊📈🧠⚠️💡🔑]/.test(lines[i+1].trim())) {
+        i++;
+        tipText += ' ' + lines[i].trim();
+      }
+      html += `<div class="edu-smart-rule">🔑 <b>SMART MONEY RULE</b> — ${parseBold(tipText)}</div>`;
+      continue;
+    }
+
+    // Section title — lines in ALL CAPS with emoji or starting with emoji + words
+    const isSectionTitle = /^[📊📈📉🧠⚠️💰🔥⚡🎯📋🔍💡📌🏦🌍]/.test(line) ||
+                           (/^[A-Z][A-Z\s&:]+$/.test(line) && line.length > 5 && line.length < 80);
+
+    if (isSectionTitle) {
+      closeList(); closeSection();
+      inSection = true;
+      html += `<div class="edu-section"><div class="edu-section-title">${line}</div>`;
+      continue;
+    }
+
+    // Bullet / list item — starts with - or •
+    if (/^[-•]\s+/.test(line)) {
+      if (!inList) { html += '<ul class="edu-list">'; inList = true; }
+      const itemText = parseBold(line.replace(/^[-•]\s+/, ''));
+      html += `<li>${itemText}</li>`;
+      continue;
+    }
+
+    // Regular paragraph
+    closeList();
+    if (!inSection) { inSection = true; html += '<div class="edu-section">'; }
+    html += `<p class="edu-paragraph">${parseBold(line)}</p>`;
+  }
+
+  closeList();
+  closeSection();
+  return html;
+}
 
 // Start
 init();
