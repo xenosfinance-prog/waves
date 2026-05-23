@@ -526,6 +526,7 @@
     .detail-top { grid-template-columns: 1fr; }
   }
 </style>
+<script src="xf-premium.js"></script>
 </head>
 <body>
 
@@ -566,7 +567,6 @@
       <a href="https://xenosfinance.com/trading-ideas" style="display:inline-block;padding:10px 16px;font-size:10px;letter-spacing:2px;text-transform:uppercase;text-decoration:none;color:#5a7a9a;border-bottom:2px solid transparent;">💡 Trading Ideas</a>
       <a href="https://xenosfinance.com/calendar" style="display:inline-block;padding:10px 16px;font-size:10px;letter-spacing:2px;text-transform:uppercase;text-decoration:none;color:#5a7a9a;border-bottom:2px solid transparent;">🗓 Calendar</a>
       <a href="https://xenosfinance.com/elliottwave" style="display:inline-block;padding:10px 16px;font-size:10px;letter-spacing:2px;text-transform:uppercase;text-decoration:none;color:#5a7a9a;border-bottom:2px solid transparent;">〜 Elliott Wave</a>
-      <a href="https://xenosfinance.com/daily-education" style="display:inline-block;padding:10px 16px;font-size:10px;letter-spacing:2px;text-transform:uppercase;text-decoration:none;color:#5a7a9a;border-bottom:2px solid transparent;">📚 Education</a>
       <a href="https://xenosfinance.com/premium-support" style="display:inline-block;padding:10px 16px;font-size:10px;letter-spacing:2px;text-transform:uppercase;text-decoration:none;color:var(--gold2);border-bottom:2px solid transparent;">✦ Premium</a>
     </nav>
 
@@ -633,6 +633,7 @@
         </select>
       </div>
       <button class="btn-generate" id="gen-btn" onclick="generateSignals()">▶ GENERATE SIGNALS</button>
+      <div id="xf-usage-badge-sig" style="margin-top:8px;text-align:center;"></div>
       <button class="btn-generate" onclick="openManualSignal()" style="background:#1e3050;color:#60a5fa;border:1px solid #2d4a78;margin-left:8px;">✎ MANUAL SIGNAL</button>
     </div>
 
@@ -2236,6 +2237,9 @@ CRITICAL RULES:
 
 // ── Main generate function ────────────────────────────────────
 async function generateSignals() {
+  // Premium gate
+  if (!XFPremium.gate('signals')) return;
+
   const btn = document.getElementById('gen-btn');
   btn.disabled = true;
   document.getElementById('loader').classList.add('active');
@@ -3879,3 +3883,9 @@ window.onload = () => {
 </script>
 </body>
 </html>
+
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  XFPremium.renderBadge('signals', 'xf-usage-badge-sig');
+});
+</script>
