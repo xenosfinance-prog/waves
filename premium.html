@@ -612,6 +612,7 @@ nav {
       Connect Wallet
     </button>
     <div class="wallet-status" id="walletStatus">Connect your wallet to continue</div>
+    <div id="noWalletHelp"></div>
     <div class="network-warn" id="networkWarn">
       ⚠️ Switch to Base network
       <button class="btn-switch-network" onclick="switchToBase()">Switch to Base</button>
@@ -820,7 +821,65 @@ async function connectWallet() {
   const status = document.getElementById('walletStatus');
 
   if (!window.ethereum) {
-    setStatus('error', 'No wallet detected. Install Coinbase Wallet or MetaMask.');
+    // Show rich no-wallet UI
+    document.getElementById('walletStatus').innerHTML = '';
+    document.getElementById('walletStatus').className = 'wallet-status';
+
+    const noWalletDiv = document.getElementById('noWalletHelp') || document.createElement('div');
+    noWalletDiv.id = 'noWalletHelp';
+    noWalletDiv.innerHTML = `
+      <div style="
+        background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);
+        border-radius:12px;padding:20px 24px;max-width:420px;margin:0 auto;text-align:left;
+      ">
+        <div style="font-family:var(--font-mono);font-size:0.72rem;letter-spacing:0.1em;color:#ef4444;margin-bottom:12px;text-transform:uppercase;">
+          ⚠️ No wallet detected
+        </div>
+        <div style="font-size:0.85rem;color:var(--text);margin-bottom:16px;font-family:var(--font-body);line-height:1.6;">
+          To pay with USDC you need a crypto wallet. Install one of these:
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;">
+          <a href="https://chrome.google.com/webstore/detail/coinbase-wallet-extension/hnfanknocfeofbddgcijnmhnfnkdnaad" target="_blank" style="
+            display:flex;align-items:center;gap:10px;
+            background:var(--bg3);border:1px solid var(--border);
+            border-radius:8px;padding:10px 14px;text-decoration:none;
+            transition:border-color 0.2s;
+          " onmouseover="this.style.borderColor='rgba(59,130,246,0.4)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.06)'">
+            <img src="https://cdn.jsdelivr.net/gh/MetaMask/brand-resources@main/SVG/coinbase-wallet-logo.svg" onerror="this.style.display='none'" width="24" height="24" style="border-radius:6px;">
+            <div>
+              <div style="font-family:var(--font-mono);font-size:0.72rem;color:var(--text);letter-spacing:0.06em;">Coinbase Wallet</div>
+              <div style="font-size:0.7rem;color:var(--muted);">Chrome Extension · Recommended</div>
+            </div>
+            <span style="margin-left:auto;color:var(--gold);font-size:0.7rem;font-family:var(--font-mono);">Install →</span>
+          </a>
+          <a href="https://metamask.io/download/" target="_blank" style="
+            display:flex;align-items:center;gap:10px;
+            background:var(--bg3);border:1px solid var(--border);
+            border-radius:8px;padding:10px 14px;text-decoration:none;
+            transition:border-color 0.2s;
+          " onmouseover="this.style.borderColor='rgba(59,130,246,0.4)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.06)'">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg" onerror="this.style.display='none'" width="24" height="24">
+            <div>
+              <div style="font-family:var(--font-mono);font-size:0.72rem;color:var(--text);letter-spacing:0.06em;">MetaMask</div>
+              <div style="font-size:0.7rem;color:var(--muted);">Chrome · Firefox · Brave</div>
+            </div>
+            <span style="margin-left:auto;color:var(--gold);font-size:0.7rem;font-family:var(--font-mono);">Install →</span>
+          </a>
+        </div>
+        <div style="
+          background:var(--gold-dim);border:1px solid var(--gold-border);
+          border-radius:8px;padding:10px 14px;
+          font-size:0.78rem;color:var(--muted);font-family:var(--font-body);line-height:1.5;
+        ">
+          📱 <strong style="color:var(--text);">On mobile?</strong>
+          Open this page from inside the <strong style="color:var(--text);">Coinbase Wallet</strong> or <strong style="color:var(--text);">MetaMask</strong> app browser — no extension needed.
+        </div>
+      </div>`;
+
+    const connectArea = document.getElementById('connectArea');
+    const existing = document.getElementById('noWalletHelp');
+    if (!existing) connectArea.appendChild(noWalletDiv);
+    return;
     return;
   }
 
