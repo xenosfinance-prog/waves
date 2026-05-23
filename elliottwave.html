@@ -348,6 +348,7 @@ canvas { display: block; }
 </script>
 <script src="/i18n.js"></script>
 <script src="/i18n-engine.js"></script>
+<script src="xf-premium.js"></script>
 </head>
 <body>
 
@@ -373,7 +374,6 @@ canvas { display: block; }
     <a href="https://xenosfinance.com/trading-ideas"><span>💡 Trading Ideas</span></a>
     <a href="https://xenosfinance.com/calendar"><span data-i18n="nav_calendar">🗓 Calendar</span></a>
     <a href="https://xenosfinance.com/elliottwave" class="active"><span data-i18n="nav_elliott">〜 Elliott Wave</span></a>
-    <a href="https://xenosfinance.com/daily-education"><span>📚 Education</span></a>
     <a href="https://xenosfinance.com/premium-support"><span>✦ Premium</span></a>
   </nav>
 </div>
@@ -953,6 +953,7 @@ canvas { display: block; }
       </div>
 
       <button class="admin-run-btn" id="aiRunBtn" onclick="runAIAnalysis()">⚡ Generate Analysis</button>
+      <div id="xf-usage-badge-ew" style="margin-top:8px;text-align:center;"></div>
       <button class="admin-tg-btn" id="tgBtn" onclick="sendToTelegram()">📡 Send to Telegram</button>
       <button id="publishFromAnalysisBtn" onclick="publishFromAnalysis()" style="display:none;padding:12px 24px;background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.35);color:#34d399;font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;cursor:pointer;margin-left:8px;">✦ Publish Note</button>
 
@@ -2174,6 +2175,9 @@ function tvClearImage(e){
 }
 
 async function runAIAnalysis(){
+  // Premium gate
+  if (!XFPremium.gate('elliott')) return;
+
   const symbolVal = (document.getElementById('aiSymbol').value || '').trim();
   const symbol    = symbolVal.toUpperCase() || 'UNKNOWN';
   const tf        = document.getElementById('aiTf').value;
@@ -3206,6 +3210,10 @@ function renderEWSketch(analysis, symbol, tf){
   _ewSkTimers.push(setTimeout(nextSeg, 200));
 }
 
+  // Render premium badge
+  document.addEventListener('DOMContentLoaded', function(){
+    XFPremium.renderBadge('elliott', 'xf-usage-badge-ew');
+  });
 </script>
 </body>
 </html>
