@@ -570,6 +570,14 @@ nav {
   .hero h1 { font-size: 2rem; }
 }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<script>
+  window.addEventListener('load', function(){
+    if(typeof emailjs !== 'undefined'){
+      emailjs.init({ publicKey: 'XF_PUBLIC_KEY' });
+    }
+  });
+</script>
 </head>
 <body>
 
@@ -961,6 +969,22 @@ async function initPayment() {
         `✓ Payment confirmed! Tx: ${tx.hash.slice(0,10)}... · ` +
         `<a href="https://basescan.org/tx/${tx.hash}" target="_blank" style="color:inherit">View on Basescan</a>`
       );
+
+      // Notify xenosfinance@gmail.com
+      try {
+        if(typeof emailjs !== 'undefined'){
+          emailjs.send('XF_SERVICE_ID', 'xf_payment_template', {
+            subject:    '💰 New Premium Payment — XenosFinance',
+            wallet:     userAddr,
+            plan:       selectedPlan === 'monthly' ? 'Monthly (9 USDC)' : 'Annual (79 USDC)',
+            tx_hash:    tx.hash,
+            tx_url:     'https://basescan.org/tx/' + tx.hash,
+            amount:     selectedPlan === 'monthly' ? '9 USDC' : '79 USDC',
+            network:    'Base Mainnet',
+            timestamp:  new Date().toISOString(),
+          });
+        }
+      } catch(emailErr){ console.warn('Email notify failed:', emailErr); }
 
       setTimeout(() => {
         showPremiumActive(expiry, selectedPlan);

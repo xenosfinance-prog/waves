@@ -523,9 +523,41 @@ function toggleFaq(el) {
 
 // Notify form
 // Formspree Ajax — initialized after DOM ready
-window.formspree = window.formspree || function () { (formspree.q = formspree.q || []).push(arguments); };
-formspree('initForm', { formElement: '#notify-form', formId: 'xykopzwy' });
+// EmailJS — sends directly to xenosfinance@gmail.com
+(function(){
+  var s = document.createElement('script');
+  s.src = 'https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js';
+  s.onload = function(){ emailjs.init({ publicKey: 'XF_PUBLIC_KEY' }); };
+  document.head.appendChild(s);
+})();
+
+document.getElementById('notify-form').addEventListener('submit', function(e) {
+  e.preventDefault();
+  const email = document.getElementById('notify-email').value;
+  const btn   = this.querySelector('button[type=submit]');
+  const succ  = document.getElementById('notify-success');
+
+  btn.textContent = 'Sending...';
+  btn.disabled    = true;
+
+  emailjs.send('XF_SERVICE_ID', 'xf_notify_template', {
+    from_email:   email,
+    message:      'New Premium Launch Notification signup from: ' + email,
+    to_name:      'XenosFinance',
+    subject:      '🔔 New Premium Waitlist Signup — ' + email,
+    reply_to:     email,
+  })
+  .then(function() {
+    succ.style.display = 'block';
+    btn.style.display  = 'none';
+    this.reset && this.reset();
+  }.bind(this))
+  .catch(function(err) {
+    btn.textContent = 'Try again';
+    btn.disabled    = false;
+    console.error('EmailJS error:', err);
+  });
+});
 </script>
-<script src="https://unpkg.com/@formspree/ajax@1" defer></script>
 </body>
 </html>
