@@ -1,0 +1,1016 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>XenosFinance Premium — Web3 Membership</title>
+<meta name="description" content="Get full access to XenosFinance Premium — Elliott Wave analysis, daily education, trading signals and more. Pay with USDC on Base.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Mono:wght@400;500&family=PT+Serif:ital@0;1&display=swap" rel="stylesheet">
+<script src="https://cdn.ethers.io/lib/ethers-5.7.2.umd.min.js"></script>
+<style>
+:root {
+  --bg:     #0f1724;
+  --bg2:    #141e2e;
+  --bg3:    #1a2540;
+  --gold:   #3b82f6;
+  --gold-dim: rgba(59,130,246,0.12);
+  --gold-border: rgba(59,130,246,0.3);
+  --accent: #f0c040;
+  --accent-dim: rgba(240,192,64,0.1);
+  --text:   #e8eaf0;
+  --muted:  #8899aa;
+  --green:  #22c55e;
+  --green-dim: rgba(34,197,94,0.12);
+  --red:    #ef4444;
+  --border: rgba(255,255,255,0.06);
+  --radius: 14px;
+  --font-display: 'Playfair Display', Georgia, serif;
+  --font-mono:    'IBM Plex Mono', monospace;
+  --font-body:    'PT Serif', Georgia, serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  line-height: 1.7;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── NAV ── */
+nav {
+  background: rgba(15,23,36,0.96);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.nav-logo {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text);
+  text-decoration: none;
+}
+.nav-logo span { color: var(--gold); }
+.nav-links { display: flex; gap: 24px; }
+.nav-links a {
+  color: var(--muted);
+  text-decoration: none;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: color 0.2s;
+}
+.nav-links a:hover, .nav-links a.active { color: var(--gold); }
+
+/* ── HERO ── */
+.hero {
+  position: relative;
+  padding: 80px 24px 60px;
+  text-align: center;
+  overflow: hidden;
+}
+.hero::before {
+  content: '';
+  position: absolute;
+  top: -100px; left: 50%;
+  transform: translateX(-50%);
+  width: 800px; height: 500px;
+  background: radial-gradient(ellipse, rgba(59,130,246,0.07) 0%, transparent 65%);
+  pointer-events: none;
+}
+.hero::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 39px,
+    rgba(255,255,255,0.015) 39px,
+    rgba(255,255,255,0.015) 40px
+  );
+  pointer-events: none;
+}
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--accent-dim);
+  border: 1px solid rgba(240,192,64,0.3);
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 6px 18px;
+  border-radius: 100px;
+  margin-bottom: 24px;
+  position: relative;
+  z-index: 1;
+}
+.hero-badge::before { content: '◆'; font-size: 0.45rem; }
+.hero h1 {
+  font-family: var(--font-display);
+  font-size: clamp(2.5rem, 6vw, 4rem);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  margin-bottom: 20px;
+  position: relative;
+  z-index: 1;
+}
+.hero h1 em { color: var(--gold); font-style: italic; }
+.hero p {
+  color: var(--muted);
+  font-size: 1.05rem;
+  max-width: 500px;
+  margin: 0 auto 40px;
+  position: relative;
+  z-index: 1;
+}
+
+/* ── WALLET CONNECT AREA ── */
+.connect-area {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.btn-connect {
+  background: var(--gold);
+  color: #fff;
+  border: none;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 14px 36px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.btn-connect:hover { background: #2563eb; transform: translateY(-1px); box-shadow: 0 8px 32px rgba(59,130,246,0.3); }
+.btn-connect svg { width: 18px; height: 18px; }
+.wallet-status {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--muted);
+  letter-spacing: 0.06em;
+}
+.wallet-status.connected { color: var(--green); }
+.wallet-status.error { color: var(--red); }
+
+/* ── NETWORK WARNING ── */
+.network-warn {
+  background: rgba(239,68,68,0.1);
+  border: 1px solid rgba(239,68,68,0.3);
+  color: var(--red);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  padding: 10px 20px;
+  border-radius: 8px;
+  display: none;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+.network-warn.show { display: flex; }
+.btn-switch-network {
+  background: rgba(239,68,68,0.15);
+  border: 1px solid rgba(239,68,68,0.4);
+  color: var(--red);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  padding: 4px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-left: auto;
+  transition: background 0.2s;
+}
+.btn-switch-network:hover { background: rgba(239,68,68,0.25); }
+
+/* ── PLANS ── */
+.plans-section {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 60px 24px;
+}
+.section-label {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-align: center;
+  margin-bottom: 40px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.section-label::before, .section-label::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+.plans-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 48px;
+}
+.plan-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 32px;
+  position: relative;
+  transition: border-color 0.2s, transform 0.2s;
+  cursor: pointer;
+}
+.plan-card:hover { border-color: var(--gold-border); transform: translateY(-2px); }
+.plan-card.selected {
+  border-color: var(--gold);
+  box-shadow: 0 0 32px rgba(59,130,246,0.12);
+}
+.plan-card.featured {
+  border-color: var(--accent);
+  box-shadow: 0 0 32px rgba(240,192,64,0.08);
+}
+.plan-card.featured.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 40px rgba(240,192,64,0.15);
+}
+.plan-badge {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--accent);
+  color: #0f1724;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 4px 14px;
+  border-radius: 100px;
+  white-space: nowrap;
+}
+.plan-name {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+.plan-price {
+  font-family: var(--font-display);
+  font-size: 2.8rem;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1;
+  margin-bottom: 4px;
+}
+.plan-price sup {
+  font-size: 1.2rem;
+  vertical-align: super;
+  color: var(--muted);
+  font-family: var(--font-mono);
+}
+.plan-period {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--muted);
+  margin-bottom: 20px;
+}
+.plan-saving {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--accent);
+  background: var(--accent-dim);
+  border: 1px solid rgba(240,192,64,0.2);
+  padding: 3px 10px;
+  border-radius: 100px;
+  display: inline-block;
+  margin-bottom: 20px;
+}
+.plan-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+.plan-check::before {
+  content: '✓';
+  color: var(--green);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  flex-shrink: 0;
+}
+.plan-select-indicator {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border);
+  border-radius: 50%;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.plan-card.selected .plan-select-indicator {
+  border-color: var(--gold);
+  background: var(--gold);
+}
+.plan-card.selected .plan-select-indicator::after {
+  content: '✓';
+  color: white;
+  font-size: 0.6rem;
+  font-family: var(--font-mono);
+}
+
+/* ── PAYMENT BUTTON ── */
+.payment-wrap {
+  text-align: center;
+}
+.btn-pay {
+  background: var(--gold);
+  color: #fff;
+  border: none;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 18px 48px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 280px;
+  justify-content: center;
+}
+.btn-pay:hover:not(:disabled) {
+  background: #2563eb;
+  transform: translateY(-2px);
+  box-shadow: 0 12px 40px rgba(59,130,246,0.3);
+}
+.btn-pay:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+.pay-note {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--muted);
+  margin-top: 14px;
+  letter-spacing: 0.06em;
+}
+
+/* ── TX STATUS ── */
+.tx-status {
+  max-width: 480px;
+  margin: 20px auto 0;
+  padding: 16px 20px;
+  border-radius: 10px;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  display: none;
+  align-items: center;
+  gap: 12px;
+  line-height: 1.5;
+}
+.tx-status.show { display: flex; }
+.tx-status.pending { background: var(--gold-dim); border: 1px solid var(--gold-border); color: var(--gold); }
+.tx-status.success { background: var(--green-dim); border: 1px solid rgba(34,197,94,0.3); color: var(--green); }
+.tx-status.error   { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); color: var(--red); }
+.tx-spinner {
+  width: 16px; height: 16px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── PREMIUM ACTIVE ── */
+.premium-active {
+  display: none;
+  max-width: 560px;
+  margin: 0 auto;
+  background: var(--green-dim);
+  border: 1px solid rgba(34,197,94,0.3);
+  border-radius: var(--radius);
+  padding: 32px;
+  text-align: center;
+  position: relative;
+  z-index: 1;
+}
+.premium-active.show { display: block; }
+.premium-active h3 {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  color: var(--green);
+  margin-bottom: 8px;
+}
+.premium-active p {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin-bottom: 20px;
+}
+.premium-links {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.premium-link {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text);
+  text-decoration: none;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  padding: 9px 18px;
+  border-radius: 8px;
+  transition: border-color 0.2s;
+}
+.premium-link:hover { border-color: var(--gold-border); color: var(--gold); }
+
+/* ── FEATURES SECTION ── */
+.features-section {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 0 24px 80px;
+}
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+.feature-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  transition: border-color 0.2s;
+}
+.feature-card:hover { border-color: var(--gold-border); }
+.feature-icon {
+  font-size: 1.6rem;
+  margin-bottom: 12px;
+}
+.feature-title {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 8px;
+}
+.feature-desc {
+  font-size: 0.85rem;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+/* ── HOW IT WORKS ── */
+.how-section {
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 0 24px 80px;
+  text-align: center;
+}
+.how-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-top: 32px;
+  text-align: left;
+}
+.how-step {
+  display: flex;
+  gap: 20px;
+  padding: 20px 0;
+  border-bottom: 1px solid var(--border);
+  position: relative;
+}
+.how-step:last-child { border-bottom: none; }
+.step-num {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  color: var(--gold);
+  background: var(--gold-dim);
+  border: 1px solid var(--gold-border);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.step-title {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+.step-desc {
+  font-size: 0.85rem;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+/* ── FOOTER INFO ── */
+.footer-info {
+  border-top: 1px solid var(--border);
+  padding: 32px 24px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--muted);
+  letter-spacing: 0.06em;
+  line-height: 2;
+}
+.footer-info a { color: var(--gold); text-decoration: none; }
+
+@media (max-width: 700px) {
+  .plans-grid { grid-template-columns: 1fr; }
+  .features-grid { grid-template-columns: 1fr; }
+  .nav-links { display: none; }
+  .hero h1 { font-size: 2rem; }
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="index.html" class="nav-logo">Xenos<span>Finance</span></a>
+  <div class="nav-links">
+    <a href="index.html">Home</a>
+    <a href="xenoswaves_charts.html">Markets</a>
+    <a href="signals.html">Signals</a>
+    <a href="trading-ideas.html">Ideas</a>
+    <a href="daily-education.html">Education</a>
+    <a href="XenosBlog.html">Blog</a>
+    <a href="premium.html" class="active">✦ Premium</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-badge">Web3 Membership · Base Network</div>
+  <h1>Unlock<br><em>Full Access</em></h1>
+  <p>Professional financial intelligence — Elliott Wave analysis, daily education, trading signals and more. Pay with USDC on Base.</p>
+
+  <!-- WALLET CONNECT -->
+  <div class="connect-area" id="connectArea">
+    <button class="btn-connect" id="btnConnect" onclick="connectWallet()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 12V7H5a2 2 0 010-4h14v4"/>
+        <path d="M3 5v14a2 2 0 002 2h16v-5"/>
+        <path d="M18 12a2 2 0 000 4h3v-4z"/>
+      </svg>
+      Connect Wallet
+    </button>
+    <div class="wallet-status" id="walletStatus">Connect your wallet to continue</div>
+    <div class="network-warn" id="networkWarn">
+      ⚠️ Switch to Base network
+      <button class="btn-switch-network" onclick="switchToBase()">Switch to Base</button>
+    </div>
+  </div>
+
+  <!-- PREMIUM ACTIVE (shown when user already has membership) -->
+  <div class="premium-active" id="premiumActive">
+    <h3>✦ Premium Active</h3>
+    <p id="premiumExpiry">Your membership is active.</p>
+    <div class="premium-links">
+      <a href="daily-education.html" class="premium-link">📚 Education</a>
+      <a href="trading-ideas.html" class="premium-link">💡 Trading Ideas</a>
+      <a href="signals.html" class="premium-link">📡 Signals</a>
+      <a href="XenosBlog.html" class="premium-link">✦ Blog</a>
+      <a href="elliottwave.html" class="premium-link">〜 Elliott Wave</a>
+    </div>
+  </div>
+</section>
+
+<!-- PLANS -->
+<section class="plans-section" id="plansSection">
+  <div class="section-label">Choose your plan</div>
+
+  <div class="plans-grid">
+    <!-- Monthly -->
+    <div class="plan-card" id="planMonthly" onclick="selectPlan('monthly')">
+      <div class="plan-select-indicator"></div>
+      <div class="plan-name">Monthly</div>
+      <div class="plan-price"><sup>USDC</sup> 9</div>
+      <div class="plan-period">per month · cancel anytime</div>
+      <div class="plan-check">Full access to all features</div>
+      <div class="plan-check">Daily Education posts</div>
+      <div class="plan-check">Elliott Wave analysis</div>
+      <div class="plan-check">Trading signals & ideas</div>
+      <div class="plan-check">AI Blog & market briefs</div>
+    </div>
+
+    <!-- Annual -->
+    <div class="plan-card featured selected" id="planAnnual" onclick="selectPlan('annual')">
+      <div class="plan-badge">Best Value — Save 27%</div>
+      <div class="plan-select-indicator"></div>
+      <div class="plan-name">Annual</div>
+      <div class="plan-price"><sup>USDC</sup> 79</div>
+      <div class="plan-period">per year · one payment</div>
+      <div class="plan-saving">Save 29 USDC vs monthly</div>
+      <div class="plan-check">Everything in Monthly</div>
+      <div class="plan-check">Priority Telegram support</div>
+      <div class="plan-check">Early access to new features</div>
+      <div class="plan-check">Weekly Trading Plan PDF</div>
+      <div class="plan-check">Direct analyst access</div>
+    </div>
+  </div>
+
+  <!-- PAY BUTTON -->
+  <div class="payment-wrap">
+    <button class="btn-pay" id="btnPay" onclick="initPayment()" disabled>
+      <span id="btnPayText">Connect wallet first</span>
+    </button>
+    <div class="pay-note" id="payNote">
+      Paying with USDC on Base · Gas fee ~$0.01 · No recurring charges
+    </div>
+
+    <!-- TX STATUS -->
+    <div class="tx-status" id="txStatus">
+      <div class="tx-spinner" id="txSpinner"></div>
+      <div id="txMessage">Processing...</div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="features-section">
+  <div class="section-label">What you get</div>
+  <div class="features-grid">
+    <div class="feature-card">
+      <div class="feature-icon">〜</div>
+      <div class="feature-title">Elliott Wave Analysis</div>
+      <div class="feature-desc">Full multi-timeframe Elliott Wave breakdowns with AI commentary, entry/target/invalidation levels.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">📚</div>
+      <div class="feature-title">Daily Education</div>
+      <div class="feature-desc">Professional educational content on TA, FA, risk management, psychology — every trading day.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">📡</div>
+      <div class="feature-title">Trading Signals</div>
+      <div class="feature-desc">Automated MKO signals across crypto, forex, commodities and US equities with R:R levels.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">💡</div>
+      <div class="feature-title">Trading Ideas</div>
+      <div class="feature-desc">AI-generated trade setups with charts, wave counts, and full analysis saved to your feed.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🤖</div>
+      <div class="feature-title">Telegram Bot</div>
+      <div class="feature-desc">Full access to @xenosfin — real-time signals, market briefs, on-demand Elliott Wave scans.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">📊</div>
+      <div class="feature-title">Live Market Data</div>
+      <div class="feature-desc">Real-time charts, heatmaps, economic calendar, and macro dashboard across all asset classes.</div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="how-section">
+  <div class="section-label">How it works</div>
+  <div class="how-steps">
+    <div class="how-step">
+      <div class="step-num">01</div>
+      <div>
+        <div class="step-title">Connect your wallet</div>
+        <div class="step-desc">Use Coinbase Wallet, MetaMask, or any Base-compatible wallet. No account needed.</div>
+      </div>
+    </div>
+    <div class="how-step">
+      <div class="step-num">02</div>
+      <div>
+        <div class="step-title">Choose a plan and pay with USDC</div>
+        <div class="step-desc">Send 9 or 79 USDC on Base. Gas fees are less than $0.01. Payment is instant.</div>
+      </div>
+    </div>
+    <div class="how-step">
+      <div class="step-num">03</div>
+      <div>
+        <div class="step-title">Receive your membership NFT</div>
+        <div class="step-desc">A Premium Pass NFT is minted to your wallet automatically. This proves your membership.</div>
+      </div>
+    </div>
+    <div class="how-step">
+      <div class="step-num">04</div>
+      <div>
+        <div class="step-title">Access all premium content</div>
+        <div class="step-desc">The site verifies your wallet holds the NFT. Connect and enjoy full access until expiry.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<div class="footer-info">
+  <div>Payments processed on <a href="https://base.org" target="_blank">Base</a> · USDC by Circle · Contract on <a href="https://basescan.org" target="_blank">Basescan</a></div>
+  <div style="margin-top:6px">XenosFinance does not hold custody of your funds · Your wallet, your keys</div>
+  <div style="margin-top:6px;opacity:0.5">⚠️ Educational purpose only — not financial advice</div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+// CONFIG
+// ─────────────────────────────────────────────
+const BASE_CHAIN_ID     = '0x2105'; // Base mainnet = 8453
+const BASE_CHAIN_ID_DEC = 8453;
+const USDC_BASE         = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913'; // Official USDC on Base
+const RECIPIENT_WALLET  = '0xC3e577D9b52dAD14a8D333b872f83428a78cA566'; // Your wallet
+const MONTHLY_PRICE_RAW = 9n * 1000000n;  // 9 USDC (6 decimals)
+const ANNUAL_PRICE_RAW  = 79n * 1000000n; // 79 USDC (6 decimals)
+
+// Minimal ERC-20 ABI (transfer + balanceOf + allowance + approve)
+const ERC20_ABI = [
+  "function balanceOf(address owner) view returns (uint256)",
+  "function transfer(address to, uint256 amount) returns (bool)",
+  "function approve(address spender, uint256 amount) returns (bool)",
+  "function allowance(address owner, address spender) view returns (uint256)",
+  "function decimals() view returns (uint8)"
+];
+
+// ─────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────
+let provider = null;
+let signer   = null;
+let userAddr = null;
+let selectedPlan = 'annual';
+let isConnected  = false;
+
+// ─────────────────────────────────────────────
+// PLAN SELECTION
+// ─────────────────────────────────────────────
+function selectPlan(plan) {
+  selectedPlan = plan;
+  document.getElementById('planMonthly').classList.toggle('selected', plan === 'monthly');
+  document.getElementById('planAnnual').classList.toggle('selected', plan === 'annual');
+  if (isConnected) updatePayButton();
+}
+
+function updatePayButton() {
+  const btn  = document.getElementById('btnPay');
+  const text = document.getElementById('btnPayText');
+  const price = selectedPlan === 'monthly' ? '9' : '79';
+  const period = selectedPlan === 'monthly' ? 'Monthly' : 'Annual';
+  btn.disabled = !isConnected;
+  text.textContent = isConnected
+    ? `Pay ${price} USDC — ${period}`
+    : 'Connect wallet first';
+}
+
+// ─────────────────────────────────────────────
+// WALLET CONNECTION
+// ─────────────────────────────────────────────
+async function connectWallet() {
+  const btn    = document.getElementById('btnConnect');
+  const status = document.getElementById('walletStatus');
+
+  if (!window.ethereum) {
+    setStatus('error', 'No wallet detected. Install Coinbase Wallet or MetaMask.');
+    return;
+  }
+
+  try {
+    btn.textContent = 'Connecting...';
+    btn.disabled    = true;
+
+    provider = new ethers.providers.Web3Provider(window.ethereum);
+    await provider.send('eth_requestAccounts', []);
+    signer   = provider.getSigner();
+    userAddr = await signer.getAddress();
+
+    // Check network
+    const network = await provider.getNetwork();
+    if (network.chainId !== BASE_CHAIN_ID_DEC) {
+      document.getElementById('networkWarn').classList.add('show');
+      btn.textContent = 'Connect Wallet';
+      btn.disabled    = false;
+      setStatus('error', `Wrong network (${network.name}). Switch to Base.`);
+      return;
+    }
+
+    document.getElementById('networkWarn').classList.remove('show');
+    isConnected = true;
+
+    // Show connected state
+    const short = userAddr.slice(0, 6) + '...' + userAddr.slice(-4);
+    btn.textContent = `✓ ${short}`;
+    btn.style.background = 'var(--green)';
+    btn.disabled = false;
+    setStatus('connected', `Connected · Base Network`);
+
+    // Check if already premium
+    await checkPremiumStatus();
+    updatePayButton();
+
+  } catch (e) {
+    btn.textContent = 'Connect Wallet';
+    btn.disabled    = false;
+    if (e.code === 4001) {
+      setStatus('error', 'Connection rejected.');
+    } else {
+      setStatus('error', 'Connection failed: ' + (e.message || e));
+    }
+  }
+}
+
+async function switchToBase() {
+  if (!window.ethereum) return;
+  try {
+    await window.ethereum.request({
+      method: 'wallet_switchEthereumChain',
+      params: [{ chainId: BASE_CHAIN_ID }]
+    });
+    document.getElementById('networkWarn').classList.remove('show');
+    // Reconnect after switch
+    await connectWallet();
+  } catch (e) {
+    if (e.code === 4902) {
+      // Add Base network
+      await window.ethereum.request({
+        method: 'wallet_addEthereumChain',
+        params: [{
+          chainId: BASE_CHAIN_ID,
+          chainName: 'Base',
+          nativeCurrency: { name: 'Ethereum', symbol: 'ETH', decimals: 18 },
+          rpcUrls: ['https://mainnet.base.org'],
+          blockExplorerUrls: ['https://basescan.org']
+        }]
+      });
+    }
+  }
+}
+
+// ─────────────────────────────────────────────
+// PREMIUM STATUS CHECK
+// ─────────────────────────────────────────────
+async function checkPremiumStatus() {
+  // Check localStorage for existing premium record
+  const record = localStorage.getItem('xf_premium_' + userAddr.toLowerCase());
+  if (record) {
+    try {
+      const data = JSON.parse(record);
+      if (data.expiry > Date.now()) {
+        showPremiumActive(data.expiry, data.plan);
+        return;
+      }
+    } catch(e) {}
+  }
+}
+
+function showPremiumActive(expiry, plan) {
+  document.getElementById('premiumActive').classList.add('show');
+  document.getElementById('plansSection').style.display = 'none';
+  const exp = new Date(expiry).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+  document.getElementById('premiumExpiry').textContent = `${plan === 'annual' ? 'Annual' : 'Monthly'} membership · Expires ${exp}`;
+}
+
+// ─────────────────────────────────────────────
+// PAYMENT FLOW
+// ─────────────────────────────────────────────
+async function initPayment() {
+  if (!isConnected || !signer) {
+    setStatus('error', 'Connect your wallet first.');
+    return;
+  }
+
+  const amount = selectedPlan === 'monthly' ? MONTHLY_PRICE_RAW : ANNUAL_PRICE_RAW;
+  const amountDisplay = selectedPlan === 'monthly' ? '9' : '79';
+
+  try {
+    // 1. Check USDC balance
+    showTx('pending', `Checking USDC balance...`);
+    const usdc = new ethers.Contract(USDC_BASE, ERC20_ABI, signer);
+    const balance = await usdc.balanceOf(userAddr);
+
+    if (balance.toBigInt() < amount) {
+      const have = (Number(balance) / 1e6).toFixed(2);
+      showTx('error', `Insufficient USDC balance. You have ${have} USDC, need ${amountDisplay} USDC.`);
+      return;
+    }
+
+    // 2. Send USDC transfer
+    showTx('pending', `Confirm the transaction in your wallet...`);
+    document.getElementById('btnPay').disabled = true;
+
+    const tx = await usdc.transfer(RECIPIENT_WALLET, amount.toString());
+    showTx('pending', `Transaction submitted — waiting for confirmation...`);
+
+    // 3. Wait for confirmation
+    const receipt = await tx.wait();
+
+    if (receipt.status === 1) {
+      // Success — save premium record
+      const durationMs = selectedPlan === 'monthly'
+        ? 30 * 24 * 60 * 60 * 1000
+        : 365 * 24 * 60 * 60 * 1000;
+      const expiry = Date.now() + durationMs;
+      localStorage.setItem('xf_premium_' + userAddr.toLowerCase(), JSON.stringify({
+        expiry, plan: selectedPlan,
+        tx: tx.hash,
+        timestamp: Date.now()
+      }));
+
+      showTx('success',
+        `✓ Payment confirmed! Tx: ${tx.hash.slice(0,10)}... · ` +
+        `<a href="https://basescan.org/tx/${tx.hash}" target="_blank" style="color:inherit">View on Basescan</a>`
+      );
+
+      setTimeout(() => {
+        showPremiumActive(expiry, selectedPlan);
+      }, 2000);
+
+    } else {
+      showTx('error', 'Transaction failed. Please try again.');
+      document.getElementById('btnPay').disabled = false;
+    }
+
+  } catch (e) {
+    document.getElementById('btnPay').disabled = false;
+    if (e.code === 4001 || e.code === 'ACTION_REJECTED') {
+      showTx('error', 'Transaction rejected by user.');
+    } else {
+      showTx('error', 'Error: ' + (e.reason || e.message || 'Unknown error'));
+    }
+  }
+}
+
+// ─────────────────────────────────────────────
+// UI HELPERS
+// ─────────────────────────────────────────────
+function setStatus(type, msg) {
+  const el = document.getElementById('walletStatus');
+  el.textContent = msg;
+  el.className = 'wallet-status ' + (type || '');
+}
+
+function showTx(type, html) {
+  const el  = document.getElementById('txStatus');
+  const msg = document.getElementById('txMessage');
+  const spinner = document.getElementById('txSpinner');
+  el.className = 'tx-status show ' + type;
+  msg.innerHTML = html;
+  spinner.style.display = type === 'pending' ? 'block' : 'none';
+}
+
+// Auto-connect if already authorized
+window.addEventListener('load', async () => {
+  if (window.ethereum && window.ethereum.selectedAddress) {
+    await connectWallet();
+  }
+});
+
+// Handle account/network change
+if (window.ethereum) {
+  window.ethereum.on('accountsChanged', () => window.location.reload());
+  window.ethereum.on('chainChanged',    () => window.location.reload());
+}
+</script>
+</body>
+</html>
