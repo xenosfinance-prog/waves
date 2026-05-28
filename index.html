@@ -536,11 +536,14 @@ async function loadNews() {
   }
 }
 
+let aiBriefLoading = false;
 async function loadAIBrief(headlines) {
+  if (aiBriefLoading) return;
+  aiBriefLoading = true;
   const el = document.getElementById('ai-brief');
-  if(window.XF && el) XF.start(el);
+  if(window.XF && el) { XF.stop(); XF.start(el); }
   const st = document.getElementById('ai-status');
-  if (!el || !headlines.length) return;
+  if (!el || !headlines.length) { aiBriefLoading = false; return; }
   if (st) st.textContent = '⟳ generating';
   try {
     const prompt = `XenosFinance senior analyst. Write 3 tight paragraphs: (1) dominant macro/geopolitical themes today, (2) asset class implications for FX/equities/commodities/crypto, (3) key risk to monitor. Max 110 words. No disclaimers.\n\nHeadlines:\n${headlines.slice(0,8).map((h,i)=>`${i+1}. ${h}`).join('\n')}`;
@@ -560,6 +563,8 @@ async function loadAIBrief(headlines) {
     if(window.XF) XF.stop();
     if (el) el.innerHTML = '<p style="color:var(--muted)">AI brief unavailable</p>';
     if (st) st.textContent = '⚠';
+  } finally {
+    aiBriefLoading = false;
   }
 }
 
