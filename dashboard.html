@@ -664,7 +664,9 @@ let lastDashPrices = {};
 
 function isPremium() {
   const codes = ['XENOS-PREMIUM-2026','XF-PRO-001','XF-PRO-002','XF-PRO-003'];
-  return codes.includes((localStorage.getItem('xenos_premium_code') || '').toUpperCase());
+  const adminCodes = ['RMG@Manu78','RMG@manu78'];
+  const stored = localStorage.getItem('xenos_premium_code') || '';
+  return codes.includes(stored.toUpperCase()) || adminCodes.includes(stored);
 }
 
 function showPremiumModal() {
