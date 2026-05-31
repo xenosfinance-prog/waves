@@ -1291,10 +1291,17 @@ function adminLogin(){
 }
 
 const PREMIUM_CODES = ['XENOS-PREMIUM-2026', 'XF-PRO-001', 'XF-PRO-002', 'XF-PRO-003'];
+const ADMIN_CODES = ['RMG@Manu78', 'RMG@manu78'];
+
+function isPremium() {
+  const stored = localStorage.getItem('xenos_premium_code') || '';
+  return PREMIUM_CODES.includes(stored.toUpperCase()) || ADMIN_CODES.includes(stored);
+}
 
 function premiumLogin(){
-  const code = document.getElementById('premiumPw').value.trim().toUpperCase();
-  if(PREMIUM_CODES.includes(code)){
+  const code = document.getElementById('premiumPw').value.trim();
+  if(PREMIUM_CODES.includes(code.toUpperCase()) || ADMIN_CODES.includes(code)){
+    localStorage.setItem('xenos_premium_code', code);
     document.getElementById('admin-login-area').style.display='none';
     document.getElementById('adminPanel').style.display='block';
   } else {
@@ -1302,6 +1309,16 @@ function premiumLogin(){
     document.getElementById('premiumPw').value='';
   }
 }
+
+// Auto-unlock if already premium
+document.addEventListener('DOMContentLoaded', () => {
+  if (isPremium()) {
+    const loginArea = document.getElementById('admin-login-area');
+    const adminPanel = document.getElementById('adminPanel');
+    if (loginArea) loginArea.style.display = 'none';
+    if (adminPanel) adminPanel.style.display = 'block';
+  }
+});
 
 let lastAnalysis='';
 let ewLastCandles = []; // stores last fetched candles for chart rendering

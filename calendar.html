@@ -313,6 +313,22 @@ body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:10
     <span>Data: Curated macro calendar · All times CET</span>
     <span><span data-i18n="label_not_investment_advice">⚠ Not investment advice</span></span>
   </div>
+
+<!-- PREMIUM MODAL -->
+<div id="premium-modal" style="display:none;position:fixed;inset:0;background:rgba(10,15,25,0.92);z-index:9999;align-items:center;justify-content:center;">
+  <div style="background:#0f1724;border:1px solid #3b82f6;padding:28px 32px;max-width:360px;width:90%;text-align:center;">
+    <div style="font-family:var(--mono);font-size:9px;letter-spacing:3px;color:#3b82f6;margin-bottom:12px;">✦ PREMIUM ACCESS</div>
+    <p style="font-size:11px;color:#b8cce0;line-height:1.6;margin:0 0 16px;">Enter your premium code to unlock AI analysis features.</p>
+    <input id="premium-code-input" type="text" placeholder="XENOS-PREMIUM-XXXX" style="width:100%;box-sizing:border-box;background:#1a2535;border:1px solid #2a3a52;color:#e2eaf4;font-family:var(--mono);font-size:11px;padding:8px 12px;margin-bottom:8px;text-align:center;text-transform:uppercase;"/>
+    <div id="premium-error" style="font-size:9px;color:#ef4444;margin-bottom:8px;display:none;">Invalid code. Try again.</div>
+    <div style="display:flex;gap:8px;justify-content:center;">
+      <button onclick="checkPremiumCode()" style="font-family:var(--mono);font-size:9px;letter-spacing:2px;padding:6px 18px;background:#3b82f6;color:#fff;border:none;cursor:pointer;">UNLOCK</button>
+      <button onclick="closePremiumModal()" style="font-family:var(--mono);font-size:9px;letter-spacing:2px;padding:6px 18px;background:transparent;color:#8892a4;border:1px solid #2a3a52;cursor:pointer;">CANCEL</button>
+    </div>
+    <p style="font-size:9px;color:#8892a4;margin:12px 0 0;">No code? <a href="/premium-support" style="color:#3b82f6;text-decoration:none;">Get Premium →</a></p>
+  </div>
+</div>
+
 </div>
 
 <script>
@@ -664,7 +680,37 @@ function isAdmin() {
 }
 
 // ─── AI ANALYSIS ───────────────────────────────────────────────────────────
+function isPremium() {
+  const codes = ['XENOS-PREMIUM-2026','XF-PRO-001','XF-PRO-002','XF-PRO-003'];
+  const adminCodes = ['RMG@Manu78','RMG@manu78'];
+  const stored = localStorage.getItem('xenos_premium_code') || '';
+  return codes.includes(stored.toUpperCase()) || adminCodes.includes(stored);
+}
+
+function showPremiumModal() {
+  document.getElementById('premium-modal').style.display = 'flex';
+}
+
+function closePremiumModal() {
+  document.getElementById('premium-modal').style.display = 'none';
+}
+
+function checkPremiumCode() {
+  const codes = ['XENOS-PREMIUM-2026','XF-PRO-001','XF-PRO-002','XF-PRO-003'];
+  const adminCodes = ['RMG@Manu78','RMG@manu78'];
+  const val = (document.getElementById('premium-code-input').value || '').trim();
+  if (codes.includes(val.toUpperCase()) || adminCodes.includes(val)) {
+    localStorage.setItem('xenos_premium_code', val);
+    closePremiumModal();
+    if (window._pendingAnalyzeIdx !== undefined) { analyzeEvent(window._pendingAnalyzeIdx); window._pendingAnalyzeIdx = undefined; }
+    else loadCalendarAIBrief();
+  } else {
+    document.getElementById('premium-error').style.display = 'block';
+  }
+}
+
 async function analyzeEvent(evIdx) {
+  if (!isPremium()) { window._pendingAnalyzeIdx = evIdx; showPremiumModal(); return; }
 
   const ev = window._evData && window._evData[evIdx];
   if (!ev) return;
@@ -1046,6 +1092,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function loadCalendarAIBrief() {
   const el = document.getElementById('ai-cal-brief');
+  if (!isPremium()) {
+    if (el) el.innerHTML = `
+      <div style="position:relative;min-height:80px;">
+        <div style="filter:blur(4px);pointer-events:none;user-select:none;opacity:0.4;font-size:13px;line-height:1.8;color:var(--ink2);">
+          Markets this week are dominated by key central bank decisions and inflation data. The Fed meeting on Wednesday is expected to hold rates, but the press conference language will be critical for FX volatility. NFP Friday could be the decisive catalyst for EUR/USD...
+          <br><br>Commodities face headwinds from dollar resilience while equities remain sensitive to yield movements. Watch the 10-year Treasury — a break above 4.5% would signal risk-off across all asset classes...
+        </div>
+        <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;">
+          <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--gold);">✦ PREMIUM FEATURE</div>
+          <p style="font-size:12px;color:var(--ink2);margin:0;max-width:300px;line-height:1.6;">AI Weekly Macro Brief is available to Premium members only.</p>
+          <button onclick="showPremiumModal()" style="font-family:var(--mono);font-size:9px;letter-spacing:2px;padding:6px 20px;background:var(--gold);color:#fff;border:none;cursor:pointer;">UNLOCK WITH PREMIUM</button>
+        </div>
+      </div>`;
+    return;
+  }
   const st = document.getElementById('ai-cal-status');
   if (!el) return;
   try {
