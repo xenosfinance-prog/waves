@@ -285,7 +285,7 @@ body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:10
   </div>
 
   <!-- AI INTERMARKET ANALYSIS -->
-  <div style="margin:32px 0 0;border:1px solid var(--border);">
+  <div class="ai-im-wrapper" style="margin:32px 0 0;border:1px solid var(--border);position:relative;">
     <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 16px;background:var(--bg2);border-bottom:1px solid var(--border);">
       <div style="font-family:var(--mono);font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--gold);">✦ AI Intermarket Analysis</div>
       <div style="display:flex;align-items:center;gap:10px;">
@@ -295,6 +295,21 @@ body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:10
     </div>
     <div id="ai-im-body" style="padding:20px 24px;min-height:100px;font-family:var(--mono);font-size:11px;color:var(--muted);line-height:1.8;background:var(--bg);">
       <span style="letter-spacing:1px;">Click <b style="color:var(--gold)">Analyse</b> to generate a real-time intermarket analysis based on current live prices — correlations between DXY, Gold, Oil, Bonds, Equities and Crypto.</span>
+    </div>
+  </div>
+
+  <!-- PREMIUM UNLOCK MODAL -->
+  <div id="premium-modal" style="display:none;position:absolute;inset:0;background:rgba(10,15,25,0.92);z-index:100;align-items:center;justify-content:center;min-height:200px;">
+    <div style="background:#0f1724;border:1px solid #3b82f6;padding:28px 32px;max-width:360px;width:90%;text-align:center;">
+      <div style="font-family:var(--mono);font-size:9px;letter-spacing:3px;color:#3b82f6;margin-bottom:12px;">✦ PREMIUM ACCESS</div>
+      <p style="font-size:11px;color:#b8cce0;line-height:1.6;margin:0 0 16px;">Enter your premium code to unlock the full AI Intermarket Analysis.</p>
+      <input id="premium-code-input" type="text" placeholder="XENOS-PREMIUM-XXXX" style="width:100%;box-sizing:border-box;background:#1a2535;border:1px solid #2a3a52;color:#e2eaf4;font-family:var(--mono);font-size:11px;padding:8px 12px;margin-bottom:8px;text-align:center;text-transform:uppercase;"/>
+      <div id="premium-error" style="font-size:9px;color:#ef4444;margin-bottom:8px;display:none;">Invalid code. Try again.</div>
+      <div style="display:flex;gap:8px;justify-content:center;">
+        <button onclick="checkPremiumCode()" style="font-family:var(--mono);font-size:9px;letter-spacing:2px;padding:6px 18px;background:#3b82f6;color:#fff;border:none;cursor:pointer;">UNLOCK</button>
+        <button onclick="closePremiumModal()" style="font-family:var(--mono);font-size:9px;letter-spacing:2px;padding:6px 18px;background:transparent;color:#8892a4;border:1px solid #2a3a52;cursor:pointer;">CANCEL</button>
+      </div>
+      <p style="font-size:9px;color:#8892a4;margin:12px 0 0;">No code? <a href="/premium-support" style="color:#3b82f6;text-decoration:none;">Get Premium →</a></p>
     </div>
   </div>
 
@@ -647,7 +662,37 @@ async function loadUSStocks() {
 // lastPrices is populated by updateAll() — reuse it so no extra API calls needed
 let lastDashPrices = {};
 
+function isPremium() {
+  const codes = ['XENOS-PREMIUM-2026','XF-PRO-001','XF-PRO-002','XF-PRO-003'];
+  return codes.includes((localStorage.getItem('xenos_premium_code') || '').toUpperCase());
+}
+
+function showPremiumModal() {
+  const modal = document.getElementById('premium-modal');
+  const wrapper = document.querySelector('.ai-im-wrapper');
+  if (modal) { modal.style.display = 'flex'; }
+}
+
+function closePremiumModal() {
+  const modal = document.getElementById('premium-modal');
+  if (modal) modal.style.display = 'none';
+}
+
+function checkPremiumCode() {
+  const codes = ['XENOS-PREMIUM-2026','XF-PRO-001','XF-PRO-002','XF-PRO-003'];
+  const val = (document.getElementById('premium-code-input').value || '').trim().toUpperCase();
+  if (codes.includes(val)) {
+    localStorage.setItem('xenos_premium_code', val);
+    closePremiumModal();
+    runIntermarketAI();
+  } else {
+    document.getElementById('premium-error').style.display = 'block';
+  }
+}
+
 async function runIntermarketAI() {
+  if (!isPremium()) { showPremiumModal(); return; }
+
   const btn = document.getElementById('ai-im-btn');
   const body = document.getElementById('ai-im-body');
   const status = document.getElementById('ai-im-status');
@@ -768,6 +813,28 @@ document.addEventListener('DOMContentLoaded', () => {
   loadUSStocks();
   setInterval(updateAll, 60000);
   setInterval(loadUSStocks, 60000);
+
+  // Show free preview if not premium
+  if (!isPremium()) {
+    const body = document.getElementById('ai-im-body');
+    const btn = document.getElementById('ai-im-btn');
+    if (body) body.innerHTML = `
+      <div style="position:relative;">
+        <div style="filter:blur(4px);pointer-events:none;user-select:none;opacity:0.5;font-size:11px;line-height:1.8;color:var(--muted);">
+          <b style="color:var(--ink);">RISK SENTIMENT</b><br>
+          Markets display mixed risk appetite with contradictory signals. The VIX decline and S&P 500 gains suggest risk-on conditions, yet gold advance and JPY strength indicate underlying safe-haven demand. The 10-year yield pullback adds to defensive positioning...<br><br>
+          <b style="color:var(--ink);">DOLLAR &amp; FOREX</b><br>
+          The dollar shows broad-based weakness against major currencies. EUR/USD and GBP/USD confirm dollar selling pressure. The Swiss franc emerges as the strongest currency, suggesting dovish Fed expectations...
+        </div>
+        <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:12px;">
+          <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:#3b82f6;">✦ PREMIUM FEATURE</div>
+          <p style="font-size:11px;color:#b8cce0;margin:0;max-width:280px;line-height:1.6;">Full AI Intermarket Analysis is available to Premium members only.</p>
+          <button onclick="showPremiumModal()" style="font-family:var(--mono);font-size:9px;letter-spacing:2px;padding:6px 20px;background:#3b82f6;color:#fff;border:none;cursor:pointer;">UNLOCK WITH PREMIUM</button>
+        </div>
+      </div>
+    `;
+    if (btn) { btn.textContent = '✦ Premium'; btn.style.background = '#3b82f6'; btn.onclick = showPremiumModal; }
+  }
   setInterval(updateSessions, 30000);
 });
 </script>
