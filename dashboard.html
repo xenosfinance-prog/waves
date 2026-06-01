@@ -1,4 +1,4 @@
-<!DOCTYPE html>  
+<!DOCTYPE html> 
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -828,8 +828,7 @@ Be concise, professional, data-driven. Use the actual prices provided. No discla
     ];
 
     const cards = cardData.map(({key,color,icon}) => {
-      const txt = (sections[key]||'').replace(/
-/g,' ').trim();
+      const txt = (sections[key]||'').replace(/\n/g,' ').trim();
       if(!txt) return '';
       const words = txt.split(' ');
       const badges = words.filter(w => /[+\-]\d/.test(w) || /\$[\d,]+/.test(w)).slice(0,3);
@@ -847,10 +846,8 @@ Be concise, professional, data-driven. Use the actual prices provided. No discla
       </div>\`;
     }).join('');
 
-    const cryptoTxt = (sections['CRYPTO']||'').replace(/
-/g,' ').trim();
-    const conclusionTxt = (sections['INTERMARKET CONCLUSION']||'').replace(/
-/g,' ').trim();
+    const cryptoTxt = (sections['CRYPTO']||'').replace(/\n/g,' ').trim();
+    const conclusionTxt = (sections['INTERMARKET CONCLUSION']||'').replace(/\n/g,' ').trim();
 
     body.innerHTML = \`
       <div style="font-size:9px;color:var(--muted);letter-spacing:2px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;">
