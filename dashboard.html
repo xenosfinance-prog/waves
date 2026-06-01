@@ -803,10 +803,12 @@ Be concise, professional, data-driven. Use the actual prices provided. No discla
     // Parse sections from AI response
     const sections = {};
     const sectionNames = ['RISK SENTIMENT','DOLLAR & FOREX','COMMODITIES','EQUITIES & BONDS','CRYPTO','INTERMARKET CONCLUSION'];
-    let remaining = text;
     sectionNames.forEach((name, i) => {
       const next = sectionNames[i+1];
-      const re = new RegExp('\\*\\*' + name.replace(/[&]/g,'\\&') + '\\*\\*\\s*[—–-]?\\s*([\\s\\S]*?)' + (next ? '(?=\\*\\*' + next.replace(/[&]/g,'\\&') + '\\*\\*)' : '$'), 'i');
+      const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const nextEscaped = next ? next.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') : null;
+      const pattern = '\\*\\*' + escaped + '\\*\\*[^\\n]*\\n([\\s\\S]*?)' + (nextEscaped ? '(?=\\*\\*' + nextEscaped + '\\*\\*)' : '$');
+      const re = new RegExp(pattern, 'i');
       const m = text.match(re);
       sections[name] = m ? m[1].trim() : '';
     });
