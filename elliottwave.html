@@ -1302,8 +1302,10 @@ function premiumLogin(){
   const code = document.getElementById('premiumPw').value.trim();
   if(PREMIUM_CODES.includes(code.toUpperCase()) || ADMIN_CODES.includes(code)){
     localStorage.setItem('xenos_premium_code', code);
+    isAdminUnlocked = true;
     document.getElementById('admin-login-area').style.display='none';
     document.getElementById('adminPanel').style.display='block';
+    renderPublicFeed();
   } else {
     document.getElementById('adminErr').textContent='⚠ Invalid subscription code';
     document.getElementById('premiumPw').value='';
@@ -1313,10 +1315,12 @@ function premiumLogin(){
 // Auto-unlock if already premium
 document.addEventListener('DOMContentLoaded', () => {
   if (isPremium()) {
+    isAdminUnlocked = true;
     const loginArea = document.getElementById('admin-login-area');
     const adminPanel = document.getElementById('adminPanel');
     if (loginArea) loginArea.style.display = 'none';
     if (adminPanel) adminPanel.style.display = 'block';
+    renderPublicFeed();
   }
 });
 
