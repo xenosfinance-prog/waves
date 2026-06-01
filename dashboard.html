@@ -662,6 +662,17 @@ async function loadUSStocks() {
 // lastPrices is populated by updateAll() — reuse it so no extra API calls needed
 let lastDashPrices = {};
 
+
+// ── ADMIN AUTO-UNLOCK (una-tantum via URL o localStorage) ─────────────────
+(function() {
+  const params = new URLSearchParams(window.location.search);
+  const urlCode = params.get('admin') || params.get('code');
+  if (urlCode) {
+    localStorage.setItem('xenos_premium_code', urlCode);
+    // Pulisci URL senza ricaricare
+    window.history.replaceState({}, '', window.location.pathname);
+  }
+})();
 function isPremium() {
   const codes = ['XENOS-PREMIUM-2026','XF-PRO-001','XF-PRO-002','XF-PRO-003'];
   const adminCodes = ['RMG@Manu78','RMG@manu78'];
