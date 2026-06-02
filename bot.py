@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 import os, sys, json, logging, re, xml.etree.ElementTree as ET
 import asyncio
+import time
 import base64, hashlib
 import numpy as np
 import pandas as pd
@@ -1520,7 +1521,7 @@ entry/target/stop based on EW and Fibonacci levels, scenario probability %, risk
                 "content-type": "application/json"
             },
             json={
-                "model": "claude-sonnet-4-20250514",
+                "model": "claude-sonnet-4-5",
                 "max_tokens": 600,
                 "messages": [{"role": "user", "content": prompt}]
             },
@@ -1683,7 +1684,7 @@ def claude_narrative_analysis(sym, ew, df):
                 "content-type": "application/json"
             },
             json={
-                "model": "claude-sonnet-4-20250514",
+                "model": "claude-sonnet-4-5",
                 "max_tokens": 900,
                 "messages": [{"role": "user", "content": prompt}]
             },
@@ -1719,7 +1720,7 @@ def translate_news_it(items):
                 "content-type": "application/json"
             },
             json={
-                "model": "claude-haiku-4-5-20251001",
+                "model": "claude-haiku-4-5",
                 "max_tokens": 1200,
                 "messages": [{"role": "user", "content": prompt}]
             },
@@ -1949,7 +1950,7 @@ async def send_channel(t):
                 update_blog_tg_post(message_id)
             except Exception as e:
                 logger.warning(f"blog tg update failed: {e}")
-        return True
+        return message_id or True
     except Exception as e:
         logger.error(f"send: {e}"); return False
 
@@ -2042,8 +2043,9 @@ def _github_json_write(path, content, sha, commit_msg):
         payload["sha"] = sha
     r = requests.put(api, headers=headers, json=payload, timeout=30)
     if r.status_code in [200, 201]:
+        logger.info(f"✅ github write OK: {path}")
         return True
-    logger.error(f"github write {path}: {r.status_code} — {r.text[:200]}")
+    logger.error(f"❌ github write FAILED {path}: {r.status_code} — {r.text[:300]}")
     return False
 
 def _github_image_upload(image_bytes, filename):
@@ -2691,297 +2693,6 @@ def _mkt_str(sym, market_data):
     return f"{p:{pfmt}} ({sign}{chg:.2f}%)"
 
 
-def build_wrap_prompt(wrap_type, market_data, news_items):
-    """Prompt per /wrap — narrativo lungo 800+ parole, stile morning/afternoon brief."""
-    now = datetime.now()
-    date_str = now.strftime("%d/%m/%Y")
-    time_str = now.strftime("%H:%M")
-    mkt = lambda sym: _mkt_str(sym, market_data)
-
-    data_block = f"""INDICI USA:
-  S&P 500: {mkt('SPY')}
-  Nasdaq 100: {mkt('NASDAQ')}
-  Dow Jones: {mkt('DJI')}
-
-EUROPA:
-  DAX: {mkt('DAX')}
-  FTSE 100: {mkt('FTSE')}
-  CAC 40: {mkt('CAC')}
-
-FOREX:
-  EUR/USD: {mkt('EURUSD')}
-  USD/JPY: {mkt('USDJPY')}
-
-COMMODITIES:
-  Gold: {mkt('GOLD')}
-  Silver: {mkt('SILVER')}
-  Oil WTI: {mkt('OIL')}
-  Natural Gas: {mkt('NGAS')}
-
-CRYPTO:
-  Bitcoin: {mkt('BTCUSD')}
-  Ethereum: {mkt('ETHUSD')}
-  Ripple: {mkt('XRPUSD')}
-  Solana: {mkt('SOLUSD')}
-  Dogecoin: {mkt('DOGEUSD')}
-
-TOP MOVERS:
-  Nvidia: {mkt('NVDA')}
-  Apple: {mkt('AAPL')}
-  Tesla: {mkt('TSLA')}
-  Meta: {mkt('META')}
-  Amazon: {mkt('AMZN')}"""
-
-    news_block = "\n".join([f"  - {n['title']}" for n in news_items[:10]]) or "  No news available"
-
-    if wrap_type == "morning":
-        # Determine session context based on actual time
-        if now.hour < 9:
-            session_ctx = "pre-European open (Asian session closing)"
-            us_section = "🇺🇸 US Futures\n[S&P/Nasdaq/Dow futures with exact levels and overnight sentiment]"
-        elif now.hour < 15:
-            session_ctx = "European session active (US not yet open)"
-            us_section = "🇺🇸 US Futures Preview\n[S&P/Nasdaq/Dow futures direction, pre-market movers, key earnings before bell]"
-        else:
-            session_ctx = "Europe-US overlap session"
-            us_section = "🇺🇸 US Open\n[Wall Street open performance, S&P/Nasdaq/Dow with exact levels]"
-
-        return f"""You are the chief market strategist at a major European investment bank.
-Write the daily MORNING BRIEFING for institutional clients.
-Date: {date_str} — Time: {time_str} CET — Session: {session_ctx}
-
-LIVE MARKET DATA:
-{data_block}
-
-LATEST NEWS:
-{news_block}
-
-MANDATORY STRUCTURE — minimum 400 words:
-
-🌅 Market Open: [descriptive headline reflecting current session]
-[2 paragraphs: current session climate, overnight Asia performance, key macro data due today with CET times]
-
-{us_section}
-
-🏛️ FX: [headline on dominant currency theme]
-[1 paragraph: EUR/USD and USD/JPY with exact levels, key drivers, bias]
-
-₿ Crypto: [headline]
-[1 paragraph: Bitcoin and Ethereum levels, 24h change, risk sentiment correlation]
-
-🛢️ Commodities: [headline]
-[1 paragraph: Gold and Oil levels with % change, key drivers]
-
-🗓 Today's Agenda:
-[Macro data, earnings, central bank events — exact CET times, expected impact]
-
-MANDATORY RULES:
-- Professional English only — never generic, use EXACT prices from data
-- NO asterisks, NO markdown, NO ## headers
-- Adapt section titles to the actual session time
-- Write 400-600 words — complete all sections"""
-
-    else:  # afternoon / closing
-        return f"""You are the chief market strategist at a major European investment bank.
-Write the AFTERNOON/CLOSING WRAP of the current session for institutional clients.
-Date: {date_str} — Time: {time_str} CET (US session ongoing or just closed)
-
-LIVE MARKET DATA (today's changes):
-{data_block}
-
-SESSION NEWS:
-{news_block}
-
-MANDATORY STRUCTURE — minimum 400 words:
-
-🌆 US Session — Summary: [headline describing the day]
-[2 paragraphs: S&P/Nasdaq/Dow with exact %, sector leaders/laggards, volumes, earnings]
-
-🇪🇺 European Close: [headline]
-[1 paragraph: European index recap, BTP spread, macro]
-
-🏛️ FX — Session: [headline on dominant FX theme]
-[1 paragraph: EUR/USD and USD/JPY moves during the day with levels, drivers]
-
-🛢️ Commodities & Crypto — Close: [headline]
-[1 paragraph: gold, oil and Bitcoin — daily recap with levels]
-
-🔭 Tomorrow's Outlook:
-[Macro data, earnings, technical levels to watch — specific]
-
-MANDATORY RULES:
-- Professional English — wrap looks BACKWARD at the session
-- Use % changes and EXACT prices from live data
-- NO asterisks, NO markdown, NO ## headers
-- Maximum 400 words"""
-
-
-def build_outlook_prompt(market_data, news_items):
-    """Prompt per /outlook — snapshot intraday conciso, operativo, max 400 parole."""
-    now = datetime.now()
-    date_str = now.strftime("%d/%m/%Y")
-    time_str = now.strftime("%H:%M")
-    hour = now.hour
-    mkt = lambda sym: _mkt_str(sym, market_data)
-
-    # Determina sessione attiva
-    if hour < 9:
-        session = "PRE-EUROPE OPEN"
-        focus = "anticipate the European open and US pre-market"
-    elif hour < 15:
-        session = "EUROPEAN SESSION"
-        focus = "analyze the current European session and anticipate Wall Street"
-    elif hour < 17:
-        session = "US OPEN"
-        focus = "analyze the Wall Street open and overlap with Europe"
-    elif hour < 22:
-        session = "US SESSION"
-        focus = "analyze the current US session"
-    else:
-        session = "AFTER HOURS"
-        focus = "analyze after-hours and anticipate the Asian session"
-
-    data_block = f"""S&P 500: {mkt('SPY')} | Nasdaq: {mkt('NASDAQ')} | Dow: {mkt('DJI')}
-DAX: {mkt('DAX')} | FTSE: {mkt('FTSE')} | CAC: {mkt('CAC')}
-EUR/USD: {mkt('EURUSD')} | USD/JPY: {mkt('USDJPY')}
-Gold: {mkt('GOLD')} | Oil WTI: {mkt('OIL')} | BTC: {mkt('BTCUSD')} | ETH: {mkt('ETHUSD')} | XRP: {mkt('XRPUSD')} | SOL: {mkt('SOLUSD')}
-Nvidia: {mkt('NVDA')} | Apple: {mkt('AAPL')} | Tesla: {mkt('TSLA')}"""
-
-    news_block = "\n".join([f"- {n['title']}" for n in news_items[:6]]) or "No news available"
-
-    return f"""You are a senior trader at an institutional trading desk.
-Write an OPERATIVE INTRADAY OUTLOOK for the "{session}" session.
-Date: {date_str} — Time: {time_str} CET
-
-OBJECTIVE: {focus}
-
-DATI LIVE:
-{data_block}
-
-NEWS CHIAVE:
-{news_block}
-
-MANDATORY STRUCTURE — max 400 words, direct operative tone:
-
-⚡ Session {session} — {time_str} CET
-[1 paragraph: current market state, dominant sentiment]
-
-🎯 Key Levels to Watch
-[S&P 500: support X / resistance Y | EUR/USD: key level | Gold: bias]
-
-📰 Session Drivers
-[2-3 points: news or data driving markets right now]
-
-⚠️ Risks & Catalysts
-[1-2 points: what could change the scenario in the coming hours]
-
-RULES:
-- Professional English direct style — trading desk, not editorial
-- Use EXACT prices from the data
-- Maximum 400 words — concise and operative
-- NO asterisks, NO markdown"""
-
-
-def generate_market_wrap(wrap_type, market_data, news_items):
-    if not ANTHROPIC_API_KEY:
-        logger.error("wrap: ANTHROPIC_API_KEY not set")
-        return None
-    try:
-        prompt = build_wrap_prompt(wrap_type, market_data, news_items)
-        logger.info(f"wrap prompt length: {len(prompt)} chars")
-        r = requests.post(
-            "https://api.anthropic.com/v1/messages",
-            headers={"x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json"},
-            json={"model": "claude-sonnet-4-20250514", "max_tokens": 2000,
-                  "messages": [{"role": "user", "content": prompt}]},
-            timeout=90
-        )
-        res = r.json()
-        logger.info(f"wrap API response keys: {list(res.keys())}")
-        if "content" in res and res["content"]:
-            return res["content"][0]["text"]
-        elif "error" in res:
-            logger.error(f"wrap API error: {res['error']}")
-        else:
-            logger.error(f"wrap unexpected response: {str(res)[:200]}")
-    except Exception as e:
-        logger.error(f"wrap AI exception: {e}", exc_info=True)
-    return None
-
-
-async def cmd_wrap(u, c):
-    """Morning Wrap (prima delle 13) o Afternoon Wrap (dopo le 13). Nessun alias."""
-    if not await check_auth(u): return
-    if not ANTHROPIC_API_KEY:
-        await u.message.reply_text("⚠️ Configure ANTHROPIC_API_KEY!"); return
-
-    now  = datetime.now()
-    hour = now.hour
-    is_morning = hour < 13
-    wrap_type  = "morning" if is_morning else "afternoon"
-    label      = "Morning Wrap 🌅" if is_morning else "Afternoon Wrap 🌆"
-
-    if c.args:
-        arg = c.args[0].lower() if c.args else ""
-        if "morning" in arg or "morn" in arg: wrap_type = "morning"; label = "Morning Wrap 🌅"
-        if "afternoon" in arg or "close" in arg or "pm" in arg: wrap_type = "afternoon"; label = "Afternoon Wrap 🌆"
-
-    m = await u.message.reply_text(f"📝 Generating {label}...")
-    try:
-        import concurrent.futures
-
-        market_data = {}
-        with concurrent.futures.ThreadPoolExecutor(max_workers=10) as ex:
-            fut_map = {sym: ex.submit(fetch_premarket_quote, info["yf"])
-                       for sym, info in PREMARKET_SYMBOLS.items()}
-            for sym, fut in fut_map.items():
-                try:
-                    market_data[sym] = fut.result(timeout=12)
-                except Exception:
-                    market_data[sym] = None
-
-        news = fetch_recent_news_for_premarket(10)
-        await m.edit_text(f"🤖 Writing {label}...")
-        wrap_text = generate_market_wrap(wrap_type, market_data, news)
-        if not wrap_text:
-            await m.edit_text("❌ AI unavailable"); return
-
-        date_str = now.strftime("%d %b %Y")
-        time_str = now.strftime("%H:%M CET")
-        icon = "🌅" if is_morning else "🌆"
-
-        header = (
-            f"{icon} <b>{label.upper()} — {date_str}</b>\n"
-            f"<i>{time_str} · XenosFinance Market Intelligence</i>\n"
-            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-        )
-        footer = (
-            f"\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-            f"<i>XenosFinance — Market Wrap Desk · {time_str}</i>" + SITE_FOOTER
-        )
-
-        full_msg = header + wrap_text + footer
-
-        # FIX: split corretto — invia tutte le parti, non solo le prime 2
-        parts = split_message(full_msg, max_len=4096)
-        for part in parts:
-            await send_channel(part)
-
-        try:
-            from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-            import hashlib as _hl
-            _ck = "wrap_" + _hl.md5(str(datetime.now()).encode()).hexdigest()[:8]
-            c.bot_data[_ck] = {"text": wrap_text, "label": label, "now_str": now.strftime("%d %b %Y · %H:%M CET")}
-            _kb = InlineKeyboardMarkup([[InlineKeyboardButton("📝 Pubblica su XenosBlog", callback_data=f"pub_brief:{_ck}")]])
-            await m.edit_text(f"✅ Inviato al canale! Pubblica sul blog?", reply_markup=_kb)
-        except Exception as _ekb:
-            logger.warning(f"blog btn wrap: {_ekb}")
-            await m.edit_text("✅ Sent to channel!")
-
-    except Exception as e:
-        logger.error(f"wrap: {e}", exc_info=True)
-        await m.edit_text(f"❌ Error: {str(e)[:100]}")
-
 
 async def cmd_updatesite(u, c):
     if not await check_auth(u): return
@@ -3218,7 +2929,7 @@ NOTE: [max 1 sentence of context]"""
             "https://api.anthropic.com/v1/messages",
             headers={"x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01",
                      "content-type": "application/json"},
-            json={"model": "claude-sonnet-4-20250514", "max_tokens": 400,
+            json={"model": "claude-sonnet-4-5", "max_tokens": 400,
                   "messages": [{"role": "user", "content": prompt}]},
             timeout=30
         )
@@ -3649,7 +3360,7 @@ MANDATORY RULES:
                 "https://api.anthropic.com/v1/messages",
                 headers={"x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01",
                          "content-type": "application/json"},
-                json={"model": "claude-sonnet-4-20250514", "max_tokens": 1500,
+                json={"model": "claude-sonnet-4-5", "max_tokens": 1500,
                       "messages": [{"role": "user", "content": prompt}]},
                 timeout=60
             )
@@ -3811,7 +3522,7 @@ RULES: Professional English institutional tone. EXACT prices from data. NO aster
                 "https://api.anthropic.com/v1/messages",
                 headers={"x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01",
                          "content-type": "application/json"},
-                json={"model": "claude-sonnet-4-20250514", "max_tokens": 1000,
+                json={"model": "claude-sonnet-4-5", "max_tokens": 1000,
                       "messages": [{"role": "user", "content": prompt}]},
                 timeout=60
             )
@@ -3942,7 +3653,7 @@ async def cmd_forex(u, c):
                 rr = requests.post(
                     "https://api.anthropic.com/v1/messages",
                     headers={"x-api-key":ANTHROPIC_API_KEY,"anthropic-version":"2023-06-01","content-type":"application/json"},
-                    json={"model":"claude-sonnet-4-20250514","max_tokens":1100,
+                    json={"model":"claude-sonnet-4-5","max_tokens":1100,
                           "messages":[{"role":"user","content":prompt}]},
                     timeout=60
                 )
@@ -4046,7 +3757,7 @@ async def cmd_crypto(u, c):
                 rr = requests.post(
                     "https://api.anthropic.com/v1/messages",
                     headers={"x-api-key":ANTHROPIC_API_KEY,"anthropic-version":"2023-06-01","content-type":"application/json"},
-                    json={"model":"claude-sonnet-4-20250514","max_tokens":1000,
+                    json={"model":"claude-sonnet-4-5","max_tokens":1000,
                           "messages":[{"role":"user","content":prompt}]},
                     timeout=60
                 )
@@ -4146,7 +3857,7 @@ async def cmd_commodities(u, c):
                 rr = requests.post(
                     "https://api.anthropic.com/v1/messages",
                     headers={"x-api-key":ANTHROPIC_API_KEY,"anthropic-version":"2023-06-01","content-type":"application/json"},
-                    json={"model":"claude-sonnet-4-20250514","max_tokens":1000,
+                    json={"model":"claude-sonnet-4-5","max_tokens":1000,
                           "messages":[{"role":"user","content":prompt}]},
                     timeout=60
                 )
@@ -4262,7 +3973,7 @@ async def cmd_equity(u, c):
                 rr = requests.post(
                     "https://api.anthropic.com/v1/messages",
                     headers={"x-api-key":ANTHROPIC_API_KEY,"anthropic-version":"2023-06-01","content-type":"application/json"},
-                    json={"model":"claude-sonnet-4-20250514","max_tokens":1100,
+                    json={"model":"claude-sonnet-4-5","max_tokens":1100,
                           "messages":[{"role":"user","content":prompt}]},
                     timeout=60
                 )
@@ -4329,7 +4040,16 @@ MKO_ASSETS = {
     "EURUSD":   {"name": "EUR/USD",      "emoji": "💶", "type": "fx",         "ccxt": None,         "yf": "EURUSD=X", "decimals": 4},
     "GBPUSD":   {"name": "GBP/USD",      "emoji": "💷", "type": "fx",         "ccxt": None,         "yf": "GBPUSD=X", "decimals": 4},
     "USDJPY":   {"name": "USD/JPY",      "emoji": "💴", "type": "fx",         "ccxt": None,         "yf": "USDJPY=X", "decimals": 2},
-    "XAUUSD":   {"name": "XAU/USD",      "emoji": "🥇", "type": "fx",         "ccxt": None,         "yf": "GC=F",     "decimals": 2},
+    # XAUUSD removed — duplicate of GOLD (both use GC=F)
+    # US Equities — Yahoo Finance (top liquid stocks)
+    "NVDA":     {"name": "NVIDIA",       "emoji": "🟢", "type": "equity",     "ccxt": None,         "yf": "NVDA",     "decimals": 2},
+    "AAPL":     {"name": "Apple",        "emoji": "🍎", "type": "equity",     "ccxt": None,         "yf": "AAPL",     "decimals": 2},
+    "TSLA":     {"name": "Tesla",        "emoji": "⚡", "type": "equity",     "ccxt": None,         "yf": "TSLA",     "decimals": 2},
+    "META":     {"name": "Meta",         "emoji": "📘", "type": "equity",     "ccxt": None,         "yf": "META",     "decimals": 2},
+    "AMZN":     {"name": "Amazon",       "emoji": "📦", "type": "equity",     "ccxt": None,         "yf": "AMZN",     "decimals": 2},
+    "MSFT":     {"name": "Microsoft",    "emoji": "🪟", "type": "equity",     "ccxt": None,         "yf": "MSFT",     "decimals": 2},
+    "SPY":      {"name": "S&P 500 ETF",  "emoji": "📊", "type": "equity",     "ccxt": None,         "yf": "SPY",      "decimals": 2},
+    "QQQ":      {"name": "Nasdaq ETF",   "emoji": "💻", "type": "equity",     "ccxt": None,         "yf": "QQQ",      "decimals": 2},
 }
 
 # Binance Futures exchange (rate limited, no API key needed for public data)
@@ -4346,7 +4066,7 @@ def _get_binance():
     return _binance
 
 # ── Score thresholds ──────────────────────────────────────────────────────────
-MKO_SCORE_STRONG  = 7   # ≥7/10 → STRONG signal, push to channel
+MKO_SCORE_STRONG  = 6   # ≥6/10 → STRONG signal, push to channel
 MKO_SCORE_VALID   = 5   # ≥5/10 → valid signal, shown on /futures
 MKO_MIN_RR        = 1.8 # minimum R:R to publish
 
@@ -4742,7 +4462,7 @@ and the primary catalyst for the move. No markdown, no asterisks, plain text onl
                 "content-type": "application/json",
             },
             json={
-                "model": "claude-sonnet-4-20250514",
+                "model": "claude-sonnet-4-5",
                 "max_tokens": 350,
                 "messages": [{"role": "user", "content": prompt}],
             },
@@ -4760,10 +4480,10 @@ and the primary catalyst for the move. No markdown, no asterisks, plain text onl
 def mko_format_signal(sym: str, asset: dict, ind: dict,
                        scoring: dict, levels: dict,
                        ob_imbalance, oi_data, commentary: str) -> str:
-    """Formatta il segnale in stile Bloomberg terminal per Telegram."""
+    """Formatta il segnale MKO — plain text professionale stile desk analyst."""
 
-    dec = asset["decimals"]
-    p   = ind["price"]
+    dec       = asset["decimals"]
+    p         = ind["price"]
     dir_arrow = "▲" if scoring["direction"] == "BUY" else "▼"
     dir_label = "LONG" if scoring["direction"] == "BUY" else "SHORT"
     score_bar = "█" * scoring["score"] + "░" * (10 - scoring["score"])
@@ -4776,54 +4496,87 @@ def mko_format_signal(sym: str, asset: dict, ind: dict,
     else:
         score_label = "VALID SETUP"
 
-    # OI block
+    # Market state
+    trend_str = "Bullish Continuation" if ind["trend_up"] else "Bearish Continuation" if ind["trend_down"] else "Ranging"
+    mom_str   = "Rising" if ind["macd_bull"] else "Declining"
+    atr_pct   = (ind["atr"] / p) * 100
+    vol_str   = "High" if atr_pct > 2 else "Moderate" if atr_pct > 1 else "Low"
+    sent_str  = "Risk-ON" if ind["above_vwap"] and ind["trend_up"] else "Risk-OFF" if not ind["above_vwap"] and ind["trend_down"] else "Neutral"
+
+    # Ichimoku
+    ichi     = ind.get("ichimoku", {})
+    ichi_str = "Above cloud + TK cross ↑" if ichi.get("above_cloud") and ichi.get("tk_cross_bull") else                "Above cloud" if ichi.get("above_cloud") else                "Below cloud + TK cross ↓" if ichi.get("below_cloud") else                "Below cloud" if ichi.get("below_cloud") else "Inside cloud"
+    cloud_str = "Bullish structure (A>B)" if ichi.get("cloud_bull") else "Bearish structure (B>A)"
+
+    # OI / OB lines
     oi_line = ""
     if oi_data:
-        delta = oi_data["oi_delta_pct"]
-        arrow = "↑" if delta > 0 else "↓"
-        oi_line = f"\n<code>OI Delta    </code> {arrow}{abs(delta):.2f}% — {'new positions' if abs(delta)>0.5 else 'stable'}"
-
-    # OB block
+        delta  = oi_data["oi_delta_pct"]
+        arrow  = "↑" if delta > 0 else "↓"
+        oi_line = f"OI          {arrow}{abs(delta):.2f}% — {'new positions opening' if abs(delta) > 0.5 else 'stable'}"
     ob_line = ""
     if ob_imbalance is not None:
-        pct = ob_imbalance * 100
-        label = "BUYER PRESSURE" if pct > 0 else "SELLER PRESSURE"
-        ob_line = f"\n<code>Order Book  </code> {pct:+.1f}% {label}"
+        pct    = ob_imbalance * 100
+        label  = "BUYER PRESSURE" if pct > 0 else "SELLER PRESSURE"
+        ob_line = f"Order Book  {pct:+.1f}% {label}"
 
-    # Breakdown (max 4 lines)
-    breakdown_str = "\n".join(f"  · {b}" for b in scoring["breakdown"][:4])
+    # Confirmed signals checkmarks
+    signals_str = "\n".join(f"✓ {b}" for b in scoring["breakdown"][:5])
 
-    # Commentary
-    ai_block = f"\n\n<b>AI ANALYSIS</b>\n{commentary}" if commentary else ""
+    # Trade management
+    sl_dist = abs(levels["sl"] - p)
+    tp1_dist = abs(levels["tp1"] - p)
+    be_note = f"Break-even above TP1" if dir_label == "LONG" else "Break-even below TP1"
 
-    ichi = ind.get("ichimoku", {})
-    ichi_str = (
-        "Above cloud ✓" if ichi.get("above_cloud") else
-        "Below cloud ✓" if ichi.get("below_cloud") else
-        "Inside cloud"
-    )
+    # Commentary block
+    ai_block = f"\n\nAI ANALYSIS\n{commentary}" if commentary else ""
 
     msg = (
-        f"{asset['emoji']} <b>XENOS MKO · {asset['name'].upper()} · {dir_arrow} {dir_label}</b>\n"
-        f"<code>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</code>\n"
-        f"<b>Score: {scoring['score']}/10</b>  {score_bar}\n"
-        f"<i>{score_label}</i>\n\n"
-        f"<b>SIGNAL LEVELS</b>\n"
-        f"<code>Entry       </code> <b>{p:.{dec}f}</b>\n"
-        f"<code>Stop Loss   </code> {levels['sl']:.{dec}f}  ({abs(levels['sl']-p)/ind['atr']:.1f}x ATR)\n"
-        f"<code>Target 1    </code> {levels['tp1']:.{dec}f}  R:R 1:{levels['rr1']:.1f}\n"
-        f"<code>Target 2    </code> {levels['tp2']:.{dec}f}  R:R 1:{abs(levels['tp2']-p)/abs(levels['sl']-p):.1f}\n\n"
-        f"<b>TECHNICAL CONFLUENCE</b>\n"
-        f"<code>RSI         </code> {ind['rsi']:.0f} | VWAP {'above ✓' if ind['above_vwap'] else 'below ✗'}\n"
-        f"<code>Ichimoku    </code> {ichi_str}\n"
-        f"<code>Trend       </code> EMA20{'>' if ind['ema20']>ind['ema50'] else '<'}EMA50 — {'bullish' if ind['ema20']>ind['ema50'] else 'bearish'}"
-        f"{ob_line}{oi_line}\n\n"
-        f"<b>CONFIRMED SIGNALS</b>\n{breakdown_str}"
-        f"{ai_block}\n\n"
-        f"<code>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</code>\n"
-        f"<i>⚠️ Invalidation: close beyond {levels['sl']:.{dec}f}</i>"
+        f"XENOS MKO · {sym} · {dir_arrow} {dir_label}\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"Score: {scoring['score']}/10 {score_bar}\n"
+        f"{score_label}\n\n"
+        f"MARKET STATE\n"
+        f"Trend       {trend_str}\n"
+        f"Momentum    {mom_str}\n"
+        f"Volatility  {vol_str}\n"
+        f"Sentiment   {sent_str}\n\n"
+    )
+
+    if commentary:
+        # Show commentary as SCENARIO section
+        msg += f"SCENARIO\n{commentary}\n\n"
+
+    msg += (
+        f"SIGNAL LEVELS\n"
+        f"Entry       {p:.{dec}f}\n"
+        f"Stop Loss   {levels['sl']:.{dec}f}  ({abs(levels['sl']-p)/ind['atr']:.1f}x ATR)\n"
+        f"Target 1    {levels['tp1']:.{dec}f}  R:R 1:{levels['rr1']:.1f}\n"
+        f"Target 2    {levels['tp2']:.{dec}f}  R:R 1:{abs(levels['tp2']-p)/abs(levels['sl']-p):.1f}\n\n"
+        f"TRADE MANAGEMENT\n"
+        f"• {be_note}\n"
+        f"• Momentum confirmation above TP1\n"
+        f"• Invalidation beyond {levels['sl']:.{dec}f}\n\n"
+        f"TECHNICAL CONFLUENCE\n"
+        f"RSI         {ind['rsi']:.0f} — {'bullish momentum' if 45 < ind['rsi'] < 65 else 'oversold' if ind['rsi'] < 35 else 'overbought' if ind['rsi'] > 70 else 'neutral'}\n"
+        f"VWAP        Price {'above' if ind['above_vwap'] else 'below'} {'✓' if ind['above_vwap'] == (dir_label == 'LONG') else '✗'}\n"
+        f"Ichimoku    {ichi_str}\n"
+        f"Trend       EMA20 {'>' if ind['ema20'] > ind['ema50'] else '<'} EMA50\n"
+        f"Cloud       {cloud_str}\n"
+    )
+
+    if ob_line:
+        msg += f"{ob_line}\n"
+    if oi_line:
+        msg += f"{oi_line}\n"
+
+    msg += (
+        f"\nCONFIRMED SIGNALS\n"
+        f"{signals_str}\n\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
         f"{SITE_FOOTER}"
     )
+
     return msg
 
 
@@ -5044,6 +4797,7 @@ def _mko_push_idea(sym: str, result: dict) -> bool:
         "source":       "MKO",
         "rr":           round(levels.get("rr1", 0), 2),
         "score":        score,
+        "tg_url":       result.get("tg_url", ""),
     }
 
     ideas, sha = _github_json_read(TRADING_IDEAS_FILE)
@@ -5061,7 +4815,7 @@ def _mko_push_idea(sym: str, result: dict) -> bool:
 
 # Dedup cache: {sym_direction: timestamp} — evita segnali duplicati entro 4h
 _mko_sent: dict = {}
-MKO_DEDUP_TTL = 24 * 60 * 60  # 24 ore in secondi — stesso segnale non ripetuto per 24h
+MKO_DEDUP_TTL = 12 * 60 * 60  # 12 ore in secondi — stesso segnale non ripetuto per 12h
 
 async def mko_auto_scan():
     """
@@ -5076,7 +4830,8 @@ async def mko_auto_scan():
         try:
             logger.info("MKO: scanning all assets...")
             found = 0
-            now = asyncio.get_event_loop().time()
+            MAX_SIGNALS_PER_SCAN = 5  # max segnali per ciclo — evita flooding
+            now = time.time()  # use real unix timestamp for persistent dedup
             for sym in MKO_ASSETS:
                 try:
                     result = mko_analyze(sym)
@@ -5086,15 +4841,20 @@ async def mko_auto_scan():
                         if now - last_sent < MKO_DEDUP_TTL:
                             logger.info(f"MKO SKIP (dedup): {sym} {result['direction']} — già inviato {(now-last_sent)/3600:.1f}h fa")
                             continue
+                        if found >= MAX_SIGNALS_PER_SCAN:
+                            logger.info(f"MKO: max signals per scan reached ({MAX_SIGNALS_PER_SCAN}) — stopping")
+                            break
                         logger.info(f"MKO SIGNAL: {sym} {result['direction']} score={result['score']}")
-                        await send_channel(result["message"])
+                        msg_id = await send_channel(result["message"])
                         _mko_sent[key] = now
                         found += 1
-                        # Salva anche su Trading Ideas (GitHub)
+                        # Salva anche su Trading Ideas (GitHub) con link Telegram
                         try:
+                            tg_url = f"https://t.me/xenosfin/{msg_id}" if isinstance(msg_id, int) else ""
+                            result["tg_url"] = tg_url
                             await asyncio.get_event_loop().run_in_executor(None, _mko_push_idea, sym, result)
                         except Exception as e_push:
-                            logger.warning(f"MKO push idea {sym}: {e_push}")
+                            logger.error(f"❌ MKO push idea FAILED {sym}: {e_push}", exc_info=True)
                         await asyncio.sleep(3)  # anti-flood
                 except Exception as e:
                     logger.warning(f"MKO scan {sym}: {e}")
@@ -5511,6 +5271,305 @@ async def _cb_publish_brief(update, context):
     context.bot_data.pop(cache_key, None)
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# DAILY EDUCATION ENGINE
+# ═══════════════════════════════════════════════════════════════════════════════
+
+_ED_TOPICS = {
+    "technical": [
+        "Support & Resistance", "Trend Lines", "Breakout & Fake Breakout",
+        "Pivot Points", "Volume Analysis", "Momentum", "Candlestick Patterns",
+        "RSI Divergences", "MACD Crossovers", "Moving Averages",
+        "Market Structure", "Consolidation & Range", "Pullback in Trend",
+        "Volatility Expansion", "Swing Trading Setup", "Scalping Techniques",
+        "Trend Following", "Mean Reversion", "Order Blocks", "Fair Value Gaps"
+    ],
+    "fundamental": [
+        "Inflation & CPI", "Interest Rates & Fed", "NFP Report",
+        "GDP & Recession", "Soft vs Hard Landing", "Oil & Geopolitics",
+        "Gold as Safe Haven", "DXY Dollar Index", "Bond Yields",
+        "Earnings Season", "Central Bank Policies", "Liquidity Cycles",
+        "ECB Policy", "Global Macro Cycle"
+    ],
+    "psychology": [
+        "Fear & Greed", "Revenge Trading", "FOMO", "Patience & Discipline",
+        "Emotional Control", "Trading Routine", "Consistency", "Loss Management",
+        "Overconfidence", "Trading Journal"
+    ],
+    "risk": [
+        "Capital Preservation", "Risk Per Trade", "Portfolio Exposure",
+        "Stop Loss Discipline", "Max Drawdown", "Money Management",
+        "Correlation Risk", "Diversification"
+    ],
+    "leverage": [
+        "Leverage Basics", "Margin Call", "Free vs Used Margin",
+        "Liquidation Risk", "Position Sizing", "Overexposure",
+        "CFD vs Futures Margin", "Funding Costs"
+    ],
+    "terminology": [
+        "Bull & Bear Market", "Liquidity & Spread", "Slippage", "Hedging",
+        "Options & Futures", "ETF Mechanics", "Market Maker", "Institutional Flow",
+        "Long/Short Squeeze", "Open Interest", "Contango & Backwardation",
+        "Yield Curve", "Risk-on / Risk-off"
+    ],
+    "advanced": [
+        "COT Report", "Gamma Exposure", "Options Flow", "Liquidity Grabs",
+        "Smart Money Concepts", "Intermarket Analysis", "Yield Curve Inversion",
+        "Dollar Liquidity", "Central Bank Balance Sheets", "Dark Pools"
+    ]
+}
+
+_ED_SYSTEM = (
+    "You are a professional educational trading assistant for a premium financial Telegram channel.\n"
+    "Generate DAILY EDUCATIONAL CONTENT for traders (beginners and intermediate level).\n\n"
+    "STYLE RULES:\n"
+    "- Professional desk analyst tone\n"
+    "- Clear, direct, engaging language\n"
+    "- Short sentences, readable on mobile\n"
+    "- No excessive disclaimers, no hype\n"
+    "- Use bullet points with dashes\n"
+    "- NO asterisks, NO markdown, NO special formatting characters\n"
+    "- Plain readable text only — every character must display as-is\n\n"
+    "OUTPUT STRUCTURE — use this exact layout:\n\n"
+    "━━━━━━━━━━━━━━━━━━━━\n"
+    "📚 DAILY MARKET EDUCATION\n"
+    "━━━━━━━━━━━━━━━━━━━━\n\n"
+    "[SECTION 1]\n[SECTION 2]\n[SECTION 3 - 3 Daily Tips]\n[SECTION 4 - Risk reminder]\n\n"
+    "━━━━━━━━━━━━━━━━━━━━\n"
+    "Educational purpose only\n"
+    "━━━━━━━━━━━━━━━━━━━━\n\n"
+    "Each section: catchy title with emoji, clear explanation, real market example, practical tips, "
+    "PRO TIP or SMART MONEY RULE at the end.\n"
+    "Target length: 400-600 words total. Be concise and direct.\n"
+    "CRITICAL: NEVER use *asterisks* or _underscores_ or any markdown syntax. Plain text only."
+)
+
+_ED_MAIN_CATS = ["technical", "fundamental", "psychology", "leverage", "terminology", "advanced"]
+
+
+def _ed_get_topics(date):
+    """Returns topics for the given date, rotating automatically."""
+    day       = date.timetuple().tm_yday
+    pri_cat   = _ED_MAIN_CATS[day % len(_ED_MAIN_CATS)]
+    sec_cat   = _ED_MAIN_CATS[(day + 1) % len(_ED_MAIN_CATS)]
+    pri_top   = _ED_TOPICS[pri_cat][(day + hash(pri_cat))   % len(_ED_TOPICS[pri_cat])]
+    sec_top   = _ED_TOPICS[sec_cat][(day + hash(sec_cat))   % len(_ED_TOPICS[sec_cat])]
+    risk_top  = _ED_TOPICS["risk"][day % len(_ED_TOPICS["risk"])]
+    return pri_cat, pri_top, sec_cat, sec_top, risk_top
+
+
+def _generate_daily_education(date=None):
+    """Calls Claude API and returns the daily education text."""
+    if date is None:
+        date = datetime.now().date()
+    pri_cat, pri_top, sec_cat, sec_top, risk_top = _ed_get_topics(date)
+    user_msg = (
+        f"Generate today's DAILY EDUCATIONAL CONTENT for {date.strftime('%A %d %B %Y')}.\n\n"
+        f"SECTION 1 — {pri_cat.upper()}: Topic = \"{pri_top}\"\n"
+        f"SECTION 2 — {sec_cat.upper()}: Topic = \"{sec_top}\"\n"
+        f"SECTION 3 — DAILY TRADING TIPS: 3 practical tips relevant to current market conditions\n"
+        f"SECTION 4 — RISK MANAGEMENT: Topic = \"{risk_top}\"\n\n"
+        f"Make it engaging and professional. Include real market examples where possible.\n"
+        f"Keep formatting clean for Telegram — plain dashes for bullets."
+    )
+    r = requests.post(
+        "https://api.anthropic.com/v1/messages",
+        headers={
+            "x-api-key": ANTHROPIC_API_KEY,
+            "anthropic-version": "2023-06-01",
+            "content-type": "application/json"
+        },
+        json={
+            "model": "claude-sonnet-4-5",
+            "max_tokens": 2000,
+            "system": _ED_SYSTEM,
+            "messages": [{"role": "user", "content": user_msg}]
+        },
+        timeout=60
+    )
+    res = r.json()
+    if "content" in res and res["content"]:
+        return res["content"][0]["text"]
+    raise RuntimeError(f"Education API error: {res}")
+
+
+def _ed_save_to_github(content, date):
+    """Saves post to GitHub daily_education/YYYY-MM-DD.json and updates index."""
+    if not GITHUB_TOKEN:
+        logger.warning("[Education] No GITHUB_TOKEN — skipping GitHub save")
+        return False
+    date_str = date.strftime("%Y-%m-%d")
+    api_base = f"https://api.github.com/repos/{GITHUB_REPO}/contents"
+    hdrs     = {"Authorization": f"token {GITHUB_TOKEN}", "Accept": "application/vnd.github.v3+json"}
+
+    # 1. Save post file
+    payload   = {
+        "date": date_str,
+        "day_name": date.strftime("%A"),
+        "content": content,
+        "generated_at": datetime.utcnow().isoformat() + "Z"
+    }
+    post_b64  = base64.b64encode(json.dumps(payload, ensure_ascii=False, indent=2).encode()).decode()
+    file_path = f"daily_education/{date_str}.json"
+    file_url  = f"{api_base}/{file_path}"
+
+    existing_sha = None
+    r_check = requests.get(file_url, headers=hdrs, timeout=10)
+    if r_check.status_code == 200:
+        existing_sha = r_check.json().get("sha")
+
+    put_body = {"message": f"Daily education {date_str}", "content": post_b64, "branch": "main"}
+    if existing_sha:
+        put_body["sha"] = existing_sha
+    r1 = requests.put(file_url, headers=hdrs, json=put_body, timeout=15)
+    if r1.status_code not in (200, 201):
+        logger.error(f"[Education] save error {r1.status_code}: {r1.text[:200]}")
+        return False
+
+    # 2. Update index
+    idx_url = f"{api_base}/daily_education/index.json"
+    r_idx   = requests.get(idx_url, headers=hdrs, timeout=10)
+    idx_sha, index_data = None, {"posts": []}
+    if r_idx.status_code == 200:
+        idx_sha    = r_idx.json().get("sha")
+        index_data = json.loads(base64.b64decode(r_idx.json()["content"]).decode())
+
+    existing_dates = {p["date"] for p in index_data.get("posts", [])}
+    if date_str not in existing_dates:
+        index_data.setdefault("posts", []).insert(0, {
+            "date": date_str,
+            "day_name": date.strftime("%A"),
+            "file": file_path
+        })
+        index_data["posts"] = index_data["posts"][:90]
+
+    idx_b64  = base64.b64encode(json.dumps(index_data, ensure_ascii=False, indent=2).encode()).decode()
+    idx_body = {"message": f"Education index {date_str}", "content": idx_b64, "branch": "main"}
+    if idx_sha:
+        idx_body["sha"] = idx_sha
+    r2 = requests.put(idx_url, headers=hdrs, json=idx_body, timeout=15)
+    if r2.status_code not in (200, 201):
+        logger.error(f"[Education] index error {r2.status_code}")
+        return False
+
+    logger.info(f"[Education] Saved {date_str} to GitHub OK")
+    return True
+
+
+async def cmd_daily_education(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/daily_education — manual trigger, owner only."""
+    if update.effective_user.id != OWNER_ID:
+        return
+    await update.message.reply_text("⏳ Generating daily education content...")
+    try:
+        today   = datetime.now().date()
+        content = _generate_daily_education(today)
+        for part in split_message(content, 4000):
+            await context.bot.send_message(chat_id=TELEGRAM_CHANNEL_ID, text=part)
+        ok = _ed_save_to_github(content, today)
+        await update.message.reply_text(
+            "✅ Daily education posted to channel and saved to GitHub!" if ok
+            else "✅ Posted to channel. GitHub save failed — check logs."
+        )
+    except Exception as e:
+        logger.error(f"cmd_daily_education: {e}", exc_info=True)
+        await update.message.reply_text(f"❌ Error: {e}")
+
+
+async def _scheduled_daily_education(context: ContextTypes.DEFAULT_TYPE):
+    """JobQueue — runs daily at 09:00 CET (08:00 UTC)."""
+    logger.info("[Education] Running scheduled daily education job...")
+    try:
+        today   = datetime.now().date()
+        content = _generate_daily_education(today)
+        for part in split_message(content, 4000):
+            await context.bot.send_message(chat_id=TELEGRAM_CHANNEL_ID, text=part)
+        ok = _ed_save_to_github(content, today)
+        logger.info(f"[Education] Done for {today}. GitHub: {'OK' if ok else 'FAILED'}")
+    except Exception as e:
+        logger.error(f"[Education] Scheduled job error: {e}", exc_info=True)
+
+
+
+# ── WEEKLY TRADING PLAN ───────────────────────────────────────────────────────
+
+async def _generate_weekly_trading_plan(context=None):
+    """Genera il Weekly Trading Plan ogni lunedì alle 06:00 CET."""
+    import datetime as _dt
+    logger.info("📊 Weekly Trading Plan: generating...")
+
+    if not ANTHROPIC_API_KEY:
+        logger.warning("⚠️ Weekly Trading Plan: ANTHROPIC_API_KEY mancante"); return
+
+    try:
+        import anthropic as _ac
+        client = _ac.Anthropic(api_key=ANTHROPIC_API_KEY)
+
+        now = _dt.datetime.utcnow()
+        week_start = now - _dt.timedelta(days=now.weekday())
+        week_end   = week_start + _dt.timedelta(days=4)
+        week_str   = f"{week_start.strftime('%d %b')} – {week_end.strftime('%d %b %Y')}"
+        issue_num  = now.isocalendar()[1]
+
+        prompt = f"""You are the XenosFinance senior analyst. Generate a professional Weekly Trading Plan for the week of {week_str}.
+
+Search your knowledge for the most recent macro context and produce:
+
+1. MACRO OUTLOOK (3-4 sentences: dominant macro themes, central bank stance, geopolitical risks)
+2. ASSET ANALYSIS for each: WTI Crude Oil, Gold, EUR/USD, EUR/GBP, S&P 500, Bitcoin
+   Per asset: EW structure, key support/resistance, directional bias, entry zone, SL, TP, R:R
+3. ECONOMIC CALENDAR: top 5 high-impact events this week with expected market impact
+4. EDITOR VIEW: 2-3 sentences of your personal directional conviction
+
+Format with clear section headers. Professional institutional tone. Max 800 words."""
+
+        msg = client.messages.create(
+            model="claude-haiku-4-5",
+            max_tokens=1200,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        plan_text = msg.content[0].text if msg.content else ""
+        if not plan_text:
+            logger.warning("Weekly Trading Plan: risposta AI vuota"); return
+
+        logger.info("✅ Weekly Trading Plan generated")
+
+        # ── Push to GitHub ────────────────────────────────────────────────────
+        if GITHUB_TOKEN:
+            import json as _json, base64 as _b64
+            plan_data = {
+                "week": week_str,
+                "issue": f"Vol. {issue_num}, {now.year}",
+                "generated": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "text": plan_text
+            }
+            path = "weekly_plan/latest.json"
+            ideas, sha = _github_json_read(path)
+            if ideas is None:
+                sha = ""
+            encoded = _b64.b64encode(_json.dumps(plan_data, ensure_ascii=False, indent=2).encode("utf-8")).decode("utf-8")
+            import requests as _req
+            api = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{path}"
+            headers = {"Authorization": f"token {GITHUB_TOKEN}", "Accept": "application/vnd.github.v3+json"}
+            payload = {"message": f"Weekly Trading Plan: {week_str}", "content": encoded, "committer": {"name": "XenosBot", "email": "bot@xenosfinance.com"}}
+            if sha:
+                payload["sha"] = sha
+            r = _req.put(api, headers=headers, json=payload, timeout=30)
+            if r.status_code in [200, 201]:
+                logger.info("✅ Weekly Trading Plan pushed to GitHub")
+            else:
+                logger.error(f"❌ GitHub push failed: {r.status_code} {r.text[:200]}")
+
+        # ── Send to Telegram channel ──────────────────────────────────────────
+        truncated = plan_text[:3800]
+        msg_text = f"📊 <b>XenosFinance Weekly Trading Plan</b>\nWeek of {week_str} · Edition #XF-WTP-{now.year}-{issue_num}\n\n{truncated}"
+        await send_channel(msg_text)
+        logger.info("✅ Weekly Trading Plan sent to Telegram")
+
+    except Exception as e:
+        logger.error(f"❌ Weekly Trading Plan error: {e}", exc_info=True)
+
+
 def main():
     logger.info("="*60)
     logger.info("XENOSFINANCE — Financial Intelligence Bot v3.1")
@@ -5547,17 +5606,36 @@ def main():
     app.add_handler(CommandHandler("commodities", cmd_commodities))
     app.add_handler(CommandHandler("equity",      cmd_equity))
     app.add_handler(CommandHandler("updatesite",  cmd_updatesite))
-    app.add_handler(CommandHandler("wrap",        cmd_wrap))
     app.add_handler(CommandHandler("news",        cmd_news))
     app.add_handler(CommandHandler("brief",       cmd_news))
-    app.add_handler(CommandHandler("futures",     cmd_futures))
-    app.add_handler(CommandHandler("mko",         cmd_futures))
+    app.add_handler(CommandHandler("futures",          cmd_futures))
+    app.add_handler(CommandHandler("mko",              cmd_futures))
+    app.add_handler(CommandHandler("daily_education",  cmd_daily_education))
+    app.add_handler(CommandHandler("weeklyplan",        lambda u,c: asyncio.ensure_future(_generate_weekly_trading_plan())))
 
     logger.info("🚀 Bot started — waiting for commands...")
     logger.info(f"✅ MKO Engine: {len(MKO_ASSETS)} assets, auto-scan every {MKO_SCAN_INTERVAL}min, push threshold {MKO_SCORE_STRONG}/10")
 
     async def _post_init(application):
         asyncio.ensure_future(mko_auto_scan())
+        if application.job_queue is not None:
+            import datetime as _dt2, pytz as _pytz
+            application.job_queue.run_daily(
+                _scheduled_daily_education,
+                time=_dt2.time(8, 0, tzinfo=_pytz.UTC),
+                name="daily_education"
+            )
+            logger.info("✅ Daily Education: scheduled job active (09:00 CET)")
+            # Weekly Trading Plan — ogni lunedì alle 05:00 UTC (06:00 CET)
+            application.job_queue.run_daily(
+                _generate_weekly_trading_plan,
+                time=_dt2.time(5, 0, tzinfo=_pytz.UTC),
+                days=(0,),  # 0 = Monday
+                name="weekly_trading_plan"
+            )
+            logger.info("✅ Weekly Trading Plan: scheduled every Monday 06:00 CET")
+        else:
+            logger.warning("⚠️ Daily Education: JobQueue not available. Add python-telegram-bot[job-queue] to requirements.txt. Manual /daily_education still works.")
 
     app.post_init = _post_init
     app.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True)
