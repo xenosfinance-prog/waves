@@ -457,8 +457,8 @@ body{background:var(--bg);color:var(--ink);font-family:var(--mono);min-height:10
   <!-- AI OPTIONS INTERPRETER -->
   <div style="margin:20px 0 0;border:1px solid var(--border);background:var(--bg);">
     <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px;background:var(--bg2);border-bottom:1px solid var(--border);">
-      <div style="font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--gold);"><span data-i18n="section_ai_interpreter">✦ AI Options Interpreter</span></div>
-      <div style="display:flex;align-items:center;gap:10px;">
+      <div style="font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--gold);"><span data-i18n="section_ai_interpreter">✦ AI Signal Interpreter</span></div>
+      <div id="interpreter-controls" style="display:none;align-items:center;gap:10px;">
         <select id="ai-tab-select" style="font-family:var(--mono);font-size:9px;letter-spacing:1px;background:var(--bg3);border:1px solid var(--border);color:var(--muted);padding:3px 8px;cursor:pointer;">
           <option value="forex"><span data-i18n="label_forex">Forex</span></option>
           <option value="crypto"><span data-i18n="label_crypto">Crypto</span></option>
@@ -466,8 +466,23 @@ body{background:var(--bg);color:var(--ink);font-family:var(--mono);min-height:10
         <button id="ai-run-btn" onclick="runAIInterpreter()" style="font-family:var(--mono);font-size:8px;letter-spacing:2px;text-transform:uppercase;padding:4px 14px;background:var(--gold);color:#fff;border:none;cursor:pointer;transition:opacity 0.2s;">⟳ Analyse</button>
       </div>
     </div>
-    <div id="ai-interpreter-body" style="padding:20px 18px;min-height:80px;font-family:var(--mono);font-size:11px;color:var(--muted);line-height:1.7;">
-      <span style="letter-spacing:2px;font-size:10px;">Select Forex or Crypto above and click Analyse to get AI options guidance for the current signals.</span>
+    <!-- LOCKED STATE -->
+    <div id="interpreter-locked" style="padding:28px 20px;text-align:center;">
+      <div style="font-size:18px;margin-bottom:10px;">🔒</div>
+      <div style="font-family:var(--mono);font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--gold);margin-bottom:8px;">Premium Feature</div>
+      <div style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-bottom:16px;line-height:1.6;">Enter your premium code or admin password to access the AI Signal Interpreter.</div>
+      <div style="display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;">
+        <input id="interpreter-pw-input" type="password" placeholder="Enter code..." style="font-family:var(--mono);font-size:10px;background:var(--bg3);border:1px solid var(--border);color:var(--fg);padding:6px 12px;width:180px;outline:none;" onkeydown="if(event.key==='Enter')unlockInterpreter()"/>
+        <button onclick="unlockInterpreter()" style="font-family:var(--mono);font-size:8px;letter-spacing:2px;text-transform:uppercase;padding:6px 16px;background:var(--gold);color:#fff;border:none;cursor:pointer;">Unlock</button>
+        <a href="https://xenosfinance.com/premium-support" style="font-family:var(--mono);font-size:8px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);text-decoration:none;padding:6px 12px;border:1px solid var(--border);">Get Premium ✦</a>
+      </div>
+      <div id="interpreter-pw-err" style="font-family:var(--mono);font-size:9px;color:#ef4444;margin-top:10px;min-height:14px;"></div>
+    </div>
+    <!-- UNLOCKED STATE -->
+    <div id="interpreter-unlocked" style="display:none;">
+      <div id="ai-interpreter-body" style="padding:20px 18px;min-height:80px;font-family:var(--mono);font-size:11px;color:var(--muted);line-height:1.7;">
+        <span style="letter-spacing:2px;font-size:10px;">Select Forex or Crypto above and click Analyse to get AI signal interpretation.</span>
+      </div>
     </div>
   </div>
 
@@ -1060,6 +1075,7 @@ document.addEventListener('DOMContentLoaded', () => {
     isAdmin = true;
     document.getElementById('admin-bar').style.display = 'flex';
   }
+  initInterpreterState();
   loadSignals();
   setInterval(loadSignals, 300000);
   // Init technical summary
@@ -1087,8 +1103,10 @@ function doAdminLogin() {
   if (pw === 'RMG@Manu78' || pw === 'RMG@manu78') {
     isAdmin = true;
     sessionStorage.setItem('xf_admin', 'true');
+    sessionStorage.setItem('xf_interpreter', 'true');
     closeAdminLogin();
     document.getElementById('admin-bar').style.display = 'flex';
+    initInterpreterState();
     applyFilters(); // re-render with admin controls visible
   } else {
     document.getElementById('admin-err').textContent = '⚠ Password errata';
@@ -1572,6 +1590,29 @@ async function sendToTelegram(event, i, type) {
 }
 
 // ── AI OPTIONS INTERPRETER ────────────────────────────────────
+function unlockInterpreter() {
+  const pw = document.getElementById('interpreter-pw-input').value.trim();
+  const valid = ['RMG@Manu78','RMG@manu78','XENOS-PREMIUM-2026','XF-PRO-001','XF-PRO-002','XF-PRO-003'];
+  if (valid.includes(pw)) {
+    sessionStorage.setItem('xf_interpreter', 'true');
+    document.getElementById('interpreter-locked').style.display = 'none';
+    document.getElementById('interpreter-unlocked').style.display = 'block';
+    document.getElementById('interpreter-controls').style.display = 'flex';
+    document.getElementById('interpreter-pw-err').textContent = '';
+  } else {
+    document.getElementById('interpreter-pw-err').textContent = '⚠ Invalid code';
+    document.getElementById('interpreter-pw-input').value = '';
+  }
+}
+
+function initInterpreterState() {
+  if (sessionStorage.getItem('xf_interpreter') === 'true' || sessionStorage.getItem('xf_admin') === 'true') {
+    document.getElementById('interpreter-locked').style.display = 'none';
+    document.getElementById('interpreter-unlocked').style.display = 'block';
+    document.getElementById('interpreter-controls').style.display = 'flex';
+  }
+}
+
 async function runAIInterpreter() {
   const btn = document.getElementById('ai-run-btn');
   const body = document.getElementById('ai-interpreter-body');
