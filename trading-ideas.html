@@ -294,20 +294,19 @@ const CACHE_TTL=5*60*1000;
 // Always attempt this — no pre-check needed since we validate the result.
 function fixStr(s) {
   if (!s || typeof s !== 'string') return s;
-  // Only fix if string contains chars > 0x7F (non-ASCII)
+  // Don't touch real unicode/emoji (charCode > 0xFF)
   let hasHigh = false;
   for (let i = 0; i < s.length; i++) {
-    if (s.charCodeAt(i) > 0x7F) { hasHigh = true; break; }
+    const cc = s.charCodeAt(i);
+    if (cc > 0xFF) return s; // real unicode/emoji — already correct, don't touch
+    if (cc > 0x7F) hasHigh = true;
   }
   if (!hasHigh) return s;
   try {
-    // Treat each JS char as a latin-1 byte value
     const bytes = new Uint8Array(s.length);
     for (let i = 0; i < s.length; i++) bytes[i] = s.charCodeAt(i) & 0xFF;
     const fixed = new TextDecoder('utf-8').decode(bytes);
-    // Sanity check: fixed should have fewer or equal non-ASCII chars
-    // If decode failed (invalid UTF-8), TextDecoder replaces with U+FFFD
-    if (fixed.includes('\uFFFD')) return s; // decode failed, keep original
+    if (fixed.includes('\uFFFD')) return s;
     return fixed;
   } catch(e) { return s; }
 }
@@ -332,12 +331,14 @@ const EMOJI_MAP = {
   'ZECUSD':'🔒',  'ZEC':'🔒',
   'GOLD':'🥇',   'XAUUSD':'🥇',
   'SILVER':'🥈', 'XAGUSD':'🥈',
-  'OIL':'🛢️',   'WTI':'🛢️',
-  'NGAS':'⛽',   'GAS':'⛽',
+  'OIL':'🛢️',   'WTI':'🛢️',    'CL':'🛢️',
+  'NGAS':'⛽',   'GAS':'⛽',      'NG':'⛽',
   'EURUSD':'💶', 'GBPUSD':'💷', 'USDJPY':'💴',
   'AUDUSD':'🇦🇺','USDCHF':'🇨🇭','USDCAD':'🇨🇦','NZDUSD':'🇳🇿',
   'EURGBP':'💶', 'EURJPY':'💶', 'GBPJPY':'💷',
-  'SPY':'📊', 'NASDAQ':'📈', 'DJI':'🇺🇸',
+  'AUDJPY':'🇦🇺','CADJPY':'🇨🇦','CHFJPY':'🇨🇭',
+  'SPY':'📊', 'QQQ':'💻', 'NASDAQ':'📈', 'DJI':'🇺🇸',
+  'DAX':'🇩🇪', 'FTSE':'🇬🇧', 'CAC':'🇫🇷', 'NKY':'🇯🇵',
   'AAPL':'🍎','MSFT':'🪟','NVDA':'🎮','GOOGL':'🔍',
   'META':'👥','AMZN':'📦','TSLA':'⚡','AMD':'💻',
   'JPM':'🏦','GS':'💰','BAC':'🏛️','WFC':'🐎',
@@ -349,13 +350,16 @@ const EMOJI_MAP = {
 };
 
 function resolveEmoji(emoji, ticker) {
-  // Always try to fix encoding first
-  const e = fixStr(emoji) || '';
-  if (!e || /^\[.*\]$/.test(e) || /^\(.*\)$/.test(e) || /^[A-Z0-9\s\[\]()_-]+$/.test(e)) {
-    const base = ticker ? ticker.replace('USDT','').replace('USD','') : '';
-    return EMOJI_MAP[ticker] || EMOJI_MAP[base] || '📊';
+  // Always prefer EMOJI_MAP for known tickers — most reliable
+  if (ticker) {
+    const base = ticker.replace('USDT','').replace('USD','');
+    const mapped = EMOJI_MAP[ticker] || EMOJI_MAP[base];
+    if (mapped) return mapped;
   }
-  return e;
+  // Fallback: use stored emoji if it looks like real unicode
+  const e = fixStr(emoji) || '';
+  if (e && e.length <= 4) return e; // short string = likely emoji
+  return '📊';
 }
 
 const CAT_MAP = {
@@ -398,10 +402,12 @@ let allIdeas=[], activeFilter='all';
 
 function fmtPrice(v,ticker){
   if(!v||v===0) return '—';
-  if(ticker&&(ticker.includes('BTC')||ticker.includes('ETH')))
-    return v.toLocaleString('en-US',{maximumFractionDigits:0});
-  if(v>1000) return v.toLocaleString('en-US',{maximumFractionDigits:1});
-  if(v>10)   return v.toFixed(2);
+  const t = (ticker||'').toUpperCase();
+  if(t.includes('BTC')) return v.toLocaleString('en-US',{maximumFractionDigits:0});
+  if(t.includes('ETH')) return v.toLocaleString('en-US',{maximumFractionDigits:2});
+  if(v>100000) return v.toLocaleString('en-US',{maximumFractionDigits:0}); // BTC fallback
+  if(v>1000)   return v.toLocaleString('en-US',{maximumFractionDigits:1});
+  if(v>10)     return v.toFixed(2);
   return v.toFixed(4);
 }
 function fmtRR(idea){
