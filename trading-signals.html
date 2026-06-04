@@ -699,7 +699,7 @@ function renderCFD() {
     const outcomeLabel = outcome === 'win' ? '✓ WIN' : outcome === 'loss' ? '✗ LOSS' : '● OPEN';
 
     return `
-    <div class="signal-card ${isBull?'bull':'bear'}" onclick="toggleCFDDetail(${i})">
+    <div class="signal-card ${isBull?'bull':'bear'}" onclick="toggleCFDDetail(${i})" data-pair="${sig.pair||''}" data-tf="${sig.timeframe||''}">
       <div class="signal-card-row">
         <div class="sc-pair">${sig.pair||'—'}</div>
         <div class="sc-dir ${sig.direction||''}">${isBull?'BUY':'SELL'}</div>
@@ -774,8 +774,11 @@ function toggleCFDDetail(i) {
   document.querySelectorAll('.signal-detail.open').forEach(el => el.classList.remove('open'));
   if (!isOpen) {
     d.classList.add('open');
-    const sig = filtered[i];
-    if (sig) setTimeout(() => injectTVChart('tv-cfd-' + i, sig.pair, sig.timeframe), 100);
+    // Read from DOM attribute so we don't depend on filtered[] index stability
+    const card = d.closest('[data-pair]');
+    const pair = card ? card.dataset.pair : (filtered[i] ? filtered[i].pair : null);
+    const tf   = card ? card.dataset.tf   : (filtered[i] ? filtered[i].timeframe : null);
+    if (pair) setTimeout(() => injectTVChart('tv-cfd-' + i, pair, tf), 150);
   }
 }
 
@@ -796,7 +799,7 @@ function renderOptions() {
     const outcome  = sig.outcome || 'open';
 
     return `
-    <div class="opt-card ${isCall?'call':'put'}" onclick="toggleOptDetail(${i})">
+    <div class="opt-card ${isCall?'call':'put'}" onclick="toggleOptDetail(${i})" data-pair="${sig.pair||''}" data-tf="${sig.expiry||sig.timeframe||''}">
       <div class="opt-card-row">
         <div class="oc-pair">${sig.pair||'—'}</div>
         <div class="oc-action ${isCall?'CALL':'PUT'}">${isCall?'CALL':'PUT'}</div>
@@ -845,8 +848,10 @@ function toggleOptDetail(i) {
   document.querySelectorAll('.opt-detail.open').forEach(el => el.classList.remove('open'));
   if (!isOpen) {
     d.classList.add('open');
-    const sig = filtered[i];
-    if (sig) setTimeout(() => injectTVChart('tv-opt-' + i, sig.pair, sig.timeframe), 100);
+    const card = d.closest('[data-pair]');
+    const pair = card ? card.dataset.pair : (filtered[i] ? filtered[i].pair : null);
+    const tf   = card ? card.dataset.tf   : (filtered[i] ? (filtered[i].expiry||filtered[i].timeframe) : null);
+    if (pair) setTimeout(() => injectTVChart('tv-opt-' + i, pair, tf), 150);
   }
 }
 
@@ -1011,8 +1016,7 @@ function injectTVChart(containerId, pair, tf) {
   const interval = {'M1':'M','W1':'W','D1':'D','H4':'240','H1':'60','M30':'30','M15':'15','M5':'5'}[tf] || 'D';
   const el = document.getElementById(containerId);
   if (!el) return;
-  // If already has a widget iframe inside, skip
-  if (el.querySelector('iframe')) return;
+  // Always re-render: destroy old iframe if present so chart reloads fresh
   el.innerHTML = '';
   el.style.height = '220px';
 
