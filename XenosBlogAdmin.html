@@ -84,23 +84,29 @@
   .tg-fields { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px; }
   .tg-note { font-family:'IBM Plex Mono',monospace; font-size:0.58rem; color:var(--text-dim); line-height:1.65; margin-top:10px; }
   #genPasteText::placeholder { color:var(--dim); font-style:italic; }
-  .blog-card { background:var(--bg2); transition:background 0.2s; cursor:pointer; overflow:hidden; position:relative; display:flex; flex-direction:column; }
-  .blog-card:hover { background:var(--bg3); }
-  .card-img-wrap { width:100%; height:140px; overflow:hidden; background:#0d1624; flex-shrink:0; }
-  .card-img-wrap img { width:100%; height:100%; object-fit:cover; display:block; border-bottom:1px solid var(--border); }
-  .card-img-placeholder { width:100%; height:140px; background:linear-gradient(135deg,#0c1828 0%,#101e30 100%); display:flex; align-items:center; justify-content:center; border-bottom:1px solid var(--border); flex-shrink:0; }
-  .card-img-placeholder span { font-family:'IBM Plex Mono',monospace; font-size:0.48rem; letter-spacing:0.3em; color:#1a2e48; text-transform:uppercase; }
-  .card-body-wrap { padding:18px 20px 16px; flex:1; display:flex; flex-direction:column; }
+  .blog-card { background:var(--bg2); transition:background 0.2s,box-shadow 0.2s; cursor:pointer; overflow:hidden; position:relative; display:flex; flex-direction:column; }
+  .blog-card:hover { background:var(--bg3); box-shadow:0 4px 24px rgba(0,0,0,0.35); }
+  .card-img-wrap { width:100%; height:180px; overflow:hidden; background:#0d1624; flex-shrink:0; position:relative; }
+  .card-img-wrap img { width:100%; height:100%; object-fit:cover; object-position:center 20%; display:block; transition:transform 0.4s ease; }
+  .blog-card:hover .card-img-wrap img { transform:scale(1.04); }
+  .card-img-placeholder { width:100%; height:180px; background:linear-gradient(135deg,#090f1a 0%,#0e1c30 60%,#0a1422 100%); display:flex; align-items:center; justify-content:center; border-bottom:1px solid var(--border); flex-shrink:0; }
+  .card-img-placeholder span { font-family:'IBM Plex Mono',monospace; font-size:0.48rem; letter-spacing:0.35em; color:#1a2e48; text-transform:uppercase; }
+  .card-body-wrap { padding:18px 20px 16px; flex:1; display:flex; flex-direction:column; border-top:1px solid var(--border); }
   .card-del { position:absolute; top:8px; right:8px; background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.3); color:#f87171; font-size:10px; padding:3px 8px; cursor:pointer; font-family:'IBM Plex Mono',monospace; letter-spacing:0.05em; z-index:2; display:none; transition:background 0.2s; }
   .blog-card:hover .card-del { display:block; }
   .card-del:hover { background:rgba(239,68,68,0.25); }
   .blog-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--border); border:1px solid var(--border); margin-top:24px; }
-  .card-num { font-family:'IBM Plex Mono',monospace; font-size:0.56rem; color:var(--text-dim); margin-bottom:12px; }
-  .card-cat { font-family:'IBM Plex Mono',monospace; font-size:0.58rem; letter-spacing:0.15em; text-transform:uppercase; color:var(--gold); margin-bottom:8px; }
-  .card-title { font-family:'Playfair Display',serif; font-size:1rem; font-weight:700; color:var(--text-bright); line-height:1.35; margin-bottom:10px; }
-  .card-excerpt { font-size:0.8rem; color:var(--text-dim); line-height:1.65; margin-bottom:16px; }
-  .card-footer { display:flex; justify-content:space-between; font-family:'IBM Plex Mono',monospace; font-size:0.58rem; color:var(--text-dim); }
-  .card-read { color:var(--gold); }
+  .card-num { font-family:'IBM Plex Mono',monospace; font-size:0.52rem; color:var(--text-dim); opacity:0.5; margin-bottom:10px; letter-spacing:0.12em; }
+  .card-cat { display:inline-block; font-family:'IBM Plex Mono',monospace; font-size:0.52rem; letter-spacing:0.18em; text-transform:uppercase; color:var(--gold); background:rgba(245,190,80,0.08); border:1px solid rgba(245,190,80,0.2); padding:2px 8px; margin-bottom:10px; }
+  .card-cat[data-cat="crypto"] { color:#a78bfa; background:rgba(167,139,250,0.08); border-color:rgba(167,139,250,0.25); }
+  .card-cat[data-cat="forex"] { color:#34d399; background:rgba(52,211,153,0.08); border-color:rgba(52,211,153,0.25); }
+  .card-cat[data-cat="commodities"] { color:#fb923c; background:rgba(251,146,60,0.08); border-color:rgba(251,146,60,0.25); }
+  .card-cat[data-cat="equity"] { color:#60a5fa; background:rgba(96,165,250,0.08); border-color:rgba(96,165,250,0.25); }
+  .card-cat[data-cat="macro"] { color:#f472b6; background:rgba(244,114,182,0.08); border-color:rgba(244,114,182,0.25); }
+  .card-title { font-family:'Playfair Display',serif; font-size:0.98rem; font-weight:700; color:var(--text-bright); line-height:1.38; margin-bottom:10px; flex:1; }
+  .card-excerpt { font-size:0.78rem; color:var(--text-dim); line-height:1.65; margin-bottom:14px; }
+  .card-footer { display:flex; justify-content:space-between; align-items:center; font-family:'IBM Plex Mono',monospace; font-size:0.55rem; color:var(--text-dim); border-top:1px solid var(--border); padding-top:10px; margin-top:auto; }
+  .card-read { color:var(--gold); letter-spacing:0.08em; }
   .spinner { display:inline-block; width:12px; height:12px; border:1.5px solid rgba(11,14,20,0.3); border-top-color:#0b0e14; border-radius:50%; animation:spin 0.7s linear infinite; }
   @keyframes spin { to{transform:rotate(360deg)} }
   .spinner-gold { display:inline-block; width:12px; height:12px; border:1.5px solid rgba(59,130,246,0.2); border-top-color:var(--gold); border-radius:50%; animation:spin 0.7s linear infinite; }
@@ -786,15 +792,17 @@ async function loadArticlesFromGitHub() {
       var imgHtml = a.imageUrl
         ? '<div class="card-img-wrap"><img src="' + a.imageUrl + '" alt="' + a.title + '" loading="lazy" onerror="this.parentElement.outerHTML=\'<div class=\\\"card-img-placeholder\\\"><span>XENOSFINANCE</span></div>\'"></div>'
         : '<div class="card-img-placeholder"><span>XENOSFINANCE</span></div>';
+      var catKey = (a.market||'').toLowerCase().replace(/[^a-z]/g,'');
+      var catLabel = a.category||a.categoryLabel||'';
       card.innerHTML =
         '<button class="card-del" onclick="event.stopPropagation();deleteArticle(\'' + a.slug + '\', this)">✕ Delete</button>' +
         imgHtml +
         '<div class="card-body-wrap">' +
         '<div class="card-num">' + String(i+1).padStart(3,'0') + '</div>' +
-        '<div class="card-cat">' + (a.category||a.categoryLabel||'') + '</div>' +
+        '<div class="card-cat" data-cat="' + catKey + '">' + catLabel + '</div>' +
         '<div class="card-title">' + a.title + '</div>' +
-        '<div class="card-excerpt">' + (a.excerpt||'').substring(0,100) + '...</div>' +
-        '<div class="card-footer"><span>' + (a.readTime||'') + '</span><span class="card-read">View →</span></div>' +
+        '<div class="card-excerpt">' + (a.excerpt||'').substring(0,110) + '…</div>' +
+        '<div class="card-footer"><span>' + (a.readTime||'') + '</span><span class="card-read">Read →</span></div>' +
         '</div>';
       card.onclick = function(){ window.open('XenosBlog?slug=' + a.slug, '_blank'); };
       grid.appendChild(card);
@@ -1028,7 +1036,8 @@ async function publishToBlog() {
     var grid = document.getElementById('blogGrid');
     var card = document.createElement('div');
     card.className = 'blog-card';
-    card.innerHTML = '<div class="card-num">'+String(cardCount).padStart(3,'0')+'</div><div class="card-cat">'+currentArticle.categoryLabel+'</div><div class="card-title">'+currentArticle.title+'</div><div class="card-excerpt">'+(newEntry.excerpt)+'...</div><div class="card-footer"><span>'+currentArticle.readTime+'</span><span class="card-read">Leggi →</span></div>';
+    var pCatKey = (currentArticle.market||'').toLowerCase().replace(/[^a-z]/g,'');
+    card.innerHTML = '<div class="card-num">'+String(cardCount).padStart(3,'0')+'</div><div class="card-cat" data-cat="'+pCatKey+'">'+currentArticle.categoryLabel+'</div><div class="card-title">'+currentArticle.title+'</div><div class="card-excerpt">'+(newEntry.excerpt)+'…</div><div class="card-footer"><span>'+currentArticle.readTime+'</span><span class="card-read">Read →</span></div>';
       card.onclick = function(){ window.open('XenosBlog.html?slug='+slug,'_blank'); };
     grid.insertBefore(card, grid.firstChild);
 
@@ -1062,9 +1071,9 @@ async function sendToTelegram() {
   if (!token || !channel) { tgStatus.textContent = '⚠ Enter token and channel ID'; return; }
   btn.disabled = true;
   tgStatus.textContent = 'Sending...';
-  var msg = '*' + currentArticle.title + '*\n\n_' + currentArticle.categoryLabel + ' · XenosFinance_\n\n' + currentArticle.intro + '\n\n';
-  currentArticle.sections.forEach(function(s){ msg += '*' + s.heading + '*\n' + s.content + '\n\n'; });
-  msg += '_"' + currentArticle.quote + '"_\n\n✦ ' + currentArticle.conclusion + '\n\n━━━━━━━━━━━━━━━\n📡 [XenosFinance](https://t.me/xenosfin) — Elliott Wave · Markets · Macro\n🔔 Enable notifications to stay updated';
+  var msg = currentArticle.title + '\n\n' + currentArticle.categoryLabel + ' · XenosFinance\n\n' + currentArticle.intro + '\n\n';
+  currentArticle.sections.forEach(function(s){ msg += '——— ' + s.heading.toUpperCase() + ' ———\n' + s.content + '\n\n'; });
+  msg += '"' + currentArticle.quote + '"\n\n✦ ' + currentArticle.conclusion + '\n\n━━━━━━━━━━━━━━━\n📡 XenosFinance — Elliott Wave · Markets · Macro\nhttps://t.me/xenosfin\n🔔 Enable notifications to stay updated';
   try {
     var res = await fetch(WORKER_URL, {
       method:'POST', headers:{'Content-Type':'application/json'},
