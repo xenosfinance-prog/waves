@@ -4066,7 +4066,7 @@ def _get_binance():
     return _binance
 
 # ── Score thresholds ──────────────────────────────────────────────────────────
-MKO_SCORE_STRONG  = 6   # ≥6/10 → STRONG signal, push to channel
+MKO_SCORE_STRONG  = 7   # ≥7/10 → STRONG signal, push to channel
 MKO_SCORE_VALID   = 5   # ≥5/10 → valid signal, shown on /futures
 MKO_MIN_RR        = 1.8 # minimum R:R to publish
 
