@@ -1,4 +1,4 @@
-<!DOCTYPE html>  
+<!DOCTYPE html> 
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -3284,7 +3284,7 @@ function renderEWSketch(analysis, symbol, tf){
 
 
 // ── BOT SIGNALS (Section 9: EW + AI from Telegram bot) ──────────────────────
-const TRADING_IDEAS_URL = 'https://raw.githubusercontent.com/xenosfinance-prog/waves/main/trading_ideas/ideas.json';
+const TRADING_IDEAS_URL = 'https://raw.githubusercontent.com/xenosfinance-prog/waves/main/ew_signals/signals.json';
 let botSignalsUnlocked = false;
 let currentBotTab = 'ew';
 
@@ -3320,7 +3320,7 @@ async function loadBotSignals() {
     if (!r.ok) throw new Error('fetch failed');
     const ideas = await r.json();
 
-    const ewIdeas = ideas.filter(i => i.source === 'EW');
+    const ewIdeas = ideas.filter(i => i.source === 'EW' || !i.source);
     const aiIdeas = ideas.filter(i => i.source === 'AI');
 
     renderBotCards(ewIdeas, 'ew-signals-list', 'ew-signals-empty');
