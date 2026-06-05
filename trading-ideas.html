@@ -154,7 +154,7 @@ body{background:var(--bg4);color:var(--ink);font-family:var(--mono);min-height:1
 <div class="masthead">
   <div class="masthead-top">
     <span id="live-date">--</span>
-    <span>XENOSFINANCE · INTELLIGENCE TERMINAL</span>
+    <span><span data-i18n="label_intelligence_terminal">XENOSFINANCE · INTELLIGENCE TERMINAL</span></span>
     <span id="live-time">--:-- CET</span>
     <div id="xenos-lang-switcher" style="display:inline-block;"></div>
   </div>
@@ -178,9 +178,9 @@ body{background:var(--bg4);color:var(--ink);font-family:var(--mono);min-height:1
 
 <div class="ti-hero">
   <div class="ti-hero-inner">
-    <div class="ti-eyebrow">Elliott Wave · AI Analysis · Live</div>
-    <h1>Trading Ideas</h1>
-    <p>Elliott Wave setups and AI-generated trade ideas published automatically by the XenosFinance bot. Each idea includes wave count, directional bias, price targets, and invalidation levels.</p>
+    <div class="ti-eyebrow"><span data-i18n="label_ew_ai_live">Elliott Wave · AI Analysis · Live</span></div>
+    <h1><span data-i18n="label_trading_ideas">Trading Ideas</span></h1>
+    <p><span data-i18n="label_ideas_desc">Elliott Wave setups and AI-generated trade ideas published automatically by the Xenos Engine.</span> XenosFinance bot. Each idea includes wave count, directional bias, price targets, and invalidation levels.</p>
   </div>
 </div>
 
@@ -188,11 +188,11 @@ body{background:var(--bg4);color:var(--ink);font-family:var(--mono);min-height:1
   <div class="toolbar">
     <div class="filters" id="filters">
       <button class="filter-btn active" data-filter="all">All</button>
-      <button class="filter-btn" data-filter="forex">Forex</button>
-      <button class="filter-btn" data-filter="commodities">Commodities</button>
-      <button class="filter-btn" data-filter="crypto">Crypto</button>
-      <button class="filter-btn" data-filter="indices">Indices</button>
-      <button class="filter-btn" data-filter="stocks">Stocks</button>
+      <button class="filter-btn" data-filter="forex"><span data-i18n="label_cat_forex">Forex</span></button>
+      <button class="filter-btn" data-filter="commodities"><span data-i18n="label_cat_commodities">Commodities</span></button>
+      <button class="filter-btn" data-filter="crypto"><span data-i18n="label_cat_crypto">Crypto</span></button>
+      <button class="filter-btn" data-filter="indices"><span data-i18n="label_cat_indices">Indices</span></button>
+      <button class="filter-btn" data-filter="stocks"><span data-i18n="label_cat_stocks">Stocks</span></button>
     </div>
     <div class="toolbar-right">
       <span class="ideas-count" id="ideas-count"></span>
@@ -255,18 +255,18 @@ body{background:var(--bg4);color:var(--ink);font-family:var(--mono);min-height:1
       <div class="modal-meta-grid">
         <div class="modal-meta-item"><span class="meta-label">Bias</span><span class="meta-val" id="modal-bias"></span></div>
         <div class="modal-meta-item"><span class="meta-label">Wave</span><span class="meta-val" id="modal-wave"></span></div>
-        <div class="modal-meta-item"><span class="meta-label">Price</span><span class="meta-val" id="modal-price"></span></div>
-        <div class="modal-meta-item"><span class="meta-label">Confidence</span><span class="meta-val" id="modal-conf"></span></div>
+        <div class="modal-meta-item"><span class="meta-label"><span data-i18n="th_price">Price</span></span><span class="meta-val" id="modal-price"></span></div>
+        <div class="modal-meta-item"><span class="meta-label"><span data-i18n="label_confidence">Confidence</span></span><span class="meta-val" id="modal-conf"></span></div>
       </div>
       <div class="modal-analysis" id="modal-analysis"></div>
       <div class="modal-levels">
-        <div class="modal-level-card"><span class="meta-label">Target</span><span id="modal-target" style="color:var(--green);font-size:13px;font-weight:500;display:block;margin-top:2px"></span></div>
-        <div class="modal-level-card"><span class="meta-label">Invalidation</span><span id="modal-inv" style="color:var(--red);font-size:13px;font-weight:500;display:block;margin-top:2px"></span></div>
+        <div class="modal-level-card"><span class="meta-label"><span data-i18n="th_target">Target</span></span><span id="modal-target" style="color:var(--green);font-size:13px;font-weight:500;display:block;margin-top:2px"></span></div>
+        <div class="modal-level-card"><span class="meta-label"><span data-i18n="th_invalidation">Invalidation</span></span><span id="modal-inv" style="color:var(--red);font-size:13px;font-weight:500;display:block;margin-top:2px"></span></div>
         <div class="modal-level-card"><span class="meta-label">R:R</span><span id="modal-rr" style="font-size:13px;font-weight:500;display:block;margin-top:2px;color:var(--ink)"></span></div>
       </div>
       <div class="modal-footer">
         <span id="modal-date"></span>
-        <a class="modal-tg-link" href="https://t.me/xenosfin" target="_blank">VIEW ON TELEGRAM →</a>
+        <a class="modal-tg-link" href="https://t.me/xenosfin" target="_blank"><span data-i18n="label_view_telegram">VIEW ON TELEGRAM →</span></a>
       </div>
     </div>
   </div>
@@ -487,7 +487,7 @@ function renderGrid(){
   if(!ideas.length){
     grid.innerHTML=`<div class="state-box">
       <p style="font-size:13px">No trading ideas found${activeFilter!=='all'?' in: '+activeFilter:''}.</p>
-      <p style="margin-top:8px;font-size:10px;letter-spacing:1px;">RUN /ELLIOTT OR /AI ON TELEGRAM TO GENERATE IDEAS</p>
+      <p style="margin-top:8px;font-size:10px;letter-spacing:1px;"><span data-i18n="label_run_telegram">RUN /ELLIOTT OR /AI ON TELEGRAM TO GENERATE IDEAS</span></p>
     </div>`;
     return;
   }
@@ -537,7 +537,7 @@ function buildCard(idea, idx){
       <div class="card-meta">
         <div class="card-meta-item"><span class="meta-label">Price</span><span class="meta-val">${fmtPrice(idea.price,idea.ticker)}</span></div>
         <div class="card-meta-item"><span class="meta-label">Target</span><span class="meta-val" style="color:var(--green)">${fmtPrice(idea.target,idea.ticker)}</span></div>
-        <div class="card-meta-item"><span class="meta-label">Inval.</span><span class="meta-val" style="color:var(--red)">${fmtPrice(idea.invalidation,idea.ticker)}</span></div>
+        <div class="card-meta-item"><span class="meta-label"><span data-i18n="th_inval">Inval.</span></span><span class="meta-val" style="color:var(--red)">${fmtPrice(idea.invalidation,idea.ticker)}</span></div>
       </div>
       <div class="card-signal">${signalLine}</div>
       <div class="conf-row">

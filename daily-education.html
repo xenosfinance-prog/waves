@@ -563,16 +563,16 @@
 
 <!-- HERO -->
 <section class="hero">
-  <div class="hero-badge">Auto-generated daily</div>
-  <h1>Daily Market<br><em>Education</em></h1>
-  <p>Professional educational content on TA, FA, risk management, trading psychology and more — every trading day.</p>
+  <div class="hero-badge"><span data-i18n="label_auto_generated">Auto-generated daily</span></div>
+  <h1><span data-i18n="label_daily_market">Daily Market</span><br><em>Education</em></h1>
+  <p><span data-i18n="label_education_desc">Professional educational content on TA, FA, risk management, trading psychology and more.</span> and more — every trading day.</p>
 </section>
 
 <div class="container">
 
   <!-- TODAY FEATURED -->
   <section class="today-section">
-    <div class="section-label">Today's Edition</div>
+    <div class="section-label"><span data-i18n="label_todays_edition">Today's Edition</span></div>
     <div class="today-card" id="todayCard">
       <!-- Skeleton -->
       <div class="today-date skeleton skeleton-line w60"></div>
@@ -590,15 +590,15 @@
 
   <!-- ARCHIVE -->
   <section class="archive-section">
-    <div class="section-label">Archive</div>
+    <div class="section-label"><span data-i18n="label_archive">Archive</span></div>
 
     <div class="filters" id="filters">
       <button class="filter-btn active" onclick="setFilter('all', this)">All</button>
-      <button class="filter-btn" onclick="setFilter('monday', this)">Monday</button>
-      <button class="filter-btn" onclick="setFilter('tuesday', this)">Tuesday</button>
-      <button class="filter-btn" onclick="setFilter('wednesday', this)">Wednesday</button>
-      <button class="filter-btn" onclick="setFilter('thursday', this)">Thursday</button>
-      <button class="filter-btn" onclick="setFilter('friday', this)">Friday</button>
+      <button class="filter-btn" onclick="setFilter('monday', this)"><span data-i18n="label_mon">Monday</span></button>
+      <button class="filter-btn" onclick="setFilter('tuesday', this)"><span data-i18n="label_tue">Tuesday</span></button>
+      <button class="filter-btn" onclick="setFilter('wednesday', this)"><span data-i18n="label_wed">Wednesday</span></button>
+      <button class="filter-btn" onclick="setFilter('thursday', this)"><span data-i18n="label_thu">Thursday</span></button>
+      <button class="filter-btn" onclick="setFilter('friday', this)"><span data-i18n="label_fri">Friday</span></button>
     </div>
 
     <div class="archive-grid" id="archiveGrid">
@@ -606,7 +606,7 @@
     </div>
 
     <div class="load-more-wrap" id="loadMoreWrap" style="display:none">
-      <button class="btn-load" id="loadMoreBtn" onclick="loadMore()">Load More</button>
+      <button class="btn-load" id="loadMoreBtn" onclick="loadMore()"><span data-i18n="label_load_more">Load More</span></button>
     </div>
   </section>
 
@@ -624,12 +624,12 @@
 <!-- ADMIN FAB -->
 <button class="admin-fab" id="adminFab" onclick="toggleAdminPanel()">⚙</button>
 <div class="admin-panel" id="adminPanel">
-  <h4>Admin Panel</h4>
+  <h4><span data-i18n="label_admin_panel">Admin Panel</span></h4>
   <input type="password" class="admin-input" id="adminPwd" placeholder="Password">
-  <button class="admin-btn" onclick="adminLogin()">Login</button>
+  <button class="admin-btn" onclick="adminLogin()"><span data-i18n="label_login">Login</span></button>
   <div id="adminActions" style="display:none">
-    <button class="admin-btn" onclick="adminDelete()">Delete Selected Post</button>
-    <button class="admin-btn" onclick="refreshPage()">Refresh Feed</button>
+    <button class="admin-btn" onclick="adminDelete()"><span data-i18n="label_delete_selected">Delete Selected Post</span></button>
+    <button class="admin-btn" onclick="refreshPage()"><span data-i18n="label_refresh_feed">Refresh Feed</span></button>
   </div>
   <div class="admin-status" id="adminStatus"></div>
 </div>
@@ -709,8 +709,8 @@ function renderTodayEmpty() {
   card.innerHTML = `
     <div class="no-posts">
       <div class="icon">📚</div>
-      <div>No content published yet.</div>
-      <div style="margin-top:8px;font-size:0.75rem;">Daily education posts will appear here automatically.</div>
+      <div><span data-i18n="label_no_content">No content published yet.</span></div>
+      <div style="margin-top:8px;font-size:0.75rem;"><span data-i18n="label_edu_auto_msg">Daily education posts will appear here automatically.</span></div>
     </div>`;
 }
 
@@ -731,7 +731,7 @@ function renderArchive() {
   if (!posts.length) {
     grid.innerHTML = `<div class="no-posts" style="grid-column:1/-1">
       <div class="icon">📂</div>
-      <div>No archived posts yet.</div>
+      <div><span data-i18n="label_no_archive">No archived posts yet.</span></div>
     </div>`;
     document.getElementById('loadMoreWrap').style.display = 'none';
     return;
@@ -745,7 +745,7 @@ function renderArchive() {
     card.innerHTML = `
       <div class="archive-card-date">${formatDateShort(p.date)}</div>
       <div class="archive-card-day">${p.day_name}</div>
-      <div class="archive-card-preview" id="preview-${p.date}">Loading...</div>
+      <div class="archive-card-preview" id="preview-${p.date}"><span data-i18n="label_loading">Loading...</span></div>
       <div class="archive-card-arrow">→</div>`;
     grid.appendChild(card);
     loadPreview(p);
@@ -957,7 +957,7 @@ function formatEduContent(raw) {
         i++;
         tipText += ' ' + lines[i].trim();
       }
-      html += `<div class="edu-pro-tip">💡 <b>PRO TIP</b> — ${parseBold(tipText)}</div>`;
+      html += `<div class="edu-pro-tip">💡 <b><span data-i18n="label_pro_tip">PRO TIP</span></b> — ${parseBold(tipText)}</div>`;
       continue;
     }
 
@@ -969,7 +969,7 @@ function formatEduContent(raw) {
         i++;
         tipText += ' ' + lines[i].trim();
       }
-      html += `<div class="edu-smart-rule">🔑 <b>SMART MONEY RULE</b> — ${parseBold(tipText)}</div>`;
+      html += `<div class="edu-smart-rule">🔑 <b><span data-i18n="label_smart_money">SMART MONEY RULE</span></b> — ${parseBold(tipText)}</div>`;
       continue;
     }
 
