@@ -3334,32 +3334,18 @@ async function loadBotSignals() {
   }
 }
 
-async function deleteEWSignal(ideaId) {
+async function deleteEWSignal(signalId) {
   if (!confirm('Delete this signal?')) return;
   const WORKER = 'https://xenos-ai-proxy.xenosfinance.workers.dev';
-  const REPO = 'xenosfinance-prog/waves';
-  const FILE = 'ew_signals/signals.json';
   try {
-    // 1. Leggi file attuale + sha
-    const getRes = await fetch(WORKER, {
-      method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ type:'github', method:'GET', url:`https://api.github.com/repos/${REPO}/contents/${FILE}` })
+    const resp = await fetch(WORKER, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'delete-ew-signal', signal_id: signalId, admin_pwd: 'RMG@Manu78' })
     });
-    const gd = await getRes.json();
-    const sha = gd.data?.sha || null;
-    const existing = JSON.parse(atob((gd.data?.content || '').replace(/
-/g,'')));
-    // 2. Filtra
-    const updated = existing.filter(i => i.id !== ideaId);
-    const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(updated, null, 2))));
-    const payload = { message: `Delete EW signal ${ideaId}`, content: encoded };
-    if (sha) payload.sha = sha;
-    // 3. Scrivi
-    await fetch(WORKER, {
-      method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ type:'github', method:'PUT', url:`https://api.github.com/repos/${REPO}/contents/${FILE}`, payload })
-    });
-    loadBotSignals();
+    const data = await resp.json();
+    if (data.ok) { loadBotSignals(); }
+    else { alert('Delete failed: ' + (data.error || 'unknown error')); }
   } catch(e) { alert('Error: ' + e.message); }
 }
 
@@ -3388,15 +3374,14 @@ function renderBotCards(ideas, listId, emptyId) {
       ? `<img src="${idea.image_url}" alt="${idea.ticker}" loading="lazy" style="width:100%;height:140px;object-fit:cover;display:block;" onerror="this.style.display='none'">`
       : '';
     const tgLink = idea.tg_url ? `<a href="${idea.tg_url}" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:9px;color:var(--gold);text-decoration:none;letter-spacing:1px;">📡 VIEW ON TELEGRAM →</a>` : '';
-    const deleteBtn = adminMode ? `<button onclick="deleteEWSignal('${idea.id}')" style="font-family:var(--mono);font-size:9px;letter-spacing:1px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:#ef4444;padding:4px 10px;cursor:pointer;margin-left:8px;">✕ DELETE</button>` : '';
     return `<div style="background:var(--bg2);border:1px solid var(--border);overflow:hidden;transition:border-color 0.2s;" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--border)'">
       ${imgHtml}
       <div style="padding:16px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
           <span style="font-family:var(--mono);font-size:13px;font-weight:700;letter-spacing:1px;">${idea.emoji || '📊'} ${idea.ticker}</span>
-          <div style="display:flex;align-items:center;">
+          <div style="display:flex;align-items:center;gap:8px;">
             <span style="font-family:var(--mono);font-size:10px;font-weight:700;color:${biasColor};">${biasLabel}</span>
-            ${deleteBtn}
+            ${adminMode ? `<button onclick="deleteEWSignal('${idea.id}')" style="font-family:var(--mono);font-size:9px;letter-spacing:1px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:#ef4444;padding:3px 8px;cursor:pointer;">✕ DEL</button>` : ''}
           </div>
         </div>
         <div style="font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:2px;margin-bottom:10px;">Wave ${waveIcon} · ${(idea.wave_phase||'MTF').replace(/</g,'&lt;')} · ${date}</div>
