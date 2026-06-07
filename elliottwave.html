@@ -1315,11 +1315,11 @@ async function publishFromAnalysis() {
 
 // ── ADMIN ──
 function switchAccessTab(tab) {
-  const isAdmin = tab === 'admin';
-  document.getElementById('admin-pw-area').style.display = isAdmin ? '' : 'none';
-  document.getElementById('premium-pw-area').style.display = isAdmin ? 'none' : '';
-  document.getElementById('tab-admin-btn').style.cssText = 'padding:8px 20px;font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;background:none;border:none;cursor:pointer;' + (isAdmin ? 'border-bottom:2px solid var(--gold);color:var(--gold);' : 'border-bottom:2px solid transparent;color:var(--muted);');
-  document.getElementById('tab-premium-btn').style.cssText = 'padding:8px 20px;font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;background:none;border:none;cursor:pointer;' + (!isAdmin ? 'border-bottom:2px solid var(--gold2);color:var(--gold2);' : 'border-bottom:2px solid transparent;color:var(--muted);');
+  const isAdminTab = tab === 'admin';
+  document.getElementById('admin-pw-area').style.display = isAdminTab ? '' : 'none';
+  document.getElementById('premium-pw-area').style.display = isAdminTab ? 'none' : '';
+  document.getElementById('tab-admin-btn').style.cssText = 'padding:8px 20px;font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;background:none;border:none;cursor:pointer;' + (isAdminTab ? 'border-bottom:2px solid var(--gold);color:var(--gold);' : 'border-bottom:2px solid transparent;color:var(--muted);');
+  document.getElementById('tab-premium-btn').style.cssText = 'padding:8px 20px;font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;background:none;border:none;cursor:pointer;' + (!isAdminTab ? 'border-bottom:2px solid var(--gold2);color:var(--gold2);' : 'border-bottom:2px solid transparent;color:var(--muted);');
   document.getElementById('adminErr').textContent = '';
 }
 
@@ -1345,26 +1345,30 @@ const ADMIN_CODES = ['RMG@Manu78', 'RMG@manu78'];
 
 function isPremium() {
   const stored = localStorage.getItem('xenos_premium_code') || '';
-  return PREMIUM_CODES.includes(stored.toUpperCase()) || ADMIN_CODES.includes(stored);
+  return PREMIUM_CODES.includes(stored.toUpperCase());
+}
+function isAdmin() {
+  const stored = localStorage.getItem('xenos_premium_code') || '';
+  return ADMIN_CODES.includes(stored);
 }
 
 function premiumLogin(){
   const code = document.getElementById('premiumPw').value.trim();
-  if(PREMIUM_CODES.includes(code.toUpperCase()) || ADMIN_CODES.includes(code)){
+  if(ADMIN_CODES.includes(code)){
     localStorage.setItem('xenos_premium_code', code);
     isAdminUnlocked = true;
     document.getElementById('admin-login-area').style.display='none';
     document.getElementById('adminPanel').style.display='block';
     renderPublicFeed();
   } else {
-    document.getElementById('adminErr').textContent='⚠ Invalid subscription code';
+    document.getElementById('adminErr').textContent='⚠ Invalid code';
     document.getElementById('premiumPw').value='';
   }
 }
 
-// Auto-unlock if already premium
+// Auto-unlock if admin code already stored
 document.addEventListener('DOMContentLoaded', () => {
-  if (isPremium()) {
+  if (isAdmin()) {
     isAdminUnlocked = true;
     const loginArea = document.getElementById('admin-login-area');
     const adminPanel = document.getElementById('adminPanel');
@@ -3330,6 +3334,35 @@ async function loadBotSignals() {
   }
 }
 
+async function deleteEWSignal(ideaId) {
+  if (!confirm('Delete this signal?')) return;
+  const WORKER = 'https://xenos-ai-proxy.xenosfinance.workers.dev';
+  const REPO = 'xenosfinance-prog/waves';
+  const FILE = 'ew_signals/signals.json';
+  try {
+    // 1. Leggi file attuale + sha
+    const getRes = await fetch(WORKER, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ type:'github', method:'GET', url:`https://api.github.com/repos/${REPO}/contents/${FILE}` })
+    });
+    const gd = await getRes.json();
+    const sha = gd.data?.sha || null;
+    const existing = JSON.parse(atob((gd.data?.content || '').replace(/
+/g,'')));
+    // 2. Filtra
+    const updated = existing.filter(i => i.id !== ideaId);
+    const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(updated, null, 2))));
+    const payload = { message: `Delete EW signal ${ideaId}`, content: encoded };
+    if (sha) payload.sha = sha;
+    // 3. Scrivi
+    await fetch(WORKER, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ type:'github', method:'PUT', url:`https://api.github.com/repos/${REPO}/contents/${FILE}`, payload })
+    });
+    loadBotSignals();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
 function renderBotCards(ideas, listId, emptyId) {
   const list = document.getElementById(listId);
   const empty = document.getElementById(emptyId);
@@ -3339,6 +3372,7 @@ function renderBotCards(ideas, listId, emptyId) {
     return;
   }
   empty.style.display = 'none';
+  const adminMode = isAdmin();
   list.innerHTML = ideas.map(idea => {
     const bias = (idea.bias || 'NEUTRAL').toUpperCase();
     const isLong = bias === 'LONG' || bias === 'BUY';
@@ -3354,12 +3388,16 @@ function renderBotCards(ideas, listId, emptyId) {
       ? `<img src="${idea.image_url}" alt="${idea.ticker}" loading="lazy" style="width:100%;height:140px;object-fit:cover;display:block;" onerror="this.style.display='none'">`
       : '';
     const tgLink = idea.tg_url ? `<a href="${idea.tg_url}" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:9px;color:var(--gold);text-decoration:none;letter-spacing:1px;">📡 VIEW ON TELEGRAM →</a>` : '';
+    const deleteBtn = adminMode ? `<button onclick="deleteEWSignal('${idea.id}')" style="font-family:var(--mono);font-size:9px;letter-spacing:1px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:#ef4444;padding:4px 10px;cursor:pointer;margin-left:8px;">✕ DELETE</button>` : '';
     return `<div style="background:var(--bg2);border:1px solid var(--border);overflow:hidden;transition:border-color 0.2s;" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--border)'">
       ${imgHtml}
       <div style="padding:16px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
           <span style="font-family:var(--mono);font-size:13px;font-weight:700;letter-spacing:1px;">${idea.emoji || '📊'} ${idea.ticker}</span>
-          <span style="font-family:var(--mono);font-size:10px;font-weight:700;color:${biasColor};">${biasLabel}</span>
+          <div style="display:flex;align-items:center;">
+            <span style="font-family:var(--mono);font-size:10px;font-weight:700;color:${biasColor};">${biasLabel}</span>
+            ${deleteBtn}
+          </div>
         </div>
         <div style="font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:2px;margin-bottom:10px;">Wave ${waveIcon} · ${(idea.wave_phase||'MTF').replace(/</g,'&lt;')} · ${date}</div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px;">
@@ -3386,9 +3424,9 @@ function renderBotCards(ideas, listId, emptyId) {
   }).join('');
 }
 
-// Auto-unlock bot signals if already premium
+// Auto-unlock bot signals solo se admin
 document.addEventListener('DOMContentLoaded', () => {
-  if (isPremium()) {
+  if (isAdmin()) {
     botSignalsUnlocked = true;
     const gate = document.getElementById('bot-signals-gate');
     const feed = document.getElementById('bot-signals-feed');
