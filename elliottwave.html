@@ -867,7 +867,7 @@ canvas { display: block; }
     </div>
 
     <!-- ADMIN LOGIN GATE -->
-    <div class="admin-gate" id="admin-login-area">
+    <div class="admin-gate" id="admin-login-area" style="display:none;">
       <div class="admin-gate-title"><span data-i18n="label_ew_engine">Analysis Engine — Restricted Access</span></div>
       <div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:20px;">
         <button id="tab-admin-btn" onclick="switchAccessTab('admin')" style="padding:8px 20px;font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;background:none;border:none;border-bottom:2px solid var(--gold);color:var(--gold);cursor:pointer;">Admin</button>
@@ -1366,15 +1366,19 @@ function premiumLogin(){
   }
 }
 
-// Auto-unlock if admin code already stored
+// Auto-unlock if admin code already stored; gate hidden for non-admin
 document.addEventListener('DOMContentLoaded', () => {
+  const loginArea = document.getElementById('admin-login-area');
+  const adminPanel = document.getElementById('adminPanel');
   if (isAdmin()) {
     isAdminUnlocked = true;
-    const loginArea = document.getElementById('admin-login-area');
-    const adminPanel = document.getElementById('adminPanel');
     if (loginArea) loginArea.style.display = 'none';
     if (adminPanel) adminPanel.style.display = 'block';
     renderPublicFeed();
+  } else {
+    // Non-admin: EW Engine entirely hidden
+    if (loginArea) loginArea.style.display = 'none';
+    if (adminPanel) adminPanel.style.display = 'none';
   }
 });
 
@@ -3349,6 +3353,84 @@ async function deleteEWSignal(signalId) {
   } catch(e) { alert('Error: ' + e.message); }
 }
 
+// ── SIGNAL MODAL ─────────────────────────────────────────────────────────────
+let _ewSignalStore = [];
+
+function openSignalModal(id) {
+  const idea = _ewSignalStore.find(i => i.id === id);
+  if (!idea) return;
+  const bias = (idea.bias || 'NEUTRAL').toUpperCase();
+  const isLong = bias === 'LONG' || bias === 'BUY';
+  const isShort = bias === 'SHORT' || bias === 'SELL';
+  const biasColor = isLong ? '#22c55e' : isShort ? '#ef4444' : '#94a3b8';
+  const biasLabel = isLong ? '▲ LONG' : isShort ? '▼ SHORT' : '◆ NEUTRAL';
+  const waveIcon = {'1':'①','2':'②','3':'③','4':'④','5':'⑤','A':'🅐','B':'🅑','C':'🅒'}[idea.wave_num] || '🌊';
+  const date = idea.timestamp ? new Date(idea.timestamp).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}) : '—';
+  const dec = idea.ticker && idea.ticker.includes('USD') ? 4 : 2;
+  const fmt = v => v ? Number(v).toLocaleString('en-US',{minimumFractionDigits:dec,maximumFractionDigits:dec}) : '—';
+  const conf = idea.confidence || 0;
+  const adminMode = isAdmin();
+
+  const m = document.getElementById('ewSignalModal');
+  const mb = document.getElementById('ewSignalModalBody');
+  mb.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;">
+      <div>
+        <div style="font-family:var(--mono);font-size:18px;font-weight:700;letter-spacing:1px;margin-bottom:4px;">${idea.emoji || '📊'} ${idea.ticker}</div>
+        <div style="font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:2px;">Wave ${waveIcon} · ${(idea.wave_phase||'MTF').replace(/</g,'&lt;')} · ${date}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-family:var(--mono);font-size:12px;font-weight:700;color:${biasColor};">${biasLabel}</span>
+        <button onclick="document.getElementById('ewSignalModal').style.display='none'" style="background:none;border:1px solid var(--border);color:var(--muted);font-size:16px;cursor:pointer;padding:4px 10px;">✕</button>
+      </div>
+    </div>
+    ${idea.image_url ? `
+    <div style="position:relative;margin-bottom:16px;">
+      <img src="${idea.image_url}" alt="${idea.ticker}" style="width:100%;max-height:400px;object-fit:contain;display:block;border:1px solid var(--border);background:#000;" onerror="this.parentElement.style.display='none'">
+      ${adminMode ? `<button onclick="deleteEWChart('${idea.id}');document.getElementById('ewSignalModal').style.display='none';" style="position:absolute;top:8px;right:8px;font-family:var(--mono);font-size:9px;letter-spacing:1px;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.5);color:#ef4444;padding:4px 10px;cursor:pointer;">✕ DEL CHART</button>` : ''}
+    </div>` : ''}
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px;">
+      <div style="background:var(--bg);padding:12px;text-align:center;border:1px solid var(--border);">
+        <div style="font-family:var(--mono);font-size:8px;color:var(--muted);letter-spacing:1px;margin-bottom:4px;">ENTRY</div>
+        <div style="font-family:var(--mono);font-size:14px;">${fmt(idea.price)}</div>
+      </div>
+      <div style="background:var(--bg);padding:12px;text-align:center;border:1px solid var(--border);">
+        <div style="font-family:var(--mono);font-size:8px;color:#22c55e;letter-spacing:1px;margin-bottom:4px;">TARGET</div>
+        <div style="font-family:var(--mono);font-size:14px;color:#22c55e;">${fmt(idea.target)}</div>
+      </div>
+      <div style="background:var(--bg);padding:12px;text-align:center;border:1px solid var(--border);">
+        <div style="font-family:var(--mono);font-size:8px;color:#ef4444;letter-spacing:1px;margin-bottom:4px;">INVAL.</div>
+        <div style="font-family:var(--mono);font-size:14px;color:#ef4444;">${fmt(idea.invalidation)}</div>
+      </div>
+    </div>
+    <div style="background:var(--bg);padding:14px;margin-bottom:16px;border-left:2px solid var(--gold);">
+      <div style="font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:6px;">Confidence: ${conf}%</div>
+      <div style="font-size:12px;color:var(--text);line-height:1.7;white-space:pre-wrap;">${idea.analysis || '—'}</div>
+    </div>
+    ${idea.tg_url ? `<a href="${idea.tg_url}" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:9px;color:var(--gold);text-decoration:none;letter-spacing:1px;">📡 VIEW ON TELEGRAM →</a>` : ''}
+    ${adminMode ? `
+    <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);display:flex;gap:8px;">
+      <button onclick="deleteEWSignal('${idea.id}');document.getElementById('ewSignalModal').style.display='none';" style="font-family:var(--mono);font-size:9px;letter-spacing:1px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:#ef4444;padding:6px 14px;cursor:pointer;">✕ DEL SIGNAL</button>
+    </div>` : ''}
+  `;
+  m.style.display = 'flex';
+}
+
+async function deleteEWChart(signalId) {
+  if (!confirm('Delete chart image for this signal?')) return;
+  const WORKER = 'https://xenos-ai-proxy.xenosfinance.workers.dev';
+  try {
+    const resp = await fetch(WORKER, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'delete-ew-chart', signal_id: signalId, admin_pwd: 'RMG@Manu78' })
+    });
+    const data = await resp.json();
+    if (data.ok) { loadBotSignals(); }
+    else { alert('Delete chart failed: ' + (data.error || 'unknown error')); }
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
 function renderBotCards(ideas, listId, emptyId) {
   const list = document.getElementById(listId);
   const empty = document.getElementById(emptyId);
@@ -3358,6 +3440,10 @@ function renderBotCards(ideas, listId, emptyId) {
     return;
   }
   empty.style.display = 'none';
+  // Store ideas globally for modal access
+  ideas.forEach(i => {
+    if (!_ewSignalStore.find(s => s.id === i.id)) _ewSignalStore.push(i);
+  });
   const adminMode = isAdmin();
   list.innerHTML = ideas.map(idea => {
     const bias = (idea.bias || 'NEUTRAL').toUpperCase();
@@ -3373,15 +3459,15 @@ function renderBotCards(ideas, listId, emptyId) {
     const imgHtml = idea.image_url
       ? `<img src="${idea.image_url}" alt="${idea.ticker}" loading="lazy" style="width:100%;height:140px;object-fit:cover;display:block;" onerror="this.style.display='none'">`
       : '';
-    const tgLink = idea.tg_url ? `<a href="${idea.tg_url}" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:9px;color:var(--gold);text-decoration:none;letter-spacing:1px;">📡 VIEW ON TELEGRAM →</a>` : '';
-    return `<div style="background:var(--bg2);border:1px solid var(--border);overflow:hidden;transition:border-color 0.2s;" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--border)'">
+    const tgLink = idea.tg_url ? `<a href="${idea.tg_url}" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:9px;color:var(--gold);text-decoration:none;letter-spacing:1px;" onclick="event.stopPropagation()">📡 VIEW ON TELEGRAM →</a>` : '';
+    return `<div style="background:var(--bg2);border:1px solid var(--border);overflow:hidden;transition:border-color 0.2s;cursor:pointer;" onclick="openSignalModal('${idea.id}')" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--border)'">
       ${imgHtml}
       <div style="padding:16px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
           <span style="font-family:var(--mono);font-size:13px;font-weight:700;letter-spacing:1px;">${idea.emoji || '📊'} ${idea.ticker}</span>
           <div style="display:flex;align-items:center;gap:8px;">
             <span style="font-family:var(--mono);font-size:10px;font-weight:700;color:${biasColor};">${biasLabel}</span>
-            ${adminMode ? `<button onclick="deleteEWSignal('${idea.id}')" style="font-family:var(--mono);font-size:9px;letter-spacing:1px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:#ef4444;padding:3px 8px;cursor:pointer;">✕ DEL</button>` : ''}
+            ${adminMode ? `<button onclick="event.stopPropagation();deleteEWSignal('${idea.id}')" style="font-family:var(--mono);font-size:9px;letter-spacing:1px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:#ef4444;padding:3px 8px;cursor:pointer;">✕ DEL</button>` : ''}
           </div>
         </div>
         <div style="font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:2px;margin-bottom:10px;">Wave ${waveIcon} · ${(idea.wave_phase||'MTF').replace(/</g,'&lt;')} · ${date}</div>
@@ -3421,5 +3507,13 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 </script>
+
+<!-- SIGNAL DETAIL MODAL -->
+<div id="ewSignalModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.75);align-items:center;justify-content:center;padding:20px;" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:var(--bg2);border:1px solid var(--border2);max-width:680px;width:100%;max-height:90vh;overflow-y:auto;position:relative;">
+    <div id="ewSignalModalBody" style="padding:24px;"></div>
+  </div>
+</div>
+
 </body>
 </html>
