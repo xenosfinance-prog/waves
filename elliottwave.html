@@ -850,7 +850,7 @@ canvas { display: block; }
   <!-- SECTION 8: LIVE ANALYSIS -->
   <div class="ew-section">
     <div class="ew-section-header">
-      <span class="ew-section-num">08 — Live Analysis</span>
+      <span class="ew-section-num" ondblclick="document.getElementById('admin-login-area').style.display='block';" style="cursor:default;">08 — Live Analysis</span>
       <div class="ew-section-line"></div>
     </div>
     <h2 class="ew-section-title"><span data-i18n="label_ew_signals">Elliott Wave Signals</span></h2>
@@ -890,7 +890,7 @@ canvas { display: block; }
     </div>
 
     <!-- ADMIN PANEL -->
-    <div class="admin-panel" id="adminPanel">
+    <div class="admin-panel" id="adminPanel" style="display:none;">
 
       <!-- PUBLISH NOTE STRIP (admin only) -->
       <div id="adminPublishStrip" style="display:none;background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.2);padding:16px 20px;margin-bottom:20px;">
@@ -1366,17 +1366,19 @@ function premiumLogin(){
   }
 }
 
-// Auto-unlock if admin code already stored; gate hidden for non-admin
+// Auto-unlock se admin già loggato; mostra gate login solo se sei admin
 document.addEventListener('DOMContentLoaded', () => {
   const loginArea = document.getElementById('admin-login-area');
   const adminPanel = document.getElementById('adminPanel');
   if (isAdmin()) {
+    // Già loggato come admin — vai diretto al panel
     isAdminUnlocked = true;
     if (loginArea) loginArea.style.display = 'none';
     if (adminPanel) adminPanel.style.display = 'block';
     renderPublicFeed();
   }
-  // Non-admin: loginArea stays display:none (set in HTML)
+  // Non-admin: entrambi restano display:none (impostato nell'HTML)
+  // Il gate login NON viene mai mostrato agli utenti normali
 });
 
 let lastAnalysis='';
