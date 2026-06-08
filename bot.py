@@ -2003,6 +2003,8 @@ def update_blog_tg_post(message_id):
 
 TRADING_IDEAS_FILE = "trading_ideas/ideas.json"
 TRADING_IDEAS_MAX  = 50
+EW_SIGNALS_FILE    = "ew_signals/signals.json"
+EW_SIGNALS_MAX     = 100
 
 def _github_json_read(path):
     api = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{path}"
@@ -2143,16 +2145,16 @@ def save_trading_idea(sym, ew, narrative, img_buf=None):
         "analysis":     _strip_html(narrative or ""),
         "image_url":    image_url or "",
     }
-    ideas, sha = _github_json_read(TRADING_IDEAS_FILE)
+    ideas, sha = _github_json_read(EW_SIGNALS_FILE)
     if ideas is None:
-        logger.error("❌ Impossibile leggere trading_ideas/ideas.json")
-        return False
+        logger.warning("ew_signals/signals.json not found — creating new")
+        ideas, sha = [], None
     ideas.insert(0, idea)
-    if len(ideas) > TRADING_IDEAS_MAX:
-        ideas = ideas[:TRADING_IDEAS_MAX]
-    ok = _github_json_write(TRADING_IDEAS_FILE, ideas, sha, f"Trading Idea: {sym} Wave {ew.get('wave_num','?')} {timestamp}")
+    if len(ideas) > EW_SIGNALS_MAX:
+        ideas = ideas[:EW_SIGNALS_MAX]
+    ok = _github_json_write(EW_SIGNALS_FILE, ideas, sha, f"EW Signal: {sym} Wave {ew.get('wave_num','?')} {timestamp}")
     if ok:
-        logger.info(f"✅ Trading Idea salvata: {sym} [{idea_id}]")
+        logger.info(f"✅ EW Signal salvato: {sym} [{idea_id}]")
     return ok
 
 
@@ -2541,7 +2543,7 @@ async def cmd_elliott(u, c):
             img = chart_elliott(s, df, ew, df_4h=df_4h, df_1h=df_1h)
             if img:
                 await send_channel_photo(img)
-        # ── 3. Salva Trading Idea su GitHub ──
+        # ── 3. Salva EW Signal su GitHub ──
         save_trading_idea(s, ew, narrative, img_buf=img)
         await m.edit_text("✅ MTF analysis + chart + editorial sent to channel!")
     except Exception as e:
@@ -2572,9 +2574,21 @@ async def cmd_ai(u, c):
             img = chart_elliott(s, df, ew, df_4h=df_4h, df_1h=df_1h)
             if img:
                 await send_channel_photo(img)
-        # Salva Trading Idea su GitHub
+        # Salva EW Signal su GitHub
         save_trading_idea(s, ew, ai, img_buf=img)
-        await m.edit_text("✅ AI analysis + MTF chart sent to channel!")
+        # ── Bottone pubblica su blog ──────────────────────────────────────────
+        try:
+            from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+            import hashlib as _hl
+            _now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
+            _label   = f"AI Analysis — {MARKETS[s]['name']} — {_now_str}"
+            _ck = "ai_" + _hl.md5(f"{s}{datetime.now()}".encode()).hexdigest()[:8]
+            c.bot_data[_ck] = {"text": fmt_ai(s, ai), "label": _label, "now_str": _now_str}
+            _kb = InlineKeyboardMarkup([[InlineKeyboardButton("📝 Pubblica su XenosBlog", callback_data=f"pub_brief:{_ck}")]])
+            await m.edit_text("✅ AI analysis + MTF chart sent to channel! Pubblica sul blog?", reply_markup=_kb)
+        except Exception as _ekb:
+            logger.warning(f"blog btn ai: {_ekb}")
+            await m.edit_text("✅ AI analysis + MTF chart sent to channel!")
     except Exception as e:
         logger.error(f"ai: {e}", exc_info=True)
         await m.edit_text(f"❌ Error: {str(e)[:100]}")
@@ -4246,6 +4260,76 @@ def mko_indicators(df: pd.DataFrame) -> dict:
     last_sh = h[swing_highs[-1]] if swing_highs else max(h[-20:])
     last_sl = l[swing_lows[-1]]  if swing_lows  else min(l[-20:])
 
+    # ── Volume Profile (POC + Value Area) ────────────────────────────
+    # Divide price range into 30 buckets, find highest volume node (POC)
+    vp_poc = price
+    vp_vah = price
+    vp_val = price
+    vp_above_poc = False
+    vp_in_value_area = False
+    try:
+        if n >= 20:
+            price_min = float(np.min(l[-60:])) if n >= 60 else float(np.min(l))
+            price_max = float(np.max(h[-60:])) if n >= 60 else float(np.max(h))
+            if price_max > price_min:
+                n_buckets = 30
+                bucket_size = (price_max - price_min) / n_buckets
+                buckets = np.zeros(n_buckets)
+                use_len = min(60, n)
+                for i in range(use_len):
+                    idx = int((c[n - use_len + i] - price_min) / bucket_size)
+                    idx = min(idx, n_buckets - 1)
+                    buckets[idx] += v[n - use_len + i]
+                poc_idx = int(np.argmax(buckets))
+                vp_poc = price_min + (poc_idx + 0.5) * bucket_size
+                # Value Area: 70% of total volume around POC
+                total_vol = buckets.sum()
+                target_vol = total_vol * 0.70
+                va_vol = buckets[poc_idx]
+                lo_idx, hi_idx = poc_idx, poc_idx
+                while va_vol < target_vol:
+                    add_lo = buckets[lo_idx - 1] if lo_idx > 0 else 0
+                    add_hi = buckets[hi_idx + 1] if hi_idx < n_buckets - 1 else 0
+                    if add_hi >= add_lo and hi_idx < n_buckets - 1:
+                        hi_idx += 1; va_vol += add_hi
+                    elif lo_idx > 0:
+                        lo_idx -= 1; va_vol += add_lo
+                    else:
+                        break
+                vp_vah = price_min + (hi_idx + 1) * bucket_size  # Value Area High
+                vp_val = price_min + lo_idx * bucket_size          # Value Area Low
+                vp_above_poc     = price > vp_poc
+                vp_in_value_area = vp_val <= price <= vp_vah
+    except Exception:
+        pass
+
+    # ── Order Flow Delta ──────────────────────────────────────────────
+    # Approximation: bullish candles → buy volume, bearish → sell volume
+    # Cumulative delta over last 20 bars; delta divergence vs price
+    of_delta      = 0.0
+    of_cum_delta  = 0.0
+    of_delta_bull = False
+    of_divergence = False  # price up but delta down (or vice versa) = divergence
+    try:
+        if n >= 20:
+            deltas = []
+            for i in range(n - 20, n):
+                candle_range = h[i] - l[i] + 1e-9
+                # Estimate buy/sell vol by candle close position
+                buy_ratio  = (c[i] - l[i]) / candle_range
+                sell_ratio = (h[i] - c[i]) / candle_range
+                d = (buy_ratio - sell_ratio) * v[i]
+                deltas.append(d)
+            of_cum_delta  = float(np.sum(deltas))
+            of_delta      = float(deltas[-1])
+            of_delta_bull = of_cum_delta > 0
+            # Divergence: last 10 bars — price direction vs delta direction
+            price_dir = c[-1] > c[-10] if n >= 10 else False
+            delta_dir = of_cum_delta > 0
+            of_divergence = (price_dir != delta_dir)
+    except Exception:
+        pass
+
     return {
         "price": price, "atr": atr, "rsi": rsi, "stoch_rsi": stoch_rsi,
         "ema20": ema20, "ema50": ema50, "ema200": ema200,
@@ -4257,6 +4341,12 @@ def mko_indicators(df: pd.DataFrame) -> dict:
         "last_sh": last_sh, "last_sl": last_sl,
         "trend_up":   ema20 > ema50 and price > ema20,
         "trend_down": ema20 < ema50 and price < ema20,
+        # Volume Profile
+        "vp_poc": vp_poc, "vp_vah": vp_vah, "vp_val": vp_val,
+        "vp_above_poc": vp_above_poc, "vp_in_value_area": vp_in_value_area,
+        # Order Flow Delta
+        "of_cum_delta": of_cum_delta, "of_delta_bull": of_delta_bull,
+        "of_divergence": of_divergence, "of_delta": of_delta,
     }
 
 
@@ -4356,6 +4446,28 @@ def mko_score(ind: dict, ob_imbalance: float | None, oi_data: dict | None) -> di
         elif ind["trend_down"]:
             bear_pts.append(f"Volume: expanding {ind['vol_ratio']:.1f}x avg — trend confirmed")
 
+    # ── Layer 10: Volume Profile / POC (1 pt) ────────────────────
+    vp_poc = ind.get("vp_poc")
+    if vp_poc:
+        dec_poc = max(2, len(str(round(vp_poc, 6)).split(".")[-1].rstrip("0") or "0"))
+        poc_fmt = f"{vp_poc:.{dec_poc}f}"
+        if ind.get("vp_above_poc") and ind.get("trend_up"):
+            bull_pts.append(f"Vol Profile: price above POC {poc_fmt} — institutional acceptance zone")
+        elif not ind.get("vp_above_poc") and ind.get("trend_down"):
+            bear_pts.append(f"Vol Profile: price below POC {poc_fmt} — sellers in control")
+        if not ind.get("vp_in_value_area"):
+            if ind.get("vp_above_poc"):
+                bull_pts.append("Vol Profile: price above Value Area — breakout with volume conviction")
+            else:
+                bear_pts.append("Vol Profile: price below Value Area — breakdown with volume conviction")
+
+    # ── Layer 11: Order Flow Delta (1 pt) ────────────────────────
+    if ind.get("of_cum_delta") is not None:
+        if ind["of_delta_bull"] and ind.get("trend_up"):
+            bull_pts.append("Order Flow: cumulative delta positive — buy-side aggression confirmed")
+        elif not ind["of_delta_bull"] and ind.get("trend_down"):
+            bear_pts.append("Order Flow: cumulative delta negative — sell-side aggression confirmed")
+
     # ── Determine direction and score ────────────────────────────
     bull_score = len(bull_pts)
     bear_score = len(bear_pts)
@@ -4429,6 +4541,21 @@ def mko_claude_commentary(sym: str, asset: dict, ind: dict, scoring: dict,
     oi_str = f"OI delta: {oi_data['oi_delta_pct']:+.2f}%" if oi_data else "OI: N/A"
     ob_str = f"Order book imbalance: {ob_imbalance*100:+.1f}%" if ob_imbalance is not None else "OB: N/A"
 
+    # Volume Profile
+    vp_poc = ind.get("vp_poc")
+    vp_str = (
+        f"Vol Profile POC: {vp_poc:.{asset['decimals']}f} | VAH: {ind.get('vp_vah', vp_poc):.{asset['decimals']}f} | VAL: {ind.get('vp_val', vp_poc):.{asset['decimals']}f} | Price {'above' if ind.get('vp_above_poc') else 'below'} POC | {'Inside' if ind.get('vp_in_value_area') else 'Outside'} Value Area"
+        if vp_poc else "Vol Profile: N/A"
+    )
+
+    # Order Flow
+    of_cum = ind.get("of_cum_delta")
+    of_str = (
+        f"Order Flow delta: {'positive (buy aggression)' if ind.get('of_delta_bull') else 'negative (sell aggression)'}"
+        + (" | DELTA DIVERGENCE DETECTED" if ind.get("of_divergence") else "")
+        if of_cum is not None else "Order Flow: N/A"
+    )
+
     prompt = f"""You are a senior futures desk analyst at a tier-1 investment bank.
 Write a concise institutional commentary (120-180 words, NO bullet points, plain paragraphs) for this trade setup.
 
@@ -4443,6 +4570,8 @@ MARKET STRUCTURE:
   VWAP: {ind['vwap']:.{asset['decimals']}f} ({'above' if ind['above_vwap'] else 'below'})
   Ichimoku: {'above cloud, TK bull' if ichi.get('above_cloud') and ichi.get('tk_cross_bull') else 'below cloud' if ichi.get('below_cloud') else 'in cloud'}
   {ob_str} | {oi_str}
+  {vp_str}
+  {of_str}
 
 LEVELS:
   Entry: {levels['entry']:.{asset['decimals']}f}
@@ -4451,7 +4580,8 @@ LEVELS:
   TP2: {levels['tp2']:.{asset['decimals']}f}
 
 Focus on: why this setup has institutional conviction, key invalidation factors,
-and the primary catalyst for the move. No markdown, no asterisks, plain text only."""
+and the primary catalyst for the move. Reference Volume Profile and Order Flow where relevant.
+No markdown, no asterisks, plain text only."""
 
     try:
         r = requests.post(
@@ -4463,10 +4593,10 @@ and the primary catalyst for the move. No markdown, no asterisks, plain text onl
             },
             json={
                 "model": "claude-sonnet-4-5",
-                "max_tokens": 350,
+                "max_tokens": 600,
                 "messages": [{"role": "user", "content": prompt}],
             },
-            timeout=25,
+            timeout=30,
         )
         res = r.json()
         if "content" in res and res["content"]:
@@ -4520,6 +4650,33 @@ def mko_format_signal(sym: str, asset: dict, ind: dict,
         label  = "BUYER PRESSURE" if pct > 0 else "SELLER PRESSURE"
         ob_line = f"Order Book  {pct:+.1f}% {label}"
 
+    # Volume Profile block
+    vp_line = ""
+    vp_poc = ind.get("vp_poc")
+    if vp_poc:
+        vp_vah = ind.get("vp_vah", vp_poc)
+        vp_val = ind.get("vp_val", vp_poc)
+        poc_pos = "above" if ind.get("vp_above_poc") else "below"
+        va_pos  = "inside" if ind.get("vp_in_value_area") else ("above VA" if ind.get("vp_above_poc") else "below VA")
+        vp_line = (
+            f"\nVOLUME PROFILE\n"
+            f"POC         {vp_poc:.{dec}f}  (price {poc_pos})\n"
+            f"Value Area  {vp_val:.{dec}f} – {vp_vah:.{dec}f}  [{va_pos}]\n"
+        )
+
+    # Order Flow Delta block
+    of_line = ""
+    of_cum = ind.get("of_cum_delta")
+    if of_cum is not None:
+        of_dir    = "Positive (buy-side)" if ind.get("of_delta_bull") else "Negative (sell-side)"
+        of_align  = "✓ Aligned" if (ind.get("of_delta_bull") == (dir_label == "LONG")) else "✗ Diverging"
+        of_div    = "  ⚠ Delta divergence — momentum may be fading" if ind.get("of_divergence") else ""
+        of_line = (
+            f"\nORDER FLOW\n"
+            f"Delta       {of_dir}\n"
+            f"Alignment   {of_align} with {dir_label}{of_div}\n"
+        )
+
     # Confirmed signals checkmarks
     signals_str = "\n".join(f"✓ {b}" for b in scoring["breakdown"][:5])
 
@@ -4569,6 +4726,10 @@ def mko_format_signal(sym: str, asset: dict, ind: dict,
         msg += f"{ob_line}\n"
     if oi_line:
         msg += f"{oi_line}\n"
+    if vp_line:
+        msg += vp_line
+    if of_line:
+        msg += of_line
 
     msg += (
         f"\nCONFIRMED SIGNALS\n"
@@ -4614,7 +4775,7 @@ def mko_analyze(sym: str, tf="1h") -> dict | None:
     return {
         "sym": sym, "asset": asset, "score": scoring["score"],
         "direction": scoring["direction"], "levels": levels,
-        "message": message, "ind": ind,
+        "message": message, "ind": ind, "commentary": commentary,
     }
 
 
@@ -4777,6 +4938,42 @@ def _mko_push_idea(sym: str, result: dict) -> bool:
             sl_raw = price_now - atr_v * 1.5 if is_long_mk else price_now + atr_v * 1.5
             logger.warning(f"_mko_push_idea {sym}: sl wrong side — ATR fallback {sl_raw:.{dec}f}")
 
+    # Estrai commentary (testo puro della SCENARIO section) da result
+    raw_message = result.get("message", "")
+    commentary  = result.get("commentary", "")   # passato direttamente se disponibile
+
+    # Se commentary non è nel result, estrailo dal message (dopo "SCENARIO\n")
+    if not commentary and "SCENARIO\n" in raw_message:
+        try:
+            commentary = raw_message.split("SCENARIO\n", 1)[1].split("\n\nSIGNAL LEVELS")[0].strip()
+        except Exception:
+            commentary = ""
+
+    # Market state dal result o dai parametri ind/scoring già calcolati
+    ind_r    = result.get("ind", {})
+    score_r  = result.get("score", score)
+    dir_r    = result.get("direction", direction)
+    trend_str  = "Bullish Continuation" if ind_r.get("trend_up") else "Bearish Continuation" if ind_r.get("trend_down") else "Ranging"
+    mom_str    = "Rising" if ind_r.get("macd_bull") else "Declining"
+    p_r        = ind_r.get("price", price_now)
+    atr_pct    = (ind_r.get("atr", p_r * 0.01) / p_r) * 100 if p_r else 1
+    vol_str    = "High" if atr_pct > 2 else "Moderate" if atr_pct > 1 else "Low"
+    sent_str   = "Risk-ON" if ind_r.get("above_vwap") and ind_r.get("trend_up") else "Risk-OFF" if not ind_r.get("above_vwap") and ind_r.get("trend_down") else "Neutral"
+    score_label = "STRONG CONVICTION" if score_r >= 8 else "HIGH PROBABILITY" if score_r >= 6 else "VALID SETUP"
+
+    # Scenario title: prima riga del commentary (spesso è il titolo in caps)
+    scenario_title = ""
+    if commentary:
+        first_line = commentary.split("\n")[0].strip()
+        if first_line.isupper() or (len(first_line) < 80 and first_line == first_line.upper()):
+            scenario_title = first_line
+            commentary_body = "\n".join(commentary.split("\n")[1:]).strip()
+        else:
+            scenario_title = f"{asset.get('name', sym).upper()} {dir_r} SETUP - INSTITUTIONAL COMMENTARY"
+            commentary_body = commentary
+    else:
+        commentary_body = ""
+
     idea = {
         "id":           idea_id,
         "timestamp":    timestamp,
@@ -4784,15 +4981,21 @@ def _mko_push_idea(sym: str, result: dict) -> bool:
         "name":         asset.get("name", sym),
         "emoji":        asset.get("emoji", "📊"),
         "timeframe":    "1H",
-        "wave_num":     "?",
-        "wave_icon":    "🌊",
-        "wave_phase":   "MKO Signal",
         "bias":         direction,
         "confidence":   confidence,
         "price":        price_now,
         "target":       round(tp1_raw, dec),
         "invalidation": round(sl_raw, dec),
-        "analysis":     _strip_html(result.get("message", ""))[:500],
+        "analysis":     _strip_html(commentary_body or raw_message),
+        "narrative":    _strip_html(commentary_body or raw_message),
+        "scenario_title": scenario_title,
+        "market_state": {
+            "trend":      trend_str,
+            "momentum":   mom_str,
+            "volatility": vol_str,
+            "sentiment":  sent_str,
+        },
+        "score_label":  score_label,
         "image_url":    image_url,
         "source":       "MKO",
         "rr":           round(levels.get("rr1", 0), 2),
@@ -4815,51 +5018,142 @@ def _mko_push_idea(sym: str, result: dict) -> bool:
 
 # Dedup cache: {sym_direction: timestamp} — evita segnali duplicati entro 4h
 _mko_sent: dict = {}
-MKO_DEDUP_TTL = 12 * 60 * 60  # 12 ore in secondi — stesso segnale non ripetuto per 12h
+MKO_DEDUP_TTL = 24 * 60 * 60  # 24h — stesso segnale sym+direction non ripetuto
+
+# ── Persistent dedup helpers (GitHub JSON) ────────────────────────────────────
+MKO_DEDUP_FILE = "data/mko_dedup.json"
+
+def _mko_dedup_load() -> dict:
+    """Carica cache dedup da GitHub. Ritorna dict {key: timestamp}."""
+    try:
+        data, _ = _github_json_read(MKO_DEDUP_FILE)
+        if isinstance(data, dict):
+            return data
+    except Exception:
+        pass
+    return {}
+
+def _mko_dedup_save(cache: dict):
+    """Salva cache dedup su GitHub, eliminando le entry scadute (>48h)."""
+    try:
+        cutoff = time.time() - 48 * 3600
+        pruned = {k: v for k, v in cache.items() if v > cutoff}
+        _, sha = _github_json_read(MKO_DEDUP_FILE)
+        _github_json_write(MKO_DEDUP_FILE, pruned, sha, "MKO dedup update")
+    except Exception as e:
+        logger.warning(f"MKO dedup save: {e}")
+
+def _mko_is_market_open(asset: dict) -> bool:
+    """
+    Ritorna True se il mercato dell'asset è aperto adesso.
+    - equity (NYSE): lunedì-venerdì 13:30-20:00 UTC (pre-market escluso)
+    - fx: lunedì 00:00 - venerdì 22:00 UTC (forex sempre aperto nei giorni lavorativi)
+    - commodity: lunedì-venerdì 01:00-22:00 UTC (CME Globex, esclude pausa notturna)
+    - crypto: sempre aperto
+    """
+    asset_type = asset.get("type", "")
+    if asset_type == "crypto":
+        return True
+    now_utc = datetime.utcnow()
+    weekday = now_utc.weekday()  # 0=lunedì, 6=domenica
+    hour    = now_utc.hour
+    minute  = now_utc.minute
+    h_min   = hour + minute / 60.0
+
+    if weekday >= 5:  # sabato o domenica
+        return asset_type != "equity"  # fx/commodity possono avere domenica sera, equity no
+
+    if asset_type == "equity":
+        # NYSE: 09:30-16:00 ET = 13:30-20:00 UTC (ora legale US)
+        return 13.5 <= h_min < 20.0
+
+    if asset_type == "fx":
+        # Forex chiude venerdì 21:00 UTC, riapre domenica 22:00 UTC
+        if weekday == 4 and h_min >= 21.0:  # venerdì dopo 21 UTC
+            return False
+        return True
+
+    if asset_type == "commodity":
+        # CME Globex: pause 21:00-22:00 UTC
+        if 21.0 <= h_min < 22.0:
+            return False
+        return True
+
+    return True  # default: aperto
 
 async def mko_auto_scan():
     """
     Scansione automatica ogni MKO_SCAN_INTERVAL minuti.
-    Pubblica sul canale solo i segnali con score >= MKO_SCORE_STRONG.
-    Stesso segnale (sym+direction) non viene ripubblicato entro 24 ore.
+    - Pubblica solo score >= MKO_SCORE_STRONG
+    - Dedup persistente su GitHub (sopravvive ai riavvii Railway)
+    - Filtro ore di mercato: equity solo NYSE open, fx/commodity solo giorni lavorativi
+    - Max 3 segnali per ciclo
     """
-    await asyncio.sleep(30)  # attendi avvio bot
+    await asyncio.sleep(30)
     logger.info("🔍 MKO Auto-scan started")
+
+    # Carica dedup persistente all'avvio
+    global _mko_sent
+    _mko_sent = _mko_dedup_load()
+    logger.info(f"MKO dedup loaded: {len(_mko_sent)} entries")
 
     while True:
         try:
             logger.info("MKO: scanning all assets...")
             found = 0
-            MAX_SIGNALS_PER_SCAN = 5  # max segnali per ciclo — evita flooding
-            now = time.time()  # use real unix timestamp for persistent dedup
-            for sym in MKO_ASSETS:
+            MAX_SIGNALS_PER_SCAN = 3  # quality > quantity
+            now = time.time()
+            dedup_dirty = False
+
+            for sym, asset in MKO_ASSETS.items():
                 try:
+                    # ── Filtro ore di mercato ─────────────────────────────────
+                    if not _mko_is_market_open(asset):
+                        logger.info(f"MKO SKIP (market closed): {sym} ({asset.get('type')})")
+                        continue
+
                     result = mko_analyze(sym)
-                    if result and result["score"] >= MKO_SCORE_STRONG:
-                        key = f"{sym}_{result['direction']}"
-                        last_sent = _mko_sent.get(key, 0)
-                        if now - last_sent < MKO_DEDUP_TTL:
-                            logger.info(f"MKO SKIP (dedup): {sym} {result['direction']} — già inviato {(now-last_sent)/3600:.1f}h fa")
-                            continue
-                        if found >= MAX_SIGNALS_PER_SCAN:
-                            logger.info(f"MKO: max signals per scan reached ({MAX_SIGNALS_PER_SCAN}) — stopping")
-                            break
-                        logger.info(f"MKO SIGNAL: {sym} {result['direction']} score={result['score']}")
-                        msg_id = await send_channel(result["message"])
-                        _mko_sent[key] = now
-                        found += 1
-                        # Salva anche su Trading Ideas (GitHub) con link Telegram
-                        try:
-                            tg_url = f"https://t.me/xenosfin/{msg_id}" if isinstance(msg_id, int) else ""
-                            result["tg_url"] = tg_url
-                            await asyncio.get_event_loop().run_in_executor(None, _mko_push_idea, sym, result)
-                        except Exception as e_push:
-                            logger.error(f"❌ MKO push idea FAILED {sym}: {e_push}", exc_info=True)
-                        await asyncio.sleep(3)  # anti-flood
+                    if not result or result["score"] < MKO_SCORE_STRONG:
+                        continue
+
+                    key = f"{sym}_{result['direction']}"
+
+                    # ── Dedup check (persistente) ─────────────────────────────
+                    last_sent = _mko_sent.get(key, 0)
+                    elapsed_h = (now - last_sent) / 3600
+                    if now - last_sent < MKO_DEDUP_TTL:
+                        logger.info(f"MKO SKIP (dedup {elapsed_h:.1f}h/{MKO_DEDUP_TTL/3600:.0f}h): {sym} {result['direction']}")
+                        continue
+
+                    if found >= MAX_SIGNALS_PER_SCAN:
+                        logger.info(f"MKO: cap {MAX_SIGNALS_PER_SCAN} raggiunto — stop scan")
+                        break
+
+                    logger.info(f"MKO SIGNAL: {sym} {result['direction']} score={result['score']}")
+                    msg_id = await send_channel(result["message"])
+                    _mko_sent[key] = now
+                    dedup_dirty = True
+                    found += 1
+
+                    try:
+                        tg_url = f"https://t.me/xenosfin/{msg_id}" if isinstance(msg_id, int) else ""
+                        result["tg_url"] = tg_url
+                        await asyncio.get_event_loop().run_in_executor(None, _mko_push_idea, sym, result)
+                    except Exception as e_push:
+                        logger.error(f"❌ MKO push idea FAILED {sym}: {e_push}", exc_info=True)
+
+                    await asyncio.sleep(3)
+
                 except Exception as e:
                     logger.warning(f"MKO scan {sym}: {e}")
-                await asyncio.sleep(1)  # rate limit tra asset
+                await asyncio.sleep(1)
+
+            # Salva dedup su GitHub solo se ci sono nuovi segnali
+            if dedup_dirty:
+                await asyncio.get_event_loop().run_in_executor(None, _mko_dedup_save, _mko_sent)
+
             logger.info(f"MKO scan complete — {found} signals published")
+
         except Exception as e:
             logger.error(f"MKO auto-scan error: {e}")
 
@@ -5493,6 +5787,44 @@ async def _scheduled_daily_education(context: ContextTypes.DEFAULT_TYPE):
 
 # ── WEEKLY TRADING PLAN ───────────────────────────────────────────────────────
 
+def _fetch_live_price(symbol: str) -> str:
+    """Fetcha il prezzo live da Yahoo Finance per il weekly plan."""
+    try:
+        yf_sym = MARKETS.get(symbol, {}).get("yf")
+        if not yf_sym:
+            return "N/A"
+        url = f"https://query1.finance.yahoo.com/v8/finance/chart/{yf_sym}"
+        r = requests.get(url, headers={"User-Agent": "Mozilla/5.0"},
+                         params={"range": "1d", "interval": "1m"}, timeout=10)
+        d = r.json()
+        meta = d["chart"]["result"][0]["meta"]
+        price = float(meta.get("regularMarketPrice") or meta.get("previousClose") or 0)
+        if price <= 0:
+            return "N/A"
+        # Formatta decimali per asset
+        if symbol in ("EURUSD", "EURGBP"):
+            return f"{price:.4f}"
+        elif symbol in ("OIL", "NGAS"):
+            return f"{price:.2f}"
+        elif symbol == "BTCUSD":
+            return f"{price:,.0f}"
+        elif symbol == "GOLD":
+            return f"{price:.1f}"
+        else:
+            return f"{price:.2f}"
+    except Exception as e:
+        logger.warning(f"_fetch_live_price {symbol}: {e}")
+        return "N/A"
+
+def _strip_markdown(text: str) -> str:
+    """Rimuove asterischi e altri marcatori markdown dal testo."""
+    import re
+    text = re.sub(r"\*{1,3}(.*?)\*{1,3}", r"\1", text)
+    text = re.sub(r"_{1,2}(.*?)_{1,2}", r"\1", text)
+    text = re.sub(r"`{1,3}(.*?)`{1,3}", r"\1", text)
+    text = re.sub(r"^#{1,4}\s*", "", text, flags=re.MULTILINE)
+    return text.strip()
+
 async def _generate_weekly_trading_plan(context=None):
     """Genera il Weekly Trading Plan ogni lunedì alle 06:00 CET."""
     import datetime as _dt
@@ -5511,26 +5843,67 @@ async def _generate_weekly_trading_plan(context=None):
         week_str   = f"{week_start.strftime('%d %b')} – {week_end.strftime('%d %b %Y')}"
         issue_num  = now.isocalendar()[1]
 
-        prompt = f"""You are the XenosFinance senior analyst. Generate a professional Weekly Trading Plan for the week of {week_str}.
+        # ── Fetch prezzi live ────────────────────────────────────────────────
+        prices = {
+            "WTI Crude Oil": _fetch_live_price("OIL"),
+            "Gold":          _fetch_live_price("GOLD"),
+            "EUR/USD":       _fetch_live_price("EURUSD"),
+            "EUR/GBP":       _fetch_live_price("EURGBP"),
+            "S&P 500":       _fetch_live_price("SPY"),
+            "Bitcoin":       _fetch_live_price("BTCUSD"),
+        }
+        prices_block = "\n".join([f"- {k}: {v}" for k, v in prices.items()])
+        logger.info(f"Weekly Plan live prices: {prices}")
 
-Search your knowledge for the most recent macro context and produce:
+        prompt = f"""You are the XenosFinance senior analyst. Write the Weekly Trading Plan for the week of {week_str}.
 
-1. MACRO OUTLOOK (3-4 sentences: dominant macro themes, central bank stance, geopolitical risks)
-2. ASSET ANALYSIS for each: WTI Crude Oil, Gold, EUR/USD, EUR/GBP, S&P 500, Bitcoin
-   Per asset: EW structure, key support/resistance, directional bias, entry zone, SL, TP, R:R
-3. ECONOMIC CALENDAR: top 5 high-impact events this week with expected market impact
-4. EDITOR VIEW: 2-3 sentences of your personal directional conviction
+LIVE MARKET PRICES (use these exact values — do not invent prices):
+{prices_block}
 
-Format with clear section headers. Professional institutional tone. Max 800 words."""
+Structure the plan exactly as follows — use these exact section titles, plain text only, no markdown asterisks or symbols:
+
+MACRO OUTLOOK
+Write 4-5 sentences covering dominant macro themes, central bank stance, key geopolitical risks and their expected market impact this week.
+
+ASSET ANALYSIS
+
+WTI CRUDE OIL — Current: {prices["WTI Crude Oil"]}
+Elliott Wave structure on Daily timeframe, key support and resistance levels, directional bias, entry zone, stop loss, take profit, R:R ratio.
+
+GOLD — Current: {prices["Gold"]}
+Elliott Wave structure on Daily timeframe, key support and resistance levels, directional bias, entry zone, stop loss, take profit, R:R ratio.
+
+EUR/USD — Current: {prices["EUR/USD"]}
+Elliott Wave structure on Daily timeframe, key support and resistance levels, directional bias, entry zone, stop loss, take profit, R:R ratio.
+
+EUR/GBP — Current: {prices["EUR/GBP"]}
+Elliott Wave structure on Daily timeframe, key support and resistance levels, directional bias, entry zone, stop loss, take profit, R:R ratio.
+
+S&P 500 — Current: {prices["S&P 500"]}
+Elliott Wave structure on Daily timeframe, key support and resistance levels, directional bias, entry zone, stop loss, take profit, R:R ratio.
+
+BITCOIN — Current: {prices["Bitcoin"]}
+Elliott Wave structure on Daily timeframe, key support and resistance levels, directional bias, entry zone, stop loss, take profit, R:R ratio.
+
+ECONOMIC CALENDAR
+List the 5 most important macro events this week: date, event name, expected impact on markets. One per line.
+
+EDITOR VIEW
+2-3 sentences of directional conviction for the week. Your personal read on the dominant trade.
+
+Rules: plain text only, no asterisks, no markdown, no bullet dashes, professional institutional tone."""
 
         msg = client.messages.create(
             model="claude-haiku-4-5",
-            max_tokens=1200,
+            max_tokens=2500,
             messages=[{"role": "user", "content": prompt}]
         )
         plan_text = msg.content[0].text if msg.content else ""
         if not plan_text:
             logger.warning("Weekly Trading Plan: risposta AI vuota"); return
+
+        # Strip markdown residuo
+        plan_text = _strip_markdown(plan_text)
 
         logger.info("✅ Weekly Trading Plan generated")
 
@@ -5541,11 +5914,12 @@ Format with clear section headers. Professional institutional tone. Max 800 word
                 "week": week_str,
                 "issue": f"Vol. {issue_num}, {now.year}",
                 "generated": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "prices": prices,
                 "text": plan_text
             }
             path = "weekly_plan/latest.json"
-            ideas, sha = _github_json_read(path)
-            if ideas is None:
+            _existing, sha = _github_json_read(path)
+            if _existing is None:
                 sha = ""
             encoded = _b64.b64encode(_json.dumps(plan_data, ensure_ascii=False, indent=2).encode("utf-8")).decode("utf-8")
             import requests as _req
@@ -5560,10 +5934,27 @@ Format with clear section headers. Professional institutional tone. Max 800 word
             else:
                 logger.error(f"❌ GitHub push failed: {r.status_code} {r.text[:200]}")
 
-        # ── Send to Telegram channel ──────────────────────────────────────────
-        truncated = plan_text[:3800]
-        msg_text = f"📊 <b>XenosFinance Weekly Trading Plan</b>\nWeek of {week_str} · Edition #XF-WTP-{now.year}-{issue_num}\n\n{truncated}"
-        await send_channel(msg_text)
+        # ── Send to Telegram (split se troppo lungo) ──────────────────────────
+        header = f"📊 <b>XenosFinance Weekly Trading Plan</b>\nWeek of {week_str} · Edition #XF-WTP-{now.year}-{issue_num}\n\n"
+        # Telegram max 4096 chars per messaggio
+        full = header + plan_text
+        if len(full) <= 4096:
+            await send_channel(full)
+        else:
+            # Manda in chunks da 4096
+            chunks = []
+            remaining = plan_text
+            while remaining:
+                chunk = remaining[:3800]
+                # Taglia su newline per non spezzare frasi
+                last_nl = chunk.rfind("\n")
+                if last_nl > 2000:
+                    chunk = chunk[:last_nl]
+                chunks.append(chunk)
+                remaining = remaining[len(chunk):]
+            for i, chunk in enumerate(chunks):
+                prefix = header if i == 0 else f"📊 <b>Weekly Trading Plan</b> (cont.)\n\n"
+                await send_channel(prefix + chunk)
         logger.info("✅ Weekly Trading Plan sent to Telegram")
 
     except Exception as e:
