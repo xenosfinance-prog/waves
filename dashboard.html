@@ -118,7 +118,33 @@ body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:10
 .session-open{color:var(--green2);}
 .session-closed{color:var(--muted);}
 .bottom-bar{border-top:1px solid var(--border);margin-top:32px;padding:14px 0;display:flex;justify-content:space-between;font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:1px;}
-@media(max-width:900px){.cards-grid{grid-template-columns:repeat(2,1fr);}.two-col{grid-template-columns:1fr;}.sessions{grid-template-columns:repeat(2,1fr);}.masthead-name{font-size:40px;}.nav-btn{padding:10px 16px;font-size:10px;letter-spacing:2px;}}
+@media(max-width:900px){
+  .cards-grid{grid-template-columns:repeat(2,1fr);}
+  .two-col{grid-template-columns:1fr;}
+  .sessions{grid-template-columns:repeat(2,1fr);}
+  .masthead-name{font-size:40px;}
+  .nav-btn{padding:10px 14px;font-size:10px;letter-spacing:1px;}
+}
+@media(max-width:600px){
+  .masthead-top{padding:6px 16px;font-size:9px;letter-spacing:1px;}
+  .masthead-center{padding:16px 16px 14px;}
+  .masthead-name{font-size:30px;letter-spacing:-1px;}
+  .masthead-sub{font-size:8px;letter-spacing:3px;}
+  .masthead-nav{overflow-x:auto;-webkit-overflow-scrolling:touch;justify-content:flex-start;scrollbar-width:none;}
+  .masthead-nav::-webkit-scrollbar{display:none;}
+  .nav-btn{padding:10px 12px;font-size:9px;letter-spacing:1px;white-space:nowrap;flex-shrink:0;}
+  .cards-grid{grid-template-columns:repeat(2,1fr);}
+  .sessions{grid-template-columns:repeat(2,1fr);}
+  .wrap{padding:16px 12px 60px;}
+  .card{padding:12px 14px;}
+  .card-price{font-size:17px;}
+  .market-table{font-size:10px;}
+  .market-table th{font-size:8px;padding:6px 8px;}
+  .market-table td{padding:8px 8px;}
+  .two-col{grid-template-columns:1fr;}
+  .bottom-bar{flex-direction:column;gap:6px;text-align:center;font-size:8px;}
+  .page-head{flex-direction:column;align-items:flex-start;gap:8px;}
+}
 
   .events-list { display: flex; flex-direction: column; gap: 1px; background: var(--border); border: 1px solid var(--border); }
   .ev-row { background: var(--bg2); display: grid; grid-template-columns: 52px 44px 1fr auto auto; gap: 10px; align-items: center; padding: 10px 14px; font-size: 11px; }
@@ -296,10 +322,16 @@ body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:10
     <div id="ai-im-body" style="padding:20px 24px;min-height:100px;font-family:var(--mono);font-size:11px;color:var(--muted);line-height:1.8;background:var(--bg);">
       <span style="letter-spacing:1px;">Click <b style="color:var(--gold)">Analyse</b> to generate a real-time intermarket analysis based on current live prices — correlations between DXY, Gold, Oil, Bonds, Equities and Crypto.</span>
     </div>
+    <!-- PREMIUM GATE OVERLAY — shown by default, hidden via JS if user is premium -->
+    <div id="ai-im-gate" style="position:absolute;inset:0;background:rgba(10,15,25,0.93);z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:10px;padding:28px 20px;">
+      <div style="font-family:var(--mono);font-size:9px;letter-spacing:3px;color:#3b82f6;">✦ PREMIUM FEATURE</div>
+      <p style="font-size:11px;color:#b8cce0;margin:0;max-width:280px;line-height:1.6;"><span data-i18n="label_premium_intermarket">Full AI Intermarket Analysis available to Premium members only.</span></p>
+      <button onclick="showPremiumModal()" style="font-family:var(--mono);font-size:9px;letter-spacing:2px;padding:7px 22px;background:#3b82f6;color:#fff;border:none;cursor:pointer;"><span data-i18n="label_unlock_premium">UNLOCK WITH PREMIUM</span></button>
+    </div>
   </div>
 
   <!-- PREMIUM UNLOCK MODAL -->
-  <div id="premium-modal" style="display:none;position:absolute;inset:0;background:rgba(10,15,25,0.92);z-index:100;align-items:center;justify-content:center;min-height:200px;">
+  <div id="premium-modal" style="display:none;position:fixed;inset:0;background:rgba(10,15,25,0.92);z-index:1000;align-items:center;justify-content:center;min-height:200px;">
     <div style="background:#0f1724;border:1px solid #3b82f6;padding:28px 32px;max-width:360px;width:90%;text-align:center;">
       <div style="font-family:var(--mono);font-size:9px;letter-spacing:3px;color:#3b82f6;margin-bottom:12px;">✦ PREMIUM ACCESS</div>
       <p style="font-size:11px;color:#b8cce0;line-height:1.6;margin:0 0 16px;"><span data-i18n="label_premium_unlock_msg">Enter your premium code to unlock the full AI Intermarket Analysis.</span></p>
@@ -693,10 +725,16 @@ function closePremiumModal() {
 
 function checkPremiumCode() {
   const codes = ['XENOS-PREMIUM-2026','XF-PRO-001','XF-PRO-002','XF-PRO-003'];
-  const val = (document.getElementById('premium-code-input').value || '').trim().toUpperCase();
-  if (codes.includes(val)) {
-    localStorage.setItem('xenos_premium_code', val);
+  const adminCodes = ['RMG@Manu78','RMG@manu78'];
+  const val = (document.getElementById('premium-code-input').value || '').trim();
+  const valUpper = val.toUpperCase();
+  if (codes.includes(valUpper) || adminCodes.includes(val)) {
+    localStorage.setItem('xenos_premium_code', adminCodes.includes(val) ? val : valUpper);
     closePremiumModal();
+    const gate = document.getElementById('ai-im-gate');
+    if (gate) gate.style.display = 'none';
+    const btn = document.getElementById('ai-im-btn');
+    if (btn) { btn.textContent = '⟳ Analyse'; btn.onclick = runIntermarketAI; }
     runIntermarketAI();
   } else {
     document.getElementById('premium-error').style.display = 'block';
@@ -907,31 +945,16 @@ document.addEventListener('DOMContentLoaded', () => {
   setInterval(updateAll, 60000);
   setInterval(loadUSStocks, 60000);
 
-  // Show free preview if not premium
-  if (!isPremium()) {
-    const body = document.getElementById('ai-im-body');
-    const btn = document.getElementById('ai-im-btn');
-    if (body) body.innerHTML = `
-      <div style="position:relative;">
-        <div style="font-size:11px;line-height:1.8;color:var(--muted);">
-          <b style="color:var(--ink);"><span data-i18n="label_risk_sentiment">RISK SENTIMENT</span></b><br>
-          Markets display mixed risk appetite with contradictory signals. The VIX decline and S&P 500 gains suggest risk-on conditions, yet gold and JPY strength indicate safe-haven demand persisting under the surface.
-        </div>
-        <div style="filter:blur(5px);pointer-events:none;user-select:none;opacity:0.45;font-size:11px;line-height:1.8;color:var(--muted);margin-top:8px;">
-          <b style="color:var(--ink);"><span data-i18n="label_dollar_forex">DOLLAR &amp; FOREX</span></b><br>
-          The dollar shows broad-based weakness against major currencies. EUR/USD and GBP/USD confirm dollar selling pressure. The Swiss franc emerges as the strongest currency, suggesting dovish Fed expectations or risk-off dollar funding unwinds...<br><br>
-          <b style="color:var(--ink);">COMMODITIES</b><br>
-          Precious metals outperform with gold at historic highs, signaling persistent inflation hedging demand. WTI crude flat performance suggests growth concerns offsetting supply dynamics. The gold-oil divergence indicates stagflationary fears...
-        </div>
-        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:10px;padding:14px 0 4px;">
-          <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:#3b82f6;">✦ PREMIUM FEATURE</div>
-          <p style="font-size:11px;color:#b8cce0;margin:0;max-width:280px;line-height:1.6;"><span data-i18n="label_premium_intermarket">Full AI Intermarket Analysis available to Premium members only.</span></p>
-          <button onclick="showPremiumModal()" style="font-family:var(--mono);font-size:9px;letter-spacing:2px;padding:6px 20px;background:#3b82f6;color:#fff;border:none;cursor:pointer;"><span data-i18n="label_unlock_premium">UNLOCK WITH PREMIUM</span></button>
-        </div>
-      </div>
-    `;
-    if (btn) { btn.textContent = '✦ Premium'; btn.style.background = '#3b82f6'; btn.onclick = showPremiumModal; }
+  // Gate overlay: hide if premium, keep visible otherwise
+  const gate = document.getElementById('ai-im-gate');
+  const btn = document.getElementById('ai-im-btn');
+  if (isPremium()) {
+    if (gate) gate.style.display = 'none';
+  } else {
+    // Gate stays visible — btn in header also triggers modal
+    if (btn) { btn.textContent = '✦ Premium'; btn.onclick = showPremiumModal; }
   }
+
   setInterval(updateSessions, 30000);
 });
 </script>
