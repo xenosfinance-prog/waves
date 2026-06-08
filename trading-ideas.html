@@ -314,8 +314,16 @@ function fixStr(s) {
 function fixIdeaEncoding(idea) {
   if (!idea) return idea;
   const fixed = {...idea};
-  for (const f of ['analysis','name','wave_phase','emoji','ticker','wave_icon']) {
+  for (const f of ['analysis','name','wave_phase','emoji','ticker','wave_icon','scenario_title','scenario','narrative']) {
     if (fixed[f]) fixed[f] = fixStr(fixed[f]);
+  }
+  // Fix nested market_state fields
+  if (fixed.market_state && typeof fixed.market_state === 'object') {
+    const ms = {...fixed.market_state};
+    for (const k of ['trend','momentum','volatility','sentiment']) {
+      if (ms[k]) ms[k] = fixStr(ms[k]);
+    }
+    fixed.market_state = ms;
   }
   return fixed;
 }
@@ -557,6 +565,7 @@ function openModal(idea){
   if(!idea) return;
   const bias=(idea.bias||'NEUTRAL').toUpperCase();
   const color=bias==='LONG'?'var(--green)':bias==='SHORT'?'var(--red)':'var(--gold)';
+  const isMKO = idea.source==='MKO';
   const img=document.getElementById('modal-img');
   img.style.display=idea.image_url?'block':'none';
   if(idea.image_url) img.src=idea.image_url;
@@ -564,14 +573,67 @@ function openModal(idea){
   document.getElementById('modal-ticker').textContent=emoji+' '+(idea.ticker||'—');
   document.getElementById('modal-name').textContent=idea.name||'';
   document.getElementById('modal-bias').innerHTML=`<span style="color:${color}">${bias}</span>`;
-  document.getElementById('modal-wave').textContent='Wave '+waveIcon(idea.wave_num)+(idea.wave_phase?' · '+idea.wave_phase:'');
+  document.getElementById('modal-wave').textContent=isMKO?'Wave ? · MKO Signal':'Wave '+waveIcon(idea.wave_num)+(idea.wave_phase?' · '+idea.wave_phase:'');
   document.getElementById('modal-price').textContent=fmtPrice(idea.price,idea.ticker);
   document.getElementById('modal-conf').textContent=(idea.confidence||0)+'%';
-  document.getElementById('modal-analysis').textContent=idea.analysis||'Analysis not available.';
   document.getElementById('modal-target').textContent=fmtPrice(idea.target,idea.ticker);
   document.getElementById('modal-inv').textContent=fmtPrice(idea.invalidation,idea.ticker);
   document.getElementById('modal-rr').textContent=fmtRR(idea);
   document.getElementById('modal-date').textContent=fmtDate(idea.timestamp);
+
+  // Build full analysis block — MKO has structured fields, EW has plain analysis
+  const analysisEl = document.getElementById('modal-analysis');
+  if(isMKO){
+    const ms = idea.market_state || {};
+    const score = idea.score || 7;
+    const scorePct = Math.round((score/10)*100);
+    const scoreColor = score>=8?'var(--green)':score>=6?'var(--gold)':'var(--red)';
+    const convictionLabel = score>=8?'STRONG CONVICTION':score>=6?'HIGH PROBABILITY':'MODERATE';
+
+    // Signal header line
+    const signalLine = `${emoji} XENOS MKO · ${idea.ticker} · ${bias==='LONG'?'▲ LONG':'▼ SHORT'}`;
+
+    // Market State block
+    const msHtml = (ms.trend||ms.momentum||ms.volatility||ms.sentiment) ? `
+      <div style="margin:14px 0 0;">
+        <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--gold);margin-bottom:8px;">MARKET STATE</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 16px;font-size:11px;">
+          ${ms.trend?`<div><span style="color:var(--muted);font-family:var(--mono);font-size:9px;">Trend&nbsp;&nbsp;&nbsp;&nbsp;</span><span style="color:var(--ink)">${ms.trend}</span></div>`:''}
+          ${ms.momentum?`<div><span style="color:var(--muted);font-family:var(--mono);font-size:9px;">Momentum</span><span style="color:var(--ink)"> ${ms.momentum}</span></div>`:''}
+          ${ms.volatility?`<div><span style="color:var(--muted);font-family:var(--mono);font-size:9px;">Volatility</span><span style="color:var(--ink)"> ${ms.volatility}</span></div>`:''}
+          ${ms.sentiment?`<div><span style="color:var(--muted);font-family:var(--mono);font-size:9px;">Sentiment </span><span style="color:var(--ink)">${ms.sentiment}</span></div>`:''}
+        </div>
+      </div>` : '';
+
+    // Scenario title + full narrative
+    const scenarioTitle = idea.scenario_title || idea.scenario || '';
+    const narrative = idea.narrative || idea.analysis || '';
+
+    const scenarioHtml = (scenarioTitle||narrative) ? `
+      <div style="margin:14px 0 0;">
+        ${scenarioTitle?`<div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--gold);margin-bottom:6px;">SCENARIO</div>
+        <div style="font-family:var(--mono);font-size:10px;color:var(--ink);margin-bottom:8px;">${scenarioTitle}</div>`:''}
+        ${narrative?`<div style="font-size:12px;color:var(--ink2);line-height:1.75;white-space:pre-wrap;">${narrative}</div>`:''}
+      </div>` : '';
+
+    analysisEl.innerHTML = `
+      <div style="font-family:var(--mono);font-size:10px;color:var(--ink2);margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border);">${signalLine}</div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;">
+        <span style="font-family:var(--mono);font-size:11px;color:var(--ink);">Score: ${score}/10</span>
+        <div style="flex:1;height:3px;background:var(--border2);border-radius:2px;overflow:hidden;">
+          <div style="width:${scorePct}%;height:100%;background:${scoreColor};border-radius:2px;"></div>
+        </div>
+      </div>
+      <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:${scoreColor};margin-bottom:2px;">${convictionLabel}</div>
+      ${msHtml}
+      ${scenarioHtml}
+    `;
+  } else {
+    // EW signal — plain text, full content, no truncation
+    analysisEl.textContent = idea.analysis || 'Analysis not available.';
+    analysisEl.style.whiteSpace = 'pre-wrap';
+  }
+
   document.getElementById('modal-overlay').classList.add('open');
   document.body.style.overflow='hidden';
 }
