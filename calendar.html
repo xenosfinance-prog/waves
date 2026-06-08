@@ -136,7 +136,8 @@ body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:10
 .ai-panel-header{font-size:9px;letter-spacing:3px;color:var(--gold);text-transform:uppercase;margin-bottom:8px;}
 .ai-panel-text{color:var(--ink2);white-space:pre-wrap;}
 .ai-loading{color:var(--muted);font-style:italic;}
-@media(max-width:900px){.highlight-grid{grid-template-columns:1fr;}.masthead-name{font-size:40px;}.nav-btn{padding:10px 16px;font-size:10px;letter-spacing:2px;}.cal-table th:nth-child(4),.cal-table td:nth-child(4){display:none;}}
+@media(max-width:900px){.highlight-grid{grid-template-columns:1fr;}.masthead-name{font-size:40px;}.nav-btn{padding:10px 14px;font-size:10px;letter-spacing:1px;}.cal-table th:nth-child(4),.cal-table td:nth-child(4){display:none;}}
+@media(max-width:600px){.masthead-nav{overflow-x:auto;-webkit-overflow-scrolling:touch;justify-content:flex-start;scrollbar-width:none;}.masthead-nav::-webkit-scrollbar{display:none;}.nav-btn{padding:10px 11px;font-size:9px;letter-spacing:1px;white-space:nowrap;flex-shrink:0;}.masthead-name{font-size:28px;}.cal-table th:nth-child(3),.cal-table td:nth-child(3){display:none;}}
 </style>
 <script type="application/ld+json">
 {
@@ -220,6 +221,7 @@ body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:10
     <a class="nav-btn" href="https://xenosfinance.com/trading-ideas"><span>💡 Trading Ideas</span></a>
     <a class="nav-btn" href="https://xenosfinance.com/calendar" class="active"><span data-i18n="nav_calendar">🗓 Calendar</span></a>
     <a class="nav-btn" href="https://xenosfinance.com/elliottwave"><span data-i18n="nav_elliott">〜 Elliott Wave</span></a>
+    <a class="nav-btn" href="https://xenosfinance.com/daily-education"><span>🎓 Education</span></a>
     <a class="nav-btn" href="https://xenosfinance.com/premium-support"><span>✦ Premium</span></a>
   </div>
 </div>
@@ -290,10 +292,20 @@ body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:10
   <div style="display:flex;align-items:center;gap:12px;margin:28px 0 16px;">
     <div style="font-family:var(--mono);font-size:9px;letter-spacing:4px;text-transform:uppercase;color:var(--gold);white-space:nowrap;" data-i18n="label_ai_weekly_brief">🤖 AI Weekly Brief</div>
     <div style="flex:1;height:1px;background:var(--border);"></div>
-    <div id="ai-cal-status" style="font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:1px;">⟳</div>
+    <div id="ai-cal-status" style="font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:1px;"></div>
   </div>
-  <div id="ai-cal-brief" style="background:var(--bg2);border:1px solid var(--border);border-left:3px solid var(--gold);padding:20px 24px;font-size:14px;color:var(--ink2);line-height:1.85;margin-bottom:28px;min-height:60px;">
-    <span style="color:var(--muted);font-family:var(--mono);font-size:11px;"><span data-i18n="label_generating_ai">Generating AI weekly analysis...</span></span>
+
+  <!-- Weekly Brief card — same style as Daily Education -->
+  <div style="position:relative;margin-bottom:28px;">
+    <div id="ai-cal-brief" style="background:var(--bg2);border:1px solid var(--border);border-left:3px solid var(--gold);padding:20px 24px;font-size:13px;color:var(--ink2);line-height:1.85;min-height:120px;">
+      <span style="color:var(--muted);font-family:var(--mono);font-size:11px;" data-i18n="label_generating_ai">Loading weekly brief...</span>
+    </div>
+    <!-- PREMIUM GATE OVERLAY — visible by default, hidden via JS if premium/admin -->
+    <div id="ai-brief-gate" style="position:absolute;inset:0;background:rgba(10,15,25,0.93);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:10px;padding:28px 20px;z-index:10;">
+      <div style="font-family:var(--mono);font-size:9px;letter-spacing:3px;color:#3b82f6;">✦ PREMIUM FEATURE</div>
+      <p style="font-size:11px;color:#b8cce0;margin:0;max-width:280px;line-height:1.6;" data-i18n="label_premium_weekly_brief">Full AI Weekly Macro Brief available to Premium members only.</p>
+      <button onclick="showPremiumModal()" style="font-family:var(--mono);font-size:9px;letter-spacing:2px;padding:7px 22px;background:#3b82f6;color:#fff;border:none;cursor:pointer;" data-i18n="label_unlock_premium">UNLOCK WITH PREMIUM</button>
+    </div>
   </div>
 
   <div style="background:var(--bg2);border-top:1px solid var(--border);padding:20px 32px;">
@@ -1140,28 +1152,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function loadCalendarAIBrief() {
   const el = document.getElementById('ai-cal-brief');
-  if (!isPremium()) {
-    if (el) el.innerHTML = `
-      <div style="position:relative;">
-        <div style="font-size:13px;line-height:1.85;color:var(--ink2);">
-          Markets this week are dominated by key central bank decisions and inflation data. The Fed meeting on Wednesday is expected to hold rates, but the press conference language will be critical for FX volatility.
-        </div>
-        <div style="filter:blur(5px);pointer-events:none;user-select:none;opacity:0.4;font-size:13px;line-height:1.85;color:var(--ink2);margin-top:8px;">
-          NFP Friday could be the decisive catalyst for EUR/USD direction. Commodities face headwinds from dollar resilience while equities remain sensitive to yield movements. Watch the 10-year Treasury — a break above 4.5% would signal risk-off across all asset classes and amplify volatility in FX pairs...
-          <br><br>Central bank divergence between Fed hawkishness and ECB dovish pivot creates structural opportunity in EUR/USD. Key levels to monitor this week across all sessions...
-        </div>
-        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:10px;padding:14px 0 4px;">
-          <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--gold);">✦ PREMIUM FEATURE</div>
-          <p style="font-size:12px;color:var(--ink2);margin:0;max-width:300px;line-height:1.6;"><span data-i18n="label_premium_weekly_brief">Full AI Weekly Macro Brief available to Premium members only.</span></p>
-          <button onclick="showPremiumModal()" style="font-family:var(--mono);font-size:9px;letter-spacing:2px;padding:6px 20px;background:var(--gold);color:#fff;border:none;cursor:pointer;"><span data-i18n="label_unlock_premium">UNLOCK WITH PREMIUM</span></button>
-        </div>
-      </div>`;
-    return;
-  }
+  const gate = document.getElementById('ai-brief-gate');
   const st = document.getElementById('ai-cal-status');
+
+  // Gate: nascondi solo se premium o admin
+  if (isPremium() || isAdmin()) {
+    if (gate) gate.style.display = 'none';
+  } else {
+    return; // gate rimane visibile, non generare nulla
+  }
+
   if (!el) return;
+  if (st) st.textContent = '⟳';
   try {
-    // Gather this week's high-impact events as context
     const now = new Date();
     const mon = new Date(now); mon.setDate(now.getDate() - now.getDay() + 1);
     const fri = new Date(mon); fri.setDate(mon.getDate() + 4);
@@ -1171,20 +1174,25 @@ async function loadCalendarAIBrief() {
       .filter(e => e.date >= monKey && e.date <= friKey && (e.impact === 'high' || e.impact === 'med'))
       .map(e => `${e.date} ${e.time} [${e.country}] ${e.name} — Forecast: ${e.forecast||'—'}, Prev: ${e.prev||'—'}${e.actual?' Actual: '+e.actual:''}`)
       .join('\n');
-    const prompt = `You are XenosFinance's senior macro analyst. Based on this week's key economic events, write a concise 3-paragraph weekly macro brief covering: (1) the most important macro themes and central bank implications this week, (2) how key releases (NFP, CPI, PMI, etc.) could move FX, equities, and commodities, (3) the main tail risk to watch. Be direct, institutional, Bloomberg terminal style. No disclaimers.\n\nThis week's key events:\n${weekEvents||'Standard macro week — no exceptional high-impact releases.'}`;
+    const prompt = `You are XenosFinance's senior macro analyst. Based on this week's key economic events, write a concise weekly macro brief in exactly 3 sections:\n\n**Macro Themes & Central Bank Implications**\n[paragraph]\n\n**Market Impact Assessment**\n[paragraph — how key releases move FX, equities, commodities]\n\n**Primary Tail Risk**\n[paragraph]\n\nBe direct, institutional, Bloomberg terminal style. No disclaimers.\n\nThis week's key events:\n${weekEvents||'Standard macro week — no exceptional high-impact releases.'}`;
     const res = await fetch(WORKER_URL, {
       method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({messages:[{role:'user',content:prompt}], max_tokens:500}),
+      body: JSON.stringify({messages:[{role:'user',content:prompt}], max_tokens:600}),
       signal: AbortSignal.timeout(30000)
     });
     if (!res.ok) throw new Error('failed');
     const data = await res.json();
-    const text = data?.content?.[0]?.text || '';
+    const text = (data?.content?.[0]?.text || '').trim();
     if (!text) throw new Error('empty');
-    el.innerHTML = text.split('\n').filter(l => l.trim()).map(p => `<p style="margin-bottom:12px">${p}</p>`).join('');
+    // Render: bold headers + paragraphs
+    el.innerHTML = text
+      .replace(/\*\*(.+?)\*\*/g, '<strong style="font-family:var(--mono);font-size:10px;letter-spacing:2px;color:var(--gold);display:block;margin:14px 0 6px;">$1</strong>')
+      .split('\n').filter(l => l.trim()).map(l =>
+        l.startsWith('<strong') ? l : `<p style="margin:0 0 10px;">${l}</p>`
+      ).join('');
     if (st) { const n=new Date(),hm=n.getHours().toString().padStart(2,'0')+':'+n.getMinutes().toString().padStart(2,'0'); st.textContent='✓ '+hm+' CET'; }
   } catch(e) {
-    if (el) el.innerHTML = '<span style="color:var(--muted);font-family:var(--mono);font-size:11px;"><span data-i18n="label_ai_brief_unavailable">AI brief temporarily unavailable</span></span>';
+    if (el) el.innerHTML = '<span style="color:var(--muted);font-family:var(--mono);font-size:11px;" data-i18n="label_ai_brief_unavailable">AI brief temporarily unavailable</span>';
     if (st) st.textContent = '⚠';
   }
 }
