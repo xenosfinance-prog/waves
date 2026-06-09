@@ -849,7 +849,7 @@ canvas { display: block; }
   <!-- SECTION 8: LIVE ANALYSIS -->
   <div class="ew-section">
     <div class="ew-section-header">
-      <span class="ew-section-num" ondblclick="document.getElementById('admin-login-area').style.display='block';" style="cursor:default;">08 — Live Analysis</span>
+      <span class="ew-section-num" style="cursor:default;">08 — Live Analysis <span id="admin-lock-trigger" onclick="document.getElementById('admin-login-area').style.display='block';" style="cursor:pointer;opacity:0.3;font-size:10px;user-select:none;" title="Admin">🔒</span></span>
       <div class="ew-section-line"></div>
     </div>
     <h2 class="ew-section-title"><span data-i18n="label_ew_signals">Elliott Wave Signals</span></h2>
@@ -1413,15 +1413,14 @@ function premiumLogin(){
 document.addEventListener('DOMContentLoaded', () => {
   const loginArea = document.getElementById('admin-login-area');
   const adminPanel = document.getElementById('adminPanel');
+  const lockTrigger = document.getElementById('admin-lock-trigger');
   if (isAdmin()) {
-    // Già loggato come admin — vai diretto al panel
     isAdminUnlocked = true;
     if (loginArea) loginArea.style.display = 'none';
     if (adminPanel) adminPanel.style.display = 'block';
+    if (lockTrigger) lockTrigger.style.display = 'none';
     renderPublicFeed();
   }
-  // Non-admin: entrambi restano display:none (impostato nell'HTML)
-  // Il gate login NON viene mai mostrato agli utenti normali
 });
 
 let lastAnalysis='';
@@ -3395,6 +3394,8 @@ async function deleteEWSignal(signalId) {
   } catch(e) { alert('Error: ' + e.message); }
 }
 
+let _ewSignalStore = [];
+
 function renderBotCards(ideas, listId, emptyId) {
   const list = document.getElementById(listId);
   const empty = document.getElementById(emptyId);
@@ -3404,6 +3405,7 @@ function renderBotCards(ideas, listId, emptyId) {
     return;
   }
   empty.style.display = 'none';
+  ideas.forEach(i => { if (!_ewSignalStore.find(s => s.id === i.id)) _ewSignalStore.push(i); });
   const adminMode = isAdmin();
   list.innerHTML = ideas.map(idea => {
     const bias = (idea.bias || 'NEUTRAL').toUpperCase();
@@ -3419,15 +3421,15 @@ function renderBotCards(ideas, listId, emptyId) {
     const imgHtml = idea.image_url
       ? `<img src="${idea.image_url}" alt="${idea.ticker}" loading="lazy" style="width:100%;height:140px;object-fit:cover;display:block;" onerror="this.style.display='none'">`
       : '';
-    const tgLink = idea.tg_url ? `<a href="${idea.tg_url}" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:9px;color:var(--gold);text-decoration:none;letter-spacing:1px;">📡 VIEW ON TELEGRAM →</a>` : '';
-    return `<div style="background:var(--bg2);border:1px solid var(--border);overflow:hidden;transition:border-color 0.2s;" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--border)'">
+    const tgLink = idea.tg_url ? `<a href="${idea.tg_url}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="font-family:var(--mono);font-size:9px;color:var(--gold);text-decoration:none;letter-spacing:1px;">📡 VIEW ON TELEGRAM →</a>` : '';
+    return `<div style="background:var(--bg2);border:1px solid var(--border);overflow:hidden;transition:border-color 0.2s;cursor:pointer;" onclick="openEWSignalModal('${idea.id}')" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--border)'">
       ${imgHtml}
       <div style="padding:16px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
           <span style="font-family:var(--mono);font-size:13px;font-weight:700;letter-spacing:1px;">${idea.emoji || '📊'} ${idea.ticker}</span>
           <div style="display:flex;align-items:center;gap:8px;">
             <span style="font-family:var(--mono);font-size:10px;font-weight:700;color:${biasColor};">${biasLabel}</span>
-            ${adminMode ? `<button onclick="deleteEWSignal('${idea.id}')" style="font-family:var(--mono);font-size:9px;letter-spacing:1px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:#ef4444;padding:3px 8px;cursor:pointer;">✕ DEL</button>` : ''}
+            ${adminMode ? `<button onclick="event.stopPropagation();deleteEWSignal('${idea.id}')" style="font-family:var(--mono);font-size:9px;letter-spacing:1px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:#ef4444;padding:3px 8px;cursor:pointer;">✕ DEL</button>` : ''}
           </div>
         </div>
         <div style="font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:2px;margin-bottom:10px;">Wave ${waveIcon} · ${(idea.wave_phase||'MTF').replace(/</g,'&lt;')} · ${date}</div>
@@ -3466,6 +3468,71 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
+function openEWSignalModal(id) {
+  const idea = _ewSignalStore.find(i => i.id === id);
+  if (!idea) return;
+  const bias = (idea.bias || 'NEUTRAL').toUpperCase();
+  const isLong = bias === 'LONG' || bias === 'BUY';
+  const isShort = bias === 'SHORT' || bias === 'SELL';
+  const biasColor = isLong ? '#22c55e' : isShort ? '#ef4444' : '#94a3b8';
+  const biasLabel = isLong ? '▲ LONG' : isShort ? '▼ SHORT' : '◆ NEUTRAL';
+  const waveIcon = {'1':'①','2':'②','3':'③','4':'④','5':'⑤','A':'🅐','B':'🅑','C':'🅒'}[idea.wave_num] || '🌊';
+  const date = idea.timestamp ? new Date(idea.timestamp).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
+  const dec = idea.ticker && idea.ticker.includes('USD') ? 4 : 2;
+  const fmt = v => v ? Number(v).toLocaleString('en-US',{minimumFractionDigits:dec,maximumFractionDigits:dec}) : '—';
+  const adminMode = isAdmin();
+  const analysis = (idea.analysis||'').replace(/\n{2,}/g,'\n').trim().replace(/\n/g,'<br>');
+
+  document.getElementById('ew-modal-body').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;">
+      <div>
+        <div style="font-family:var(--mono);font-size:17px;font-weight:700;letter-spacing:1px;">${idea.emoji||'📊'} ${idea.ticker}</div>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:2px;margin-top:4px;">Wave ${waveIcon} · ${(idea.wave_phase||'MTF')} · ${date}</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <span style="font-family:var(--mono);font-size:11px;font-weight:700;color:${biasColor};">${biasLabel}</span>
+        <button onclick="document.getElementById('ew-signal-modal').style.display='none';document.body.style.overflow='';" style="background:none;border:1px solid var(--border);color:var(--muted);font-size:16px;cursor:pointer;padding:3px 10px;line-height:1;">✕</button>
+      </div>
+    </div>
+    ${idea.image_url ? `<div style="margin-bottom:14px;position:relative;"><img src="${idea.image_url}" style="width:100%;max-height:360px;object-fit:contain;display:block;border:1px solid var(--border);background:#000;" onerror="this.parentElement.style.display='none'">${adminMode?`<button onclick="event.stopPropagation();deleteEWChartImg('${idea.id}')" style="position:absolute;top:8px;right:8px;font-family:var(--mono);font-size:9px;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.5);color:#ef4444;padding:4px 10px;cursor:pointer;">✕ DEL CHART</button>`:''}</div>` : ''}
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px;">
+      <div style="background:var(--bg);padding:10px;text-align:center;border:1px solid var(--border);"><div style="font-family:var(--mono);font-size:8px;color:var(--muted);letter-spacing:1px;margin-bottom:3px;">ENTRY</div><div style="font-family:var(--mono);font-size:13px;">${fmt(idea.price)}</div></div>
+      <div style="background:var(--bg);padding:10px;text-align:center;border:1px solid var(--border);"><div style="font-family:var(--mono);font-size:8px;color:#22c55e;letter-spacing:1px;margin-bottom:3px;">TARGET</div><div style="font-family:var(--mono);font-size:13px;color:#22c55e;">${fmt(idea.target)}</div></div>
+      <div style="background:var(--bg);padding:10px;text-align:center;border:1px solid var(--border);"><div style="font-family:var(--mono);font-size:8px;color:#ef4444;letter-spacing:1px;margin-bottom:3px;">INVAL.</div><div style="font-family:var(--mono);font-size:13px;color:#ef4444;">${fmt(idea.invalidation)}</div></div>
+    </div>
+    <div style="background:var(--bg);padding:14px;margin-bottom:14px;border-left:2px solid var(--gold);">
+      <div style="font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:6px;">Confidence: ${idea.confidence||0}%</div>
+      <div style="font-size:12px;color:var(--ink2);line-height:1.75;">${analysis||'—'}</div>
+    </div>
+    ${idea.tg_url ? `<a href="${idea.tg_url}" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:9px;color:var(--gold);text-decoration:none;letter-spacing:1px;">📡 VIEW ON TELEGRAM →</a>` : ''}
+    ${adminMode ? `<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);"><button onclick="deleteEWSignal('${idea.id}');document.getElementById('ew-signal-modal').style.display='none';document.body.style.overflow='';" style="font-family:var(--mono);font-size:9px;letter-spacing:1px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:#ef4444;padding:5px 14px;cursor:pointer;">✕ DELETE SIGNAL</button></div>` : ''}
+  `;
+  const modal = document.getElementById('ew-signal-modal');
+  modal.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+
+async function deleteEWChartImg(signalId) {
+  if (!confirm('Delete chart image for this signal?')) return;
+  try {
+    const resp = await fetch('https://xenos-ai-proxy.xenosfinance.workers.dev', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({type:'delete-ew-chart', signal_id: signalId, admin_pwd:'RMG@Manu78'})
+    });
+    const data = await resp.json();
+    if (data.ok) { document.getElementById('ew-signal-modal').style.display='none'; document.body.style.overflow=''; loadBotSignals(); }
+    else alert('Error: ' + (data.error||'unknown'));
+  } catch(e) { alert('Error: '+e.message); }
+}
+
 </script>
+
+<!-- EW SIGNAL MODAL -->
+<div id="ew-signal-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.8);align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this){this.style.display='none';document.body.style.overflow='';}">
+  <div style="background:var(--bg2);border:1px solid var(--border2);max-width:660px;width:100%;max-height:90vh;overflow-y:auto;">
+    <div id="ew-modal-body" style="padding:22px;"></div>
+  </div>
+</div>
+
 </body>
 </html>
