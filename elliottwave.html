@@ -1352,6 +1352,50 @@ function isAdmin() {
   return ADMIN_CODES.includes(stored);
 }
 
+// ── Premium gate helper ───────────────────────────────────────────────────────
+const XFPremium = {
+  gate(feature) {
+    if (isPremium() || isAdmin()) return true;
+    // Mostra modal unlock
+    const modal = document.getElementById('xf-premium-modal');
+    if (modal) {
+      modal.style.display = 'flex';
+    } else {
+      // Fallback: crea modal al volo
+      const m = document.createElement('div');
+      m.id = 'xf-premium-modal';
+      m.style.cssText = 'position:fixed;inset:0;background:rgba(10,15,25,0.92);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+      m.innerHTML = `<div style="background:var(--bg2);border:1px solid var(--border);padding:32px;max-width:380px;width:100%;text-align:center;">
+        <div style="font-family:var(--mono);font-size:9px;letter-spacing:3px;color:#3b82f6;margin-bottom:12px;">✦ PREMIUM FEATURE</div>
+        <p style="font-size:12px;color:var(--ink2);line-height:1.6;margin:0 0 16px;">AI Elliott Wave Analysis is available to Premium members only.</p>
+        <input type="password" id="xf-pm-input" placeholder="Enter premium code" style="width:100%;padding:8px 12px;background:var(--bg);border:1px solid var(--border);color:var(--ink);font-family:var(--mono);font-size:11px;box-sizing:border-box;margin-bottom:8px;">
+        <div id="xf-pm-err" style="display:none;font-family:var(--mono);font-size:9px;color:#ef4444;margin-bottom:8px;">⚠ Invalid code</div>
+        <div style="display:flex;gap:8px;justify-content:center;">
+          <button onclick="XFPremium._unlock()" style="font-family:var(--mono);font-size:9px;letter-spacing:2px;padding:7px 20px;background:#3b82f6;color:#fff;border:none;cursor:pointer;">UNLOCK</button>
+          <button onclick="document.getElementById('xf-premium-modal').style.display='none'" style="font-family:var(--mono);font-size:9px;letter-spacing:2px;padding:7px 20px;background:transparent;border:1px solid var(--border);color:var(--muted);cursor:pointer;">CANCEL</button>
+        </div>
+      </div>`;
+      document.body.appendChild(m);
+    }
+    return false;
+  },
+  _unlock() {
+    const input = document.getElementById('xf-pm-input');
+    const err = document.getElementById('xf-pm-err');
+    if (!input) return;
+    const val = input.value.trim();
+    if (PREMIUM_CODES.includes(val.toUpperCase()) || ADMIN_CODES.includes(val)) {
+      localStorage.setItem('xenos_premium_code', ADMIN_CODES.includes(val) ? val : val.toUpperCase());
+      document.getElementById('xf-premium-modal').style.display = 'none';
+      input.value = '';
+      if (err) err.style.display = 'none';
+    } else {
+      if (err) err.style.display = 'block';
+      input.value = '';
+    }
+  }
+};
+
 function premiumLogin(){
   const code = document.getElementById('premiumPw').value.trim();
   if(ADMIN_CODES.includes(code)){
