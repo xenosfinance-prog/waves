@@ -374,6 +374,7 @@ canvas { display: block; }
     <a href="https://xenosfinance.com/calendar"><span data-i18n="nav_calendar">🗓 Calendar</span></a>
     <a href="https://xenosfinance.com/elliottwave" class="active"><span data-i18n="nav_elliott">〜 Elliott Wave</span></a>
     <a href="https://xenosfinance.com/premium-support"><span>✦ Premium</span></a>
+  <button id="xf-logout-btn" onclick="xfLogout()" style="display:none;font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;padding:6px 14px;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.35);color:#ef4444;cursor:pointer;white-space:nowrap;" title="Logout">⏻ Logout</button>
   </nav>
 </div>
 
@@ -1332,6 +1333,7 @@ function adminLogin(){
     const pubBtn=document.getElementById('publishFromAnalysisBtn');
     if(pubBtn) pubBtn.style.display='inline-block';
     isAdminUnlocked=true;
+    xfUpdateLogoutBtn();
     renderPublicFeed();
   } else {
     document.getElementById('adminErr').textContent='⚠ Wrong password';
@@ -3550,6 +3552,22 @@ async function deleteEWChartImg(signalId) {
     else alert('Error: ' + (data.error||'unknown'));
   } catch(e) { alert('Error: '+e.message); }
 }
+
+
+// ── Global Logout ──────────────────────────────────────────────
+function xfLogout() {
+  localStorage.removeItem('xenos_premium_code');
+  sessionStorage.removeItem('xf_admin');
+  sessionStorage.removeItem('xf_interpreter');
+  location.reload();
+}
+function xfUpdateLogoutBtn() {
+  const btn = document.getElementById('xf-logout-btn');
+  if (!btn) return;
+  const isLogged = localStorage.getItem('xenos_premium_code') || sessionStorage.getItem('xf_admin');
+  btn.style.display = isLogged ? 'inline-block' : 'none';
+}
+document.addEventListener('DOMContentLoaded', xfUpdateLogoutBtn);
 
 </script>
 
