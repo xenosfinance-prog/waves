@@ -1402,6 +1402,19 @@ function premiumLogin(){
     isAdminUnlocked = true;
     document.getElementById('admin-login-area').style.display='none';
     document.getElementById('adminPanel').style.display='block';
+    const strip=document.getElementById('adminPublishStrip');
+    if(strip) strip.style.display='block';
+    const pubBtn=document.getElementById('publishFromAnalysisBtn');
+    if(pubBtn) pubBtn.style.display='inline-block';
+    renderPublicFeed();
+  } else if(PREMIUM_CODES.includes(code.toUpperCase())){
+    localStorage.setItem('xenos_premium_code', code.toUpperCase());
+    // Premium user: hide login gate, unlock Section 09 bot signals only
+    document.getElementById('admin-login-area').style.display='none';
+    botSignalsUnlocked = true;
+    document.getElementById('bot-signals-gate').style.display = 'none';
+    document.getElementById('bot-signals-feed').style.display = 'block';
+    loadBotSignals();
     renderPublicFeed();
   } else {
     document.getElementById('adminErr').textContent='⚠ Invalid code';
@@ -1418,7 +1431,20 @@ document.addEventListener('DOMContentLoaded', () => {
     isAdminUnlocked = true;
     if (loginArea) loginArea.style.display = 'none';
     if (adminPanel) adminPanel.style.display = 'block';
+    const strip = document.getElementById('adminPublishStrip');
+    if (strip) strip.style.display = 'block';
+    const pubBtn = document.getElementById('publishFromAnalysisBtn');
+    if (pubBtn) pubBtn.style.display = 'inline-block';
     if (lockTrigger) lockTrigger.style.display = 'none';
+    renderPublicFeed();
+  } else if (isPremium()) {
+    // Premium user already unlocked from previous session
+    botSignalsUnlocked = true;
+    const gate = document.getElementById('bot-signals-gate');
+    const feed = document.getElementById('bot-signals-feed');
+    if (gate) gate.style.display = 'none';
+    if (feed) feed.style.display = 'block';
+    loadBotSignals();
     renderPublicFeed();
   }
 });
