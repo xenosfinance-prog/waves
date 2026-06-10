@@ -149,7 +149,12 @@ body { background: var(--bg); color: var(--ink); font-family: var(--mono); min-h
   display: flex; justify-content: space-between; align-items: baseline;
   padding: 8px 14px 7px; border-bottom: 1px solid var(--border); background: var(--bg);
 }
-.chart-card-title { font-family: var(--mono); font-weight: bold; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; color: var(--ink); }
+.chart-card-title { font-family: var(--mono); font-weight: bold; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; color: var(--ink); cursor: default; border-radius: 3px; padding: 1px 3px; transition: background 0.15s; }
+.chart-card-title:hover { background: rgba(59,130,246,0.08); cursor: text; }
+.chart-card-title.editing { background: rgba(59,130,246,0.13); outline: 1px solid rgba(59,130,246,0.4); color: var(--ink); cursor: text; }
+.title-reset-btn { display: none; margin-left: 6px; font-size: 9px; color: var(--muted); cursor: pointer; opacity: 0.6; vertical-align: middle; }
+.title-reset-btn:hover { opacity: 1; color: var(--gold); }
+.chart-card-title.modified + .title-reset-btn { display: inline; }
 .chart-card-sub { font-size: 9px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; }
 .chart-card-body { padding: 0; height: 380px; overflow: hidden; }
 .chart-card-body.tall { height: 500px; }
@@ -1670,9 +1675,111 @@ function switchTab(name, btn) {
   window.scrollTo({top: 160, behavior: 'smooth'});
 }
 
+/* ── Editable Chart Card Titles ── */
+const TITLE_STORE_KEY = 'xf_chart_titles';
+
+function loadSavedTitles() {
+  try { return JSON.parse(localStorage.getItem(TITLE_STORE_KEY) || '{}'); } catch { return {}; }
+}
+
+function saveTitleStore(store) {
+  localStorage.setItem(TITLE_STORE_KEY, JSON.stringify(store));
+}
+
+function getTitleKey(el) {
+  // Use data-title-key if set, otherwise derive from default text
+  return el.dataset.titleKey || el.dataset.defaultTitle || el.textContent.trim();
+}
+
+function initEditableTitles() {
+  const store = loadSavedTitles();
+
+  document.querySelectorAll('.chart-card-title').forEach(el => {
+    const defaultText = el.textContent.trim();
+    el.dataset.defaultTitle = defaultText;
+
+    // Restore saved title
+    const key = getTitleKey(el);
+    if (store[key]) {
+      el.textContent = store[key];
+      el.classList.add('modified');
+    }
+
+    // Add reset button sibling
+    const resetBtn = document.createElement('span');
+    resetBtn.className = 'title-reset-btn';
+    resetBtn.title = 'Reset to default';
+    resetBtn.textContent = '↺';
+    el.insertAdjacentElement('afterend', resetBtn);
+    resetBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      el.textContent = defaultText;
+      el.classList.remove('modified');
+      const s = loadSavedTitles();
+      delete s[defaultText];
+      saveTitleStore(s);
+    });
+
+    // Double-click to edit
+    el.addEventListener('dblclick', () => startEditTitle(el));
+  });
+}
+
+function startEditTitle(el) {
+  if (el.classList.contains('editing')) return;
+  el.classList.add('editing');
+  el.setAttribute('contenteditable', 'true');
+  el.focus();
+
+  // Select all text
+  const range = document.createRange();
+  range.selectNodeContents(el);
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+
+  function commitEdit() {
+    el.removeAttribute('contenteditable');
+    el.classList.remove('editing');
+    const newText = el.textContent.trim();
+    const defaultTitle = el.dataset.defaultTitle;
+    if (newText && newText !== defaultTitle) {
+      el.classList.add('modified');
+      const s = loadSavedTitles();
+      s[defaultTitle] = newText;
+      saveTitleStore(s);
+    } else if (!newText) {
+      el.textContent = defaultTitle;
+      el.classList.remove('modified');
+    } else {
+      el.classList.remove('modified');
+      const s = loadSavedTitles();
+      delete s[defaultTitle];
+      saveTitleStore(s);
+    }
+    el.removeEventListener('blur', commitEdit);
+    el.removeEventListener('keydown', onKey);
+  }
+
+  function onKey(e) {
+    if (e.key === 'Enter') { e.preventDefault(); commitEdit(); }
+    if (e.key === 'Escape') {
+      el.textContent = el.dataset.defaultTitle;
+      el.removeAttribute('contenteditable');
+      el.classList.remove('editing', 'modified');
+      el.removeEventListener('blur', commitEdit);
+      el.removeEventListener('keydown', onKey);
+    }
+  }
+
+  el.addEventListener('blur', commitEdit);
+  el.addEventListener('keydown', onKey);
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   loadTicker();
   setInterval(loadTicker, 60000);
+  initEditableTitles();
 });
 </script>
 </body>
