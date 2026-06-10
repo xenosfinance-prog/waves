@@ -308,6 +308,7 @@ body{background:var(--bg);color:var(--ink);font-family:var(--mono);min-height:10
     <a href="https://xenosfinance.com/elliottwave"><span data-i18n="nav_elliott">〜 Elliott Wave</span></a>
     <a href="https://xenosfinance.com/daily-education"><span>📚 Education</span></a>
     <a href="https://xenosfinance.com/premium-support"><span>✦ Premium</span></a>
+    <button id="xf-logout-btn" onclick="xfLogout()" style="display:none;font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;padding:6px 14px;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.35);color:#ef4444;cursor:pointer;white-space:nowrap;" title="Logout">⏻ Logout</button>
   </nav>
 </div>
 
@@ -1111,6 +1112,7 @@ function doAdminLogin() {
     closeAdminLogin();
     document.getElementById('admin-bar').style.display = 'flex';
     initInterpreterState();
+    xfUpdateLogoutBtn();
     applyFilters(); // re-render with admin controls visible
   } else {
     document.getElementById('admin-err').textContent = '⚠ Password errata';
@@ -1603,6 +1605,7 @@ function unlockInterpreter() {
     document.getElementById('interpreter-unlocked').style.display = 'block';
     document.getElementById('interpreter-controls').style.display = 'flex';
     document.getElementById('interpreter-pw-err').textContent = '';
+    xfUpdateLogoutBtn();
   } else {
     document.getElementById('interpreter-pw-err').textContent = '⚠ Invalid code';
     document.getElementById('interpreter-pw-input').value = '';
@@ -1802,6 +1805,22 @@ Always end with: ⚠ Educational purposes only — not financial advice. XenosFi
   btn.disabled = false;
   btn.textContent = '⟳ Analyse';
 }
+
+// ── Global Logout ──────────────────────────────────────────────
+function xfLogout() {
+  localStorage.removeItem('xenos_premium_code');
+  sessionStorage.removeItem('xf_admin');
+  sessionStorage.removeItem('xf_interpreter');
+  location.reload();
+}
+function xfUpdateLogoutBtn() {
+  const btn = document.getElementById('xf-logout-btn');
+  if (!btn) return;
+  const isLogged = localStorage.getItem('xenos_premium_code') || sessionStorage.getItem('xf_admin');
+  btn.style.display = isLogged ? 'inline-block' : 'none';
+}
+document.addEventListener('DOMContentLoaded', xfUpdateLogoutBtn);
+
 </script>
 <!-- ADMIN LOGIN POPUP -->
 <div id="admin-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9000;" onclick="closeAdminLogin()"></div>
