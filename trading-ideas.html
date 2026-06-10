@@ -384,12 +384,15 @@ const CAT_MAP = {
 
 function getCategory(ticker) {
   if (!ticker) return 'other';
-  const t = ticker.toUpperCase();
+  const t = ticker.toUpperCase().replace('/','').replace('-','').trim();
   for (const [cat, tickers] of Object.entries(CAT_MAP)) {
     if (tickers.includes(t)) return cat;
   }
-  if (t.length === 6 && t.includes('USD')) return 'forex';
-  if (['BTC','ETH','XRP','SOL','DOGE','BNB','ADA'].some(c => t.includes(c))) return 'crypto';
+  // Fallback heuristics
+  if (t.length === 6 && /USD|EUR|GBP|JPY|CHF|CAD|AUD|NZD/.test(t)) return 'forex';
+  if (['BTC','ETH','XRP','SOL','DOGE','BNB','ADA','ZEC','MATIC','LINK'].some(c=>t.startsWith(c))) return 'crypto';
+  if (['GOLD','SILVER','OIL','NGAS','XAUUSD','WTIUSD','NATGAS'].some(c=>t.includes(c))) return 'commodities';
+  if (['SPX','SPY','NAS','NDX','DJI','DAX','FTSE','CAC','NIKKEI','HSI'].some(c=>t.includes(c))) return 'indices';
   return 'other';
 }
 
@@ -620,10 +623,11 @@ function closeModal(e){
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
 
 document.getElementById('filters').addEventListener('click',e=>{
-  if(!e.target.classList.contains('filter-btn')) return;
+  const btn = e.target.closest('.filter-btn');
+  if(!btn) return;
   document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
-  e.target.classList.add('active');
-  activeFilter=e.target.dataset.filter;
+  btn.classList.add('active');
+  activeFilter=btn.dataset.filter;
   renderGrid();
 });
 
