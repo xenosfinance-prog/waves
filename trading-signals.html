@@ -705,7 +705,7 @@ async function _ltTS(text, lang) {
 }
 function _langTS() { return localStorage.getItem('xf_lang') || 'en'; }
 
-async function renderCFD() {
+function renderCFD() {
   const container = document.getElementById('cfd-list');
   if (!filtered.length) {
     container.innerHTML = '<div class="empty-msg"><span data-i18n="label_no_cfd_signals">No CFD signals available yet — check back soon</span></div>';
@@ -815,9 +815,7 @@ function renderOptions() {
     const openPx  = sig.entry != null ? fmtPrice(sig.entry, sig.pair) : '—';
     const closePx = sig.close_price != null ? fmtPrice(sig.close_price, sig.pair) : '—';
     const expiry  = sig.expiry || sig.timeframe || '—';
-    const _tsLang = _langTS();
     let analysis = sig.analysis || sig.pattern_desc || sig.ew_context || '';
-    if (_tsLang !== 'en' && analysis) { analysis = await _ltTS(analysis, _tsLang); }
     const outcome  = sig.outcome || 'open';
 
     return `
