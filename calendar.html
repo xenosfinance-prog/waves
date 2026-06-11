@@ -544,7 +544,7 @@ function matchesFilter(ev) {
   return activeFilters['OTHER'];
 }
 
-function renderCalendar() {
+async function renderCalendar() {
   const tbody = document.getElementById('cal-tbody');
   if (!tbody) return;
   const days = weekDates(currentWeek);
@@ -555,7 +555,12 @@ function renderCalendar() {
     if (!evs.length) return;
     const isToday = day === today;
     html += `<tr class="day-sep"><td colspan="7">${friendlyDate(day)}${isToday ? ' <span style="color:var(--red2);margin-left:8px">● TODAY</span>' : ''}</td></tr>`;
-    evs.forEach(ev => {
+    for (const ev of evs) {
+      const _calLang = getCurrentLangCal();
+      if (_calLang !== 'en' && ev.desc && !ev._descTranslated) {
+        ev.desc = await ltTranslateCal(ev.desc, _calLang);
+        ev._descTranslated = true;
+      }
       const hasActual = ev.actual && ev.actual !== '' && ev.actual !== '—';
       const actualHtml = isAdmin()
         ? `<span class="val-actual" style="color:${ev.actual&&!ev.actual.includes('TODAY')?'var(--ink)':'var(--border2)'};cursor:pointer;border-bottom:1px dashed var(--border2);" onclick="editActual(event,'${ev.date}','${ev.name.replace(/'/g,'\\\'')}',this)" title="Click to edit actual">${ev.actual||'+ add'}</span>`
@@ -577,7 +582,7 @@ function renderCalendar() {
       </tr>`;
       html += `<tr id="info-${evIdx}" style="display:none"><td colspan="7" style="padding:0;border-bottom:1px solid var(--border)"><div class="ev-info-panel"><div class="ev-info-title">📋 ${ev.name} — Guide</div><div class="ev-info-grid"><div class="ev-info-block"><div class="ev-info-label"><span data-i18n="label_what_it_measures">What it measures</span></div><div class="ev-info-text">${getEvInfo(ev).what}</div></div><div class="ev-info-block"><div class="ev-info-label">How to interpret</div><div class="ev-info-text">${getEvInfo(ev).how}</div></div><div class="ev-info-block"><div class="ev-info-label">Beat expectations →</div><div class="ev-info-text">${getEvInfo(ev).beat}</div></div><div class="ev-info-block"><div class="ev-info-label">Miss expectations →</div><div class="ev-info-text">${getEvInfo(ev).miss}</div></div></div><div style="font-size:9px;color:var(--muted);">Impact: <strong style="color:${ev.impact==='high'?'#f87171':ev.impact==='med'?'#f59e0b':'#5a7a9a'}">${ev.impact.toUpperCase()}</strong> · Markets most affected: ${getEvInfo(ev).markets}</div></div></td></tr>`;
       html += `<tr id="ai-${evIdx}" style="display:none"><td colspan="7" style="padding:0;border-bottom:1px solid var(--border)"><div id="ai-inner-${evIdx}" class="ai-panel-inner"></div></td></tr>`;
-    });
+    }
   });
   if (!html) {
     html = `<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:40px;font-family:var(--mono);font-size:11px;"><span data-i18n="label_no_events">No events match the current filter for this week.</span></td></tr>`;
@@ -771,6 +776,32 @@ function checkPremiumCode() {
   }
 }
 
+// ── LibreTranslate integration ────────────────────────────────────────────
+const LT_URL_CAL = 'https://libretranslatelibretranslate-production-ecfe.up.railway.app';
+const _ltCacheCal = {};
+
+async function ltTranslateCal(text, target) {
+  if (!text || !target || target === 'en') return text;
+  const key = target + '|' + text.slice(0, 40);
+  if (_ltCacheCal[key]) return _ltCacheCal[key];
+  try {
+    const r = await fetch(LT_URL_CAL + '/translate', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({q: text, source: 'en', target: target, format: 'text'})
+    });
+    if (!r.ok) return text;
+    const d = await r.json();
+    const t = d.translatedText || text;
+    _ltCacheCal[key] = t;
+    return t;
+  } catch(e) { return text; }
+}
+
+function getCurrentLangCal() {
+  return localStorage.getItem('xf_lang') || 'en';
+}
+
 async function analyzeEvent(evIdx) {
   if (!isPremium()) { window._pendingAnalyzeIdx = evIdx; showPremiumModal(); return; }
 
@@ -843,6 +874,9 @@ Write a concise forward-looking institutional briefing (4-6 sentences, Bloomberg
       text = ev.name + ' is a key market event for ' + ev.country + ' assets.' + (hasForecast ? ' Consensus is positioned at ' + ev.forecast + '.' : '') + ' Watch for volatility around the release — any deviation from expectations could trigger sharp directional moves in related currency pairs and fixed income.';
     }
     if(window.XF) XF.stop();
+    // Translate AI analysis if needed
+    const _aiLang = getCurrentLangCal();
+    if (_aiLang !== 'en') { text = await ltTranslateCal(text, _aiLang); }
     const atxt=inner.querySelector('.ai-panel-text');
     inner.querySelector('.ai-panel-header').textContent='⚡ AI Market Analysis · '+ev.name;
     if(atxt && window.XF){ XF.typeInto(atxt, text.replace(/\n/g,'<br>'), 12, null); } else { inner.innerHTML=`<div class="ai-panel-header">⚡ AI Market Analysis · ${ev.name}</div><div class="ai-panel-text">${text}</div>`; }
