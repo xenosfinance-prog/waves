@@ -2322,6 +2322,25 @@ function tvClearImage(e){
   document.getElementById('tvChartInput').value = '';
 }
 
+// ── LibreTranslate helper (EW) ─────────────────────────────────────────────
+const _LT_BASE_EW = 'https://libretranslatelibretranslate-production-ecfe.up.railway.app';
+const _ltCEW = {};
+async function _ltEW(text, lang) {
+  if (!text || !lang || lang === 'en') return text;
+  const k = lang + '|' + text.slice(0, 40);
+  if (_ltCEW[k]) return _ltCEW[k];
+  try {
+    const r = await fetch(_LT_BASE_EW + '/translate', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({q: text, source: 'en', target: lang, format: 'text'})
+    });
+    if (!r.ok) return text;
+    const t = (await r.json()).translatedText || text;
+    _ltCEW[k] = t; return t;
+  } catch(e) { return text; }
+}
+function _langEW() { return localStorage.getItem('xf_lang') || 'en'; }
+
 async function runAIAnalysis(){
   // Premium gate
   if (!XFPremium.gate('elliott')) return;
@@ -2459,6 +2478,8 @@ Keep it professional, precise, under 280 words.`
     let analysisText = '';
     if (data.content && data.content[0]) {
       analysisText = data.content[0].text || '';
+      const _ewLang = _langEW();
+      if (_ewLang !== 'en' && analysisText) { analysisText = await _ltEW(analysisText, _ewLang); }
     } else if (data.error) {
       throw new Error(data.error.message || 'API error');
     }

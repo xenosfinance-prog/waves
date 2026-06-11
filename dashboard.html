@@ -743,6 +743,25 @@ function checkPremiumCode() {
   }
 }
 
+// ── LibreTranslate helper ──────────────────────────────────────────────────
+const _LT_BASE = 'https://libretranslatelibretranslate-production-ecfe.up.railway.app';
+const _ltC = {};
+async function _lt(text, lang) {
+  if (!text || !lang || lang === 'en') return text;
+  const k = lang + '|' + text.slice(0, 40);
+  if (_ltC[k]) return _ltC[k];
+  try {
+    const r = await fetch(_LT_BASE + '/translate', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({q: text, source: 'en', target: lang, format: 'text'})
+    });
+    if (!r.ok) return text;
+    const t = (await r.json()).translatedText || text;
+    _ltC[k] = t; return t;
+  } catch(e) { return text; }
+}
+function _lang() { return localStorage.getItem('xf_lang') || 'en'; }
+
 async function runIntermarketAI() {
   if (!isPremium()) { showPremiumModal(); return; }
 
@@ -827,7 +846,11 @@ Be concise, professional, data-driven. Use the actual prices provided. No discla
 
     if (!aiRes.ok) throw new Error(`AI HTTP ${aiRes.status}`);
     const aiData = await aiRes.json();
-    const text = aiData?.content?.[0]?.text || aiData?.error || 'No response.';
+    let text = aiData?.content?.[0]?.text || aiData?.error || 'No response.';
+
+    // Translate if needed
+    const _dLang = _lang();
+    if (_dLang !== 'en') { text = await _lt(text, _dLang); }
 
     // Format output
     const html = text
