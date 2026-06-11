@@ -492,6 +492,50 @@ async function loadGrid() {
   }
 }
 
+// ── LibreTranslate integration ────────────────────────────────────────────
+const LT_URL = 'https://libretranslatelibretranslate-production-ecfe.up.railway.app';
+const _ltCache = {};
+
+async function ltTranslate(text, target) {
+  if (!text || !target || target === 'en') return text;
+  const key = target + '|' + text.slice(0, 40);
+  if (_ltCache[key]) return _ltCache[key];
+  try {
+    const r = await fetch(LT_URL + '/translate', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({q: text, source: 'en', target: target, format: 'text'})
+    });
+    if (!r.ok) return text;
+    const d = await r.json();
+    const t = d.translatedText || text;
+    _ltCache[key] = t;
+    return t;
+  } catch(e) { return text; }
+}
+
+function getCurrentLang() {
+  return localStorage.getItem('xf_lang') || 'en';
+}
+
+async function translateArticleFields(a) {
+  const lang = getCurrentLang();
+  if (lang === 'en') return a;
+  const [title, intro, conclusion, quote] = await Promise.all([
+    ltTranslate(a.title || '', lang),
+    ltTranslate(a.intro || '', lang),
+    ltTranslate(a.conclusion || '', lang),
+    ltTranslate(a.quote || '', lang),
+  ]);
+  const sections = a.sections ? await Promise.all(
+    a.sections.map(async s => ({
+      heading: await ltTranslate(s.heading || '', lang),
+      content: await ltTranslate(s.content || '', lang),
+    }))
+  ) : [];
+  return {...a, title, intro, conclusion, quote, sections};
+}
+
 async function loadArticle(slug) {
   document.getElementById('gridView').style.display = 'none';
   document.getElementById('articleView').style.display = 'block';
@@ -502,6 +546,7 @@ async function loadArticle(slug) {
     var res = await fetch(GITHUB_RAW + 'articles/' + slug + '.json?t=' + Date.now());
     if (!res.ok) throw new Error('Article not found');
     var a = await res.json();
+    a = await translateArticleFields(a);
     document.getElementById('artCat').textContent = a.categoryLabel || a.category || '';
     document.getElementById('artTitle').textContent = a.title;
     var dateStr = '';
