@@ -1042,26 +1042,18 @@ canvas { display: block; }
     <!-- SIGNALS FEED (hidden until unlocked) -->
     <div id="bot-signals-feed" style="display:none;">
 
-      <!-- TABS -->
-      <div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:24px;">
-        <button id="tab-ew-btn" onclick="switchBotTab('ew')" style="padding:8px 20px;font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;background:none;border:none;border-bottom:2px solid var(--gold);color:var(--gold);cursor:pointer;">〜 EW Signals</button>
-        <button id="tab-ai-btn" onclick="switchBotTab('ai')" style="padding:8px 20px;font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);cursor:pointer;">🤖 AI Analysis</button>
-      </div>
-
-      <!-- EW TAB -->
+      <!-- UNIFIED FEED — EW + AI merged, sorted by date -->
       <div id="bot-tab-ew">
         <div id="ew-signals-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;"></div>
         <div id="ew-signals-empty" style="display:none;background:var(--bg2);border:1px solid var(--border);padding:32px;text-align:center;">
-          <div style="font-size:11px;color:var(--muted);letter-spacing:2px;">No EW signals yet — run /elliott</div>
+          <div style="font-size:11px;color:var(--muted);letter-spacing:2px;">No signals yet — run /elliott or /ai on Telegram</div>
         </div>
       </div>
 
-      <!-- AI TAB -->
+      <!-- keep ai-signals-list in DOM (hidden) so old JS refs don't break -->
       <div id="bot-tab-ai" style="display:none;">
-        <div id="ai-signals-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;"></div>
-        <div id="ai-signals-empty" style="display:none;background:var(--bg2);border:1px solid var(--border);padding:32px;text-align:center;">
-          <div style="font-size:11px;color:var(--muted);letter-spacing:2px;">No AI signals yet — run /ai on Telegram</div>
-        </div>
+        <div id="ai-signals-list"></div>
+        <div id="ai-signals-empty" style="display:none;"></div>
       </div>
 
     </div><!-- end bot-signals-feed -->
@@ -3403,13 +3395,8 @@ function unlockBotSignals() {
 }
 
 function switchBotTab(tab) {
+  // No-op — tabs removed, kept for compatibility with any old references
   currentBotTab = tab;
-  document.getElementById('bot-tab-ew').style.display = tab === 'ew' ? 'block' : 'none';
-  document.getElementById('bot-tab-ai').style.display = tab === 'ai' ? 'block' : 'none';
-  document.getElementById('tab-ew-btn').style.borderBottomColor = tab === 'ew' ? 'var(--gold)' : 'transparent';
-  document.getElementById('tab-ew-btn').style.color = tab === 'ew' ? 'var(--gold)' : 'var(--muted)';
-  document.getElementById('tab-ai-btn').style.borderBottomColor = tab === 'ai' ? 'var(--gold)' : 'transparent';
-  document.getElementById('tab-ai-btn').style.color = tab === 'ai' ? 'var(--gold)' : 'var(--muted)';
 }
 
 async function loadBotSignals() {
@@ -3418,11 +3405,16 @@ async function loadBotSignals() {
     if (!r.ok) throw new Error('fetch failed');
     const ideas = await r.json();
 
-    const ewIdeas = ideas.filter(i => i.source === 'EW' || !i.source);
-    const aiIdeas = ideas.filter(i => i.source === 'AI');
+    // Merge EW + AI into one list, sorted newest first
+    const allSignals = [...ideas].sort((a, b) => {
+      const ta = a.timestamp || a.saved_at || '';
+      const tb = b.timestamp || b.saved_at || '';
+      return tb.localeCompare(ta);
+    });
 
-    renderBotCards(ewIdeas, 'ew-signals-list', 'ew-signals-empty');
-    renderBotCards(aiIdeas, 'ai-signals-list', 'ai-signals-empty');
+    renderBotCards(allSignals, 'ew-signals-list', 'ew-signals-empty');
+    // Keep ai-signals-list empty (hidden tab kept for DOM compatibility)
+    renderBotCards([], 'ai-signals-list', 'ai-signals-empty');
   } catch(e) {
     console.error('Bot signals load error:', e);
   }
@@ -3471,12 +3463,15 @@ function renderBotCards(ideas, listId, emptyId) {
       ? `<img src="${idea.image_url}" alt="${idea.ticker}" loading="lazy" style="width:100%;height:140px;object-fit:cover;display:block;" onerror="this.style.display='none'">`
       : '';
     const tgLink = idea.tg_url ? `<a href="${idea.tg_url}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="font-family:var(--mono);font-size:9px;color:var(--gold);text-decoration:none;letter-spacing:1px;">📡 VIEW ON TELEGRAM →</a>` : '';
+    const srcLabel = idea.source === 'AI' ? '🤖 AI' : '〜 EW';
+    const srcColor = idea.source === 'AI' ? '#a78bfa' : 'var(--gold)';
     return `<div style="background:var(--bg2);border:1px solid var(--border);overflow:hidden;transition:border-color 0.2s;cursor:pointer;" onclick="openEWSignalModal('${idea.id}')" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--border)'">
       ${imgHtml}
       <div style="padding:16px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
           <span style="font-family:var(--mono);font-size:13px;font-weight:700;letter-spacing:1px;">${idea.emoji || '📊'} ${idea.ticker}</span>
           <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-family:var(--mono);font-size:9px;letter-spacing:1px;padding:2px 6px;border:1px solid ${srcColor};color:${srcColor};">${srcLabel}</span>
             <span style="font-family:var(--mono);font-size:10px;font-weight:700;color:${biasColor};">${biasLabel}</span>
             ${adminMode ? `<button onclick="event.stopPropagation();deleteEWSignal('${idea.id}')" style="font-family:var(--mono);font-size:9px;letter-spacing:1px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:#ef4444;padding:3px 8px;cursor:pointer;">✕ DEL</button>` : ''}
           </div>
