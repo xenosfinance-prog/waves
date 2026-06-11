@@ -564,7 +564,26 @@ function buildCard(idea, idx){
     </div>
   </div>`;
 }
-function openModal(idea){
+// ── LibreTranslate helper (TI) ─────────────────────────────────────────────
+const _LT_BASE_TI = 'https://libretranslatelibretranslate-production-ecfe.up.railway.app';
+const _ltCTI = {};
+async function _ltTI(text, lang) {
+  if (!text || !lang || lang === 'en') return text;
+  const k = lang + '|' + text.slice(0, 40);
+  if (_ltCTI[k]) return _ltCTI[k];
+  try {
+    const r = await fetch(_LT_BASE_TI + '/translate', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({q: text, source: 'en', target: lang, format: 'text'})
+    });
+    if (!r.ok) return text;
+    const t = (await r.json()).translatedText || text;
+    _ltCTI[k] = t; return t;
+  } catch(e) { return text; }
+}
+function _langTI() { return localStorage.getItem('xf_lang') || 'en'; }
+
+async function openModal(idea){
   if(!idea) return;
   const bias=(idea.bias||'NEUTRAL').toUpperCase();
   const color=bias==='LONG'?'var(--green)':bias==='SHORT'?'var(--red)':'var(--gold)';
@@ -597,7 +616,9 @@ function openModal(idea){
       ? `<div style="margin-top:12px;"><div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--gold);margin-bottom:6px;">MARKET STATE</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 16px;font-size:11px;">${ms.trend?`<div><span style="color:var(--muted);font-family:var(--mono);font-size:9px;">Trend </span><span style="color:var(--ink)">${ms.trend}</span></div>`:''} ${ms.momentum?`<div><span style="color:var(--muted);font-family:var(--mono);font-size:9px;">Momentum </span><span style="color:var(--ink)">${ms.momentum}</span></div>`:''} ${ms.volatility?`<div><span style="color:var(--muted);font-family:var(--mono);font-size:9px;">Volatility </span><span style="color:var(--ink)">${ms.volatility}</span></div>`:''} ${ms.sentiment?`<div><span style="color:var(--muted);font-family:var(--mono);font-size:9px;">Sentiment </span><span style="color:var(--ink)">${ms.sentiment}</span></div>`:''}</div></div>`
       : '';
 
-    const rawNarrative = (idea.narrative || idea.analysis || '').replace(/\n{2,}/g,'\n').trim();
+    let rawNarrative = (idea.narrative || idea.analysis || '').replace(/\n{2,}/g,'\n').trim();
+    const _tiLang = _langTI();
+    if (_tiLang !== 'en' && rawNarrative) { rawNarrative = await _ltTI(rawNarrative, _tiLang); }
     const scenarioTitle = idea.scenario_title || '';
     const narrativeHtml = rawNarrative ? `<div style="font-size:12px;color:var(--ink2);line-height:1.7;margin-top:4px;">${rawNarrative.replace(/\n/g,'<br>')}</div>` : '';
     const scenarioHtml = (scenarioTitle||rawNarrative)
@@ -606,7 +627,8 @@ function openModal(idea){
 
     analysisEl.innerHTML = `<div style="font-family:var(--mono);font-size:10px;color:var(--ink2);margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border);">${signalLine}</div><div style="display:flex;align-items:center;gap:10px;margin-bottom:2px;"><span style="font-family:var(--mono);font-size:11px;color:var(--ink);">Score: ${score}/10</span><div style="flex:1;height:3px;background:var(--border2);border-radius:2px;overflow:hidden;"><div style="width:${scorePct}%;height:100%;background:${scoreColor};border-radius:2px;"></div></div></div><div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:${scoreColor};">${convictionLabel}</div>${msHtml}${scenarioHtml}`;
   } else {
-    const clean = (idea.analysis||'').replace(/\n{2,}/g,'\n').trim();
+    let clean = (idea.analysis||'').replace(/\n{2,}/g,'\n').trim();
+    if (_tiLang !== 'en' && clean) { clean = await _ltTI(clean, _tiLang); }
     analysisEl.innerHTML = clean ? clean.replace(/\n/g,'<br>') : 'Analysis not available.';
   }
 

@@ -686,7 +686,26 @@ function updateStats() {
 }
 
 // ── RENDER CFD ────────────────────────────────────────────────
-function renderCFD() {
+// ── LibreTranslate helper (TS) ─────────────────────────────────────────────
+const _LT_BASE_TS = 'https://libretranslatelibretranslate-production-ecfe.up.railway.app';
+const _ltCTS = {};
+async function _ltTS(text, lang) {
+  if (!text || !lang || lang === 'en') return text;
+  const k = lang + '|' + text.slice(0, 40);
+  if (_ltCTS[k]) return _ltCTS[k];
+  try {
+    const r = await fetch(_LT_BASE_TS + '/translate', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({q: text, source: 'en', target: lang, format: 'text'})
+    });
+    if (!r.ok) return text;
+    const t = (await r.json()).translatedText || text;
+    _ltCTS[k] = t; return t;
+  } catch(e) { return text; }
+}
+function _langTS() { return localStorage.getItem('xf_lang') || 'en'; }
+
+async function renderCFD() {
   const container = document.getElementById('cfd-list');
   if (!filtered.length) {
     container.innerHTML = '<div class="empty-msg"><span data-i18n="label_no_cfd_signals">No CFD signals available yet — check back soon</span></div>';
@@ -796,7 +815,9 @@ function renderOptions() {
     const openPx  = sig.entry != null ? fmtPrice(sig.entry, sig.pair) : '—';
     const closePx = sig.close_price != null ? fmtPrice(sig.close_price, sig.pair) : '—';
     const expiry  = sig.expiry || sig.timeframe || '—';
-    const analysis = sig.analysis || sig.pattern_desc || sig.ew_context || '';
+    const _tsLang = _langTS();
+    let analysis = sig.analysis || sig.pattern_desc || sig.ew_context || '';
+    if (_tsLang !== 'en' && analysis) { analysis = await _ltTS(analysis, _tsLang); }
     const outcome  = sig.outcome || 'open';
 
     return `
@@ -1461,7 +1482,7 @@ function overallSig(sigs) {
   return {l:'Neutral',c:'var(--muted)'};
 }
 
-function tsRender(tab, results) {
+async function tsRender(tab, results) {
   const tbody = document.getElementById('ts-body');
   if (!tbody) return;
   let buys=0,sells=0,neus=0;
@@ -1530,7 +1551,9 @@ async function sendToTelegram(event, i, type) {
       const entry   = sig.entry != null ? fmtPrice(sig.entry, sig.pair) : '—';
       const close   = sig.close_price != null ? fmtPrice(sig.close_price, sig.pair) : '—';
       const conf    = sig.confidence ? sig.confidence + '%' : '—';
-      const analysis = sig.analysis || sig.pattern_desc || sig.ew_context || '';
+      const _tsLangR = _langTS();
+      let analysis = sig.analysis || sig.pattern_desc || sig.ew_context || '';
+      if (_tsLangR !== 'en' && analysis) { analysis = await _ltTS(analysis, _tsLangR); }
 
       text = `📡 <b>XENOS OPTIONS SIGNAL</b>\n` +
         `━━━━━━━━━━━━━━━━━━\n` +
