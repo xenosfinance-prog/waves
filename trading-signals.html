@@ -1008,31 +1008,69 @@ async function deleteClosedSignal(event, idx) {
 // TradingView symbol map for mini charts
 // OANDA for FX, CAPITALCOM for commodities (NYMEX/ICE futures not available on free TV)
 const TV_SYM_MAP = {
+  // ── FX Majors ──────────────────────────────────────────────────────────────
   'EURUSD':'OANDA:EURUSD','GBPUSD':'OANDA:GBPUSD','USDJPY':'OANDA:USDJPY',
   'USDCHF':'OANDA:USDCHF','AUDUSD':'OANDA:AUDUSD','NZDUSD':'OANDA:NZDUSD',
-  'USDCAD':'OANDA:USDCAD','EURGBP':'OANDA:EURGBP','EURJPY':'OANDA:EURJPY',
+  'USDCAD':'OANDA:USDCAD',
+  // ── FX Crosses ─────────────────────────────────────────────────────────────
+  'EURGBP':'OANDA:EURGBP','EURJPY':'OANDA:EURJPY',
   'GBPJPY':'OANDA:GBPJPY','CADJPY':'OANDA:CADJPY','AUDNZD':'OANDA:AUDNZD',
   'EURCHF':'OANDA:EURCHF','GBPCHF':'OANDA:GBPCHF','AUDCAD':'OANDA:AUDCAD',
-  'XAUUSD':'CAPITALCOM:GOLD',    // Gold — works on free TV
-  'XAGUSD':'CAPITALCOM:SILVER',  // Silver
-  'USOIL':'CAPITALCOM:OIL_CRUDE',// WTI Crude
-  'UKOIL':'CAPITALCOM:OIL_BRENT', // Brent
-  'NGAS':'CAPITALCOM:NATURALGAS',// Natural Gas
+  'AUDJPY':'OANDA:AUDJPY','NZDJPY':'OANDA:NZDJPY','CHFJPY':'OANDA:CHFJPY',
+  'EURCAD':'OANDA:EURCAD','GBPCAD':'OANDA:GBPCAD','AUDCHF':'OANDA:AUDCHF',
+  'NZDCHF':'OANDA:NZDCHF','NZDCAD':'OANDA:NZDCAD','GBPAUD':'OANDA:GBPAUD',
+  'GBPNZD':'OANDA:GBPNZD','EURNZD':'OANDA:EURNZD','EURAUD':'OANDA:EURAUD',
+  'CADCHF':'OANDA:CADCHF','GBPSGD':'OANDA:GBPSGD','EURSGD':'OANDA:EURSGD',
+  'USDHKD':'OANDA:USDHKD','USDSGD':'OANDA:USDSGD','USDMXN':'OANDA:USDMXN',
+  'USDZAR':'OANDA:USDZAR','USDNOK':'OANDA:USDNOK','USDSEK':'OANDA:USDSEK',
+  // ── Commodities ────────────────────────────────────────────────────────────
+  'XAUUSD':'OANDA:XAUUSD',          // Gold — OANDA is better than CAPITALCOM
+  'XAGUSD':'OANDA:XAGUSD',          // Silver
+  'USOIL':'CAPITALCOM:OIL_CRUDE',   // WTI Crude
+  'UKOIL':'CAPITALCOM:OIL_BRENT',   // Brent
+  'WTIUSD':'CAPITALCOM:OIL_CRUDE',  // WTI alias
+  'BCOUSD':'CAPITALCOM:OIL_BRENT',  // Brent alias
+  'NGAS':'CAPITALCOM:NATURALGAS',   // Natural Gas
+  'NATGAS':'CAPITALCOM:NATURALGAS',
   'COPPER':'CAPITALCOM:COPPER',
+  'XPTUSD':'OANDA:XPTUSD',          // Platinum
+  'XPDUSD':'OANDA:XPDUSD',          // Palladium
+  // ── Indices ────────────────────────────────────────────────────────────────
   'US500':'CAPITALCOM:US500',
+  'SPX500':'CAPITALCOM:US500',
   'US30':'CAPITALCOM:DOW',
+  'DJ30':'CAPITALCOM:DOW',
   'NAS100':'CAPITALCOM:NDAQ',
+  'NASDAQ':'CAPITALCOM:NDAQ',
   'UK100':'CAPITALCOM:UK100',
+  'FTSE100':'CAPITALCOM:UK100',
   'GER40':'CAPITALCOM:DE40',
-  'BTCUSD':'BINANCE:BTCUSDT','ETHUSD':'BINANCE:ETHUSDT',
+  'DAX40':'CAPITALCOM:DE40',
+  'FRA40':'CAPITALCOM:FR40',
+  'ESP35':'CAPITALCOM:ES35',
+  'JPN225':'CAPITALCOM:JP225',
+  'AUS200':'CAPITALCOM:AU200',
+  // ── Crypto ─────────────────────────────────────────────────────────────────
+  'BTCUSD':'BINANCE:BTCUSDT','BTCUSDT':'BINANCE:BTCUSDT',
+  'ETHUSD':'BINANCE:ETHUSDT','ETHUSDT':'BINANCE:ETHUSDT',
   'SOLUSD':'BINANCE:SOLUSDT','XRPUSD':'BINANCE:XRPUSDT',
   'DOGEUSD':'BINANCE:DOGEUSDT','AVAXUSD':'BINANCE:AVAXUSDT',
+  'BNBUSD':'BINANCE:BNBUSDT','ADAUSD':'BINANCE:ADAUSDT',
+  'LINKUSD':'BINANCE:LINKUSDT','DOTUSD':'BINANCE:DOTUSDT',
+  // ── Stocks ─────────────────────────────────────────────────────────────────
   'SPY':'AMEX:SPY','AAPL':'NASDAQ:AAPL','TSLA':'NASDAQ:TSLA',
   'NVDA':'NASDAQ:NVDA','MSFT':'NASDAQ:MSFT','AMZN':'NASDAQ:AMZN',
+  'META':'NASDAQ:META','GOOGL':'NASDAQ:GOOGL','AMD':'NASDAQ:AMD',
 };
 
+// Normalize a pair string from the bot (e.g. "AUD/JPY", "xauusd", "BTC/USD") → map key
+function normalizePair(raw) {
+  return (raw || '').toUpperCase().replace(/[\s\/\-_]/g, '');
+}
+
 function injectTVChart(containerId, pair, tf) {
-  const sym = TV_SYM_MAP[pair] || pair;
+  const key = normalizePair(pair);
+  const sym = TV_SYM_MAP[key] || ('OANDA:' + key);  // fallback to OANDA instead of raw symbol
   const interval = {'M1':'M','W1':'W','D1':'D','H4':'240','H1':'60','M30':'30','M15':'15','M5':'5'}[tf] || 'D';
   const el = document.getElementById(containerId);
   if (!el) return;
@@ -1219,7 +1257,8 @@ async function deleteSignal(event, i, type) {
   event.stopPropagation();
   if (!isAdmin) return;
   const sig = filtered[i];
-  if (!sig) return;
+  if (!sig) { showToast('❌ Signal not found'); return; }
+  if (!sig._filename) { showToast('❌ Cannot delete: missing filename'); return; }
   if (!confirm('Delete signal ' + (sig.pair||'') + ' ' + (sig.direction||sig.action||'') + '?')) return;
   const folder = type === 'options' ? 'signals_options' : 'signals_cfd';
   const btn = event.currentTarget;
