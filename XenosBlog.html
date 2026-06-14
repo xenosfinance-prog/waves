@@ -445,26 +445,25 @@ async function loadGrid() {
       return;
     }
     grid.innerHTML = '';
-    articles.forEach(function(a, i) {
+    window._blogArticlesRaw = articles; // cache for lang-switch reload
+    var lang = getCurrentLang();
+    for (var _ai = 0; _ai < articles.length; _ai++) {
+      var a = articles[_ai];
       var card = document.createElement('div');
       card.className = 'blog-card';
-      var dateStr = '';
-      if (a.publishedAt) {
-        var d = new Date(a.publishedAt);
-        dateStr = monthsEN[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear();
-      }
-      // Generate image via Canvas if no imageUrl
+      // Translate title + excerpt via LibreTranslate if not English
+      var cardTitle   = lang !== 'en' ? await ltTranslate(a.title || '', lang) : (a.title || '');
+      var cardExcerpt = lang !== 'en' ? await ltTranslate((a.excerpt || '').substring(0, 120), lang) : (a.excerpt || '').substring(0, 120);
+      // Image thumb
       var thumbHtml;
-      // Use Gemini category images for bot-generated articles (raw.githubusercontent canvas images)
-      // and for articles with no imageUrl
       var useGemini = !a.imageUrl || (a.imageUrl && a.imageUrl.indexOf('brief-') > -1) || (a.imageUrl && a.imageUrl.indexOf('-img.jpg') > -1 && a.imageUrl.indexOf('article-') === -1);
       if (a.imageUrl && !useGemini) {
         thumbHtml = '<div class="card-thumb"><img src="' + a.imageUrl + '" alt="" loading="lazy"></div>';
       } else {
-        var title2  = (a.title || '').toLowerCase();
-        var cat2    = (a.category || '').toLowerCase();
-        var BASE    = 'https://xenosfinance.com/assets/blog/';
-        var sImg    = BASE + 'macro.png';
+        var title2 = (a.title || '').toLowerCase();
+        var cat2   = (a.category || '').toLowerCase();
+        var BASE   = 'https://xenosfinance.com/assets/blog/';
+        var sImg   = BASE + 'macro.png';
         if      (cat2.indexOf('forex') > -1 || cat2.indexOf('fx market') > -1 || title2.indexOf('fx brief') > -1) sImg = BASE + 'forex.png';
         else if (cat2.indexOf('crypto') > -1 || title2.indexOf('crypto') > -1) sImg = BASE + 'crypto.png';
         else if (cat2.indexOf('commodit') > -1 || title2.indexOf('commodit') > -1) sImg = BASE + 'commodities.png';
@@ -476,17 +475,19 @@ async function loadGrid() {
         else if (cat2.indexOf('geopolit') > -1 || title2.indexOf('geopolit') > -1) sImg = BASE + 'geopolitics.png';
         thumbHtml = '<div class="card-thumb"><img src="' + sImg + '" alt="" loading="lazy"></div>';
       }
-      card.innerHTML =
-        thumbHtml +
-        '<div class="card-body">' +
-        '<div class="card-cat">' + (a.category||'') + '</div>' +
-        '<div class="card-title">' + a.title + '</div>' +
-        '<div class="card-excerpt">' + (a.excerpt||'').substring(0,105) + '...</div>' +
-        '<div class="card-footer"><span>' + (a.readTime||'') + '</span><span class="card-read"><span data-i18n="label_blog_read">Read →</span></span></div>' +
-        '</div>';
-      card.onclick = function(){ loadArticle(a.slug); };
+      (function(slug, tTitle, tExcerpt, tThumb, tReadTime, tCat) {
+        card.innerHTML =
+          tThumb +
+          '<div class="card-body">' +
+          '<div class="card-cat">' + tCat + '</div>' +
+          '<div class="card-title">' + tTitle + '</div>' +
+          '<div class="card-excerpt">' + tExcerpt + '...</div>' +
+          '<div class="card-footer"><span>' + tReadTime + '</span><span class="card-read"><span data-i18n="label_blog_read">Read →</span></span></div>' +
+          '</div>';
+        card.onclick = function() { loadArticle(slug); };
+      })(a.slug, cardTitle, cardExcerpt, thumbHtml, a.readTime || '', a.category || '');
       grid.appendChild(card);
-    });
+    }
   } catch(err) {
     document.getElementById('blogGrid').innerHTML = '<div class="empty-state"><span data-i18n="label_blog_error">Error loading articles.</span><br>' + err.message + '</div>';
   }
@@ -515,7 +516,7 @@ async function ltTranslate(text, target) {
 }
 
 function getCurrentLang() {
-  return localStorage.getItem('xf_lang') || 'en';
+  return localStorage.getItem('xenos_lang') || 'en';
 }
 
 async function translateArticleFields(a) {
@@ -611,6 +612,15 @@ if (urlSlug) {
 } else {
   loadGrid();
 }
+
+// Hook lang switcher: reload grid cards in new language when user switches
+var _xenosSetLangOrig = window.xenosSetLang;
+window.xenosSetLang = function(lang) {
+  if (_xenosSetLangOrig) _xenosSetLangOrig(lang);
+  // If grid is visible reload it so cards get re-translated
+  var gv = document.getElementById('gridView');
+  if (gv && gv.style.display !== 'none') loadGrid();
+};
 
 var isAdmin = false;
 
