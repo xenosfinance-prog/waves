@@ -2331,7 +2331,22 @@ async function _ltEW(text, lang) {
     _ltCEW[k] = t; return t;
   } catch(e) { return text; }
 }
-function _langEW() { return localStorage.getItem('xf_lang') || 'en'; }
+function _langEW() { return localStorage.getItem('xenos_lang') || 'en'; }
+const _ltCacheEW = {};
+async function _ltEW(text, lang) {
+  if (!text || lang === 'en') return text;
+  const k = lang + '|' + text.slice(0,60);
+  if (_ltCacheEW[k]) return _ltCacheEW[k];
+  try {
+    const r = await fetch('https://libretranslatelibretranslate-production-ecfe.up.railway.app/translate', {method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({q:text,source:'en',target:lang,format:'text'})});
+    if (!r.ok) return text;
+    const d = await r.json();
+    _ltCacheEW[k] = d.translatedText || text;
+    return _ltCacheEW[k];
+  } catch(e) { return text; }
+}
+
 
 async function runAIAnalysis(){
   // Premium gate
@@ -3512,7 +3527,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-function openEWSignalModal(id) {
+async function openEWSignalModal(id) {
   const idea = _ewSignalStore.find(i => i.id === id);
   if (!idea) return;
   const bias = (idea.bias || 'NEUTRAL').toUpperCase();
@@ -3525,7 +3540,10 @@ function openEWSignalModal(id) {
   const dec = idea.ticker && idea.ticker.includes('USD') ? 4 : 2;
   const fmt = v => v ? Number(v).toLocaleString('en-US',{minimumFractionDigits:dec,maximumFractionDigits:dec}) : '—';
   const adminMode = isAdmin();
-  const analysis = (idea.analysis||'').replace(/\n{2,}/g,'\n').trim().replace(/\n/g,'<br>');
+  let _rawAnalysis = (idea.analysis||'').replace(/\n{2,}/g,'\n').trim();
+  const _ewLangM = _langEW();
+  if (_ewLangM !== 'en' && _rawAnalysis) _rawAnalysis = await _ltEW(_rawAnalysis, _ewLangM);
+  const analysis = _rawAnalysis.replace(/\n/g,'<br>');
 
   document.getElementById('ew-modal-body').innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;">

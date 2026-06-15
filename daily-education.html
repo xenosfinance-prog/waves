@@ -676,7 +676,7 @@ async function ltTranslateEdu(text, target) {
 }
 
 function getCurrentLangEdu() {
-  return localStorage.getItem('xf_lang') || 'en';
+  return localStorage.getItem('xenos_lang') || 'en';
 }
 
 // ─────────────────────────────────────────────
@@ -798,13 +798,14 @@ async function loadPreview(post) {
     const data = await res.json();
     const el = document.getElementById(`preview-${post.date}`);
     if (el) {
-      // Take first 200 chars of meaningful content
-      const text = data.content
+      let text = data.content
         .replace(/━+/g, '')
         .replace(/\n{3,}/g, '\n')
         .trim()
-        .substring(0, 180) + '...';
-      el.textContent = text;
+        .substring(0, 180);
+      const lang = getCurrentLangEdu();
+      if (lang !== 'en') text = await ltTranslateEdu(text, lang);
+      el.textContent = text + '...';
     }
   } catch(e) {
     const el = document.getElementById(`preview-${post.date}`);
