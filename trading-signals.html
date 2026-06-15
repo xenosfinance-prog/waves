@@ -665,6 +665,7 @@ function applyFilters() {
 
   updateStats();
   currentTab === 'cfd' ? renderCFD() : renderOptions();
+  setTimeout(translateSignalCards, 300);
 }
 
 // ── STATS ─────────────────────────────────────────────────────
@@ -703,7 +704,33 @@ async function _ltTS(text, lang) {
     _ltCTS[k] = t; return t;
   } catch(e) { return text; }
 }
-function _langTS() { return localStorage.getItem('xf_lang') || 'en'; }
+function _langTS() { return localStorage.getItem('xenos_lang') || 'en'; }
+const _ltCacheTS = {};
+async function _ltTS(text, lang) {
+  if (!text || text === '—' || lang === 'en') return text;
+  const k = lang + '|' + text.slice(0,60);
+  if (_ltCacheTS[k]) return _ltCacheTS[k];
+  try {
+    const r = await fetch('https://libretranslatelibretranslate-production-ecfe.up.railway.app/translate', {method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({q:text,source:'en',target:lang,format:'text'})});
+    if (!r.ok) return text;
+    const d = await r.json();
+    _ltCacheTS[k] = d.translatedText || text;
+    return _ltCacheTS[k];
+  } catch(e) { return text; }
+}
+async function translateSignalCards() {
+  const lang = _langTS();
+  if (lang === 'en') return;
+  const els = document.querySelectorAll('[data-lt-field]');
+  for (const el of els) {
+    const orig = el.dataset.ltOrig || el.textContent.trim();
+    if (!orig || orig === '—') continue;
+    if (!el.dataset.ltOrig) el.dataset.ltOrig = orig;
+    el.textContent = await _ltTS(orig, lang);
+  }
+}
+
 
 function renderCFD() {
   const container = document.getElementById('cfd-list');
@@ -744,23 +771,23 @@ function renderCFD() {
         <div class="detail-grid">
           <div class="detail-block">
             <div class="detail-block-label"><span data-i18n="th_ew_context">Elliott Wave Context</span></div>
-            <div class="detail-block-text">${sig.ew_context||'—'}</div>
+            <div class="detail-block-text" data-lt-field="ew_context">${sig.ew_context||'—'}</div>
           </div>
           <div class="detail-block">
             <div class="detail-block-label"><span data-i18n="th_pattern_analysis">Pattern Analysis</span></div>
-            <div class="detail-block-text">${sig.pattern_desc||'—'}</div>
+            <div class="detail-block-text" data-lt-field="pattern_desc">${sig.pattern_desc||'—'}</div>
           </div>
           <div class="detail-block">
             <div class="detail-block-label"><span data-i18n="th_market_context">Market Context</span></div>
-            <div class="detail-block-text">${sig.market_context||'—'}</div>
+            <div class="detail-block-text" data-lt-field="market_context">${sig.market_context||'—'}</div>
           </div>
           <div class="detail-block">
             <div class="detail-block-label"><span data-i18n="th_key_levels">Key Levels</span></div>
-            <div class="detail-block-text">${sig.key_levels||'—'}</div>
+            <div class="detail-block-text" data-lt-field="key_levels">${sig.key_levels||'—'}</div>
           </div>
           <div class="detail-block" style="grid-column:span 2;">
             <div class="detail-block-label"><span data-i18n="th_invalidation">Invalidation</span></div>
-            <div class="detail-block-text" style="color:var(--red2)">${sig.invalidation||'—'}</div>
+            <div class="detail-block-text" style="color:var(--red2)" data-lt-field="invalidation">${sig.invalidation||'—'}</div>
           </div>
         </div>
         <div id="tv-cfd-${i}" style="margin:12px 0;background:var(--bg2);border:1px solid var(--border);"></div>
@@ -1881,6 +1908,18 @@ function xfUpdateLogoutBtn() {
 }
 document.addEventListener('DOMContentLoaded', xfUpdateLogoutBtn);
 
+
+// Reload content when user switches language
+(function() {
+  var _origSetLang = window.xenosSetLang;
+  window.xenosSetLang = function(lang) {
+    if (_origSetLang) _origSetLang(lang);
+    // Re-translate visible content
+    setTimeout(function() {
+      if (typeof translateSignalCards === 'function') translateSignalCards();
+    }, 200);
+  };
+})();
 </script>
 <!-- ADMIN LOGIN POPUP -->
 <div id="admin-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9000;" onclick="closeAdminLogin()"></div>
