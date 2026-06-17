@@ -382,7 +382,15 @@ const CAT_MAP = {
                 'GS','BAC','WFC','MS','C','BLK','KO','WMT','JNJ','PG','MMM'],
 };
 
-function getCategory(ticker) {
+function getCategory(ticker, idea) {
+  // MKO and other sources save category directly — use it if available
+  if (idea && idea.category) {
+    const cat = idea.category.toLowerCase();
+    if (['forex','crypto','commodities','indices','equities','other'].includes(cat)) return cat;
+    if (cat === 'fx' || cat === 'currency') return 'forex';
+    if (cat === 'commodity') return 'commodities';
+    if (cat === 'index' || cat === 'indice') return 'indices';
+  }
   if (!ticker) return 'other';
   const t = ticker.toUpperCase().replace('/','').replace('-','').trim();
   for (const [cat, tickers] of Object.entries(CAT_MAP)) {
@@ -492,7 +500,7 @@ function renderGrid(){
   const grid=document.getElementById('ideas-grid');
   const ideas=activeFilter==='all'
     ? allIdeas
-    : allIdeas.filter(i=>getCategory(i.ticker)===activeFilter);
+    : allIdeas.filter(i=>getCategory(i.ticker, i)===activeFilter);
   document.getElementById('ideas-count').textContent=
     ideas.length+' idea'+(ideas.length!==1?'s':'');
   if(!ideas.length){
@@ -581,22 +589,7 @@ async function _ltTI(text, lang) {
     _ltCTI[k] = t; return t;
   } catch(e) { return text; }
 }
-function _langTI() { return localStorage.getItem('xenos_lang') || 'en'; }
-const _ltCacheTI = {};
-async function _ltTI(text, lang) {
-  if (!text || lang === 'en') return text;
-  const k = lang + '|' + text.slice(0,60);
-  if (_ltCacheTI[k]) return _ltCacheTI[k];
-  try {
-    const r = await fetch('https://libretranslatelibretranslate-production-ecfe.up.railway.app/translate', {method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({q:text,source:'en',target:lang,format:'text'})});
-    if (!r.ok) return text;
-    const d = await r.json();
-    _ltCacheTI[k] = d.translatedText || text;
-    return _ltCacheTI[k];
-  } catch(e) { return text; }
-}
-
+function _langTI() { return localStorage.getItem('xf_lang') || 'en'; }
 
 async function openModal(idea){
   if(!idea) return;
@@ -714,18 +707,6 @@ async function deleteIdea(ideaId,e){
 }
 
 loadIdeas();
-
-// Reload content when user switches language
-(function() {
-  var _origSetLang = window.xenosSetLang;
-  window.xenosSetLang = function(lang) {
-    if (_origSetLang) _origSetLang(lang);
-    // Re-translate visible content
-    setTimeout(function() {
-      if (typeof translateSignalCards === 'function') translateSignalCards();
-    }, 200);
-  };
-})();
 </script>
 </body>
 </html>
