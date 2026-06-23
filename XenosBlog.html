@@ -494,27 +494,32 @@ async function loadGrid() {
 }
 
 // ── LibreTranslate integration ────────────────────────────────────────────
-const LT_URL = 'https://libretranslatelibretranslate-production-ecfe.up.railway.app';
+const LT_URL = 'https://libretranslate-production-ecfe.up.railway.app';
 const WORKER_URL = 'https://xenos-ai-proxy.xenosfinance.workers.dev';
 const _ltCache = {};
 
 async function ltTranslate(text, target) {
   if (!text || !target || target === 'en') return text;
-  const key = target + '|' + text.slice(0, 40);
+  const key = target + '|' + text.slice(0, 60);
   if (_ltCache[key]) return _ltCache[key];
   try {
     // Route through Cloudflare Worker to avoid CORS issues with Railway
+    // Timeout after 8 seconds to avoid blocking article render
+    const controller = new AbortController();
+    const tid = setTimeout(() => controller.abort(), 8000);
     const r = await fetch(WORKER_URL, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({type: 'translate', q: text, source: 'en', target: target, format: 'text'})
+      body: JSON.stringify({type: 'translate', q: text, source: 'en', target: target, format: 'text'}),
+      signal: controller.signal
     });
+    clearTimeout(tid);
     if (!r.ok) return text;
     const d = await r.json();
     const t = d.translatedText || text;
     _ltCache[key] = t;
     return t;
-  } catch(e) { return text; }
+  } catch(e) { return text; } // graceful fallback: return original on error or timeout
 }
 
 function getCurrentLang() {
@@ -524,19 +529,35 @@ function getCurrentLang() {
 async function translateArticleFields(a) {
   const lang = getCurrentLang();
   if (lang === 'en') return a;
-  const [title, intro, conclusion, quote] = await Promise.all([
+  // Translate all top-level text fields in parallel
+  const [title, intro, conclusion, quote, categoryLabel] = await Promise.all([
     ltTranslate(a.title || '', lang),
     ltTranslate(a.intro || '', lang),
     ltTranslate(a.conclusion || '', lang),
     ltTranslate(a.quote || '', lang),
+    ltTranslate(a.categoryLabel || a.category || '', lang),
   ]);
-  const sections = a.sections ? await Promise.all(
-    a.sections.map(async s => ({
-      heading: await ltTranslate(s.heading || '', lang),
-      content: await ltTranslate(s.content || '', lang),
-    }))
-  ) : [];
-  return {...a, title, intro, conclusion, quote, sections};
+  // Translate sections: batch headings and contents separately
+  let sections = a.sections || [];
+  if (sections.length > 0) {
+    const sHeadings = await Promise.all(sections.map(s => ltTranslate(s.heading || '', lang)));
+    const sContents = await Promise.all(sections.map(s => ltTranslate(s.content || '', lang)));
+    sections = sections.map((s, i) => ({...s, heading: sHeadings[i], content: sContents[i]}));
+  }
+  // Translate bullets array if present
+  let bullets = a.bullets || [];
+  if (bullets.length > 0) {
+    bullets = await Promise.all(bullets.map(b => ltTranslate(b || '', lang)));
+  }
+  // Translate keyLevels labels if present
+  let keyLevels = a.keyLevels || [];
+  if (keyLevels.length > 0) {
+    keyLevels = await Promise.all(keyLevels.map(async kl => ({
+      ...kl,
+      label: await ltTranslate(kl.label || '', lang)
+    })));
+  }
+  return {...a, title, intro, conclusion, quote, categoryLabel, sections, bullets, keyLevels};
 }
 
 async function loadArticle(slug) {
