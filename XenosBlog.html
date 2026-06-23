@@ -495,6 +495,7 @@ async function loadGrid() {
 
 // ── LibreTranslate integration ────────────────────────────────────────────
 const LT_URL = 'https://libretranslatelibretranslate-production-ecfe.up.railway.app';
+const WORKER_URL = 'https://xenos-ai-proxy.xenosfinance.workers.dev';
 const _ltCache = {};
 
 async function ltTranslate(text, target) {
@@ -502,10 +503,11 @@ async function ltTranslate(text, target) {
   const key = target + '|' + text.slice(0, 40);
   if (_ltCache[key]) return _ltCache[key];
   try {
-    const r = await fetch(LT_URL + '/translate', {
+    // Route through Cloudflare Worker to avoid CORS issues with Railway
+    const r = await fetch(WORKER_URL, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({q: text, source: 'en', target: target, format: 'text'})
+      body: JSON.stringify({type: 'translate', q: text, source: 'en', target: target, format: 'text'})
     });
     if (!r.ok) return text;
     const d = await r.json();
