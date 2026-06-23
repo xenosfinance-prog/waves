@@ -1126,26 +1126,32 @@ function showETFInfo(ticker, switchToSearch) {
   const e = ETF_DB.find(x => x.ticker === ticker);
   if (!e) return;
 
-  // Switch to Search & Info tab if requested or if not already active
-  const searchSection = document.getElementById('etf-search');
-  if (switchToSearch || !searchSection?.classList.contains('active')) {
-    const searchBtn = document.querySelectorAll('.etf-tab')[1];
-    etfTab('search', searchBtn);
-  }
-
-  // Highlight selected row
-  document.querySelectorAll('#etf-table-body tr').forEach(r => r.classList.remove('selected'));
-  const rows = document.querySelectorAll('#etf-table-body tr');
-  rows.forEach(r => { if (r.querySelector('.etf-ticker-cell')?.textContent === ticker) r.classList.add('selected'); });
-
   const p = etfPrices[e.wsym];
   const price = p?.price;
   const chg = p?.change_pct;
   const priceStr = price ? (e.tags.includes('EUR') ? '€' : '$') + price.toFixed(2) : '—';
   const chgStr = chg != null ? (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%' : '—';
   const chgColor = chg == null ? '' : chg >= 0 ? 'color:var(--green2)' : 'color:var(--red2)';
-  document.getElementById('etf-info-title').textContent = ticker + ' — ' + e.type;
-  document.getElementById('etf-info-body').innerHTML = `
+
+  // Open modal
+  let modal = document.getElementById('etf-detail-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'etf-detail-modal';
+    modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.75);z-index:9999;display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;box-sizing:border-box;overflow-y:auto;';
+    modal.onclick = function(ev) { if(ev.target===modal) closeETFModal(); };
+    document.body.appendChild(modal);
+  }
+  document.getElementById('etf-info-title-modal') && (document.getElementById('etf-info-title-modal').textContent = ticker + ' — ' + e.type);
+  modal.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+
+  modal.innerHTML = `<div style="background:var(--bg);border:1px solid var(--border);width:100%;max-width:640px;max-height:90vh;overflow-y:auto;position:relative;">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 18px;background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:1;">
+      <div style="font-family:var(--mono);font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--gold2);">${ticker} — ${e.type}</div>
+      <button onclick="closeETFModal()" style="background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:0 4px;line-height:1;">×</button>
+    </div>
+    <div style="padding:18px;" id="etf-info-body">
     <div class="info-card">
       <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">
         <div class="info-title">${e.ticker}</div>
@@ -1174,8 +1180,20 @@ function showETFInfo(ticker, switchToSearch) {
       <button class="xfr-generate-btn" onclick="generateXFResearch('${e.ticker}','${e.name}','${e.type}','${e.aum}','${e.ter}','${e.bench}','${e.tags.join(',')}')">
         ◈ Generate XenosFinance Analysis
       </button>
-    </div>`;
+    </div>
+    </div></div>`;
 }
+
+function closeETFModal() {
+  const modal = document.getElementById('etf-detail-modal');
+  if (modal) modal.style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+// ESC key closes modal
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') closeETFModal();
+});
 
 // ── XenosFinance Research™ AI Engine ─────────────────────────────
 async function generateXFResearch(ticker, name, type, aum, ter, bench, tagsStr) {
