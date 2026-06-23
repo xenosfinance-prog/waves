@@ -1154,7 +1154,7 @@ function showETFInfo(ticker, switchToSearch) {
       <div class="info-sub">${e.name}</div>
       <div class="info-tags">${e.tags.map(t => `<span class="info-tag">${t}</span>`).join('')}</div>
     </div>
-    <div class="info-grid">
+    <div class="info-grid" style="margin-bottom:20px;">
       <div class="info-item"><div class="info-item-label">ISIN</div><div class="info-item-val" style="font-size:9px;letter-spacing:1px;">${e.isin}</div></div>
       <div class="info-item"><div class="info-item-label">AUM</div><div class="info-item-val">${e.aum}</div></div>
       <div class="info-item"><div class="info-item-label">Expense Ratio</div><div class="info-item-val" style="color:var(--green2)">${e.ter}</div></div>
@@ -1163,6 +1163,164 @@ function showETFInfo(ticker, switchToSearch) {
       <div class="info-item"><div class="info-item-label">Inception</div><div class="info-item-val" style="font-size:10px;">${e.incep}</div></div>
       <div class="info-item"><div class="info-item-label">Live Price</div><div class="info-item-val">${priceStr}</div></div>
       <div class="info-item"><div class="info-item-label">Today</div><div class="info-item-val" style="${chgColor}">${chgStr}</div></div>
+    </div>
+
+    <!-- XenosFinance Research™ Block -->
+    <div class="xfr-header">
+      <span class="xfr-brand">XenosFinance Research™</span>
+      <span class="xfr-badge">PROPRIETARY ANALYSIS</span>
+    </div>
+    <div id="xfr-content-${e.ticker}" class="xfr-body">
+      <button class="xfr-generate-btn" onclick="generateXFResearch('${e.ticker}','${e.name}','${e.type}','${e.aum}','${e.ter}','${e.bench}','${e.tags.join(',')}')">
+        ◈ Generate XenosFinance Analysis
+      </button>
+    </div>`;
+}
+
+// ── XenosFinance Research™ AI Engine ─────────────────────────────
+async function generateXFResearch(ticker, name, type, aum, ter, bench, tagsStr) {
+  const container = document.getElementById('xfr-content-' + ticker);
+  if (!container) return;
+
+  // Loading state
+  container.innerHTML = `
+    <div class="xfr-loading">
+      <div class="xfr-spinner"></div>
+      <span style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--muted);">GENERATING XF RESEARCH™ · AI ANALYSIS IN PROGRESS</span>
+    </div>`;
+
+  const priceData = etfPrices[ticker] || {};
+  const priceStr = priceData.price ? '$' + priceData.price.toFixed(2) : 'N/A';
+  const chgStr = priceData.change_pct != null ? (priceData.change_pct >= 0 ? '+' : '') + priceData.change_pct.toFixed(2) + '%' : 'N/A';
+
+  const prompt = `You are XenosFinance Research™, a professional financial intelligence engine for traders and investors. Analyze this ETF and return ONLY a JSON object (no markdown, no backticks, no extra text).
+
+ETF: ${ticker} — ${name}
+Type: ${type} | AUM: ${aum} | TER: ${ter} | Benchmark: ${bench}
+Tags: ${tagsStr}
+Current Price: ${priceStr} | 1D Change: ${chgStr}
+
+Return this exact JSON structure:
+{
+  "overall_score": <number 1-10, one decimal>,
+  "recommendation": <"STRONG BUY"|"BUY"|"NEUTRAL"|"SELL"|"STRONG SELL">,
+  "rating": {
+    "trend": <1-10>,
+    "momentum": <1-10>,
+    "valuation": <1-10>,
+    "quality": <1-10>,
+    "liquidity": <1-10>,
+    "risk": <1-10>
+  },
+  "outlook": {
+    "1m": <"Bullish"|"Neutral"|"Bearish">,
+    "3m": <"Bullish"|"Neutral"|"Bearish">,
+    "6m": <"Bullish"|"Neutral"|"Bearish">,
+    "12m": <"Bullish"|"Neutral"|"Bearish">
+  },
+  "ai_opinion": <2-3 sentences of professional analysis, branded as XenosFinance Research>,
+  "bull_case": [<3 short bullet strings>],
+  "bear_case": [<3 short bullet strings>]
+}`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const data = await res.json();
+    const raw = data.content?.map(b => b.text || '').join('').trim();
+    const clean = raw.replace(/```json|```/g, '').trim();
+    const d = JSON.parse(clean);
+    renderXFResearch(container, d, ticker);
+  } catch(err) {
+    container.innerHTML = `<div style="font-family:var(--mono);font-size:9px;color:var(--red2);padding:20px;text-align:center;letter-spacing:1px;">⚠ Research generation failed. Try again.</div>
+    <button class="xfr-generate-btn" onclick="generateXFResearch('${ticker}','${name}','${type}','${aum}','${ter}','${bench}','${tagsStr}')">↻ Retry</button>`;
+  }
+}
+
+function renderXFResearch(container, d, ticker) {
+  const recColor = {
+    'STRONG BUY':'var(--green2)','BUY':'var(--green)',
+    'NEUTRAL':'var(--yellow)','SELL':'var(--red2)','STRONG SELL':'var(--red)'
+  }[d.recommendation] || 'var(--muted)';
+
+  const stars = (val) => {
+    const full = Math.round(val / 2);
+    return '★'.repeat(full) + '☆'.repeat(5 - full);
+  };
+
+  const outlookIcon = (v) => v === 'Bullish' ? '🟢' : v === 'Bearish' ? '🔴' : '🟡';
+
+  const ratingRows = [
+    ['Trend',      d.rating.trend],
+    ['Momentum',   d.rating.momentum],
+    ['Valuation',  d.rating.valuation],
+    ['Quality',    d.rating.quality],
+    ['Liquidity',  d.rating.liquidity],
+    ['Risk',       d.rating.risk],
+  ];
+
+  container.innerHTML = `
+    <!-- Score + Recommendation -->
+    <div class="xfr-score-row">
+      <div class="xfr-score-block">
+        <div class="xfr-score-label">OVERALL SCORE</div>
+        <div class="xfr-score-val">${d.overall_score}<span style="font-size:14px;color:var(--muted)">/10</span></div>
+        <div style="color:var(--yellow);font-size:18px;letter-spacing:2px;">${stars(d.overall_score)}</div>
+      </div>
+      <div class="xfr-rec-block" style="border-color:${recColor};">
+        <div class="xfr-rec-label">RECOMMENDATION</div>
+        <div class="xfr-rec-val" style="color:${recColor};">${d.recommendation}</div>
+      </div>
+    </div>
+
+    <!-- Rating Table -->
+    <div class="xfr-section-title">XenosFinance Rating™</div>
+    <div class="xfr-rating-grid">
+      ${ratingRows.map(([label, val]) => {
+        const barW = Math.round(val * 10);
+        const barColor = val >= 8 ? 'var(--green2)' : val >= 6 ? 'var(--yellow)' : 'var(--red2)';
+        return `<div class="xfr-rating-row">
+          <span class="xfr-rating-label">${label}</span>
+          <div class="xfr-rating-bar-wrap"><div class="xfr-rating-bar" style="width:${barW}%;background:${barColor};"></div></div>
+          <span class="xfr-rating-num" style="color:${barColor};">${val}</span>
+        </div>`;
+      }).join('')}
+    </div>
+
+    <!-- Outlook -->
+    <div class="xfr-section-title">XenosFinance Outlook™</div>
+    <div class="xfr-outlook-grid">
+      <div class="xfr-outlook-item"><span class="xfr-outlook-period">1 Month</span><span>${outlookIcon(d.outlook['1m'])} ${d.outlook['1m']}</span></div>
+      <div class="xfr-outlook-item"><span class="xfr-outlook-period">3 Months</span><span>${outlookIcon(d.outlook['3m'])} ${d.outlook['3m']}</span></div>
+      <div class="xfr-outlook-item"><span class="xfr-outlook-period">6 Months</span><span>${outlookIcon(d.outlook['6m'])} ${d.outlook['6m']}</span></div>
+      <div class="xfr-outlook-item"><span class="xfr-outlook-period">12 Months</span><span>${outlookIcon(d.outlook['12m'])} ${d.outlook['12m']}</span></div>
+    </div>
+
+    <!-- AI Opinion -->
+    <div class="xfr-section-title">XenosFinance AI Opinion™</div>
+    <div class="xfr-opinion">${d.ai_opinion}</div>
+
+    <!-- Bull / Bear -->
+    <div class="xfr-two-col">
+      <div class="xfr-case xfr-bull">
+        <div class="xfr-case-title">🟢 Bull Case</div>
+        ${d.bull_case.map(b => `<div class="xfr-case-item">✅ ${b}</div>`).join('')}
+      </div>
+      <div class="xfr-case xfr-bear">
+        <div class="xfr-case-title">🔴 Bear Case</div>
+        ${d.bear_case.map(b => `<div class="xfr-case-item">⚠ ${b}</div>`).join('')}
+      </div>
+    </div>
+
+    <div style="font-family:var(--mono);font-size:7px;color:var(--muted);letter-spacing:1px;text-align:right;margin-top:12px;padding-top:8px;border-top:1px solid var(--border);">
+      XenosFinance Research™ · AI-Generated · Not Financial Advice · ${new Date().toLocaleDateString('en-GB')}
     </div>`;
 }
 
@@ -1306,6 +1464,41 @@ async function loadThemesPrices() {
   .info-item-val{font-family:var(--mono);font-size:12px;color:var(--ink);font-weight:700;}
   .info-empty{font-family:var(--mono);font-size:10px;color:var(--muted);text-align:center;padding:40px 20px;letter-spacing:2px;}
   @media(max-width:900px){.hm-grid{grid-template-columns:repeat(3,1fr);}.etf-two-col{grid-template-columns:1fr;}}
+
+  /* ── XenosFinance Research™ ─────────────────────────── */
+  .xfr-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:linear-gradient(90deg,rgba(230,190,80,0.08),rgba(230,190,80,0.02));border:1px solid rgba(230,190,80,0.3);border-left:3px solid var(--gold);margin-bottom:0;}
+  .xfr-brand{font-family:var(--mono);font-size:10px;font-weight:700;color:var(--gold);letter-spacing:2px;text-transform:uppercase;}
+  .xfr-badge{font-family:var(--mono);font-size:7px;letter-spacing:2px;color:var(--muted);background:var(--bg2);border:1px solid var(--border);padding:2px 6px;}
+  .xfr-body{background:var(--bg);border:1px solid rgba(230,190,80,0.2);border-top:none;padding:16px;margin-bottom:16px;}
+  .xfr-generate-btn{width:100%;background:transparent;border:1px solid var(--gold);color:var(--gold);font-family:var(--mono);font-size:9px;letter-spacing:3px;text-transform:uppercase;padding:12px;cursor:pointer;transition:all 0.2s;}
+  .xfr-generate-btn:hover{background:rgba(230,190,80,0.1);}
+  .xfr-loading{display:flex;flex-direction:column;align-items:center;gap:12px;padding:24px;}
+  .xfr-spinner{width:24px;height:24px;border:2px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:xfr-spin 0.8s linear infinite;}
+  @keyframes xfr-spin{to{transform:rotate(360deg);}}
+  .xfr-score-row{display:flex;gap:12px;margin-bottom:16px;}
+  .xfr-score-block{flex:1;background:var(--bg2);border:1px solid var(--border);padding:14px;text-align:center;}
+  .xfr-score-label{font-family:var(--mono);font-size:7px;letter-spacing:2px;color:var(--muted);margin-bottom:6px;}
+  .xfr-score-val{font-family:var(--mono);font-size:32px;font-weight:700;color:var(--gold);line-height:1;}
+  .xfr-rec-block{flex:1;background:var(--bg2);border:2px solid;padding:14px;text-align:center;display:flex;flex-direction:column;justify-content:center;}
+  .xfr-rec-label{font-family:var(--mono);font-size:7px;letter-spacing:2px;color:var(--muted);margin-bottom:8px;}
+  .xfr-rec-val{font-family:var(--mono);font-size:14px;font-weight:700;letter-spacing:1px;}
+  .xfr-section-title{font-family:var(--mono);font-size:7px;letter-spacing:3px;text-transform:uppercase;color:var(--gold);border-bottom:1px solid rgba(230,190,80,0.2);padding-bottom:6px;margin:14px 0 10px;}
+  .xfr-rating-grid{display:flex;flex-direction:column;gap:6px;margin-bottom:4px;}
+  .xfr-rating-row{display:grid;grid-template-columns:70px 1fr 28px;align-items:center;gap:8px;}
+  .xfr-rating-label{font-family:var(--mono);font-size:8px;letter-spacing:1px;color:var(--muted);}
+  .xfr-rating-bar-wrap{height:4px;background:var(--bg2);border:1px solid var(--border);}
+  .xfr-rating-bar{height:100%;transition:width 0.6s ease;}
+  .xfr-rating-num{font-family:var(--mono);font-size:9px;font-weight:700;text-align:right;}
+  .xfr-outlook-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:4px;}
+  .xfr-outlook-item{background:var(--bg2);border:1px solid var(--border);padding:8px 10px;display:flex;justify-content:space-between;align-items:center;font-family:var(--mono);font-size:9px;}
+  .xfr-outlook-period{color:var(--muted);font-size:8px;letter-spacing:1px;}
+  .xfr-opinion{font-family:var(--mono);font-size:10px;line-height:1.7;color:var(--ink);background:var(--bg2);border-left:2px solid var(--gold);padding:12px 14px;margin-bottom:4px;}
+  .xfr-two-col{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px;}
+  .xfr-case{background:var(--bg2);border:1px solid var(--border);padding:12px;}
+  .xfr-bull{border-top:2px solid var(--green2);}
+  .xfr-bear{border-top:2px solid var(--red2);}
+  .xfr-case-title{font-family:var(--mono);font-size:8px;font-weight:700;letter-spacing:1px;margin-bottom:8px;}
+  .xfr-case-item{font-family:var(--mono);font-size:8px;color:var(--muted);line-height:1.6;padding:2px 0;}
   </style>
 
   <!-- Sub-tabs -->
