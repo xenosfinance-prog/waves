@@ -1177,7 +1177,7 @@ function showETFInfo(ticker, switchToSearch) {
       <span class="xfr-badge">PROPRIETARY ANALYSIS</span>
     </div>
     <div id="xfr-content-${e.ticker}" class="xfr-body">
-      <button class="xfr-generate-btn" onclick="generateXFResearch('${e.ticker}','${e.name}','${e.type}','${e.aum}','${e.ter}','${e.bench}','${e.tags.join(',')}')">
+      <button class="xfr-generate-btn" onclick="xfPremiumGate(function(){ generateXFResearch('${e.ticker}','${e.name}','${e.type}','${e.aum}','${e.ter}','${e.bench}','${e.tags.join(',')}'); })">
         ◈ Generate XenosFinance Analysis
       </button>
     </div>
@@ -1196,6 +1196,78 @@ document.addEventListener('keydown', function(e) {
 });
 
 // ── XenosFinance Research™ AI Engine ─────────────────────────────
+// ── Premium / Admin gate ─────────────────────────────────────────
+const XF_PREMIUM_CODES = ['XENOS-PREMIUM-2026','XF-PRO-001','XF-PRO-002','XF-PRO-003'];
+const XF_ADMIN_PWD = 'RMG@Manu78';
+
+function isPremium() {
+  const code = localStorage.getItem('xf_premium_code') || '';
+  return XF_PREMIUM_CODES.includes(code);
+}
+function isAdminXF() {
+  return localStorage.getItem('xf_admin_mode') === 'true';
+}
+function hasXFAccess() {
+  return isPremium() || isAdminXF();
+}
+
+function xfPremiumGate(onSuccess) {
+  if (hasXFAccess()) { onSuccess(); return; }
+  // Show inline upgrade prompt
+  const modal = document.getElementById('etf-detail-modal');
+  const container = modal ? modal.querySelector('.xfr-body, [id^="xfr-content-"]') : null;
+  const target = container || document.body;
+  showXFGatePrompt(target, onSuccess);
+}
+
+function showXFGatePrompt(container, onSuccess) {
+  const div = document.createElement('div');
+  div.style.cssText = 'background:var(--bg2);border:1px solid var(--border);padding:20px;text-align:center;';
+  div.innerHTML = `
+    <div style="font-family:var(--mono);font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--gold2);margin-bottom:12px;">◈ XenosFinance Research™</div>
+    <div style="font-family:var(--body);font-size:11px;color:var(--ink2);margin-bottom:16px;line-height:1.6;">This feature is available to <strong style="color:var(--ink);">Premium members</strong> and Admins only.</div>
+    <div style="display:flex;gap:8px;align-items:center;justify-content:center;margin-bottom:10px;">
+      <input id="xf-gate-input" type="password" placeholder="Enter premium code or admin password"
+        style="flex:1;max-width:260px;background:var(--bg);border:1px solid var(--border);color:var(--ink);font-family:var(--mono);font-size:10px;padding:8px 10px;outline:none;"
+        onkeydown="if(event.key==='Enter')xfGateSubmit(this.value, arguments[0].target.closest ? null : null)">
+      <button onclick="xfGateSubmit(document.getElementById('xf-gate-input').value)"
+        style="background:var(--gold3);color:#fff;border:none;font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;padding:8px 14px;cursor:pointer;">
+        Unlock
+      </button>
+    </div>
+    <div id="xf-gate-err" style="font-family:var(--mono);font-size:9px;color:var(--red2);min-height:14px;"></div>
+    <div style="margin-top:12px;">
+      <a href="https://xenosfinance.com/premium-support" target="_blank"
+        style="font-family:var(--mono);font-size:8px;letter-spacing:2px;text-transform:uppercase;color:var(--gold);text-decoration:none;border-bottom:1px solid rgba(230,190,80,0.3);padding-bottom:1px;">
+        ✦ Upgrade to Premium →
+      </a>
+    </div>`;
+  // Replace button if inside modal xfr section
+  const btn = container.querySelector('.xfr-generate-btn');
+  if (btn) { btn.replaceWith(div); }
+  else { container.appendChild(div); }
+  // Store callback
+  window._xfGateCallback = onSuccess;
+}
+
+function xfGateSubmit(val) {
+  if (!val) return;
+  const err = document.getElementById('xf-gate-err');
+  if (XF_PREMIUM_CODES.includes(val)) {
+    localStorage.setItem('xf_premium_code', val);
+    if (err) err.textContent = '';
+    if (window._xfGateCallback) window._xfGateCallback();
+    return;
+  }
+  if (val === XF_ADMIN_PWD) {
+    localStorage.setItem('xf_admin_mode', 'true');
+    if (err) err.textContent = '';
+    if (window._xfGateCallback) window._xfGateCallback();
+    return;
+  }
+  if (err) err.textContent = '⚠ Invalid code or password.';
+}
+
 async function generateXFResearch(ticker, name, type, aum, ter, bench, tagsStr) {
   const container = document.getElementById('xfr-content-' + ticker);
   if (!container) return;
@@ -1258,7 +1330,7 @@ Return this exact JSON structure:
     renderXFResearch(container, d, ticker);
   } catch(err) {
     container.innerHTML = `<div style="font-family:var(--mono);font-size:9px;color:var(--red2);padding:20px;text-align:center;letter-spacing:1px;">⚠ Research generation failed. Try again.</div>
-    <button class="xfr-generate-btn" onclick="generateXFResearch('${ticker}','${name}','${type}','${aum}','${ter}','${bench}','${tagsStr}')">↻ Retry</button>`;
+    <button class="xfr-generate-btn" onclick="xfPremiumGate(function(){ generateXFResearch('${ticker}','${name}','${type}','${aum}','${ter}','${bench}','${tagsStr}'); })">↻ Retry</button>`;
   }
 }
 
