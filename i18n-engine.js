@@ -2,16 +2,15 @@
 // Lightweight language switcher — no API calls, no dependencies
 
 (function() {
-  // ── Instant lang apply — prevents flash of English ───────────────────────
-  // Runs synchronously as the script loads (before DOM is painted)
+  // ── Instant lang apply — prevents flash of English ──────────────────────
   const _storedLang = localStorage.getItem('xenos_lang') || 'en';
   if (_storedLang !== 'en') {
-    // Write a <style> tag immediately to hide untranslated text
     document.write('<style id="xf-foil">[data-i18n]{visibility:hidden!important}</style>');
   }
 
   const LANGS = {
     en: { flag: '🇬🇧', label: 'EN' },
+    it: { flag: '🇮🇹', label: 'IT' },
     ru: { flag: '🇷🇺', label: 'RU' },
     pl: { flag: '🇵🇱', label: 'PL' },
     es: { flag: '🇪🇸', label: 'ES' },
@@ -26,6 +25,7 @@
 
   // Apply translations to all [data-i18n] elements
   function applyLang(lang) {
+    if (typeof XENOS_I18N === 'undefined') return;
     const t = XENOS_I18N[lang] || XENOS_I18N['en'];
     document.querySelectorAll('[data-i18n]').forEach(el => {
       const key = el.getAttribute('data-i18n');
@@ -41,7 +41,7 @@
     // Close dropdown
     const dd = document.getElementById('xenos-lang-dd');
     if (dd) dd.style.display = 'none';
-    // Remove FOIL (Flash Of Incorrect Language) style
+    // Remove FOIL style — translations applied
     const foil = document.getElementById('xf-foil');
     if (foil) foil.remove();
   }
@@ -86,47 +86,23 @@
 
   // Global function called by dropdown items
   window.xenosSetLang = function(lang) {
-    if (XENOS_I18N[lang]) applyLang(lang);
+    if (typeof XENOS_I18N !== 'undefined' && XENOS_I18N[lang]) applyLang(lang);
   };
 
-  // Init: apply translations immediately (sync) + build switcher on DOM ready
+  // Init on DOM ready
   function init() {
     buildSwitcher();
     applyLang(currentLang);
-    // Remove the FOIL (Flash Of Italian Language) prevention class
-    document.documentElement.classList.remove('xf-i18n-loading');
-  }
-
-  // Apply translations immediately if DOM already has elements
-  // This prevents flash of English on page load
-  if (currentLang !== 'en' && typeof XENOS_I18N !== 'undefined') {
-    // Inject a one-time style to hide translated elements until ready
-    const style = document.createElement('style');
-    style.id = 'xf-i18n-hide';
-    style.textContent = '[data-i18n] { visibility: hidden; }';
-    if (document.head) {
-      document.head.appendChild(style);
-    }
   }
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function() {
-      init();
-      // Remove hide style after translations applied
-      const hide = document.getElementById('xf-i18n-hide');
-      if (hide) hide.remove();
-    });
+    document.addEventListener('DOMContentLoaded', init);
   } else {
     init();
-    const hide = document.getElementById('xf-i18n-hide');
-    if (hide) hide.remove();
   }
 
-  // Also re-apply on any dynamic content changes (for SPA-like navigation)
+  // Re-apply on back/forward cache restore
   window.addEventListener('pageshow', function(e) {
-    if (e.persisted) {
-      // Back/forward cache — re-apply immediately
-      applyLang(currentLang);
-    }
+    if (e.persisted) applyLang(currentLang);
   });
 })();
