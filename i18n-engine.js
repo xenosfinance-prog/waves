@@ -1,108 +1,122 @@
-// XenosFinance i18n Engine v1.0
-// Lightweight language switcher — no API calls, no dependencies
+// XenosFinance i18n Engine v2.0
+// Rewritten: bulletproof, no IIFE crash, IT added
 
-(function() {
-  // ── Instant lang apply — prevents flash of English ──────────────────────
-  const _storedLang = localStorage.getItem('xenos_lang') || 'en';
-  if (_storedLang !== 'en') {
-    document.write('<style id="xf-foil">[data-i18n]{visibility:hidden!important}</style>');
+// ── Prevent flash: hide translated elements immediately ──────────────────
+var _xfLang = localStorage.getItem('xenos_lang') || 'en';
+if (_xfLang !== 'en') {
+  document.write('<style id="xf-foil">[data-i18n]{visibility:hidden!important}</style>');
+}
+
+// ── Language definitions ─────────────────────────────────────────────────
+var XF_LANGS = {
+  en: { flag: '🇬🇧', label: 'EN' },
+  it: { flag: '🇮🇹', label: 'IT' },
+  ru: { flag: '🇷🇺', label: 'RU' },
+  pl: { flag: '🇵🇱', label: 'PL' },
+  es: { flag: '🇪🇸', label: 'ES' },
+};
+
+// Reset unknown lang to EN
+if (!XF_LANGS[_xfLang]) {
+  _xfLang = 'en';
+  localStorage.setItem('xenos_lang', 'en');
+}
+
+// ── Apply translations ───────────────────────────────────────────────────
+function xenosApplyLang(lang) {
+  // Safety: if i18n.js not loaded yet, abort silently
+  if (typeof XENOS_I18N === 'undefined') return;
+  if (!XENOS_I18N[lang] && !XENOS_I18N['en']) return;
+
+  var t = XENOS_I18N[lang] || XENOS_I18N['en'];
+  var els = document.querySelectorAll('[data-i18n]');
+  for (var i = 0; i < els.length; i++) {
+    var key = els[i].getAttribute('data-i18n');
+    if (t[key] !== undefined) els[i].textContent = t[key];
   }
 
-  const LANGS = {
-    en: { flag: '🇬🇧', label: 'EN' },
-    it: { flag: '🇮🇹', label: 'IT' },
-    ru: { flag: '🇷🇺', label: 'RU' },
-    pl: { flag: '🇵🇱', label: 'PL' },
-    es: { flag: '🇪🇸', label: 'ES' },
-  };
+  document.documentElement.lang = lang;
+  _xfLang = lang;
+  localStorage.setItem('xenos_lang', lang);
 
-  let currentLang = localStorage.getItem('xenos_lang') || 'en';
-  // Reset if stored language is no longer available (e.g. Italian was removed)
-  if (!LANGS[currentLang]) {
-    currentLang = 'en';
-    localStorage.setItem('xenos_lang', 'en');
+  // Update button label
+  var btn = document.getElementById('xenos-lang-btn');
+  if (btn && XF_LANGS[lang]) {
+    btn.innerHTML = XF_LANGS[lang].flag + ' ' + XF_LANGS[lang].label + ' ▾';
   }
 
-  // Apply translations to all [data-i18n] elements
-  function applyLang(lang) {
-    if (typeof XENOS_I18N === 'undefined') return;
-    const t = XENOS_I18N[lang] || XENOS_I18N['en'];
-    document.querySelectorAll('[data-i18n]').forEach(el => {
-      const key = el.getAttribute('data-i18n');
-      if (t[key]) el.textContent = t[key];
-    });
-    // Update html lang attribute
-    document.documentElement.lang = lang;
-    // Update switcher button
-    const btn = document.getElementById('xenos-lang-btn');
-    if (btn) btn.innerHTML = `${LANGS[lang].flag} ${LANGS[lang].label} ▾`;
-    currentLang = lang;
-    localStorage.setItem('xenos_lang', lang);
-    // Close dropdown
-    const dd = document.getElementById('xenos-lang-dd');
-    if (dd) dd.style.display = 'none';
-    // Remove FOIL style — translations applied
-    const foil = document.getElementById('xf-foil');
-    if (foil) foil.remove();
+  // Close dropdown
+  var dd = document.getElementById('xenos-lang-dd');
+  if (dd) dd.style.display = 'none';
+
+  // Remove FOIL style
+  var foil = document.getElementById('xf-foil');
+  if (foil) foil.remove();
+}
+
+// ── Global setter (called by dropdown onclick) ───────────────────────────
+window.xenosSetLang = function(lang) {
+  if (!XF_LANGS[lang]) return;
+  _xfLang = lang;
+  localStorage.setItem('xenos_lang', lang);
+  xenosApplyLang(lang);
+};
+
+// ── Build switcher widget ────────────────────────────────────────────────
+function xenosBuildSwitcher() {
+  var wrap = document.getElementById('xenos-lang-switcher');
+  if (!wrap) return;
+
+  var current = XF_LANGS[_xfLang] || XF_LANGS['en'];
+  var items = '';
+  for (var code in XF_LANGS) {
+    var info = XF_LANGS[code];
+    items += '<div onclick="xenosSetLang(\'' + code + '\')" ' +
+      'style="font-family:var(--mono);font-size:10px;letter-spacing:1px;padding:7px 14px;cursor:pointer;color:var(--muted);white-space:nowrap;transition:background 0.15s;" ' +
+      'onmouseover="this.style.background=\'var(--bg3)\';this.style.color=\'var(--gold)\'" ' +
+      'onmouseout="this.style.background=\'transparent\';this.style.color=\'var(--muted)\'">' +
+      info.flag + ' ' + info.label +
+      '</div>';
   }
 
-  // Build the language switcher widget
-  function buildSwitcher() {
-    const wrap = document.getElementById('xenos-lang-switcher');
-    if (!wrap) return;
+  wrap.innerHTML =
+    '<div style="position:relative;display:inline-block;">' +
+      '<button id="xenos-lang-btn" ' +
+        'onclick="var d=document.getElementById(\'xenos-lang-dd\');d.style.display=d.style.display===\'block\'?\'none\':\'block\'" ' +
+        'style="font-family:var(--mono);font-size:10px;letter-spacing:1px;background:none;border:1px solid var(--border);color:var(--muted);padding:3px 10px;cursor:pointer;transition:all 0.2s;" ' +
+        'onmouseover="this.style.color=\'var(--gold)\';this.style.borderColor=\'var(--gold)\'" ' +
+        'onmouseout="this.style.color=\'var(--muted)\';this.style.borderColor=\'var(--border)\'">' +
+        current.flag + ' ' + current.label + ' ▾' +
+      '</button>' +
+      '<div id="xenos-lang-dd" ' +
+        'style="display:none;position:absolute;right:0;top:100%;margin-top:4px;background:var(--bg2);border:1px solid var(--border);z-index:9999;min-width:110px;box-shadow:0 4px 20px rgba(0,0,0,0.4);">' +
+        items +
+      '</div>' +
+    '</div>';
 
-    wrap.innerHTML = `
-      <div style="position:relative;display:inline-block;">
-        <button id="xenos-lang-btn"
-          onclick="document.getElementById('xenos-lang-dd').style.display=document.getElementById('xenos-lang-dd').style.display==='block'?'none':'block'"
-          style="font-family:var(--mono);font-size:10px;letter-spacing:1px;background:none;border:1px solid var(--border);color:var(--muted);padding:3px 10px;cursor:pointer;transition:all 0.2s;"
-          onmouseover="this.style.color='var(--gold)';this.style.borderColor='var(--gold)'"
-          onmouseout="this.style.color='var(--muted)';this.style.borderColor='var(--border)'">
-          ${LANGS[currentLang].flag} ${LANGS[currentLang].label} ▾
-        </button>
-        <div id="xenos-lang-dd"
-          style="display:none;position:absolute;right:0;top:100%;margin-top:4px;background:var(--bg2);border:1px solid var(--border);z-index:9999;min-width:110px;box-shadow:0 4px 20px rgba(0,0,0,0.4);">
-          ${Object.entries(LANGS).map(([code, info]) => `
-            <div onclick="xenosSetLang('${code}')"
-              style="font-family:var(--mono);font-size:10px;letter-spacing:1px;padding:7px 14px;cursor:pointer;color:var(--muted);white-space:nowrap;transition:background 0.15s;"
-              onmouseover="this.style.background='var(--bg3)';this.style.color='var(--gold)'"
-              onmouseout="this.style.background='transparent';this.style.color='var(--muted)'">
-              ${info.flag} ${info.label}
-            </div>
-          `).join('')}
-        </div>
-      </div>
-    `;
-
-    // Close dropdown when clicking outside
-    document.addEventListener('click', e => {
-      const dd = document.getElementById('xenos-lang-dd');
-      const btn = document.getElementById('xenos-lang-btn');
-      if (dd && !dd.contains(e.target) && e.target !== btn) {
-        dd.style.display = 'none';
-      }
-    });
-  }
-
-  // Global function called by dropdown items
-  window.xenosSetLang = function(lang) {
-    if (typeof XENOS_I18N !== 'undefined' && XENOS_I18N[lang]) applyLang(lang);
-  };
-
-  // Init on DOM ready
-  function init() {
-    buildSwitcher();
-    applyLang(currentLang);
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-  } else {
-    init();
-  }
-
-  // Re-apply on back/forward cache restore
-  window.addEventListener('pageshow', function(e) {
-    if (e.persisted) applyLang(currentLang);
+  // Close on outside click
+  document.addEventListener('click', function(e) {
+    var dd = document.getElementById('xenos-lang-dd');
+    var btn = document.getElementById('xenos-lang-btn');
+    if (dd && e.target !== btn && !dd.contains(e.target)) {
+      dd.style.display = 'none';
+    }
   });
-})();
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────
+function xenosI18nInit() {
+  xenosBuildSwitcher();
+  xenosApplyLang(_xfLang);
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', xenosI18nInit);
+} else {
+  xenosI18nInit();
+}
+
+// Re-apply on back/forward cache
+window.addEventListener('pageshow', function(e) {
+  if (e.persisted) xenosApplyLang(_xfLang);
+});
