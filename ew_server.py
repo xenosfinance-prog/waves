@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3 
 """
 XenosFinance — Elliott Wave Server v3
 Full glossary implementation: hard Fibonacci filters, alternate scenarios,
