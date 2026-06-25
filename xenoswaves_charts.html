@@ -178,11 +178,13 @@ body { background: var(--bg); color: var(--ink); font-family: var(--mono); min-h
 
 <!-- MASTHEAD -->
 <div class="masthead">
-  <div class="masthead-top">
+  <div class="masthead-top" style="display:flex;justify-content:space-between;align-items:center;">
     <span>VOL. I — INTERACTIVE CHARTS</span>
     <span id="live-date">—</span>
-    <span>REAL-TIME DATA</span>
-    <div id="xenos-lang-switcher" style="display:inline-block;"></div>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <span>REAL-TIME DATA</span>
+      <div id="xenos-lang-switcher" style="display:inline-block;"></div>
+    </div>
   </div>
   <div class="masthead-center">
     <div class="masthead-eyebrow">Financial Analytics · Global Markets</div>
@@ -195,11 +197,11 @@ body { background: var(--bg); color: var(--ink); font-family: var(--mono); min-h
     <a href="https://xenosfinance.com/xenoswaves_charts" class="active">◈ Charts</a>
     <a href="https://xenosfinance.com/XenosBlog" data-i18n="nav_blog">✦ AI Blog</a>
     <a href="https://xenosfinance.com/trading-signals" data-i18n="nav_signals">📡 Live Signals</a>
-    <a href="https://xenosfinance.com/trading-ideas">💡 Trading Ideas</a>
+    <a href="https://xenosfinance.com/trading-ideas" data-i18n="label_trading_ideas">💡 Trading Ideas</a>
     <a href="https://xenosfinance.com/calendar" data-i18n="nav_calendar">🗓 Calendar</a>
     <a href="https://xenosfinance.com/elliottwave" data-i18n="nav_elliott">〜 Elliott Wave</a>
     <a href="https://xenosfinance.com/daily-education">📚 Education</a>
-    <a href="https://xenosfinance.com/premium-support">✦ Premium</a>
+    <a href="https://xenosfinance.com/premium-support" data-i18n="label_premium_tier">✦ Premium</a>
   </nav>
 </div>
 
@@ -1987,6 +1989,16 @@ document.addEventListener('DOMContentLoaded', () => {
   loadTicker();
   setInterval(loadTicker, 60000);
   initEditableTitles();
+});
+</script>
+
+<script>
+// Safety: re-init i18n if xenosSetLang is available and lang is stored
+document.addEventListener('DOMContentLoaded', function() {
+  var lang = localStorage.getItem('xenos_lang') || 'en';
+  if (lang !== 'en' && window.xenosSetLang) {
+    window.xenosSetLang(lang);
+  }
 });
 </script>
 </body>
