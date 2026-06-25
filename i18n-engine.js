@@ -19,6 +19,7 @@
 
   // Apply translations to all [data-i18n] elements
   function applyLang(lang) {
+    if (typeof XENOS_I18N === 'undefined') return; // i18n.js not loaded yet
     const t = XENOS_I18N[lang] || XENOS_I18N['en'];
     document.querySelectorAll('[data-i18n]').forEach(el => {
       const key = el.getAttribute('data-i18n');
@@ -76,7 +77,7 @@
 
   // Global function called by dropdown items
   window.xenosSetLang = function(lang) {
-    if (XENOS_I18N[lang]) applyLang(lang);
+    if (typeof XENOS_I18N !== 'undefined' && XENOS_I18N[lang]) applyLang(lang);
   };
 
   // Init on DOM ready
