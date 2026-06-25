@@ -18,6 +18,19 @@ const XFPremium = (() => {
   const FREE_LIMIT = 1; // uses per tool per day for free users
 
   // ── Premium check ────────────────────────────────────────────────────────────
+  const XF_PREMIUM_CODES = ['XENOS-PREMIUM-2026','XF-PRO-001','XF-PRO-002','XF-PRO-003'];
+  const XF_ADMIN_PWD     = 'RMG@Manu78';
+
+  function isAdmin() {
+    return localStorage.getItem('xf_admin_mode') === 'true' ||
+           sessionStorage.getItem('xf_admin') === 'true';
+  }
+
+  function isPremiumCode() {
+    const code = localStorage.getItem('xf_premium_code') || '';
+    return XF_PREMIUM_CODES.includes(code);
+  }
+
   function _getPremiumRecord() {
     try {
       const addr = _getConnectedAddress();
@@ -30,6 +43,11 @@ const XFPremium = (() => {
   }
 
   function isPremium() {
+    // Admin always has full access
+    if (isAdmin()) return true;
+    // Premium code (non-Web3 access)
+    if (isPremiumCode()) return true;
+    // Web3 payment on Base
     return _getPremiumRecord() !== null;
   }
 
@@ -162,13 +180,14 @@ const XFPremium = (() => {
     const el = document.getElementById(containerId);
     if (!el) return;
     if (isPremium()) {
+      const label = isAdmin() ? '⚙ Admin — Unlimited' : '✦ Premium — Unlimited';
       el.innerHTML = `<span style="
         display:inline-flex;align-items:center;gap:6px;
         background:rgba(240,192,64,0.1);border:1px solid rgba(240,192,64,0.3);
         color:#f0c040;font-family:'IBM Plex Mono',monospace;
         font-size:0.65rem;letter-spacing:0.1em;text-transform:uppercase;
         padding:4px 12px;border-radius:100px;
-      ">✦ Premium — Unlimited</span>`;
+      ">\${label}</span>`;
     } else {
       const used = _getUsageCount(tool);
       const remaining = Math.max(0, FREE_LIMIT - used);
