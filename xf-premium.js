@@ -1,4 +1,4 @@
-/**
+/** 
  * XenosFinance Premium Gate
  * xf-premium.js — include in every page with AI tools
  *
