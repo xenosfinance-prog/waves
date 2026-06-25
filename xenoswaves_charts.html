@@ -170,26 +170,161 @@ body { background: var(--bg); color: var(--ink); font-family: var(--mono); min-h
 .footer-links a:hover { color: var(--gold); }
 </style>
 
-<script src="https://xenosfinance.com/i18n.js"></script>
-<script src="https://xenosfinance.com/i18n-engine.js"></script>
+<script>
+// ── XenosFinance i18n — inline (no external dependency) ──────────────────
+const XF_LANGS = {
+  en: { flag: '🇬🇧', label: 'EN' },
+  it: { flag: '🇮🇹', label: 'IT' },
+  ru: { flag: '🇷🇺', label: 'RU' },
+  pl: { flag: '🇵🇱', label: 'PL' },
+  es: { flag: '🇪🇸', label: 'ES' },
+};
+
+const XF_TRANSLATIONS = {
+  en: {
+    nav_news:'📰 News', nav_dashboard:'📊 Dashboard', nav_charts:'◈ Charts',
+    nav_blog:'✦ AI Blog', nav_signals:'📡 Live Signals', nav_ideas:'💡 Trading Ideas',
+    nav_calendar:'🗓 Calendar', nav_elliott:'〜 Elliott Wave',
+    nav_education:'📚 Education', nav_premium:'✦ Premium',
+    tab_overview:'📊 Overview', tab_forex:'💱 Forex', tab_commodities:'🛢️ Commodities',
+    tab_equity:'📈 US Equities', tab_crypto:'₿ Crypto',
+    tab_macro:'🌐 Global Macro', tab_etf:'◈ ETF & Funds',
+    label_not_investment:'⚠ Not investment advice',
+    label_powered_by:'Powered by TradingView',
+    eyebrow:'Financial Analytics · Global Markets',
+    sub:'Interactive Charts — TradingView',
+  },
+  it: {
+    nav_news:'📰 Notizie', nav_dashboard:'📊 Dashboard', nav_charts:'◈ Grafici',
+    nav_blog:'✦ Blog IA', nav_signals:'📡 Segnali Live', nav_ideas:'💡 Idee di Trading',
+    nav_calendar:'🗓 Calendario', nav_elliott:'〜 Onde di Elliott',
+    nav_education:'📚 Formazione', nav_premium:'✦ Premium',
+    tab_overview:'📊 Panoramica', tab_forex:'💱 Forex', tab_commodities:'🛢️ Materie Prime',
+    tab_equity:'📈 Azioni USA', tab_crypto:'₿ Crypto',
+    tab_macro:'🌐 Macro Globale', tab_etf:'◈ ETF & Fondi',
+    label_not_investment:'⚠ Non è consulenza di investimento',
+    label_powered_by:'Powered by TradingView',
+    eyebrow:'Analisi Finanziaria · Mercati Globali',
+    sub:'Grafici Interattivi — TradingView',
+  },
+  ru: {
+    nav_news:'📰 Новости', nav_dashboard:'📊 Дашборд', nav_charts:'◈ Графики',
+    nav_blog:'✦ ИИ Блог', nav_signals:'📡 Сигналы Live', nav_ideas:'💡 Торговые Идеи',
+    nav_calendar:'🗓 Календарь', nav_elliott:'〜 Волны Эллиотта',
+    nav_education:'📚 Обучение', nav_premium:'✦ Премиум',
+    tab_overview:'📊 Обзор', tab_forex:'💱 Форекс', tab_commodities:'🛢️ Сырьё',
+    tab_equity:'📈 Акции США', tab_crypto:'₿ Крипто',
+    tab_macro:'🌐 Глобальное Макро', tab_etf:'◈ ETF & Фонды',
+    label_not_investment:'⚠ Не является инвестиционным советом',
+    label_powered_by:'Powered by TradingView',
+    eyebrow:'Финансовая Аналитика · Мировые Рынки',
+    sub:'Интерактивные Графики — TradingView',
+  },
+  pl: {
+    nav_news:'📰 Aktualności', nav_dashboard:'📊 Dashboard', nav_charts:'◈ Wykresy',
+    nav_blog:'✦ Blog AI', nav_signals:'📡 Sygnały Live', nav_ideas:'💡 Pomysły Tradingowe',
+    nav_calendar:'🗓 Kalendarz', nav_elliott:'〜 Fale Elliotta',
+    nav_education:'📚 Edukacja', nav_premium:'✦ Premium',
+    tab_overview:'📊 Przegląd', tab_forex:'💱 Forex', tab_commodities:'🛢️ Surowce',
+    tab_equity:'📈 Akcje USA', tab_crypto:'₿ Krypto',
+    tab_macro:'🌐 Makro Globalne', tab_etf:'◈ ETF & Fundusze',
+    label_not_investment:'⚠ Nie jest poradą inwestycyjną',
+    label_powered_by:'Powered by TradingView',
+    eyebrow:'Analiza Finansowa · Rynki Globalne',
+    sub:'Interaktywne Wykresy — TradingView',
+  },
+  es: {
+    nav_news:'📰 Noticias', nav_dashboard:'📊 Dashboard', nav_charts:'◈ Gráficos',
+    nav_blog:'✦ Blog IA', nav_signals:'📡 Señales Live', nav_ideas:'💡 Ideas de Trading',
+    nav_calendar:'🗓 Calendario', nav_elliott:'〜 Ondas de Elliott',
+    nav_education:'📚 Educación', nav_premium:'✦ Premium',
+    tab_overview:'📊 Vista General', tab_forex:'💱 Forex', tab_commodities:'🛢️ Materias Primas',
+    tab_equity:'📈 Acciones USA', tab_crypto:'₿ Cripto',
+    tab_macro:'🌐 Macro Global', tab_etf:'◈ ETF & Fondos',
+    label_not_investment:'⚠ No es asesoramiento de inversión',
+    label_powered_by:'Powered by TradingView',
+    eyebrow:'Análisis Financiero · Mercados Globales',
+    sub:'Gráficos Interactivos — TradingView',
+  },
+};
+
+let xfCurrentLang = localStorage.getItem('xenos_lang') || 'en';
+if (!XF_LANGS[xfCurrentLang]) xfCurrentLang = 'en';
+
+function xfApplyLang(lang) {
+  const t = XF_TRANSLATIONS[lang] || XF_TRANSLATIONS['en'];
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    if (t[key] !== undefined) el.textContent = t[key];
+  });
+  document.documentElement.lang = lang;
+  xfCurrentLang = lang;
+  localStorage.setItem('xenos_lang', lang);
+  // Also sync with global xenosSetLang if available (for other pages)
+  if (window._xenosLangBtn) {
+    window._xenosLangBtn.innerHTML = XF_LANGS[lang].flag + ' ' + XF_LANGS[lang].label + ' ▾';
+  }
+  const dd = document.getElementById('xf-lang-dd');
+  if (dd) dd.style.display = 'none';
+}
+
+window.xfSetLang = xfApplyLang;
+// Also expose as xenosSetLang so other pages' i18n-engine stays in sync
+window.xenosSetLang = xfApplyLang;
+
+function xfBuildSwitcher() {
+  const wrap = document.getElementById('xf-lang-switcher');
+  if (!wrap) return;
+  const current = XF_LANGS[xfCurrentLang];
+  wrap.innerHTML = \`
+    <div style="position:relative;display:inline-block;">
+      <button id="xf-lang-btn"
+        onclick="document.getElementById('xf-lang-dd').style.display=document.getElementById('xf-lang-dd').style.display==='block'?'none':'block'"
+        style="font-family:var(--mono);font-size:10px;letter-spacing:1px;background:none;border:1px solid var(--border);color:var(--muted);padding:3px 10px;cursor:pointer;">
+        \${current.flag} \${current.label} ▾
+      </button>
+      <div id="xf-lang-dd" style="display:none;position:absolute;right:0;top:100%;margin-top:4px;background:var(--bg2);border:1px solid var(--border);z-index:9999;min-width:100px;box-shadow:0 4px 20px rgba(0,0,0,0.4);">
+        \${Object.entries(XF_LANGS).map(([code, info]) => \`
+          <div onclick="xfSetLang('\${code}')"
+            style="font-family:var(--mono);font-size:10px;padding:7px 14px;cursor:pointer;color:var(--muted);white-space:nowrap;"
+            onmouseover="this.style.color='var(--gold)';this.style.background='var(--bg3)'"
+            onmouseout="this.style.color='var(--muted)';this.style.background='transparent'">
+            \${info.flag} \${info.label}
+          </div>
+        \`).join('')}
+      </div>
+    </div>\`;
+  window._xenosLangBtn = document.getElementById('xf-lang-btn');
+  document.addEventListener('click', e => {
+    const dd = document.getElementById('xf-lang-dd');
+    const btn = document.getElementById('xf-lang-btn');
+    if (dd && !dd.contains(e.target) && e.target !== btn) dd.style.display = 'none';
+  });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  xfBuildSwitcher();
+  xfApplyLang(xfCurrentLang);
+});
+</script>
 </head>
 <body>
 <div class="wrap">
 
 <!-- MASTHEAD -->
 <div class="masthead">
-  <div class="masthead-top" style="display:flex;justify-content:space-between;align-items:center;">
+  <div class="masthead-top">
     <span>VOL. I — INTERACTIVE CHARTS</span>
     <span id="live-date">—</span>
-    <div style="display:flex;align-items:center;gap:12px;">
+    <div style="display:flex;align-items:center;gap:10px;">
       <span>REAL-TIME DATA</span>
-      <div id="xenos-lang-switcher" style="display:inline-block;"></div>
+      <div id="xf-lang-switcher"></div>
     </div>
   </div>
   <div class="masthead-center">
-    <div class="masthead-eyebrow">Financial Analytics · Global Markets</div>
+    <div class="masthead-eyebrow" data-i18n="eyebrow">Financial Analytics · Global Markets</div>
     <div class="masthead-name">XENOS<span>FINANCE</span></div>
-    <div class="masthead-sub">Interactive Charts — TradingView</div>
+    <div class="masthead-sub" data-i18n="sub">Interactive Charts — TradingView</div>
   </div>
   <nav class="masthead-nav">
     <a href="https://xenosfinance.com" data-i18n="nav_news">📰 News</a>
@@ -197,11 +332,11 @@ body { background: var(--bg); color: var(--ink); font-family: var(--mono); min-h
     <a href="https://xenosfinance.com/xenoswaves_charts" class="active">◈ Charts</a>
     <a href="https://xenosfinance.com/XenosBlog" data-i18n="nav_blog">✦ AI Blog</a>
     <a href="https://xenosfinance.com/trading-signals" data-i18n="nav_signals">📡 Live Signals</a>
-    <a href="https://xenosfinance.com/trading-ideas" data-i18n="label_trading_ideas">💡 Trading Ideas</a>
+    <a href="https://xenosfinance.com/trading-ideas" data-i18n="nav_ideas">💡 Trading Ideas</a>
     <a href="https://xenosfinance.com/calendar" data-i18n="nav_calendar">🗓 Calendar</a>
     <a href="https://xenosfinance.com/elliottwave" data-i18n="nav_elliott">〜 Elliott Wave</a>
-    <a href="https://xenosfinance.com/daily-education">📚 Education</a>
-    <a href="https://xenosfinance.com/premium-support" data-i18n="label_premium_tier">✦ Premium</a>
+    <a href="https://xenosfinance.com/daily-education" data-i18n="nav_education">📚 Education</a>
+    <a href="https://xenosfinance.com/premium-support" data-i18n="nav_premium">✦ Premium</a>
   </nav>
 </div>
 
@@ -214,13 +349,13 @@ body { background: var(--bg); color: var(--ink); font-family: var(--mono); min-h
 
 <!-- TABS -->
 <div class="asset-tabs">
-  <button class="tab-btn active" onclick="switchTab('overview',this)">📊 Overview</button>
-  <button class="tab-btn" onclick="switchTab('forex',this)">💱 Forex</button>
-  <button class="tab-btn" onclick="switchTab('commodities',this)">🛢️ Commodities</button>
-  <button class="tab-btn" onclick="switchTab('equity',this)">📈 US Equities</button>
-  <button class="tab-btn" onclick="switchTab('crypto',this)">₿ Crypto</button>
-  <button class="tab-btn" onclick="switchTab('macro',this)">🌐 Global Macro</button>
-  <button class="tab-btn" onclick="switchTab('etf',this)">◈ ETF & Funds</button>
+  <button class="tab-btn active" onclick="switchTab('overview',this)" data-i18n="tab_overview">📊 Overview</button>
+  <button class="tab-btn" onclick="switchTab('forex',this)" data-i18n="tab_forex">💱 Forex</button>
+  <button class="tab-btn" onclick="switchTab('commodities',this)" data-i18n="tab_commodities">🛢️ Commodities</button>
+  <button class="tab-btn" onclick="switchTab('equity',this)" data-i18n="tab_equity">📈 US Equities</button>
+  <button class="tab-btn" onclick="switchTab('crypto',this)" data-i18n="tab_crypto">₿ Crypto</button>
+  <button class="tab-btn" onclick="switchTab('macro',this)" data-i18n="tab_macro">🌐 Global Macro</button>
+  <button class="tab-btn" onclick="switchTab('etf',this)" data-i18n="tab_etf">◈ ETF & Funds</button>
 </div>
 
 <!-- TAB: OVERVIEW -->
@@ -1817,10 +1952,12 @@ async function loadThemesPrices() {
   <div class="footer-links">
     <a href="https://xenosfinance.com" data-i18n="nav_news">📰 News</a>
     <a href="https://xenosfinance.com/dashboard" data-i18n="nav_dashboard">📊 Dashboard</a>
-    <a href="https://xenosfinance.com/XenosBlogAdmin" data-i18n="nav_blog">✦ AI Blog</a>
-    <a href="https://www.tradingview.com" target="_blank">Powered by TradingView</a>
+    <a href="https://xenosfinance.com/XenosBlog" data-i18n="nav_blog">✦ AI Blog</a>
+    <a href="https://xenosfinance.com/trading-signals" data-i18n="nav_signals">📡 Live Signals</a>
+    <a href="https://xenosfinance.com/premium-support" data-i18n="nav_premium">✦ Premium</a>
+    <a href="https://www.tradingview.com" target="_blank" data-i18n="label_powered_by">Powered by TradingView</a>
   </div>
-  <span>⚠ Not investment advice</span>
+  <span data-i18n="label_not_investment">⚠ Not investment advice</span>
 </div>
 
 </div><!-- /wrap -->
@@ -1989,16 +2126,6 @@ document.addEventListener('DOMContentLoaded', () => {
   loadTicker();
   setInterval(loadTicker, 60000);
   initEditableTitles();
-});
-</script>
-
-<script>
-// Safety: re-init i18n if xenosSetLang is available and lang is stored
-document.addEventListener('DOMContentLoaded', function() {
-  var lang = localStorage.getItem('xenos_lang') || 'en';
-  if (lang !== 'en' && window.xenosSetLang) {
-    window.xenosSetLang(lang);
-  }
 });
 </script>
 </body>
