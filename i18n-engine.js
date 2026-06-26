@@ -1,4 +1,4 @@
-// XenosFinance i18n Engine v2.0 
+// XenosFinance i18n Engine v2.0
 // Rewritten: bulletproof, no IIFE crash, IT added
 
 // ── Prevent flash: hide translated elements immediately ──────────────────
