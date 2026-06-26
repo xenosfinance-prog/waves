@@ -278,9 +278,24 @@ body{background:var(--bg);color:var(--ink);font-family:var(--mono);min-height:10
   ]
 }
 </script>
-<script src="/i18n.js?v=3"></script>
-<script src="/i18n-engine.js?v=3"></script>
+<script src="/i18n.js"></script>
+<script src="/i18n-engine.js"></script>
 <script src="/xf-hand.js"></script>
+
+<script>
+// i18n helper
+function t(key) {
+  try {
+    var lang = localStorage.getItem('xenos_lang') || 'en';
+    var dict = (typeof XENOS_I18N !== 'undefined') ? (XENOS_I18N[lang] || XENOS_I18N['en']) : {};
+    return dict[key] || key;
+  } catch(e) { return key; }
+}
+var _origXenosSetLang = window.xenosSetLang;
+window.xenosSetLang = function(lang) {
+  if (_origXenosSetLang) _origXenosSetLang(lang);
+};
+</script>
 </head>
 <body>
 
@@ -656,7 +671,7 @@ function applyFilters() {
     if (tf   && s.timeframe !== tf)           return false;
     if (anyDir) {
       const dir = currentTab === 'options'
-        ? (s.action === 'CALL' ? 'BUY' : 'SELL')
+        ? (s.action === 'CALL' ? t('label_buy') : t('label_sell'))
         : s.direction;
       if (!dirFilter[dir]) return false;
     }
@@ -674,9 +689,9 @@ function updateStats() {
   let bull = 0, bear = 0, confSum = 0;
   filtered.forEach(s => {
     const dir = currentTab === 'options'
-      ? (s.action === 'CALL' ? 'BUY' : 'SELL')
+      ? (s.action === 'CALL' ? t('label_buy') : t('label_sell'))
       : s.direction;
-    if (dir === 'BUY')  bull++;
+    if (dir === t('label_buy'))  bull++;
     else                bear++;
     confSum += s.confidence || 0;
   });
@@ -739,7 +754,7 @@ function renderCFD() {
     return;
   }
   container.innerHTML = filtered.map((sig, i) => {
-    const isBull  = sig.direction === 'BUY';
+    const isBull  = sig.direction === t('label_buy');
     const confW   = Math.round((sig.confidence||0) / 100 * 50);
     const outcome = sig.outcome || 'open';
     const outcomeColor = outcome === 'win' ? 'var(--green2)' : outcome === 'loss' ? 'var(--red2)' : 'var(--muted)';
@@ -749,7 +764,7 @@ function renderCFD() {
     <div class="signal-card ${isBull?'bull':'bear'}" onclick="toggleCFDDetail(${i})" data-pair="${sig.pair||''}" data-tf="${sig.timeframe||''}">
       <div class="signal-card-row">
         <div class="sc-pair">${sig.pair||'—'}</div>
-        <div class="sc-dir ${sig.direction||''}">${isBull?'BUY':'SELL'}</div>
+        <div class="sc-dir ${sig.direction||''}">${isBull?t('label_buy'):t('label_sell')}</div>
         <div class="sc-pattern">${sig.pattern||'—'}</div>
         <div class="sc-entry">${fmtPrice(sig.entry, sig.pair)}</div>
         <div class="sc-sl">${fmtPrice(sig.sl, sig.pair)}</div>
@@ -837,7 +852,7 @@ function renderOptions() {
     return;
   }
   container.innerHTML = filtered.map((sig, i) => {
-    const isCall  = ['CALL','BUY'].includes((sig.action||sig.direction||'').toUpperCase());
+    const isCall  = ['CALL',t('label_buy')].includes((sig.action||sig.direction||'').toUpperCase());
     const confW   = Math.round((sig.confidence||0) / 100 * 50);
     const openPx  = sig.entry != null ? fmtPrice(sig.entry, sig.pair) : '—';
     const closePx = sig.close_price != null ? fmtPrice(sig.close_price, sig.pair) : '—';
@@ -946,7 +961,7 @@ function renderClosed() {
     else if (o === 'loss' || o === 'sl' || o === 'stop')           badgeClass = 'loss';
     else if (o === 'breakeven' || o === 'be')                      badgeClass = 'breakeven';
     const dir = s.direction || s.action || '—';
-    const dirColor = (dir === 'BUY' || dir === 'CALL') ? 'color:var(--green)' : 'color:var(--red)';
+    const dirColor = (dir === t('label_buy') || dir === 'CALL') ? 'color:var(--green)' : 'color:var(--red)';
     const isOpt = s.signal_type === 'options';
     const typeTag = isOpt ? '<span style="font-size:9px;color:var(--yellow);margin-left:4px;">OPT</span>' : '';
     const col3 = fmtPrice(s.entry, s.pair);
@@ -1576,7 +1591,7 @@ async function tsRender(tab, results) {
   const sn=document.getElementById('ts-sell-n'); if(sn) sn.textContent=sells;
   const bn=document.getElementById('ts-buy-n');  if(bn) bn.textContent=buys;
   const ov2=document.getElementById('ts-overall');
-  if(ov2){const lbl=buys>sells?'BUY':sells>buys?'SELL':'NEUTRAL';ov2.textContent=lbl;ov2.style.color=buys>sells?'var(--green2)':sells>buys?'var(--red2)':'var(--muted)';}
+  if(ov2){const lbl=buys>sells?t('label_buy'):sells>buys?t('label_sell'):t('label_neutral');ov2.textContent=lbl;ov2.style.color=buys>sells?'var(--green2)':sells>buys?'var(--red2)':'var(--muted)';}
   const sb=document.getElementById('ts-summary-bar'); if(sb) sb.style.display='flex';
   const n=new Date(),hm=n.getHours().toString().padStart(2,'0')+':'+n.getMinutes().toString().padStart(2,'0');
   const tt=document.getElementById('ts-time'); if(tt) tt.textContent='✓ '+hm+' CET';
@@ -1609,7 +1624,7 @@ async function sendToTelegram(event, i, type) {
   try {
     let text = '';
     if (type === 'options') {
-      const isCall = ['CALL','BUY'].includes((sig.action||sig.direction||'').toUpperCase());
+      const isCall = ['CALL',t('label_buy')].includes((sig.action||sig.direction||'').toUpperCase());
       const action = isCall ? '🟢 CALL' : '🔴 PUT';
       const expiry  = sig.expiry || sig.timeframe || '—';
       const entry   = sig.entry != null ? fmtPrice(sig.entry, sig.pair) : '—';
@@ -1632,7 +1647,7 @@ async function sendToTelegram(event, i, type) {
         `⚠ Educational only — not financial advice\n` +
         `🔗 xenosfinance.com/trading-signals`;
     } else {
-      const isBull = sig.direction === 'BUY';
+      const isBull = sig.direction === t('label_buy');
       const dir    = isBull ? '🟢 BUY' : '🔴 SELL';
       const entry  = fmtPrice(sig.entry, sig.pair);
       const sl     = fmtPrice(sig.sl, sig.pair);
