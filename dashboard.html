@@ -164,9 +164,28 @@ body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:10
   .ev-tab { font-family: var(--mono); font-size: 9px; letter-spacing: 2px; text-transform: uppercase; padding: 8px 16px; cursor: pointer; color: var(--muted); border-bottom: 2px solid transparent; background: none; border-top: none; border-left: none; border-right: none; transition: all 0.2s; }
   .ev-tab.active { color: var(--gold); border-bottom-color: var(--gold); }
 </style>
-<script src="/i18n.js?v=3"></script>
-<script src="/i18n-engine.js?v=3"></script>
+<script src="/i18n.js"></script>
+<script src="/i18n-engine.js"></script>
 <script src="/xf-hand.js"></script>
+
+<script>
+// i18n helper — call t('key') anywhere in JS to get translated string
+function t(key) {
+  try {
+    var lang = localStorage.getItem('xenos_lang') || 'en';
+    var dict = (typeof XENOS_I18N !== 'undefined') ? (XENOS_I18N[lang] || XENOS_I18N['en']) : {};
+    return dict[key] || key;
+  } catch(e) { return key; }
+}
+// Re-apply translations when xenosSetLang is called
+var _origXenosSetLang = window.xenosSetLang;
+window.xenosSetLang = function(lang) {
+  if (_origXenosSetLang) _origXenosSetLang(lang);
+  // Re-run page-specific dynamic content
+  if (typeof updateSessions === 'function') updateSessions();
+  if (typeof renderMarketTable === 'function') renderMarketTable();
+};
+</script>
 </head>
 <body>
 <div class="masthead">
@@ -215,22 +234,22 @@ body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:10
   </div>
   <div class="sessions">
     <div class="session-box">
-      <div class="session-name">🇦🇺 Sydney</div>
+      <div class="session-name"><span data-i18n="session_sydney">🇦🇺 Sydney</span></div>
       <div class="session-time" id="sess-sydney">--:--</div>
       <div class="session-status" id="stat-sydney">--</div>
     </div>
     <div class="session-box">
-      <div class="session-name">🇯🇵 Tokyo</div>
+      <div class="session-name"><span data-i18n="session_tokyo">🇯🇵 Tokyo</span></div>
       <div class="session-time" id="sess-tokyo">--:--</div>
       <div class="session-status" id="stat-tokyo">--</div>
     </div>
     <div class="session-box">
-      <div class="session-name">🇬🇧 London</div>
+      <div class="session-name"><span data-i18n="session_london">🇬🇧 London</span></div>
       <div class="session-time" id="sess-london">--:--</div>
       <div class="session-status" id="stat-london">--</div>
     </div>
     <div class="session-box">
-      <div class="session-name">🇺🇸 New York</div>
+      <div class="session-name"><span data-i18n="session_newyork">🇺🇸 New York</span></div>
       <div class="session-time" id="sess-newyork">--:--</div>
       <div class="session-status" id="stat-newyork">--</div>
     </div>
@@ -488,7 +507,7 @@ function updateSessions() {
     const statEl = document.getElementById('stat-' + sess.name);
     if (timeEl) timeEl.textContent = localTime;
     if (statEl) {
-      statEl.textContent = isOpen ? '● OPEN' : '○ CLOSED';
+      statEl.textContent = isOpen ? t('session_open') : t('session_closed');
       statEl.className = 'session-status ' + (isOpen ? 'session-open' : 'session-closed');
     }
   });
@@ -879,7 +898,7 @@ Be concise, professional, data-driven. Use the actual prices provided. No discla
     const sentimentText = sections['RISK SENTIMENT'] || '';
     const isRiskOn = /risk.on|bullish|appetite|rally/i.test(sentimentText);
     const isRiskOff = /risk.off|bearish|safe.haven|flight/i.test(sentimentText);
-    const sentimentLabel = isRiskOn ? 'RISK-ON' : isRiskOff ? 'RISK-OFF' : 'MIXED / CAUTIOUS';
+    const sentimentLabel = isRiskOn ? t('label_risk_on') : isRiskOff ? t('label_risk_off') : 'MIXED / CAUTIOUS';
     const sentimentColor = isRiskOn ? '#22c55e' : isRiskOff ? '#ef4444' : '#f59e0b';
     const sentimentPct = isRiskOn ? '72%' : isRiskOff ? '25%' : '42%';
 
