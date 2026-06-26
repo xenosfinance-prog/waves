@@ -346,23 +346,8 @@ canvas { display: block; }
   ]
 }
 </script>
-<script src="/i18n.js"></script>
-<script src="/i18n-engine.js"></script>
-
-<script>
-// i18n helper
-function t(key) {
-  try {
-    var lang = localStorage.getItem('xenos_lang') || 'en';
-    var dict = (typeof XENOS_I18N !== 'undefined') ? (XENOS_I18N[lang] || XENOS_I18N['en']) : {};
-    return dict[key] || key;
-  } catch(e) { return key; }
-}
-var _origXenosSetLang = window.xenosSetLang;
-window.xenosSetLang = function(lang) {
-  if (_origXenosSetLang) _origXenosSetLang(lang);
-};
-</script>
+<script src="/i18n.js?v=4"></script>
+<script src="/i18n-engine.js?v=4"></script>
 </head>
 <body>
 
@@ -2536,7 +2521,7 @@ async function runFreeAnalysis() {
   const wrap      = document.getElementById('freeChartWrap');
   const loading   = document.getElementById('freeLoadingTxt');
 
-  btn.disabled = true; btn.textContent = t('label_ew_analyse');
+  btn.disabled = true; btn.textContent = 'Analysing...';
   wrap.style.display = 'none';
   loading.style.display = 'block';
   loading.textContent = '⬡ Fetching candles and identifying Elliott Wave structure...';
