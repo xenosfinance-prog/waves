@@ -637,13 +637,15 @@ if (urlSlug) {
 }
 
 // Hook lang switcher: reload grid cards in new language when user switches
-var _xenosSetLangOrig = window.xenosSetLang;
-window.xenosSetLang = function(lang) {
-  if (_xenosSetLangOrig) _xenosSetLangOrig(lang);
-  // If grid is visible reload it so cards get re-translated
-  var gv = document.getElementById('gridView');
-  if (gv && gv.style.display !== 'none') loadGrid();
-};
+// Uses DOMContentLoaded to ensure xenosSetLang is already defined by i18n-engine.js
+document.addEventListener('DOMContentLoaded', function() {
+  var _orig = window.xenosSetLang;
+  window.xenosSetLang = function(lang) {
+    if (_orig) _orig(lang);
+    var gv = document.getElementById('gridView');
+    if (gv && gv.style.display !== 'none') loadGrid();
+  };
+});
 
 var isAdmin = false;
 
