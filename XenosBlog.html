@@ -273,6 +273,7 @@ var XF=(function(){
     <a href="https://xenosfinance.com/calendar"><span data-i18n="nav_calendar">🗓 Calendar</span></a>
     <a href="https://xenosfinance.com/elliottwave"><span data-i18n="nav_elliott">〜 Elliott Wave</span></a>
     <a href="https://xenosfinance.com/daily-education"><span>📚 Education</span></a>
+    <a href="https://xenosfinance.com/market-brief"><span data-i18n="nav_brief">🤖 Market Brief</span></a>
     <a href="https://xenosfinance.com/premium-support"><span>✦ Premium</span></a>
   </nav>
 </header>
@@ -637,15 +638,13 @@ if (urlSlug) {
 }
 
 // Hook lang switcher: reload grid cards in new language when user switches
-// Uses DOMContentLoaded to ensure xenosSetLang is already defined by i18n-engine.js
-document.addEventListener('DOMContentLoaded', function() {
-  var _orig = window.xenosSetLang;
-  window.xenosSetLang = function(lang) {
-    if (_orig) _orig(lang);
-    var gv = document.getElementById('gridView');
-    if (gv && gv.style.display !== 'none') loadGrid();
-  };
-});
+var _xenosSetLangOrig = window.xenosSetLang;
+window.xenosSetLang = function(lang) {
+  if (_xenosSetLangOrig) _xenosSetLangOrig(lang);
+  // If grid is visible reload it so cards get re-translated
+  var gv = document.getElementById('gridView');
+  if (gv && gv.style.display !== 'none') loadGrid();
+};
 
 var isAdmin = false;
 
