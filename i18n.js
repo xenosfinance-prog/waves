@@ -1,6 +1,7 @@
 const XENOS_I18N = { 
   en: {
     nav_news: '📰 News',
+    nav_brief: '🤖 Market Brief',
     nav_dashboard: '📊 Dashboard',
     nav_charts: '◈ Charts',
     nav_blog: '✦ AI Blog',
@@ -281,6 +282,7 @@ const XENOS_I18N = {
 
   ru: {
     nav_news: '📰 Новости',
+    nav_brief: '🤖 Обзор Рынка',
     nav_dashboard: '📊 Дашборд',
     nav_charts: '◈ Графики',
     nav_blog: '✦ ИИ Блог',
@@ -561,6 +563,7 @@ const XENOS_I18N = {
 
   pl: {
     nav_news: '📰 Aktualności',
+    nav_brief: '🤖 Raport Rynkowy',
     nav_dashboard: '📊 Dashboard',
     nav_charts: '◈ Wykresy',
     nav_blog: '✦ Blog AI',
@@ -841,6 +844,7 @@ const XENOS_I18N = {
 
   es: {
     nav_news: '📰 Noticias',
+    nav_brief: '🤖 Informe de Mercado',
     nav_dashboard: '📊 Panel',
     nav_charts: '◈ Gráficos',
     nav_blog: '✦ Blog IA',
@@ -1120,6 +1124,7 @@ const XENOS_I18N = {
   }
   it: {
     nav_news: '📰 Notizie',
+    nav_brief: '🤖 Brief di Mercato',
     nav_dashboard: '📊 Dashboard',
     nav_charts: '◈ Grafici',
     nav_blog: '✦ Blog IA',
@@ -1180,8 +1185,8 @@ const XENOS_I18N = {
     label_take_profit: 'Take Profit',
     label_conf: 'Conf.',
     label_rr: 'R:R',
-    label_no_cfd: 'Nessun Segnale CFD Disponibile',
-    label_no_options: 'Nessun Segnale Opzioni Disponibile',
+    label_no_cfd: 'Nessun Segnale CFD',
+    label_no_options: 'Nessun Segnale Opzioni',
     label_analyse: '⟳ Analizza',
     label_analysing: '⟳ Analisi in corso...',
     label_sell: 'Vendi',
@@ -1192,7 +1197,7 @@ const XENOS_I18N = {
     label_signal_engine: 'XENOS ENGINE v2',
     label_institutional_signals: 'Segnali Istituzionali',
     label_signals_sub: 'Riconoscimento pattern IA su FX, Crypto, Materie Prime e Indici.',
-    label_educational_disclaimer: '⚠ Solo scopo educativo. Non è consulenza finanziaria.',
+    label_educational_disclaimer: '⚠ Solo scopo educativo.',
     label_join_telegram: '📡 Unisciti al Canale →',
     label_elliott_signals: 'Segnali Onde di Elliott',
     label_elliott_signals_sub: 'Analisi onde di Elliott pubblicate su Telegram.',
@@ -1226,7 +1231,7 @@ const XENOS_I18N = {
     label_ew_analyse: 'Analizza Onda',
     label_ew_loading: '⟳ Caricamento analisi onde...',
     label_ew_title: 'Analisi Onde di Elliott',
-    label_ew_sub: 'Conteggio onde IA · Livelli Fibonacci · Segnali in tempo reale',
+    label_ew_sub: 'Conteggio onde IA · Livelli Fibonacci · Live',
     label_ew_disclaimer: '⚠ Solo scopo educativo.',
     label_blog_title: 'Blog IA',
     label_blog_desc: 'Analisi professionale dei mercati finanziari.',
