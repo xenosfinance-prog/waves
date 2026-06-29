@@ -1121,7 +1121,7 @@ const XENOS_I18N = {
     label_ai_brief_unavailable: 'Brief de IA temporalmente no disponible',
     label_analysis_failed: 'Análisis fallido. Verifica la conexión.',
     label_generating_ai_analysis: 'Generando análisis semanal de IA...',
-  }
+  },
   it: {
     nav_news: '📰 Notizie',
     nav_brief: '🤖 Brief di Mercato',
