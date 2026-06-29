@@ -155,6 +155,67 @@
 
 to   { transform: rotate(1.5deg); }
 }
+
+  /* ── MANUAL ARTICLE ── */
+  .mode-tabs { display:flex; gap:0; margin-bottom:0; border-bottom:1px solid rgba(59,130,246,0.2); }
+  .mode-tab {
+    padding:10px 22px; font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:2px;
+    text-transform:uppercase; cursor:pointer; border:none; background:none;
+    color:var(--dim); border-bottom:2px solid transparent; transition:all 0.2s;
+  }
+  .mode-tab.active { color:var(--gold); border-bottom-color:var(--gold); }
+  .mode-panel { display:none; }
+  .mode-panel.active { display:block; }
+  .manual-grid {
+    display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-bottom:18px;
+  }
+  .manual-field { display:flex; flex-direction:column; gap:6px; }
+  .manual-field.full { grid-column:1/-1; }
+  .manual-label {
+    font-family:'IBM Plex Mono',monospace; font-size:9px; letter-spacing:2px;
+    text-transform:uppercase; color:var(--dim);
+  }
+  .manual-input, .manual-select, .manual-textarea {
+    background:rgba(59,130,246,0.04); border:1px solid rgba(59,130,246,0.18);
+    color:var(--ink); font-family:'Inter',sans-serif; font-size:0.85rem;
+    padding:9px 12px; outline:none; transition:border-color 0.2s; width:100%;
+    box-sizing:border-box;
+  }
+  .manual-textarea { resize:vertical; line-height:1.7; }
+  .manual-input:focus, .manual-select:focus, .manual-textarea:focus {
+    border-color:rgba(59,130,246,0.5);
+  }
+  .manual-section-block {
+    background:rgba(59,130,246,0.04); border:1px solid rgba(59,130,246,0.15);
+    padding:14px; margin-bottom:10px; position:relative;
+  }
+  .manual-section-num {
+    font-family:'IBM Plex Mono',monospace; font-size:8px; letter-spacing:3px;
+    text-transform:uppercase; color:var(--gold); margin-bottom:8px;
+  }
+  .manual-remove-btn {
+    position:absolute; top:10px; right:10px; background:none; border:none;
+    color:var(--dim); font-size:14px; cursor:pointer; padding:2px 6px;
+    transition:color 0.2s;
+  }
+  .manual-remove-btn:hover { color:#ef4444; }
+  .manual-add-btn {
+    font-family:'IBM Plex Mono',monospace; font-size:9px; letter-spacing:2px;
+    text-transform:uppercase; padding:8px 16px; background:transparent;
+    border:1px solid rgba(59,130,246,0.3); color:var(--gold2); cursor:pointer;
+    transition:all 0.2s; margin-bottom:16px;
+  }
+  .manual-add-btn:hover { background:rgba(59,130,246,0.1); }
+  .btn-manual-publish {
+    background:var(--gold); color:#0f1724; border:none; padding:12px 28px;
+    font-family:'IBM Plex Mono',monospace; font-size:0.7rem; font-weight:600;
+    letter-spacing:0.15em; text-transform:uppercase; cursor:pointer;
+    transition:background 0.2s; display:inline-flex; align-items:center; gap:8px;
+  }
+  .btn-manual-publish:hover { background:var(--gold-light); }
+  .btn-manual-publish:disabled { opacity:0.4; cursor:not-allowed; }
+  .manual-status { font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--dim); margin-left:14px; }
+
 </style>
 <script src="/xf-hand.js"></script>
 </head>
@@ -413,6 +474,83 @@ var XF=(function(){
     </button>
     <span class="gen-status" id="genStatus"></span>
   </div>
+  </div><!-- /mode-ai -->
+
+  <!-- MANUAL MODE -->
+  <div class="mode-panel" id="mode-manual">
+    <div style="padding:20px 0 10px;">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--gold);margin-bottom:4px;">✍ Articolo Manuale</div>
+      <div style="font-size:12px;color:var(--dim);margin-bottom:20px;">Scrivi e pubblica un articolo direttamente — nessuna AI coinvolta. Il tuo contenuto viene pubblicato esattamente come lo inserisci.</div>
+
+      <div class="manual-grid">
+        <div class="manual-field full">
+          <label class="manual-label">Titolo *</label>
+          <input class="manual-input" id="man-title" type="text" placeholder="es. Analisi Gold XAU/USD — Struttura Elliottiana e Livelli Chiave">
+        </div>
+        <div class="manual-field">
+          <label class="manual-label">Categoria / Label *</label>
+          <input class="manual-input" id="man-category" type="text" placeholder="es. FX Markets · AI Analysis">
+        </div>
+        <div class="manual-field">
+          <label class="manual-label">Mercato</label>
+          <select class="manual-select" id="man-market">
+            <option value="macro">Macro</option>
+            <option value="forex">Forex</option>
+            <option value="commodities">Commodities</option>
+            <option value="crypto">Crypto</option>
+            <option value="equity">Equity</option>
+            <option value="elliott">Elliott Wave</option>
+            <option value="energy">Energy</option>
+            <option value="geopolitics">Geopolitics</option>
+          </select>
+        </div>
+        <div class="manual-field">
+          <label class="manual-label">Lingua</label>
+          <select class="manual-select" id="man-lang">
+            <option value="en">English</option>
+            <option value="it">Italiano</option>
+            <option value="ru">Русский</option>
+            <option value="pl">Polski</option>
+            <option value="es">Español</option>
+          </select>
+        </div>
+        <div class="manual-field">
+          <label class="manual-label">Tempo di lettura</label>
+          <input class="manual-input" id="man-readtime" type="text" value="3 min read" placeholder="es. 3 min read">
+        </div>
+        <div class="manual-field full">
+          <label class="manual-label">Intro / Apertura *</label>
+          <textarea class="manual-textarea" id="man-intro" rows="3" placeholder="Paragrafo di apertura dell'articolo..."></textarea>
+        </div>
+      </div>
+
+      <!-- Sezioni -->
+      <div style="margin-bottom:8px;">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--dim);margin-bottom:10px;">Sezioni del corpo</div>
+        <div id="man-sections-list"></div>
+        <button class="manual-add-btn" onclick="manAddSection()">+ Aggiungi Sezione</button>
+      </div>
+
+      <div class="manual-grid">
+        <div class="manual-field full">
+          <label class="manual-label">Quote / Citazione chiave — opzionale</label>
+          <input class="manual-input" id="man-quote" type="text" placeholder="es. Il livello 1.0780 rimane l'invalidazione critica per il setup rialzista.">
+        </div>
+        <div class="manual-field full">
+          <label class="manual-label">Conclusione *</label>
+          <textarea class="manual-textarea" id="man-conclusion" rows="3" placeholder="Paragrafo conclusivo dell'articolo..."></textarea>
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:center;margin-top:8px;">
+        <button class="btn-manual-publish" id="manPublishBtn" onclick="publishManualArticle()">
+          <span id="manPubIcon">✦</span> Pubblica Articolo
+        </button>
+        <span class="manual-status" id="manStatus"></span>
+      </div>
+    </div>
+  </div><!-- /mode-manual -->
+
 </section>
 
 <div class="article-display" id="articleDisplay">
@@ -1270,6 +1408,123 @@ function openPreview() {
 }
 function closePreview() { document.getElementById('previewOverlay').classList.remove('open'); }
 document.addEventListener('click', function(e){ if(e.target===document.getElementById('previewOverlay')) closePreview(); });
+
+// ── MANUAL ARTICLE ────────────────────────────────────────────────────────
+var manSectionCount = 0;
+
+function switchMode(mode, btn) {
+  document.querySelectorAll('.mode-tab').forEach(function(b) { b.classList.remove('active'); });
+  document.querySelectorAll('.mode-panel').forEach(function(p) { p.classList.remove('active'); });
+  btn.classList.add('active');
+  document.getElementById('mode-' + mode).classList.add('active');
+}
+
+function manAddSection() {
+  manSectionCount++;
+  var n = manSectionCount;
+  var list = document.getElementById('man-sections-list');
+  var block = document.createElement('div');
+  block.className = 'manual-section-block';
+  block.id = 'man-sec-' + n;
+  block.innerHTML =
+    '<div class="manual-section-num">Sezione ' + n + '</div>' +
+    '<button class="manual-remove-btn" onclick="manRemoveSection(' + n + ')" title="Rimuovi">✕</button>' +
+    '<div class="manual-field" style="margin-bottom:8px;">' +
+      '<label class="manual-label">Titolo sezione</label>' +
+      '<input class="manual-input" id="man-sec-title-' + n + '" type="text" placeholder="es. Analisi Tecnica · Struttura Elliottiana">' +
+    '</div>' +
+    '<div class="manual-field">' +
+      '<label class="manual-label">Contenuto</label>' +
+      '<textarea class="manual-textarea" id="man-sec-content-' + n + '" rows="4" placeholder="Testo della sezione..."></textarea>' +
+    '</div>';
+  list.appendChild(block);
+}
+
+function manRemoveSection(n) {
+  var el = document.getElementById('man-sec-' + n);
+  if (el) el.remove();
+}
+
+function manGetSections() {
+  var sections = [];
+  document.querySelectorAll('.manual-section-block').forEach(function(block) {
+    var id = block.id.replace('man-sec-', '');
+    var heading = (document.getElementById('man-sec-title-' + id) || {}).value || '';
+    var content = (document.getElementById('man-sec-content-' + id) || {}).value || '';
+    if (heading || content) sections.push({ heading: heading, content: content });
+  });
+  return sections;
+}
+
+async function publishManualArticle() {
+  var title      = (document.getElementById('man-title')      || {}).value || '';
+  var category   = (document.getElementById('man-category')   || {}).value || '';
+  var market     = (document.getElementById('man-market')     || {}).value || 'macro';
+  var lang       = (document.getElementById('man-lang')       || {}).value || 'en';
+  var readTime   = (document.getElementById('man-readtime')   || {}).value || '3 min read';
+  var intro      = (document.getElementById('man-intro')      || {}).value || '';
+  var quote      = (document.getElementById('man-quote')      || {}).value || '';
+  var conclusion = (document.getElementById('man-conclusion') || {}).value || '';
+  var sections   = manGetSections();
+  var status     = document.getElementById('manStatus');
+  var btn        = document.getElementById('manPublishBtn');
+  var icon       = document.getElementById('manPubIcon');
+
+  // Validation
+  if (!title.trim())      { status.textContent = '⚠ Titolo obbligatorio.'; status.style.color='#ef4444'; return; }
+  if (!category.trim())   { status.textContent = '⚠ Categoria obbligatoria.'; status.style.color='#ef4444'; return; }
+  if (!intro.trim())      { status.textContent = '⚠ Intro obbligatoria.'; status.style.color='#ef4444'; return; }
+  if (!conclusion.trim()) { status.textContent = '⚠ Conclusione obbligatoria.'; status.style.color='#ef4444'; return; }
+
+  btn.disabled = true;
+  icon.innerHTML = '<div class="spinner-gold"></div>';
+  status.textContent = 'Pubblicazione in corso...';
+  status.style.color = 'var(--gold)';
+
+  // Build currentArticle in same format as AI-generated articles
+  currentArticle = {
+    title:         title.trim(),
+    categoryLabel: category.trim(),
+    market:        market,
+    lang:          lang,
+    readTime:      readTime,
+    intro:         intro.trim(),
+    sections:      sections,
+    quote:         quote.trim(),
+    conclusion:    conclusion.trim(),
+    excerpt:       intro.trim().substring(0, 120),
+    tech:          [],
+    bullets:       [],
+    keyLevels:     [],
+    source:        'manual',
+    generatedAt:   new Date().toISOString(),
+  };
+
+  try {
+    await publishToBlog();
+    // Clear form on success
+    setTimeout(function() {
+      if ((document.getElementById('manStatus') || {}).textContent.indexOf('✓') > -1) {
+        document.getElementById('man-title').value = '';
+        document.getElementById('man-category').value = '';
+        document.getElementById('man-intro').value = '';
+        document.getElementById('man-quote').value = '';
+        document.getElementById('man-conclusion').value = '';
+        document.getElementById('man-sections-list').innerHTML = '';
+        manSectionCount = 0;
+        status.textContent = '✓ Articolo pubblicato!';
+        status.style.color = '#22c55e';
+      }
+    }, 2000);
+  } catch(e) {
+    status.textContent = '✗ Errore: ' + e.message;
+    status.style.color = '#ef4444';
+  }
+
+  btn.disabled = false;
+  icon.textContent = '✦';
+}
+
 </script>
 
 <!-- PREVIEW MODAL -->
