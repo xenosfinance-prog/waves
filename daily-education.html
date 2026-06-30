@@ -545,7 +545,6 @@
     .nav-links { display: none; }
   }
 </style>
-<script src="/i18n.js"></script>
 
 <script src="https://xenosfinance.com/i18n.js"></script>
 <script src="https://xenosfinance.com/i18n-engine.js"></script>
@@ -656,26 +655,30 @@ let activeFilter = 'all';
 let isAdmin = false;
 let selectedPostDate = null;
 
-// ── LibreTranslate integration ────────────────────────────────────────────
-const LT_URL_EDU = 'https://libretranslatelibretranslate-production-ecfe.up.railway.app';
+// ── LibreTranslate integration (routed via Cloudflare Worker) ────────────
+const WORKER_URL_EDU = 'https://xenos-ai-proxy.xenosfinance.workers.dev';
 const _ltCacheEdu = {};
 
 async function ltTranslateEdu(text, target) {
   if (!text || !target || target === 'en') return text;
-  const key = target + '|' + text.slice(0, 40);
+  const key = target + '|' + text.slice(0, 60);
   if (_ltCacheEdu[key]) return _ltCacheEdu[key];
   try {
-    const r = await fetch(LT_URL_EDU + '/translate', {
+    const controller = new AbortController();
+    const tid = setTimeout(() => controller.abort(), 8000);
+    const r = await fetch(WORKER_URL_EDU, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({q: text, source: 'en', target: target, format: 'text'})
+      body: JSON.stringify({type: 'translate', q: text, source: 'en', target: target, format: 'text'}),
+      signal: controller.signal
     });
+    clearTimeout(tid);
     if (!r.ok) return text;
     const d = await r.json();
     const t = d.translatedText || text;
     _ltCacheEdu[key] = t;
     return t;
-  } catch(e) { return text; }
+  } catch(e) { return text; } // graceful fallback: return original on error/timeout
 }
 
 function getCurrentLangEdu() {
