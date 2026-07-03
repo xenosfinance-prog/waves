@@ -3,10 +3,10 @@ import re
 from datetime import datetime, timezone
 from typing import List, Dict, Any
 
-from collectors.base_collector import Article
-from config.settings import CATEGORY_LABELS, OUTPUT_PATH
-from utils.helpers import format_dt, sentiment_emoji
-from utils.logger import get_logger
+from base_collector import Article
+from settings import CATEGORY_LABELS, OUTPUT_PATH
+from helpers import format_dt, sentiment_emoji
+from logger import get_logger
 
 log = get_logger(__name__)
 
@@ -481,12 +481,12 @@ a:hover {{ color: var(--ink); }}
   </div>
   <nav class="masthead-nav">
     <a class="nav-btn" href="https://xenosfinance.com">📰 News</a>
+    <a class="nav-btn active" href="https://xenosfinance.com/market-brief">🤖 Market Brief</a>
     <a class="nav-btn" href="https://xenosfinance.com/dashboard">📊 Dashboard</a>
     <a class="nav-btn" href="https://xenosfinance.com/xenoswaves_charts">◈ Charts</a>
     <a class="nav-btn" href="https://xenosfinance.com/XenosBlog">✦ AI Blog</a>
     <a class="nav-btn" href="https://xenosfinance.com/trading-signals">📡 Live Signals</a>
     <a class="nav-btn" href="https://xenosfinance.com/calendar">🗓 Calendar</a>
-    <a class="nav-btn active" href="https://xenosfinance.com/market-brief">🤖 Market Brief</a>
     <a class="nav-btn" href="https://xenosfinance.com/premium-support">✦ Premium</a>
   </nav>
 </div>
