@@ -464,6 +464,8 @@ a:hover {{ color: var(--ink); }}
   .ai-section {{ padding: 16px; }}
 }}
 </style>
+<script src="/i18n.js?v=4"></script>
+<script src="/i18n-engine.js?v=4"></script>
 </head>
 <body>
 
@@ -473,21 +475,22 @@ a:hover {{ color: var(--ink); }}
     <span>XenosFinance · Market Intelligence</span>
     <span>{ts_str}</span>
     <span>AI-Powered Brief</span>
+    <div id="xenos-lang-switcher" style="display:inline-block;"></div>
   </div>
   <div class="masthead-center">
-    <div class="masthead-eyebrow">Financial Intelligence · Global Markets</div>
+    <div class="masthead-eyebrow"><span data-i18n="masthead_eyebrow">Financial Intelligence · Global Markets</span></div>
     <div class="masthead-name">XENOS<span>FINANCE</span></div>
     <div class="masthead-sub">Market Intelligence Brief · Powered by AI</div>
   </div>
   <nav class="masthead-nav">
-    <a class="nav-btn" href="https://xenosfinance.com">📰 News</a>
-    <a class="nav-btn active" href="https://xenosfinance.com/market-brief">🤖 Market Brief</a>
-    <a class="nav-btn" href="https://xenosfinance.com/dashboard">📊 Dashboard</a>
-    <a class="nav-btn" href="https://xenosfinance.com/xenoswaves_charts">◈ Charts</a>
-    <a class="nav-btn" href="https://xenosfinance.com/XenosBlog">✦ AI Blog</a>
-    <a class="nav-btn" href="https://xenosfinance.com/trading-signals">📡 Live Signals</a>
-    <a class="nav-btn" href="https://xenosfinance.com/calendar">🗓 Calendar</a>
-    <a class="nav-btn" href="https://xenosfinance.com/premium-support">✦ Premium</a>
+    <a class="nav-btn" href="https://xenosfinance.com"><span data-i18n="nav_news">📰 News</span></a>
+    <a class="nav-btn active" href="https://xenosfinance.com/market-brief"><span data-i18n="nav_brief">🤖 Market Brief</span></a>
+    <a class="nav-btn" href="https://xenosfinance.com/dashboard"><span data-i18n="nav_dashboard">📊 Dashboard</span></a>
+    <a class="nav-btn" href="https://xenosfinance.com/xenoswaves_charts"><span data-i18n="nav_charts">◈ Charts</span></a>
+    <a class="nav-btn" href="https://xenosfinance.com/XenosBlog"><span data-i18n="nav_blog">✦ AI Blog</span></a>
+    <a class="nav-btn" href="https://xenosfinance.com/trading-signals"><span data-i18n="nav_signals">📡 Live Signals</span></a>
+    <a class="nav-btn" href="https://xenosfinance.com/calendar"><span data-i18n="nav_calendar">🗓 Calendar</span></a>
+    <a class="nav-btn" href="https://xenosfinance.com/premium-support"><span>✦ Premium</span></a>
   </nav>
 </div>
 
