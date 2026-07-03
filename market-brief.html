@@ -1,0 +1,1036 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>XenosFinance · Market Intelligence Brief</title>
+<meta name="description" content="AI-powered daily financial market intelligence brief — Macro, Equities, Commodities, Crypto, Forex. Powered by XenosFinance.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=IBM+Plex+Mono:wght@400;500&family=PT+Serif:ital,wght@0,400;1,400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:     #0a1020;
+  --bg2:    #0f1828;
+  --bg3:    #162035;
+  --border: #1e2d45;
+  --ink:    #d8e8f8;
+  --ink2:   #b0c4d8;
+  --muted:  #6878a0;
+  --gold:   #3b82f6;
+  --gold2:  #60a5fa;
+  --green:  #22c55e;
+  --red:    #ef4444;
+  --yellow: #f0c040;
+  --mono:   'IBM Plex Mono', monospace;
+  --serif:  'PT Serif', Georgia, serif;
+  --head:   'Playfair Display', Georgia, serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 14px;
+  line-height: 1.7;
+}
+a { color: var(--gold2); text-decoration: none; }
+a:hover { color: var(--ink); }
+
+/* ── Masthead ── */
+.masthead {
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+}
+.masthead-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--muted);
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--border);
+}
+.masthead-center {
+  text-align: center;
+  padding: 24px 0 20px;
+}
+.masthead-eyebrow {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 4px;
+  color: var(--gold2);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.masthead-name {
+  font-family: var(--head);
+  font-size: clamp(32px, 5vw, 64px);
+  font-weight: 800;
+  letter-spacing: -1px;
+  color: var(--ink);
+  line-height: 1;
+}
+.masthead-name span { color: var(--gold2); }
+.masthead-sub {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 3px;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-top: 8px;
+}
+.masthead-nav {
+  display: flex;
+  justify-content: center;
+  gap: 0;
+  border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.nav-btn {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 10px 16px;
+  border-right: 1px solid var(--border);
+  transition: color 0.2s;
+}
+.nav-btn:hover { color: var(--gold2); }
+.nav-btn.active { color: var(--gold2); border-bottom: 2px solid var(--gold2); }
+
+/* ── Layout ── */
+.wrap { max-width: 1200px; margin: 0 auto; padding: 0 20px 60px; }
+
+/* ── Sentiment Hero ── */
+.sentiment-hero {
+  text-align: center;
+  padding: 36px 20px 28px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 32px;
+}
+.sentiment-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 4px;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+.sentiment-value {
+  font-family: var(--head);
+  font-size: 48px;
+  font-weight: 800;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+.sentiment-stats {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--muted);
+  margin-bottom: 20px;
+  letter-spacing: 1px;
+}
+.sent-bar-wrap { max-width: 500px; margin: 0 auto; }
+.sent-bar-label {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--mono);
+  font-size: 9px;
+  margin-bottom: 6px;
+}
+.sent-bar {
+  display: flex;
+  height: 6px;
+  border-radius: 3px;
+  overflow: hidden;
+  background: var(--bg3);
+}
+.sent-bull { background: #22c55e; }
+.sent-neut { background: #334155; }
+.sent-bear { background: #ef4444; }
+
+/* ── AI Brief ── */
+.ai-section {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  padding: 28px 32px;
+  margin-bottom: 40px;
+}
+.ai-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.ai-badge {
+  font-family: var(--mono);
+  font-size: 8px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  background: rgba(59,130,246,0.15);
+  color: var(--gold2);
+  border: 1px solid rgba(59,130,246,0.3);
+  padding: 3px 10px;
+}
+.ai-title {
+  font-family: var(--head);
+  font-size: 20px;
+  font-weight: 700;
+}
+.brief-section-title {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--gold2);
+  margin: 20px 0 8px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.brief-p {
+  color: var(--ink2);
+  font-size: 13px;
+  line-height: 1.75;
+  margin-bottom: 4px;
+}
+
+/* ── Category Nav ── */
+.cat-nav {
+  display: flex;
+  gap: 0;
+  border: 1px solid var(--border);
+  margin-bottom: 32px;
+  overflow-x: auto;
+}
+.cat-tab {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 10px 14px;
+  white-space: nowrap;
+  border-right: 1px solid var(--border);
+  transition: all 0.2s;
+}
+.cat-tab:hover { color: var(--gold2); background: var(--bg2); }
+
+/* ── Category Section ── */
+.cat-section { margin-bottom: 48px; }
+.cat-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.cat-label {
+  font-family: var(--head);
+  font-size: 20px;
+  font-weight: 700;
+}
+.cat-sentiment {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+.cat-count {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--muted);
+  margin-left: auto;
+}
+
+/* ── Article Cards ── */
+.articles-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 1px;
+  background: var(--border);
+}
+.article-card {
+  background: var(--bg2);
+  padding: 16px;
+  transition: background 0.2s;
+}
+.article-card:hover { background: var(--bg3); }
+.article-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.article-cat {
+  font-family: var(--mono);
+  font-size: 8px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--gold2);
+}
+.article-source {
+  font-family: var(--mono);
+  font-size: 8px;
+  color: var(--muted);
+}
+.article-date {
+  font-family: var(--mono);
+  font-size: 8px;
+  color: var(--muted);
+  margin-left: auto;
+}
+.article-sent {
+  font-family: var(--mono);
+  font-size: 8px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.article-title {
+  display: block;
+  font-family: var(--head);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.35;
+  margin-bottom: 8px;
+  transition: color 0.2s;
+}
+.article-title:hover { color: var(--gold2); }
+.article-summary {
+  font-size: 12px;
+  color: var(--ink2);
+  line-height: 1.65;
+}
+
+/* ── Footer ── */
+.page-footer {
+  border-top: 1px solid var(--border);
+  padding: 16px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--muted);
+  letter-spacing: 1px;
+  margin-top: 40px;
+}
+.footer-links { display: flex; gap: 20px; }
+.footer-links a { color: var(--muted); }
+.footer-links a:hover { color: var(--gold2); }
+
+@media (max-width: 640px) {
+  .articles-grid { grid-template-columns: 1fr; }
+  .cat-header { flex-wrap: wrap; }
+  .sentiment-value { font-size: 32px; }
+  .ai-section { padding: 16px; }
+}
+</style>
+</head>
+<body>
+
+<!-- Masthead -->
+<div class="masthead">
+  <div class="masthead-top">
+    <span>XenosFinance · Market Intelligence</span>
+    <span>Friday, 03 July 2026 — 09:21 UTC</span>
+    <span>AI-Powered Brief</span>
+  </div>
+  <div class="masthead-center">
+    <div class="masthead-eyebrow">Financial Intelligence · Global Markets</div>
+    <div class="masthead-name">XENOS<span>FINANCE</span></div>
+    <div class="masthead-sub">Market Intelligence Brief · Powered by AI</div>
+  </div>
+  <nav class="masthead-nav">
+    <a class="nav-btn" href="https://xenosfinance.com">📰 News</a>
+    <a class="nav-btn" href="https://xenosfinance.com/dashboard">📊 Dashboard</a>
+    <a class="nav-btn" href="https://xenosfinance.com/xenoswaves_charts">◈ Charts</a>
+    <a class="nav-btn" href="https://xenosfinance.com/XenosBlog">✦ AI Blog</a>
+    <a class="nav-btn" href="https://xenosfinance.com/trading-signals">📡 Live Signals</a>
+    <a class="nav-btn" href="https://xenosfinance.com/calendar">🗓 Calendar</a>
+    <a class="nav-btn active" href="https://xenosfinance.com/market-brief">🤖 Market Brief</a>
+    <a class="nav-btn" href="https://xenosfinance.com/premium-support">✦ Premium</a>
+  </nav>
+</div>
+
+<div class="wrap">
+
+  <!-- Sentiment Hero -->
+  <div class="sentiment-hero">
+    <div class="sentiment-label">Overall Market Sentiment</div>
+    <div class="sentiment-value" style="color:#f0c040">MIXED 🟡</div>
+    <div class="sentiment-stats">
+      100 articles analyzed · Friday, 03 July 2026 — 09:21 UTC
+    </div>
+    
+    <div class="sent-bar-wrap">
+      <div class="sent-bar-label">
+        <span style="color:#22c55e">▲ 22% Bullish</span>
+        <span style="color:#8892a4">● 55% Neutral</span>
+        <span style="color:#ef4444">▼ 23% Bearish</span>
+      </div>
+      <div class="sent-bar">
+        <div class="sent-bull" style="width:22%"></div>
+        <div class="sent-neut" style="width:55%"></div>
+        <div class="sent-bear" style="width:23%"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI Brief -->
+  <section class="ai-section">
+    <div class="ai-header">
+      <span class="ai-badge">✦ AI Analysis</span>
+      <span class="ai-title">Market Intelligence Brief</span>
+    </div>
+    <div class="ai-content">
+      <h3 class="brief-section-title">EXECUTIVE SUMMARY</h3>
+<p class="brief-p">Global financial markets present a mixed tone today as significantly weaker-than-expected US non-farm payrolls data shifts macroeconomic expectations. The single most important theme is the cooling US labor market, which triggers a sharp decline in the US Dollar and eases expectations of further Federal Reserve interest rate hikes. This macroeconomic shift drives gains in gold and select cryptocurrencies while keeping forex markets highly sensitive to potential central bank intervention.</p>
+<br>
+<h3 class="brief-section-title">MACRO & CENTRAL BANKS</h3>
+<p class="brief-p">US June non-farm payrolls arrive at a disappointing 57K compared to the 110K expected, significantly easing concerns over future Federal Reserve rate hikes. Meanwhile, Donald Trump expresses plans to remove Fed Governor Lisa Cook and comments that interest rates must do what they have to do. In Europe, the UK June final services PMI lands at 48.8, reflecting falling activity and easing input cost inflation. Eurozone business activity shows a modest recovery with the composite PMI reaching a three-month high of 50.0.</p>
+<br>
+<h3 class="brief-section-title">EQUITIES</h3>
+<p class="brief-p">US equity markets remain closed for the Independence Day weekend, resulting in lower trading volumes globally. In corporate news, Tesla records record quarterly deliveries, which boosts hopes for annual growth amidst a European recovery. In Asia, regional equities claw back early losses despite domestic headwinds. China services growth eases slightly, although export orders hit a 20-month high.</p>
+<br>
+<h3 class="brief-section-title">COMMODITIES & ENERGY</h3>
+<p class="brief-p">Spot gold climbs more than 2 percent as disappointing US employment figures lower the likelihood of restrictive monetary policy. In energy markets, Japan reduces its liquefied natural gas imports by 7 percent as utility companies favor cheaper coal options. The United Arab Emirates restructures its Murban crude offshore pricing framework to target Asian market share. Additionally, Canada approves a new Pacific pipeline to expand oil access to Asia, while European energy transition efforts face setbacks from intense heat waves.</p>
+<br>
+<h3 class="brief-section-title">CRYPTO</h3>
+<p class="brief-p">Bitcoin stabilizes around 61,000 to 62,000 USD, supported by a short squeeze and capital rotation following the weak US labor report. Ether and Solana extend gains, while Securitize debuts on the NYSE using live tokenized stocks on the Solana and Avalanche blockchains. Regulatory and structural developments continue as Irish authorities seize 500 Bitcoin, bringing their 2026 total recovery to 1,500 BTC. Analysts remain divided on whether Bitcoin has bottomed or if it is heading toward 65,000 USD.</p>
+<br>
+<h3 class="brief-section-title">FOREX & RATES</h3>
+<p class="brief-p">The US Dollar index experiences its worst single-day drop since late April, setting up a weekly loss on soft payroll numbers. The Japanese Yen remains on high intervention watch as government officials state they are monitoring FX movements with a high sense of urgency. The People's Bank of China sets the USD/CNY reference rate at 6.8047. Eurozone services PMI edges up to 49.4, indicating easing contraction pressures in the European session.</p>
+<br>
+<h3 class="brief-section-title">GEOPOLITICAL RISK</h3>
+<p class="brief-p">Geopolitical tensions rise as Iran warns oil tankers transiting the Strait of Hormuz, tightening its grip on regional shipping lanes. Russia advances its digital ruble rollout with a target date of September 1, despite preemptive EU sanctions designed to target the currency. Energy security issues take center stage as extreme European summer heat waves expose structural vulnerabilities in the region's green transition. These developments maintain elevated risk premiums in both energy and regional financial markets.</p>
+<br>
+<h3 class="brief-section-title">MARKET OUTLOOK</h3>
+<p class="brief-p">Traders should monitor the potential for high volatility in currency markets as the Japanese Yen hovers near critical intervention levels. In the next 24 to 48 hours, market participants will watch for any official central bank responses to the weak US non-farm payrolls. Technical traders are focusing on whether Bitcoin can maintain support at the 61,000 USD level to trigger a push toward 65,000 USD. Light summer trading volumes due to the US holiday weekend may amplify price swings across major asset classes.</p>
+    </div>
+  </section>
+
+  <!-- Category Navigation -->
+  <nav class="cat-nav">
+    <a class="cat-tab" href="#cat-macro">Macro & Central Banks</a>
+<a class="cat-tab" href="#cat-equities">Equities</a>
+<a class="cat-tab" href="#cat-commodities">Commodities & Energy</a>
+<a class="cat-tab" href="#cat-crypto">Crypto</a>
+<a class="cat-tab" href="#cat-forex">Forex & Rates</a>
+<a class="cat-tab" href="#cat-geopolitics">Geopolitical Risk</a>
+  </nav>
+
+  <!-- Category Sections -->
+  
+    <section class="cat-section" id="cat-macro">
+      <div class="cat-header">
+        <span class="cat-label">Macro & Central Banks</span>
+        <span class="cat-sentiment" style="color:#f0c040">🟡 MIXED</span>
+        <span class="cat-count">14 articles</span>
+      </div>
+      <div class="articles-grid">
+        
+    <div class="article-card">
+      <div class="article-meta">
+        <span class="article-cat">Macro & Central Banks</span>
+        <span class="article-source">ForexLive</span>
+        <span class="article-date">03 Jul 2026 07:10 UTC</span>
+        <span class="article-sent" style="color:#ef4444">🔴 bearish</span>
+      </div>
+      <a class="article-title" href="https://investinglive.com/news/we-are-closely-monitoring-market-movements-with-high-sense-of-urgency-says-japans-kihara-20260703/" target="_blank" rel="noopener">We are closely monitoring market movements with high sense of urgency, says Japan's Kihara</a>
+      <p class="article-summary">Interest rate moves are determined by markets Monetary policy falls under the jurisdiction of the BOJ Government will continue to work closely with the BOJ Will not pursue fiscal policies that undermine market confidence Closely monitoring market movements with high sense of urgency Always monitoring daily market moves, economic indicators Will take appropriate action on FX at all times as needed…</p>
+    </div>
+
+    <div class="article-card">
+      <div class="article-meta">
+        <span class="article-cat">Macro & Central Banks</span>
+        <span class="article-source">MarketWatch</span>
+        <span class="article-date">02 Jul 2026 22:30 UTC</span>
+        <span class="article-sent" style="color:#8892a4">⚪ neutral</span>
+      </div>
+      <a class="article-title" href="https://www.marketwatch.com/story/trump-blasts-hostile-fed-and-says-warsh-has-to-do-what-he-has-to-do-on-interest-rates-60b5d16b?mod=mw_rss_topstories" target="_blank" rel="noopener">Trump blasts ‘hostile’ Fed and says Warsh ‘has to do what he has to do’ on interest rates</a>
+      <p class="article-summary">Trump, in the interview, also said he continues to plan to remove Fed governor Lisa Cook from the central bank’s board.</p>
+    </div>
+
+    <div class="article-card">
+      <div class="article-meta">
+        <span class="article-cat">Macro & Central Banks</span>
+        <span class="article-source">ForexLive</span>
+        <span class="article-date">03 Jul 2026 08:30 UTC</span>
+        <span class="article-sent" style="color:#ef4444">🔴 bearish</span>
+      </div>
+      <a class="article-title" href="https://investinglive.com/news/uk-june-final-services-pmi-488-vs-487-prelim-20260703/" target="_blank" rel="noopener">UK June final services PMI 48.8 vs 48.7 prelim</a>
+      <p class="article-summary">Prior 49.3 Final Composite PMI 49.3 vs 49.4 prelim Prior 49.7 Key findings: Activity falls to greatest extent for nearly three and a half years New orders decrease for fourth month in a row Input cost inflation eases to its lowest since March Comment: Tim Moore, Economics Director at S P Global Market Intelligence, said: "June data confirmed a clear loss of momentum for the UK economy during the…</p>
+    </div>
+
+    <div class="article-card">
+      <div class="article-meta">
+        <span class="article-cat">Macro & Central Banks</span>
+        <span class="article-source">Investing.com Commodities</span>
+        <span class="article-date">02 Jul 2026 20:33 UTC</span>
+        <span class="article-sent" style="color:#ef4444">🔴 bearish</span>
+      </div>
+      <a class="article-title" href="https://www.investing.com/news/commodities-news/gold-prices-steady-with-nonfarm-payrolls-in-focus-4772204" target="_blank" rel="noopener">Spot gold climbs more than 2% as weak jobs data eases Fed rate hike concerns</a>
+      <p class="article-summary"></p>
+    </div>
+
+    <div class="article-card">
+      <div class="article-meta">
+        <span class="article-cat">Macro & Central Banks</span>
+        <span class="article-source">Investing.com Forex</span>
+        <span class="article-date">02 Jul 2026 19:58 UTC</span>
+        <span class="article-sent" style="color:#8892a4">⚪ neutral</span>
+      </div>
+      <a class="article-title" href="https://www.investing.com/news/forex-news/asia-fx-muted-dollar-strong-with-payrolls-data-in-focus-4772280" target="_blank" rel="noopener">Dollar set for worst day since end of April as jobs data dents Fed rate hike bets</a>
+      <p class="article-summary"></p>
+    </div>
+
+    <div class="article-card">
+      <div class="article-meta">
+        <span class="article-cat">Macro & Central Banks</span>
+        <span class="article-source">ForexLive</span>
+        <span class="article-date">03 Jul 2026 07:55 UTC</span>
+        <span class="article-sent" style="color:#ef4444">🔴 bearish</span>
+      </div>
+      <a class="article-title" href="https://investinglive.com/news/germany-june-final-services-pmi-486-vs-468-prelim-20260703/" target="_blank" rel="noopener">Germany June final services PMI 48.6 vs 46.8 prelim</a>
+      <p class="article-summary">Prior 48.1 Final Composite PMI 49.5 vs 48.0 prelim Prior 48.8 Key findings: Business activity falls for third month running, but cost pressures ease substantially June sees further, albeit slightly slower, drop in business activity Input price inflation retreats to seven-month low Employment falls at weakest rate in current sequence of job losses Comment: Phil Smith, Economics Associate Director…</p>
+    </div>
+
+    <div class="article-card">
+      <div class="article-meta">
+        <span class="article-cat">Macro & Central Banks</span>
+        <span class="article-source">ForexLive</span>
+        <span class="article-date">02 Jul 2026 23:22 UTC</span>
+        <span class="article-sent" style="color:#ef4444">🔴 bearish</span>
+      </div>
+      <a class="article-title" href="https://investinglive.com/news/nz-consumer-confidence-rebounds-as-inflation-expectations-reset-lower-20260702/" target="_blank" rel="noopener">NZ consumer confidence rebounds as inflation expectations reset lower</a>
+      <p class="article-summary">The rebound confirms fuel prices, rather than a broader loss of confidence, were the key driver of the March slump, with the sharp and symmetric reversal in inflation expectations likely to reinforce the RBNZ's comfort that the price shock is not embedding itself into household psychology. The pickup corroborates other recent signals, including a bounce in card spending on discretionary goods and…</p>
+    </div>
+
+    <div class="article-card">
+      <div class="article-meta">
+        <span class="article-cat">Macro & Central Banks</span>
+        <span class="article-source">ForexLive</span>
+        <span class="article-date">03 Jul 2026 07:50 UTC</span>
+        <span class="article-sent" style="color:#ef4444">🔴 bearish</span>
+      </div>
+      <a class="article-title" href="https://investinglive.com/news/france-june-final-services-pmi-468-vs-474-prelim-20260703/" target="_blank" rel="noopener">French services activity continues downturn in June but at a slower pace</a>
+      <p class="article-summary">Services PMI 46.8 vs 47.4 prelim Prior 44.3 Composite PMI 47.2 vs 47.6 prelim Prior 44.9 The final readings are softer than the initial estimates but at least reaffirms that the downturn in the French economy is less profound in June than it was in May. Of note, the PMI data reveals the slowest declines in output and new orders since March. Besides that, there was a slight pick-up in business…</p>
+    </div>
+      </div>
+    </section>
+
+    <section class="cat-section" id="cat-equities">
+      <div class="cat-header">
+        <span class="cat-label">Equities</span>
+        <span class="cat-sentiment" style="color:#f0c040">🟡 MIXED</span>
+        <span class="cat-count">16 articles</span>
+      </div>
+      <div class="articles-grid">
+        
+    <div class="article-card">
+      <div class="article-meta">
+        <span class="article-cat">Equities</span>
+        <span class="article-source">ForexLive</span>
+        <span class="article-date">03 Jul 2026 05:23 UTC</span>
+        <span class="article-sent" style="color:#ef4444">🔴 bearish</span>
+      </div>
+      <a class="article-title" href="https://investinglive.com/news/reminder-us-markets-are-closed-today-in-the-run-up-to-independence-day-20260703/" target="_blank" rel="noopener">Reminder: US markets are closed today in the run up to Independence Day</a>
+      <p class="article-summary">The main highlight in ending the week for US markets was the non-farm payrolls release yesterday. It was a disappointing headline figure, which led to further downside in the dollar. In case you missed it: US June non-farm payrolls +57K vs +110K expected Still, US stocks closed in a more mixed mood amid a big rotation into value stocks again. The Dow closed up by 1.1% while the Nasdaq fell by…</p>
+    </div>
+
+    <div class="article-card">
+      <div class="article-meta">
+        <span class="article-cat">Equities</span>
+        <span class="article-source">MarketWatch</span>
+        <span class="article-date">03 Jul 2026 04:09 UTC</span>
+        <span class="article-sent" style="color:#ef4444">🔴 bearish</span>
+      </div>
+      <a class="article-title" href="https://www.marketwatch.com/story/is-the-stock-market-open-on-friday-or-will-it-close-early-for-the-fourth-of-july-b9885f36?mod=mw_rss_topstories" target="_blank" rel="noopener">Is the stock market open today? Here’s how Fourth of July weekend affects trading hours.</a>
+      <p class="article-summary">Since Independence Day falls on Saturday this year, here’s what to know about markets, mail delivery and more.</p>
+    </div>
+
+    <div class="article-card">
+      <div class="article-meta">
+        <span class="article-cat">Equities</span>
+        <span class="article-source">ForexLive</span>
+        <span class="article-date">03 Jul 2026 01:50 UTC</span>
+        <span class="article-sent" style="color:#22c55e">🟢 bullish</span>
+      </div>
+      <a class="article-title" href="https://investinglive.com/news/china-services-growth-eases-slightly-as-export-orders-hit-20-month-high-20260703/" target="_blank" rel="noopener">China services growth eases slightly as export orders hit 20-month high</a>
+      <p class="article-summary">The pullback from 54.4 to 54.1 is marginal enough that it shouldn't shift the broader narrative of resilient Chinese domestic demand, but the acceleration in export orders to a 20-month high is the more interesting signal for markets watching China's external rebalancing, particularly against the backdrop of elevated foreign equity outflows this year. The return of pricing power, with charges…</p>
+    </div>
+
+    <div class="article-card">
+      <div class="article-meta">
+        <span class="article-cat">Equities</span>
+        <span class="article-source">ForexLive</span>
+        <span class="article-date">02 Jul 2026 23:37 UTC</span>
+        <span class="article-sent" style="color:#22c55e">🟢 bullish</span>
+      </div>
+      <a class="article-title" href="https://investinglive.com/news/australian-services-activity-returns-to-growth-but-confidence-hits-25-year-low-20260702/" target="_blank" rel="noopener">Australian services activity returns to growth but confidence hits 2.5-year low</a>
+      <p class="article-summary">The headline return to expansion is unlikely to shift RBA rate expectations much given it was driven by staffing rather than demand, with new orders now contracting for a fourth straight month and backlogs being run down rather than rebuilt. The sharpest signal for markets is the confidence collapse to a two-and-a-half-year low, which points to businesses pulling back on hiring and investment…</p>
+    </div>
+
+    <div class="article-card">
+      <div class="article-meta">
+        <span class="article-cat">Equities</span>
+        <span class="article-source">CNBC Economy</span>
+        <span class="article-date">02 Jul 2026 21:11 UTC</span>
+        <span class="article-sent" style="color:#22c55e">🟢 bullish</span>
+      </div>
+      <a class="article-title" href="https://www.cnbc.com/2026/07/02/citadels-hedge-funds-post-broad-first-half-gains.html" target="_blank" rel="noopener">Citadel's hedge funds post broad first-half gains, top performing strategy sidesteps quant selloff</a>
+      <p class="article-summary">The hedge fund firm's tactical trading fund, which combines discretionary equity investing with quantitative strategies, climbed 14.3% through the end of June.</p>
+    </div>
+
+    <div class="article-card">
+      <div class="article-meta">
+        <span class="article-cat">Equities</span>
+        <span class="article-source">Investing.com Stocks</span>
+        <span class="article-date">03 Jul 2026 08:43 UTC</span>
+        <span class="article-sent" style="color:#8892a4">⚪ neutral</span>
+      </div>
+      <a class="article-title" href="https://www.investing.com/news/stock-market-news/why-is-pirelli-stock-rising-today-93CH-4775129" target="_blank" rel="noopener">Why is Pirelli stock rising today?</a>
+      <p class="article-summary"></p>
+    </div>
+
+    <div class="article-card">
+      <div class="article-meta">
+        <span class="article-cat">Equities</span>
+        <span class="article-source">Investing.com Stocks</span>
+        <span class="article-date">03 Jul 2026 08:38 UTC</span>
+        <span class="article-sent" style="color:#8892a4">⚪ neutral</span>
+      </div>
+      <a class="article-title" href="https://www.investing.com/news/stock-market-news/why-is-pluxee-stock-surging-today-93CH-4775125" target="_blank" rel="noopener">Why is Pluxee stock surging today?</a>
+      <p class="article-summary"></p>
+    </div>
+
+    <div class="article-card">
+      <div class="article-meta">
+        <span class="article-cat">Equities</span>
+        <span class="article-source">Investing.com Stocks</span>
+        <span class="article-date">03 Jul 2026 08:35 UTC</span>
+        <span class="article-sent" style="color:#8892a4">⚪ neutral</span>
+      </div>
+      <a class="article-title" href="https://www.investing.com/news/stock-market-news/indonesia-stocks-higher-at-close-of-trade-idx-composite-index-up-235-4775122" target="_blank" rel="noopener">Indonesia stocks higher at close of trade; IDX Composite Index up 2.35%</a>
+      <p class="article-summary"></p>
+    </div>
+      </div>
+    </section>
+
+    <section class="cat-section" id="cat-commodities">
+      <div class="cat-header">
+        <span class="cat-label">Commodities & Energy</span>
+        <span class="cat-sentiment" style="color:#f0c040">🟡 MIXED</span>
+        <span class="cat-count">17 articles</span>
+      </div>
+      <div class="articles-grid">
+        
+    <div class="article-card">
+      <div class="article-meta">
+        <span class="article-cat">Commodities & Energy</span>
+        <span class="article-source">OilPrice.com</span>
+        <span class="article-date">03 Jul 2026 08:00 UTC</span>
+        <span class="article-sent" style="color:#ef4444">🔴 bearish</span>
+      </div>
+      <a class="article-title" href="https://oilprice.com/Latest-Energy-News/World-News/Japans-LNG-Imports-Fall-7-as-Utilities-Chase-Cheaper-Coal.html" target="_blank" rel="noopener">Japan's LNG Imports Fall 7% as Utilities Chase Cheaper Coal</a>
+      <p class="article-summary">Japan last month reduced gas-fired generation in favor of coal as the price of liquefied natural gas remained elevated despite multiple reports of energy flows out of the Strait of Hormuz improving. The country generated 17.3 terawatt-hours from gas-fired power plants in June, Bloomberg reported, which was down by 16% on June 2025. Coal-fired generation, meanwhile, went up by 4.6%, according to…</p>
+    </div>
+
+    <div class="article-card">
+      <div class="article-meta">
+        <span class="article-cat">Commodities & Energy</span>
+        <span class="article-source">OilPrice.com</span>
+        <span class="article-date">03 Jul 2026 00:00 UTC</span>
+        <span class="article-sent" style="color:#22c55e">🟢 bullish</span>
+      </div>
+      <a class="article-title" href="https://oilprice.com/Energy/Crude-Oil/UAE-Rewrites-Offshore-Oil-Pricing-To-Capture-Asian-Markets.html" target="_blank" rel="noopener">UAE Rewrites Offshore Oil Pricing To Capture Asian Markets</a>
+      <p class="article-summary">Previously, we reported that Abu Dhabi’s flagship crude, Murban crude, has rapidly risen to prominence, with Murban crude futures having rapidly evolved from a regional benchmark into a primary global pricing standard. Known for its high API gravity and low sulfur content, Murban serves as a globally recognized energy benchmark traded on the ICE Futures Abu Dhabi (IFAD) exchange. By offering…</p>
+    </div>
+
+    <div class="article-card">
+      <div class="article-meta">
+        <span class="article-cat">Commodities & Energy</span>
+        <span class="article-source">OilPrice.com</span>
+        <span class="article-date">03 Jul 2026 07:00 UTC</span>
+        <span class="article-sent" style="color:#8892a4">⚪ neutral</span>
+      </div>
+      <a class="article-title" href="https://oilprice.com/Latest-Energy-News/World-News/Alberta-and-Ottawa-Greenlight-New-Pacific-Pipeline.html" target="_blank" rel="noopener">Alberta and Ottawa Greenlight New Pacific Pipeline</a>
+      <p class="article-summary">Alberta’s Premier Danielle Smith and federal Prime Minister Mark Carney have made the official announcement of a new oil pipeline, to be built to Canada’s Pacific coast, broadening the access of Canadian oil producers to the Asian market. The decision is a departure from previous Liberal governments’ energy agenda, which excluded the expansion of oil pipelines due to pressure from…</p>
+    </div>
+
+    <div class="article-card">
+      <div class="article-meta">
+        <span class="article-cat">Commodities & Energy</span>
+        <span class="article-source">OilPrice.com</span>
+        <span class="article-date">02 Jul 2026 21:00 UTC</span>
+        <span class="article-sent" style="color:#ef4444">🔴 bearish</span>
+      </div>
+      <a class="article-title" href="https://oilprice.com/The-Environment/Global-Warming/Europes-Energy-Transition-Stalls-as-Heat-Wave-Exposes-the-Cost-of-Inaction.html" target="_blank" rel="noopener">Europe’s Energy Transition Stalls as Heat Wave Exposes the Cost of Inaction</a>
+      <p class="article-summary">London Climate Action Week took place during an intense heat wave last week, causing some of the planned events to be cancelled and calling extra attention to the urgency of the summit’s cause. One of the biggest takeaways of the event, underscored by the weather, is that Europe has missed critical opportunities to catalyze the clean energy transition and mitigate greenhouse gas emissions. A…</p>
+    </div>
+
+    <div class="article-card">
+      <div class="article-meta">
+        <span class="article-cat">Commodities & Energy</span>
+        <span class="article-source">Investing.com Commodities</span>
+        <span class="article-date">03 Jul 2026 07:48 UTC</span>
+        <span class="article-sent" style="color:#8892a4">⚪ neutral</span>
+      </div>
+      <a class="article-title" href="https://www.investing.com/news/commodities-news/oil-up-slightly-ahead-of-long-us-weekend-as-peace-efforts-hold-4774980" target="_blank" rel="noopener">Oil prices little changed ahead of long US weekend as peace efforts hold</a>
+      <p class="article-summary"></p>
+    </div>
+
+    <div class="article-card">
+      <div class="article-meta">
+        <span class="article-cat">Commodities & Energy</span>
+        <span class="article-source">Investing.com Commodities</span>
+        <span class="article-date">03 Jul 2026 01:40 UTC</span>
+        <span class="article-sent" style="color:#22c55e">🟢 bullish</span>
+      </div>
+      <a class="article-title" href="https://www.investing.com/news/commodities-news/oil-prices-edge-lower-as-improving-supply-outlook-keeps-pressure-on-crude-4774952" target="_blank" rel="noopener">Oil prices edge higher as bargain buying offsets improving supply outlook</a>
+      <p class="article-summary"></p>
+    </div>
+
+    <div class="article-card">
+      <div class="article-meta">
+        <span class="article-cat">Commodities & Energy</span>
+        <span class="article-source">Investing.com Commodities</span>
+        <span class="article-date">03 Jul 2026 00:17 UTC</span>
+        <span class="article-sent" style="color:#22c55e">🟢 bullish</span>
+      </div>
+      <a class="article-title" href="https://www.investing.com/news/commodities-news/gold-steadies-set-for-positive-week-after-soft-jobs-data-cools-rate-hike-bets-4774846" target="_blank" rel="noopener">Gold prices rise, set for positive week after soft jobs data cools rate hike bets</a>
+      <p class="article-summary"></p>
+    </div>
+
+    <div class="article-card">
+      <div class="article-meta">
+        <span class="article-cat">Commodities & Energy</span>
+        <span class="article-source">OilPrice.com</span>
+        <span class="article-date">02 Jul 2026 22:00 UTC</span>
+        <span class="article-sent" style="color:#8892a4">⚪ neutral</span>
+      </div>
+      <a class="article-title" href="https://oilprice.com/Energy/Energy-General/Tehran-Is-Racing-the-Clock-to-Export-as-Much-Oil-as-Possible.html" target="_blank" rel="noopener">Tehran Is Racing the Clock to Export as Much Oil as Possible</a>
+      <p class="article-summary">Iran is wasting no time in returning full steam to the oil export market after the Islamic Republic and the United States agreed in mid-June on a 60-day window to negotiate a deal. Since the memorandum of understanding was signed and the U.S. blockade aimed at preventing Iranian oil exports was lifted, Tehran has exported millions of barrels of its oil and has probably raised more revenues from…</p>
+    </div>
+      </div>
+    </section>
+
+    <section class="cat-section" id="cat-crypto">
+      <div class="cat-header">
+        <span class="cat-label">Crypto</span>
+        <span class="cat-sentiment" style="color:#f0c040">🟡 MIXED</span>
+        <span class="cat-count">27 articles</span>
+      </div>
+      <div class="articles-grid">
+        
+    <div class="article-card">
+      <div class="article-meta">
+        <span class="article-cat">Crypto</span>
+        <span class="article-source">Cointelegraph</span>
+        <span class="article-date">02 Jul 2026 19:15 UTC</span>
+        <span class="article-sent" style="color:#8892a4">⚪ neutral</span>
+      </div>
+      <a class="article-title" href="https://cointelegraph.com/news/what-happened-in-crypto-today?utm_source=rss_feed&utm_medium=rss&utm_campaign=rss_partner_inbound" target="_blank" rel="noopener">Here’s what happened in crypto today</a>
+      <p class="article-summary">Need to know what happened in crypto today? Here is the latest news on daily trends and events impacting Bitcoin price, blockchain, DeFi, Web3 and crypto regulation.</p>
+    </div>
+
+    <div class="article-card">
+      <div class="article-meta">
+        <span class="article-cat">Crypto</span>
+        <span class="article-source">CoinDesk</span>
+        <span class="article-date">03 Jul 2026 05:18 UTC</span>
+        <span class="article-sent" style="color:#22c55e">🟢 bullish</span>
+      </div>
+      <a class="article-title" href="https://www.coindesk.com/markets/2026/07/03/ether-and-solana-extend-gains-as-a-short-squeeze-lifts-bitcoin-toward-usd62-000" target="_blank" rel="noopener">Ether and solana extend gains as a short squeeze lifts bitcoin toward $62,000</a>
+      <p class="article-summary"></p>
+    </div>
+
+    <div class="article-card">
+      <div class="article-meta">
+        <span class="article-cat">Crypto</span>
+        <span class="article-source">Cointelegraph</span>
+        <span class="article-date">02 Jul 2026 19:17 UTC</span>
+        <span class="article-sent" style="color:#ef4444">🔴 bearish</span>
+      </div>
+      <a class="article-title" href="https://cointelegraph.com/news/imf-tokenization-financial-markets-settlement-risks?utm_source=rss_feed&utm_medium=rss&utm_campaign=rss_partner_inbound" target="_blank" rel="noopener">IMF says tokenization could transform settlement and financial stability</a>
+      <p class="article-summary">The global lender says blockchain-based finance could streamline markets but warns that fragmented standards and regulations may create new systemic risks.</p>
+    </div>
+
+    <div class="article-card">
+      <div class="article-meta">
+        <span class="article-cat">Crypto</span>
+        <span class="article-source">Cointelegraph</span>
+        <span class="article-date">02 Jul 2026 23:17 UTC</span>
+        <span class="article-sent" style="color:#8892a4">⚪ neutral</span>
+      </div>
+      <a class="article-title" href="https://cointelegraph.com/features/is-bitcoin-heading-for-65k-sharplink-buys-16m-eth-market-moves?utm_source=rss_feed&utm_medium=rss&utm_campaign=rss_partner_inbound" target="_blank" rel="noopener">Is Bitcoin heading for $65K? Sharplink buys $16M ETH: Market Moves</a>
+      <p class="article-summary">Analysts are divided on Bitcoin's next move, but there's some hope at last. Meanwhile, SharpLink has resumed buying Ether after an eight-week pause, and other market news.</p>
+    </div>
+
+    <div class="article-card">
+      <div class="article-meta">
+        <span class="article-cat">Crypto</span>
+        <span class="article-source">Cointelegraph</span>
+        <span class="article-date">02 Jul 2026 22:01 UTC</span>
+        <span class="article-sent" style="color:#8892a4">⚪ neutral</span>
+      </div>
+      <a class="article-title" href="https://cointelegraph.com/news/ripple-chris-larsen-senator-gillibrand-son-venture-market-structure-bill?utm_source=rss_feed&utm_medium=rss&utm_campaign=rss_partner_inbound" target="_blank" rel="noopener">Ripple co-founder backs venture launched by US senator's son: Report</a>
+      <p class="article-summary">While engaged in negotiations over ethics in a crypto market structure bill in Congress, Senator Kirsten Gillibrand said she had “no involvement” in her son’s derivatives exchange, backed by at least one industry figure.</p>
+    </div>
+
+    <div class="article-card">
+      <div class="article-meta">
+        <span class="article-cat">Crypto</span>
+        <span class="article-source">Cointelegraph</span>
+        <span class="article-date">03 Jul 2026 08:47 UTC</span>
+        <span class="article-sent" style="color:#8892a4">⚪ neutral</span>
+      </div>
+      <a class="article-title" href="https://cointelegraph.com/news/irish-authorities-recover-500-bitcoin-criminal-proceeds?utm_source=rss_feed&utm_medium=rss&utm_campaign=rss_partner_inbound" target="_blank" rel="noopener">Irish authorities seize another 500 Bitcoin, bringing 2026 total to 1,500 BTC</a>
+      <p class="article-summary">Irish authorities recovered 500 Bitcoin in criminal proceeds, bringing the total seized by the Criminal Assets Bureau to about $92 million in BTC for 2026.</p>
+    </div>
+
+    <div class="article-card">
+      <div class="article-meta">
+        <span class="article-cat">Crypto</span>
+        <span class="article-source">CoinDesk</span>
+        <span class="article-date">03 Jul 2026 05:29 UTC</span>
+        <span class="article-sent" style="color:#8892a4">⚪ neutral</span>
+      </div>
+      <a class="article-title" href="https://www.coindesk.com/markets/2026/07/03/xrp-bulls-test-path-back-toward-usd1-10-as-token-zips-4-higher" target="_blank" rel="noopener">XRP bulls test path back toward $1.10 as token zips 4% higher</a>
+      <p class="article-summary"></p>
+    </div>
+
+    <div class="article-card">
+      <div class="article-meta">
+        <span class="article-cat">Crypto</span>
+        <span class="article-source">Cointelegraph</span>
+        <span class="article-date">03 Jul 2026 03:12 UTC</span>
+        <span class="article-sent" style="color:#8892a4">⚪ neutral</span>
+      </div>
+      <a class="article-title" href="https://cointelegraph.com/news/strategy-will-be-less-important-in-bitcoin-after-strc-incident-bitwise?utm_source=rss_feed&utm_medium=rss&utm_campaign=rss_partner_inbound" target="_blank" rel="noopener">Strategy will be ‘less important’ in Bitcoin after STRC incident: Bitwise</a>
+      <p class="article-summary">Bitwise’s Matt Hougan said Strategy's STRC offer of high yields and low volatility was always a questionable fit for buying Bitcoin, as the cryptocurrency offers neither.</p>
+    </div>
+      </div>
+    </section>
+
+    <section class="cat-section" id="cat-forex">
+      <div class="cat-header">
+        <span class="cat-label">Forex & Rates</span>
+        <span class="cat-sentiment" style="color:#f0c040">🟡 MIXED</span>
+        <span class="cat-count">11 articles</span>
+      </div>
+      <div class="articles-grid">
+        
+    <div class="article-card">
+      <div class="article-meta">
+        <span class="article-cat">Forex & Rates</span>
+        <span class="article-source">ForexLive</span>
+        <span class="article-date">03 Jul 2026 06:18 UTC</span>
+        <span class="article-sent" style="color:#8892a4">⚪ neutral</span>
+      </div>
+      <a class="article-title" href="https://investinglive.com/news/what-are-the-main-events-for-today-20260703/" target="_blank" rel="noopener">What are the main events for today?</a>
+      <p class="article-summary">EUROPEAN SESSION In the European session, the only highlights will be the final PMIs for the major Eurozone economies and the UK. The data is not going to change anything for the respective central banks, so the market reaction will be muted. In terms of price action, we will likely see just a follow through of yesterday's moves as the mixed NFP report was enough to trigger a slightly dovish…</p>
+    </div>
+
+    <div class="article-card">
+      <div class="article-meta">
+        <span class="article-cat">Forex & Rates</span>
+        <span class="article-source">Investing.com Forex</span>
+        <span class="article-date">03 Jul 2026 04:11 UTC</span>
+        <span class="article-sent" style="color:#ef4444">🔴 bearish</span>
+      </div>
+      <a class="article-title" href="https://www.investing.com/news/forex-news/asia-fx-gains-after-dollar-falls-on-soft-payrolls-yen-remains-on-intervention-wat-4774992" target="_blank" rel="noopener">Dollar set for weekly loss on soft payrolls; yen remains on intervention watch</a>
+      <p class="article-summary"></p>
+    </div>
+
+    <div class="article-card">
+      <div class="article-meta">
+        <span class="article-cat">Forex & Rates</span>
+        <span class="article-source">Investing.com Stocks</span>
+        <span class="article-date">03 Jul 2026 09:01 UTC</span>
+        <span class="article-sent" style="color:#22c55e">🟢 bullish</span>
+      </div>
+      <a class="article-title" href="https://www.investing.com/news/stock-market-news/tesla-posts-strongerthanexpected-q2-deliveries-as-europe-sales-improve-4773259" target="_blank" rel="noopener">Tesla quarterly deliveries set record; European recovery raises hopes of annual growth</a>
+      <p class="article-summary"></p>
+    </div>
+
+    <div class="article-card">
+      <div class="article-meta">
+        <span class="article-cat">Forex & Rates</span>
+        <span class="article-source">ForexLive</span>
+        <span class="article-date">03 Jul 2026 08:00 UTC</span>
+        <span class="article-sent" style="color:#ef4444">🔴 bearish</span>
+      </div>
+      <a class="article-title" href="https://investinglive.com/news/eurozone-june-final-services-pmi-494-vs-489-prelim-20260703/" target="_blank" rel="noopener">Eurozone services contraction eases in June as cost pressures cool</a>
+      <p class="article-summary">Services PMI 49.4 vs 48.9 prelim Prior 47.7 Composite PMI 50.0 vs 49.5 prelim Prior 48.5 Both the services and composite prints are 3-month highs respectively, reflecting a modest recovery in business activity in the euro area to wrap up Q2 2026. New business volume may have fallen for a fourth successive month, but at least the contraction was marginal and the joint-slowest seen over this period…</p>
+    </div>
+
+    <div class="article-card">
+      <div class="article-meta">
+        <span class="article-cat">Forex & Rates</span>
+        <span class="article-source">Al Jazeera</span>
+        <span class="article-date">03 Jul 2026 05:37 UTC</span>
+        <span class="article-sent" style="color:#8892a4">⚪ neutral</span>
+      </div>
+      <a class="article-title" href="https://www.aljazeera.com/features/2026/7/3/are-europes-extreme-summers-the-new-normal-what-the-science-says?traffic_source=rss" target="_blank" rel="noopener">Are Europe’s extreme summers the new normal? What the science says</a>
+      <p class="article-summary">WHO warns Europe must &#039;plan for heat like winter flu&#039; as experts reveal how permanent this summer&#039;s extreme heat is.</p>
+    </div>
+
+    <div class="article-card">
+      <div class="article-meta">
+        <span class="article-cat">Forex & Rates</span>
+        <span class="article-source">ForexLive</span>
+        <span class="article-date">03 Jul 2026 03:29 UTC</span>
+        <span class="article-sent" style="color:#ef4444">🔴 bearish</span>
+      </div>
+      <a class="article-title" href="https://investinglive.com/news/investinglive-asia-pacific-fx-news-wrap-asia-pac-equities-claw-back-early-losses-20260703/" target="_blank" rel="noopener">investingLive Asia-Pacific FX news wrap: Asia-Pac equities claw back early losses</a>
+      <p class="article-summary">UBS sees Fed on hold as Warsh downplays inflation risk despite hike bets China services growth eases slightly as export orders hit 20-month high Japan fin min says ready to respond to FX moves PBOC sets USD/ CNY reference rate for today at 6.8047 (vs. estimate at 6.7808) Canada - PM Carney confirms southern Trans Mountain route for new Alberta pipeline Japan services activity rebounds as input…</p>
+    </div>
+
+    <div class="article-card">
+      <div class="article-meta">
+        <span class="article-cat">Forex & Rates</span>
+        <span class="article-source">ForexLive</span>
+        <span class="article-date">03 Jul 2026 00:38 UTC</span>
+        <span class="article-sent" style="color:#22c55e">🟢 bullish</span>
+      </div>
+      <a class="article-title" href="https://investinglive.com/news/japan-services-activity-rebounds-as-input-costs-hit-four-year-inflation-high-20260703/" target="_blank" rel="noopener">Japan services activity rebounds as input costs hit four-year inflation high</a>
+      <p class="article-summary">Before we begin, make sure you have seen this: Japan shifts to ambush tactics against yen speculators, sources tell Reuters --- The rebound in Japan's services PMI to a modest but genuine expansion, alongside the fastest input cost inflation since June 2022, keeps pressure on the Bank of Japan's case that underlying price momentum remains firm enough to justify further policy normalisation, even…</p>
+    </div>
+
+    <div class="article-card">
+      <div class="article-meta">
+        <span class="article-cat">Forex & Rates</span>
+        <span class="article-source">Investing.com Forex</span>
+        <span class="article-date">02 Jul 2026 20:22 UTC</span>
+        <span class="article-sent" style="color:#8892a4">⚪ neutral</span>
+      </div>
+      <a class="article-title" href="https://www.investing.com/news/forex-news/canadian-dollar-reaches-10day-high-on-us-jobs-data-93CH-4774131" target="_blank" rel="noopener">Canadian dollar reaches 10-day high on US jobs data</a>
+      <p class="article-summary"></p>
+    </div>
+      </div>
+    </section>
+
+    <section class="cat-section" id="cat-geopolitics">
+      <div class="cat-header">
+        <span class="cat-label">Geopolitical Risk</span>
+        <span class="cat-sentiment" style="color:#f0c040">🟡 MIXED</span>
+        <span class="cat-count">15 articles</span>
+      </div>
+      <div class="articles-grid">
+        
+    <div class="article-card">
+      <div class="article-meta">
+        <span class="article-cat">Geopolitical Risk</span>
+        <span class="article-source">Cointelegraph</span>
+        <span class="article-date">02 Jul 2026 19:04 UTC</span>
+        <span class="article-sent" style="color:#22c55e">🟢 bullish</span>
+      </div>
+      <a class="article-title" href="https://cointelegraph.com/news/russia-digital-ruble-rollout-september-central-bank-governor?utm_source=rss_feed&utm_medium=rss&utm_campaign=rss_partner_inbound" target="_blank" rel="noopener">Russia on track for digital ruble rollout on Sept. 1: Central bank governor</a>
+      <p class="article-summary">EU authorities already preemptively sanctioned Russia’s digital ruble in 2025 as part of measures in response to the country’s war against Ukraine.</p>
+    </div>
+
+    <div class="article-card">
+      <div class="article-meta">
+        <span class="article-cat">Geopolitical Risk</span>
+        <span class="article-source">OilPrice.com</span>
+        <span class="article-date">02 Jul 2026 18:30 UTC</span>
+        <span class="article-sent" style="color:#ef4444">🔴 bearish</span>
+      </div>
+      <a class="article-title" href="https://oilprice.com/Latest-Energy-News/World-News/Iran-Tightens-Grip-on-Strait-of-Hormuz-Tanker-Traffic.html" target="_blank" rel="noopener">Iran Tightens Grip on Strait of Hormuz Tanker Traffic</a>
+      <p class="article-summary">Just when the oil market was getting comfortable with the idea that the Strait of Hormuz was reopening, Iran reminded everyone who's still directing traffic. Iran's joint military command warned on Thursday that all oil tankers transiting the Strait of Hormuz must follow routes approved by Tehran or face an "immediate and forceful response." The warning, carried by Iranian state television, also…</p>
+    </div>
+
+    <div class="article-card">
+      <div class="article-meta">
+        <span class="article-cat">Geopolitical Risk</span>
+        <span class="article-source">Al Jazeera</span>
+        <span class="article-date">03 Jul 2026 08:20 UTC</span>
+        <span class="article-sent" style="color:#8892a4">⚪ neutral</span>
+      </div>
+      <a class="article-title" href="https://www.aljazeera.com/economy/2026/7/3/eu-lawmaker-investigating-surveillance-hacked-by-israeli-spyware-report-says?traffic_source=rss" target="_blank" rel="noopener">EU lawmaker investigating surveillance hacked by Israeli spyware, report says</a>
+      <p class="article-summary">Greek former parliamentarian Stelios Kouloglou targeted with Pegasus software, Citizen Lab analysis finds.</p>
+    </div>
+
+    <div class="article-card">
+      <div class="article-meta">
+        <span class="article-cat">Geopolitical Risk</span>
+        <span class="article-source">Investing.com Stocks</span>
+        <span class="article-date">03 Jul 2026 08:54 UTC</span>
+        <span class="article-sent" style="color:#8892a4">⚪ neutral</span>
+      </div>
+      <a class="article-title" href="https://www.investing.com/news/stock-market-news/russian-fuel-crisis-prompts-rush-for-electric-cars-4773513" target="_blank" rel="noopener">Russian fuel crisis prompts rush for Chinese electric cars</a>
+      <p class="article-summary"></p>
+    </div>
+
+    <div class="article-card">
+      <div class="article-meta">
+        <span class="article-cat">Geopolitical Risk</span>
+        <span class="article-source">Al Jazeera</span>
+        <span class="article-date">03 Jul 2026 08:46 UTC</span>
+        <span class="article-sent" style="color:#ef4444">🔴 bearish</span>
+      </div>
+      <a class="article-title" href="https://www.aljazeera.com/news/2026/7/3/un-warns-likelihood-of-extreme-weather-events-as-el-nino-set-to-intensify?traffic_source=rss" target="_blank" rel="noopener">UN warns likelihood of ‘extreme weather events’ as El Nino set to intensify</a>
+      <p class="article-summary">World Meteorological Organization forecasts more likelihood of heatwaves, droughts and heavy rainfall due to El Nino.</p>
+    </div>
+
+    <div class="article-card">
+      <div class="article-meta">
+        <span class="article-cat">Geopolitical Risk</span>
+        <span class="article-source">Al Jazeera</span>
+        <span class="article-date">03 Jul 2026 07:48 UTC</span>
+        <span class="article-sent" style="color:#8892a4">⚪ neutral</span>
+      </div>
+      <a class="article-title" href="https://www.aljazeera.com/video/newsfeed/2026/7/3/ukraine-strike-hits-belgorod-causing-fire-and-power-outages?traffic_source=rss" target="_blank" rel="noopener">Ukraine strike hits Belgorod, causing fire and power outages</a>
+      <p class="article-summary">Ukraine strike hits Belgorod, causing fire and power outages</p>
+    </div>
+
+    <div class="article-card">
+      <div class="article-meta">
+        <span class="article-cat">Geopolitical Risk</span>
+        <span class="article-source">Investing.com Commodities</span>
+        <span class="article-date">02 Jul 2026 18:00 UTC</span>
+        <span class="article-sent" style="color:#22c55e">🟢 bullish</span>
+      </div>
+      <a class="article-title" href="https://www.investing.com/news/commodities-news/iran-warns-us-israel-against-attacks-ahead-of-funeral-processions-for-khamenei-4772477" target="_blank" rel="noopener">Iran warns US, Israel against attacks ahead of funeral processions for Khamenei</a>
+      <p class="article-summary"></p>
+    </div>
+
+    <div class="article-card">
+      <div class="article-meta">
+        <span class="article-cat">Geopolitical Risk</span>
+        <span class="article-source">Al Jazeera</span>
+        <span class="article-date">03 Jul 2026 08:06 UTC</span>
+        <span class="article-sent" style="color:#8892a4">⚪ neutral</span>
+      </div>
+      <a class="article-title" href="https://www.aljazeera.com/video/newsfeed/2026/7/3/hundreds-of-fans-cheer-portugals-win-at-star-teams-residence-in-toronto?traffic_source=rss" target="_blank" rel="noopener">Hundreds of fans cheer Portugal’s win at star team’s residence in Toronto</a>
+      <p class="article-summary">Crowds in hundreds of Portugal football fans cheered the star team’s World Cup win.</p>
+    </div>
+      </div>
+    </section>
+
+  <!-- Footer -->
+  <footer class="page-footer">
+    <span>© XenosFinance 2026</span>
+    <div class="footer-links">
+      <a href="https://xenosfinance.com">Home</a>
+      <a href="https://xenosfinance.com/dashboard">Dashboard</a>
+      <a href="https://t.me/xenosfin" target="_blank">Telegram</a>
+      <a href="https://xenosfinance.com/premium-support">Premium</a>
+    </div>
+    <span>⚠ Not investment advice</span>
+  </footer>
+
+</div>
+</body>
+</html>
