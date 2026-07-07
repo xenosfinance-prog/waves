@@ -1,5 +1,16 @@
 const XENOS_I18N = { 
   en: {
+    th_open_price: 'Open Price',
+    label_wins: 'Wins',
+    th_pattern_note: 'PATTERN / NOTE',
+    label_tv_unavailable: 'TradingView unavailable',
+    label_mixed_caps: 'MIXED',
+    label_link_ew_analysis: 'Elliott Wave Analysis',
+    label_link_live_dashboard: 'Live Market Dashboard',
+    label_link_econ_calendar: 'Economic Calendar',
+    label_link_ai_blog: 'AI Market Blog',
+    label_link_interactive_charts: 'Interactive Charts',
+
     label_ew_active_setups_desc: 'Active wave setups published by our analysts. Each note represents a live market read based on the XenosFinance EW Engine v3.0.',
     label_follow_updates: 'Follow @xenosfin for updates',
     label_premium_wave_analysis_msg: 'Enter your premium subscription code to access AI Wave Analysis.',
@@ -427,6 +438,17 @@ const XENOS_I18N = {
   },
 
   ru: {
+    th_open_price: 'Цена Открытия',
+    label_wins: 'Победы',
+    th_pattern_note: 'ПАТТЕРН / ЗАМЕТКА',
+    label_tv_unavailable: 'TradingView недоступен',
+    label_mixed_caps: 'СМЕШАННЫЙ',
+    label_link_ew_analysis: 'Анализ Волн Эллиотта',
+    label_link_live_dashboard: 'Живая Рыночная Панель',
+    label_link_econ_calendar: 'Экономический Календарь',
+    label_link_ai_blog: 'ИИ Рыночный Блог',
+    label_link_interactive_charts: 'Интерактивные Графики',
+
     label_ew_active_setups_desc: 'Активные волновые сетапы, опубликованные нашими аналитиками. Каждая заметка отражает актуальное прочтение рынка на основе XenosFinance EW Engine v3.0.',
     label_follow_updates: 'Подписывайтесь на @xenosfin, чтобы быть в курсе обновлений',
     label_premium_wave_analysis_msg: 'Введите ваш премиум-код подписки для доступа к ИИ-анализу волн.',
@@ -854,6 +876,17 @@ const XENOS_I18N = {
   },
 
   pl: {
+    th_open_price: 'Cena Otwarcia',
+    label_wins: 'Wygrane',
+    th_pattern_note: 'WZORZEC / NOTATKA',
+    label_tv_unavailable: 'TradingView niedostępny',
+    label_mixed_caps: 'MIESZANY',
+    label_link_ew_analysis: 'Analiza Fal Elliotta',
+    label_link_live_dashboard: 'Panel Rynkowy na Żywo',
+    label_link_econ_calendar: 'Kalendarz Ekonomiczny',
+    label_link_ai_blog: 'Blog Rynkowy AI',
+    label_link_interactive_charts: 'Interaktywne Wykresy',
+
     label_ew_active_setups_desc: 'Aktywne układy falowe publikowane przez naszych analityków. Każda notatka odzwierciedla bieżący odczyt rynku oparty na XenosFinance EW Engine v3.0.',
     label_follow_updates: 'Śledź @xenosfin, aby otrzymywać aktualizacje',
     label_premium_wave_analysis_msg: 'Wprowadź swój kod subskrypcji premium, aby uzyskać dostęp do analizy fal AI.',
@@ -1281,6 +1314,17 @@ const XENOS_I18N = {
   },
 
   es: {
+    th_open_price: 'Precio de Apertura',
+    label_wins: 'Ganancias',
+    th_pattern_note: 'PATRÓN / NOTA',
+    label_tv_unavailable: 'TradingView no disponible',
+    label_mixed_caps: 'MIXTO',
+    label_link_ew_analysis: 'Análisis de Ondas de Elliott',
+    label_link_live_dashboard: 'Panel de Mercado en Vivo',
+    label_link_econ_calendar: 'Calendario Económico',
+    label_link_ai_blog: 'Blog de Mercado IA',
+    label_link_interactive_charts: 'Gráficos Interactivos',
+
     label_ew_active_setups_desc: 'Configuraciones de ondas activas publicadas por nuestros analistas. Cada nota representa una lectura de mercado en vivo basada en el XenosFinance EW Engine v3.0.',
     label_follow_updates: 'Sigue a @xenosfin para recibir actualizaciones',
     label_premium_wave_analysis_msg: 'Introduce tu código de suscripción premium para acceder al Análisis IA de Ondas.',
@@ -1707,6 +1751,17 @@ const XENOS_I18N = {
     label_generating_ai_analysis: 'Generando análisis semanal de IA...',
   },
   it: {
+    th_open_price: 'Prezzo di Apertura',
+    label_wins: 'Vincite',
+    th_pattern_note: 'PATTERN / NOTA',
+    label_tv_unavailable: 'TradingView non disponibile',
+    label_mixed_caps: 'MISTO',
+    label_link_ew_analysis: 'Analisi Onde di Elliott',
+    label_link_live_dashboard: 'Dashboard di Mercato Live',
+    label_link_econ_calendar: 'Calendario Economico',
+    label_link_ai_blog: 'Blog di Mercato IA',
+    label_link_interactive_charts: 'Grafici Interattivi',
+
     label_ew_active_setups_desc: 'Setup d\'onda attivi pubblicati dai nostri analisti. Ogni nota rappresenta una lettura di mercato live basata sul XenosFinance EW Engine v3.0.',
     label_follow_updates: 'Segui @xenosfin per gli aggiornamenti',
     label_premium_wave_analysis_msg: 'Inserisci il tuo codice di abbonamento premium per accedere all\'Analisi IA delle Onde.',
