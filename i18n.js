@@ -1,5 +1,9 @@
 const XENOS_I18N = { 
   en: {
+    label_link_free_signals: 'Free Trading Signals',
+    label_link_premium: 'Premium',
+    label_today_badge: 'TODAY',
+
     th_open_price: 'Open Price',
     label_wins: 'Wins',
     th_pattern_note: 'PATTERN / NOTE',
@@ -438,6 +442,10 @@ const XENOS_I18N = {
   },
 
   ru: {
+    label_link_free_signals: 'Бесплатные Торговые Сигналы',
+    label_link_premium: 'Премиум',
+    label_today_badge: 'СЕГОДНЯ',
+
     th_open_price: 'Цена Открытия',
     label_wins: 'Победы',
     th_pattern_note: 'ПАТТЕРН / ЗАМЕТКА',
@@ -876,6 +884,10 @@ const XENOS_I18N = {
   },
 
   pl: {
+    label_link_free_signals: 'Darmowe Sygnały Transakcyjne',
+    label_link_premium: 'Premium',
+    label_today_badge: 'DZISIAJ',
+
     th_open_price: 'Cena Otwarcia',
     label_wins: 'Wygrane',
     th_pattern_note: 'WZORZEC / NOTATKA',
@@ -1314,6 +1326,10 @@ const XENOS_I18N = {
   },
 
   es: {
+    label_link_free_signals: 'Señales de Trading Gratuitas',
+    label_link_premium: 'Premium',
+    label_today_badge: 'HOY',
+
     th_open_price: 'Precio de Apertura',
     label_wins: 'Ganancias',
     th_pattern_note: 'PATRÓN / NOTA',
@@ -1751,6 +1767,10 @@ const XENOS_I18N = {
     label_generating_ai_analysis: 'Generando análisis semanal de IA...',
   },
   it: {
+    label_link_free_signals: 'Segnali di Trading Gratuiti',
+    label_link_premium: 'Premium',
+    label_today_badge: 'OGGI',
+
     th_open_price: 'Prezzo di Apertura',
     label_wins: 'Vincite',
     th_pattern_note: 'PATTERN / NOTA',
