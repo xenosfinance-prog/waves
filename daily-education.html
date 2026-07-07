@@ -555,12 +555,13 @@
 <nav>
   <a href="index.html" class="nav-logo">Xenos<span>Finance</span></a>
   <div class="nav-links">
-    <a href="index.html">Home</a>
-    <a href="xenoswaves_charts.html">Markets</a>
-    <a href="signals.html">Signals</a>
-    <a href="trading-ideas.html">Ideas</a>
-    <a href="daily-education.html" class="active">Education</a>
-    <a href="XenosBlog.html">Blog</a>
+    <a href="index.html" data-i18n="nav_news_plain">Home</a>
+    <a href="market-brief.html" data-i18n="nav_brief">🤖 Market Brief</a>
+    <a href="xenoswaves_charts.html" data-i18n="nav_charts_plain">Markets</a>
+    <a href="signals.html" data-i18n="nav_signals_plain">Signals</a>
+    <a href="trading-ideas.html" data-i18n="nav_ideas_plain">Ideas</a>
+    <a href="daily-education.html" class="active" data-i18n="nav_education_plain">Education</a>
+    <a href="XenosBlog.html" data-i18n="nav_blog_plain">Blog</a>
   </div>
   <div id="xenos-lang-switcher" style="display:inline-block;margin-left:16px;"></div>
 </nav>
@@ -569,7 +570,7 @@
 <section class="hero">
   <div class="hero-badge"><span data-i18n="label_auto_generated">Auto-generated daily</span></div>
   <h1><span data-i18n="label_daily_market">Daily Market</span><br><em>Education</em></h1>
-  <p><span data-i18n="label_education_desc">Professional educational content on TA, FA, risk management, trading psychology and more.</span> and more — every trading day.</p>
+  <p><span data-i18n="label_education_desc">Professional educational content on TA, FA, risk management, trading psychology and more.</span> <span data-i18n="label_every_trading_day">— every trading day.</span></p>
 </section>
 
 <div class="container">
@@ -597,7 +598,7 @@
     <div class="section-label"><span data-i18n="label_archive">Archive</span></div>
 
     <div class="filters" id="filters">
-      <button class="filter-btn active" onclick="setFilter('all', this)">All</button>
+      <button class="filter-btn active" onclick="setFilter('all', this)"><span data-i18n="label_all_filter">All</span></button>
       <button class="filter-btn" onclick="setFilter('monday', this)"><span data-i18n="label_mon">Monday</span></button>
       <button class="filter-btn" onclick="setFilter('tuesday', this)"><span data-i18n="label_tue">Tuesday</span></button>
       <button class="filter-btn" onclick="setFilter('wednesday', this)"><span data-i18n="label_wed">Wednesday</span></button>
@@ -823,7 +824,7 @@ function renderArchiveEmpty() {
   document.getElementById('archiveGrid').innerHTML = `
     <div class="no-posts" style="grid-column:1/-1">
       <div class="icon">📂</div>
-      <div>Archive is empty.</div>
+      <div>${typeof window.t === 'function' ? window.t('label_archive_empty') : 'Archive is empty.'}</div>
     </div>`;
 }
 

@@ -1,5 +1,15 @@
 const XENOS_I18N = { 
   en: {
+    nav_news_plain: 'Home',
+    nav_charts_plain: 'Markets',
+    nav_signals_plain: 'Signals',
+    nav_ideas_plain: 'Ideas',
+    nav_education_plain: 'Education',
+    nav_blog_plain: 'Blog',
+    label_all_filter: 'All',
+    label_archive_empty: 'Archive is empty.',
+    label_every_trading_day: '— every trading day.',
+
     nav_ideas: '💡 Trading Ideas',
     nav_education: '📚 Education',
     label_market_state: 'MARKET STATE',
@@ -455,6 +465,16 @@ const XENOS_I18N = {
   },
 
   ru: {
+    nav_news_plain: 'Главная',
+    nav_charts_plain: 'Рынки',
+    nav_signals_plain: 'Сигналы',
+    nav_ideas_plain: 'Идеи',
+    nav_education_plain: 'Обучение',
+    nav_blog_plain: 'Блог',
+    label_all_filter: 'Все',
+    label_archive_empty: 'Архив пуст.',
+    label_every_trading_day: '— каждый торговый день.',
+
     nav_ideas: '💡 Торговые Идеи',
     nav_education: '📚 Обучение',
     label_market_state: 'СОСТОЯНИЕ РЫНКА',
@@ -910,6 +930,16 @@ const XENOS_I18N = {
   },
 
   pl: {
+    nav_news_plain: 'Strona główna',
+    nav_charts_plain: 'Rynki',
+    nav_signals_plain: 'Sygnały',
+    nav_ideas_plain: 'Pomysły',
+    nav_education_plain: 'Edukacja',
+    nav_blog_plain: 'Blog',
+    label_all_filter: 'Wszystkie',
+    label_archive_empty: 'Archiwum jest puste.',
+    label_every_trading_day: '— każdego dnia sesyjnego.',
+
     nav_ideas: '💡 Pomysły Transakcyjne',
     nav_education: '📚 Edukacja',
     label_market_state: 'STAN RYNKU',
@@ -1365,6 +1395,16 @@ const XENOS_I18N = {
   },
 
   es: {
+    nav_news_plain: 'Inicio',
+    nav_charts_plain: 'Mercados',
+    nav_signals_plain: 'Señales',
+    nav_ideas_plain: 'Ideas',
+    nav_education_plain: 'Educación',
+    nav_blog_plain: 'Blog',
+    label_all_filter: 'Todos',
+    label_archive_empty: 'El archivo está vacío.',
+    label_every_trading_day: '— cada día de trading.',
+
     nav_ideas: '💡 Ideas de Trading',
     nav_education: '📚 Educación',
     label_market_state: 'ESTADO DEL MERCADO',
@@ -1819,6 +1859,16 @@ const XENOS_I18N = {
     label_generating_ai_analysis: 'Generando análisis semanal de IA...',
   },
   it: {
+    nav_news_plain: 'Home',
+    nav_charts_plain: 'Mercati',
+    nav_signals_plain: 'Segnali',
+    nav_ideas_plain: 'Idee',
+    nav_education_plain: 'Formazione',
+    nav_blog_plain: 'Blog',
+    label_all_filter: 'Tutti',
+    label_archive_empty: 'L\'archivio è vuoto.',
+    label_every_trading_day: '— ogni giorno di trading.',
+
     label_market_state: 'STATO DEL MERCATO',
     label_trend: 'Trend',
     label_momentum: 'Momentum',
