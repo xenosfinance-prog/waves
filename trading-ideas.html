@@ -165,14 +165,15 @@ body{background:var(--bg4);color:var(--ink);font-family:var(--mono);min-height:1
   </div>
   <div class="masthead-nav">
     <a class="nav-btn" href="https://xenosfinance.com"><span data-i18n="nav_news">📰 News</span></a>
+    <a class="nav-btn" href="https://xenosfinance.com/market-brief"><span data-i18n="nav_brief">🤖 Market Brief</span></a>
     <a class="nav-btn" href="https://xenosfinance.com/dashboard"><span data-i18n="nav_dashboard">📊 Dashboard</span></a>
     <a class="nav-btn" href="https://xenosfinance.com/xenoswaves_charts"><span data-i18n="nav_charts">◈ Charts</span></a>
     <a class="nav-btn" href="https://xenosfinance.com/XenosBlog"><span data-i18n="nav_blog">✦ AI Blog</span></a>
     <a class="nav-btn" href="https://xenosfinance.com/trading-signals"><span data-i18n="nav_signals">📡 Live Signals</span></a>
     <a class="nav-btn" href="https://xenosfinance.com/calendar"><span data-i18n="nav_calendar">🗓 Calendar</span></a>
     <a class="nav-btn" href="https://xenosfinance.com/elliottwave"><span data-i18n="nav_elliott">〜 Elliott Wave</span></a>
-    <a class="nav-btn active" href="https://xenosfinance.com/trading-ideas">💡 Trading Ideas</a>
-    <a class="nav-btn" href="https://xenosfinance.com/daily-education">📚 Education</a>
+    <a class="nav-btn active" href="https://xenosfinance.com/trading-ideas"><span data-i18n="nav_ideas">💡 Trading Ideas</span></a>
+    <a class="nav-btn" href="https://xenosfinance.com/daily-education"><span data-i18n="nav_education">📚 Education</span></a>
   </div>
 </div>
 
@@ -554,19 +555,19 @@ function buildCard(idea, idx){
         <div class="card-date">${fmtDateShort(idea.timestamp)}</div>
       </div>
       <div class="card-meta">
-        <div class="card-meta-item"><span class="meta-label">Price</span><span class="meta-val">${fmtPrice(idea.price,idea.ticker)}</span></div>
-        <div class="card-meta-item"><span class="meta-label">Target</span><span class="meta-val" style="color:var(--green)">${fmtPrice(idea.target,idea.ticker)}</span></div>
+        <div class="card-meta-item"><span class="meta-label"><span data-i18n="th_price">Price</span></span><span class="meta-val">${fmtPrice(idea.price,idea.ticker)}</span></div>
+        <div class="card-meta-item"><span class="meta-label"><span data-i18n="th_target">Target</span></span><span class="meta-val" style="color:var(--green)">${fmtPrice(idea.target,idea.ticker)}</span></div>
         <div class="card-meta-item"><span class="meta-label"><span data-i18n="th_inval">Inval.</span></span><span class="meta-val" style="color:var(--red)">${fmtPrice(idea.invalidation,idea.ticker)}</span></div>
       </div>
       <div class="card-signal">${signalLine}</div>
       <div class="conf-row">
-        <span class="conf-label">${isMKO?'Score: '+(idea.score||7)+'/10 ░░░░░ HIGH PROBABILITY...':'Confidence'}</span>
+        <span class="conf-label">${isMKO?'<span data-i18n="label_score">Score</span>: '+(idea.score||7)+'/10 ░░░░░ <span data-i18n="label_high_probability">HIGH PROBABILITY</span>...':'<span data-i18n="label_confidence">Confidence</span>'}</span>
         <div class="conf-track"><div class="conf-fill" style="width:${conf}%;background:${confColor}"></div></div>
         <span class="conf-val">${isMKO?'':conf+'%'}</span>
       </div>
       <div class="card-levels">
-        <div class="level-item"><span class="level-label">Target</span><span class="level-val green">${fmtPrice(idea.target,idea.ticker)}</span></div>
-        <div class="level-item"><span class="level-label">Invalidation</span><span class="level-val red">${fmtPrice(idea.invalidation,idea.ticker)}</span></div>
+        <div class="level-item"><span class="level-label"><span data-i18n="th_target">Target</span></span><span class="level-val green">${fmtPrice(idea.target,idea.ticker)}</span></div>
+        <div class="level-item"><span class="level-label"><span data-i18n="th_invalidation">Invalidation</span></span><span class="level-val red">${fmtPrice(idea.invalidation,idea.ticker)}</span></div>
         <div class="level-item"><span class="level-label">R:R</span><span class="level-val white">${fmtRR(idea)}</span></div>
       </div>
     </div>
@@ -617,11 +618,12 @@ async function openModal(idea){
     const score = idea.score || 7;
     const scorePct = Math.round((score/10)*100);
     const scoreColor = score>=8?'var(--green)':score>=6?'var(--gold)':'var(--red)';
-    const convictionLabel = score>=8?'STRONG CONVICTION':score>=6?'HIGH PROBABILITY':'MODERATE';
+    const _ttI = (k, f) => (typeof window.t === 'function') ? window.t(k) : f;
+    const convictionLabel = score>=8?_ttI('label_strong_conviction','STRONG CONVICTION'):score>=6?_ttI('label_high_probability','HIGH PROBABILITY'):_ttI('label_moderate','MODERATE');
     const signalLine = `${emoji} XENOS MKO · ${idea.ticker} · ${bias==='LONG'?'▲ LONG':'▼ SHORT'}`;
 
     const msHtml = (ms.trend||ms.momentum||ms.volatility||ms.sentiment)
-      ? `<div style="margin-top:12px;"><div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--gold);margin-bottom:6px;">MARKET STATE</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 16px;font-size:11px;">${ms.trend?`<div><span style="color:var(--muted);font-family:var(--mono);font-size:9px;">Trend </span><span style="color:var(--ink)">${ms.trend}</span></div>`:''} ${ms.momentum?`<div><span style="color:var(--muted);font-family:var(--mono);font-size:9px;">Momentum </span><span style="color:var(--ink)">${ms.momentum}</span></div>`:''} ${ms.volatility?`<div><span style="color:var(--muted);font-family:var(--mono);font-size:9px;">Volatility </span><span style="color:var(--ink)">${ms.volatility}</span></div>`:''} ${ms.sentiment?`<div><span style="color:var(--muted);font-family:var(--mono);font-size:9px;">Sentiment </span><span style="color:var(--ink)">${ms.sentiment}</span></div>`:''}</div></div>`
+      ? `<div style="margin-top:12px;"><div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--gold);margin-bottom:6px;"><span data-i18n="label_market_state">MARKET STATE</span></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 16px;font-size:11px;">${ms.trend?`<div><span style="color:var(--muted);font-family:var(--mono);font-size:9px;"><span data-i18n="label_trend">Trend</span> </span><span style="color:var(--ink)">${ms.trend}</span></div>`:''} ${ms.momentum?`<div><span style="color:var(--muted);font-family:var(--mono);font-size:9px;"><span data-i18n="label_momentum">Momentum</span> </span><span style="color:var(--ink)">${ms.momentum}</span></div>`:''} ${ms.volatility?`<div><span style="color:var(--muted);font-family:var(--mono);font-size:9px;"><span data-i18n="label_volatility">Volatility</span> </span><span style="color:var(--ink)">${ms.volatility}</span></div>`:''} ${ms.sentiment?`<div><span style="color:var(--muted);font-family:var(--mono);font-size:9px;"><span data-i18n="label_sentiment">Sentiment</span> </span><span style="color:var(--ink)">${ms.sentiment}</span></div>`:''}</div></div>`
       : '';
 
     let rawNarrative = (idea.narrative || idea.analysis || '').replace(/\n{2,}/g,'\n').trim();
@@ -630,10 +632,10 @@ async function openModal(idea){
     const scenarioTitle = idea.scenario_title || '';
     const narrativeHtml = rawNarrative ? `<div style="font-size:12px;color:var(--ink2);line-height:1.7;margin-top:4px;">${rawNarrative.replace(/\n/g,'<br>')}</div>` : '';
     const scenarioHtml = (scenarioTitle||rawNarrative)
-      ? `<div style="margin-top:12px;">${scenarioTitle?`<div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--gold);margin-bottom:4px;">SCENARIO</div><div style="font-family:var(--mono);font-size:10px;color:var(--ink);margin-bottom:6px;">${scenarioTitle}</div>`:''}${narrativeHtml}</div>`
+      ? `<div style="margin-top:12px;">${scenarioTitle?`<div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--gold);margin-bottom:4px;"><span data-i18n="label_scenario">SCENARIO</span></div><div style="font-family:var(--mono);font-size:10px;color:var(--ink);margin-bottom:6px;">${scenarioTitle}</div>`:''}${narrativeHtml}</div>`
       : '';
 
-    analysisEl.innerHTML = `<div style="font-family:var(--mono);font-size:10px;color:var(--ink2);margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border);">${signalLine}</div><div style="display:flex;align-items:center;gap:10px;margin-bottom:2px;"><span style="font-family:var(--mono);font-size:11px;color:var(--ink);">Score: ${score}/10</span><div style="flex:1;height:3px;background:var(--border2);border-radius:2px;overflow:hidden;"><div style="width:${scorePct}%;height:100%;background:${scoreColor};border-radius:2px;"></div></div></div><div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:${scoreColor};">${convictionLabel}</div>${msHtml}${scenarioHtml}`;
+    analysisEl.innerHTML = `<div style="font-family:var(--mono);font-size:10px;color:var(--ink2);margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border);">${signalLine}</div><div style="display:flex;align-items:center;gap:10px;margin-bottom:2px;"><span style="font-family:var(--mono);font-size:11px;color:var(--ink);">${_ttI('label_score','Score')}: ${score}/10</span><div style="flex:1;height:3px;background:var(--border2);border-radius:2px;overflow:hidden;"><div style="width:${scorePct}%;height:100%;background:${scoreColor};border-radius:2px;"></div></div></div><div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:${scoreColor};">${convictionLabel}</div>${msHtml}${scenarioHtml}`;
   } else {
     let clean = (idea.analysis||'').replace(/\n{2,}/g,'\n').trim();
     if (_tiLang !== 'en' && clean) { clean = await _ltTI(clean, _tiLang); }
@@ -660,6 +662,16 @@ document.getElementById('filters').addEventListener('click',e=>{
   activeFilter=btn.dataset.filter;
   renderGrid();
 });
+
+// Hook lang switcher: re-render cards so newly-generated data-i18n spans get translated too
+(function(){
+  var _origSetLang = window.xenosSetLang;
+  window.xenosSetLang = function(lang){
+    if (_origSetLang) _origSetLang(lang);
+    renderGrid();
+    if (typeof xenosApplyLang === 'function') xenosApplyLang(lang);
+  };
+})();
 
 const WORKER='https://xenos-ai-proxy.xenosfinance.workers.dev';
 let isAdmin=false;

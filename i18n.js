@@ -1,5 +1,18 @@
 const XENOS_I18N = { 
   en: {
+    nav_ideas: '💡 Trading Ideas',
+    nav_education: '📚 Education',
+    label_market_state: 'MARKET STATE',
+    label_trend: 'Trend',
+    label_momentum: 'Momentum',
+    label_volatility: 'Volatility',
+    label_sentiment: 'Sentiment',
+    label_scenario: 'SCENARIO',
+    label_score: 'Score',
+    label_high_probability: 'HIGH PROBABILITY',
+    label_strong_conviction: 'STRONG CONVICTION',
+    label_moderate: 'MODERATE',
+
     label_link_free_signals: 'Free Trading Signals',
     label_link_premium: 'Premium',
     label_today_badge: 'TODAY',
@@ -442,6 +455,19 @@ const XENOS_I18N = {
   },
 
   ru: {
+    nav_ideas: '💡 Торговые Идеи',
+    nav_education: '📚 Обучение',
+    label_market_state: 'СОСТОЯНИЕ РЫНКА',
+    label_trend: 'Тренд',
+    label_momentum: 'Импульс',
+    label_volatility: 'Волатильность',
+    label_sentiment: 'Настроение',
+    label_scenario: 'СЦЕНАРИЙ',
+    label_score: 'Оценка',
+    label_high_probability: 'ВЫСОКАЯ ВЕРОЯТНОСТЬ',
+    label_strong_conviction: 'СИЛЬНАЯ УВЕРЕННОСТЬ',
+    label_moderate: 'УМЕРЕННО',
+
     label_link_free_signals: 'Бесплатные Торговые Сигналы',
     label_link_premium: 'Премиум',
     label_today_badge: 'СЕГОДНЯ',
@@ -884,6 +910,19 @@ const XENOS_I18N = {
   },
 
   pl: {
+    nav_ideas: '💡 Pomysły Transakcyjne',
+    nav_education: '📚 Edukacja',
+    label_market_state: 'STAN RYNKU',
+    label_trend: 'Trend',
+    label_momentum: 'Momentum',
+    label_volatility: 'Zmienność',
+    label_sentiment: 'Sentyment',
+    label_scenario: 'SCENARIUSZ',
+    label_score: 'Wynik',
+    label_high_probability: 'WYSOKIE PRAWDOPODOBIEŃSTWO',
+    label_strong_conviction: 'SILNE PRZEKONANIE',
+    label_moderate: 'UMIARKOWANE',
+
     label_link_free_signals: 'Darmowe Sygnały Transakcyjne',
     label_link_premium: 'Premium',
     label_today_badge: 'DZISIAJ',
@@ -1326,6 +1365,19 @@ const XENOS_I18N = {
   },
 
   es: {
+    nav_ideas: '💡 Ideas de Trading',
+    nav_education: '📚 Educación',
+    label_market_state: 'ESTADO DEL MERCADO',
+    label_trend: 'Tendencia',
+    label_momentum: 'Momentum',
+    label_volatility: 'Volatilidad',
+    label_sentiment: 'Sentimiento',
+    label_scenario: 'ESCENARIO',
+    label_score: 'Puntuación',
+    label_high_probability: 'ALTA PROBABILIDAD',
+    label_strong_conviction: 'CONVICCIÓN FUERTE',
+    label_moderate: 'MODERADO',
+
     label_link_free_signals: 'Señales de Trading Gratuitas',
     label_link_premium: 'Premium',
     label_today_badge: 'HOY',
@@ -1767,6 +1819,17 @@ const XENOS_I18N = {
     label_generating_ai_analysis: 'Generando análisis semanal de IA...',
   },
   it: {
+    label_market_state: 'STATO DEL MERCATO',
+    label_trend: 'Trend',
+    label_momentum: 'Momentum',
+    label_volatility: 'Volatilità',
+    label_sentiment: 'Sentiment',
+    label_scenario: 'SCENARIO',
+    label_score: 'Punteggio',
+    label_high_probability: 'ALTA PROBABILITÀ',
+    label_strong_conviction: 'FORTE CONVINZIONE',
+    label_moderate: 'MODERATO',
+
     label_link_free_signals: 'Segnali di Trading Gratuiti',
     label_link_premium: 'Premium',
     label_today_badge: 'OGGI',
