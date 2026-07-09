@@ -61,13 +61,14 @@ def _article_card(a: Article) -> str:
     emoji   = sentiment_emoji(a.sentiment)
     pub     = format_dt(a.published)
     cat_lbl = CATEGORY_LABELS.get(a.category, a.category)
+    sent_word_key = f"sent_word_{a.sentiment}"
     return f"""
     <div class="article-card">
       <div class="article-meta">
-        <span class="article-cat">{cat_lbl}</span>
+        <span class="article-cat"><span data-i18n="cat_label_{a.category}">{cat_lbl}</span></span>
         <span class="article-source">{a.source}</span>
         <span class="article-date">{pub}</span>
-        <span class="article-sent" style="color:{color}">{emoji} {a.sentiment}</span>
+        <span class="article-sent" style="color:{color}">{emoji} <span data-i18n="{sent_word_key}">{a.sentiment}</span></span>
       </div>
       <a class="article-title" href="{a.url}" target="_blank" rel="noopener">{a.title}</a>
       <p class="article-summary">{a.summary}</p>
@@ -81,14 +82,15 @@ def _category_section(cat: str, stats: Dict, all_articles: List[Article]) -> str
         return ""
     color   = SENTIMENT_COLORS.get(stats["sentiment"], "#8892a4")
     emoji   = sentiment_emoji(stats["sentiment"])
+    sent_key = f"cat_sentiment_{stats['sentiment']}"
     cards   = "\n".join(_article_card(a) for a in
                         sorted(arts, key=lambda x: x.score, reverse=True)[:8])
     return f"""
     <section class="cat-section" id="cat-{cat}">
       <div class="cat-header">
-        <span class="cat-label">{label}</span>
-        <span class="cat-sentiment" style="color:{color}">{emoji} {stats['sentiment'].upper()}</span>
-        <span class="cat-count">{stats['count']} articles</span>
+        <span class="cat-label"><span data-i18n="cat_label_{cat}">{label}</span></span>
+        <span class="cat-sentiment" style="color:{color}">{emoji} <span data-i18n="{sent_key}">{stats['sentiment'].upper()}</span></span>
+        <span class="cat-count">{stats['count']} <span data-i18n="label_articles_word">articles</span></span>
       </div>
       <div class="articles-grid">
         {cards}
@@ -121,7 +123,7 @@ class HTMLWriter:
 
         # Category nav tabs
         cat_tabs = "\n".join(
-            f'<a class="cat-tab" href="#cat-{cat}">{CATEGORY_LABELS[cat]}</a>'
+            f'<a class="cat-tab" href="#cat-{cat}"><span data-i18n="cat_label_{cat}">{CATEGORY_LABELS[cat]}</span></a>'
             for cat in ["macro", "equities", "commodities", "crypto", "forex", "geopolitics"]
         )
 
@@ -498,10 +500,10 @@ a:hover {{ color: var(--ink); }}
 
   <!-- Sentiment Hero -->
   <div class="sentiment-hero">
-    <div class="sentiment-label">Overall Market Sentiment</div>
+    <div class="sentiment-label"><span data-i18n="label_overall_sentiment">Overall Market Sentiment</span></div>
     <div class="sentiment-value" style="color:{overall_color}">{market_data['overall_label']}</div>
     <div class="sentiment-stats">
-      {market_data['total_articles']} articles analyzed · {ts_str}
+      {market_data['total_articles']} <span data-i18n="label_articles_analyzed">articles analyzed</span> · {ts_str}
     </div>
     {sent_bar}
   </div>
@@ -509,8 +511,8 @@ a:hover {{ color: var(--ink); }}
   <!-- AI Brief -->
   <section class="ai-section">
     <div class="ai-header">
-      <span class="ai-badge">✦ AI Analysis</span>
-      <span class="ai-title">Market Intelligence Brief</span>
+      <span class="ai-badge">✦ <span data-i18n="label_ai_analysis_badge">AI Analysis</span></span>
+      <span class="ai-title"><span data-i18n="label_market_intel_brief">Market Intelligence Brief</span></span>
     </div>
     <div class="ai-content">
       {ai_html}
@@ -529,12 +531,12 @@ a:hover {{ color: var(--ink); }}
   <footer class="page-footer">
     <span>© XenosFinance 2026</span>
     <div class="footer-links">
-      <a href="https://xenosfinance.com">Home</a>
-      <a href="https://xenosfinance.com/dashboard">Dashboard</a>
+      <a href="https://xenosfinance.com" data-i18n="nav_news_plain">Home</a>
+      <a href="https://xenosfinance.com/dashboard" data-i18n="nav_dashboard_plain">Dashboard</a>
       <a href="https://t.me/xenosfin" target="_blank">Telegram</a>
-      <a href="https://xenosfinance.com/premium-support">Premium</a>
+      <a href="https://xenosfinance.com/premium-support"><span data-i18n="label_premium_tier">Premium</span></a>
     </div>
-    <span>⚠ Not investment advice</span>
+    <span><span data-i18n="label_not_investment_advice">⚠ Not investment advice</span></span>
   </footer>
 
 </div>
