@@ -1,7 +1,7 @@
 // XenosFinance Service Worker v1.0
 // Caches shell pages for offline access, sempre fetch live per prezzi e news
 
-const CACHE_NAME = 'xenos-v1';
+const CACHE_NAME = 'xenos-v2';
 const SHELL_URLS = [
   '/',
   '/dashboard',
@@ -67,6 +67,23 @@ self.addEventListener('fetch', event => {
         .then(response => {
           const clone = response.clone();
           caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+          return response;
+        })
+        .catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
+  // JS files — network first, fallback to cache
+  // (prevents stale cached scripts from hiding newly deployed fixes/translations)
+  if (url.pathname.endsWith('.js')) {
+    event.respondWith(
+      fetch(event.request)
+        .then(response => {
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+          }
           return response;
         })
         .catch(() => caches.match(event.request))
