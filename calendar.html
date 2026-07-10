@@ -1028,6 +1028,22 @@ async function fetchLiveCalendar(weekStr) {
     return date + '|' + String(name).toLowerCase().replace(/\s+/g,' ').trim().slice(0,40);
   }
 
+  // Fuzzy fallback: same date + >50% word overlap (handles provider naming
+  // differences like "EIA Petroleum Status Report" vs "EIA Crude Oil Inventories")
+  function findMatchingEvent(dateRaw, name) {
+    let existing = EVENTS.find(e => evKey(e.date, e.name) === evKey(dateRaw, name));
+    if (existing) return existing;
+    const nameWords = name.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+    if (!nameWords.length) return null;
+    return EVENTS.find(e => {
+      if (e.date !== dateRaw) return false;
+      const eWords = e.name.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+      if (!eWords.length) return false;
+      const matches = nameWords.filter(w => eWords.some(ew => ew.includes(w) || w.includes(ew)));
+      return matches.length / nameWords.length > 0.5;
+    }) || null;
+  }
+
   // Only update actuals on existing events — never delete static events
   function patchActuals(events, nameField, dateField, actualField) {
     events.forEach(ev => {
@@ -1037,7 +1053,7 @@ async function fetchLiveCalendar(weekStr) {
       const name = String(ev[nameField] || ev.event || ev.name || '').trim();
       if (!dateRaw || !name) return;
       // Find matching static event and patch actual
-      const existing = EVENTS.find(e => evKey(e.date, e.name) === evKey(dateRaw, name));
+      const existing = findMatchingEvent(dateRaw, name);
       // Only patch if not manually saved by admin
       const manualKey = 'xf_actual_' + dateRaw + '_' + String(name).slice(0,20).replace(/\s/g,'_');
       const hasManual = localStorage.getItem(manualKey);
