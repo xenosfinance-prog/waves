@@ -536,41 +536,40 @@ function toggleFaq(el) {
   if (!isOpen) item.classList.add('open');
 }
 
-// Notify form
-// Formspree Ajax — initialized after DOM ready
-// EmailJS — sends directly to xenosfinance@gmail.com
-(function(){
-  var s = document.createElement('script');
-  s.src = 'https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js';
-  s.onload = function(){ emailjs.init({ publicKey: 'XF_PUBLIC_KEY' }); };
-  document.head.appendChild(s);
-})();
+// Notify form — sends directly to xenosfinance@gmail.com via Cloudflare Worker (Email Routing)
+const NOTIFY_WORKER_URL = 'https://xenos-ai-proxy.xenosfinance.workers.dev';
 
 document.getElementById('notify-form').addEventListener('submit', function(e) {
   e.preventDefault();
   const email = document.getElementById('notify-email').value;
   const btn   = this.querySelector('button[type=submit]');
   const succ  = document.getElementById('notify-success');
+  const form  = this;
 
   btn.textContent = 'Sending...';
   btn.disabled    = true;
 
-  emailjs.send('XF_SERVICE_ID', 'xf_notify_template', {
-    from_email:   email,
-    message:      'New Premium Launch Notification signup from: ' + email,
-    to_name:      'XenosFinance',
-    subject:      '🔔 New Premium Waitlist Signup — ' + email,
-    reply_to:     email,
+  fetch(NOTIFY_WORKER_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      type: 'notify-email',
+      subject: '🔔 New Premium Waitlist Signup — ' + email,
+      message: 'New Premium Launch Notification signup from: ' + email,
+      reply_to: email,
+    })
   })
-  .then(function() {
+  .then(function(r){ return r.json(); })
+  .then(function(data) {
+    if (!data.ok) throw new Error(data.error || 'Unknown error');
     succ.style.display = 'block';
     btn.style.display  = 'none';
-    this.reset && this.reset();
-  }.bind(this))
+    form.reset();
+  })
   .catch(function(err) {
     btn.textContent = 'Try again';
     btn.disabled    = false;
-    console.error('EmailJS error:', err);
+    console.error('Notify email error:', err);
   });
 });
 </script>
