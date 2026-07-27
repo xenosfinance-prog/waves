@@ -1508,20 +1508,31 @@ async function saveNotes(notes) {
         url:`https://api.github.com/repos/${REPO}/contents/${NOTES_GH_FILE}` })
     });
     const gd = await getRes.json();
+    if (gd.status && gd.status >= 400 && gd.status !== 404) {
+      return { ok:false, error: 'GitHub read failed (HTTP ' + gd.status + ')' };
+    }
     const sha = gd.data?.sha || null;
     const content = btoa(unescape(encodeURIComponent(JSON.stringify(notes, null, 2))));
     const payload = { message: 'update wave notes', content };
     if (sha) payload.sha = sha;
-    await fetch(WORKER, {
+    const putRes = await fetch(WORKER, {
       method: 'POST', headers: {'Content-Type':'application/json'},
       body: JSON.stringify({ type:'github', method:'PUT',
         url:`https://api.github.com/repos/${REPO}/contents/${NOTES_GH_FILE}`, payload })
     });
-  } catch(e) { console.warn('saveNotes GitHub:', e); }
+    const pd = await putRes.json();
+    if (pd.status && pd.status >= 400) {
+      const msg = (pd.data && (pd.data.message || pd.data.error)) || ('GitHub write failed (HTTP ' + pd.status + ')');
+      return { ok:false, error: msg };
+    }
+    return { ok:true };
+  } catch(e) {
+    return { ok:false, error: e.message };
+  }
 }
 
-async function renderPublicFeed() {
-  var notes = await loadNotes();
+async function renderPublicFeed(preloadedNotes) {
+  var notes = preloadedNotes || await loadNotes();
   var list = document.getElementById('publicNotesList');
   var empty = document.getElementById('publicNotesEmpty');
   if (!list) return;
@@ -1578,15 +1589,21 @@ async function publishNote() {
   const notes = await loadNotes();
   const now = new Date();
   notes.push({asset, setup, bias, date: now.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}).toUpperCase()});
-  await saveNotes(notes);
+  const result = await saveNotes(notes);
+  if (!result.ok) { err.textContent = '⚠ Save failed: ' + result.error; return; }
   document.getElementById('noteAsset').value='';
   document.getElementById('noteSetup').value='';
   err.textContent='';
-  renderPublicFeed();
+  renderPublicFeed(notes);
 }
 
 async function deleteNote(idx) {
-  const notes = await loadNotes(); notes.splice(idx,1); await saveNotes(notes); renderPublicFeed();
+  if (!confirm('Delete this wave setup note?')) return;
+  const notes = await loadNotes();
+  notes.splice(idx,1);
+  const result = await saveNotes(notes);
+  if (!result.ok) { alert('Delete failed: ' + result.error); return; }
+  renderPublicFeed(notes);
 }
 
 async function publishFromAnalysis() {
@@ -3949,6 +3966,49 @@ var _ewsAssetName = 'EUR/USD';
 var _ewsTf = 'H4';
 var _ewsBias = 'neutral';
 
+// ── TradingView widget (Live Analysis chart) ────────────────────────────
+const EWS_TV_SYMBOL_MAP = {
+  'EURUSD':'FX:EURUSD', 'GBPUSD':'FX:GBPUSD', 'USDJPY':'FX:USDJPY', 'USDCHF':'FX:USDCHF', 'AUDUSD':'FX:AUDUSD',
+  'XAUUSD':'TVC:GOLD', 'XAGUSD':'TVC:SILVER', 'USOIL':'TVC:USOIL', 'UKOIL':'TVC:UKOIL', 'NATGAS':'NYMEX:NG1!',
+  'US500':'TVC:SPX', 'NAS100':'TVC:NDQ', 'US30':'TVC:DJI', 'GER40':'TVC:DEU40',
+  'BTCUSD':'BINANCE:BTCUSDT', 'ETHUSD':'BINANCE:ETHUSDT', 'SOLUSD':'BINANCE:SOLUSDT'
+};
+const EWS_TV_INTERVAL_MAP = { 'M15':'15', 'H1':'60', 'H4':'240', 'D1':'D', 'W1':'W' };
+
+function ewsLoadTVWidget(sym, tf) {
+  var wrap = document.getElementById('ews-analysis-wrap');
+  if (!wrap) return;
+  var tvSymbol = EWS_TV_SYMBOL_MAP[sym] || ('FX:' + sym);
+  var tvInterval = EWS_TV_INTERVAL_MAP[tf] || '240';
+
+  wrap.innerHTML =
+    '<div class="tradingview-widget-container" style="height:480px;width:100%;">' +
+      '<div class="tradingview-widget-container__widget" style="height:100%;width:100%;"></div>' +
+    '</div>';
+
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
+  script.async = true;
+  script.innerHTML = JSON.stringify({
+    autosize: true,
+    symbol: tvSymbol,
+    interval: tvInterval,
+    timezone: 'Etc/UTC',
+    theme: 'dark',
+    style: '1',
+    locale: 'en',
+    enable_publishing: false,
+    hide_top_toolbar: false,
+    hide_legend: false,
+    withdateranges: true,
+    save_image: false,
+    calendar: false,
+    support_host: 'https://www.tradingview.com'
+  });
+  wrap.querySelector('.tradingview-widget-container').appendChild(script);
+}
+
 function ewsSelectAsset(sym, name, bias, btn) {
   _ewsAsset = sym;
   _ewsAssetName = name;
@@ -3966,6 +4026,9 @@ function ewsSelectAsset(sym, name, bias, btn) {
 
   // Fetch live price
   ewsFetchPrice(sym);
+
+  // Reload TradingView chart for the new asset
+  ewsLoadTVWidget(sym, _ewsTf);
 
   // Reset panels
   document.getElementById('ews-summary-bar').textContent = 'Asset selected: ' + name + ' · Click Generate Analysis to run AI.';
@@ -3993,6 +4056,9 @@ function ewsSetTf(tf, btn) {
       }
     }
   }
+
+  // Reload TradingView chart at the new timeframe
+  ewsLoadTVWidget(_ewsAsset, tf);
 }
 
 async function ewsFetchPrice(sym) {
@@ -4107,7 +4173,9 @@ async function ewsRunAnalysis() {
       document.getElementById('ews-updated').textContent = 'Updated ' + now.toLocaleDateString('en-GB', {day:'numeric',month:'short',year:'numeric'});
 
       status.textContent = '✓ Analysis complete';
-      if (typeof XFPremium !== 'undefined') XFPremium.recordUse('elliott');
+      if (typeof XFPremium !== 'undefined' && typeof XFPremium.recordUse === 'function') {
+        try { XFPremium.recordUse('elliott'); } catch(e) {}
+      }
     } else {
       status.textContent = 'Could not parse AI response. Try again.';
       document.getElementById('ews-full-analysis').textContent = text.slice(0, 500);
@@ -4120,9 +4188,10 @@ async function ewsRunAnalysis() {
   btn.textContent = '⚡ Generate Analysis';
 }
 
-// Init: load price for default asset on page load
+// Init: load price + chart for default asset on page load
 document.addEventListener('DOMContentLoaded', function() {
   ewsFetchPrice(_ewsAsset);
+  ewsLoadTVWidget(_ewsAsset, _ewsTf);
 });
 
 </script>
