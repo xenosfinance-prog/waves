@@ -484,6 +484,21 @@ canvas { display: block; }
   color: var(--ink2);
   line-height: 1.75;
 }
+.ews-fa-text p { margin-bottom: 10px; }
+.ews-fa-text p:last-child { margin-bottom: 0; }
+.ew-hl-wave  { color: var(--gold2); font-weight: 600; }
+.ew-hl-bull  { color: var(--green2); font-weight: 600; }
+.ew-hl-bear  { color: var(--red2); font-weight: 600; }
+.ew-hl-neutral { color: var(--yellow); font-weight: 600; }
+.ew-hl-term  { color: var(--yellow); }
+.ew-hl-num   { color: var(--ink); font-weight: 600; }
+.ews-summary-bar.ews-callout {
+  background: rgba(96,165,250,0.08);
+  border-left: 3px solid var(--gold2);
+  color: var(--gold2);
+  font-weight: 500;
+}
+.ews-summary-bar.ews-callout b { color: var(--ink); }
 .ews-analysis-wrap { padding: 16px; min-height: 632px; }
 .ews-updated {
   font-family: var(--mono);
@@ -3981,37 +3996,17 @@ function ewsLoadTVWidget(sym, tf) {
   var tvSymbol = EWS_TV_SYMBOL_MAP[sym] || ('FX:' + sym);
   var tvInterval = EWS_TV_INTERVAL_MAP[tf] || '240';
 
-  wrap.innerHTML =
-    '<div class="tradingview-widget-container" style="height:600px;min-height:600px;width:100%;">' +
-      '<div class="tradingview-widget-container__widget" style="height:600px;min-height:600px;width:100%;"></div>' +
-    '</div>';
+  var src = 'https://s3.tradingview.com/widgetembed/?'
+    + 'symbol=' + encodeURIComponent(tvSymbol)
+    + '&interval=' + encodeURIComponent(tvInterval)
+    + '&theme=dark&style=1&locale=en&timezone=Etc%2FUTC'
+    + '&withdateranges=1&allow_symbol_change=0&saveimage=0'
+    + '&hide_side_toolbar=0&studies=%5B%5D&toolbarbg=0a1020';
 
-  // Wait a frame so the container has committed layout before TradingView measures it
-  requestAnimationFrame(function() {
-    var script = document.createElement('script');
-    script.type = 'text/javascript';
-    script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
-    script.async = true;
-    script.innerHTML = JSON.stringify({
-      width: '100%',
-      height: 600,
-      symbol: tvSymbol,
-      interval: tvInterval,
-      timezone: 'Etc/UTC',
-      theme: 'dark',
-      style: '1',
-      locale: 'en',
-      enable_publishing: false,
-      hide_top_toolbar: false,
-      hide_legend: false,
-      withdateranges: true,
-      save_image: false,
-      calendar: false,
-      support_host: 'https://www.tradingview.com'
-    });
-    var container = wrap.querySelector('.tradingview-widget-container');
-    if (container) container.appendChild(script);
-  });
+  wrap.innerHTML =
+    '<iframe src="' + src + '" ' +
+      'style="width:100%;height:600px;min-height:600px;border:0;display:block;" ' +
+      'allowtransparency="true" scrolling="no" frameborder="0"></iframe>';
 }
 
 function ewsSelectAsset(sym, name, bias, btn) {
@@ -4036,6 +4031,7 @@ function ewsSelectAsset(sym, name, bias, btn) {
   ewsLoadTVWidget(sym, _ewsTf);
 
   // Reset panels
+  document.getElementById('ews-summary-bar').classList.remove('ews-callout');
   document.getElementById('ews-summary-bar').textContent = 'Asset selected: ' + name + ' · Click Generate Analysis to run AI.';
   document.getElementById('ews-full-analysis').textContent = 'Run Generate Analysis to get the full EW read.';
   document.getElementById('ews-kl-target').textContent = '—';
@@ -4105,6 +4101,30 @@ function ewsSetScores(conviction, probability) {
   document.getElementById('ews-probability').textContent = probability + ' / 5';
 }
 
+function ewsFormatAnalysisText(text) {
+  if (!text) return '';
+  var esc = String(text)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+  // Wave labels: "Wave 3", "wave A", "Wave (5)"
+  esc = esc.replace(/\b(Wave\s*[1-5A-Ca-c])\b/g, '<span class="ew-hl-wave">$1</span>');
+
+  // Bias words
+  esc = esc.replace(/\b(bullish|bearish|neutral)\b/gi, function(m) {
+    var cls = /bullish/i.test(m) ? 'ew-hl-bull' : /bearish/i.test(m) ? 'ew-hl-bear' : 'ew-hl-neutral';
+    return '<span class="' + cls + '">' + m + '</span>';
+  });
+
+  // EW terminology
+  esc = esc.replace(/\b(impulsive|impulse|corrective|correction|zigzag|flat|triangle|extension|retracement|Fibonacci|invalidation|confluence|momentum|support|resistance)\b/gi,
+    '<span class="ew-hl-term">$1</span>');
+
+  // Price levels / numbers with decimals
+  esc = esc.replace(/\b\d{1,3}(?:,\d{3})*\.\d{1,5}\b/g, '<span class="ew-hl-num">$&</span>');
+
+  return '<p>' + esc + '</p>';
+}
+
 async function ewsRunAnalysis() {
   var btn = document.getElementById('ews-run-btn');
   var status = document.getElementById('ews-status');
@@ -4165,8 +4185,9 @@ async function ewsRunAnalysis() {
       document.getElementById('ews-wave-label').textContent = 'Wave ' + (json.wave || '?');
       document.getElementById('ews-kl-target').textContent = json.target || '—';
       document.getElementById('ews-kl-inval').textContent = json.invalidation || '—';
-      document.getElementById('ews-summary-bar').textContent = json.summary || '';
-      document.getElementById('ews-full-analysis').textContent = json.analysis || '';
+      document.getElementById('ews-summary-bar').classList.add('ews-callout');
+      document.getElementById('ews-summary-bar').innerHTML = json.summary ? ('🎯 <b>' + ewsFormatAnalysisText(json.summary).replace(/^<p>|<\/p>$/g,'') + '</b>') : '';
+      document.getElementById('ews-full-analysis').innerHTML = ewsFormatAnalysisText(json.analysis || '');
 
       // Update sidebar dot for this asset
       document.querySelectorAll('.ews-asset-btn.active .ews-asset-dot').forEach(function(dot) {
