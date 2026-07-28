@@ -3983,30 +3983,35 @@ function ewsLoadTVWidget(sym, tf) {
 
   wrap.innerHTML =
     '<div class="tradingview-widget-container" style="height:600px;min-height:600px;width:100%;">' +
-      '<div class="tradingview-widget-container__widget" style="height:100%;width:100%;"></div>' +
+      '<div class="tradingview-widget-container__widget" style="height:600px;min-height:600px;width:100%;"></div>' +
     '</div>';
 
-  var script = document.createElement('script');
-  script.type = 'text/javascript';
-  script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
-  script.async = true;
-  script.innerHTML = JSON.stringify({
-    autosize: true,
-    symbol: tvSymbol,
-    interval: tvInterval,
-    timezone: 'Etc/UTC',
-    theme: 'dark',
-    style: '1',
-    locale: 'en',
-    enable_publishing: false,
-    hide_top_toolbar: false,
-    hide_legend: false,
-    withdateranges: true,
-    save_image: false,
-    calendar: false,
-    support_host: 'https://www.tradingview.com'
+  // Wait a frame so the container has committed layout before TradingView measures it
+  requestAnimationFrame(function() {
+    var script = document.createElement('script');
+    script.type = 'text/javascript';
+    script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
+    script.async = true;
+    script.innerHTML = JSON.stringify({
+      width: '100%',
+      height: 600,
+      symbol: tvSymbol,
+      interval: tvInterval,
+      timezone: 'Etc/UTC',
+      theme: 'dark',
+      style: '1',
+      locale: 'en',
+      enable_publishing: false,
+      hide_top_toolbar: false,
+      hide_legend: false,
+      withdateranges: true,
+      save_image: false,
+      calendar: false,
+      support_host: 'https://www.tradingview.com'
+    });
+    var container = wrap.querySelector('.tradingview-widget-container');
+    if (container) container.appendChild(script);
   });
-  wrap.querySelector('.tradingview-widget-container').appendChild(script);
 }
 
 function ewsSelectAsset(sym, name, bias, btn) {
