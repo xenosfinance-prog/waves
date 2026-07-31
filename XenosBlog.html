@@ -140,6 +140,64 @@
   .article-body h2 { font-family:'Playfair Display',serif; font-size:1.35rem; font-weight:700; color:var(--text-bright); margin:32px 0 14px; }
   .article-body h3 { font-family:'IBM Plex Mono',monospace; font-size:0.72rem; letter-spacing:0.15em; text-transform:uppercase; color:var(--gold); margin:26px 0 10px; }
   .article-body blockquote { border-left:2px solid var(--gold); padding:12px 0 12px 20px; margin:26px 0; font-family:'Playfair Display',serif; font-size:1.05rem; font-style:italic; color:var(--text-dim); background:var(--bg2); }
+  /* ── Matches daily-education.html article styling ── */
+  .edu-section { margin-bottom: 28px; }
+  .edu-section-title {
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    letter-spacing: 0.12em;
+    color: var(--gold);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid rgba(59,130,246,0.3);
+  }
+  .edu-paragraph {
+    font-family: var(--body);
+    font-size: 0.98rem;
+    line-height: 1.85;
+    color: var(--text);
+    margin-bottom: 10px;
+  }
+  .edu-paragraph b { color: var(--yellow); font-weight: 600; }
+  .edu-list { list-style: none; padding: 0; margin: 8px 0 12px 0; }
+  .edu-list li {
+    font-family: var(--body);
+    font-size: 0.96rem;
+    line-height: 1.75;
+    color: var(--dim);
+    padding: 3px 0 3px 18px;
+    position: relative;
+  }
+  .edu-list li::before { content: '—'; position: absolute; left: 0; color: var(--gold); font-size: 0.75rem; }
+  .edu-list li b { color: var(--text); font-weight: 600; }
+  .edu-pro-tip {
+    background: rgba(245,158,11,0.1);
+    border-left: 3px solid var(--yellow);
+    border-radius: 0 8px 8px 0;
+    padding: 12px 16px;
+    margin: 14px 0;
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    color: var(--yellow);
+    letter-spacing: 0.03em;
+    line-height: 1.6;
+  }
+  .edu-smart-rule {
+    background: rgba(59,130,246,0.1);
+    border-left: 3px solid var(--gold);
+    border-radius: 0 8px 8px 0;
+    padding: 12px 16px;
+    margin: 14px 0;
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    color: var(--gold2);
+    letter-spacing: 0.03em;
+    line-height: 1.6;
+  }
   .article-share { margin-top:48px; padding-top:24px; border-top:1px solid var(--border); display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
   .share-label { font-family:'IBM Plex Mono',monospace; font-size:0.6rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--text-dim); }
   .btn-tg { background:rgba(42,130,200,0.1); border:1px solid rgba(42,130,200,0.3); color:#5aabde; padding:8px 16px; font-family:'IBM Plex Mono',monospace; font-size:0.6rem; letter-spacing:0.12em; text-transform:uppercase; cursor:pointer; text-decoration:none; display:inline-block; }
@@ -565,6 +623,52 @@ async function translateArticleFields(a) {
   return {...a, title, intro, conclusion, quote, categoryLabel, sections, bullets, keyLevels};
 }
 
+function parseBoldBlog(text) {
+  return String(text||'').replace(/\*([^*]+)\*/g, '<b>$1</b>');
+}
+
+function formatBlogContent(raw) {
+  if (!raw) return '';
+  const lines = String(raw).split('\n');
+  let html = '';
+  let inList = false;
+  const closeList = () => { if (inList) { html += '</ul>'; inList = false; } };
+
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i].trim();
+    if (!line) { closeList(); continue; }
+
+    if (/^(PRO TIP|💡\s*PRO TIP)/i.test(line)) {
+      closeList();
+      const rest = line.replace(/^(💡\s*)?(PRO TIP)\s*[:\-]?\s*/i, '');
+      let tipText = rest;
+      while (i + 1 < lines.length && lines[i+1].trim() && !/^[-•]/.test(lines[i+1].trim())) { i++; tipText += ' ' + lines[i].trim(); }
+      html += '<div class="edu-pro-tip">💡 <b>PRO TIP</b> — ' + parseBoldBlog(tipText) + '</div>';
+      continue;
+    }
+
+    if (/^(SMART MONEY RULE|🔑\s*SMART MONEY)/i.test(line)) {
+      closeList();
+      const rest = line.replace(/^(🔑\s*)?(SMART MONEY RULE)\s*[:\-]?\s*/i, '');
+      let tipText = rest;
+      while (i + 1 < lines.length && lines[i+1].trim() && !/^[-•]/.test(lines[i+1].trim())) { i++; tipText += ' ' + lines[i].trim(); }
+      html += '<div class="edu-smart-rule">🔑 <b>SMART MONEY RULE</b> — ' + parseBoldBlog(tipText) + '</div>';
+      continue;
+    }
+
+    if (/^[-•]\s+/.test(line)) {
+      if (!inList) { html += '<ul class="edu-list">'; inList = true; }
+      html += '<li>' + parseBoldBlog(line.replace(/^[-•]\s+/, '')) + '</li>';
+      continue;
+    }
+
+    closeList();
+    html += '<p class="edu-paragraph">' + parseBoldBlog(line) + '</p>';
+  }
+  closeList();
+  return html;
+}
+
 async function loadArticle(slug) {
   document.getElementById('gridView').style.display = 'none';
   document.getElementById('articleView').style.display = 'block';
@@ -603,12 +707,16 @@ async function loadArticle(slug) {
       BASE2+'macro.png'
     ) : a.imageUrl;
     var heroHtml = '<div class="article-hero"><img src="' + artImgSrc + '" alt="' + (a.title||'') + '"></div>';
-    var html = heroHtml + '<p>' + (a.intro||'') + '</p>';
+    var html = heroHtml + formatBlogContent(a.intro||'');
     if (a.sections) {
-      a.sections.forEach(function(s){ html += '<h2>' + s.heading + '</h2><p>' + s.content + '</p>'; });
+      a.sections.forEach(function(s){
+        html += '<div class="edu-section"><div class="edu-section-title">' + s.heading + '</div>' + formatBlogContent(s.content) + '</div>';
+      });
     }
     if (a.quote) html += '<blockquote>' + a.quote + '</blockquote>';
-    if (a.conclusion) html += '<h3>// ' + (typeof window.t === 'function' ? window.t('label_conclusion') : 'Conclusion') + '</h3><p>' + a.conclusion + '</p>';
+    if (a.conclusion) {
+      html += '<div class="edu-section"><div class="edu-section-title">// ' + (typeof window.t === 'function' ? window.t('label_conclusion') : 'Conclusion') + '</div>' + formatBlogContent(a.conclusion) + '</div>';
+    }
     document.getElementById('artBody').innerHTML = html;
     setTimeout(function(){XF.panRead(document.getElementById('artBody'));},400);
     document.title = a.title + ' — XenosFinance AI Blog';
