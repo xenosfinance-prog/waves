@@ -1190,9 +1190,15 @@ canvas { display: block; }
         </div>
 
         <!-- Generate button -->
-        <div style="padding:16px;border-top:1px solid var(--border);display:flex;gap:10px;align-items:center;background:var(--bg2);">
+        <div style="padding:16px;border-top:1px solid var(--border);display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--bg2);">
           <button onclick="ewsRunAnalysis()" id="ews-run-btn" style="font-family:var(--mono);font-size:9px;letter-spacing:3px;text-transform:uppercase;padding:10px 24px;background:var(--gold2);color:#0a1020;border:none;cursor:pointer;font-weight:600;transition:opacity 0.2s;">
             ⚡ Generate Analysis
+          </button>
+          <button onclick="ewsSendToTelegram()" id="ews-tg-btn" style="display:none;font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;padding:10px 18px;background:none;border:1px solid var(--gold2);color:var(--gold2);cursor:pointer;font-weight:600;">
+            📡 Send to Telegram
+          </button>
+          <button onclick="ewsSaveAsActiveSetup()" id="ews-save-btn" style="display:none;font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;padding:10px 18px;background:none;border:1px solid var(--green2);color:var(--green2);cursor:pointer;font-weight:600;">
+            💾 Save as Active Setup
           </button>
           <span id="ews-status" style="font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:1px;"></span>
         </div>
@@ -3981,6 +3987,7 @@ var _ewsAsset = 'EURUSD';
 var _ewsAssetName = 'EUR/USD';
 var _ewsTf = 'H4';
 var _ewsBias = 'neutral';
+var _ewsLastResult = null;
 
 // ── TradingView widget (Live Analysis chart) ────────────────────────────
 const EWS_TV_SYMBOL_MAP = {
@@ -3997,17 +4004,37 @@ function ewsLoadTVWidget(sym, tf) {
   var tvSymbol = EWS_TV_SYMBOL_MAP[sym] || ('FX:' + sym);
   var tvInterval = EWS_TV_INTERVAL_MAP[tf] || '240';
 
-  var src = 'https://s3.tradingview.com/widgetembed/?'
-    + 'symbol=' + encodeURIComponent(tvSymbol)
-    + '&interval=' + encodeURIComponent(tvInterval)
-    + '&theme=dark&style=1&locale=en&timezone=Etc%2FUTC'
-    + '&withdateranges=1&allow_symbol_change=0&saveimage=0'
-    + '&hide_side_toolbar=0&studies=%5B%5D&toolbarbg=0a1020';
-
   wrap.innerHTML =
-    '<iframe src="' + src + '" ' +
-      'style="width:100%;height:600px;min-height:600px;border:0;display:block;" ' +
-      'allowtransparency="true" scrolling="no" frameborder="0"></iframe>';
+    '<div class="tradingview-widget-container" style="height:600px;min-height:600px;width:100%;">' +
+      '<div class="tradingview-widget-container__widget" style="height:600px;min-height:600px;width:100%;"></div>' +
+    '</div>';
+
+  // Wait a frame so the container has committed layout before TradingView measures it
+  requestAnimationFrame(function() {
+    var script = document.createElement('script');
+    script.type = 'text/javascript';
+    script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
+    script.async = true;
+    script.innerHTML = JSON.stringify({
+      width: '100%',
+      height: 600,
+      symbol: tvSymbol,
+      interval: tvInterval,
+      timezone: 'Etc/UTC',
+      theme: 'dark',
+      style: '1',
+      locale: 'en',
+      enable_publishing: false,
+      hide_top_toolbar: false,
+      hide_legend: false,
+      withdateranges: true,
+      save_image: false,
+      calendar: false,
+      support_host: 'https://www.tradingview.com'
+    });
+    var container = wrap.querySelector('.tradingview-widget-container');
+    if (container) container.appendChild(script);
+  });
 }
 
 function ewsSelectAsset(sym, name, bias, btn) {
@@ -4040,6 +4067,9 @@ function ewsSelectAsset(sym, name, bias, btn) {
   document.getElementById('ews-conviction').textContent = '— — — —';
   document.getElementById('ews-probability').textContent = '— / 5';
   document.getElementById('ews-wave-label').textContent = '?';
+  _ewsLastResult = null;
+  document.getElementById('ews-tg-btn').style.display = 'none';
+  document.getElementById('ews-save-btn').style.display = 'none';
 }
 
 function ewsSetTf(tf, btn) {
@@ -4203,6 +4233,13 @@ async function ewsRunAnalysis() {
       if (typeof XFPremium !== 'undefined' && typeof XFPremium.recordUse === 'function') {
         try { XFPremium.recordUse('elliott'); } catch(e) {}
       }
+
+      // Store result for Telegram / Save-as-Active-Setup actions
+      _ewsLastResult = { asset: _ewsAsset, assetName: _ewsAssetName, tf: _ewsTf, price: price, json: json };
+      if (typeof isAdminUnlocked !== 'undefined' && isAdminUnlocked) {
+        document.getElementById('ews-tg-btn').style.display = 'inline-block';
+        document.getElementById('ews-save-btn').style.display = 'inline-block';
+      }
     } else {
       status.textContent = 'Could not parse AI response. Try again.';
       document.getElementById('ews-full-analysis').textContent = text.slice(0, 500);
@@ -4213,6 +4250,70 @@ async function ewsRunAnalysis() {
 
   btn.disabled = false;
   btn.textContent = '⚡ Generate Analysis';
+}
+
+async function ewsSendToTelegram() {
+  if (!_ewsLastResult) return;
+  var btn = document.getElementById('ews-tg-btn');
+  btn.disabled = true; btn.textContent = '📡 Sending...';
+
+  var j = _ewsLastResult.json;
+  var biasIcon = j.bias === 'bullish' ? '🟢' : j.bias === 'bearish' ? '🔴' : '◆';
+  var stars = '★'.repeat(j.conviction||0) + '☆'.repeat(5-(j.conviction||0));
+  var text =
+    '📊 <b>' + _ewsLastResult.assetName + '</b> · ' + _ewsLastResult.tf + ' · XenosFinance\n' +
+    biasIcon + ' ' + (j.bias||'neutral').toUpperCase() + ' · Wave ' + (j.wave||'?') + ' · ' + stars + ' (' + (j.probability||'-') + '/5)\n\n' +
+    (j.summary ? j.summary + '\n\n' : '') +
+    '🎯 Target: ' + (j.target||'—') + '\n' +
+    '⛔ Invalidation: ' + (j.invalidation||'—') + '\n\n' +
+    (j.analysis || '') +
+    '\n\nFull chart on @xenosfin';
+
+  try {
+    var WORKER = 'https://xenos-ai-proxy.xenosfinance.workers.dev';
+    var res = await fetch(WORKER, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ type:'telegram', text: text.slice(0,4000), parse_mode:'HTML' })
+    });
+    var d = await res.json();
+    if (d.ok || d.result) { btn.textContent = '✓ Sent'; setTimeout(function(){ btn.textContent = '📡 Send to Telegram'; }, 2500); }
+    else alert('Telegram error: ' + JSON.stringify(d));
+  } catch(e) {
+    alert('Error: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    if (btn.textContent === '📡 Sending...') btn.textContent = '📡 Send to Telegram';
+  }
+}
+
+async function ewsSaveAsActiveSetup() {
+  if (!_ewsLastResult) return;
+  var btn = document.getElementById('ews-save-btn');
+  btn.disabled = true; btn.textContent = '💾 Saving...';
+
+  var j = _ewsLastResult.json;
+  var setupLabel = (j.bias === 'bullish' ? 'Bullish' : j.bias === 'bearish' ? 'Bearish' : 'Neutral') +
+    ' setup · Wave ' + (j.wave||'?') + (j.summary ? ' — ' + j.summary : '');
+
+  try {
+    var notes = await loadNotes();
+    var now = new Date();
+    notes.push({
+      asset: _ewsLastResult.assetName,
+      setup: setupLabel,
+      bias: j.bias || 'neutral',
+      date: now.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}).toUpperCase()
+    });
+    var result = await saveNotes(notes);
+    if (!result.ok) { alert('Save failed: ' + result.error); return; }
+    btn.textContent = '✓ Saved';
+    setTimeout(function(){ btn.textContent = '💾 Save as Active Setup'; }, 2500);
+    renderPublicFeed(notes);
+  } catch(e) {
+    alert('Error: ' + e.message);
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 // Init: load price + chart for default asset on page load
