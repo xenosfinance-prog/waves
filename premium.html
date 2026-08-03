@@ -655,9 +655,9 @@ nav {
       <div class="plan-badge"><span data-i18n="label_best_value">Best Value — Save 27%</span></div>
       <div class="plan-select-indicator"></div>
       <div class="plan-name"><span data-i18n="label_annual">Annual</span></div>
-      <div class="plan-price"><sup>USDC</sup> 79</div>
+      <div class="plan-price"><sup>USDC</sup> 99</div>
       <div class="plan-period"><span data-i18n="label_per_year_one_payment">per year · one payment</span></div>
-      <div class="plan-saving"><span data-i18n="label_save_29_usdc">Save 29 USDC vs monthly</span></div>
+      <div class="plan-saving"><span data-i18n="label_save_29_usdc">Save 9 USDC vs monthly</span></div>
       <div class="plan-check"><span data-i18n="label_check_everything_monthly">Everything in Monthly</span></div>
       <div class="plan-check"><span data-i18n="label_check_priority_telegram">Priority Telegram support</span></div>
       <div class="plan-check"><span data-i18n="label_check_early_access">Early access to new features</span></div>
@@ -735,7 +735,7 @@ nav {
       <div class="step-num">02</div>
       <div>
         <div class="step-title"><span data-i18n="label_step2_title">Choose a plan and pay with USDC</span></div>
-        <div class="step-desc"><span data-i18n="label_step2_desc">Send 9 or 79 USDC on Base. Gas fees are less than $0.01. Payment is instant.</span></div>
+        <div class="step-desc"><span data-i18n="label_step2_desc">Send 9 or 99 USDC on Base. Gas fees are less than $0.01. Payment is instant.</span></div>
       </div>
     </div>
     <div class="how-step">
@@ -771,7 +771,7 @@ const BASE_CHAIN_ID_DEC = 8453;
 const USDC_BASE         = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913'; // Official USDC on Base
 const RECIPIENT_WALLET  = '0xC3e577D9b52dAD14a8D333b872f83428a78cA566'; // Your wallet
 const MONTHLY_PRICE_RAW = 9n * 1000000n;  // 9 USDC (6 decimals)
-const ANNUAL_PRICE_RAW  = 79n * 1000000n; // 79 USDC (6 decimals)
+const ANNUAL_PRICE_RAW  = 99n * 1000000n; // 99 USDC (6 decimals)
 
 // Minimal ERC-20 ABI (transfer + balanceOf + allowance + approve)
 const ERC20_ABI = [
@@ -804,7 +804,7 @@ function selectPlan(plan) {
 function updatePayButton() {
   const btn  = document.getElementById('btnPay');
   const text = document.getElementById('btnPayText');
-  const price = selectedPlan === 'monthly' ? '9' : '79';
+  const price = selectedPlan === 'monthly' ? '9' : '99';
   const tt = (k, f) => (typeof window.t === 'function') ? window.t(k) : f;
   const period = selectedPlan === 'monthly' ? tt('label_monthly','Monthly') : tt('label_annual','Annual');
   btn.disabled = !isConnected;
@@ -988,7 +988,7 @@ async function initPayment() {
   }
 
   const amount = selectedPlan === 'monthly' ? MONTHLY_PRICE_RAW : ANNUAL_PRICE_RAW;
-  const amountDisplay = selectedPlan === 'monthly' ? '9' : '79';
+  const amountDisplay = selectedPlan === 'monthly' ? '9' : '99';
 
   try {
     // 1. Check USDC balance
@@ -1039,7 +1039,7 @@ async function initPayment() {
             subject: '💰 New Premium Payment — XenosFinance',
             message:
               'Wallet: ' + userAddr + '\n' +
-              'Plan: ' + (selectedPlan === 'monthly' ? 'Monthly (9 USDC)' : 'Annual (79 USDC)') + '\n' +
+              'Plan: ' + (selectedPlan === 'monthly' ? 'Monthly (9 USDC)' : 'Annual (99 USDC)') + '\n' +
               'Tx hash: ' + tx.hash + '\n' +
               'Tx URL: https://basescan.org/tx/' + tx.hash + '\n' +
               'Network: Base Mainnet\n' +
