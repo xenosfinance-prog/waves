@@ -267,7 +267,8 @@ const XENOS_I18N = {
     month_dec: 'December',
 
     hero_title_l1: 'Your Daily AI Market Intelligence Terminal',
-    hero_title_l2: 'Pre-Market Brief, Elliott Wave Signals & Macro Research — Before the Opening Bell',
+    hero_title_l2: 'Pre-Market Brief, Elliott Wave Signals & Macro Research —',
+    hero_title_l3: 'Before the Opening Bell',
     hero_subtitle: 'Every trading day, XenosFinance delivers a pre-market brief — futures, catalysts, stocks to watch and market bias — backed by AI-driven Elliott Wave analysis and live signals across Forex, Commodities, Crypto and Equities.',
     hero_cta_brief: '📈 Read Today\'s Market Brief',
     hero_cta_ew: '〜 Explore Elliott Wave Signals',
@@ -2747,7 +2748,8 @@ const XENOS_I18N = {
     label_no_high_impact_week: 'Nessun evento ad alto impatto questa settimana.',
 
     hero_title_l1: 'Il Tuo Terminale Giornaliero di Market Intelligence IA',
-    hero_title_l2: 'Pre-Market Brief, Segnali Onde di Elliott e Ricerca Macro — Prima dell\'Apertura',
+    hero_title_l2: 'Pre-Market Brief, Segnali Onde di Elliott e Ricerca Macro —',
+    hero_title_l3: 'Prima dell\'Apertura',
     hero_subtitle: 'Ogni giorno di trading, XenosFinance pubblica un pre-market brief — futures, catalizzatori, titoli da monitorare e bias di mercato — supportato da analisi IA delle Onde di Elliott e segnali live su Forex, Materie Prime, Crypto ed Equity.',
     hero_cta_brief: '📈 Leggi il Market Brief di Oggi',
     hero_cta_ew: '〜 Esplora i Segnali Onde di Elliott',
