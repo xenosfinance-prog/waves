@@ -3989,51 +3989,253 @@ var _ewsTf = 'H4';
 var _ewsBias = 'neutral';
 var _ewsLastResult = null;
 
-// ── TradingView widget (Live Analysis chart) ────────────────────────────
-const EWS_TV_SYMBOL_MAP = {
-  'EURUSD':'FX:EURUSD', 'GBPUSD':'FX:GBPUSD', 'USDJPY':'FX:USDJPY', 'USDCHF':'FX:USDCHF', 'AUDUSD':'FX:AUDUSD',
-  'XAUUSD':'TVC:GOLD', 'XAGUSD':'TVC:SILVER', 'USOIL':'TVC:USOIL', 'UKOIL':'TVC:UKOIL', 'NATGAS':'TVC:NATURALGAS',
-  'US500':'FOREXCOM:SPXUSD', 'NAS100':'FOREXCOM:NSXUSD', 'US30':'FOREXCOM:DJI', 'GER40':'FOREXCOM:DE40',
-  'BTCUSD':'BINANCE:BTCUSDT', 'ETHUSD':'BINANCE:ETHUSDT', 'SOLUSD':'BINANCE:SOLUSDT'
-};
-const EWS_TV_INTERVAL_MAP = { 'M15':'15', 'H1':'60', 'H4':'240', 'D1':'D', 'W1':'W' };
+// ── Custom chart engine (Lightweight Charts): candles + EMA ribbon +
+//    XenosFinance Elliott Wave Auto-Adaptive PRO overlay + RSI + MACD ────────
 
-function ewsLoadTVWidget(sym, tf) {
+const EWS_YAHOO_INTERVAL_MAP = {
+  'M15': { interval: '15m', range: '5d'  },
+  'H1':  { interval: '60m', range: '60d' },
+  'H4':  { interval: '60m', range: '90d' }, // resampled to 4H client-side (Yahoo has no native 4h bar)
+  'D1':  { interval: '1d',  range: '2y'  },
+  'W1':  { interval: '1wk', range: '5y'  }
+};
+const EWS_YAHOO_SYMBOL_MAP = {
+  'EURUSD':'EURUSD=X','GBPUSD':'GBPUSD=X','USDJPY':'USDJPY=X','USDCHF':'USDCHF=X','AUDUSD':'AUDUSD=X',
+  'XAUUSD':'GC=F','XAGUSD':'SI=F','USOIL':'CL=F','UKOIL':'BZ=F','NATGAS':'NG=F',
+  'US500':'^GSPC','NAS100':'^IXIC','US30':'^DJI','GER40':'^GDAXI',
+  'BTCUSD':'BTC-USD','ETHUSD':'ETH-USD','SOLUSD':'SOL-USD'
+};
+const EWS_EMA_RIBBON_PERIODS = [8, 13, 21, 34, 55];
+const EWS_EMA_RIBBON_COLORS  = ['#f59e0b', '#fb923c', '#60a5fa', '#3b82f6', '#a78bfa'];
+
+let _ewsChart = null, _ewsCandleSeries = null, _ewsRsiChart = null, _ewsMacdChart = null;
+
+function ewsResampleTo4H(candles) {
+  const out = [];
+  for (let i = 0; i < candles.length; i += 4) {
+    const chunk = candles.slice(i, i + 4);
+    if (!chunk.length) continue;
+    out.push({
+      datetime: chunk[0].datetime,
+      open: chunk[0].open,
+      high: Math.max.apply(null, chunk.map(c => c.high)),
+      low:  Math.min.apply(null, chunk.map(c => c.low)),
+      close: chunk[chunk.length - 1].close,
+      volume: chunk.reduce((s, c) => s + (c.volume || 0), 0)
+    });
+  }
+  return out;
+}
+
+async function ewsFetchCandlesForChart(sym, tf) {
+  const cfg = EWS_YAHOO_INTERVAL_MAP[tf] || EWS_YAHOO_INTERVAL_MAP['H4'];
+  const ySym = EWS_YAHOO_SYMBOL_MAP[sym] || sym;
+  const WORKER = 'https://xenos-ai-proxy.xenosfinance.workers.dev';
+  const res = await fetch(WORKER, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type: 'yahoocandles', symbol: ySym, interval: cfg.interval, range: cfg.range })
+  });
+  const d = await res.json();
+  if (d.error) throw new Error(d.error);
+  let candles = d.candles || [];
+  if (tf === 'H4') candles = ewsResampleTo4H(candles);
+  return candles;
+}
+
+// ATR(14), Wilder smoothing — matches Pine's ta.atr()
+function ewsComputeATR(candles, period) {
+  const tr = candles.map((c, i) => {
+    if (i === 0) return c.high - c.low;
+    const pc = candles[i - 1].close;
+    return Math.max(c.high - c.low, Math.abs(c.high - pc), Math.abs(c.low - pc));
+  });
+  const atr = new Array(tr.length).fill(null);
+  let sum = 0;
+  for (let i = 0; i < Math.min(period, tr.length); i++) sum += tr[i];
+  if (tr.length >= period) atr[period - 1] = sum / period;
+  for (let i = period; i < tr.length; i++) atr[i] = (atr[i - 1] * (period - 1) + tr[i]) / period;
+  return atr;
+}
+
+// Adaptive depth per timeframe — mirrors the Pine script's get_adaptive_depth()
+function ewsAdaptiveDepth(tf) {
+  return { 'M15': 12, 'H1': 12, 'H4': 16, 'D1': 12, 'W1': 8 }[tf] || 12;
+}
+
+// Zigzag construction — mirrors the Pine script's pivot + merge/push logic exactly:
+// same-direction pivots replace the last point if more extreme; opposite-direction
+// pivots only push a new point once the move exceeds ATR(14) * 1.5.
+function ewsComputeZigzag(candles, tf) {
+  const depth = ewsAdaptiveDepth(tf);
+  const backstep = 3;
+  const atrMult = 1.5;
+  const atr = ewsComputeATR(candles, 14);
+
+  const pivots = [];
+  for (let i = depth; i < candles.length - backstep; i++) {
+    const win = candles.slice(i - depth, i + backstep + 1);
+    const maxH = Math.max.apply(null, win.map(c => c.high));
+    const minL = Math.min.apply(null, win.map(c => c.low));
+    if (candles[i].high === maxH) pivots.push({ index: i, price: candles[i].high, isHigh: true,  time: candles[i].datetime });
+    if (candles[i].low  === minL) pivots.push({ index: i, price: candles[i].low,  isHigh: false, time: candles[i].datetime });
+  }
+  pivots.sort((a, b) => a.index - b.index);
+
+  const zz = [];
+  for (const piv of pivots) {
+    const dynDev = (atr[piv.index] || 0) * atrMult;
+    if (zz.length === 0) { zz.push(piv); continue; }
+    const last = zz[zz.length - 1];
+    if (piv.isHigh === last.isHigh) {
+      if ((piv.isHigh && piv.price > last.price) || (!piv.isHigh && piv.price < last.price)) zz[zz.length - 1] = piv;
+    } else if (Math.abs(piv.price - last.price) >= dynDev) {
+      zz.push(piv);
+    }
+  }
+  return zz.slice(-30);
+}
+
+function ewsComputeEMA(candles, period) {
+  const k = 2 / (period + 1);
+  const out = new Array(candles.length).fill(null);
+  let prev = null;
+  for (let i = 0; i < candles.length; i++) {
+    prev = (prev === null) ? candles[i].close : candles[i].close * k + prev * (1 - k);
+    out[i] = prev;
+  }
+  return out;
+}
+
+function ewsComputeRSI(candles, period) {
+  const out = new Array(candles.length).fill(null);
+  let avgGain = 0, avgLoss = 0;
+  for (let i = 1; i < candles.length; i++) {
+    const change = candles[i].close - candles[i - 1].close;
+    const gain = Math.max(change, 0), loss = Math.max(-change, 0);
+    if (i <= period) {
+      avgGain += gain; avgLoss += loss;
+      if (i === period) { avgGain /= period; avgLoss /= period; out[i] = 100 - 100 / (1 + (avgLoss === 0 ? 100 : avgGain / avgLoss)); }
+    } else {
+      avgGain = (avgGain * (period - 1) + gain) / period;
+      avgLoss = (avgLoss * (period - 1) + loss) / period;
+      const rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
+      out[i] = 100 - 100 / (1 + rs);
+    }
+  }
+  return out;
+}
+
+function ewsComputeMACD(candles, fast, slow, signal) {
+  const emaFast = ewsComputeEMA(candles, fast);
+  const emaSlow = ewsComputeEMA(candles, slow);
+  const macdLine = candles.map((c, i) => (emaFast[i] !== null && emaSlow[i] !== null) ? emaFast[i] - emaSlow[i] : null);
+  const k = 2 / (signal + 1);
+  const signalLine = new Array(candles.length).fill(null);
+  let prev = null;
+  for (let i = 0; i < candles.length; i++) {
+    if (macdLine[i] === null) continue;
+    prev = (prev === null) ? macdLine[i] : macdLine[i] * k + prev * (1 - k);
+    signalLine[i] = prev;
+  }
+  const hist = candles.map((c, i) => (macdLine[i] !== null && signalLine[i] !== null) ? macdLine[i] - signalLine[i] : null);
+  return { macdLine: macdLine, signalLine: signalLine, hist: hist };
+}
+
+function ewsTimeToUnix(datetime) { return Math.floor(new Date(datetime).getTime() / 1000); }
+
+async function ewsRenderCustomChart(sym, tf) {
   var wrap = document.getElementById('ews-analysis-wrap');
   if (!wrap) return;
-  var tvSymbol = EWS_TV_SYMBOL_MAP[sym] || ('FX:' + sym);
-  var tvInterval = EWS_TV_INTERVAL_MAP[tf] || '240';
+  wrap.innerHTML = '<div style="padding:60px 20px;text-align:center;color:var(--muted);font-family:var(--mono);font-size:10px;letter-spacing:1px;">Loading chart data…</div>';
+
+  if (typeof LightweightCharts === 'undefined') {
+    wrap.innerHTML = '<div style="padding:60px 20px;text-align:center;color:var(--red2);font-family:var(--mono);font-size:10px;">Chart library failed to load. Refresh the page.</div>';
+    return;
+  }
+
+  var candles;
+  try { candles = await ewsFetchCandlesForChart(sym, tf); }
+  catch (e) {
+    wrap.innerHTML = '<div style="padding:60px 20px;text-align:center;color:var(--red2);font-family:var(--mono);font-size:10px;">Failed to load chart data: ' + e.message + '</div>';
+    return;
+  }
+  if (!candles || candles.length < 30) {
+    wrap.innerHTML = '<div style="padding:60px 20px;text-align:center;color:var(--muted);font-family:var(--mono);font-size:10px;">Not enough data to render chart.</div>';
+    return;
+  }
 
   wrap.innerHTML =
-    '<div class="tradingview-widget-container" style="height:600px;min-height:600px;width:100%;">' +
-      '<div class="tradingview-widget-container__widget" style="height:600px;min-height:600px;width:100%;"></div>' +
-    '</div>';
+    '<div id="ews-main-chart" style="height:420px;width:100%;"></div>' +
+    '<div id="ews-rsi-chart" style="height:90px;width:100%;border-top:1px solid rgba(255,255,255,0.06);position:relative;"><span style="position:absolute;top:4px;left:8px;font-family:var(--mono);font-size:8px;color:var(--muted);letter-spacing:1px;z-index:2;">RSI 14</span></div>' +
+    '<div id="ews-macd-chart" style="height:90px;width:100%;border-top:1px solid rgba(255,255,255,0.06);position:relative;"><span style="position:absolute;top:4px;left:8px;font-family:var(--mono);font-size:8px;color:var(--muted);letter-spacing:1px;z-index:2;">MACD 12/26/9</span></div>';
 
-  // Wait a frame so the container has committed layout before TradingView measures it
-  requestAnimationFrame(function() {
-    var script = document.createElement('script');
-    script.type = 'text/javascript';
-    script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
-    script.async = true;
-    script.innerHTML = JSON.stringify({
-      width: '100%',
-      height: 600,
-      symbol: tvSymbol,
-      interval: tvInterval,
-      timezone: 'Etc/UTC',
-      theme: 'dark',
-      style: '1',
-      locale: 'en',
-      enable_publishing: false,
-      hide_top_toolbar: false,
-      hide_legend: false,
-      withdateranges: true,
-      save_image: false,
-      calendar: false,
-      support_host: 'https://www.tradingview.com'
+  var chartOpts = {
+    layout: { background: { color: 'transparent' }, textColor: '#8ba3c7', fontFamily: 'IBM Plex Mono, monospace', fontSize: 10 },
+    grid: { vertLines: { color: 'rgba(255,255,255,0.04)' }, horzLines: { color: 'rgba(255,255,255,0.04)' } },
+    rightPriceScale: { borderColor: 'rgba(255,255,255,0.08)' },
+    timeScale: { borderColor: 'rgba(255,255,255,0.08)', timeVisible: true },
+    crosshair: { mode: LightweightCharts.CrosshairMode.Normal }
+  };
+
+  _ewsChart = LightweightCharts.createChart(document.getElementById('ews-main-chart'), Object.assign({ height: 420 }, chartOpts));
+  _ewsCandleSeries = _ewsChart.addCandlestickSeries({
+    upColor: '#34d399', downColor: '#f87171', borderVisible: false, wickUpColor: '#34d399', wickDownColor: '#f87171'
+  });
+  var candleData = candles.map(function(c) { return { time: ewsTimeToUnix(c.datetime), open: c.open, high: c.high, low: c.low, close: c.close }; });
+  _ewsCandleSeries.setData(candleData);
+
+  // EMA Ribbon
+  EWS_EMA_RIBBON_PERIODS.forEach(function(period, idx) {
+    var ema = ewsComputeEMA(candles, period);
+    var s = _ewsChart.addLineSeries({ color: EWS_EMA_RIBBON_COLORS[idx], lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+    s.setData(candles.map(function(c, i) { return ema[i] === null ? null : { time: ewsTimeToUnix(c.datetime), value: ema[i] }; }).filter(Boolean));
+  });
+
+  // XenosFinance Elliott Wave Auto-Adaptive PRO overlay
+  var zz = ewsComputeZigzag(candles, tf);
+  if (zz.length >= 9) {
+    var pts = zz.slice(-9);
+    var labels = ['1', '2', '3', '4', '5', 'A', 'B', 'C'];
+    var markers = [];
+    for (var i = 1; i < pts.length; i++) {
+      var isCorrective = i >= 6; // segments 6,7,8 -> A,B,C
+      var col = isCorrective ? '#ff1744' : '#00e676';
+      var seg = _ewsChart.addLineSeries({ color: col, lineWidth: 2, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+      seg.setData([
+        { time: ewsTimeToUnix(pts[i - 1].time), value: pts[i - 1].price },
+        { time: ewsTimeToUnix(pts[i].time), value: pts[i].price }
+      ]);
+      markers.push({ time: ewsTimeToUnix(pts[i].time), position: pts[i].isHigh ? 'aboveBar' : 'belowBar', color: col, shape: 'circle', text: labels[i - 1] });
+    }
+    _ewsCandleSeries.setMarkers(markers);
+  }
+  _ewsChart.timeScale().fitContent();
+
+  // RSI sub-panel
+  var rsi = ewsComputeRSI(candles, 14);
+  _ewsRsiChart = LightweightCharts.createChart(document.getElementById('ews-rsi-chart'), Object.assign({ height: 90 }, chartOpts));
+  var rsiSeries = _ewsRsiChart.addLineSeries({ color: '#60a5fa', lineWidth: 1, priceLineVisible: false });
+  rsiSeries.setData(candles.map(function(c, i) { return rsi[i] === null ? null : { time: ewsTimeToUnix(c.datetime), value: rsi[i] }; }).filter(Boolean));
+  rsiSeries.createPriceLine({ price: 70, color: 'rgba(248,113,113,0.4)', lineWidth: 1, lineStyle: LightweightCharts.LineStyle.Dashed, axisLabelVisible: false });
+  rsiSeries.createPriceLine({ price: 30, color: 'rgba(52,211,153,0.4)', lineWidth: 1, lineStyle: LightweightCharts.LineStyle.Dashed, axisLabelVisible: false });
+
+  // MACD sub-panel
+  var macd = ewsComputeMACD(candles, 12, 26, 9);
+  _ewsMacdChart = LightweightCharts.createChart(document.getElementById('ews-macd-chart'), Object.assign({ height: 90 }, chartOpts));
+  var macdLineSeries = _ewsMacdChart.addLineSeries({ color: '#60a5fa', lineWidth: 1, priceLineVisible: false });
+  macdLineSeries.setData(candles.map(function(c, i) { return macd.macdLine[i] === null ? null : { time: ewsTimeToUnix(c.datetime), value: macd.macdLine[i] }; }).filter(Boolean));
+  var signalSeries = _ewsMacdChart.addLineSeries({ color: '#f59e0b', lineWidth: 1, priceLineVisible: false });
+  signalSeries.setData(candles.map(function(c, i) { return macd.signalLine[i] === null ? null : { time: ewsTimeToUnix(c.datetime), value: macd.signalLine[i] }; }).filter(Boolean));
+  var histSeries = _ewsMacdChart.addHistogramSeries({ priceLineVisible: false });
+  histSeries.setData(candles.map(function(c, i) { return macd.hist[i] === null ? null : { time: ewsTimeToUnix(c.datetime), value: macd.hist[i], color: macd.hist[i] >= 0 ? 'rgba(52,211,153,0.5)' : 'rgba(248,113,113,0.5)' }; }).filter(Boolean));
+
+  // Sync time scales across the three panels
+  var allCharts = [_ewsChart, _ewsRsiChart, _ewsMacdChart];
+  allCharts.forEach(function(c) {
+    c.timeScale().subscribeVisibleLogicalRangeChange(function(range) {
+      if (!range) return;
+      allCharts.forEach(function(other) { if (other !== c) other.timeScale().setVisibleLogicalRange(range); });
     });
-    var container = wrap.querySelector('.tradingview-widget-container');
-    if (container) container.appendChild(script);
   });
 }
 
@@ -4056,7 +4258,7 @@ function ewsSelectAsset(sym, name, bias, btn) {
   ewsFetchPrice(sym);
 
   // Reload TradingView chart for the new asset
-  ewsLoadTVWidget(sym, _ewsTf);
+  ewsRenderCustomChart(sym, _ewsTf);
 
   // Reset panels
   document.getElementById('ews-summary-bar').classList.remove('ews-callout');
@@ -4090,7 +4292,7 @@ function ewsSetTf(tf, btn) {
   }
 
   // Reload TradingView chart at the new timeframe
-  ewsLoadTVWidget(_ewsAsset, tf);
+  ewsRenderCustomChart(_ewsAsset, tf);
 }
 
 async function ewsFetchPrice(sym) {
@@ -4319,7 +4521,7 @@ async function ewsSaveAsActiveSetup() {
 // Init: load price + chart for default asset on page load
 document.addEventListener('DOMContentLoaded', function() {
   ewsFetchPrice(_ewsAsset);
-  ewsLoadTVWidget(_ewsAsset, _ewsTf);
+  ewsRenderCustomChart(_ewsAsset, _ewsTf);
 });
 
 </script>
