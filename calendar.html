@@ -1129,6 +1129,7 @@ async function fetchLiveCalendar(weekStr) {
   }
 
   // 1. Finnhub — patch actuals + add new events
+  let finnhubOk = false, rapidapiOk = false;
   try {
     const r = await fetch(WORKER_URL, {
       method:'POST', headers:{'Content-Type':'application/json'},
@@ -1138,10 +1139,14 @@ async function fetchLiveCalendar(weekStr) {
     if (r.ok) {
       const d = await r.json();
       const evs = d.economicCalendar || [];
+      if (d.error) console.warn('Finnhub calendar error:', d.error);
       if (evs.length > 0) {
+        finnhubOk = true;
         patchActuals(evs, 'event', 'time', 'actual');
         addNewEvents(evs, {name:'event',date:'time',time:'time',impact:'impact',country:'country',forecast:'estimate',prev:'prev',actual:'actual'});
       }
+    } else {
+      console.warn('Finnhub calendar HTTP', r.status);
     }
   } catch(e) { console.warn('Finnhub calendar:', e.message); }
 
@@ -1155,11 +1160,17 @@ async function fetchLiveCalendar(weekStr) {
     if (r0.ok) {
       const d0 = await r0.json();
       const evs0 = d0.events || [];
+      if (d0.error) console.warn('RapidAPI calendar error:', d0.error);
       if (evs0.length > 0 && !d0.error) {
+        rapidapiOk = true;
         patchActuals(evs0, 'event', 'date', 'actual');
       }
+    } else {
+      console.warn('RapidAPI calendar HTTP', r0.status);
     }
   } catch(e) { console.warn('RapidAPI calendar:', e.message); }
+
+  return { finnhubOk, rapidapiOk };
 }
 
 function getLiveActual(ev) {
@@ -1232,7 +1243,7 @@ function renderKeyEventsCards() {
 }
 
 async function refreshActuals() {
-  await Promise.all([
+  const results = await Promise.all([
     fetchLiveCalendar('thisweek'),
     fetchLiveCalendar('nextweek'),
     fetchLiveCalendar('week2'),
@@ -1246,9 +1257,18 @@ async function refreshActuals() {
   renderKeyEventsCards();
   const st = document.getElementById('live-time');
   if (st) {
+    const anyFinnhub = results.some(r => r.finnhubOk);
+    const anyRapid = results.some(r => r.rapidapiOk);
     const n = new Date();
     const hm = n.getHours().toString().padStart(2,'0') + ':' + n.getMinutes().toString().padStart(2,'0');
-    st.textContent = 'UPDATED AT ' + hm + ' CET';
+    if (!anyFinnhub && !anyRapid) {
+      st.innerHTML = '<span style="color:#ef4444;">⚠ LIVE DATA UNAVAILABLE (' + hm + ' CET) — sources not responding, check Worker API keys</span>';
+    } else if (!anyFinnhub || !anyRapid) {
+      const missing = !anyFinnhub ? 'Finnhub' : 'RapidAPI';
+      st.innerHTML = '<span style="color:#f59e0b;">⚠ UPDATED AT ' + hm + ' CET — ' + missing + ' source unavailable</span>';
+    } else {
+      st.textContent = 'UPDATED AT ' + hm + ' CET';
+    }
   }
 }
 
