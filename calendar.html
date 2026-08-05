@@ -294,13 +294,14 @@ body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:10
   <div style="display:flex;align-items:center;gap:12px;margin:28px 0 16px;">
     <div style="font-family:var(--mono);font-size:9px;letter-spacing:4px;text-transform:uppercase;color:var(--gold);white-space:nowrap;" data-i18n="label_ai_weekly_brief">🤖 AI Weekly Brief</div>
     <div style="flex:1;height:1px;background:var(--border);"></div>
+    <button id="ai-cal-btn" onclick="loadCalendarAIBrief()" style="font-family:var(--mono);font-size:8px;letter-spacing:2px;text-transform:uppercase;padding:4px 14px;background:var(--gold);color:#fff;border:none;cursor:pointer;transition:opacity 0.2s;">⟳ <span data-i18n="label_generate">Generate</span></button>
     <div id="ai-cal-status" style="font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:1px;"></div>
   </div>
 
   <!-- Weekly Brief card — same style as Daily Education -->
   <div style="position:relative;margin-bottom:28px;">
     <div id="ai-cal-brief" style="background:var(--bg2);border:1px solid var(--border);border-left:3px solid var(--gold);padding:20px 24px;font-size:13px;color:var(--ink2);line-height:1.85;min-height:120px;">
-      <span style="color:var(--muted);font-family:var(--mono);font-size:11px;" data-i18n="label_generating_ai">Loading weekly brief...</span>
+      <span style="color:var(--muted);font-family:var(--mono);font-size:11px;" data-i18n="label_click_generate_brief">Click "Generate" to create this week's AI macro brief.</span>
     </div>
     <!-- PREMIUM GATE OVERLAY — visible by default, hidden via JS if premium/admin -->
     <div id="ai-brief-gate" style="position:absolute;inset:0;background:rgba(10,15,25,0.93);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:10px;padding:28px 20px;z-index:10;">
@@ -888,7 +889,7 @@ function checkPremiumCode() {
     xfUpdateLogoutBtn();
     closePremiumModal();
     if (window._pendingAnalyzeIdx !== undefined) { analyzeEvent(window._pendingAnalyzeIdx); window._pendingAnalyzeIdx = undefined; }
-    else loadCalendarAIBrief();
+    else { const gate = document.getElementById('ai-brief-gate'); if (gate) gate.style.display = 'none'; }
   } else {
     document.getElementById('premium-error').style.display = 'block';
   }
@@ -1316,8 +1317,11 @@ document.addEventListener('DOMContentLoaded', () => {
     renderKeyEventsCards();
   });
   setInterval(refreshActuals, 300000);
-  // AI weekly brief
-  loadCalendarAIBrief();
+  // AI weekly brief: gate only, no auto-generate — user must click "Generate"
+  if (isPremium() || isAdmin()) {
+    const gate = document.getElementById('ai-brief-gate');
+    if (gate) gate.style.display = 'none';
+  }
 });
 
 async function loadCalendarAIBrief() {
