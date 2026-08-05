@@ -1005,7 +1005,7 @@ Write a concise forward-looking institutional briefing (4-6 sentences, Bloomberg
   }
 }
 
-// ── LIVE ACTUALS via Worker (RapidAPI Economic Calendar) ──
+// ── LIVE ACTUALS via Worker (Investing.com + ForexFactory, free, no API key) ──
 const WORKER_URL = 'https://xenos-ai-proxy.xenosfinance.workers.dev';
 let liveByNameDate = {};  // "normalizedname|date" -> actual
 
@@ -1128,47 +1128,53 @@ async function fetchLiveCalendar(weekStr) {
     });
   }
 
-  // 1. Finnhub — patch actuals + add new events
+  // 1. Investing.com (free, no API key) — patch actuals + add new events
   let finnhubOk = false, rapidapiOk = false;
   try {
     const r = await fetch(WORKER_URL, {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ type:'finnhub', action:'economic_calendar', from, to }),
+      body: JSON.stringify({ type:'investing', from, to }),
       signal:(()=>{const c=new AbortController();setTimeout(()=>c.abort(),8000);return c.signal;})()
     });
     if (r.ok) {
       const d = await r.json();
-      const evs = d.economicCalendar || [];
-      if (d.error) console.warn('Finnhub calendar error:', d.error);
+      const evs = d.events || [];
+      if (d.error) console.warn('Investing.com calendar error:', d.error);
       if (evs.length > 0) {
         finnhubOk = true;
         patchActuals(evs, 'event', 'time', 'actual');
         addNewEvents(evs, {name:'event',date:'time',time:'time',impact:'impact',country:'country',forecast:'estimate',prev:'prev',actual:'actual'});
       }
     } else {
-      console.warn('Finnhub calendar HTTP', r.status);
+      console.warn('Investing.com calendar HTTP', r.status);
     }
-  } catch(e) { console.warn('Finnhub calendar:', e.message); }
+  } catch(e) { console.warn('Investing.com calendar:', e.message); }
 
-  // 2. RapidAPI — patch actuals only
+  // 2. ForexFactory (free, no API key) — patch actuals only
   try {
-    const r0 = await fetch(WORKER_URL, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ type:'rapidapi_calendar', countries:['US','EU','GB','DE','JP','CN','CA','AU'] }),
-      signal:(()=>{const c=new AbortController();setTimeout(()=>c.abort(),8000);return c.signal;})()
-    });
-    if (r0.ok) {
-      const d0 = await r0.json();
-      const evs0 = d0.events || [];
-      if (d0.error) console.warn('RapidAPI calendar error:', d0.error);
-      if (evs0.length > 0 && !d0.error) {
-        rapidapiOk = true;
-        patchActuals(evs0, 'event', 'date', 'actual');
+    const ffWeek = weekStr === 'nextweek' ? 'nextweek' : weekStr === 'thisweek' ? 'thisweek' : null;
+    if (ffWeek) {
+      const r0 = await fetch(WORKER_URL, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ type:'forexfactory', week: ffWeek }),
+        signal:(()=>{const c=new AbortController();setTimeout(()=>c.abort(),8000);return c.signal;})()
+      });
+      if (r0.ok) {
+        const d0 = await r0.json();
+        const evs0 = d0.events || [];
+        if (d0.error) console.warn('ForexFactory calendar error:', d0.error);
+        if (evs0.length > 0 && !d0.error) {
+          rapidapiOk = true;
+          patchActuals(evs0, 'event', 'time', 'actual');
+        }
+      } else {
+        console.warn('ForexFactory calendar HTTP', r0.status);
       }
     } else {
-      console.warn('RapidAPI calendar HTTP', r0.status);
+      // ForexFactory's public feed only covers this/next week — no equivalent free source for week2/week3
+      rapidapiOk = true;
     }
-  } catch(e) { console.warn('RapidAPI calendar:', e.message); }
+  } catch(e) { console.warn('ForexFactory calendar:', e.message); }
 
   return { finnhubOk, rapidapiOk };
 }
@@ -1262,9 +1268,9 @@ async function refreshActuals() {
     const n = new Date();
     const hm = n.getHours().toString().padStart(2,'0') + ':' + n.getMinutes().toString().padStart(2,'0');
     if (!anyFinnhub && !anyRapid) {
-      st.innerHTML = '<span style="color:#ef4444;">⚠ LIVE DATA UNAVAILABLE (' + hm + ' CET) — sources not responding, check Worker API keys</span>';
+      st.innerHTML = '<span style="color:#ef4444;">⚠ LIVE DATA UNAVAILABLE (' + hm + ' CET) — Investing.com/ForexFactory not responding, try again later</span>';
     } else if (!anyFinnhub || !anyRapid) {
-      const missing = !anyFinnhub ? 'Finnhub' : 'RapidAPI';
+      const missing = !anyFinnhub ? 'Investing.com' : 'ForexFactory';
       st.innerHTML = '<span style="color:#f59e0b;">⚠ UPDATED AT ' + hm + ' CET — ' + missing + ' source unavailable</span>';
     } else {
       st.textContent = 'UPDATED AT ' + hm + ' CET';
