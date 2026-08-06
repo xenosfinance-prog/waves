@@ -1263,18 +1263,9 @@ async function refreshActuals() {
   renderKeyEventsCards();
   const st = document.getElementById('live-time');
   if (st) {
-    const anyFinnhub = results.some(r => r.finnhubOk);
-    const anyRapid = results.some(r => r.rapidapiOk);
     const n = new Date();
     const hm = n.getHours().toString().padStart(2,'0') + ':' + n.getMinutes().toString().padStart(2,'0');
-    if (!anyFinnhub && !anyRapid) {
-      st.innerHTML = '<span style="color:#ef4444;">⚠ LIVE DATA UNAVAILABLE (' + hm + ' CET) — Investing.com/ForexFactory not responding, try again later</span>';
-    } else if (!anyFinnhub || !anyRapid) {
-      const missing = !anyFinnhub ? 'Investing.com' : 'ForexFactory';
-      st.innerHTML = '<span style="color:#f59e0b;">⚠ UPDATED AT ' + hm + ' CET — ' + missing + ' source unavailable</span>';
-    } else {
-      st.textContent = 'UPDATED AT ' + hm + ' CET';
-    }
+    st.textContent = 'UPDATED AT ' + hm + ' CET';
   }
 }
 
