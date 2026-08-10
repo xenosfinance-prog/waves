@@ -161,8 +161,113 @@ async function fetchRSSFeed(feedUrl){const isAllowed=RSS_WHITELIST.some(d=>feedU
 async function fhEconomicCalendar(from,to,apiKey){const res=await fetch(`https://finnhub.io/api/v1/calendar/economic?from=${from}&to=${to}&token=${apiKey}`,{headers:{"User-Agent":"XenosFinance/1.0"}});if(!res.ok)throw new Error(`Finnhub calendar HTTP ${res.status}`);const data=await res.json();const raw=data.economicCalendar||data.economic_calendar||data.calendar||[];return raw.map((e,i)=>({id:e.id||'fh_'+i,time:e.time||e.date||'',country:(e.country||'').toUpperCase(),event:e.event||e.name||'',impact:(e.impact||'').toLowerCase()==='high'?'high':(e.impact||'').toLowerCase()==='medium'?'medium':'low',actual:(e.actual!=null&&e.actual!=='')?String(e.actual):null,estimate:(e.estimate!=null&&e.estimate!=='')?String(e.estimate):null,prev:(e.prev!=null&&e.prev!=='')?String(e.prev):null}));}
 async function fetchInvestingCalendar(from,to){const fromTs=Math.floor(new Date(from).getTime()/1000);const toTs=Math.floor(new Date(to+'T23:59:59Z').getTime()/1000);const res=await fetch(`https://sbcharts.investing.com/events_charts/us/economic_events_calendar.json?from=${fromTs}&to=${toTs}&significance=2&significance=3`,{headers:{'User-Agent':'Mozilla/5.0 (compatible; XenosFinance/1.0)','Accept':'application/json','Referer':'https://www.investing.com/economic-calendar/','X-Requested-With':'XMLHttpRequest'},cf:{cacheTtl:1800,cacheEverything:true}});if(!res.ok)throw new Error(`Investing.com HTTP ${res.status}`);const data=await res.json();const raw=Array.isArray(data)?data:(data.data||data.events||[]);return raw.map((e,i)=>({id:'inv_'+(e.id||i),time:e.date||e.dateUtc||'',country:(e.currency||e.countryCode||'').toUpperCase(),event:e.name||e.event||'',impact:(e.significance||e.importance||0)>=3?'high':(e.significance||e.importance||0)>=2?'medium':'low',actual:(e.actual!=null&&e.actual!=='')?String(e.actual):null,estimate:(e.forecast!=null&&e.forecast!=='')?String(e.forecast):null,prev:(e.previous!=null&&e.previous!=='')?String(e.previous):null})).filter(e=>e.event);}
 
+// ── STRIPE HELPERS ──────────────────────────────────────────
+// Nessuna dipendenza npm: usa fetch puro (stesso stile del resto del Worker)
+// e Web Crypto per la verifica firma webhook.
+
+function stripeFormBody(obj, prefix) {
+  // Converte un oggetto JS nel formato x-www-form-urlencoded annidato
+  // richiesto dall'API di Stripe (es. line_items[0][price]=xxx).
+  const parts = [];
+  for (const key in obj) {
+    if (obj[key] === undefined || obj[key] === null) continue;
+    const k = prefix ? `${prefix}[${key}]` : key;
+    const val = obj[key];
+    if (Array.isArray(val)) {
+      val.forEach((item, i) => {
+        if (typeof item === "object") parts.push(stripeFormBody(item, `${k}[${i}]`));
+        else parts.push(`${encodeURIComponent(`${k}[${i}]`)}=${encodeURIComponent(item)}`);
+      });
+    } else if (typeof val === "object") {
+      parts.push(stripeFormBody(val, k));
+    } else {
+      parts.push(`${encodeURIComponent(k)}=${encodeURIComponent(val)}`);
+    }
+  }
+  return parts.join("&");
+}
+
+async function stripeApi(env, path, params) {
+  const secretKey = env.STRIPE_SECRET_KEY;
+  if (!secretKey) throw new Error("STRIPE_SECRET_KEY mancante");
+  const res = await fetch(`https://api.stripe.com/v1/${path}`, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${secretKey}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: stripeFormBody(params),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error?.message || `Stripe API error ${res.status}`);
+  return data;
+}
+
+async function verifyStripeSignature(rawBody, sigHeader, secret) {
+  // Header formato: "t=1699999999,v1=abcdef..."
+  const parts = Object.fromEntries(sigHeader.split(",").map(p => p.split("=")));
+  const signedPayload = `${parts.t}.${rawBody}`;
+  const key = await crypto.subtle.importKey(
+    "raw", new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
+  );
+  const sigBuf = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(signedPayload));
+  const expectedHex = [...new Uint8Array(sigBuf)].map(b => b.toString(16).padStart(2, "0")).join("");
+  return expectedHex === parts.v1;
+}
+
+const STRIPE_PRICE_IDS = {
+  monthly: "price_1U2n1i3OW2DuOvk5tFPPXxde", // Premium Monthly EUR 9.00
+  yearly:  "price_1U2n1p3OW2DuOvk5vnFJKsai", // Premium Yearly  EUR 79.00
+};
+
+async function handleStripeWebhook(request, env) {
+  const sig = request.headers.get("stripe-signature");
+  const rawBody = await request.text();
+  const secret = env.STRIPE_WEBHOOK_SECRET;
+  if (!secret || !sig) return new Response("Missing signature or secret", { status: 400 });
+
+  let valid;
+  try { valid = await verifyStripeSignature(rawBody, sig, secret); }
+  catch { return new Response("Signature check failed", { status: 400 }); }
+  if (!valid) return new Response("Invalid signature", { status: 400 });
+
+  const event = JSON.parse(rawBody);
+
+  switch (event.type) {
+    case "checkout.session.completed": {
+      const session = event.data.object;
+      // TODO: salva { email: session.customer_details?.email, customer_id: session.customer,
+      //   subscription_id: session.subscription, plan: session.metadata?.plan, status: "active" }
+      // usando lo stesso storage dei codici XENOS-PREMIUM-2026 / XF-PRO-00x (GitHub JSON via env.GITHUB_TOKEN).
+      break;
+    }
+    case "invoice.paid": {
+      // rinnovo riuscito — nessuna azione necessaria se già attivo
+      break;
+    }
+    case "invoice.payment_failed": {
+      // rinnovo fallito — Stripe Smart Retries ritenta da solo; qui puoi notificare via Telegram/email
+      break;
+    }
+    case "customer.subscription.deleted": {
+      const sub = event.data.object;
+      // TODO: revoca accesso premium per sub.customer
+      break;
+    }
+    default: break;
+  }
+
+  return new Response(JSON.stringify({ received: true }), { status: 200, headers: { "Content-Type": "application/json" } });
+}
+
 export default {
   async fetch(request, env) {
+    const _url = new URL(request.url);
+    if (_url.pathname === "/stripe-webhook" && request.method === "POST") {
+      return handleStripeWebhook(request, env);
+    }
+
     pruneRateLimits();
     const origin = request.headers.get("Origin") || "";
     const isAllowed = !origin || ALLOWED_ORIGINS.some(o => origin.startsWith(o));
@@ -522,6 +627,36 @@ export default {
           const raw = Array.isArray(data) ? data : (data.events || data.data || []);
           return json({ events: raw.map((e, i) => ({ id: e.id || 'ra_' + i, time: e.date || e.dateUtc || e.time || e.datetime || '', country: (e.country || e.currency || '').toUpperCase(), event: e.name || e.title || e.event || '', impact: (e.importance || e.impact || '').toLowerCase() === 'high' ? 'high' : (e.importance || e.impact || '').toLowerCase() === 'medium' ? 'medium' : 'low', actual: (e.actual != null && e.actual !== '') ? String(e.actual) : null, estimate: (e.forecast != null && e.forecast !== '') ? String(e.forecast) : null, prev: (e.previous != null && e.previous !== '') ? String(e.previous) : null })).filter(e => e.event), source: 'rapidapi_fxstreet' });
         } catch(e) { return json({ events: [], error: e.message }); }
+      }
+
+      // ── STRIPE: CREATE CHECKOUT SESSION ────────────────────────
+      if (body.type === "stripe-create-checkout") {
+        const priceId = STRIPE_PRICE_IDS[body.plan];
+        if (!priceId) return json({ error: 'Piano non valido (usa "monthly" o "yearly")' }, 400);
+        try {
+          const session = await stripeApi(env, "checkout/sessions", {
+            mode: "subscription",
+            line_items: [{ price: priceId, quantity: 1 }],
+            customer_email: body.email || undefined,
+            success_url: "https://xenosfinance.com/premium-support?success=true&session_id={CHECKOUT_SESSION_ID}",
+            cancel_url: "https://xenosfinance.com/premium-support?canceled=true",
+            allow_promotion_codes: true,
+            subscription_data: { metadata: { source: "xenosfinance_site", plan: body.plan } },
+          });
+          return json({ url: session.url });
+        } catch (e) { return json({ error: e.message }, 500); }
+      }
+
+      // ── STRIPE: CUSTOMER PORTAL SESSION ────────────────────────
+      if (body.type === "stripe-create-portal") {
+        if (!body.customer) return json({ error: 'Manca "customer"' }, 400);
+        try {
+          const portal = await stripeApi(env, "billing_portal/sessions", {
+            customer: body.customer,
+            return_url: "https://xenosfinance.com/premium-support",
+          });
+          return json({ url: portal.url });
+        } catch (e) { return json({ error: e.message }, 500); }
       }
 
       // ── ANTHROPIC ─────────────────────────────────────────────

@@ -7,7 +7,8 @@
 <button id="btn-premium-yearly" class="btn-premium">Premium — €79/anno</button>
 
 <script>
-const WORKER_BASE = 'https://xenos-ai-proxy.xenosfinance.workers.dev'; // o il nuovo Worker se separato
+// Stesso Worker che già usi per Anthropic/GitHub/Telegram — nessun nuovo dominio.
+const WORKER_URL = 'https://xenos-ai-proxy.xenosfinance.workers.dev';
 
 async function startCheckout(plan) {
   const btn = document.getElementById(plan === 'monthly' ? 'btn-premium-monthly' : 'btn-premium-yearly');
@@ -16,10 +17,10 @@ async function startCheckout(plan) {
   btn.textContent = 'Attendere...';
 
   try {
-    const res = await fetch(`${WORKER_BASE}/create-checkout-session`, {
+    const res = await fetch(WORKER_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ plan }),
+      body: JSON.stringify({ type: 'stripe-create-checkout', plan }),
     });
     const data = await res.json();
     if (data.url) {
@@ -38,12 +39,12 @@ document.getElementById('btn-premium-monthly').addEventListener('click', () => s
 document.getElementById('btn-premium-yearly').addEventListener('click', () => startCheckout('yearly'));
 
 // Bottone "Gestisci abbonamento" (portale clienti) — richiede il customer_id
-// salvato lato server al momento del checkout.session.completed webhook.
+// salvato lato server al momento del webhook checkout.session.completed.
 async function openBillingPortal(customerId) {
-  const res = await fetch(`${WORKER_BASE}/create-portal-session`, {
+  const res = await fetch(WORKER_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ customer: customerId }),
+    body: JSON.stringify({ type: 'stripe-create-portal', customer: customerId }),
   });
   const data = await res.json();
   if (data.url) window.location.href = data.url;
