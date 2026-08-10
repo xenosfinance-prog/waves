@@ -1,0 +1,51 @@
+<!--
+  Snippet da inserire in premium-support.html (o dove hai i bottoni "Abbonati")
+  Sostituisce/integra il flusso Web3 esistente con un'opzione carta via Stripe.
+-->
+
+<button id="btn-premium-monthly" class="btn-premium">Premium — €9/mese</button>
+<button id="btn-premium-yearly" class="btn-premium">Premium — €79/anno</button>
+
+<script>
+const WORKER_BASE = 'https://xenos-ai-proxy.xenosfinance.workers.dev'; // o il nuovo Worker se separato
+
+async function startCheckout(plan) {
+  const btn = document.getElementById(plan === 'monthly' ? 'btn-premium-monthly' : 'btn-premium-yearly');
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Attendere...';
+
+  try {
+    const res = await fetch(`${WORKER_BASE}/create-checkout-session`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ plan }),
+    });
+    const data = await res.json();
+    if (data.url) {
+      window.location.href = data.url; // redirect a Stripe Checkout hosted
+    } else {
+      throw new Error(data.error || 'Errore sconosciuto');
+    }
+  } catch (err) {
+    alert('Errore durante l\'avvio del pagamento: ' + err.message);
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
+}
+
+document.getElementById('btn-premium-monthly').addEventListener('click', () => startCheckout('monthly'));
+document.getElementById('btn-premium-yearly').addEventListener('click', () => startCheckout('yearly'));
+
+// Bottone "Gestisci abbonamento" (portale clienti) — richiede il customer_id
+// salvato lato server al momento del checkout.session.completed webhook.
+async function openBillingPortal(customerId) {
+  const res = await fetch(`${WORKER_BASE}/create-portal-session`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ customer: customerId }),
+  });
+  const data = await res.json();
+  if (data.url) window.location.href = data.url;
+}
+</script>
