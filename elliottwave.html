@@ -4185,24 +4185,11 @@ async function ewsRenderCustomChart(sym, tf) {
     s.setData(candles.map(function(c, i) { return ema[i] === null ? null : { time: ewsTimeToUnix(c.datetime), value: ema[i] }; }).filter(Boolean));
   });
 
-  // XenosFinance Elliott Wave Auto-Adaptive PRO overlay
-  var zz = ewsComputeZigzag(candles, tf);
-  if (zz.length >= 9) {
-    var pts = zz.slice(-9);
-    var labels = ['1', '2', '3', '4', '5', 'A', 'B', 'C'];
-    var markers = [];
-    for (var i = 1; i < pts.length; i++) {
-      var isCorrective = i >= 6; // segments 6,7,8 -> A,B,C
-      var col = isCorrective ? '#ff1744' : '#00e676';
-      var seg = _ewsChart.addLineSeries({ color: col, lineWidth: 2, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
-      seg.setData([
-        { time: ewsTimeToUnix(pts[i - 1].time), value: pts[i - 1].price },
-        { time: ewsTimeToUnix(pts[i].time), value: pts[i].price }
-      ]);
-      markers.push({ time: ewsTimeToUnix(pts[i].time), position: pts[i].isHigh ? 'aboveBar' : 'belowBar', color: col, shape: 'circle', text: labels[i - 1] });
-    }
-    _ewsCandleSeries.setMarkers(markers);
-  }
+  // Wave count labels are intentionally NOT drawn here. The Auto-Adaptive zigzag
+  // above is a raw swing detector with zero Elliott Wave rule validation (no
+  // Rule III overlap check, no Fibonacci extension check) — labeling it 1-2-3-4-5-A-B-C
+  // produced counts that violated basic EW rules. The validated count (Rule III,
+  // Fibonacci filters) only comes from the ew_server.py engine via "Generate Analysis".
   _ewsChart.timeScale().fitContent();
 
   // RSI sub-panel
