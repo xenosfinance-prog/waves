@@ -1166,6 +1166,10 @@ async function fetchLiveCalendar(weekStr) {
         if (evs0.length > 0 && !d0.error) {
           rapidapiOk = true;
           patchActuals(evs0, 'event', 'time', 'actual');
+          // ForexFactory is the more reliable free source (no scraping/blocking issues
+          // like investing.com) — use it to fill in missing current-week events too,
+          // not just to patch actuals on events already in the static list.
+          addNewEvents(evs0, {name:'event',date:'time',time:'time',impact:'impact',country:'country',forecast:'estimate',prev:'prev',actual:'actual'});
         }
       } else {
         console.warn('ForexFactory calendar HTTP', r0.status);
