@@ -602,6 +602,8 @@ const XENOS_I18N = {
     label_ai_brief_unavailable: 'AI brief temporarily unavailable',
     label_analysis_failed: 'Analysis failed. Check connection.',
     label_generating_ai_analysis: 'Generating AI weekly analysis...',
+    seo_calendar_intro: 'The XenosFinance Economic Calendar tracks the highest-impact events moving Forex, Gold, Oil and Equities markets: US Non-Farm Payrolls (NFP), CPI inflation data, FOMC and ECB interest rate decisions, and EIA weekly crude oil inventories. Every event includes forecast, previous reading and actual result as soon as it is released, alongside an AI-generated strategy interpretation of what the number means for traders. The calendar updates in real time throughout the trading week — filter by currency (USD, EUR, GBP, JPY) or by impact level to focus on the releases that matter most to your positions.',
+    seo_dashboard_intro: 'The XenosFinance Market Dashboard streams live prices across Forex, Gold, Oil, major stock indices and Crypto, updated continuously throughout the Sydney, Tokyo, London and New York trading sessions. Track EUR/USD, USD/JPY, WTI crude oil, Gold and Silver futures, Bitcoin and Ethereum, plus the S&P 500 and NASDAQ — all in a single free terminal view with 5-day trend sparklines, intermarket correlations and sector heatmaps. Built for traders who need one screen covering every major asset class instead of switching between platforms.',
   },
 
   ru: {
@@ -1197,6 +1199,8 @@ const XENOS_I18N = {
     label_ai_brief_unavailable: 'Брифинг ИИ временно недоступен',
     label_analysis_failed: 'Анализ не удался. Проверьте соединение.',
     label_generating_ai_analysis: 'Генерация еженедельного анализа ИИ...',
+    seo_calendar_intro: 'Экономический календарь XenosFinance отслеживает события с наибольшим влиянием на рынки Forex, золота, нефти и акций: данные по занятости в несельскохозяйственном секторе США (NFP), инфляцию CPI, решения по процентным ставкам ФРС и ЕЦБ, а также еженедельные запасы сырой нефти EIA. Каждое событие сопровождается прогнозом, предыдущим значением и фактическим результатом сразу после публикации, а также AI-интерпретацией стратегии. Календарь обновляется в реальном времени в течение всей торговой недели — фильтруйте по валюте (USD, EUR, GBP, JPY) или по уровню влияния.',
+    seo_dashboard_intro: 'Панель рынков XenosFinance транслирует живые цены по Forex, золоту, нефти, основным фондовым индексам и криптовалютам в течение торговых сессий Сиднея, Токио, Лондона и Нью-Йорка. Отслеживайте EUR/USD, USD/JPY, нефть WTI, фьючерсы на золото и серебро, Bitcoin и Ethereum, а также S&P 500 и NASDAQ — всё в одном бесплатном терминале с 5-дневными спарклайнами трендов, межрыночными корреляциями и секторальными тепловыми картами.',
   },
 
   pl: {
@@ -1792,6 +1796,8 @@ const XENOS_I18N = {
     label_ai_brief_unavailable: 'Brief AI tymczasowo niedostępny',
     label_analysis_failed: 'Analiza nie powiodła się. Sprawdź połączenie.',
     label_generating_ai_analysis: 'Generowanie tygodniowej analizy AI...',
+    seo_calendar_intro: 'Kalendarz Ekonomiczny XenosFinance śledzi wydarzenia o najwyższym wpływie na rynki Forex, złota, ropy i akcji: amerykańskie dane o zatrudnieniu poza rolnictwem (NFP), inflację CPI, decyzje o stopach procentowych Fed i EBC oraz cotygodniowe zapasy ropy EIA. Każde wydarzenie zawiera prognozę, poprzedni odczyt i rzeczywisty wynik natychmiast po publikacji, wraz z interpretacją strategii wygenerowaną przez AI. Kalendarz aktualizuje się w czasie rzeczywistym przez cały tydzień handlowy — filtruj według waluty (USD, EUR, GBP, JPY) lub poziomu wpływu.',
+    seo_dashboard_intro: 'Panel Rynkowy XenosFinance przesyła na żywo ceny z rynków Forex, złota, ropy, głównych indeksów giełdowych i kryptowalut, aktualizowane nieprzerwanie podczas sesji w Sydney, Tokio, Londynie i Nowym Jorku. Śledź EUR/USD, USD/JPY, ropę WTI, kontrakty na złoto i srebro, Bitcoin i Ethereum, a także S&P 500 i NASDAQ — wszystko w jednym bezpłatnym terminalu z 5-dniowymi wykresami trendów, korelacjami międzyrynkowymi i mapami cieplnymi sektorów.',
   },
 
   es: {
@@ -2387,6 +2393,8 @@ const XENOS_I18N = {
     label_ai_brief_unavailable: 'Brief de IA temporalmente no disponible',
     label_analysis_failed: 'Análisis fallido. Verifica la conexión.',
     label_generating_ai_analysis: 'Generando análisis semanal de IA...',
+    seo_calendar_intro: 'El Calendario Económico de XenosFinance sigue los eventos de mayor impacto en los mercados de Forex, Oro, Petróleo y Acciones: nóminas no agrícolas de EE. UU. (NFP), datos de inflación CPI, decisiones de tipos de interés de la Fed y el BCE, e inventarios semanales de crudo de la EIA. Cada evento incluye previsión, dato anterior y resultado real en cuanto se publica, junto con una interpretación estratégica generada por IA. El calendario se actualiza en tiempo real durante toda la semana de negociación — filtra por divisa (USD, EUR, GBP, JPY) o por nivel de impacto.',
+    seo_dashboard_intro: 'El Dashboard de Mercado de XenosFinance transmite precios en vivo de Forex, Oro, Petróleo, principales índices bursátiles y Criptomonedas, actualizados continuamente durante las sesiones de Sídney, Tokio, Londres y Nueva York. Sigue EUR/USD, USD/JPY, petróleo WTI, futuros de Oro y Plata, Bitcoin y Ethereum, además del S&P 500 y el NASDAQ — todo en un único terminal gratuito con gráficos de tendencia de 5 días, correlaciones intermercado y mapas de calor sectoriales.',
   },
   it: {
     nav_dashboard_plain: 'Dashboard',
@@ -2990,6 +2998,8 @@ const XENOS_I18N = {
     label_breakeven: 'Pareggio',
     label_saved: 'Salvato:',
     label_confidence: 'Confidenza:',
+    seo_calendar_intro: 'Il Calendario Economico di XenosFinance monitora gli eventi a maggior impatto sui mercati Forex, Oro, Petrolio e Azionario: dati sull\'occupazione USA (NFP), inflazione CPI, decisioni sui tassi di interesse di Fed e BCE, e scorte settimanali di greggio EIA. Ogni evento include previsione, dato precedente e risultato effettivo non appena pubblicato, insieme a un\'interpretazione strategica generata dall\'AI. Il calendario si aggiorna in tempo reale durante tutta la settimana di trading — filtra per valuta (USD, EUR, GBP, JPY) o per livello di impatto per concentrarti sulle notizie più rilevanti per le tue posizioni.',
+    seo_dashboard_intro: 'La Dashboard di Mercato di XenosFinance trasmette prezzi in tempo reale su Forex, Oro, Petrolio, principali indici azionari e Crypto, aggiornati continuamente durante le sessioni di Sydney, Tokyo, Londra e New York. Segui EUR/USD, USD/JPY, petrolio WTI, futures su Oro e Argento, Bitcoin ed Ethereum, oltre a S&P 500 e NASDAQ — tutto in un unico terminale gratuito con sparkline di trend a 5 giorni, correlazioni intermarket e heatmap settoriali.',
   },
 
 };
