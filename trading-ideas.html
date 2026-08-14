@@ -407,6 +407,43 @@ function getCategory(ticker, idea) {
 }
 
 let allIdeas=[], activeFilter='all';
+let divergenceData={};
+
+async function loadDivergenceData(){
+  try{
+    const res=await fetch('https://raw.githubusercontent.com/xenosfinance-prog/waves/main/divergence-data.json');
+    if(!res.ok) return;
+    const data=await res.json();
+    divergenceData=data.assets||{};
+  }catch(e){
+    // Non disponibile o repo non ancora pubblicato: nessun badge, nessun errore visibile
+    divergenceData={};
+  }
+}
+
+function isOilTicker(idea){
+  const t=(idea.ticker||'').toUpperCase();
+  const n=(idea.name||'').toUpperCase();
+  return t.includes('WTI')||t.includes('BRENT')||t.includes('OIL')||t==='CL'||t==='USOIL'
+    ||n.includes('CRUDE')||n.includes('OIL');
+}
+
+function buildDivergenceBadge(idea){
+  // TODO: gating premium — oggi visibile a tutti, nessun controllo premium
+  // esiste ancora su questa pagina. Collegare qui il check quando definito.
+  if(!isOilTicker(idea)) return '';
+  const info=divergenceData['oil'];
+  if(!info || info.badge==='unavailable') return '';
+
+  const cfg={
+    aligned:{label:'Narrative aligned', color:'#5f5e5a'},
+    medium:{label:'Narrative divergence', color:'#ba7517'},
+    high:{label:'High divergence', color:'#a32d2d'},
+  }[info.badge];
+  if(!cfg) return '';
+
+  return `<div class="divergence-badge" style="margin-top:8px;font-size:9px;letter-spacing:1px;text-transform:uppercase;padding:3px 8px;border-radius:2px;display:inline-block;background:${cfg.color}22;color:${cfg.color};border:1px solid ${cfg.color}55;">${cfg.label}</div>`;
+}
 
 (function(){
   const mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -467,6 +504,7 @@ function waveIcon(wn){
 async function loadIdeas(force=false){
   const btn=document.getElementById('refresh-btn');
   btn.classList.add('spinning');
+  loadDivergenceData(); // non-blocking, in parallelo: se fallisce niente badge, nessun impatto sulle idee
   if(!force){
     try{
       const c=JSON.parse(localStorage.getItem(CACHE_KEY)||'null');
@@ -561,6 +599,7 @@ function buildCard(idea, idx){
         <div class="card-meta-item"><span class="meta-label"><span data-i18n="th_inval">Inval.</span></span><span class="meta-val" style="color:var(--red)">${fmtPrice(idea.invalidation,idea.ticker)}</span></div>
       </div>
       <div class="card-signal">${signalLine}</div>
+      ${buildDivergenceBadge(idea)}
       <div class="conf-row">
         <span class="conf-label">${isMKO?'<span data-i18n="label_score">Score</span>: '+(idea.score||7)+'/10 ░░░░░ <span data-i18n="label_high_probability">HIGH PROBABILITY</span>...':'<span data-i18n="label_confidence">Confidence</span>'}</span>
         <div class="conf-track"><div class="conf-fill" style="width:${conf}%;background:${confColor}"></div></div>
