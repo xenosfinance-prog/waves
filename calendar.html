@@ -271,6 +271,11 @@ body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:10
     <button class="filter-btn" id="f-today" onclick="toggleTodayFilter(this)" style="border-color:var(--red2);color:var(--red2);" data-i18n="label_today_only">● Today Only</button>
   </div>
 
+  <!-- Live data fetch warning (hidden by default, shown only if the live calendar feed fails) -->
+  <div id="live-fetch-warning" style="display:none;background:rgba(248,113,113,0.08);border:1px solid rgba(248,113,113,0.35);color:#f87171;font-family:var(--mono);font-size:11px;letter-spacing:0.5px;padding:12px 16px;margin:0 0 16px;">
+    ⚠ <span data-i18n="label_live_calendar_unavailable">Live calendar data is temporarily unavailable. Retrying automatically…</span>
+  </div>
+
   <!-- Week tabs -->
   <div class="week-tabs" id="week-tabs"></div>
 
@@ -1134,7 +1139,7 @@ async function fetchLiveCalendar(weekStr) {
   }
 
   // 1. Investing.com (free, no API key) — patch actuals + add new events
-  let finnhubOk = false, rapidapiOk = false;
+  let finnhubOk = false, rapidapiOk = false, finnhubErr = null, rapidapiErr = null;
   try {
     const r = await fetch(WORKER_URL, {
       method:'POST', headers:{'Content-Type':'application/json'},
@@ -1144,16 +1149,19 @@ async function fetchLiveCalendar(weekStr) {
     if (r.ok) {
       const d = await r.json();
       const evs = d.events || [];
-      if (d.error) console.warn('Investing.com calendar error:', d.error);
+      if (d.error) { console.warn('Investing.com calendar error:', d.error); finnhubErr = 'api:' + d.error; }
       if (evs.length > 0) {
         finnhubOk = true;
         patchActuals(evs, 'event', 'time', 'actual');
         addNewEvents(evs, {name:'event',date:'time',time:'time',impact:'impact',country:'country',forecast:'estimate',prev:'prev',actual:'actual'});
+      } else if (!finnhubErr) {
+        finnhubErr = 'empty-response';
       }
     } else {
       console.warn('Investing.com calendar HTTP', r.status);
+      finnhubErr = 'http:' + r.status;
     }
-  } catch(e) { console.warn('Investing.com calendar:', e.message); }
+  } catch(e) { console.warn('Investing.com calendar:', e.message); finnhubErr = 'network:' + e.message; }
 
   // 2. ForexFactory (free, no API key) — patch actuals only
   try {
@@ -1167,7 +1175,7 @@ async function fetchLiveCalendar(weekStr) {
       if (r0.ok) {
         const d0 = await r0.json();
         const evs0 = d0.events || [];
-        if (d0.error) console.warn('ForexFactory calendar error:', d0.error);
+        if (d0.error) { console.warn('ForexFactory calendar error:', d0.error); rapidapiErr = 'api:' + d0.error; }
         if (evs0.length > 0 && !d0.error) {
           rapidapiOk = true;
           patchActuals(evs0, 'event', 'time', 'actual');
@@ -1175,17 +1183,20 @@ async function fetchLiveCalendar(weekStr) {
           // like investing.com) — use it to fill in missing current-week events too,
           // not just to patch actuals on events already in the static list.
           addNewEvents(evs0, {name:'event',date:'time',time:'time',impact:'impact',country:'country',forecast:'estimate',prev:'prev',actual:'actual'});
+        } else if (!rapidapiErr) {
+          rapidapiErr = 'empty-response';
         }
       } else {
         console.warn('ForexFactory calendar HTTP', r0.status);
+        rapidapiErr = 'http:' + r0.status;
       }
     } else {
       // ForexFactory's public feed only covers this/next week — no equivalent free source for week2/week3
       rapidapiOk = true;
     }
-  } catch(e) { console.warn('ForexFactory calendar:', e.message); }
+  } catch(e) { console.warn('ForexFactory calendar:', e.message); rapidapiErr = 'network:' + e.message; }
 
-  return { finnhubOk, rapidapiOk };
+  return { finnhubOk, rapidapiOk, finnhubErr, rapidapiErr };
 }
 
 function getLiveActual(ev) {
@@ -1257,7 +1268,7 @@ function renderKeyEventsCards() {
   }).join('');
 }
 
-async function refreshActuals() {
+async function refreshActuals(_isRetry) {
   const results = await Promise.all([
     fetchLiveCalendar('thisweek'),
     fetchLiveCalendar('nextweek'),
@@ -1275,6 +1286,24 @@ async function refreshActuals() {
     const n = new Date();
     const hm = n.getHours().toString().padStart(2,'0') + ':' + n.getMinutes().toString().padStart(2,'0');
     st.textContent = 'UPDATED AT ' + hm + ' CET';
+  }
+  // Both live sources failed for the currently-visible week (thisweek) — the calendar
+  // has no static fallback data for the current week, so surface this clearly instead
+  // of silently showing an empty table. Auto-retry once after 6s before alarming the user.
+  const thisWeekResult = results[0] || {};
+  const bothFailed = !thisWeekResult.finnhubOk && !thisWeekResult.rapidapiOk;
+  const warning = document.getElementById('live-fetch-warning');
+  if (bothFailed) {
+    console.warn('Calendar live fetch failed for current week:', {
+      investing: thisWeekResult.finnhubErr, forexfactory: thisWeekResult.rapidapiErr
+    });
+    if (!_isRetry) {
+      setTimeout(() => refreshActuals(true), 6000);
+    } else if (warning) {
+      warning.style.display = 'block';
+    }
+  } else if (warning) {
+    warning.style.display = 'none';
   }
 }
 
