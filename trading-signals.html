@@ -553,34 +553,49 @@ function fmtDate(iso) {
 
 // ── LOAD SIGNALS ─────────────────────────────────────────────
 async function loadSignals() {
-  await Promise.all([
-    loadFolder('signals_cfd',     'cfd'),
-    loadFolder('signals_options', 'options'),
-  ]);
-  // Closed = signals with a resolved outcome (exclude open/pending/null)
-  const isOpen = s => !s.outcome || s.outcome === 'pending' || s.outcome === 'open' || s.outcome === '';
-  allSignals.closed = [
-    ...allSignals.cfd.filter(s => !isOpen(s)),
-    ...allSignals.options.filter(s => !isOpen(s)),
-  ].sort((a, b) => new Date(b.timestamp||b.saved_at||0) - new Date(a.timestamp||a.saved_at||0));
-  document.getElementById('count-cfd').textContent     = allSignals.cfd.filter(s => isOpen(s)).length;
-  document.getElementById('count-options').textContent = allSignals.options.filter(s => isOpen(s)).length;
-  document.getElementById('last-updated').textContent  =
-    'Updated ' + new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) + ' · Auto-refresh every 5 min';
-  if (currentTab === 'closed') renderClosed();
-  else applyFilters();
+  try {
+    await Promise.all([
+      loadFolder('signals_cfd',     'cfd'),
+      loadFolder('signals_options', 'options'),
+    ]);
+    // Closed = signals with a resolved outcome (exclude open/pending/null)
+    const isOpen = s => !s.outcome || s.outcome === 'pending' || s.outcome === 'open' || s.outcome === '';
+    allSignals.closed = [
+      ...allSignals.cfd.filter(s => !isOpen(s)),
+      ...allSignals.options.filter(s => !isOpen(s)),
+    ].sort((a, b) => new Date(b.timestamp||b.saved_at||0) - new Date(a.timestamp||a.saved_at||0));
+    document.getElementById('count-cfd').textContent     = allSignals.cfd.filter(s => isOpen(s)).length;
+    document.getElementById('count-options').textContent = allSignals.options.filter(s => isOpen(s)).length;
+    document.getElementById('last-updated').textContent  =
+      'Updated ' + new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) + ' · Auto-refresh every 5 min';
+    if (currentTab === 'closed') renderClosed();
+    else applyFilters();
+  } catch(e) {
+    // Belt-and-braces: even if something unexpected throws here, don't leave the
+    // page stuck on the initial "LOADING SIGNALS..." placeholder forever.
+    console.warn('loadSignals:', e.message);
+    allSignals.cfd = allSignals.cfd || [];
+    allSignals.options = allSignals.options || [];
+    allSignals.closed = allSignals.closed || [];
+    if (currentTab === 'closed') renderClosed();
+    else applyFilters();
+  }
 }
 
 async function loadFolder(folder, type) {
   try {
     // Step 1: get file list via Worker (needs GitHub token for private repo)
+    // Timeout added: without this, a slow/hanging Worker response left loadSignals()
+    // stuck forever awaiting Promise.all — the "LOADING SIGNALS..." placeholder never
+    // clears because applyFilters()/renderCFD() never get called.
     const res = await fetch(WORKER, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         type: 'github', method: 'GET',
         url: `https://api.github.com/repos/${REPO}/contents/${folder}`
-      })
+      }),
+      signal: AbortSignal.timeout(10000)
     });
     const d = await res.json();
     const files = Array.isArray(d.data) ? d.data : [];
@@ -590,7 +605,8 @@ async function loadFolder(folder, type) {
     const results = await Promise.all(jsonFiles.map(async f => {
       try {
         const r = await fetch(
-          `https://raw.githubusercontent.com/${REPO}/main/${folder}/${f.name}?t=${Date.now()}`
+          `https://raw.githubusercontent.com/${REPO}/main/${folder}/${f.name}?t=${Date.now()}`,
+          { signal: AbortSignal.timeout(10000) }
         );
         if (!r.ok) return null;
         const sig = await r.json();
