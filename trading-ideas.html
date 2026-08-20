@@ -147,6 +147,20 @@ body{background:var(--bg4);color:var(--ink);font-family:var(--mono);min-height:1
   .modal-meta-item:nth-child(3){border-top:1px solid var(--border);}
   .modal-meta-item:nth-child(4){border-top:1px solid var(--border);border-right:none;}
 }
+/* Custom modal — replaces native prompt()/confirm() which some browsers/extensions
+   silently suppress after repeated dialogs (no console error, click just does nothing) */
+.ti-modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;align-items:center;justify-content:center;}
+.ti-modal-overlay.active{display:flex;}
+.ti-modal-box{background:#111a2c;border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:28px;width:320px;max-width:90vw;font-family:var(--mono, monospace);}
+.ti-modal-box h3{margin:0 0 16px;font-size:13px;letter-spacing:1px;color:#e5e7eb;font-weight:600;text-transform:uppercase;}
+.ti-modal-box input{width:100%;box-sizing:border-box;background:#0b1220;border:1px solid rgba(255,255,255,0.15);color:#e5e7eb;padding:10px 12px;border-radius:6px;font-size:14px;margin-bottom:16px;font-family:inherit;}
+.ti-modal-box input:focus{outline:none;border-color:#3b82f6;}
+.ti-modal-box .ti-modal-msg{font-size:13px;color:#cbd5e1;margin:0 0 16px;line-height:1.5;}
+.ti-modal-box .ti-modal-err{color:#f87171;font-size:12px;margin:-8px 0 12px;min-height:14px;}
+.ti-modal-actions{display:flex;gap:10px;justify-content:flex-end;}
+.ti-modal-actions button{padding:8px 16px;border-radius:6px;border:none;font-size:12px;letter-spacing:0.5px;cursor:pointer;font-family:inherit;}
+.ti-modal-actions .ti-modal-cancel{background:transparent;border:1px solid rgba(255,255,255,0.15);color:#cbd5e1;}
+.ti-modal-actions .ti-modal-ok{background:#3b82f6;color:#fff;}
 </style>
 </head>
 <body>
@@ -716,6 +730,66 @@ document.getElementById('filters').addEventListener('click',e=>{
 const WORKER='https://xenos-ai-proxy.xenosfinance.workers.dev';
 let isAdmin=false;
 
+// Custom prompt/confirm — see CSS/HTML above. Native prompt()/confirm()/alert() can be
+// silently suppressed by the browser (Chrome's "prevent additional dialogs" after
+// repeated popups) or by extensions, with NO console error — the click just does
+// nothing. These DOM-based replacements can't be blocked that way.
+function tiModalPrompt(title, placeholder){
+  return new Promise(resolve=>{
+    const overlay=document.getElementById('ti-modal-overlay');
+    const input=document.getElementById('ti-modal-input');
+    const msg=document.getElementById('ti-modal-msg');
+    const err=document.getElementById('ti-modal-err');
+    document.getElementById('ti-modal-title').textContent=title;
+    input.style.display='block';
+    input.placeholder=placeholder||'';
+    input.value='';
+    msg.style.display='none';
+    err.textContent='';
+    overlay.classList.add('active');
+    setTimeout(()=>input.focus(),50);
+    const ok=document.getElementById('ti-modal-ok');
+    const cancel=document.getElementById('ti-modal-cancel');
+    function cleanup(val){
+      overlay.classList.remove('active');
+      ok.onclick=null; cancel.onclick=null; input.onkeydown=null;
+      resolve(val);
+    }
+    ok.onclick=()=>cleanup(input.value||null);
+    cancel.onclick=()=>cleanup(null);
+    input.onkeydown=(e)=>{ if(e.key==='Enter') cleanup(input.value||null); if(e.key==='Escape') cleanup(null); };
+  });
+}
+function tiModalConfirm(message){
+  return new Promise(resolve=>{
+    const overlay=document.getElementById('ti-modal-overlay');
+    const input=document.getElementById('ti-modal-input');
+    const msg=document.getElementById('ti-modal-msg');
+    const err=document.getElementById('ti-modal-err');
+    document.getElementById('ti-modal-title').textContent='Conferma';
+    input.style.display='none';
+    msg.style.display='block';
+    msg.textContent=message;
+    err.textContent='';
+    overlay.classList.add('active');
+    const ok=document.getElementById('ti-modal-ok');
+    const cancel=document.getElementById('ti-modal-cancel');
+    function cleanup(val){
+      overlay.classList.remove('active');
+      ok.onclick=null; cancel.onclick=null;
+      resolve(val);
+    }
+    ok.onclick=()=>cleanup(true);
+    cancel.onclick=()=>cleanup(false);
+  });
+}
+function tiModalError(msg){
+  const err=document.getElementById('ti-modal-err');
+  if(err && document.getElementById('ti-modal-overlay').classList.contains('active')){ err.textContent=msg; return; }
+  // overlay already closed (e.g. delete error after confirm) — reuse confirm-style box as a plain notice
+  tiModalConfirm(msg);
+}
+
 async function simpleHash(str){
   const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(str));
   return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
@@ -728,11 +802,11 @@ async function toggleAdmin(){
     document.getElementById('ideas-grid').classList.remove('admin-mode');
     return;
   }
-  const pwd=prompt('Admin password:');
+  const pwd=await tiModalPrompt('Admin password:','Password');
   if(!pwd) return;
   const hash=await simpleHash(pwd);
   const refHash=await simpleHash('RMG@Manu78');
-  if(hash!==refHash){alert('❌ Password errata');return;}
+  if(hash!==refHash){tiModalError('❌ Password errata');return;}
   isAdmin=true;
   document.getElementById('admin-btn').classList.add('admin-active');
   document.getElementById('ideas-grid').classList.add('admin-mode');
@@ -740,7 +814,8 @@ async function toggleAdmin(){
 
 async function deleteIdea(ideaId,e){
   e.stopPropagation();
-  if(!confirm('Eliminare questa Trading Idea?')) return;
+  const confirmed=await tiModalConfirm('Eliminare questa Trading Idea?');
+  if(!confirmed) return;
   try{
     const res=await fetch(WORKER,{
       method:'POST',
@@ -748,17 +823,31 @@ async function deleteIdea(ideaId,e){
       body:JSON.stringify({type:'delete-idea',idea_id:ideaId,admin_pwd:'RMG@Manu78'})
     });
     const data=await res.json();
-    if(!data.ok){alert('❌ Errore: '+(data.error||'unknown'));return;}
+    if(!data.ok){tiModalError('❌ Errore: '+(data.error||'unknown'));return;}
     allIdeas=allIdeas.filter(i=>i.id!==ideaId);
     localStorage.setItem(CACHE_KEY,JSON.stringify({ts:Date.now(),data:allIdeas}));
     renderGrid();
     document.getElementById('ideas-grid').classList.add('admin-mode');
   }catch(err){
-    alert('❌ Errore: '+err.message);
+    tiModalError('❌ Errore: '+err.message);
   }
 }
 
 loadIdeas();
 </script>
+<!-- Custom modal markup — see .ti-modal-* CSS above for why this replaces prompt()/confirm() -->
+<div class="ti-modal-overlay" id="ti-modal-overlay">
+  <div class="ti-modal-box" id="ti-modal-box">
+    <h3 id="ti-modal-title">Admin</h3>
+    <p class="ti-modal-msg" id="ti-modal-msg" style="display:none;"></p>
+    <input type="password" id="ti-modal-input" placeholder="Password" style="display:none;">
+    <div class="ti-modal-err" id="ti-modal-err"></div>
+    <div class="ti-modal-actions">
+      <button class="ti-modal-cancel" id="ti-modal-cancel">Annulla</button>
+      <button class="ti-modal-ok" id="ti-modal-ok">OK</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
