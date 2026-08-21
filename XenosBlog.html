@@ -388,6 +388,83 @@ function monthName(idx) {
   return (typeof window.t === 'function') ? window.t(monthKeys[idx]) : monthsEN[idx];
 }
 
+const DEFAULT_META = {
+  title: 'AI Financial Market Analysis Blog — Forex & Macro | XenosFinance',
+  description: 'Free AI-powered financial market analysis. Daily forex analysis, macro research, geopolitical market impact and Elliott Wave commentary for traders and investors.',
+  canonical: 'https://xenosfinance.com/XenosBlog',
+  image: 'https://xenosfinance.com/favicon-192.png'
+};
+
+function setMetaTag(selector, attr, value) {
+  var el = document.querySelector(selector);
+  if (el) el.setAttribute(attr, value);
+}
+
+function stripHtml(str) {
+  return (str || '').replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+}
+
+function truncate(str, len) {
+  str = str || '';
+  if (str.length <= len) return str;
+  return str.slice(0, len - 1).trim() + '…';
+}
+
+function updateArticleSEO(a) {
+  var title = a.title + ' — XenosFinance AI Blog';
+  var desc = truncate(stripHtml(a.excerpt || a.intro || ''), 160);
+  var url = 'https://xenosfinance.com/XenosBlog?slug=' + encodeURIComponent(a.slug);
+  var img = a.imageUrl || DEFAULT_META.image;
+
+  document.title = title;
+  setMetaTag('meta[name="description"]', 'content', desc);
+  setMetaTag('meta[property="og:title"]', 'content', title);
+  setMetaTag('meta[property="og:description"]', 'content', desc);
+  setMetaTag('meta[property="og:url"]', 'content', url);
+  setMetaTag('meta[property="og:image"]', 'content', img);
+  setMetaTag('meta[property="og:type"]', 'content', 'article');
+  setMetaTag('meta[name="twitter:title"]', 'content', title);
+  setMetaTag('meta[name="twitter:description"]', 'content', desc);
+  setMetaTag('link[rel="canonical"]', 'href', url);
+
+  var old = document.getElementById('articleSchema');
+  if (old) old.remove();
+  var schema = document.createElement('script');
+  schema.type = 'application/ld+json';
+  schema.id = 'articleSchema';
+  schema.textContent = JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": a.title,
+    "description": desc,
+    "image": img,
+    "datePublished": a.publishedAt || '',
+    "author": { "@type": "Organization", "name": "XenosFinance" },
+    "publisher": {
+      "@type": "Organization",
+      "name": "XenosFinance",
+      "logo": { "@type": "ImageObject", "url": DEFAULT_META.image }
+    },
+    "mainEntityOfPage": { "@type": "WebPage", "@id": url }
+  });
+  document.head.appendChild(schema);
+}
+
+function resetDefaultSEO() {
+  document.title = DEFAULT_META.title;
+  setMetaTag('meta[name="description"]', 'content', DEFAULT_META.description);
+  setMetaTag('meta[property="og:title"]', 'content', DEFAULT_META.title);
+  setMetaTag('meta[property="og:description"]', 'content', DEFAULT_META.description);
+  setMetaTag('meta[property="og:url"]', 'content', DEFAULT_META.canonical);
+  setMetaTag('meta[property="og:image"]', 'content', DEFAULT_META.image);
+  setMetaTag('meta[property="og:type"]', 'content', 'website');
+  setMetaTag('meta[name="twitter:title"]', 'content', DEFAULT_META.title);
+  setMetaTag('meta[name="twitter:description"]', 'content', DEFAULT_META.description);
+  setMetaTag('link[rel="canonical"]', 'href', DEFAULT_META.canonical);
+  var old = document.getElementById('articleSchema');
+  if (old) old.remove();
+}
+
 function fromBase64(b64) {
   var bin = atob(b64.replace(/\n/g,''));
   var bytes = new Uint8Array(bin.length);
@@ -719,7 +796,7 @@ async function loadArticle(slug) {
     }
     document.getElementById('artBody').innerHTML = html;
     setTimeout(function(){XF.panRead(document.getElementById('artBody'));},400);
-    document.title = a.title + ' — XenosFinance AI Blog';
+    updateArticleSEO(a);
     // ── Hand pan-read animation ──
     setTimeout(function(){ XF.panRead(document.getElementById('artBody')); }, 400);
   } catch(err) {
@@ -731,7 +808,7 @@ function showGrid() {
   document.getElementById('articleView').style.display = 'none';
   document.getElementById('gridView').style.display = 'block';
   history.pushState({}, '', window.location.pathname);
-  document.title = 'XenosFinance — AI Blog';
+  resetDefaultSEO();
   window.scrollTo(0,0);
 }
 
