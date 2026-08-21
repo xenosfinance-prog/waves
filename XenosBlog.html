@@ -109,6 +109,7 @@
   .section-line { flex:1; height:1px; background:var(--border); }
   .blog-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--border); border:1px solid var(--border); }
   .blog-card { background:var(--bg2); transition:background 0.2s; cursor:pointer; display:flex; flex-direction:column; overflow:hidden; }
+  .card-link-wrap { display:flex; flex-direction:column; color:inherit; text-decoration:none; width:100%; height:100%; }
   .blog-card:hover { background:var(--bg3); }
   .card-thumb { width:100%; height:200px; overflow:hidden; flex-shrink:0; background:#0a1422; position:relative; }
   .card-thumb img { width:100%; height:100%; object-fit:cover; object-position:center 20%; display:block; transition:transform 0.4s ease; }
@@ -597,8 +598,9 @@ async function loadGrid() {
       // Image thumb
       var thumbHtml;
       var useGemini = !a.imageUrl || (a.imageUrl && a.imageUrl.indexOf('brief-') > -1) || (a.imageUrl && a.imageUrl.indexOf('-img.jpg') > -1 && a.imageUrl.indexOf('article-') === -1);
+      var altText = (a.title || 'XenosFinance market analysis article').replace(/"/g, '&quot;');
       if (a.imageUrl && !useGemini) {
-        thumbHtml = '<div class="card-thumb"><img src="' + a.imageUrl + '" alt="" loading="lazy"></div>';
+        thumbHtml = '<div class="card-thumb"><img src="' + a.imageUrl + '" alt="' + altText + '" loading="lazy"></div>';
       } else {
         var title2 = (a.title || '').toLowerCase();
         var cat2   = (a.category || '').toLowerCase();
@@ -613,18 +615,27 @@ async function loadGrid() {
         else if (cat2.indexOf('elliott') > -1 || title2.indexOf('elliott') > -1 || title2.indexOf('wave') > -1) sImg = BASE + 'elliottwave.png';
         else if (cat2.indexOf('energy') > -1 || cat2.indexOf('eia') > -1 || title2.indexOf('energy') > -1) sImg = BASE + 'energy.png';
         else if (cat2.indexOf('geopolit') > -1 || title2.indexOf('geopolit') > -1) sImg = BASE + 'geopolitics.png';
-        thumbHtml = '<div class="card-thumb"><img src="' + sImg + '" alt="" loading="lazy"></div>';
+        thumbHtml = '<div class="card-thumb"><img src="' + sImg + '" alt="' + altText + '" loading="lazy"></div>';
       }
       (function(slug, tTitle, tExcerpt, tThumb, tReadTime, tCat) {
+        var articleHref = 'https://xenosfinance.com/XenosBlog?slug=' + encodeURIComponent(slug);
         card.innerHTML =
+          '<a href="' + articleHref + '" class="card-link-wrap" aria-label="' + tTitle.replace(/"/g,'&quot;') + '">' +
           tThumb +
           '<div class="card-body">' +
           '<div class="card-cat">' + tCat + '</div>' +
           '<div class="card-title">' + tTitle + '</div>' +
           '<div class="card-excerpt">' + tExcerpt + '...</div>' +
           '<div class="card-footer"><span>' + tReadTime + '</span><span class="card-read"><span data-i18n="label_blog_read">Read →</span></span></div>' +
-          '</div>';
-        card.onclick = function() { loadArticle(slug); };
+          '</div>' +
+          '</a>';
+        var linkEl = card.querySelector('.card-link-wrap');
+        linkEl.addEventListener('click', function(e) {
+          // Allow normal middle-click / ctrl+click / cmd+click to open in new tab
+          if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey) return;
+          e.preventDefault();
+          loadArticle(slug);
+        });
       })(a.slug, cardTitle, cardExcerpt, thumbHtml, a.readTime || '', a.category || '');
       grid.appendChild(card);
     }
