@@ -968,6 +968,11 @@ function fromBase64(b64) {
 }
 
 // ── PROMPT ──
+function conclusionLabel(lang) {
+  var labels = { russo: '// Заключение', italiano: '// Conclusione', inglese: '// Conclusion', ru: '// Заключение', it: '// Conclusione', en: '// Conclusion' };
+  return labels[lang] || '// Conclusion';
+}
+
 function buildPrompt(lang, market, tech, tone, length, topic, pasteText, asset) {
   var langInstr = { russo:'russo (termini tecnici finanziari in inglese)', italiano:'italiano professionale', inglese:'English (professional financial tone)' };
   var marketDesc = { forex:'Forex — EUR/USD, GBP/USD, USD/JPY, ecc.', commodities:'Commodities — oro, petrolio WTI, gas naturale, argento', equity:'Mercati azionari — S&P 500, Nasdaq, Dow Jones', crypto:'Criptovalute — Bitcoin, Ethereum', macro:'Macroeconomia — banche centrali, tassi, inflazione', geopolitics:'Geopolitica e impatto sui mercati finanziari', multi:'Overview globale multi-mercato' };
@@ -1042,7 +1047,7 @@ async function generateArticle() {
     // ── Build full article HTML ──
     var html = '<p>' + currentArticle.intro + '</p>';
     currentArticle.sections.forEach(function(s){ html += '<h2>' + s.heading + '</h2><p>' + s.content + '</p>'; });
-    html += '<blockquote>' + currentArticle.quote + '</blockquote><h3>// Conclusione</h3><p>' + currentArticle.conclusion + '</p>';
+    html += '<blockquote>' + currentArticle.quote + '</blockquote><h3>' + conclusionLabel(currentArticle.lang) + '</h3><p>' + currentArticle.conclusion + '</p>';
 
     // ── Show display, scroll to it ──
     var display = document.getElementById('articleDisplay');
@@ -1083,7 +1088,7 @@ function renderArticle(a) {
   document.getElementById('artDate').textContent = '📅 ' + d.getDate() + ' ' + monthsIT[d.getMonth()] + ' ' + d.getFullYear();
   var html = '<p>' + a.intro + '</p>';
   a.sections.forEach(function(s){ html += '<h2>' + s.heading + '</h2><p>' + s.content + '</p>'; });
-  html += '<blockquote>' + a.quote + '</blockquote><h3>// Conclusione</h3><p>' + a.conclusion + '</p>';
+  html += '<blockquote>' + a.quote + '</blockquote><h3>' + conclusionLabel(a.lang) + '</h3><p>' + a.conclusion + '</p>';
   document.getElementById('artBody').innerHTML = html;
   document.getElementById('publishStatus').textContent = '';
   var display = document.getElementById('articleDisplay');
@@ -1405,7 +1410,7 @@ function openPreview() {
   html += '<div class="p-meta"><span>📅 ' + d.getDate() + ' ' + monthsIT[d.getMonth()] + ' ' + d.getFullYear() + '</span><span>⏱ ' + a.readTime + '</span><span>✦ XenosFinance AI</span></div>';
   html += '<p>' + a.intro + '</p>';
   a.sections.forEach(function(s){ html += '<h2>' + s.heading + '</h2><p>' + s.content + '</p>'; });
-  html += '<blockquote>' + a.quote + '</blockquote><h3>// Conclusione</h3><p>' + a.conclusion + '</p>';
+  html += '<blockquote>' + a.quote + '</blockquote><h3>' + conclusionLabel(a.lang) + '</h3><p>' + a.conclusion + '</p>';
   document.getElementById('previewBody').innerHTML = html;
   document.getElementById('previewOverlay').classList.add('open');
 }
