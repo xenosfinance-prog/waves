@@ -810,6 +810,78 @@ def ew_chart():
 def health():
     return jsonify({"status":"ok","service":"XenosFinance EW Server v3"})
 
+# ─────────────────────────────────────────────────────────
+# Price divergence check — flags when a live yfinance quote
+# diverges from the price stored in a published trading idea
+# by more than a configurable threshold (default 2%).
+# ─────────────────────────────────────────────────────────
+IDEAS_JSON_URL = "https://raw.githubusercontent.com/xenosfinance-prog/waves/main/trading_ideas/ideas.json"
+# Tickers most prone to contract/roll mismatch (futures-based instruments)
+DIVERGENCE_CHECK_TICKERS = {
+    "OIL": "CL=F", "USOIL": "CL=F", "UKOIL": "BZ=F", "WTI": "CL=F", "BRENT": "BZ=F",
+    "NGAS": "NG=F", "GOLD": "GC=F", "SILVER": "SI=F",
+}
+
+@app.route("/price-check", methods=["GET"])
+def price_check():
+    """
+    Query params:
+      ticker    - optional, e.g. 'OIL'. If omitted, checks all known tickers.
+      threshold - optional float, default 0.02 (2%)
+    """
+    import requests
+    try:
+        threshold = float(request.args.get("threshold", 0.02))
+        ticker_filter = request.args.get("ticker", "").upper().strip()
+
+        resp = requests.get(IDEAS_JSON_URL, timeout=10)
+        resp.raise_for_status()
+        ideas = resp.json()
+
+        # Keep only the most recent idea per ticker
+        latest_by_ticker = {}
+        for idea in ideas:
+            t = (idea.get("ticker") or "").upper()
+            if t not in DIVERGENCE_CHECK_TICKERS:
+                continue
+            if ticker_filter and t != ticker_filter:
+                continue
+            ts = idea.get("timestamp", "")
+            if t not in latest_by_ticker or ts > latest_by_ticker[t].get("timestamp", ""):
+                latest_by_ticker[t] = idea
+
+        results = []
+        for t, idea in latest_by_ticker.items():
+            yf_sym = DIVERGENCE_CHECK_TICKERS[t]
+            idea_price = idea.get("price")
+            if not idea_price:
+                continue
+            try:
+                live_data = yf.Ticker(yf_sym).history(period="1d", interval="1m")
+                if live_data.empty:
+                    live_data = yf.Ticker(yf_sym).history(period="5d")
+                live_price = float(live_data["Close"].iloc[-1])
+            except Exception as e:
+                logger.warning(f"price_check: failed to fetch {yf_sym}: {e}")
+                continue
+
+            divergence_pct = abs(live_price - idea_price) / idea_price
+            results.append({
+                "ticker": t,
+                "yf_symbol": yf_sym,
+                "idea_price": round(idea_price, 4),
+                "live_price": round(live_price, 4),
+                "divergence_pct": round(divergence_pct * 100, 2),
+                "flagged": divergence_pct > threshold,
+                "idea_id": idea.get("id"),
+                "idea_timestamp": idea.get("timestamp"),
+            })
+
+        return jsonify({"threshold_pct": threshold * 100, "results": results})
+    except Exception as e:
+        logger.error(f"price_check error: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
 if __name__ == "__main__":
     port = int(os.getenv("PORT", os.getenv("EW_PORT",5001)))
     logger.info(f"EW Server v3 on port {port}")
