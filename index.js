@@ -1,11 +1,33 @@
 // ============================================================
-//  XenosFinance — Cloudflare Worker v2.7
-//  Changes vs v2.6:
-//  - Added type:"notify-email" → sends email via Cloudflare Email Routing
-//    (send_email binding), replaces EmailJS in premium.html / premium-support.html
+//  XenosFinance — Cloudflare Worker v2.9
+//  Changes vs v2.8:
+//  - Fixed "delete-idea" / "delete-ew-signal" always returning
+//    401/403 Unauthorized: both checks compared admin_pwd against
+//    env.ADMIN_PASSWORD, a separate Worker environment variable
+//    that was either unset or out of sync with the password
+//    hardcoded in the frontend (RMG@Manu78). Login worked fine
+//    because it's a frontend-only check and never touches this
+//    Worker at all — only the delete actions ever hit this code
+//    path, so the mismatch was invisible everywhere else.
+//    Fix: ADMIN_PASSWORD is now a constant defined in this file,
+//    matching the frontend, so there is nothing external left to
+//    go out of sync.
+//  Changes vs v2.7:
+//  - Fixed dashboard.html "US Stocks" showing "--" for 22 tickers
+//    (PLTR, AMD, AVGO, MA, COP, COIN, TSM, ASML, ORCL, CRM, ADBE,
+//    INTC, QCOM, MU, UBER, SHOP, COST, HD, PG, UNH, LLY, BRK-A):
+//    YAHOO_SYMBOL_MAP only had the original 17 stock tickers, so
+//    these fell through to restPairs -> Finnhub (which has no stock
+//    mapping) -> silently empty. Added the 22 missing tickers.
+//    Also fixed BRK-A (Berkshire class A, used by dashboard.html)
+//    which was previously mapped as BRK-B only.
 // ============================================================
 
 import { EmailMessage } from "cloudflare:email";
+
+// Kept in-code (not a Worker env var) so it can never drift out of
+// sync with the password hardcoded in the admin frontend pages.
+const ADMIN_PASSWORD = "RMG@Manu78";
 
 const ALLOWED_ORIGINS = [
   "https://xenosfinance.com",
@@ -135,7 +157,7 @@ const FX_PAIRS = ["EURUSD","GBPUSD","USDJPY","USDCHF","AUDUSD","NZDUSD","USDCAD"
 const FX_CROSSES = ["AUDCAD","AUDCHF","AUDJPY","CADCHF","CHFJPY","EURNZD","EURAUD","EURCAD","GBPAUD","GBPCAD","GBPNZD","NZDCAD","NZDCHF","NZDJPY","USDMXN","USDNOK","USDSEK","USDTRY","USDZAR"];
 const TD_SYMBOL_MAP = {"EURUSD":"EUR/USD","GBPUSD":"GBP/USD","USDJPY":"USD/JPY","USDCHF":"USD/CHF","AUDUSD":"AUD/USD","NZDUSD":"NZD/USD","USDCAD":"USD/CAD","EURGBP":"EUR/GBP","EURJPY":"EUR/JPY","GBPJPY":"GBP/JPY","CADJPY":"CAD/JPY","AUDNZD":"AUD/NZD","EURCHF":"EUR/CHF","GBPCHF":"GBP/CHF","BTCUSD":"BTC/USD","ETHUSD":"ETH/USD","XRPUSD":"XRP/USD","SOLUSD":"SOL/USD","DOGEUSD":"DOGE/USD","ZECUSD":"ZEC/USD","XAUUSD":"XAU/USD","XAGUSD":"XAG/USD"};
 const FH_SYMBOL_MAP = {"EURUSD":"OANDA:EUR_USD","GBPUSD":"OANDA:GBP_USD","USDJPY":"OANDA:USD_JPY","USDCHF":"OANDA:USD_CHF","AUDUSD":"OANDA:AUD_USD","NZDUSD":"OANDA:NZD_USD","USDCAD":"OANDA:USD_CAD","EURGBP":"OANDA:EUR_GBP","EURJPY":"OANDA:EUR_JPY","GBPJPY":"OANDA:GBP_JPY","CADJPY":"OANDA:CAD_JPY","AUDNZD":"OANDA:AUD_NZD","EURCHF":"OANDA:EUR_CHF","GBPCHF":"OANDA:GBP_CHF","BTCUSD":"BINANCE:BTCUSDT","ETHUSD":"BINANCE:ETHUSDT","XRPUSD":"BINANCE:XRPUSDT","SOLUSD":"BINANCE:SOLUSDT","DOGEUSD":"BINANCE:DOGEUSDT","ZECUSD":"BINANCE:ZECUSDT","XAUUSD":"OANDA:XAU_USD","XAGUSD":"OANDA:XAG_USD"};
-const YAHOO_SYMBOL_MAP = {"XAGUSD":"SI=F","USOIL":"CL=F","UKOIL":"BZ=F","NGAS":"NG=F","COPPER":"HG=F","XAUUSD":"GC=F","US500":"^GSPC","US30":"^DJI","NAS100":"^IXIC","UK100":"^FTSE","GER40":"^GDAXI","FRA40":"^FCHI","JPN225":"^N225","HK50":"^HSI","AUS200":"^AXJO","SPY":"SPY","QQQ":"QQQ","DIA":"DIA","IWM":"IWM","VTI":"VTI","VOO":"VOO","XLK":"XLK","XLF":"XLF","XLE":"XLE","XLV":"XLV","XLY":"XLY","XLI":"XLI","XLU":"XLU","XLRE":"XLRE","XLP":"XLP","XLB":"XLB","XLC":"XLC","GLD":"GLD","GDX":"GDX","GDXJ":"GDXJ","SLV":"SLV","USO":"USO","OIH":"OIH","UNG":"UNG","TLT":"TLT","IEF":"IEF","SHY":"SHY","LQD":"LQD","HYG":"HYG","AGG":"AGG","BND":"BND","BOTZ":"BOTZ","ARKK":"ARKK","ARKG":"ARKG","ARKW":"ARKW","KRE":"KRE","IAI":"IAI","KBWB":"KBWB","DBA":"DBA","WEAT":"WEAT","CORN":"CORN","SOYB":"SOYB","EWG":"EWG","EWU":"EWU","EWQ":"EWQ","EWJ":"EWJ","EWH":"EWH","EEM":"EEM","IWDA.AS":"IWDA.AS","CSPX.L":"CSPX.L","VUSA.AS":"VUSA.AS","EURUSD=X":"EURUSD=X","GBPUSD=X":"GBPUSD=X","USDJPY=X":"USDJPY=X","USDCHF=X":"USDCHF=X","AUDUSD=X":"AUDUSD=X","NZDUSD=X":"NZDUSD=X","USDCAD=X":"USDCAD=X","GBPJPY=X":"GBPJPY=X","EURJPY=X":"EURJPY=X","BTC-USD":"BTC-USD","ETH-USD":"ETH-USD","SOL-USD":"SOL-USD","XRP-USD":"XRP-USD","DOGE-USD":"DOGE-USD","GC=F":"GC=F","CL=F":"CL=F","SI=F":"SI=F","NG=F":"NG=F","BZ=F":"BZ=F","HG=F":"HG=F","^IXIC":"^IXIC","^GSPC":"^GSPC","^DJI":"^DJI","^GDAXI":"^GDAXI","^FTSE":"^FTSE","^TNX":"^TNX","^VIX":"^VIX","^IRX":"^IRX","^TYX":"^TYX","^N225":"^N225","^FCHI":"^FCHI","^HSI":"^HSI","^AXJO":"^AXJO","AAPL":"AAPL","MSFT":"MSFT","NVDA":"NVDA","TSLA":"TSLA","AMZN":"AMZN","GOOGL":"GOOGL","META":"META","JPM":"JPM","V":"V","BRK-B":"BRK-B","XOM":"XOM","JNJ":"JNJ","GS":"GS","BAC":"BAC","NFLX":"NFLX","CVX":"CVX","WMT":"WMT"};
+const YAHOO_SYMBOL_MAP = {"XAGUSD":"SI=F","USOIL":"CL=F","UKOIL":"BZ=F","NGAS":"NG=F","COPPER":"HG=F","XAUUSD":"GC=F","US500":"^GSPC","US30":"^DJI","NAS100":"^IXIC","UK100":"^FTSE","GER40":"^GDAXI","FRA40":"^FCHI","JPN225":"^N225","HK50":"^HSI","AUS200":"^AXJO","SPY":"SPY","QQQ":"QQQ","DIA":"DIA","IWM":"IWM","VTI":"VTI","VOO":"VOO","XLK":"XLK","XLF":"XLF","XLE":"XLE","XLV":"XLV","XLY":"XLY","XLI":"XLI","XLU":"XLU","XLRE":"XLRE","XLP":"XLP","XLB":"XLB","XLC":"XLC","GLD":"GLD","GDX":"GDX","GDXJ":"GDXJ","SLV":"SLV","USO":"USO","OIH":"OIH","UNG":"UNG","TLT":"TLT","IEF":"IEF","SHY":"SHY","LQD":"LQD","HYG":"HYG","AGG":"AGG","BND":"BND","BOTZ":"BOTZ","ARKK":"ARKK","ARKG":"ARKG","ARKW":"ARKW","KRE":"KRE","IAI":"IAI","KBWB":"KBWB","DBA":"DBA","WEAT":"WEAT","CORN":"CORN","SOYB":"SOYB","EWG":"EWG","EWU":"EWU","EWQ":"EWQ","EWJ":"EWJ","EWH":"EWH","EEM":"EEM","IWDA.AS":"IWDA.AS","CSPX.L":"CSPX.L","VUSA.AS":"VUSA.AS","EURUSD=X":"EURUSD=X","GBPUSD=X":"GBPUSD=X","USDJPY=X":"USDJPY=X","USDCHF=X":"USDCHF=X","AUDUSD=X":"AUDUSD=X","NZDUSD=X":"NZDUSD=X","USDCAD=X":"USDCAD=X","GBPJPY=X":"GBPJPY=X","EURJPY=X":"EURJPY=X","BTC-USD":"BTC-USD","ETH-USD":"ETH-USD","SOL-USD":"SOL-USD","XRP-USD":"XRP-USD","DOGE-USD":"DOGE-USD","GC=F":"GC=F","CL=F":"CL=F","SI=F":"SI=F","NG=F":"NG=F","BZ=F":"BZ=F","HG=F":"HG=F","^IXIC":"^IXIC","^GSPC":"^GSPC","^DJI":"^DJI","^GDAXI":"^GDAXI","^FTSE":"^FTSE","^TNX":"^TNX","^VIX":"^VIX","^IRX":"^IRX","^TYX":"^TYX","^N225":"^N225","^FCHI":"^FCHI","^HSI":"^HSI","^AXJO":"^AXJO","AAPL":"AAPL","MSFT":"MSFT","NVDA":"NVDA","TSLA":"TSLA","AMZN":"AMZN","GOOGL":"GOOGL","META":"META","JPM":"JPM","V":"V","BRK-B":"BRK-B","BRK-A":"BRK-A","XOM":"XOM","JNJ":"JNJ","GS":"GS","BAC":"BAC","NFLX":"NFLX","CVX":"CVX","WMT":"WMT","PLTR":"PLTR","AMD":"AMD","AVGO":"AVGO","MA":"MA","COP":"COP","COIN":"COIN","TSM":"TSM","ASML":"ASML","ORCL":"ORCL","CRM":"CRM","ADBE":"ADBE","INTC":"INTC","QCOM":"QCOM","MU":"MU","UBER":"UBER","SHOP":"SHOP","COST":"COST","HD":"HD","PG":"PG","UNH":"UNH","LLY":"LLY"};
 const YAHOO_SYMBOLS = new Set(Object.keys(YAHOO_SYMBOL_MAP));
 const MASSIVE_TICKER_MAP = {"EURUSD":"C:EURUSD","GBPUSD":"C:GBPUSD","USDJPY":"C:USDJPY","USDCHF":"C:USDCHF","AUDUSD":"C:AUDUSD","NZDUSD":"C:NZDUSD","USDCAD":"C:USDCAD","EURGBP":"C:EURGBP","EURJPY":"C:EURJPY","GBPJPY":"C:GBPJPY","CADJPY":"C:CADJPY","AUDNZD":"C:AUDNZD","EURCHF":"C:EURCHF","GBPCHF":"C:GBPCHF","AUDCAD":"C:AUDCAD","AUDCHF":"C:AUDCHF","AUDJPY":"C:AUDJPY","CADCHF":"C:CADCHF","CHFJPY":"C:CHFJPY","EURNZD":"C:EURNZD","EURAUD":"C:EURAUD","EURCAD":"C:EURCAD","GBPAUD":"C:GBPAUD","GBPCAD":"C:GBPCAD","GBPNZD":"C:GBPNZD","NZDCAD":"C:NZDCAD","NZDCHF":"C:NZDCHF","NZDJPY":"C:NZDJPY","USDMXN":"C:USDMXN","USDNOK":"C:USDNOK","USDSEK":"C:USDSEK","USDTRY":"C:USDTRY","USDZAR":"C:USDZAR","XAUUSD":"C:XAUUSD","XAGUSD":"C:XAGUSD","BTCUSD":"X:BTCUSD","ETHUSD":"X:ETHUSD","XRPUSD":"X:XRPUSD","SOLUSD":"X:SOLUSD","DOGEUSD":"X:DOGEUSD","BNBUSD":"X:BNBUSD","ADAUSD":"X:ADAUSD","AVAXUSD":"X:AVAXUSD","LINKUSD":"X:LINKUSD","MATICUSD":"X:MATICUSD","DOTUSD":"X:DOTUSD","LTCUSD":"X:LTCUSD","ATOMUSD":"X:ATOMUSD","UNIUSD":"X:UNIUSD","XLMUSD":"X:XLMUSD","TRXUSD":"X:TRXUSD","ETCUSD":"X:ETCUSD","NEARUSD":"X:NEARUSD"};
 const MASSIVE_TF_MAP = {"15":{multiplier:15,timespan:"minute"},"60":{multiplier:1,timespan:"hour"},"240":{multiplier:4,timespan:"hour"},"D":{multiplier:1,timespan:"day"},"15min":{multiplier:15,timespan:"minute"},"1h":{multiplier:1,timespan:"hour"},"4h":{multiplier:4,timespan:"hour"},"1day":{multiplier:1,timespan:"day"}};
@@ -307,7 +329,7 @@ export default {
         if (!token) return json({ ok: false, error: "GITHUB_TOKEN mancante" }, 500);
         const { idea_id, admin_pwd } = body;
         if (!idea_id) return json({ ok: false, error: "idea_id mancante" }, 400);
-        if (!env.ADMIN_PASSWORD || admin_pwd !== env.ADMIN_PASSWORD) return json({ ok: false, error: "Unauthorized" }, 403);
+        if (admin_pwd !== ADMIN_PASSWORD) return json({ ok: false, error: "Unauthorized" }, 403);
         try {
           const result = await _deleteFromGitHub(token, "xenosfinance-prog/waves", "trading_ideas/ideas.json", idea_id, `Delete idea ${idea_id}`);
           return json({ ok: true, ...result });
@@ -320,7 +342,7 @@ export default {
         if (!token) return json({ ok: false, error: "GITHUB_TOKEN mancante" }, 500);
         const { signal_id, admin_pwd } = body;
         if (!signal_id) return json({ ok: false, error: "signal_id mancante" }, 400);
-        if (!env.ADMIN_PASSWORD || admin_pwd !== env.ADMIN_PASSWORD) return json({ ok: false, error: "Unauthorized" }, 403);
+        if (admin_pwd !== ADMIN_PASSWORD) return json({ ok: false, error: "Unauthorized" }, 403);
         try {
           const result = await _deleteFromGitHub(token, "xenosfinance-prog/waves", "ew_signals/signals.json", signal_id, `Delete EW signal ${signal_id}`);
           return json({ ok: true, ...result });
