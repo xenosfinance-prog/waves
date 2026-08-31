@@ -676,7 +676,9 @@ function _langTI() { return localStorage.getItem('xf_lang') || 'en'; }
 async function openModal(idea){
   if(!idea) return;
   const bias=(idea.bias||'NEUTRAL').toUpperCase();
-  const color=bias==='LONG'?'var(--green)':bias==='SHORT'?'var(--red)':'var(--gold)';
+  const isLong = bias==='LONG'||bias==='BUY';
+  const isShort = bias==='SHORT'||bias==='SELL';
+  const color = isLong?'var(--green)':isShort?'var(--red)':'var(--gold)';
   const isMKO = idea.source==='MKO';
   const img=document.getElementById('modal-img');
   img.style.display=idea.image_url?'block':'none';
@@ -707,7 +709,7 @@ async function openModal(idea){
     const scoreColor = score>=8?'var(--green)':score>=6?'var(--gold)':'var(--red)';
     const _ttI = (k, f) => (typeof window.t === 'function') ? window.t(k) : f;
     const convictionLabel = score>=8?_ttI('label_strong_conviction','STRONG CONVICTION'):score>=6?_ttI('label_high_probability','HIGH PROBABILITY'):_ttI('label_moderate','MODERATE');
-    const signalLine = `${emoji} XENOS MKO · ${idea.ticker} · ${bias==='LONG'?'▲ LONG':'▼ SHORT'}`;
+    const signalLine = `${emoji} XENOS MKO · ${idea.ticker} · ${isLong?'▲ LONG':'▼ SHORT'}`;
 
     const msHtml = (ms.trend||ms.momentum||ms.volatility||ms.sentiment)
       ? `<div style="margin-top:12px;"><div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--gold);margin-bottom:6px;"><span data-i18n="label_market_state">MARKET STATE</span></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 16px;font-size:11px;">${ms.trend?`<div><span style="color:var(--muted);font-family:var(--mono);font-size:9px;"><span data-i18n="label_trend">Trend</span> </span><span style="color:var(--ink)">${ms.trend}</span></div>`:''} ${ms.momentum?`<div><span style="color:var(--muted);font-family:var(--mono);font-size:9px;"><span data-i18n="label_momentum">Momentum</span> </span><span style="color:var(--ink)">${ms.momentum}</span></div>`:''} ${ms.volatility?`<div><span style="color:var(--muted);font-family:var(--mono);font-size:9px;"><span data-i18n="label_volatility">Volatility</span> </span><span style="color:var(--ink)">${ms.volatility}</span></div>`:''} ${ms.sentiment?`<div><span style="color:var(--muted);font-family:var(--mono);font-size:9px;"><span data-i18n="label_sentiment">Sentiment</span> </span><span style="color:var(--ink)">${ms.sentiment}</span></div>`:''}</div></div>`
