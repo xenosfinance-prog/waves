@@ -274,7 +274,6 @@ body{background:var(--bg4);color:var(--ink);font-family:var(--mono);min-height:1
         <div class="modal-meta-item"><span class="meta-label"><span data-i18n="th_price">Price</span></span><span class="meta-val" id="modal-price"></span></div>
         <div class="modal-meta-item"><span class="meta-label"><span data-i18n="label_confidence">Confidence</span></span><span class="meta-val" id="modal-conf"></span></div>
       </div>
-      <div id="modal-contract-note" style="display:none;font-size:10.5px;color:var(--muted);line-height:1.5;margin:-4px 0 10px;"></div>
       <div class="modal-analysis" id="modal-analysis"></div>
       <div class="modal-levels">
         <div class="modal-level-card"><span class="meta-label"><span data-i18n="th_target">Target</span></span><span id="modal-target" style="color:var(--green);font-size:13px;font-weight:500;display:block;margin-top:2px"></span></div>
@@ -483,32 +482,6 @@ function fmtPrice(v,ticker){
   if(v>10)     return v.toFixed(2);
   return v.toFixed(4);
 }
-// Tickers where price can meaningfully diverge from a specific tradable
-// contract/instrument (futures roll, CFD vs spot, contract month, etc.)
-const CONTRACT_NOTE_TICKERS = ['OIL','NGAS','USOIL','UKOIL','WTI','BRENT'];
-function contractNote(ticker){
-  const t=(ticker||'').toUpperCase();
-  if(CONTRACT_NOTE_TICKERS.includes(t)){
-    return 'Reference price — may differ from your broker\'s specific futures contract/expiry or CFD quote.';
-  }
-  return '';
-}
-const EW_SERVER_URL = 'https://waves-production-ddbf.up.railway.app';
-async function checkLiveDivergence(ticker, noteEl, baseNote){
-  const t=(ticker||'').toUpperCase();
-  if(!CONTRACT_NOTE_TICKERS.includes(t)) return;
-  try{
-    const res = await fetch(EW_SERVER_URL + '/price-check?ticker=' + encodeURIComponent(t) + '&threshold=0.02');
-    if(!res.ok) return;
-    const data = await res.json();
-    const r = (data.results || [])[0];
-    if(r && r.flagged){
-      noteEl.textContent = `⚠ Live price ($${r.live_price}) differs ${r.divergence_pct}% from the price shown ($${r.idea_price}) — possible contract roll or stale data. ${baseNote||''}`;
-      noteEl.style.color = 'var(--red)';
-      noteEl.style.display = 'block';
-    }
-  } catch(e) { /* silent — non-critical enhancement */ }
-}
 function fmtRR(idea){
   const p=idea.price||0, t=idea.target||0, inv=idea.invalidation||0;
   if(!p||!t||!inv) return '—';
@@ -694,12 +667,6 @@ async function openModal(idea){
   document.getElementById('modal-inv').textContent=fmtPrice(idea.invalidation,idea.ticker);
   document.getElementById('modal-rr').textContent=fmtRR(idea);
   document.getElementById('modal-date').textContent=fmtDate(idea.timestamp);
-
-  const noteEl = document.getElementById('modal-contract-note');
-  const note = contractNote(idea.ticker);
-  if(note){ noteEl.textContent='⚠ '+note; noteEl.style.display='block'; }
-  else { noteEl.style.display='none'; }
-  checkLiveDivergence(idea.ticker, noteEl, note);
 
   const analysisEl = document.getElementById('modal-analysis');
   if(isMKO){
