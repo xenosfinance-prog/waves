@@ -990,6 +990,42 @@ setInterval(() => {
 // ── ETF ENGINE ────────────────────────────────────────────────
 const ETF_WORKER = 'https://xenos-ai-proxy.xenosfinance.workers.dev';
 
+// Same premium/admin check as dashboard.html — kept in sync intentionally.
+(function() {
+  const params = new URLSearchParams(window.location.search);
+  const urlCode = params.get('admin') || params.get('code');
+  if (urlCode) {
+    localStorage.setItem('xenos_premium_code', urlCode);
+    window.history.replaceState({}, '', window.location.pathname);
+  }
+})();
+function isPremium() {
+  const codes = ['XENOS-PREMIUM-2026','XF-PRO-001','XF-PRO-002','XF-PRO-003'];
+  const adminCodes = ['RMG@Manu78','RMG@manu78'];
+  const stored = localStorage.getItem('xenos_premium_code') || '';
+  return codes.includes(stored.toUpperCase()) || adminCodes.includes(stored);
+}
+function unlockXFResearch(ticker) {
+  const codes = ['XENOS-PREMIUM-2026','XF-PRO-001','XF-PRO-002','XF-PRO-003'];
+  const adminCodes = ['RMG@Manu78','RMG@manu78'];
+  const input = document.getElementById('xfr-unlock-input-' + ticker);
+  const val = (input?.value || '').trim();
+  const valUpper = val.toUpperCase();
+  if (codes.includes(valUpper) || adminCodes.includes(val)) {
+    localStorage.setItem('xenos_premium_code', adminCodes.includes(val) ? val : valUpper);
+    const container = document.getElementById('xfr-content-' + ticker);
+    if (container) {
+      const btn = container.querySelector('.xfr-generate-btn');
+      if (btn) btn.style.display = '';
+      const lock = document.getElementById('xfr-lock-' + ticker);
+      if (lock) lock.remove();
+    }
+  } else {
+    const err = document.getElementById('xfr-unlock-err-' + ticker);
+    if (err) err.style.display = 'block';
+  }
+}
+
 function etfTab(name, btn) {
   document.querySelectorAll('.etf-tab').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.etf-section').forEach(s => s.classList.remove('active'));
@@ -1185,9 +1221,18 @@ function showETFInfo(ticker, switchToSearch) {
       <span class="xfr-badge">PROPRIETARY ANALYSIS</span>
     </div>
     <div id="xfr-content-${e.ticker}" class="xfr-body">
-      <button class="xfr-generate-btn" onclick="generateXFResearch('${e.ticker}','${e.name}','${e.type}','${e.aum}','${e.ter}','${e.bench}','${e.tags.join(',')}')">
+      <button class="xfr-generate-btn" style="${isPremium() ? '' : 'display:none;'}" onclick="generateXFResearch('${e.ticker}','${e.name}','${e.type}','${e.aum}','${e.ter}','${e.bench}','${e.tags.join(',')}')">
         ◈ Generate XenosFinance Analysis
       </button>
+      ${isPremium() ? '' : `
+      <div id="xfr-lock-${e.ticker}" style="font-family:var(--mono);font-size:9px;letter-spacing:1px;text-align:center;padding:16px 8px;color:var(--muted);">
+        🔒 Premium / Admin feature — enter your access code to unlock
+        <div style="display:flex;gap:6px;justify-content:center;margin-top:10px;">
+          <input id="xfr-unlock-input-${e.ticker}" type="text" placeholder="ACCESS CODE" style="background:var(--bg2,#0d1420);border:1px solid var(--border,#2a3548);color:#fff;font-family:var(--mono);font-size:9px;letter-spacing:1px;padding:6px 8px;width:140px;">
+          <button onclick="unlockXFResearch('${e.ticker}')" style="font-family:var(--mono);font-size:9px;letter-spacing:1px;padding:6px 12px;background:#3b82f6;color:#fff;border:none;cursor:pointer;">UNLOCK</button>
+        </div>
+        <div id="xfr-unlock-err-${e.ticker}" style="display:none;color:var(--red2,#ef4444);margin-top:6px;">Invalid code</div>
+      </div>`}
     </div>
     </div></div>`;
 }
@@ -1205,6 +1250,7 @@ document.addEventListener('keydown', function(e) {
 
 // ── XenosFinance Research™ AI Engine ─────────────────────────────
 async function generateXFResearch(ticker, name, type, aum, ter, bench, tagsStr) {
+  if (!isPremium()) return; // defensive check — button is hidden for non-premium, but don't trust the DOM alone
   const container = document.getElementById('xfr-content-' + ticker);
   if (!container) return;
 
@@ -1250,7 +1296,7 @@ Return this exact JSON structure:
 }`;
 
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+    const res = await fetch(ETF_WORKER, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
