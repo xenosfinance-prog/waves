@@ -256,7 +256,7 @@ body{background:var(--bg);color:var(--ink);font-family:var(--mono);min-height:10
       "name": "What is the difference between CFD and Options signals?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "CFD signals provide directional trades with entry, stop loss and take profit levels for continuous price speculation. Options signals provide CALL or PUT recommendations with specific expiry timeframes (5 minutes to 1 day) suited for binary options trading."
+        "text": "CFD signals provide directional trades with entry, stop loss and take profit levels for continuous price speculation. Options signals provide Buy Call or Buy Put recommendations with real expiry tenors (1 week to 3 months) for standard directional options positioning."
       }
     },
     {
@@ -542,6 +542,52 @@ function fmtPrice(v, pair) {
   if (pair.includes('BTC') || pair.includes('ETH') || n > 1000) return n.toFixed(0);
   if (n > 10) return n.toFixed(2);
   return n.toFixed(4);
+}
+
+// ── VANILLA OPTIONS PRICER (Black-Scholes) ──────────────────────
+// Gives indicative strike + premium so directional signals look like
+// real hedging-style options (as used on futures), not just a bare
+// direction call. "Indicative" because implied volatility isn't a live
+// feed here — it's a reasonable per-asset-class estimate, clearly
+// labeled as such wherever it's shown.
+function _bsNormCDF(x) {
+  // Abramowitz-Stegun approximation of the standard normal CDF
+  const b1=0.319381530,b2=-0.356563782,b3=1.781477937,b4=-1.821255978,b5=1.330274429;
+  const p=0.2316419, c=0.39894228;
+  if (x >= 0) {
+    const t = 1 / (1 + p * x);
+    return 1 - c * Math.exp(-x*x/2) * t * (t*(t*(t*(t*b5+b4)+b3)+b2)+b1);
+  } else {
+    const t = 1 / (1 - p * x);
+    return c * Math.exp(-x*x/2) * t * (t*(t*(t*(t*b5+b4)+b3)+b2)+b1);
+  }
+}
+const _IV_BY_ASSET = { crypto: 0.55, energy: 0.35, metal: 0.18, index: 0.16, forex: 0.085 }; // annualized, rough class-level estimate
+const _EXPIRY_TO_YEARS = {
+  '1 Week': 7/365, '2 Weeks': 14/365, '1 Month': 30/365,
+  '2 Months': 60/365, '3 Months': 90/365
+};
+const _RISK_FREE_RATE = 0.045; // approx short-term rate
+
+function computeIndicativeOption(spot, isCall, expiryTenor, assetClass) {
+  if (!spot || !expiryTenor || !_EXPIRY_TO_YEARS[expiryTenor]) return null;
+  const T = _EXPIRY_TO_YEARS[expiryTenor];
+  const sigma = _IV_BY_ASSET[assetClass] || _IV_BY_ASSET.forex;
+  const r = _RISK_FREE_RATE;
+  // Slightly OTM in the trade direction — standard practical choice for
+  // directional/hedging plays: cheaper premium, still meaningful delta.
+  const otmPct = (assetClass === 'crypto' || assetClass === 'energy') ? 0.05 : 0.015;
+  const strike = isCall ? spot * (1 + otmPct) : spot * (1 - otmPct);
+
+  const d1 = (Math.log(spot / strike) + (r + sigma * sigma / 2) * T) / (sigma * Math.sqrt(T));
+  const d2 = d1 - sigma * Math.sqrt(T);
+  let premium;
+  if (isCall) {
+    premium = spot * _bsNormCDF(d1) - strike * Math.exp(-r * T) * _bsNormCDF(d2);
+  } else {
+    premium = strike * Math.exp(-r * T) * _bsNormCDF(-d2) - spot * _bsNormCDF(-d1);
+  }
+  return { strike, premium: Math.max(premium, 0), impliedVol: sigma };
 }
 
 function fmtDate(iso) {
@@ -847,6 +893,30 @@ function toggleCFDDetail(i) {
 }
 
 // ── RENDER OPTIONS ────────────────────────────────────────────
+const _CRYPTO_TICKERS = ['BTC','ETH','XRP','SOL','DOGE','LTC','BNB','ADA','AVAX','LINK','MATIC','DOT','ATOM','UNI','XLM','TRX','ETC','NEAR','ZEC'];
+const _ENERGY_TICKERS = ['OIL','NGAS','WTI','BRENT'];
+const _METAL_TICKERS  = ['GOLD','SILVER','XAU','XAG','COPPER'];
+const _INDEX_TICKERS  = ['US500','US30','NASDAQ','NAS100','DJI','SPX','DAX','GER40','FTSE','UK100','NIKKEI','JPN225','HK50','AUS200'];
+function _isCryptoPair(pair) {
+  return _CRYPTO_TICKERS.some(t => (pair||'').toUpperCase().includes(t));
+}
+function _resolveAssetClass(pair) {
+  const p = (pair||'').toUpperCase();
+  if (_CRYPTO_TICKERS.some(t => p.includes(t))) return 'crypto';
+  if (_ENERGY_TICKERS.some(t => p.includes(t))) return 'energy';
+  if (_METAL_TICKERS.some(t => p.includes(t))) return 'metal';
+  if (_INDEX_TICKERS.some(t => p.includes(t))) return 'index';
+  return 'forex';
+}
+// Legacy signals_options entries only ever stored the ANALYSIS timeframe
+// (D1/H4/H1/M15), never a real option expiry — map it to a sensible
+// options tenor so every card (past and future) gets a usable strike +
+// premium instead of showing the raw chart timeframe as if it were one.
+const _TF_TO_EXPIRY = { 'D1':'1 Month', 'H4':'2 Weeks', 'H1':'1 Week', 'M15':'1 Week', 'M30':'1 Week' };
+function _resolveExpiryTenor(sig) {
+  if (sig.expiry && _EXPIRY_TO_YEARS[sig.expiry]) return sig.expiry; // already a real tenor (new-format signals)
+  return _TF_TO_EXPIRY[sig.timeframe] || '1 Week';
+}
 function renderOptions() {
   const container = document.getElementById('options-list');
   if (!filtered.length) {
@@ -858,15 +928,22 @@ function renderOptions() {
     const confW   = Math.round((sig.confidence||0) / 100 * 50);
     const openPx  = sig.entry != null ? fmtPrice(sig.entry, sig.pair) : '—';
     const closePx = sig.close_price != null ? fmtPrice(sig.close_price, sig.pair) : '—';
-    const expiry  = sig.expiry || sig.timeframe || '—';
+    const expiryTenor = _resolveExpiryTenor(sig);
+    const expiry  = expiryTenor;
     let analysis = sig.analysis || sig.pattern_desc || sig.ew_context || '';
     const outcome  = sig.outcome || 'open';
+
+    const assetClass = _resolveAssetClass(sig.pair);
+    const opt = sig.entry != null ? computeIndicativeOption(sig.entry, isCall, expiryTenor, assetClass) : null;
+    const strikeStr  = opt ? fmtPrice(opt.strike, sig.pair) : '—';
+    const premiumStr = opt ? fmtPrice(opt.premium, sig.pair) : '—';
+    const ivStr = opt ? (opt.impliedVol * 100).toFixed(0) + '%' : '—';
 
     return `
     <div class="opt-card ${isCall?'call':'put'}" onclick="toggleOptDetail(${i})" data-pair="${sig.pair||''}" data-tf="${sig.expiry||sig.timeframe||''}">
       <div class="opt-card-row">
         <div class="oc-pair">${sig.pair||'—'}</div>
-        <div class="oc-action ${isCall?'CALL':'PUT'}">${isCall?'CALL':'PUT'}</div>
+        <div class="oc-action ${isCall?'CALL':'PUT'}">${isCall?'BUY CALL':'BUY PUT'}</div>
         <div class="oc-entry">${openPx}</div>
         <div style="font-family:var(--mono);font-size:11px;color:var(--green)">${closePx}</div>
         <div style="font-family:var(--mono);font-size:11px;color:var(--yellow)">⏱ ${expiry}</div>
@@ -875,11 +952,16 @@ function renderOptions() {
       <div class="opt-detail" id="opt-detail-${i}">
         <div class="detail-levels" style="margin-bottom:14px;">
           <div class="level-pill"><div class="level-pill-label"><span data-i18n="th_asset">Asset</span></div><div class="level-pill-val" style="color:var(--ink)">${sig.pair||'—'}</div></div>
-          <div class="level-pill"><div class="level-pill-label"><span data-i18n="th_action">Action</span></div><div class="level-pill-val ${isCall?'tp':'sl'}">${isCall?'CALL — ' + (typeof window.t === 'function' ? window.t('label_buy') : 'Buy'):'PUT — ' + (typeof window.t === 'function' ? window.t('label_sell') : 'Sell')}</div></div>
+          <div class="level-pill"><div class="level-pill-label"><span data-i18n="th_action">Action</span></div><div class="level-pill-val ${isCall?'tp':'sl'}">${isCall?'Buy Call':'Buy Put'}</div></div>
           <div class="level-pill"><div class="level-pill-label"><span data-i18n="th_open_price">Open Price</span></div><div class="level-pill-val entry">${openPx}</div></div>
           <div class="level-pill"><div class="level-pill-label"><span data-i18n="th_close_target">Close Target</span></div><div class="level-pill-val tp">${closePx}</div></div>
           <div class="level-pill"><div class="level-pill-label"><span data-i18n="th_expiry">Expiry</span></div><div class="level-pill-val" style="color:var(--yellow)">${expiry}</div></div>
           <div class="level-pill"><div class="level-pill-label"><span data-i18n="label_confidence">Confidence</span></div><div class="level-pill-val">${sig.confidence||'—'}%</div></div>
+          <div class="level-pill"><div class="level-pill-label">Strike</div><div class="level-pill-val" style="color:var(--ink)">${strikeStr}</div></div>
+          <div class="level-pill"><div class="level-pill-label">Premium (indic.)</div><div class="level-pill-val" style="color:var(--gold,#d4af37)">${premiumStr}</div></div>
+        </div>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:0.5px;margin:-8px 0 12px;">
+          Strike ${(assetClass==='crypto'||assetClass==='energy')?'5%':'1.5%'} OTM · Premium estimated via Black-Scholes (IV ≈ ${ivStr}, indicative — not a live quote)
         </div>
         <div id="tv-opt-${i}" style="margin:0 0 12px;background:var(--bg2);border:1px solid var(--border);"></div>
         ${analysis ? `<div class="detail-block" style="margin-bottom:12px;"><div class="detail-block-label"><span data-i18n="th_analysis">Analysis</span></div><div class="detail-block-text">${analysis}</div></div>` : ''}
@@ -1627,7 +1709,7 @@ async function sendToTelegram(event, i, type) {
     let text = '';
     if (type === 'options') {
       const isCall = ['CALL','BUY'].includes((sig.action||sig.direction||'').toUpperCase());
-      const action = isCall ? '🟢 CALL' : '🔴 PUT';
+      const action = isCall ? '🟢 BUY CALL' : '🔴 BUY PUT';
       const expiry  = sig.expiry || sig.timeframe || '—';
       const entry   = sig.entry != null ? fmtPrice(sig.entry, sig.pair) : '—';
       const close   = sig.close_price != null ? fmtPrice(sig.close_price, sig.pair) : '—';
@@ -1767,31 +1849,31 @@ async function runAIInterpreter() {
     const d1sc = score(r.sig1d);
     const regime = Math.abs(d1sc) >= 2 ? 'TRENDING' : Math.abs(avgScore) < 0.3 ? 'RANGING' : 'TRANSITION';
 
-    // Optimal expiry — available strikes: 15m, 30m, 1hr, 2hr, 4hr, Daily, Weekly
+    // Optimal expiry — real options-style tenors: 1 Week, 2 Weeks, 1 Month, 2 Months, 3 Months
     let expiry = 'AVOID';
     if (aligned >= 4 && conflicted === 0) {
       if (regime === 'TRENDING' && Math.abs(d1sc) >= 2) {
-        expiry = tab === 'crypto' ? '2hr' : '4hr';
+        expiry = tab === 'crypto' ? '1 Month' : '2 Months';
       } else if (regime === 'TRENDING') {
-        expiry = tab === 'crypto' ? '1hr' : '2hr';
+        expiry = tab === 'crypto' ? '2 Weeks' : '1 Month';
       } else {
-        expiry = tab === 'crypto' ? '30m' : '1hr';
+        expiry = tab === 'crypto' ? '1 Week' : '2 Weeks';
       }
     } else if (aligned >= 3 && conflicted <= 1) {
       if (regime === 'TRENDING' && Math.abs(d1sc) >= 2) {
-        expiry = tab === 'crypto' ? '1hr' : '2hr';
+        expiry = tab === 'crypto' ? '2 Weeks' : '1 Month';
       } else if (regime === 'TRENDING') {
-        expiry = tab === 'crypto' ? '30m' : '1hr';
+        expiry = tab === 'crypto' ? '1 Week' : '2 Weeks';
       } else {
-        expiry = '30m';
+        expiry = '1 Week';
       }
     } else if (aligned >= 3 && conflicted === 0 && regime === 'RANGING') {
-      expiry = '15m';
+      expiry = '1 Week';
     } else if (aligned === 2 && conflicted === 0 && regime === 'TRENDING') {
-      expiry = '15m';
+      expiry = '1 Week';
     }
     if (aligned === 5 && Math.abs(d1sc) >= 2 && conflicted === 0) {
-      expiry = tab === 'crypto' ? '4hr' : 'Daily';
+      expiry = tab === 'crypto' ? '2 Months' : '3 Months';
     }
 
     // Confidence score out of 100
@@ -1801,18 +1883,28 @@ async function runAIInterpreter() {
       (conflicted === 0 ? 20 : conflicted === 1 ? 10 : 0)
     ));
 
+    // Indicative strike/premium for both directions — the AI picks the
+    // matching one once it decides Call vs Put from confluence.
+    const assetClass = tab === 'crypto' ? 'crypto' : 'forex';
+    const callOpt = r.price ? computeIndicativeOption(r.price, true, expiry, assetClass) : null;
+    const putOpt  = r.price ? computeIndicativeOption(r.price, false, expiry, assetClass) : null;
+    const optLine = (callOpt && putOpt)
+      ? `  Indicative pricing @ ${expiry}: CALL strike ${fmtPrice(callOpt.strike, r.pair.s)} / premium ${fmtPrice(callOpt.premium, r.pair.s)} | PUT strike ${fmtPrice(putOpt.strike, r.pair.s)} / premium ${fmtPrice(putOpt.premium, r.pair.s)}`
+      : '';
+
     return [
       `${r.pair.s} | Price: ${priceStr}`,
       `  HTF Bias (4H+1D): ${htfBias} | Market Regime: ${regime}`,
       `  5M: ${label(r.sig5m)} | 15M: ${label(r.sig15m)} | 1H: ${label(r.sig1h)} | 4H: ${label(r.sig4h)} | 1D: ${label(r.sig1d)}`,
       `  TF Alignment: ${aligned}/5 agree | Conflicts: ${conflicted} | Weighted Score: ${avgScore.toFixed(2)}`,
       `  Suggested Expiry: ${expiry} | Signal Confidence: ${confidence}%`,
-    ].join('\n');
+      optLine,
+    ].filter(Boolean).join('\n');
   }).join('\n\n');
 
   const prompt = `You are a senior options trading analyst at XenosFinance with 15+ years of experience in Forex and Crypto derivatives.
 
-TASK: Analyze the following multi-timeframe signal data and provide professional binary options guidance. The signals are computed from RSI, MACD, EMA-20/50 with weighted confluence scoring (1D×4, 4H×3, 1H×2, 15M×1, 5M×1). The HTF Bias (4H+1D) is the PRIMARY directional filter — never go against it unless all 5 TFs disagree with it.
+TASK: Analyze the following multi-timeframe signal data and provide professional directional options guidance (standard Call/Put options with real expiries — NOT binary options). The signals are computed from RSI, MACD, EMA-20/50 with weighted confluence scoring (1D×4, 4H×3, 1H×2, 15M×1, 5M×1). The HTF Bias (4H+1D) is the PRIMARY directional filter — never go against it unless all 5 TFs disagree with it.
 
 MARKET: ${tab === 'forex' ? 'Forex Major Pairs' : 'Crypto Pairs'}
 SESSION: ${new Date().toUTCString()}
@@ -1823,21 +1915,23 @@ ${signalSummary}
 
 ANALYSIS RULES:
 1. HTF FIRST: Only trade when HTF Bias aligns with short-TF momentum. If HTF=MIXED → AVOID unless 4+ TFs agree.
-2. REGIME FILTER: In RANGING markets, prefer mean-reversion setups (shorter expiry, lower confidence). In TRENDING markets, ride momentum (longer expiry, higher confidence).
-3. CONFLUENCE THRESHOLD: Recommend CALL/PUT only when Alignment ≥ 3/5 AND Weighted Score |x| > 0.4. Otherwise → AVOID.
-4. CONFLICT PENALTY: If Conflicts ≥ 2, reduce confidence by 20% and shorten expiry or AVOID.
-5. EXPIRY LOGIC: Use ONLY these exact expiry values: 15m, 30m, 1hr, 2hr, 4hr, Daily, Weekly. Use the pre-calculated Suggested Expiry as your base, but adjust: trending + strong 1D → longer; ranging + conflicts → shorter or AVOID. Weekly is only for exceptional full-alignment trending setups.
-6. CRYPTO ADJUSTMENT: Crypto is 2–3× more volatile than Forex — reduce expiry by one step for crypto pairs vs equivalent Forex setup (e.g. if Forex → 2hr, Crypto → 1hr).
+2. REGIME FILTER: In RANGING markets, prefer mean-reversion setups (shorter-dated expiry, lower confidence). In TRENDING markets, ride momentum (longer-dated expiry, higher confidence).
+3. CONFLUENCE THRESHOLD: Recommend Buy Call / Buy Put only when Alignment ≥ 3/5 AND Weighted Score |x| > 0.4. Otherwise → AVOID.
+4. CONFLICT PENALTY: If Conflicts ≥ 2, reduce confidence by 20% and shorten the expiry tenor or AVOID.
+5. EXPIRY LOGIC: Use ONLY these exact expiry values: 1 Week, 2 Weeks, 1 Month, 2 Months, 3 Months. Use the pre-calculated Suggested Expiry as your base, but adjust: trending + strong 1D → longer-dated; ranging + conflicts → shorter-dated or AVOID. 3 Months is only for exceptional full-alignment trending setups.
+6. CRYPTO ADJUSTMENT: Crypto is 2–3× more volatile than Forex — use a shorter-dated tenor for crypto pairs vs the equivalent Forex setup (e.g. if Forex → 1 Month, Crypto → 2 Weeks).
+7. STRIKE & PREMIUM: Each pair's data includes pre-calculated CALL and PUT strike/premium (Black-Scholes, indicative — not live quotes). Report only the one matching your Call/Put recommendation, exactly as given. Never calculate or invent your own strike/premium numbers.
 
 FOR EACH PAIR provide:
-**[PAIR]** → [CALL / PUT / AVOID]
-Expiry: [time] | Confidence: [%] | Regime: [TRENDING/RANGING/TRANSITION]
+**[PAIR]** → [Buy Call / Buy Put / AVOID]
+Expiry: [tenor] | Confidence: [%] | Regime: [TRENDING/RANGING/TRANSITION]
+Strike: [use the CALL strike from the data if recommending Buy Call, or the PUT strike if recommending Buy Put — never invent your own number] | Premium (indic.): [same rule — use the matching pre-calculated premium]
 HTF Bias: [BULLISH/BEARISH/MIXED] | Alignment: [X/5]
 Rationale: [2-3 sentences — mention which TFs drive the call, whether HTF confirms, and any key risk]
 
 After all pairs, add:
 **── MARKET OVERVIEW ──**
-[3 sentences on overall ${tab} sentiment, dominant regime, and whether it's a high or low-probability session for binary options]
+[3 sentences on overall ${tab} sentiment, dominant regime, and whether it's a high or low-probability window for directional options positioning]
 
 **── RISK WARNINGS ──**
 [2 sentences on current risks: ranging market trap, news risk, thin liquidity, etc.]
@@ -1885,8 +1979,8 @@ Always end with: ⚠ Educational purposes only — not financial advice. XenosFi
 
     const html = text
       .replace(/\*\*(.+?)\*\*/g, '<span style="color:var(--ink);font-weight:700;">$1</span>')
-      .replace(/\bCALL\b/g, '<span style="color:var(--green2);font-weight:700;">CALL</span>')
-      .replace(/\bPUT\b/g, '<span style="color:var(--red2);font-weight:700;">PUT</span>')
+      .replace(/\bCall\b/gi, m => `<span style="color:var(--green2);font-weight:700;">${m}</span>`)
+      .replace(/\bPut\b/gi, m => `<span style="color:var(--red2);font-weight:700;">${m}</span>`)
       .replace(/\bAVOID\b/g, '<span style="color:#f59e0b;font-weight:700;"><span data-i18n="label_avoid">AVOID</span></span>')
       .replace(/\bTRENDING\b/g, '<span style="color:var(--green2);"><span data-i18n="label_trending">TRENDING</span></span>')
       .replace(/\bRANGING\b/g, '<span style="color:#f59e0b;"><span data-i18n="label_ranging">RANGING</span></span>')
