@@ -1922,14 +1922,17 @@ ANALYSIS RULES:
 6. CRYPTO ADJUSTMENT: Crypto is 2–3× more volatile than Forex — use a shorter-dated tenor for crypto pairs vs the equivalent Forex setup (e.g. if Forex → 1 Month, Crypto → 2 Weeks).
 7. STRIKE & PREMIUM: Each pair's data includes pre-calculated CALL and PUT strike/premium (Black-Scholes, indicative — not live quotes). Report only the one matching your Call/Put recommendation, exactly as given. Never calculate or invent your own strike/premium numbers.
 
-FOR EACH PAIR provide:
-**[PAIR]** → [Buy Call / Buy Put / AVOID]
+FOR EACH PAIR provide a full entry ONLY when your call is Buy Call or Buy Put. If a pair does not meet the confluence threshold (would be AVOID), DO NOT write a full entry for it — do not spend words explaining why it's skipped. Instead, list all AVOID pairs together in one compact line at the end (just the pair names, no rationale) so no output is wasted on non-actionable setups.
+
+**[PAIR]** → [Buy Call / Buy Put]
 Expiry: [tenor] | Confidence: [%] | Regime: [TRENDING/RANGING/TRANSITION]
 Strike: [use the CALL strike from the data if recommending Buy Call, or the PUT strike if recommending Buy Put — never invent your own number] | Premium (indic.): [same rule — use the matching pre-calculated premium]
 HTF Bias: [BULLISH/BEARISH/MIXED] | Alignment: [X/5]
 Rationale: [2-3 sentences — mention which TFs drive the call, whether HTF confirms, and any key risk]
 
-After all pairs, add:
+After all actionable pairs, add:
+**Skipped (AVOID):** [comma-separated list of pair names that didn't qualify — no explanation per pair]
+
 **── MARKET OVERVIEW ──**
 [3 sentences on overall ${tab} sentiment, dominant regime, and whether it's a high or low-probability window for directional options positioning]
 
