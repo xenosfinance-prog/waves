@@ -2,7 +2,7 @@
 
 // Prevent flash immediately
 var _xfLang = localStorage.getItem('xenos_lang') || 'en';
-if (!['en','it','ru','pl','es'].includes(_xfLang)) _xfLang = 'en';
+if (!['en','it','ru'].includes(_xfLang)) _xfLang = 'en';
 if (_xfLang !== 'en') {
   document.write('<style id="xf-foil">[data-i18n]{visibility:hidden!important}</style>');
 }
@@ -11,8 +11,6 @@ var XF_LANGS = {
   en: { flag: '🇬🇧', label: 'EN' },
   it: { flag: '🇮🇹', label: 'IT' },
   ru: { flag: '🇷🇺', label: 'RU' },
-  pl: { flag: '🇵🇱', label: 'PL' },
-  es: { flag: '🇪🇸', label: 'ES' },
 };
 
 function xenosApplyLang(lang) {
