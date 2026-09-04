@@ -1196,7 +1196,35 @@ async function fetchLiveCalendar(weekStr) {
     }
   } catch(e) { console.warn('ForexFactory calendar:', e.message); rapidapiErr = 'network:' + e.message; }
 
-  return { finnhubOk, rapidapiOk, finnhubErr, rapidapiErr };
+  // 3. RapidAPI economic calendar (real API, not a scraper) — used as a
+  // resilient third source since investing.com/forexfactory are both
+  // unofficial endpoints that can silently break (as happened Sep 2026).
+  // Requires RAPIDAPI_KEY to be set in the Worker's environment variables.
+  let rapidCalOk = false, rapidCalErr = null;
+  try {
+    const rc = await fetch(WORKER_URL, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ type:'rapidapi_calendar' }),
+      signal:(()=>{const c=new AbortController();setTimeout(()=>c.abort(),8000);return c.signal;})()
+    });
+    if (rc.ok) {
+      const dc = await rc.json();
+      const evsc = dc.events || [];
+      if (dc.error) { console.warn('RapidAPI calendar error:', dc.error); rapidCalErr = 'api:' + dc.error; }
+      if (evsc.length > 0) {
+        rapidCalOk = true;
+        patchActuals(evsc, 'event', 'time', 'actual');
+        addNewEvents(evsc, {name:'event',date:'time',time:'time',impact:'impact',country:'country',forecast:'estimate',prev:'prev',actual:'actual'});
+      } else if (!rapidCalErr) {
+        rapidCalErr = 'empty-response';
+      }
+    } else {
+      console.warn('RapidAPI calendar HTTP', rc.status);
+      rapidCalErr = 'http:' + rc.status;
+    }
+  } catch(e) { console.warn('RapidAPI calendar:', e.message); rapidCalErr = 'network:' + e.message; }
+
+  return { finnhubOk, rapidapiOk, finnhubErr, rapidapiErr, rapidCalOk, rapidCalErr };
 }
 
 function getLiveActual(ev) {
@@ -1291,11 +1319,11 @@ async function refreshActuals(_isRetry) {
   // has no static fallback data for the current week, so surface this clearly instead
   // of silently showing an empty table. Auto-retry once after 6s before alarming the user.
   const thisWeekResult = results[0] || {};
-  const bothFailed = !thisWeekResult.finnhubOk && !thisWeekResult.rapidapiOk;
+  const allFailed = !thisWeekResult.finnhubOk && !thisWeekResult.rapidapiOk && !thisWeekResult.rapidCalOk;
   const warning = document.getElementById('live-fetch-warning');
-  if (bothFailed) {
+  if (allFailed) {
     console.warn('Calendar live fetch failed for current week:', {
-      investing: thisWeekResult.finnhubErr, forexfactory: thisWeekResult.rapidapiErr
+      investing: thisWeekResult.finnhubErr, forexfactory: thisWeekResult.rapidapiErr, rapidapi_calendar: thisWeekResult.rapidCalErr
     });
     if (!_isRetry) {
       setTimeout(() => refreshActuals(true), 6000);
