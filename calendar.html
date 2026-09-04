@@ -1043,19 +1043,24 @@ async function fetchLiveCalendar(weekStr) {
     weekDays.push(dateKey(d));
   }
 
-  function evKey(date, name) {
-    return date + '|' + String(name).toLowerCase().replace(/\s+/g,' ').trim().slice(0,40);
+  function evKey(date, name, country) {
+    const c = country ? String(country).toUpperCase() : '';
+    return date + '|' + c + '|' + String(name).toLowerCase().replace(/\s+/g,' ').trim().slice(0,40);
   }
 
-  // Fuzzy fallback: same date + >50% word overlap (handles provider naming
-  // differences like "EIA Petroleum Status Report" vs "EIA Crude Oil Inventories")
-  function findMatchingEvent(dateRaw, name) {
-    let existing = EVENTS.find(e => evKey(e.date, e.name) === evKey(dateRaw, name));
+  // Fuzzy fallback: same date + same country + >50% word overlap (handles provider naming
+  // differences like "EIA Petroleum Status Report" vs "EIA Crude Oil Inventories").
+  // Country match is required so that same-worded releases from different countries
+  // (e.g. US "Non-Farm Employment Change" vs Canada "Employment Change") are never
+  // treated as duplicates of each other.
+  function findMatchingEvent(dateRaw, name, country) {
+    let existing = EVENTS.find(e => evKey(e.date, e.name, e.country) === evKey(dateRaw, name, country));
     if (existing) return existing;
     const nameWords = name.toLowerCase().split(/\s+/).filter(w => w.length > 3);
     if (!nameWords.length) return null;
     return EVENTS.find(e => {
       if (e.date !== dateRaw) return false;
+      if (country && e.country && String(e.country).toUpperCase() !== String(country).toUpperCase()) return false;
       const eWords = e.name.toLowerCase().split(/\s+/).filter(w => w.length > 3);
       if (!eWords.length) return false;
       const matches = nameWords.filter(w => eWords.some(ew => ew.includes(w) || w.includes(ew)));
@@ -1070,9 +1075,10 @@ async function fetchLiveCalendar(weekStr) {
       if (!actual || actual === '—') return;
       const dateRaw = String(ev[dateField] || ev.date || ev.time || '').slice(0,10);
       const name = String(ev[nameField] || ev.event || ev.name || '').trim();
+      const country = String(ev.country || ev.currency || '').trim();
       if (!dateRaw || !name) return;
       // Find matching static event and patch actual
-      const existing = findMatchingEvent(dateRaw, name);
+      const existing = findMatchingEvent(dateRaw, name, country);
       // Only patch if not manually saved by admin
       const manualKey = 'xf_actual_' + dateRaw + '_' + String(name).slice(0,20).replace(/\s/g,'_');
       const hasManual = localStorage.getItem(manualKey);
@@ -1082,9 +1088,9 @@ async function fetchLiveCalendar(weekStr) {
 
   // Also add truly new live events not in static list
   function addNewEvents(events, cfg) {
-    const existingKeys = new Set(EVENTS.map(e => evKey(e.date, e.name)));
-    // Also build a fuzzy set: first 20 chars of name + date
-    const existingFuzzy = new Set(EVENTS.map(e => e.date + '|' + e.name.toLowerCase().slice(0,20)));
+    const existingKeys = new Set(EVENTS.map(e => evKey(e.date, e.name, e.country)));
+    // Also build a fuzzy set: first 20 chars of name + date + country
+    const existingFuzzy = new Set(EVENTS.map(e => e.date + '|' + String(e.country||'').toUpperCase() + '|' + e.name.toLowerCase().slice(0,20)));
     const COUNTRY_FLAG = {USD:'🇺🇸',EUR:'🇪🇺',GBP:'🇬🇧',JPY:'🇯🇵',CAD:'🇨🇦',AUD:'🇦🇺',CHF:'🇨🇭',CNY:'🇨🇳',NZD:'🇳🇿',SEK:'🇸🇪',NOK:'🇳🇴',MXN:'🇲🇽',BRL:'🇧🇷',ZAR:'🇿🇦',KRW:'🇰🇷',SGD:'🇸🇬',HKD:'🇭🇰',INR:'🇮🇳',OTHER:'🌐'};
     const mapImpact = r => { const s=String(r||'').toLowerCase(); return ['high','3','red'].includes(s)?'high':['medium','med','2','orange'].includes(s)?'med':'low'; };
     const mapCountry = r => { const s=String(r||'').toUpperCase(); return ({USD:'USD',US:'USD',EUR:'EUR',EU:'EUR',GBP:'GBP',GB:'GBP',UK:'GBP',JPY:'JPY',JP:'JPY',CAD:'CAD',CA:'CAD',AUD:'AUD',AU:'AUD',CHF:'CHF',CH:'CHF',CNY:'CNY',CN:'CNY',NZD:'NZD',NZ:'NZD',SEK:'SEK',NOK:'NOK',MXN:'MXN',BRL:'BRL',ZAR:'ZAR',KRW:'KRW',SGD:'SGD',HKD:'HKD',INR:'INR'})[s]||(s.length>=2&&s.length<=4?s:'OTHER'); };
@@ -1099,15 +1105,21 @@ async function fetchLiveCalendar(weekStr) {
       if (!dateRaw.match(/^\d{4}-\d{2}-\d{2}/)) return;
       const date = dateRaw.slice(0,10);
       if (!weekDays.includes(date)) return;
-      const key = evKey(date, name);
+      const country = mapCountry(ev[cfg.country]||ev.country||ev.currency||'');
+      const key = evKey(date, name, country);
       if (existingKeys.has(key)) return;
-      // Fuzzy check: skip if same date and name starts the same (catches "EIA Crude Oil Inventories" vs "EIA Crude Oil Inventory")
-      const fuzzyKey = date + '|' + name.toLowerCase().slice(0,20);
+      // Fuzzy check: skip if same date, same country, and name starts the same
+      // (catches "EIA Crude Oil Inventories" vs "EIA Crude Oil Inventory")
+      const fuzzyKey = date + '|' + country + '|' + name.toLowerCase().slice(0,20);
       if (existingFuzzy.has(fuzzyKey)) return;
-      // Word overlap check: if >50% of words match an existing event on same date, skip
+      // Word overlap check: if >50% of words match an existing event on the same
+      // date AND same country, skip. Country is required here so that same-worded
+      // releases from different countries (US NFP vs Canada Employment Change)
+      // never get skipped as duplicates of each other.
       const nameWords = name.toLowerCase().split(/\s+/).filter(w=>w.length>3);
       const isDupe = EVENTS.some(e => {
         if (e.date !== date) return false;
+        if (String(e.country||'').toUpperCase() !== country) return false;
         const eWords = e.name.toLowerCase().split(/\s+/).filter(w=>w.length>3);
         if (!eWords.length || !nameWords.length) return false;
         const matches = nameWords.filter(w => eWords.some(ew => ew.includes(w)||w.includes(ew)));
@@ -1116,7 +1128,6 @@ async function fetchLiveCalendar(weekStr) {
       if (isDupe) return;
       existingKeys.add(key);
       existingFuzzy.add(fuzzyKey);
-      const country = mapCountry(ev[cfg.country]||ev.country||ev.currency||'');
       const impact  = mapImpact(ev[cfg.impact]||ev.impact||ev.importance||'');
       const timeRaw = String(ev[cfg.time]||ev.time||'');
       const time    = timeRaw.length>=16 ? timeRaw.slice(11,16) : timeRaw.slice(0,5);
