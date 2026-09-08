@@ -28,6 +28,7 @@ SYMBOL_MAP = {
     "usd/chf":"USDCHF=X","usdchf":"USDCHF=X",
     "aud/usd":"AUDUSD=X","audusd":"AUDUSD=X",
     "usd/cad":"USDCAD=X","usdcad":"USDCAD=X",
+    "nzd/usd":"NZDUSD=X","nzdusd":"NZDUSD=X",
     "gbp/jpy":"GBPJPY=X","gbpjpy":"GBPJPY=X",
     "eur/jpy":"EURJPY=X","eurjpy":"EURJPY=X",
     "gold xau/usd":"GC=F","gold":"GC=F","xauusd":"GC=F",
