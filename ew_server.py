@@ -691,6 +691,12 @@ def ew_chart():
         body    = request.get_json(force=True) or {}
         sym_raw = body.get("symbol","eur/usd").lower().strip()
         tf_raw  = body.get("tf","D1 (Daily)")
+        # Set by automated callers (e.g. the trading bot's polling loop)
+        # that only need wave_num/key_levels/confidence and never read
+        # analysis_text — skips the Claude narrative call entirely to
+        # avoid paying for text nobody reads. Human/website calls simply
+        # omit this flag and get the narrative as before.
+        skip_narrative = bool(body.get("skip_narrative", False))
 
         yf_sym = SYMBOL_MAP.get(sym_raw)
         if not yf_sym:
@@ -759,10 +765,13 @@ def ew_chart():
 
         logger.info(f"Wave {wave_num} | Primary {p_prob}% | Alt {alt_prob}%")
 
-        logger.info("Generating narrative...")
-        narrative = generate_narrative(sym_name, tf_raw, live, dp, wave_num,
-                                       wave_desc, scenario_text, p_prob,
-                                       alt_desc, alt_prob, ind, mtf, key_levels)
+        if skip_narrative:
+            narrative = None
+        else:
+            logger.info("Generating narrative...")
+            narrative = generate_narrative(sym_name, tf_raw, live, dp, wave_num,
+                                           wave_desc, scenario_text, p_prob,
+                                           alt_desc, alt_prob, ind, mtf, key_levels)
 
         # Build wave_points for sketch
         wave_points = {}
