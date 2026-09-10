@@ -982,14 +982,22 @@ function buildPrompt(lang, market, tech, tone, length, topic, pasteText, asset) 
   var assetLine = (asset && asset.trim()) ? '\n\nFocus esclusivo su: ' + asset.trim() + '. L\'intero articolo deve ruotare attorno a questo specifico asset o report.' : '';
 
   var contentInstr;
+  var groundingInstr = '';
   if (pasteText && pasteText.trim().length > 20) {
     contentInstr = '\n\nHai ricevuto il seguente testo grezzo dall\'autore — riscrivilo e strutturalo professionalmente mantenendo TUTTI i dati e le idee originali senza aggiungere informazioni non presenti, rispettando lo stile XenosFinance' + (asset && asset.trim() ? ' e mantenendo il focus su ' + asset.trim() : '') + ':\n\n"""\n' + pasteText.trim() + '\n"""';
   } else {
     var topicLine = topic ? 'Argomento specifico: "' + topic + '"' : (asset && asset.trim() ? 'Scrivi un\'analisi completa su ' + asset.trim() : 'Scegli un argomento attuale su ' + marketDesc[market]);
     contentInstr = '\n\n' + topicLine + '.';
+    // No real market data is supplied in this branch (no pasted source
+    // text) — only a topic label. Without this, the model tends to
+    // invent specific-sounding numbers (prices, volumes, order-flow
+    // delta/imbalance, statistics) to sound authoritative, which are
+    // fabricated, not real analysis. Published to subscribers as
+    // professional analysis, this must stay honest about what it is.
+    groundingInstr = '\n\nREGOLA DI ONESTÀ DEI DATI: non ti è stato fornito nessun dato di mercato reale e aggiornato (prezzi, volumi, livelli, statistiche, delta di order flow) — solo un argomento. NON inventare numeri specifici, prezzi, percentuali, livelli tecnici o statistiche presentandoli come dati attuali: darebbero l\'impressione di un\'analisi live che non è. Scrivi invece in modo concettuale/didattico — spiega framework, logica, cosa guardare e perché — restando generico dove servirebbe un dato reale che non hai. Se il tipo di analisi richiesto (es. Order Flow, Volume Profile) richiede intrinsecamente dati che non possiedi, dillo implicitamente restando sul piano teorico/metodologico invece di simularli.';
   }
 
-  return baseInstr + assetLine + contentInstr + '\n\nRispondi SOLO con JSON valido, senza markdown, senza testo fuori dal JSON.\n\n{"title":"titolo","readTime":"X min lettura","intro":"paragrafo intro","sections":[{"heading":"Sezione 1","content":"testo 1"},{"heading":"Sezione 2","content":"testo 2"},{"heading":"Sezione 3","content":"testo 3"}],"quote":"citazione o statistica","conclusion":"conclusione con outlook","excerpt":"riassunto 15-20 parole"}';
+  return baseInstr + assetLine + contentInstr + groundingInstr + '\n\nRispondi SOLO con JSON valido, senza markdown, senza testo fuori dal JSON.\n\n{"title":"titolo","readTime":"X min lettura","intro":"paragrafo intro","sections":[{"heading":"Sezione 1","content":"testo 1"},{"heading":"Sezione 2","content":"testo 2"},{"heading":"Sezione 3","content":"testo 3"}],"quote":"citazione o statistica","conclusion":"conclusione con outlook","excerpt":"riassunto 15-20 parole"}';
 }
 
 // ── GENERA ──
