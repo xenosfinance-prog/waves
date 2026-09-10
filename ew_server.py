@@ -936,6 +936,161 @@ def price_check():
         logger.error(f"price_check error: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
+# ─────────────────────────────────────────────────────────
+# ICHIMOKU KINKO HYO (9/26/52) — fully deterministic, no LLM
+# anywhere in this path. Real OHLC only, same data pipeline as
+# the EW engine (fetch_candles/SYMBOL_MAP/TF_CONFIG).
+# ─────────────────────────────────────────────────────────
+def compute_ichimoku_signal(df):
+    """
+    Requires >= 80 bars of history (52 + 26 lookback needed for a valid
+    Senkou Span B projection). Returns None if there isn't enough data
+    or the cloud can't be computed yet (leading NaNs from the rolling
+    windows) — never guesses past what's actually calculable.
+    """
+    if len(df) < 80:
+        return None
+
+    high, low, close = df["High"], df["Low"], df["Close"]
+
+    tenkan = (high.rolling(9).max() + low.rolling(9).min()) / 2
+    kijun  = (high.rolling(26).max() + low.rolling(26).min()) / 2
+    senkou_a_raw = (tenkan + kijun) / 2
+    senkou_b_raw = (high.rolling(52).max() + low.rolling(52).min()) / 2
+
+    # The cloud edge that applies to the CURRENT bar is the one that was
+    # projected 26 bars ago — shift(26) pulls that historical projection
+    # forward to line up with "now".
+    senkou_a_now = senkou_a_raw.shift(26).iloc[-1]
+    senkou_b_now = senkou_b_raw.shift(26).iloc[-1]
+    tenkan_now   = tenkan.iloc[-1]
+    kijun_now    = kijun.iloc[-1]
+    tenkan_prev  = tenkan.iloc[-2]
+    kijun_prev   = kijun.iloc[-2]
+    price_now    = float(close.iloc[-1])
+
+    if any(pd.isna(v) for v in (senkou_a_now, senkou_b_now, kijun_now, tenkan_prev, kijun_prev)):
+        return None
+
+    cloud_top    = float(max(senkou_a_now, senkou_b_now))
+    cloud_bottom = float(min(senkou_a_now, senkou_b_now))
+    cloud_bullish = senkou_a_now > senkou_b_now
+
+    if price_now > cloud_top:
+        price_regime = "above_cloud"
+    elif price_now < cloud_bottom:
+        price_regime = "below_cloud"
+    else:
+        price_regime = "inside_cloud"
+
+    tk_cross = None
+    if tenkan_prev <= kijun_prev and tenkan_now > kijun_now:
+        tk_cross = "bullish"
+    elif tenkan_prev >= kijun_prev and tenkan_now < kijun_now:
+        tk_cross = "bearish"
+
+    # Chikou span: current close vs price action 26 bars back — clear
+    # of that price action (not tangled in it) confirms trend strength.
+    chikou_clear_bull = chikou_clear_bear = False
+    if len(close) > 26:
+        price_26_back = float(close.iloc[-27])
+        chikou_clear_bull = price_now > price_26_back
+        chikou_clear_bear = price_now < price_26_back
+
+    # Classic Ichimoku "multiple conditions" discipline — same spirit as
+    # the EW engine's hard Fibonacci filters: require independent
+    # confirmations to line up, don't fire on a single crossed line.
+    bull_score = sum([
+        price_regime == "above_cloud",
+        tenkan_now > kijun_now,
+        cloud_bullish,
+        chikou_clear_bull,
+    ])
+    bear_score = sum([
+        price_regime == "below_cloud",
+        tenkan_now < kijun_now,
+        not cloud_bullish,
+        chikou_clear_bear,
+    ])
+
+    ACTIONABLE_MIN_SCORE = 4  # all four conditions must agree
+    direction = None
+    if bull_score >= ACTIONABLE_MIN_SCORE and tk_cross != "bearish":
+        direction = "UP"
+    elif bear_score >= ACTIONABLE_MIN_SCORE and tk_cross != "bullish":
+        direction = "DOWN"
+
+    dp = 2 if price_now > 10 else 5
+    key_levels = None
+    if direction == "UP":
+        stop = float(kijun_now)
+        risk = price_now - stop
+        if risk > 0:
+            key_levels = {"stop_loss": round(stop, dp),
+                          "tp1": round(price_now + risk*2, dp),
+                          "tp2": round(price_now + risk*3, dp)}
+        else:
+            direction = None
+    elif direction == "DOWN":
+        stop = float(kijun_now)
+        risk = stop - price_now
+        if risk > 0:
+            key_levels = {"stop_loss": round(stop, dp),
+                          "tp1": round(price_now - risk*2, dp),
+                          "tp2": round(price_now - risk*3, dp)}
+        else:
+            direction = None
+
+    return {
+        "direction": direction,
+        "price_regime": price_regime,
+        "tk_cross": tk_cross,
+        "cloud_bullish": bool(cloud_bullish),
+        "bull_score": bull_score,
+        "bear_score": bear_score,
+        "tenkan": round(float(tenkan_now), dp),
+        "kijun": round(float(kijun_now), dp),
+        "cloud_top": round(cloud_top, dp),
+        "cloud_bottom": round(cloud_bottom, dp),
+        "price": round(price_now, dp),
+        "key_levels": key_levels,
+    }
+
+@app.route("/ichimoku-chart", methods=["POST","OPTIONS"])
+def ichimoku_chart():
+    if request.method == "OPTIONS":
+        return Response(status=200)
+    try:
+        body    = request.get_json(force=True) or {}
+        sym_raw = body.get("symbol","eur/usd").lower().strip()
+        tf_raw  = body.get("tf","H1 (1-Hour)")
+
+        yf_sym = SYMBOL_MAP.get(sym_raw)
+        if not yf_sym:
+            for k,v in SYMBOL_MAP.items():
+                if k in sym_raw or sym_raw in k:
+                    yf_sym = v; break
+        if not yf_sym:
+            return jsonify({"error":f"Unknown symbol: {sym_raw}"}), 400
+
+        cfg = TF_CONFIG.get(tf_raw, ("1h","30d",90,1.2,"1d","90d"))
+        iv, pd_, n, _mult, _piv, _ppd = cfg
+        is_h4 = (tf_raw == "H4 (4-Hour)")
+
+        logger.info(f"[ichimoku] Fetching {yf_sym} {iv} {pd_}")
+        df = fetch_candles(yf_sym, iv, pd_, max(n, 90), is_h4)
+
+        result = compute_ichimoku_signal(df)
+        if result is None:
+            return jsonify({"error":"Insufficient history for Ichimoku cloud (need 80+ bars)."}), 400
+
+        logger.info(f"[ichimoku] {sym_raw.upper()} {tf_raw}: direction={result['direction']} "
+                    f"bull={result['bull_score']} bear={result['bear_score']}")
+        return jsonify({"symbol": sym_raw.upper(), "tf": tf_raw, **result})
+    except Exception as e:
+        logger.error(f"ichimoku_chart error: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
 if __name__ == "__main__":
     port = int(os.getenv("PORT", os.getenv("EW_PORT",5001)))
     logger.info(f"EW Server v3 on port {port}")
