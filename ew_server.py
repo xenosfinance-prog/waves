@@ -462,6 +462,16 @@ def analyze_structure(pivots, live_price):
     total   = p_score + a_score
     p_pct   = min(80, round(p_score/total*85))
     a_pct   = max(15, 100-p_pct-5)
+    # 'primary' above is chosen by structural completeness (wave_count>=4
+    # can win even with a lower raw score than the alternate) — so the
+    # raw-score-derived percentages can come out with primary < alt,
+    # contradicting the primary/alt labels themselves (e.g. "Primary 43%
+    # vs Alt 52%"). Primary/alt are presentation roles: whichever the
+    # engine designates as primary must never display a lower confidence
+    # than the one it's being compared against. Magnitudes are preserved,
+    # only the primary/alt assignment of which number goes where is fixed.
+    if p_pct < a_pct:
+        p_pct, a_pct = a_pct, p_pct
 
     return (
         {"type":"impulse" if use_impulse else "abc", "data":primary, "prob":p_pct},
@@ -644,7 +654,24 @@ RSI: {ind['rsi']} | MACD hist: {ind['macd_hist']} | EMA trend: {ind['ema_trend']
 MTF: {mtf}
 Type: {scenario_type}
 
-Write 3 sentences: (1) wave position + structure, (2) primary vs alternate probabilities with prices, (3) what to watch + invalidation."""
+STRICT GROUNDING RULES — this is published to subscribers as technical
+analysis, not speculative fiction. Every number and claim must trace back
+to the data above:
+- Use ONLY the price levels given above (Invalidation, Target, Live).
+  Do not invent, round to, or state any other specific price level
+  (support, resistance, "cluster", or otherwise) that isn't one of
+  these exact numbers.
+- The ONLY invalidation condition to mention is the "Invalidation" level
+  given above, in the direction implied by Wave/scenario_text. Do not
+  describe a second, different invalidation threshold, and do not
+  describe what wave count would follow if it's hit unless that
+  alternate wave is literally the one named in "Primary vs Alt" above.
+- Do not introduce an alternate wave count, scenario, or reclassification
+  that isn't the one named in "Primary vs Alt" above.
+- This is technical analysis only — do not attribute the move to news,
+  fundamentals, or geopolitical drivers not present in the data above.
+
+Write 3 sentences: (1) wave position + structure, (2) primary vs alternate probabilities with prices, (3) what to watch + invalidation, using only the levels given."""
 
     msg = client.messages.create(
         model="claude-haiku-4-5-20251001",
