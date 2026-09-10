@@ -1000,18 +1000,23 @@ def compute_ichimoku_signal(df):
     # Classic Ichimoku "multiple conditions" discipline — same spirit as
     # the EW engine's hard Fibonacci filters: require independent
     # confirmations to line up, don't fire on a single crossed line.
-    bull_score = sum([
+    # int(...) here — sum() of numpy bool_ comparisons (tenkan_now >
+    # kijun_now etc.) returns numpy.int64, not a plain Python int, which
+    # Flask's JSON encoder can't serialize. Same reason "price"/"tenkan"/
+    # etc. below go through float()/round() rather than being returned
+    # as raw pandas/numpy scalars.
+    bull_score = int(sum([
         price_regime == "above_cloud",
         tenkan_now > kijun_now,
         cloud_bullish,
         chikou_clear_bull,
-    ])
-    bear_score = sum([
+    ]))
+    bear_score = int(sum([
         price_regime == "below_cloud",
         tenkan_now < kijun_now,
         not cloud_bullish,
         chikou_clear_bear,
-    ])
+    ]))
 
     ACTIONABLE_MIN_SCORE = 4  # all four conditions must agree
     direction = None
