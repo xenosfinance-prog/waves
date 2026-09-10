@@ -64,17 +64,34 @@ TF_CONFIG = {
 # DATA
 # ─────────────────────────────────────────────────────────
 def fetch_candles(yf_sym, interval, period, n, is_h4=False):
-    df = yf.download(yf_sym, interval=interval, period=period,
-                     progress=False, auto_adjust=True)
-    if df.empty:
-        raise ValueError(f"No data for {yf_sym}")
-    if isinstance(df.columns, pd.MultiIndex):
-        df.columns = df.columns.get_level_values(0)
-    df = df.dropna()
-    if is_h4:
-        df = df.resample("4h").agg({"Open":"first","High":"max",
-                                     "Low":"min","Close":"last","Volume":"sum"}).dropna()
-    return df.tail(n)
+    # Retry with backoff: on Railway, the first yfinance call after a cold
+    # container start frequently fails with a curl timeout (Yahoo's
+    # session/cookie handshake not warmed up yet) or a spurious "possibly
+    # delisted" empty response. Both are transient — a retry a couple
+    # seconds later normally succeeds. Without this, a container restart
+    # (crash, redeploy, hobby-plan sleep/wake) turns into a full poll
+    # cycle of 500s for whichever symbol happens to be fetched first.
+    import time
+    last_err = None
+    for attempt in range(3):
+        try:
+            df = yf.download(yf_sym, interval=interval, period=period,
+                             progress=False, auto_adjust=True)
+            if df.empty:
+                raise ValueError(f"No data for {yf_sym}")
+            if isinstance(df.columns, pd.MultiIndex):
+                df.columns = df.columns.get_level_values(0)
+            df = df.dropna()
+            if is_h4:
+                df = df.resample("4h").agg({"Open":"first","High":"max",
+                                             "Low":"min","Close":"last","Volume":"sum"}).dropna()
+            return df.tail(n)
+        except Exception as e:
+            last_err = e
+            if attempt < 2:
+                logger.warning(f"fetch_candles retry {attempt+1}/3 for {yf_sym}: {e}")
+                time.sleep(2 * (attempt + 1))
+    raise ValueError(f"No data for {yf_sym} after 3 attempts: {last_err}")
 
 # ─────────────────────────────────────────────────────────
 # INDICATORS
