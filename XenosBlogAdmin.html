@@ -554,6 +554,61 @@ var XF=(function(){
 
 </section>
 
+<!-- PASTE & PUBLISH — nessuna AI, pubblica il testo esattamente come incollato -->
+<section class="section-wrap" id="pastePublishSection">
+  <div class="section-header">
+    <span class="section-title">// Incolla &amp; Pubblica</span>
+    <div class="section-line"></div>
+    <span class="section-title">NO AI</span>
+  </div>
+  <div style="padding:0 5vw 16px;font-size:12px;color:var(--dim);line-height:1.6;">
+    Incolla qui una notizia che hai già scritto tu. Viene pubblicata così com'è — nessuna AI la legge, la riscrive o la riformatta. Vengono mantenuti a capo e spaziatura del testo incollato.
+  </div>
+  <div class="manual-grid" style="padding:0 5vw;">
+    <div class="manual-field full">
+      <label class="manual-label">Titolo *</label>
+      <input class="manual-input" id="paste-title" type="text" placeholder="Titolo della notizia">
+    </div>
+    <div class="manual-field">
+      <label class="manual-label">Categoria / Label</label>
+      <input class="manual-input" id="paste-category" type="text" value="News" placeholder="es. FX Markets, Commodities...">
+    </div>
+    <div class="manual-field">
+      <label class="manual-label">Mercato</label>
+      <select class="manual-select" id="paste-market">
+        <option value="macro">Macro</option>
+        <option value="forex">Forex</option>
+        <option value="commodities">Commodities</option>
+        <option value="equity">Equity</option>
+        <option value="crypto">Crypto</option>
+        <option value="geopolitics">Geopolitica</option>
+      </select>
+    </div>
+    <div class="manual-field">
+      <label class="manual-label">Lingua</label>
+      <select class="manual-select" id="paste-lang">
+        <option value="it">🇮🇹 Italiano</option>
+        <option value="en">🇬🇧 English</option>
+        <option value="ru">🇷🇺 Русский</option>
+      </select>
+    </div>
+    <div class="manual-field">
+      <label class="manual-label">Tempo di lettura</label>
+      <input class="manual-input" id="paste-readtime" type="text" value="3 min read" placeholder="es. 3 min read">
+    </div>
+    <div class="manual-field full">
+      <label class="manual-label">Testo della notizia * — incollalo esattamente come l'hai scritto</label>
+      <textarea class="manual-textarea" id="paste-body" rows="16" style="white-space:pre-wrap;font-family:'PT Serif',Georgia,serif;line-height:1.75;" placeholder="Incolla qui il testo completo della notizia..."></textarea>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;padding:14px 5vw 26px;">
+    <button class="btn-manual-publish" id="pastePublishBtn" onclick="publishPasteArticle()">
+      <span id="pastePubIcon">✦</span> Pubblica così com'è
+    </button>
+    <span class="manual-status" id="pasteStatus" style="margin-left:14px;"></span>
+  </div>
+</section>
+
 <div class="article-display" id="articleDisplay">
   <div class="article-cat" id="artCategory"></div>
   <h1 class="article-title" id="artTitle"></h1>
@@ -1530,6 +1585,79 @@ async function publishManualArticle() {
         status.style.color = '#22c55e';
       }
     }, 2000);
+  } catch(e) {
+    status.textContent = '✗ Errore: ' + e.message;
+    status.style.color = '#ef4444';
+  }
+
+  btn.disabled = false;
+  icon.textContent = '✦';
+}
+
+// ── INCOLLA & PUBBLICA (nessuna AI) ─────────────────────────────────────────
+// Il testo incollato NON viene toccato: nessuna riscrittura, nessun riassunto,
+// nessuna chiamata al Worker/AI. Viene solo messo in sicurezza per l'HTML
+// (escape di < > &) e gli a-capo vengono preservati con <br>, così ciò che
+// leggi nel box è esattamente ciò che verrà pubblicato.
+function pasteEscapeHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+async function publishPasteArticle() {
+  var title    = (document.getElementById('paste-title')    || {}).value || '';
+  var category = (document.getElementById('paste-category') || {}).value || '';
+  var market   = (document.getElementById('paste-market')   || {}).value || 'macro';
+  var lang     = (document.getElementById('paste-lang')     || {}).value || 'it';
+  var readTime = (document.getElementById('paste-readtime') || {}).value || '3 min read';
+  var body     = (document.getElementById('paste-body')     || {}).value || '';
+  var status   = document.getElementById('pasteStatus');
+  var btn      = document.getElementById('pastePublishBtn');
+  var icon     = document.getElementById('pastePubIcon');
+
+  if (!title.trim()) { status.textContent = '⚠ Titolo obbligatorio.'; status.style.color = '#ef4444'; return; }
+  if (!body)          { status.textContent = '⚠ Incolla il testo della notizia.'; status.style.color = '#ef4444'; return; }
+
+  btn.disabled = true;
+  icon.innerHTML = '<div class="spinner-gold"></div>';
+  status.textContent = 'Pubblicazione in corso...';
+  status.style.color = 'var(--gold)';
+
+  // Testo pubblicato esattamente come incollato (solo escape HTML di sicurezza + a-capo preservati)
+  var safeBody = pasteEscapeHtml(body).replace(/\n/g, '<br>');
+
+  currentArticle = {
+    title:         title.trim(),
+    categoryLabel: category.trim() || 'News',
+    market:        market,
+    lang:          lang,
+    readTime:      readTime,
+    intro:         safeBody,
+    sections:      [],
+    quote:         '',
+    conclusion:    '',
+    excerpt:       body.trim().substring(0,120),
+    tech:          [],
+    bullets:       [],
+    keyLevels:     [],
+    source:        'paste-manual',
+    generatedAt:   new Date().toISOString(),
+  };
+
+  try {
+    await publishToBlog();
+    var pubStatusText = (document.getElementById('publishStatus') || {}).textContent || '';
+    if (pubStatusText.indexOf('✓') > -1) {
+      status.textContent = '✓ Pubblicato!';
+      status.style.color = '#22c55e';
+      document.getElementById('paste-title').value = '';
+      document.getElementById('paste-body').value = '';
+    } else {
+      status.textContent = pubStatusText || '✗ Errore durante la pubblicazione.';
+      status.style.color = '#ef4444';
+    }
   } catch(e) {
     status.textContent = '✗ Errore: ' + e.message;
     status.style.color = '#ef4444';
