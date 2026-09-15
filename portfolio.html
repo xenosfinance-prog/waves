@@ -1138,6 +1138,22 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Start live prices
   fetchLivePrices();
   priceTimer = setInterval(fetchLivePrices, PRICE_INTERVAL);
+
+  // FIX 2026-09: trades were only ever loaded once, on page load —
+  // the automated bot writes new opens/closes to the same GitHub file
+  // continuously (portfolio_sync.py), but nothing here ever re-fetched
+  // it, so a trade the bot placed 5 minutes ago never appeared until
+  // you manually hit refresh. Re-pulling trades.json periodically
+  // (same cache-busting loadTrades() used on first load, so this
+  // always gets the current file, not a stale browser-cached copy)
+  // and re-rendering closes that gap without needing a manual reload.
+  const TRADES_REFRESH_INTERVAL = 60000; // 60s — frequent enough to feel live, not so frequent it hammers GitHub's raw CDN
+  setInterval(async () => {
+    const fresh = await loadTrades();
+    trades = fresh;
+    nextId = trades.length ? Math.max(...trades.map(t => parseInt(t.id)||0)) + 1 : 1;
+    render();
+  }, TRADES_REFRESH_INTERVAL);
 });
 </script>
 </body>
