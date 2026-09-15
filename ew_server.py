@@ -582,13 +582,29 @@ def get_wave_position(primary, live_price, dp, atr):
             w4e = W4["price"] if W4 else live
             w5eq  = w4e + w1s     if bull else w4e - w1s
             w5ext = w4e + w1s*1.618 if bull else w4e - w1s*1.618
+            # FIX 2026-09: real, computed post-completion corrective
+            # targets — previously this scenario gave the AI narrative
+            # no correction-target numbers at all, and it was caught
+            # fabricating a plausible-sounding "0.382-0.500 retracement"
+            # band around the invalidation price (W4) that didn't match
+            # any real calculation. This projects the standard 38.2%/
+            # 50% guideline retracement of the FULL W0-to-W5(equality)
+            # move, using the real W0 pivot, so the narrative always has
+            # an actual number to cite instead of guessing one.
+            full_size = abs(w5eq - W0["price"])
+            corr_382 = w5eq - full_size*0.382 if bull else w5eq + full_size*0.382
+            corr_500 = w5eq - full_size*0.500 if bull else w5eq + full_size*0.500
             desc = "Wave ⑤ — Terminal Impulse"
             scenario = (f"Terminal wave. W5 equality target: {w5eq:.{dec}f} (=W1). "
                        f"Extension target: {w5ext:.{dec}f} (161.8% W1). "
-                       f"Watch for RSI divergence as exhaustion signal. ABC correction follows.")
+                       f"Watch for RSI divergence as exhaustion signal. "
+                       f"If W5 completes near {w5eq:.{dec}f}, a corrective pullback "
+                       f"projects to {corr_382:.{dec}f} (38.2%) to {corr_500:.{dec}f} (50.0%) "
+                       f"of the full W0\u2192W5 move.")
             return wn, desc, scenario, {
                 "entry":round(live,dec),"stop_loss":round(w4e,dec),
-                "tp1":round(w5eq,dec),"tp2":round(w5ext,dec)
+                "tp1":round(w5eq,dec),"tp2":round(w5ext,dec),
+                "corrective_382":round(corr_382,dec),"corrective_500":round(corr_500,dec)
             }
 
     elif t == "abc":
@@ -643,6 +659,20 @@ def generate_narrative(symbol, tf, live, dp, wave_num, wave_desc, scenario_text,
     kl = key_levels
     scenario_type = "SCENARIO ONLY — no trade setup" if wave_num not in ["5"] else "SIGNAL WAVE"
 
+    # FIX 2026-09: for a Wave 5 scenario, the only computed corrective-
+    # target numbers this engine has are corrective_382/corrective_500
+    # (see the wn=="5" branch in get_wave_position). Passed explicitly
+    # so the model has a real number to cite for "what happens after
+    # Wave 5 completes" instead of inventing a Fibonacci percentage —
+    # which is exactly what it was caught doing before this fix.
+    corrective_line = ""
+    if kl.get("corrective_382") is not None and kl.get("corrective_500") is not None:
+        corrective_line = (
+            f"Post-completion corrective target (38.2%-50% retracement of the "
+            f"full W0\u2192W5 move, ALREADY CALCULATED, use these exact numbers): "
+            f"{kl['corrective_382']}\u2013{kl['corrective_500']}\n"
+        )
+
     prompt = f"""Elliott Wave analysis. 3 sentences max, 80 words total. Plain text, no headers.
 
 {symbol} | {tf} | Live: {live:.{dp}f}
@@ -650,17 +680,27 @@ Wave: {wave_num} | {wave_desc}
 {scenario_text}
 Primary ({primary_prob}%) vs Alt ({alt_prob}%): {alt_desc or 'insufficient data'}
 Invalidation: {kl.get('stop_loss','—')} | Target: {kl.get('tp1','—')}–{kl.get('tp2','—')}
-RSI: {ind['rsi']} | MACD hist: {ind['macd_hist']} | EMA trend: {ind['ema_trend']}
+{corrective_line}RSI: {ind['rsi']} | MACD hist: {ind['macd_hist']} | EMA trend: {ind['ema_trend']}
 MTF: {mtf}
 Type: {scenario_type}
 
 STRICT GROUNDING RULES — this is published to subscribers as technical
 analysis, not speculative fiction. Every number and claim must trace back
 to the data above:
-- Use ONLY the price levels given above (Invalidation, Target, Live).
-  Do not invent, round to, or state any other specific price level
-  (support, resistance, "cluster", or otherwise) that isn't one of
-  these exact numbers.
+- Use ONLY the price levels given above (Invalidation, Target, Live, and
+  the post-completion corrective target if given). Do not invent, round
+  to, or state any other specific price level (support, resistance,
+  "cluster", or otherwise) that isn't one of these exact numbers.
+- Do NOT state, imply, or reference ANY Fibonacci retracement or
+  extension PERCENTAGE (e.g. "38.2%", "0.382", "50%", "61.8%", "the
+  0.382-0.500 zone") anywhere in the text unless that exact percentage
+  is one of the ones explicitly labeled above (the corrective target
+  line, when present, already states its own percentages — use THOSE
+  exact figures verbatim, do not restate them differently or attach
+  them to a different price).
+- If no post-completion corrective target line is given above, do not
+  discuss what a future corrective wave will target at all — describe
+  only the current wave and its own invalidation/target levels.
 - The ONLY invalidation condition to mention is the "Invalidation" level
   given above, in the direction implied by Wave/scenario_text. Do not
   describe a second, different invalidation threshold, and do not
