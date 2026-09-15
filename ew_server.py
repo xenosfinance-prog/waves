@@ -555,9 +555,16 @@ def get_wave_position(primary, live_price, dp, atr):
             t262 = W2["price"] + w1s*2.618 if bull else W2["price"] - w1s*2.618
             scenario = (f"Strongest wave. RULE II: W3 never shortest. "
                        f"Target: {t618:.{dec}f} (161.8%) / {t262:.{dec}f} (261.8%). "
-                       f"Invalidation: W1 end ({W1['price']:.{dec}f}).")
+                       f"Invalidation: W2 end ({W2['price']:.{dec}f}).")
+            # FIX 2026-09 (re-applied — was missing from the live file):
+            # stop_loss was W1["price"] — too loose. The real EW
+            # invalidation for "we are in Wave 3" is that price must
+            # not retrace back past the START of Wave 3 (the W2 pivot),
+            # not W1's. Tightening this to the correct level also
+            # naturally increases position size for the same dollar
+            # risk cap, as a side effect of the correctness fix.
             return wn, desc, scenario, {
-                "entry":round(live,dec),"stop_loss":round(W1["price"],dec),
+                "entry":round(live,dec),"stop_loss":round(W2["price"],dec),
                 "tp1":round(t618,dec),"tp2":round(t262,dec)
             }
 
