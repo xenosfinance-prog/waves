@@ -332,7 +332,7 @@ textarea{resize:vertical;min-height:70px;}
   <div class="acc-bar">
     <div class="acc-item">
       <div class="acc-label">Capital</div>
-      <div class="acc-value" id="acc-capital">$30,000</div>
+      <div class="acc-value" id="acc-capital">$10,000</div>
       <div class="acc-sub">Starting balance</div>
     </div>
     <div class="acc-item">
@@ -649,6 +649,12 @@ function renderAccSummary(open, closed) {
     const el = document.getElementById(id);
     if (el) { el.textContent = val; if (cls) el.className = 'acc-value ' + cls; }
   };
+
+  // Was hardcoded "$30,000" directly in the HTML and never touched
+  // by JS at all — changing the CAPITAL constant above did nothing
+  // to this box until now. Setting it here means CAPITAL is the only
+  // place that ever needs editing again.
+  set('acc-capital', '$' + CAPITAL.toLocaleString('en-US'));
 
   set('acc-equity', '$' + equity.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}),
       equity >= CAPITAL ? 'green' : 'red');
