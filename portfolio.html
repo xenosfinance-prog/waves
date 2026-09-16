@@ -444,6 +444,7 @@ textarea{resize:vertical;min-height:70px;}
         <tbody id="closedBody"></tbody>
       </table>
     </div>
+    <div id="closedPagination" style="display:flex; align-items:center; justify-content:center; gap:12px; padding:14px 0; font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--muted);"></div>
   </div>
 
 </div><!-- end page-wrap -->
@@ -483,6 +484,12 @@ let nextId  = 1;
 let catFilter = 'All';
 let openSort  = { field:'open', dir:-1 };
 let closedSort= { field:'close', dir:-1 };
+
+// FIX 2026-09-16: Trade History had no pagination — every closed
+// trade rendered in one long, ever-growing table. CLOSED_PAGE_SIZE
+// caps each page; closedPage tracks which page is showing.
+const CLOSED_PAGE_SIZE = 15;
+let closedPage = 1;
 let editId    = null;
 let closeId   = null;
 let priceTimer= null;
@@ -795,6 +802,8 @@ function renderClosedTable(rows) {
   const tbody = document.getElementById('closedBody');
   if (!rows.length) {
     tbody.innerHTML = `<tr class="empty-row"><td colspan="12">No closed trades${catFilter!=='All'?' in '+catFilter:''} yet</td></tr>`;
+    const pagEl = document.getElementById('closedPagination');
+    if (pagEl) pagEl.innerHTML = '';
     return;
   }
   const sorted = [...rows].sort((a,b) => {
@@ -812,7 +821,15 @@ function renderClosedTable(rows) {
     if(va<vb) return -closedSort.dir; if(va>vb) return closedSort.dir; return 0;
   });
 
-  tbody.innerHTML = sorted.map(t => {
+  // FIX 2026-09-16: clamp the current page in case a filter/sort
+  // change left it pointing past the end of the (now smaller) list.
+  const totalPages = Math.max(1, Math.ceil(sorted.length / CLOSED_PAGE_SIZE));
+  if (closedPage > totalPages) closedPage = totalPages;
+  if (closedPage < 1) closedPage = 1;
+  const startIdx = (closedPage - 1) * CLOSED_PAGE_SIZE;
+  const pageRows = sorted.slice(startIdx, startIdx + CLOSED_PAGE_SIZE);
+
+  tbody.innerHTML = pageRows.map(t => {
     const pnl    = calcPnL(t);
     const pct    = calcPnLPct(t);
     const pnlCls = pnl > 0 ? 'pnl-pos' : pnl < 0 ? 'pnl-neg' : 'pnl-neu';
@@ -840,6 +857,49 @@ function renderClosedTable(rows) {
       ${adminCols}
     </tr>`;
   }).join('');
+
+  renderClosedPagination(sorted.length, totalPages);
+}
+
+function renderClosedPagination(totalRows, totalPages) {
+  const el = document.getElementById('closedPagination');
+  if (!el) return;
+  if (totalPages <= 1) { el.innerHTML = ''; return; }
+
+  const firstShown = (closedPage - 1) * CLOSED_PAGE_SIZE + 1;
+  const lastShown  = Math.min(closedPage * CLOSED_PAGE_SIZE, totalRows);
+
+  const btn = (label, page, disabled, active) =>
+    `<button onclick="goToClosedPage(${page})" ${disabled?'disabled':''} style="
+      padding:4px 10px; border-radius:4px; border:1px solid var(--line,#1e3050);
+      background:${active?'var(--accent,#3b82f6)':'transparent'}; color:${active?'#fff':disabled?'var(--muted)':'var(--ink2)'};
+      cursor:${disabled?'default':'pointer'}; font-family:inherit; font-size:12px;
+    ">${label}</button>`;
+
+  let pageButtons = '';
+  for (let p = 1; p <= totalPages; p++) {
+    // Keep it compact on long histories — first, last, current, and
+    // one neighbour each side; '…' for the gaps in between.
+    if (p === 1 || p === totalPages || Math.abs(p - closedPage) <= 1) {
+      pageButtons += btn(p, p, false, p === closedPage);
+    } else if (p === 2 && closedPage > 3) {
+      pageButtons += `<span style="padding:0 4px;">…</span>`;
+    } else if (p === totalPages - 1 && closedPage < totalPages - 2) {
+      pageButtons += `<span style="padding:0 4px;">…</span>`;
+    }
+  }
+
+  el.innerHTML = `
+    ${btn('‹ Prev', closedPage - 1, closedPage === 1, false)}
+    ${pageButtons}
+    ${btn('Next ›', closedPage + 1, closedPage === totalPages, false)}
+    <span style="margin-left:10px;">${firstShown}–${lastShown} of ${totalRows}</span>
+  `;
+}
+
+function goToClosedPage(page) {
+  closedPage = page;
+  render();
 }
 
 // ═══════════════════════════════════════════════════════
@@ -849,6 +909,7 @@ function setCatFilter(btn) {
   document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   catFilter = btn.dataset.cat;
+  closedPage = 1;
   render();
 }
 
@@ -861,6 +922,7 @@ function sortOpenBy(field) {
 function sortClosedBy(field) {
   if (closedSort.field === field) closedSort.dir *= -1;
   else { closedSort.field = field; closedSort.dir = -1; }
+  closedPage = 1;
   render();
 }
 
