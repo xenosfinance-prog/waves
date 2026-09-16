@@ -1143,6 +1143,134 @@ def ichimoku_chart():
         logger.error(f"ichimoku_chart error: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
+def compute_bollinger_rsi_signal(df, bb_period=20, bb_std=2, rsi_period=14,
+                                  rsi_overbought=70, rsi_oversold=30):
+    """
+    Two-step confirmation, per trading-strategy spec (2026-09):
+      1. WARNING — the PREVIOUS candle closed outside a Bollinger Band
+         (a "pierce"), and the CURRENT (latest) candle has closed back
+         inside it (a "re-entry") — classic mean-reversion exhaustion:
+         the move failed to sustain itself outside the band.
+      2. CONFIRMATION — at that same current candle, RSI sits in the
+         matching extreme zone: overbought after an upper-band pierce
+         (bearish confirmation) or oversold after a lower-band pierce
+         (bullish confirmation).
+    Only returns an actionable direction when BOTH conditions hold on
+    the same candle — a pierce+re-entry with RSI still neutral is a
+    "warning" with no direction, same spirit as ew_server.py's other
+    engines returning direction=None when confluence isn't there yet.
+    """
+    if len(df) < max(bb_period, rsi_period) + 5:
+        return None
+
+    close = df["Close"].values
+    sma = pd.Series(close).rolling(bb_period).mean().values
+    std = pd.Series(close).rolling(bb_period).std().values
+    upper = sma + bb_std * std
+    lower = sma - bb_std * std
+
+    if any(np.isnan(v) for v in (upper[-2], upper[-1], lower[-2], lower[-1])):
+        return None
+
+    prev_close, curr_close = float(close[-2]), float(close[-1])
+    prev_upper, curr_upper = float(upper[-2]), float(upper[-1])
+    prev_lower, curr_lower = float(lower[-2]), float(lower[-1])
+    curr_mid = float(sma[-1])
+
+    pierced_upper = prev_close > prev_upper
+    pierced_lower = prev_close < prev_lower
+    reentered_from_upper = pierced_upper and curr_close <= curr_upper
+    reentered_from_lower = pierced_lower and curr_close >= curr_lower
+
+    rsi = calc_rsi(close, rsi_period)
+
+    direction = None
+    warning = None
+    if reentered_from_upper:
+        warning = "upper_pierce_reentry"
+        if rsi >= rsi_overbought:
+            direction = "DOWN"
+    elif reentered_from_lower:
+        warning = "lower_pierce_reentry"
+        if rsi <= rsi_oversold:
+            direction = "UP"
+
+    dp = 2 if curr_close > 10 else 5
+    key_levels = None
+    if direction == "UP":
+        # Stop below the LOW of the piercing candle (df[-2]) — the
+        # candle that actually dipped below the lower band. A real
+        # technical invalidation level: if price falls back below
+        # that low, the reversal read was wrong.
+        stop = float(df["Low"].values[-2])
+        risk = curr_close - stop
+        if risk > 0:
+            key_levels = {
+                "stop_loss": round(stop, dp),
+                "tp1": round(curr_mid, dp),      # mean-reversion target: back to the middle band (the moving average)
+                "tp2": round(curr_upper, dp),    # stretch target: the opposite band
+            }
+        else:
+            direction = None
+    elif direction == "DOWN":
+        stop = float(df["High"].values[-2])
+        risk = stop - curr_close
+        if risk > 0:
+            key_levels = {
+                "stop_loss": round(stop, dp),
+                "tp1": round(curr_mid, dp),
+                "tp2": round(curr_lower, dp),
+            }
+        else:
+            direction = None
+
+    return {
+        "direction": direction,
+        "warning": warning,
+        "rsi": round(rsi, 1),
+        "upper_band": round(curr_upper, dp),
+        "lower_band": round(curr_lower, dp),
+        "mid_band": round(curr_mid, dp),
+        "price": round(curr_close, dp),
+        "key_levels": key_levels,
+    }
+
+
+@app.route("/bollinger-rsi-chart", methods=["POST","OPTIONS"])
+def bollinger_rsi_chart():
+    if request.method == "OPTIONS":
+        return Response(status=200)
+    try:
+        body    = request.get_json(force=True) or {}
+        sym_raw = body.get("symbol","eur/usd").lower().strip()
+        tf_raw  = body.get("tf","H1 (1-Hour)")
+
+        yf_sym = SYMBOL_MAP.get(sym_raw)
+        if not yf_sym:
+            for k,v in SYMBOL_MAP.items():
+                if k in sym_raw or sym_raw in k:
+                    yf_sym = v; break
+        if not yf_sym:
+            return jsonify({"error":f"Unknown symbol: {sym_raw}"}), 400
+
+        cfg = TF_CONFIG.get(tf_raw, ("1h","30d",90,1.2,"1d","90d"))
+        iv, pd_, n, _mult, _piv, _ppd = cfg
+        is_h4 = (tf_raw == "H4 (4-Hour)")
+
+        logger.info(f"[bollinger_rsi] Fetching {yf_sym} {iv} {pd_}")
+        df = fetch_candles(yf_sym, iv, pd_, max(n, 40), is_h4)
+
+        result = compute_bollinger_rsi_signal(df)
+        if result is None:
+            return jsonify({"error":"Insufficient history for Bollinger/RSI (need 25+ bars)."}), 400
+
+        logger.info(f"[bollinger_rsi] {sym_raw.upper()} {tf_raw}: direction={result['direction']} "
+                    f"warning={result['warning']} rsi={result['rsi']}")
+        return jsonify({"symbol": sym_raw.upper(), "tf": tf_raw, **result})
+    except Exception as e:
+        logger.error(f"bollinger_rsi_chart error: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
 if __name__ == "__main__":
     port = int(os.getenv("PORT", os.getenv("EW_PORT",5001)))
     logger.info(f"EW Server v3 on port {port}")
