@@ -524,26 +524,61 @@ async function saveTrades(data) {
   _ghTradesCache = data;
   const saveEl = document.getElementById('saveStatus');
   if(saveEl){ saveEl.style.display='inline'; saveEl.textContent='⟳ Saving...'; saveEl.style.color='var(--muted)'; }
-  try {
-    const getRes = await fetch(WORKER, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ type:'github', method:'GET',
-        url:`https://api.github.com/repos/${REPO}/contents/${GH_FILE}` })
-    });
-    const gd = await getRes.json();
-    const sha = gd.data?.sha || null;
-    const content = btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2))));
-    const payload = { message: 'update portfolio trades', content };
-    if (sha) payload.sha = sha;
-    const putRes = await fetch(WORKER, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ type:'github', method:'PUT',
-        url:`https://api.github.com/repos/${REPO}/contents/${GH_FILE}`, payload })
-    });
-    if(putRes.ok && saveEl){ saveEl.textContent='✓ Saved'; saveEl.style.color='var(--green2)'; setTimeout(()=>{ saveEl.style.display='none'; },2000); }
-  } catch(e) {
-    if(saveEl){ saveEl.textContent='⚠ Save failed'; saveEl.style.color='var(--red2)'; setTimeout(()=>{ saveEl.style.display='none'; },3000); }
-    console.warn('saveTrades:', e);
+
+  // FIX 2026-09-16: the automated bot (portfolio_sync.py) writes to
+  // this SAME GitHub file continuously — get-sha-then-put-with-sha is
+  // a classic race: if the bot writes between our GET and our PUT,
+  // GitHub rejects our PUT (the sha we sent is now stale) and our
+  // edit is silently lost, even though the UI said "Saved" (because
+  // _ghTradesCache was set locally regardless of whether the GitHub
+  // write actually succeeded). The next periodic refresh then re-pulls
+  // the OLD file and the edit visibly "reverts". Fixed with a retry:
+  // on a conflict, re-fetch the current sha and try again, up to 3
+  // attempts, so a losing race gets a second chance instead of
+  // failing invisibly.
+  const MAX_ATTEMPTS = 3;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      const getRes = await fetch(WORKER, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ type:'github', method:'GET',
+          url:`https://api.github.com/repos/${REPO}/contents/${GH_FILE}` })
+      });
+      const gd = await getRes.json();
+      const sha = gd.data?.sha || null;
+      const content = btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2))));
+      const payload = { message: 'update portfolio trades', content };
+      if (sha) payload.sha = sha;
+      const putRes = await fetch(WORKER, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ type:'github', method:'PUT',
+          url:`https://api.github.com/repos/${REPO}/contents/${GH_FILE}`, payload })
+      });
+      const putBody = await putRes.json().catch(() => ({}));
+
+      // A real GitHub success response always includes the new
+      // commit's content/sha; a conflict comes back with a "message"
+      // like "...does not match...". Checking the actual body catches
+      // a silent failure that putRes.ok alone would miss if the
+      // Worker relays GitHub's payload without also relaying its
+      // status code.
+      const succeeded = putRes.ok && (putBody?.data?.content || putBody?.content);
+      if (succeeded) {
+        if(saveEl){ saveEl.textContent='✓ Saved'; saveEl.style.color='var(--green2)'; setTimeout(()=>{ saveEl.style.display='none'; },2000); }
+        return;
+      }
+
+      console.warn(`saveTrades: attempt ${attempt} failed (likely a write conflict with the bot)`, putBody);
+      if (attempt === MAX_ATTEMPTS) {
+        if(saveEl){ saveEl.textContent='⚠ Save failed — try again'; saveEl.style.color='var(--red2)'; setTimeout(()=>{ saveEl.style.display='none'; },4000); }
+      }
+      // else: loop again — re-fetching a fresh sha on the next iteration
+    } catch(e) {
+      console.warn('saveTrades:', e);
+      if (attempt === MAX_ATTEMPTS && saveEl) {
+        saveEl.textContent='⚠ Save failed'; saveEl.style.color='var(--red2)'; setTimeout(()=>{ saveEl.style.display='none'; },3000);
+      }
+    }
   }
 }
 
