@@ -730,20 +730,122 @@ const US_STOCKS = [
   {id:'BRK-A', yf:'BRK-A', label:'BRK.A', name:'Berkshire Hath.',col:'fin'},
 ];
 
-function stockRow(label, name, price, chg) {
+function marketStateBadge(state) {
+  if (state === 'PRE') return '<span style="font-size:8px;padding:1px 5px;border-radius:3px;background:rgba(240,192,64,0.15);color:var(--accent,#f0c040);margin-left:6px;">PRE</span>';
+  if (state === 'POST' || state === 'POSTPOST') return '<span style="font-size:8px;padding:1px 5px;border-radius:3px;background:rgba(139,92,246,0.15);color:#a78bfa;margin-left:6px;">POST</span>';
+  return '';
+}
+
+// FIX 2026-09: stockRow now takes the FULL price object (was just
+// price+chg) so it can show the pre/post-market badge and line, plus
+// a click-to-expand details panel (fundamentals + news, fetched only
+// when the user actually opens a row — see toggleStockDetails()).
+function stockRow(sym, label, name, data) {
+  const price = data?.price || 0;
+  const chg = data?.change_pct || 0;
   const up = chg >= 0;
   const col = up ? 'var(--green2)' : 'var(--red2)';
   const arrow = up ? '▲' : '▼';
   const pStr = price ? '$' + price.toFixed(2) : '--';
   const cStr = price ? (up?'+':'') + chg.toFixed(2) + '%' : '--';
   const barW = Math.min(Math.abs(chg) * 8 + 10, 100);
-  return `<div class="sent-row" style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);">
-    <span class="sent-sym" style="min-width:52px;font-weight:700;color:var(--text);font-family:var(--mono);font-size:12px;">${label}</span>
-    <span class="sent-name" style="flex:1;color:var(--muted);font-size:11px;">${name}</span>
-    <span style="color:var(--text);font-family:var(--mono);font-size:12px;font-weight:700;min-width:64px;text-align:right;">${pStr}</span>
-    <div style="background:var(--bg3);border-radius:2px;overflow:hidden;width:70px;height:4px;flex-shrink:0;"><div style="width:${barW}%;height:100%;background:${col};border-radius:2px;"></div></div>
-    <span style="color:${col};font-family:var(--mono);font-size:11px;min-width:58px;text-align:right;font-weight:700;">${arrow} ${cStr}</span>
+  const badge = marketStateBadge(data?.market_state);
+
+  let extraLine = '';
+  if (data?.market_state === 'PRE' && data?.pre_market_price) {
+    const preUp = (data.pre_market_change_pct || 0) >= 0;
+    extraLine = `<div style="font-size:9px;color:${preUp?'var(--green2)':'var(--red2)'};padding:2px 0 2px 60px;">Pre-market: $${data.pre_market_price.toFixed(2)} (${preUp?'+':''}${(data.pre_market_change_pct||0).toFixed(2)}%)</div>`;
+  } else if ((data?.market_state === 'POST' || data?.market_state === 'POSTPOST') && data?.post_market_price) {
+    const postUp = (data.post_market_change_pct || 0) >= 0;
+    extraLine = `<div style="font-size:9px;color:${postUp?'var(--green2)':'var(--red2)'};padding:2px 0 2px 60px;">Post-market: $${data.post_market_price.toFixed(2)} (${postUp?'+':''}${(data.post_market_change_pct||0).toFixed(2)}%)</div>`;
+  }
+
+  return `<div>
+    <div class="sent-row" style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);cursor:pointer;" onclick="toggleStockDetails('${sym}')">
+      <span class="sent-sym" style="min-width:52px;font-weight:700;color:var(--text);font-family:var(--mono);font-size:12px;">${label}${badge}</span>
+      <span class="sent-name" style="flex:1;color:var(--muted);font-size:11px;">${name}</span>
+      <span style="color:var(--text);font-family:var(--mono);font-size:12px;font-weight:700;min-width:64px;text-align:right;">${pStr}</span>
+      <div style="background:var(--bg3);border-radius:2px;overflow:hidden;width:70px;height:4px;flex-shrink:0;"><div style="width:${barW}%;height:100%;background:${col};border-radius:2px;"></div></div>
+      <span style="color:${col};font-family:var(--mono);font-size:11px;min-width:58px;text-align:right;font-weight:700;">${arrow} ${cStr}</span>
+      <span id="caret-${sym}" style="color:var(--muted);font-size:9px;width:12px;text-align:center;flex-shrink:0;">▾</span>
+    </div>
+    ${extraLine}
+    <div id="details-${sym}" style="display:none;padding:10px 8px 14px 8px;background:var(--bg3);border-bottom:1px solid var(--border);font-size:11px;"></div>
   </div>`;
+}
+
+// FIX 2026-09: fundamentals + per-stock news are fetched on demand —
+// only for the one symbol the user clicks to expand, not eagerly for
+// all 36 stocks on page load (would risk the Worker's free-tier API
+// limits). Result is cached client-side so re-toggling the same row
+// doesn't refetch.
+let stockDetailsCache = {};
+
+async function toggleStockDetails(sym) {
+  const panel = document.getElementById('details-' + sym);
+  const caret = document.getElementById('caret-' + sym);
+  if (!panel) return;
+
+  if (panel.style.display === 'block') {
+    panel.style.display = 'none';
+    if (caret) caret.textContent = '▾';
+    return;
+  }
+  panel.style.display = 'block';
+  if (caret) caret.textContent = '▴';
+
+  if (stockDetailsCache[sym]) {
+    renderStockDetails(panel, stockDetailsCache[sym]);
+    return;
+  }
+
+  panel.innerHTML = '<div style="color:var(--muted);padding:4px 0;">' + (typeof window.t === 'function' ? window.t('label_loading') : 'Loading...') + '</div>';
+
+  try {
+    const [fundRes, newsRes] = await Promise.all([
+      fetch(WORKER_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({type:'fundamentals', symbols:[sym]}) }).then(r=>r.json()),
+      fetch(WORKER_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({type:'finnhub', action:'company_news', symbol:sym}) }).then(r=>r.json()),
+    ]);
+    const details = { fund: fundRes.fundamentals?.[sym] || null, news: newsRes.news || [] };
+    stockDetailsCache[sym] = details;
+    renderStockDetails(panel, details);
+  } catch(e) {
+    panel.innerHTML = '<div style="color:var(--muted);padding:4px 0;">' + (typeof window.t === 'function' ? window.t('label_temporarily_unavailable') : 'Temporarily unavailable') + '</div>';
+  }
+}
+
+function fmtMarketCap(n) {
+  if (!n) return '--';
+  if (n >= 1e12) return '$' + (n/1e12).toFixed(2) + 'T';
+  if (n >= 1e9) return '$' + (n/1e9).toFixed(2) + 'B';
+  if (n >= 1e6) return '$' + (n/1e6).toFixed(2) + 'M';
+  return '$' + n.toLocaleString();
+}
+
+function renderStockDetails(panel, details) {
+  const f = details.fund;
+  let fundHtml = '<div style="color:var(--muted);margin-bottom:8px;">Fundamentals unavailable</div>';
+  if (f) {
+    fundHtml = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(88px,1fr));gap:8px;margin-bottom:10px;">
+      <div><div style="color:var(--muted);font-size:9px;">P/E</div><div style="color:var(--text);font-weight:700;">${f.pe ? f.pe.toFixed(1) : '--'}</div></div>
+      <div><div style="color:var(--muted);font-size:9px;">Market Cap</div><div style="color:var(--text);font-weight:700;">${fmtMarketCap(f.market_cap)}</div></div>
+      <div><div style="color:var(--muted);font-size:9px;">52w High</div><div style="color:var(--text);font-weight:700;">$${f.week52_high ? f.week52_high.toFixed(2) : '--'}</div></div>
+      <div><div style="color:var(--muted);font-size:9px;">52w Low</div><div style="color:var(--text);font-weight:700;">$${f.week52_low ? f.week52_low.toFixed(2) : '--'}</div></div>
+      <div><div style="color:var(--muted);font-size:9px;">Avg Vol (3m)</div><div style="color:var(--text);font-weight:700;">${f.avg_volume_3m ? (f.avg_volume_3m/1e6).toFixed(1)+'M' : '--'}</div></div>
+      <div><div style="color:var(--muted);font-size:9px;">Div Yield</div><div style="color:var(--text);font-weight:700;">${f.dividend_yield ? (f.dividend_yield*100).toFixed(2)+'%' : '--'}</div></div>
+    </div>`;
+  }
+
+  let newsHtml = '<div style="color:var(--muted);">No recent news</div>';
+  if (details.news && details.news.length > 0) {
+    newsHtml = details.news.slice(0,4).map(n => `
+      <a href="${n.url}" target="_blank" rel="noopener" style="display:block;padding:5px 0;border-top:1px solid var(--border);color:var(--text);text-decoration:none;font-size:10px;">
+        <div style="font-weight:600;">${(n.headline||'').slice(0,110)}</div>
+        <div style="color:var(--muted);font-size:9px;margin-top:2px;">${n.source || ''}</div>
+      </a>`).join('');
+  }
+
+  panel.innerHTML = fundHtml + newsHtml;
 }
 
 async function loadUSStocks() {
@@ -761,9 +863,7 @@ async function loadUSStocks() {
     let techHtml = '', finHtml = '';
     US_STOCKS.forEach(s => {
       const p = prices[s.yf];
-      const price = p?.price || 0;
-      const chg = p?.change_pct || 0;
-      const row = stockRow(s.label, s.name, price, chg);
+      const row = stockRow(s.yf, s.label, s.name, p);
       if (s.col === 'tech') techHtml += row;
       else finHtml += row;
     });
