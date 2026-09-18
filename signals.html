@@ -525,6 +525,27 @@
     .signal-row { grid-template-columns: 1fr 1fr 1fr; grid-template-rows: auto auto; }
     .detail-top { grid-template-columns: 1fr; }
   }
+
+/* FIX 2026-09: dropdown sub-menus for Trading Ideas > Live Signals,
+   Dashboard > Portfolio, Education > Premium — hover-open on desktop,
+   tap-to-toggle on mobile (see the JS block near the closing body tag). */
+.nav-dropdown{position:relative;display:inline-block;}
+.nav-caret{font-size:8px;margin-left:5px;opacity:0.55;vertical-align:1px;transition:transform 0.15s;}
+.nav-dropdown.open .nav-caret,.nav-dropdown:hover .nav-caret{transform:rotate(180deg);opacity:0.9;}
+.nav-dropdown-menu{
+  display:none;position:absolute;top:100%;left:50%;transform:translateX(-50%);
+  background:var(--bg);border:1px solid var(--border2);border-top:2px solid var(--gold);
+  min-width:190px;box-shadow:0 10px 28px rgba(0,0,0,0.5);z-index:200;padding:6px 0;border-radius:0 0 4px 4px;
+}
+.nav-dropdown:hover .nav-dropdown-menu,.nav-dropdown.open .nav-dropdown-menu{display:block;}
+.nav-dropdown-menu a{
+  display:block;padding:11px 22px;font-size:10px;letter-spacing:2px;text-transform:uppercase;
+  color:var(--text-dim);text-decoration:none;white-space:nowrap;transition:all 0.15s;
+}
+.nav-dropdown-menu a:hover{color:var(--gold);background:var(--bg2);}
+@media (max-width:768px){
+  .nav-dropdown-menu{position:static;transform:none;box-shadow:none;border:none;background:var(--bg3);min-width:0;width:100%;}
+}
 </style>
 <script src="xf-premium.js"></script>
 </head>
@@ -560,15 +581,28 @@
     <nav style="display:flex;justify-content:center;gap:0;background:#131f2e;border-bottom:1px solid #1e3050;flex-wrap:wrap;">
       <a href="https://xenosfinance.com" style="display:inline-block;padding:10px 16px;font-size:10px;letter-spacing:2px;text-transform:uppercase;text-decoration:none;color:#5a7a9a;border-bottom:2px solid transparent;">📰 News</a>
       <a href="https://xenosfinance.com/market-brief" style="display:inline-block;padding:10px 16px;font-size:10px;letter-spacing:2px;text-transform:uppercase;text-decoration:none;color:#5a7a9a;border-bottom:2px solid transparent;">🤖 Market Brief</a>
-      <a href="https://xenosfinance.com/dashboard" style="display:inline-block;padding:10px 16px;font-size:10px;letter-spacing:2px;text-transform:uppercase;text-decoration:none;color:#5a7a9a;border-bottom:2px solid transparent;">📊 Dashboard</a>
+      <div class="nav-dropdown">
+      <a href="https://xenosfinance.com/dashboard" style="display:inline-block;padding:10px 16px;font-size:10px;letter-spacing:2px;text-transform:uppercase;text-decoration:none;color:#5a7a9a;border-bottom:2px solid transparent;">📊 Dashboard<span class="nav-caret">▾</span></a>
+      <div class="nav-dropdown-menu">
+        <a href="https://xenosfinance.com/portfolio">📈 Portfolio</a>
+      </div>
+    </div>
       <a href="https://xenosfinance.com/xenoswaves_charts" style="display:inline-block;padding:10px 16px;font-size:10px;letter-spacing:2px;text-transform:uppercase;text-decoration:none;color:#5a7a9a;border-bottom:2px solid transparent;">◈ Charts</a>
       <a href="https://xenosfinance.com/XenosBlog" style="display:inline-block;padding:10px 16px;font-size:10px;letter-spacing:2px;text-transform:uppercase;text-decoration:none;color:#5a7a9a;border-bottom:2px solid transparent;">✦ AI Blog</a>
-      <a href="https://xenosfinance.com/trading-signals" style="display:inline-block;padding:10px 16px;font-size:10px;letter-spacing:2px;text-transform:uppercase;text-decoration:none;color:#5a7a9a;border-bottom:2px solid transparent;">📡 Live Signals</a>
-      <a href="https://xenosfinance.com/trading-ideas" style="display:inline-block;padding:10px 16px;font-size:10px;letter-spacing:2px;text-transform:uppercase;text-decoration:none;color:#5a7a9a;border-bottom:2px solid transparent;">💡 Trading Ideas</a>
+      <div class="nav-dropdown">
+      <a href="https://xenosfinance.com/trading-ideas" style="display:inline-block;padding:10px 16px;font-size:10px;letter-spacing:2px;text-transform:uppercase;text-decoration:none;color:#5a7a9a;border-bottom:2px solid transparent;">💡 Trading Ideas<span class="nav-caret">▾</span></a>
+      <div class="nav-dropdown-menu">
+        <a href="https://xenosfinance.com/trading-signals">📡 Live Signals</a>
+      </div>
+    </div>
       <a href="https://xenosfinance.com/calendar" style="display:inline-block;padding:10px 16px;font-size:10px;letter-spacing:2px;text-transform:uppercase;text-decoration:none;color:#5a7a9a;border-bottom:2px solid transparent;">🗓 Calendar</a>
       <a href="https://xenosfinance.com/elliottwave" style="display:inline-block;padding:10px 16px;font-size:10px;letter-spacing:2px;text-transform:uppercase;text-decoration:none;color:#5a7a9a;border-bottom:2px solid transparent;">〜 Elliott Wave</a>
-      <a href="https://xenosfinance.com/daily-education" style="display:inline-block;padding:10px 16px;font-size:10px;letter-spacing:2px;text-transform:uppercase;text-decoration:none;color:#5a7a9a;border-bottom:2px solid transparent;">📚 Education</a>
-      <a href="https://xenosfinance.com/premium-support" style="display:inline-block;padding:10px 16px;font-size:10px;letter-spacing:2px;text-transform:uppercase;text-decoration:none;color:var(--gold2);border-bottom:2px solid transparent;">✦ Premium</a>
+      <div class="nav-dropdown">
+      <a href="https://xenosfinance.com/daily-education" style="display:inline-block;padding:10px 16px;font-size:10px;letter-spacing:2px;text-transform:uppercase;text-decoration:none;color:#5a7a9a;border-bottom:2px solid transparent;">📚 Education<span class="nav-caret">▾</span></a>
+      <div class="nav-dropdown-menu">
+        <a href="https://xenosfinance.com/premium-support" style="color:var(--gold2);">✦ Premium</a>
+      </div>
+    </div>
     </nav>
 
     <div class="topbar">
@@ -3881,6 +3915,29 @@ window.onload = () => {
     document.getElementById('empty-state').classList.add('active');
   }
 };
+</script>
+<script>
+// FIX 2026-09: dropdown nav menus (Trading Ideas/Dashboard/Education)
+// open on hover for desktop (pure CSS, above), but touch devices have
+// no hover — this makes tapping the parent link toggle the sub-menu
+// open/closed instead, and tapping anywhere else closes it.
+(function() {
+  document.querySelectorAll('.nav-dropdown').forEach(function(dropdown) {
+    const trigger = dropdown.querySelector(':scope > a');
+    trigger.addEventListener('click', function(e) {
+      if (window.matchMedia('(hover: hover)').matches) return;
+      e.preventDefault();
+      const wasOpen = dropdown.classList.contains('open');
+      document.querySelectorAll('.nav-dropdown.open').forEach(function(d) { d.classList.remove('open'); });
+      if (!wasOpen) dropdown.classList.add('open');
+    });
+  });
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest('.nav-dropdown')) {
+      document.querySelectorAll('.nav-dropdown.open').forEach(function(d) { d.classList.remove('open'); });
+    }
+  });
+})();
 </script>
 </body>
 </html>
