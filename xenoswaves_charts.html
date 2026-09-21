@@ -1039,6 +1039,24 @@ function isPremium() {
   const stored = localStorage.getItem('xenos_premium_code') || '';
   return codes.includes(stored.toUpperCase()) || adminCodes.includes(stored);
 }
+
+// ── FREE AI ACCESS (whitelist separata da premium — solo ETF AI) ──
+function isFreeUnlocked() {
+  return !!(localStorage.getItem('xenos_free_email') || '').trim();
+}
+function unlockXFResearchFree(ticker) {
+  const email = (prompt('Accesso gratuito autorizzato — inserisci la tua email:') || '').trim();
+  if (!email) return;
+  localStorage.setItem('xenos_free_email', email.toLowerCase());
+  const container = document.getElementById('xfr-content-' + ticker);
+  if (container) {
+    const btn = container.querySelector('.xfr-generate-btn');
+    if (btn) btn.style.display = '';
+    const lock = document.getElementById('xfr-lock-' + ticker);
+    if (lock) lock.remove();
+  }
+}
+
 function unlockXFResearch(ticker) {
   const codes = ['XENOS-PREMIUM-2026','XF-PRO-001','XF-PRO-002','XF-PRO-003'];
   const adminCodes = ['RMG@Manu78','RMG@manu78'];
@@ -1255,10 +1273,10 @@ function showETFInfo(ticker, switchToSearch) {
       <span class="xfr-badge">PROPRIETARY ANALYSIS</span>
     </div>
     <div id="xfr-content-${e.ticker}" class="xfr-body">
-      <button class="xfr-generate-btn" style="${isPremium() ? '' : 'display:none;'}" onclick="generateXFResearch('${e.ticker}','${e.name}','${e.type}','${e.aum}','${e.ter}','${e.bench}','${e.tags.join(',')}')">
+      <button class="xfr-generate-btn" style="${(isPremium() || isFreeUnlocked()) ? '' : 'display:none;'}" onclick="generateXFResearch('${e.ticker}','${e.name}','${e.type}','${e.aum}','${e.ter}','${e.bench}','${e.tags.join(',')}')">
         ◈ Generate XenosFinance Analysis
       </button>
-      ${isPremium() ? '' : `
+      ${(isPremium() || isFreeUnlocked()) ? '' : `
       <div id="xfr-lock-${e.ticker}" style="font-family:var(--mono);font-size:9px;letter-spacing:1px;text-align:center;padding:16px 8px;color:var(--muted);">
         🔒 Premium / Admin feature — enter your access code to unlock
         <div style="display:flex;gap:6px;justify-content:center;margin-top:10px;">
@@ -1266,6 +1284,7 @@ function showETFInfo(ticker, switchToSearch) {
           <button onclick="unlockXFResearch('${e.ticker}')" style="font-family:var(--mono);font-size:9px;letter-spacing:1px;padding:6px 12px;background:#3b82f6;color:#fff;border:none;cursor:pointer;">UNLOCK</button>
         </div>
         <div id="xfr-unlock-err-${e.ticker}" style="display:none;color:var(--red2,#ef4444);margin-top:6px;">Invalid code</div>
+        <div style="margin-top:8px;"><a href="#" onclick="unlockXFResearchFree('${e.ticker}');return false;" style="color:#5a6b85;text-decoration:none;">Accesso gratuito autorizzato?</a></div>
       </div>`}
     </div>
     </div></div>`;
@@ -1284,7 +1303,7 @@ document.addEventListener('keydown', function(e) {
 
 // ── XenosFinance Research™ AI Engine ─────────────────────────────
 async function generateXFResearch(ticker, name, type, aum, ter, bench, tagsStr) {
-  if (!isPremium()) return; // defensive check — button is hidden for non-premium, but don't trust the DOM alone
+  if (!isPremium() && !isFreeUnlocked()) return; // defensive check — button is hidden otherwise, but don't trust the DOM alone
   const container = document.getElementById('xfr-content-' + ticker);
   if (!container) return;
 
@@ -1330,17 +1349,26 @@ Return this exact JSON structure:
 }`;
 
   try {
+    const _useFree = !isPremium() && isFreeUnlocked();
     const res = await fetch(ETF_WORKER, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+      body: JSON.stringify(_useFree ? {
+        type: 'gemini-free-chat',
+        email: localStorage.getItem('xenos_free_email') || '',
+        message: prompt
+      } : {
         model: 'claude-sonnet-4-6',
         max_tokens: 1000,
         messages: [{ role: 'user', content: prompt }]
       })
     });
     const data = await res.json();
-    const raw = data.content?.map(b => b.text || '').join('').trim();
+    if (_useFree && !res.ok) {
+      if (data.error === 'not_authorized') { localStorage.removeItem('xenos_free_email'); throw new Error('Email non autorizzata.'); }
+      throw new Error(data.message || 'Servizio momentaneamente non disponibile.');
+    }
+    const raw = _useFree ? (data.reply || '').trim() : data.content?.map(b => b.text || '').join('').trim();
     const clean = raw.replace(/```json|```/g, '').trim();
     const d = JSON.parse(clean);
     renderXFResearch(container, d, ticker);

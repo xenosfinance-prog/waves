@@ -384,6 +384,7 @@ body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:10
         <button onclick="closePremiumModal()" style="font-family:var(--mono);font-size:9px;letter-spacing:2px;padding:6px 18px;background:transparent;color:#8892a4;border:1px solid #2a3a52;cursor:pointer;"><span data-i18n="label_cancel">CANCEL</span></button>
       </div>
       <p style="font-size:9px;color:#8892a4;margin:12px 0 0;"><span data-i18n="label_no_code">No code?</span> <a href="/premium-support" style="color:#3b82f6;text-decoration:none;">Get Premium →</a></p>
+      <p style="font-size:9px;color:#8892a4;margin:8px 0 0;"><a href="#" onclick="promptFreeAccessDash();return false;" style="color:#5a6b85;text-decoration:none;">Accesso gratuito autorizzato?</a></p>
     </div>
   </div>
 
@@ -906,6 +907,19 @@ function isPremium() {
   return codes.includes(stored.toUpperCase()) || adminCodes.includes(stored);
 }
 
+// ── FREE AI ACCESS (whitelist separata da premium — solo Intermarket AI) ──
+function isFreeUnlocked() {
+  return !!(localStorage.getItem('xenos_free_email') || '').trim();
+}
+function promptFreeAccessDash() {
+  const email = (prompt('Accesso gratuito autorizzato — inserisci la tua email:') || '').trim();
+  if (!email) return;
+  localStorage.setItem('xenos_free_email', email.toLowerCase());
+  closePremiumModal();
+  const gate = document.getElementById('ai-im-gate');
+  if (gate) gate.style.display = 'none';
+}
+
 function showPremiumModal() {
   const modal = document.getElementById('premium-modal');
   const wrapper = document.querySelector('.ai-im-wrapper');
@@ -955,7 +969,7 @@ async function _lt(text, lang) {
 function _lang() { return localStorage.getItem('xenos_lang') || 'en'; }
 
 async function runIntermarketAI() {
-  if (!isPremium()) { showPremiumModal(); return; }
+  if (!isPremium() && !isFreeUnlocked()) { showPremiumModal(); return; }
 
   const btn = document.getElementById('ai-im-btn');
   const body = document.getElementById('ai-im-body');
@@ -1026,10 +1040,15 @@ Write a structured analysis with these exact sections:
 
 Be concise, professional, data-driven. Use the actual prices provided. No disclaimers.`;
 
+    const _useFree = !isPremium() && isFreeUnlocked();
     const aiRes = await fetch(WORKER_URL, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({
+      body: JSON.stringify(_useFree ? {
+        type: 'gemini-free-chat',
+        email: localStorage.getItem('xenos_free_email') || '',
+        message: prompt
+      } : {
         model: 'claude-sonnet-4-6',
         max_tokens: 900,
         messages: [{role: 'user', content: prompt}]
@@ -1037,9 +1056,14 @@ Be concise, professional, data-driven. Use the actual prices provided. No discla
       signal: AbortSignal.timeout(35000)
     });
 
-    if (!aiRes.ok) throw new Error(`AI HTTP ${aiRes.status}`);
     const aiData = await aiRes.json();
-    let text = aiData?.content?.[0]?.text || aiData?.error || 'No response.';
+    if (_useFree && !aiRes.ok) {
+      if (aiData.error === 'not_authorized') { localStorage.removeItem('xenos_free_email'); throw new Error('Email non autorizzata.'); }
+      if (aiData.error === 'daily_limit_reached') throw new Error(aiData.message || 'Limite giornaliero raggiunto.');
+      throw new Error(aiData.message || 'Servizio momentaneamente non disponibile.');
+    }
+    if (!_useFree && !aiRes.ok) throw new Error(`AI HTTP ${aiRes.status}`);
+    let text = _useFree ? (aiData.reply || 'No response.') : (aiData?.content?.[0]?.text || aiData?.error || 'No response.');
 
     // Translate if needed
     const _dLang = _lang();

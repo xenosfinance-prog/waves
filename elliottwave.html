@@ -1751,10 +1751,28 @@ function isAdmin() {
   return ADMIN_CODES.includes(stored);
 }
 
+// ── FREE AI ACCESS (whitelist separata da premium/admin — solo EW AI,
+// mai bot-signals: NON usa xenos_premium_code, quindi non fa scattare
+// l'auto-unlock dei segnali che isPremium() innesca altrove in questo file) ──
+function isFreeUnlocked() {
+  return !!(localStorage.getItem('xenos_free_email') || '').trim();
+}
+function promptFreeAccessEW(feature) {
+  const email = (prompt('Accesso gratuito autorizzato — inserisci la tua email:') || '').trim();
+  if (!email) return false;
+  localStorage.setItem('xenos_free_email', email.toLowerCase());
+  const modal = document.getElementById('xf-premium-modal');
+  if (modal) modal.style.display = 'none';
+  return true;
+}
+
 // ── Premium gate helper ───────────────────────────────────────────────────────
 const XFPremium = {
   gate(feature) {
     if (isPremium() || isAdmin()) return true;
+    // Free whitelist: SOLO per la feature 'elliott' (EW AI) — mai per altro,
+    // così non tocca bot-signals, admin o qualunque altro perk premium.
+    if (feature === 'elliott' && isFreeUnlocked()) return true;
     // Mostra modal unlock
     const modal = document.getElementById('xf-premium-modal');
     if (modal) {
@@ -1773,6 +1791,7 @@ const XFPremium = {
           <button onclick="XFPremium._unlock()" style="font-family:var(--mono);font-size:9px;letter-spacing:2px;padding:7px 20px;background:#3b82f6;color:#fff;border:none;cursor:pointer;">UNLOCK</button>
           <button onclick="document.getElementById('xf-premium-modal').style.display='none'" style="font-family:var(--mono);font-size:9px;letter-spacing:2px;padding:7px 20px;background:transparent;border:1px solid var(--border);color:var(--muted);cursor:pointer;">CANCEL</button>
         </div>
+        <p style="font-size:9px;color:#5a6b85;margin:12px 0 0;"><a href="#" onclick="promptFreeAccessEW('elliott');return false;" style="color:#5a6b85;text-decoration:none;">Accesso gratuito autorizzato?</a></p>
       </div>`;
       document.body.appendChild(m);
     }
@@ -2872,10 +2891,13 @@ Keep it professional, precise, under 280 words.`
       : promptText;
 
     const WORKER = 'https://xenos-ai-proxy.xenosfinance.workers.dev';
+    const _useFree = !isPremium() && !isAdmin() && isFreeUnlocked();
+    const _freeBody = { type: 'gemini-free-chat', email: localStorage.getItem('xenos_free_email') || '', message: promptText };
+    if (hasImage) { _freeBody.image_base64 = _tvImageB64; _freeBody.image_mime = _tvImageMime; }
     const res = await fetch(WORKER, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+      body: JSON.stringify(_useFree ? _freeBody : {
         type: 'claude',
         model: 'claude-sonnet-4-6',
         max_tokens: 1000,
@@ -2884,12 +2906,21 @@ Keep it professional, precise, under 280 words.`
       signal: AbortSignal.timeout(90000)
     });
 
-    if (!res.ok) throw new Error('Worker error ' + res.status);
-
     const data = await res.json();
-    // Extract Claude's text from response
+    if (_useFree && !res.ok) {
+      if (data.error === 'not_authorized') { localStorage.removeItem('xenos_free_email'); throw new Error('Email non autorizzata.'); }
+      if (data.error === 'daily_limit_reached') throw new Error(data.message || 'Limite giornaliero raggiunto.');
+      throw new Error(data.message || 'Servizio momentaneamente non disponibile.');
+    }
+    if (!_useFree && !res.ok) throw new Error('Worker error ' + res.status);
+
+    // Extract AI text from response
     let analysisText = '';
-    if (data.content && data.content[0]) {
+    if (_useFree) {
+      analysisText = data.reply || '';
+      const _ewLang = _langEW();
+      if (_ewLang !== 'en' && analysisText) { analysisText = await _ltEW(analysisText, _ewLang); }
+    } else if (data.content && data.content[0]) {
       analysisText = data.content[0].text || '';
       const _ewLang = _langEW();
       if (_ewLang !== 'en' && analysisText) { analysisText = await _ltEW(analysisText, _ewLang); }
@@ -4407,17 +4438,26 @@ async function ewsRunAnalysis() {
       'Reply in this exact JSON format:\n' +
       '{"wave":"3","bias":"bearish","conviction":4,"probability":4,"target":"1.0650","invalidation":"1.1050","summary":"One sentence summary.","analysis":"Full 3-5 sentence professional analysis."}';
 
+    var _ewsUseFree = !isPremium() && !isAdmin() && isFreeUnlocked();
     var r = await fetch(WORKER, {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({
+      body: JSON.stringify(_ewsUseFree ? {
+        type: 'gemini-free-chat',
+        email: localStorage.getItem('xenos_free_email') || '',
+        message: prompt
+      } : {
         model: 'claude-sonnet-4-6',
         max_tokens: 600,
         messages: [{role:'user', content: prompt}]
       })
     });
     var d = await r.json();
-    var text = d.content && d.content[0] && d.content[0].text || '';
+    if (_ewsUseFree && !r.ok) {
+      if (d.error === 'not_authorized') { localStorage.removeItem('xenos_free_email'); throw new Error('Email non autorizzata.'); }
+      throw new Error(d.message || 'Servizio momentaneamente non disponibile.');
+    }
+    var text = _ewsUseFree ? (d.reply || '') : (d.content && d.content[0] && d.content[0].text || '');
 
     // Parse JSON from response
     var json = null;

@@ -385,6 +385,7 @@ body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:10
       <button onclick="closePremiumModal()" style="font-family:var(--mono);font-size:9px;letter-spacing:2px;padding:6px 18px;background:transparent;color:#8892a4;border:1px solid #2a3a52;cursor:pointer;"><span data-i18n="label_cancel">CANCEL</span></button>
     </div>
     <p style="font-size:9px;color:#8892a4;margin:12px 0 0;"><span data-i18n="label_no_code">No code?</span> <a href="/premium-support" style="color:#3b82f6;text-decoration:none;">Get Premium →</a></p>
+    <p style="font-size:9px;color:#8892a4;margin:8px 0 0;"><a href="#" onclick="promptFreeAccessCal();return false;" style="color:#5a6b85;text-decoration:none;">Accesso gratuito autorizzato?</a></p>
   </div>
 </div>
 
@@ -1021,6 +1022,19 @@ function isPremium() {
   return codes.includes(stored.toUpperCase()) || adminCodes.includes(stored);
 }
 
+// ── FREE AI ACCESS (whitelist separata da premium — solo Calendar AI,
+// mai admin/segnali/altri perk premium) ────────────────────────────
+function isFreeUnlocked() {
+  return !!(localStorage.getItem('xenos_free_email') || '').trim();
+}
+function promptFreeAccessCal() {
+  const email = (prompt('Accesso gratuito autorizzato — inserisci la tua email:') || '').trim();
+  if (!email) return;
+  localStorage.setItem('xenos_free_email', email.toLowerCase());
+  closePremiumModal();
+  if (window._pendingAnalyzeIdx !== undefined) { analyzeEvent(window._pendingAnalyzeIdx); window._pendingAnalyzeIdx = undefined; }
+}
+
 function showPremiumModal() {
   document.getElementById('premium-modal').style.display = 'flex';
 }
@@ -1071,7 +1085,7 @@ function getCurrentLangCal() {
 }
 
 async function analyzeEvent(evIdx) {
-  if (!isPremium()) { window._pendingAnalyzeIdx = evIdx; showPremiumModal(); return; }
+  if (!isPremium() && !isFreeUnlocked()) { window._pendingAnalyzeIdx = evIdx; showPremiumModal(); return; }
 
   const ev = window._evData && window._evData[evIdx];
   if (!ev) return;
@@ -1125,10 +1139,15 @@ Write a concise forward-looking institutional briefing (4-6 sentences, Bloomberg
   }
 
   try {
+    const _useFree = !isPremium() && isFreeUnlocked();
     const res = await fetch(WORKER_URL, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({
+      body: JSON.stringify(_useFree ? {
+        type: 'gemini-free-chat',
+        email: localStorage.getItem('xenos_free_email') || '',
+        message: prompt
+      } : {
         type: 'anthropic',
         model: 'claude-sonnet-4-6',
         max_tokens: 1000,
@@ -1136,7 +1155,12 @@ Write a concise forward-looking institutional briefing (4-6 sentences, Bloomberg
       })
     });
     const data = await res.json();
-    let text = data.content?.[0]?.text || '';
+    if (_useFree && !res.ok) {
+      if (data.error === 'not_authorized') { localStorage.removeItem('xenos_free_email'); throw new Error('Email non autorizzata.'); }
+      if (data.error === 'daily_limit_reached') throw new Error(data.message || 'Limite giornaliero raggiunto.');
+      throw new Error(data.message || 'Servizio momentaneamente non disponibile.');
+    }
+    let text = _useFree ? (data.reply || '') : (data.content?.[0]?.text || '');
     const badPhrases = ['insufficient data','not enough data','cannot provide','unable to analyze','no data provided'];
     if (!text || badPhrases.some(p => text.toLowerCase().startsWith(p.toLowerCase().slice(0,15)))) {
       text = ev.name + ' is a key market event for ' + ev.country + ' assets.' + (hasForecast ? ' Consensus is positioned at ' + ev.forecast + '.' : '') + ' Watch for volatility around the release — any deviation from expectations could trigger sharp directional moves in related currency pairs and fixed income.';
