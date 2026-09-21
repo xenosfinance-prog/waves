@@ -1032,6 +1032,7 @@ function promptFreeAccessCal() {
   if (!email) return;
   localStorage.setItem('xenos_free_email', email.toLowerCase());
   closePremiumModal();
+  if (typeof xfUpdateLogoutBtn === 'function') xfUpdateLogoutBtn();
   if (window._pendingAnalyzeIdx !== undefined) { analyzeEvent(window._pendingAnalyzeIdx); window._pendingAnalyzeIdx = undefined; }
 }
 
@@ -1631,6 +1632,7 @@ async function loadCalendarAIBrief() {
 // ── Global Logout ──────────────────────────────────────────────
 function xfLogout() {
   localStorage.removeItem('xenos_premium_code');
+  localStorage.removeItem('xenos_free_email');
   sessionStorage.removeItem('xf_admin');
   sessionStorage.removeItem('xf_interpreter');
   location.reload();
@@ -1638,7 +1640,7 @@ function xfLogout() {
 function xfUpdateLogoutBtn() {
   const btn = document.getElementById('xf-logout-btn');
   if (!btn) return;
-  const isLogged = localStorage.getItem('xenos_premium_code') || sessionStorage.getItem('xf_admin');
+  const isLogged = localStorage.getItem('xenos_premium_code') || sessionStorage.getItem('xf_admin') || localStorage.getItem('xenos_free_email');
   btn.style.display = isLogged ? 'inline-block' : 'none';
 }
 document.addEventListener('DOMContentLoaded', xfUpdateLogoutBtn);
