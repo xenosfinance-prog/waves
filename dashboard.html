@@ -342,7 +342,7 @@ body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:10
     <div class="section-head-line"></div>
     <span id="stocks-time" style="color:var(--muted);font-size:9px;font-family:var(--mono);">--:-- CET</span>
   </div>
-  <div id="stocks-by-sector" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-bottom:28px;"></div>
+  <div id="stocks-by-sector" style="display:flex;flex-direction:column;gap:20px;margin-bottom:28px;"></div>
 
   <!-- AI INTERMARKET ANALYSIS -->
   <div class="ai-im-wrapper" style="margin:32px 0 0;border:1px solid var(--border);position:relative;">
@@ -773,13 +773,13 @@ function stockRow(sym, label, name, data) {
   }
 
   return `<div>
-    <div class="sent-row" style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);cursor:pointer;" onclick="toggleStockDetails('${sym}')">
-      <span class="sent-sym" style="min-width:52px;font-weight:700;color:var(--text);font-family:var(--mono);font-size:12px;">${label}${badge}</span>
-      <span class="sent-name" style="flex:1;color:var(--muted);font-size:11px;">${name}</span>
-      <span style="color:var(--text);font-family:var(--mono);font-size:12px;font-weight:700;min-width:64px;text-align:right;">${pStr}</span>
-      <div style="background:var(--bg3);border-radius:2px;overflow:hidden;width:70px;height:4px;flex-shrink:0;"><div style="width:${barW}%;height:100%;background:${col};border-radius:2px;"></div></div>
-      <span style="color:${col};font-family:var(--mono);font-size:11px;min-width:58px;text-align:right;font-weight:700;">${arrow} ${cStr}</span>
-      <span id="caret-${sym}" style="color:var(--muted);font-size:9px;width:12px;text-align:center;flex-shrink:0;">▾</span>
+    <div class="sent-row" style="display:flex;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid var(--border);cursor:pointer;" onclick="toggleStockDetails('${sym}')">
+      <span class="sent-sym" style="min-width:48px;flex-shrink:0;font-weight:700;color:var(--text);font-family:var(--mono);font-size:12px;">${label}${badge}</span>
+      <span class="sent-name" style="flex:1;min-width:0;color:var(--muted);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${name}</span>
+      <span style="color:var(--text);font-family:var(--mono);font-size:${price >= 10000 ? '10px' : '12px'};font-weight:700;min-width:72px;flex-shrink:0;text-align:right;">${pStr}</span>
+      <div style="background:var(--bg3);border-radius:2px;overflow:hidden;width:40px;height:4px;flex-shrink:0;"><div style="width:${barW}%;height:100%;background:${col};border-radius:2px;"></div></div>
+      <span style="color:${col};font-family:var(--mono);font-size:11px;min-width:60px;flex-shrink:0;text-align:right;font-weight:700;white-space:nowrap;">${arrow} ${cStr}</span>
+      <span id="caret-${sym}" style="color:var(--muted);font-size:9px;width:12px;flex-shrink:0;text-align:center;">▾</span>
     </div>
     ${extraLine}
     <div id="details-${sym}" style="display:none;padding:10px 8px 14px 8px;background:var(--bg3);border-bottom:1px solid var(--border);font-size:11px;"></div>
@@ -903,7 +903,7 @@ async function loadUSStocks() {
           .map(s => stockRow(s.yf, s.label, s.name, prices[s.yf])).join('');
         return `<div class="col-box">
           <div class="col-head"><span>${sector}</span></div>
-          <div>${rows}</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(400px,1fr));gap:0 28px;">${rows}</div>
         </div>`;
       }).join('');
       grid.innerHTML = sectorHtml;
