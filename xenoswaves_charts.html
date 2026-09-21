@@ -204,6 +204,7 @@ body { background: var(--bg); color: var(--ink); font-family: var(--mono); min-h
     <span id="live-date">—</span>
     <div style="display:flex;align-items:center;gap:10px;">
       <span>REAL-TIME DATA</span>
+      <button id="xf-logout-btn" onclick="xfLogout()" style="display:none;font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;padding:6px 14px;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.35);color:#ef4444;cursor:pointer;white-space:nowrap;" title="Logout">⏻ Logout</button>
       <div id="xenos-lang-switcher" style="display:inline-block;"></div>
     </div>
   </div>
@@ -1055,7 +1056,22 @@ function unlockXFResearchFree(ticker) {
     const lock = document.getElementById('xfr-lock-' + ticker);
     if (lock) lock.remove();
   }
+  if (typeof xfUpdateLogoutBtn === 'function') xfUpdateLogoutBtn();
 }
+
+// ── Global Logout (mancava del tutto in questa pagina) ──────────
+function xfLogout() {
+  localStorage.removeItem('xenos_premium_code');
+  localStorage.removeItem('xenos_free_email');
+  location.reload();
+}
+function xfUpdateLogoutBtn() {
+  const btn = document.getElementById('xf-logout-btn');
+  if (!btn) return;
+  const isLogged = localStorage.getItem('xenos_premium_code') || localStorage.getItem('xenos_free_email');
+  btn.style.display = isLogged ? 'inline-block' : 'none';
+}
+document.addEventListener('DOMContentLoaded', xfUpdateLogoutBtn);
 
 function unlockXFResearch(ticker) {
   const codes = ['XENOS-PREMIUM-2026','XF-PRO-001','XF-PRO-002','XF-PRO-003'];
@@ -1356,7 +1372,8 @@ Return this exact JSON structure:
       body: JSON.stringify(_useFree ? {
         type: 'gemini-free-chat',
         email: localStorage.getItem('xenos_free_email') || '',
-        message: prompt
+        message: prompt,
+        json_mode: true
       } : {
         model: 'claude-sonnet-4-6',
         max_tokens: 1000,
@@ -1370,9 +1387,15 @@ Return this exact JSON structure:
     }
     const raw = _useFree ? (data.reply || '').trim() : data.content?.map(b => b.text || '').join('').trim();
     const clean = raw.replace(/```json|```/g, '').trim();
-    const d = JSON.parse(clean);
+    // FIX 2026-09-21: non fidarsi che tutto il testo sia JSON puro —
+    // Gemini a volte aggiunge una frase prima/dopo nonostante json_mode;
+    // estrae solo il blocco {...} più ampio prima di fare il parse.
+    const jsonMatch = clean.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('Risposta AI senza JSON valido: ' + clean.slice(0, 200));
+    const d = JSON.parse(jsonMatch[0]);
     renderXFResearch(container, d, ticker);
   } catch(err) {
+    console.error('[ETF AI] generation failed:', err);
     container.innerHTML = `<div style="font-family:var(--mono);font-size:9px;color:var(--red2);padding:20px;text-align:center;letter-spacing:1px;">⚠ Research generation failed. Try again.</div>
     <button class="xfr-generate-btn" onclick="generateXFResearch('${ticker}','${name}','${type}','${aum}','${ter}','${bench}','${tagsStr}')">↻ Retry</button>`;
   }

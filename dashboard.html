@@ -918,12 +918,57 @@ function promptFreeAccessDash() {
   closePremiumModal();
   const gate = document.getElementById('ai-im-gate');
   if (gate) gate.style.display = 'none';
+  if (typeof xfUpdateLogoutBtn === 'function') xfUpdateLogoutBtn();
   // FIX 2026-09-21: senza questo, il bottone restava agganciato a
   // showPremiumModal (impostato al caricamento pagina per i non-premium)
   // invece che a runIntermarketAI — l'utente vedeva il bottone ma
   // cliccandolo riapriva sempre il popup, mai l'analisi vera.
   const btn = document.getElementById('ai-im-btn');
   if (btn) { btn.textContent = '⟳ ' + (typeof window.t === 'function' ? window.t('label_analyse') : 'Analyse'); btn.onclick = runIntermarketAI; }
+}
+
+// ── Admin-only check (separato da isPremium: qui vogliamo SOLO te,
+// non i premium generici né gli utenti free-whitelist, per evitare che
+// chiunque possa pubblicare sul canale Telegram reale) ──
+function isAdminDash() {
+  const adminCodes = ['RMG@Manu78','RMG@manu78'];
+  return adminCodes.includes(localStorage.getItem('xenos_premium_code') || '');
+}
+
+let _lastIntermarketAnalysis = null;
+async function sendIntermarketToChannel() {
+  if (!isAdminDash()) return; // defensive — button is hidden otherwise, but don't trust the DOM alone
+  if (!_lastIntermarketAnalysis) return;
+  const sendBtn = document.getElementById('ai-im-send-btn');
+  const escapeTg = s => String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const { sections, sentimentLabel, hm } = _lastIntermarketAnalysis;
+  const order = [
+    ['RISK SENTIMENT','🛡'], ['DOLLAR & FOREX','💵'], ['COMMODITIES','🪙'],
+    ['EQUITIES & BONDS','📈'], ['CRYPTO','₿'], ['INTERMARKET CONCLUSION','✦'],
+  ];
+  let lines = [`<b>✦ INTERMARKET ANALYSIS · XENOSFINANCE AI</b>`, `${hm} CET · ${escapeTg(sentimentLabel)}`, ''];
+  order.forEach(([key, icon]) => {
+    const txt = (sections[key] || '').replace(/\n/g,' ').trim();
+    if (!txt) return;
+    lines.push(`${icon} <b>${escapeTg(key)}</b>`, escapeTg(txt), '');
+  });
+  lines.push('⚠ Educational purposes only — not investment advice');
+  const text = lines.join('\n').slice(0, 4000); // Telegram message hard cap 4096 chars
+
+  if (sendBtn) { sendBtn.disabled = true; sendBtn.textContent = '⟳ Sending...'; }
+  try {
+    const res = await fetch(WORKER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'telegram', text, parse_mode: 'HTML' })
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.description || 'Telegram send failed');
+    if (sendBtn) { sendBtn.textContent = '✓ Sent'; setTimeout(() => { sendBtn.disabled = false; sendBtn.textContent = '📤 Send to Channel'; }, 3000); }
+  } catch(e) {
+    console.error('[sendIntermarketToChannel] failed:', e);
+    if (sendBtn) { sendBtn.textContent = '⚠ Failed'; sendBtn.disabled = false; setTimeout(() => { sendBtn.textContent = '📤 Send to Channel'; }, 3000); }
+  }
 }
 
 function showPremiumModal() {
@@ -1135,6 +1180,8 @@ Be concise, professional, data-driven. Use the actual prices provided. No discla
     const cryptoTxt = (sections['CRYPTO']||'').replace(/\n/g,' ').trim();
     const conclusionTxt = (sections['INTERMARKET CONCLUSION']||'').replace(/\n/g,' ').trim();
 
+    _lastIntermarketAnalysis = { sections, sentimentLabel, hm };
+
     body.innerHTML = `
       <div style="font-size:9px;color:var(--muted);letter-spacing:2px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;">
         <span>✦ INTERMARKET ANALYSIS · XENOSFINANCE AI</span>
@@ -1171,7 +1218,10 @@ Be concise, professional, data-driven. Use the actual prices provided. No discla
         <p style="margin:0;font-size:11px;color:var(--ink);line-height:1.7;">${conclusionTxt}</p>
       </div>` : ''}
 
-      <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);font-size:9px;color:var(--muted);letter-spacing:1px;">⚠ <span data-i18n="label_educational_only">Educational purposes only — not investment advice</span></div>
+      <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+        <span style="font-size:9px;color:var(--muted);letter-spacing:1px;">⚠ <span data-i18n="label_educational_only">Educational purposes only — not investment advice</span></span>
+        <button id="ai-im-send-btn" onclick="sendIntermarketToChannel()" style="font-family:var(--mono);font-size:8px;letter-spacing:1.5px;text-transform:uppercase;padding:5px 12px;background:transparent;border:1px solid var(--border2);color:var(--gold);cursor:pointer;white-space:nowrap;${isAdminDash() ? '' : 'display:none;'}">📤 Send to Channel</button>
+      </div>
     `;
     status.textContent = `✓ ${hm} CET`;
 
@@ -1209,6 +1259,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // ── Global Logout ──────────────────────────────────────────────
 function xfLogout() {
   localStorage.removeItem('xenos_premium_code');
+  localStorage.removeItem('xenos_free_email');
   sessionStorage.removeItem('xf_admin');
   sessionStorage.removeItem('xf_interpreter');
   location.reload();
@@ -1216,7 +1267,7 @@ function xfLogout() {
 function xfUpdateLogoutBtn() {
   const btn = document.getElementById('xf-logout-btn');
   if (!btn) return;
-  const isLogged = localStorage.getItem('xenos_premium_code') || sessionStorage.getItem('xf_admin');
+  const isLogged = localStorage.getItem('xenos_premium_code') || sessionStorage.getItem('xf_admin') || localStorage.getItem('xenos_free_email');
   btn.style.display = isLogged ? 'inline-block' : 'none';
 }
 document.addEventListener('DOMContentLoaded', xfUpdateLogoutBtn);

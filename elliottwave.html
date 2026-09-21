@@ -1763,6 +1763,7 @@ function promptFreeAccessEW(feature) {
   localStorage.setItem('xenos_free_email', email.toLowerCase());
   const modal = document.getElementById('xf-premium-modal');
   if (modal) modal.style.display = 'none';
+  if (typeof xfUpdateLogoutBtn === 'function') xfUpdateLogoutBtn();
   return true;
 }
 
@@ -4028,6 +4029,7 @@ async function deleteEWChartImg(signalId) {
 // ── Global Logout ──────────────────────────────────────────────
 function xfLogout() {
   localStorage.removeItem('xenos_premium_code');
+  localStorage.removeItem('xenos_free_email');
   sessionStorage.removeItem('xf_admin');
   sessionStorage.removeItem('xf_interpreter');
   location.reload();
@@ -4035,7 +4037,7 @@ function xfLogout() {
 function xfUpdateLogoutBtn() {
   const btn = document.getElementById('xf-logout-btn');
   if (!btn) return;
-  const isLogged = localStorage.getItem('xenos_premium_code') || sessionStorage.getItem('xf_admin');
+  const isLogged = localStorage.getItem('xenos_premium_code') || sessionStorage.getItem('xf_admin') || localStorage.getItem('xenos_free_email');
   btn.style.display = isLogged ? 'inline-block' : 'none';
 }
 document.addEventListener('DOMContentLoaded', xfUpdateLogoutBtn);
@@ -4445,7 +4447,8 @@ async function ewsRunAnalysis() {
       body: JSON.stringify(_ewsUseFree ? {
         type: 'gemini-free-chat',
         email: localStorage.getItem('xenos_free_email') || '',
-        message: prompt
+        message: prompt,
+        json_mode: true
       } : {
         model: 'claude-sonnet-4-6',
         max_tokens: 600,
