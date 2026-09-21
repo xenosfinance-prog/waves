@@ -33,8 +33,31 @@ body{background:var(--bg);color:var(--ink);font-family:var(--mono);min-height:10
 .masthead-name span{color:var(--gold);}
 .masthead-sub{font-size:10px;letter-spacing:5px;color:var(--muted);margin-top:4px;text-transform:uppercase;}
 .masthead-nav{border-top:1px solid var(--border);background:var(--bg2);display:flex;justify-content:center;flex-wrap:wrap;}
-.masthead-nav a{display:inline-block;padding:12px 20px;font-size:10px;letter-spacing:2px;text-transform:uppercase;text-decoration:none;color:var(--muted);border-bottom:2px solid transparent;transition:all 0.2s;}
-.masthead-nav a:hover,.masthead-nav a.active{color:var(--gold);border-bottom-color:var(--gold);}
+.nav-btn{font-family:var(--mono);display:inline-block;padding:12px 20px;font-size:10px;letter-spacing:2px;text-transform:uppercase;text-decoration:none;color:var(--muted);border-bottom:2px solid transparent;transition:all 0.2s;}
+.nav-btn:hover,.nav-btn.active{color:var(--gold);border-bottom-color:var(--gold);}
+.nav-dropdown{position:relative;display:inline-block;}
+.nav-caret{font-size:8px;margin-left:5px;opacity:0.55;vertical-align:1px;transition:transform 0.15s;}
+.nav-dropdown.open .nav-caret,.nav-dropdown:hover .nav-caret{transform:rotate(180deg);opacity:0.9;}
+.nav-dropdown-menu{
+  display:none;position:absolute;top:100%;left:50%;transform:translateX(-50%);
+  background:var(--bg);border:1px solid var(--border2);border-top:2px solid var(--gold);
+  min-width:190px;box-shadow:0 10px 28px rgba(0,0,0,0.5);z-index:200;padding:6px 0;border-radius:0 0 4px 4px;
+}
+.nav-dropdown:hover .nav-dropdown-menu,.nav-dropdown.open .nav-dropdown-menu{display:block;}
+.nav-dropdown-menu a{
+  display:block;padding:11px 22px;font-size:10px;letter-spacing:2px;text-transform:uppercase;
+  color:var(--muted);text-decoration:none;white-space:nowrap;transition:all 0.15s;
+}
+.nav-dropdown-menu a:hover{color:var(--gold);background:var(--bg2);}
+.nav-dropdown-menu a.active{color:var(--gold);}
+@media (max-width:768px){
+  .nav-dropdown-menu{position:static;transform:none;box-shadow:none;border:none;background:var(--bg3);min-width:0;width:100%;}
+}
+@media(max-width:600px){
+  .masthead-nav{overflow-x:auto;-webkit-overflow-scrolling:touch;justify-content:flex-start;scrollbar-width:none;}
+  .masthead-nav::-webkit-scrollbar{display:none;}
+  .nav-btn{padding:10px 12px;font-size:9px;letter-spacing:1px;white-space:nowrap;flex-shrink:0;}
+}
 
 /* ── LAYOUT ── */
 .page-wrap{max-width:1300px;margin:0 auto;padding:40px 24px 80px;}
@@ -190,13 +213,30 @@ textarea{resize:vertical;min-height:70px;}
     <div class="masthead-sub">Elliott Wave · Signals · Markets · Intelligence</div>
   </div>
   <nav class="masthead-nav">
-    <a href="https://xenosfinance.com">📰 News</a>
-    <a href="https://xenosfinance.com/dashboard">📊 Dashboard</a>
-    <a href="https://xenosfinance.com/trading-signals">📡 Signals</a>
-    <a href="https://xenosfinance.com/elliottwave">〜 Elliott Wave</a>
-    <a href="https://xenosfinance.com/calendar">🗓 Calendar</a>
-    <a href="https://xenosfinance.com/portfolio" class="active">⬡ Portfolio</a>
-    <a href="https://xenosfinance.com/premium-support" style="color:var(--gold2);">✦ Premium</a>
+    <a class="nav-btn" href="https://xenosfinance.com"><span>📰 News</span></a>
+    <a class="nav-btn" href="https://xenosfinance.com/market-brief"><span>🤖 Market Brief</span></a>
+    <div class="nav-dropdown">
+      <a class="nav-btn" href="https://xenosfinance.com/dashboard"><span>📊 Dashboard</span><span class="nav-caret">▾</span></a>
+      <div class="nav-dropdown-menu">
+        <a class="active" href="https://xenosfinance.com/portfolio"><span>📈 Portfolio</span></a>
+      </div>
+    </div>
+    <a class="nav-btn" href="https://xenosfinance.com/xenoswaves_charts"><span>◈ Charts</span></a>
+    <a class="nav-btn" href="https://xenosfinance.com/XenosBlog"><span>✦ AI Blog</span></a>
+    <div class="nav-dropdown">
+      <a class="nav-btn" href="https://xenosfinance.com/trading-ideas"><span>💡 Trading Ideas</span><span class="nav-caret">▾</span></a>
+      <div class="nav-dropdown-menu">
+        <a href="https://xenosfinance.com/trading-signals"><span>📡 Live Signals</span></a>
+      </div>
+    </div>
+    <a class="nav-btn" href="https://xenosfinance.com/calendar"><span>🗓 Calendar</span></a>
+    <a class="nav-btn" href="https://xenosfinance.com/elliottwave"><span>〜 Elliott Wave</span></a>
+    <div class="nav-dropdown">
+      <a class="nav-btn" href="https://xenosfinance.com/daily-education"><span>📚 Education</span><span class="nav-caret">▾</span></a>
+      <div class="nav-dropdown-menu">
+        <a href="https://xenosfinance.com/premium-support"><span>✦ Premium</span></a>
+      </div>
+    </div>
   </nav>
 </header>
 
@@ -1271,6 +1311,31 @@ document.addEventListener('DOMContentLoaded', async () => {
     try { render(); } catch(e) { console.error('[refresh] render failed:', e); }
   }, TRADES_REFRESH_INTERVAL);
 });
+</script>
+<script>
+// Dropdown nav menus (Dashboard/Trading Ideas/Education) open on hover
+// for desktop (pure CSS); touch devices have no hover — this makes
+// tapping the parent link toggle the sub-menu open/closed instead,
+// and tapping anywhere else closes it. Stessa logica usata nelle altre
+// pagine del sito, per coerenza.
+(function() {
+  document.querySelectorAll('.nav-dropdown').forEach(function(dropdown) {
+    const trigger = dropdown.querySelector(':scope > .nav-btn');
+    if (!trigger) return;
+    trigger.addEventListener('click', function(e) {
+      if (window.matchMedia('(hover: hover)').matches) return;
+      e.preventDefault();
+      const wasOpen = dropdown.classList.contains('open');
+      document.querySelectorAll('.nav-dropdown.open').forEach(function(d) { d.classList.remove('open'); });
+      if (!wasOpen) dropdown.classList.add('open');
+    });
+  });
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest('.nav-dropdown')) {
+      document.querySelectorAll('.nav-dropdown.open').forEach(function(d) { d.classList.remove('open'); });
+    }
+  });
+})();
 </script>
 </body>
 </html>
