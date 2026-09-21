@@ -918,6 +918,12 @@ function promptFreeAccessDash() {
   closePremiumModal();
   const gate = document.getElementById('ai-im-gate');
   if (gate) gate.style.display = 'none';
+  // FIX 2026-09-21: senza questo, il bottone restava agganciato a
+  // showPremiumModal (impostato al caricamento pagina per i non-premium)
+  // invece che a runIntermarketAI — l'utente vedeva il bottone ma
+  // cliccandolo riapriva sempre il popup, mai l'analisi vera.
+  const btn = document.getElementById('ai-im-btn');
+  if (btn) { btn.textContent = '⟳ ' + (typeof window.t === 'function' ? window.t('label_analyse') : 'Analyse'); btn.onclick = runIntermarketAI; }
 }
 
 function showPremiumModal() {
@@ -1187,10 +1193,10 @@ document.addEventListener('DOMContentLoaded', () => {
   setInterval(updateAll, 60000);
   setInterval(loadUSStocks, 60000);
 
-  // Gate overlay: hide if premium, keep visible otherwise
+  // Gate overlay: hide if premium OR free-unlocked, keep visible otherwise
   const gate = document.getElementById('ai-im-gate');
   const btn = document.getElementById('ai-im-btn');
-  if (isPremium()) {
+  if (isPremium() || isFreeUnlocked()) {
     if (gate) gate.style.display = 'none';
   } else {
     // Gate stays visible — btn in header also triggers modal
