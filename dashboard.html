@@ -729,6 +729,24 @@ const US_STOCKS = [
   {id:'UNH',   yf:'UNH',   label:'UNH',   name:'UnitedHealth',  col:'fin'},
   {id:'LLY',   yf:'LLY',   label:'LLY',   name:'Eli Lilly',     col:'fin'},
   {id:'BRK-A', yf:'BRK-A', label:'BRK.A', name:'Berkshire Hath.',col:'fin'},
+  {id:'IBM',   yf:'IBM',   label:'IBM',   name:'IBM',           col:'tech'},
+  {id:'NOW',   yf:'NOW',   label:'NOW',   name:'ServiceNow',    col:'tech'},
+  {id:'PANW',  yf:'PANW',  label:'PANW',  name:'Palo Alto Nets',col:'tech'},
+  {id:'WFC',   yf:'WFC',   label:'WFC',   name:'Wells Fargo',   col:'fin'},
+  {id:'MS',    yf:'MS',    label:'MS',    name:'Morgan Stanley',col:'fin'},
+  {id:'PFE',   yf:'PFE',   label:'PFE',   name:'Pfizer',        col:'fin'},
+  {id:'ABBV',  yf:'ABBV',  label:'ABBV',  name:'AbbVie',        col:'fin'},
+  {id:'MRK',   yf:'MRK',   label:'MRK',   name:'Merck',         col:'fin'},
+  {id:'TMO',   yf:'TMO',   label:'TMO',   name:'Thermo Fisher', col:'fin'},
+  {id:'KO',    yf:'KO',    label:'KO',    name:'Coca-Cola',     col:'fin'},
+  {id:'PEP',   yf:'PEP',   label:'PEP',   name:'PepsiCo',       col:'fin'},
+  {id:'MCD',   yf:'MCD',   label:'MCD',   name:'McDonald\'s',   col:'fin'},
+  {id:'NKE',   yf:'NKE',   label:'NKE',   name:'Nike',          col:'fin'},
+  {id:'DIS',   yf:'DIS',   label:'DIS',   name:'Disney',        col:'fin'},
+  {id:'CAT',   yf:'CAT',   label:'CAT',   name:'Caterpillar',   col:'fin'},
+  {id:'BA',    yf:'BA',    label:'BA',    name:'Boeing',        col:'fin'},
+  {id:'GE',    yf:'GE',    label:'GE',    name:'General Electric',col:'fin'},
+  {id:'HON',   yf:'HON',   label:'HON',   name:'Honeywell',     col:'fin'},
 ];
 
 function marketStateBadge(state) {
@@ -827,14 +845,38 @@ function renderStockDetails(panel, details) {
   const f = details.fund;
   let fundHtml = '<div style="color:var(--muted);margin-bottom:8px;">Fundamentals unavailable</div>';
   if (f) {
-    fundHtml = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(88px,1fr));gap:8px;margin-bottom:10px;">
-      <div><div style="color:var(--muted);font-size:9px;">P/E</div><div style="color:var(--text);font-weight:700;">${f.pe ? f.pe.toFixed(1) : '--'}</div></div>
-      <div><div style="color:var(--muted);font-size:9px;">Market Cap</div><div style="color:var(--text);font-weight:700;">${fmtMarketCap(f.market_cap)}</div></div>
-      <div><div style="color:var(--muted);font-size:9px;">52w High</div><div style="color:var(--text);font-weight:700;">$${f.week52_high ? f.week52_high.toFixed(2) : '--'}</div></div>
-      <div><div style="color:var(--muted);font-size:9px;">52w Low</div><div style="color:var(--text);font-weight:700;">$${f.week52_low ? f.week52_low.toFixed(2) : '--'}</div></div>
-      <div><div style="color:var(--muted);font-size:9px;">Avg Vol (3m)</div><div style="color:var(--text);font-weight:700;">${f.avg_volume_3m ? (f.avg_volume_3m/1e6).toFixed(1)+'M' : '--'}</div></div>
-      <div><div style="color:var(--muted);font-size:9px;">Div Yield</div><div style="color:var(--text);font-weight:700;">${f.dividend_yield ? (f.dividend_yield*100).toFixed(2)+'%' : '--'}</div></div>
-    </div>`;
+    const cell = (label, value) => `<div><div style="color:var(--muted);font-size:9px;">${label}</div><div style="color:var(--text);font-weight:700;">${value ?? '--'}</div></div>`;
+    const num = (v, d=1) => v != null ? v.toFixed(d) : null;
+    const pct = (v, d=1) => v != null ? v.toFixed(d) + '%' : null;
+    const usd = (v, d=2) => v != null ? '$' + v.toFixed(d) : null;
+    const block = (title, cellsHtml) => `
+      <div style="margin-bottom:10px;">
+        <div style="font-family:var(--mono);font-size:8px;letter-spacing:1.5px;color:var(--gold);margin-bottom:6px;">${title}</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(88px,1fr));gap:8px;">${cellsHtml}</div>
+      </div>`;
+
+    fundHtml =
+      block('VALUATION',
+        cell('P/E', num(f.pe)) +
+        cell('P/S', num(f.ps)) +
+        cell('EV/EBITDA', num(f.ev_ebitda)) +
+        cell('Market Cap', fmtMarketCap(f.market_cap))
+      ) +
+      block('GROWTH',
+        cell('EPS Growth', pct(f.eps_growth)) +
+        cell('Revenue Growth', pct(f.revenue_growth))
+      ) +
+      block('FINANCIAL HEALTH',
+        cell('ROE', pct(f.roe)) +
+        cell('Debt/Equity', num(f.debt_equity, 2))
+      ) +
+      block('MARKET',
+        cell('Beta', num(f.beta, 2)) +
+        cell('52w High', usd(f.week52_high)) +
+        cell('52w Low', usd(f.week52_low)) +
+        cell('Avg Vol (3m)', f.avg_volume_3m ? (f.avg_volume_3m/1e6).toFixed(1)+'M' : null) +
+        cell('Div Yield', f.dividend_yield ? pct(f.dividend_yield*100, 2) : null)
+      );
   }
 
   let newsHtml = '<div style="color:var(--muted);">No recent news</div>';
