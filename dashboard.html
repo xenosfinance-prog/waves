@@ -340,17 +340,9 @@ body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:10
   <div class="section-head" style="margin-bottom:12px;">
     <div class="section-head-label"><span data-i18n="section_us_stocks">US Stocks</span></div>
     <div class="section-head-line"></div>
+    <span id="stocks-time" style="color:var(--muted);font-size:9px;font-family:var(--mono);">--:-- CET</span>
   </div>
-  <div class="two-col" style="margin-bottom:28px;">
-    <div class="col-box">
-      <div class="col-head"><span><span data-i18n="section_top_tech">Top Technology</span></span><span id="stocks-time" style="color:var(--muted)">--:-- CET</span></div>
-      <div id="stocks-tech"></div>
-    </div>
-    <div class="col-box">
-      <div class="col-head"><span><span data-i18n="section_fin_energy">Finance &amp; Energy</span></span><span style="color:var(--muted)">Live</span></div>
-      <div id="stocks-fin"></div>
-    </div>
-  </div>
+  <div id="stocks-by-sector" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-bottom:28px;"></div>
 
   <!-- AI INTERMARKET ANALYSIS -->
   <div class="ai-im-wrapper" style="margin:32px 0 0;border:1px solid var(--border);position:relative;">
@@ -691,63 +683,64 @@ async function updateAll() {
 
 // ── US STOCKS ──────────────────────────────────────────────────────────────
 const US_STOCKS = [
-  {id:'AAPL',  yf:'AAPL',  label:'AAPL',  name:'Apple',         col:'tech'},
-  {id:'MSFT',  yf:'MSFT',  label:'MSFT',  name:'Microsoft',     col:'tech'},
-  {id:'NVDA',  yf:'NVDA',  label:'NVDA',  name:'Nvidia',        col:'tech'},
-  {id:'AMZN',  yf:'AMZN',  label:'AMZN',  name:'Amazon',        col:'tech'},
-  {id:'GOOGL', yf:'GOOGL', label:'GOOGL', name:'Alphabet',      col:'tech'},
-  {id:'META',  yf:'META',  label:'META',  name:'Meta',          col:'tech'},
-  {id:'TSLA',  yf:'TSLA',  label:'TSLA',  name:'Tesla',         col:'tech'},
-  {id:'NFLX',  yf:'NFLX',  label:'NFLX',  name:'Netflix',       col:'tech'},
-  {id:'PLTR',  yf:'PLTR',  label:'PLTR',  name:'Palantir',      col:'tech'},
-  {id:'AMD',   yf:'AMD',   label:'AMD',   name:'AMD',           col:'tech'},
-  {id:'AVGO',  yf:'AVGO',  label:'AVGO',  name:'Broadcom',      col:'tech'},
-  {id:'JPM',   yf:'JPM',   label:'JPM',   name:'JPMorgan',      col:'fin'},
-  {id:'GS',    yf:'GS',    label:'GS',    name:'Goldman Sachs', col:'fin'},
-  {id:'BAC',   yf:'BAC',   label:'BAC',   name:'Bank of America',col:'fin'},
-  {id:'XOM',   yf:'XOM',   label:'XOM',   name:'Exxon Mobil',   col:'fin'},
-  {id:'CVX',   yf:'CVX',   label:'CVX',   name:'Chevron',       col:'fin'},
-  {id:'WMT',   yf:'WMT',   label:'WMT',   name:'Walmart',       col:'fin'},
-  {id:'JNJ',   yf:'JNJ',   label:'JNJ',   name:'Johnson & J.',  col:'fin'},
-  {id:'V',     yf:'V',     label:'V',     name:'Visa',          col:'fin'},
-  {id:'MA',    yf:'MA',    label:'MA',    name:'Mastercard',    col:'fin'},
-  {id:'COP',   yf:'COP',   label:'COP',   name:'ConocoPhillips',col:'fin'},
-  {id:'COIN',  yf:'COIN',  label:'COIN',  name:'Coinbase',      col:'fin'},
-  {id:'TSM',   yf:'TSM',   label:'TSM',   name:'Taiwan Semi.',  col:'tech'},
-  {id:'ASML',  yf:'ASML',  label:'ASML',  name:'ASML Holding',  col:'tech'},
-  {id:'ORCL',  yf:'ORCL',  label:'ORCL',  name:'Oracle',        col:'tech'},
-  {id:'CRM',   yf:'CRM',   label:'CRM',   name:'Salesforce',    col:'tech'},
-  {id:'ADBE',  yf:'ADBE',  label:'ADBE',  name:'Adobe',         col:'tech'},
-  {id:'INTC',  yf:'INTC',  label:'INTC',  name:'Intel',         col:'tech'},
-  {id:'QCOM',  yf:'QCOM',  label:'QCOM',  name:'Qualcomm',      col:'tech'},
-  {id:'MU',    yf:'MU',    label:'MU',    name:'Micron',        col:'tech'},
-  {id:'UBER',  yf:'UBER',  label:'UBER',  name:'Uber',          col:'tech'},
-  {id:'SHOP',  yf:'SHOP',  label:'SHOP',  name:'Shopify',       col:'tech'},
-  {id:'COST',  yf:'COST',  label:'COST',  name:'Costco',        col:'fin'},
-  {id:'HD',    yf:'HD',    label:'HD',    name:'Home Depot',    col:'fin'},
-  {id:'PG',    yf:'PG',    label:'PG',    name:'Procter & G.',  col:'fin'},
-  {id:'UNH',   yf:'UNH',   label:'UNH',   name:'UnitedHealth',  col:'fin'},
-  {id:'LLY',   yf:'LLY',   label:'LLY',   name:'Eli Lilly',     col:'fin'},
-  {id:'BRK-A', yf:'BRK-A', label:'BRK.A', name:'Berkshire Hath.',col:'fin'},
-  {id:'IBM',   yf:'IBM',   label:'IBM',   name:'IBM',           col:'tech'},
-  {id:'NOW',   yf:'NOW',   label:'NOW',   name:'ServiceNow',    col:'tech'},
-  {id:'PANW',  yf:'PANW',  label:'PANW',  name:'Palo Alto Nets',col:'tech'},
-  {id:'WFC',   yf:'WFC',   label:'WFC',   name:'Wells Fargo',   col:'fin'},
-  {id:'MS',    yf:'MS',    label:'MS',    name:'Morgan Stanley',col:'fin'},
-  {id:'PFE',   yf:'PFE',   label:'PFE',   name:'Pfizer',        col:'fin'},
-  {id:'ABBV',  yf:'ABBV',  label:'ABBV',  name:'AbbVie',        col:'fin'},
-  {id:'MRK',   yf:'MRK',   label:'MRK',   name:'Merck',         col:'fin'},
-  {id:'TMO',   yf:'TMO',   label:'TMO',   name:'Thermo Fisher', col:'fin'},
-  {id:'KO',    yf:'KO',    label:'KO',    name:'Coca-Cola',     col:'fin'},
-  {id:'PEP',   yf:'PEP',   label:'PEP',   name:'PepsiCo',       col:'fin'},
-  {id:'MCD',   yf:'MCD',   label:'MCD',   name:'McDonald\'s',   col:'fin'},
-  {id:'NKE',   yf:'NKE',   label:'NKE',   name:'Nike',          col:'fin'},
-  {id:'DIS',   yf:'DIS',   label:'DIS',   name:'Disney',        col:'fin'},
-  {id:'CAT',   yf:'CAT',   label:'CAT',   name:'Caterpillar',   col:'fin'},
-  {id:'BA',    yf:'BA',    label:'BA',    name:'Boeing',        col:'fin'},
-  {id:'GE',    yf:'GE',    label:'GE',    name:'General Electric',col:'fin'},
-  {id:'HON',   yf:'HON',   label:'HON',   name:'Honeywell',     col:'fin'},
+  {id:'AAPL',  yf:'AAPL',  label:'AAPL',  name:'Apple',         sector:'Technology'},
+  {id:'MSFT',  yf:'MSFT',  label:'MSFT',  name:'Microsoft',     sector:'Technology'},
+  {id:'NVDA',  yf:'NVDA',  label:'NVDA',  name:'Nvidia',        sector:'Technology'},
+  {id:'AMZN',  yf:'AMZN',  label:'AMZN',  name:'Amazon',        sector:'Technology'},
+  {id:'GOOGL', yf:'GOOGL', label:'GOOGL', name:'Alphabet',      sector:'Technology'},
+  {id:'META',  yf:'META',  label:'META',  name:'Meta',          sector:'Technology'},
+  {id:'TSLA',  yf:'TSLA',  label:'TSLA',  name:'Tesla',         sector:'Technology'},
+  {id:'NFLX',  yf:'NFLX',  label:'NFLX',  name:'Netflix',       sector:'Technology'},
+  {id:'PLTR',  yf:'PLTR',  label:'PLTR',  name:'Palantir',      sector:'Technology'},
+  {id:'AMD',   yf:'AMD',   label:'AMD',   name:'AMD',           sector:'Technology'},
+  {id:'AVGO',  yf:'AVGO',  label:'AVGO',  name:'Broadcom',      sector:'Technology'},
+  {id:'TSM',   yf:'TSM',   label:'TSM',   name:'Taiwan Semi.',  sector:'Technology'},
+  {id:'ASML',  yf:'ASML',  label:'ASML',  name:'ASML Holding',  sector:'Technology'},
+  {id:'ORCL',  yf:'ORCL',  label:'ORCL',  name:'Oracle',        sector:'Technology'},
+  {id:'CRM',   yf:'CRM',   label:'CRM',   name:'Salesforce',    sector:'Technology'},
+  {id:'ADBE',  yf:'ADBE',  label:'ADBE',  name:'Adobe',         sector:'Technology'},
+  {id:'INTC',  yf:'INTC',  label:'INTC',  name:'Intel',         sector:'Technology'},
+  {id:'QCOM',  yf:'QCOM',  label:'QCOM',  name:'Qualcomm',      sector:'Technology'},
+  {id:'MU',    yf:'MU',    label:'MU',    name:'Micron',        sector:'Technology'},
+  {id:'UBER',  yf:'UBER',  label:'UBER',  name:'Uber',          sector:'Technology'},
+  {id:'SHOP',  yf:'SHOP',  label:'SHOP',  name:'Shopify',       sector:'Technology'},
+  {id:'IBM',   yf:'IBM',   label:'IBM',   name:'IBM',           sector:'Technology'},
+  {id:'NOW',   yf:'NOW',   label:'NOW',   name:'ServiceNow',    sector:'Technology'},
+  {id:'PANW',  yf:'PANW',  label:'PANW',  name:'Palo Alto Nets',sector:'Technology'},
+  {id:'JPM',   yf:'JPM',   label:'JPM',   name:'JPMorgan',      sector:'Financials'},
+  {id:'GS',    yf:'GS',    label:'GS',    name:'Goldman Sachs', sector:'Financials'},
+  {id:'BAC',   yf:'BAC',   label:'BAC',   name:'Bank of America',sector:'Financials'},
+  {id:'V',     yf:'V',     label:'V',     name:'Visa',          sector:'Financials'},
+  {id:'MA',    yf:'MA',    label:'MA',    name:'Mastercard',    sector:'Financials'},
+  {id:'WFC',   yf:'WFC',   label:'WFC',   name:'Wells Fargo',   sector:'Financials'},
+  {id:'MS',    yf:'MS',    label:'MS',    name:'Morgan Stanley',sector:'Financials'},
+  {id:'COIN',  yf:'COIN',  label:'COIN',  name:'Coinbase',      sector:'Financials'},
+  {id:'BRK-A', yf:'BRK-A', label:'BRK.A', name:'Berkshire Hath.',sector:'Financials'},
+  {id:'XOM',   yf:'XOM',   label:'XOM',   name:'Exxon Mobil',   sector:'Energy'},
+  {id:'CVX',   yf:'CVX',   label:'CVX',   name:'Chevron',       sector:'Energy'},
+  {id:'COP',   yf:'COP',   label:'COP',   name:'ConocoPhillips',sector:'Energy'},
+  {id:'JNJ',   yf:'JNJ',   label:'JNJ',   name:'Johnson & J.',  sector:'Healthcare'},
+  {id:'UNH',   yf:'UNH',   label:'UNH',   name:'UnitedHealth',  sector:'Healthcare'},
+  {id:'LLY',   yf:'LLY',   label:'LLY',   name:'Eli Lilly',     sector:'Healthcare'},
+  {id:'PFE',   yf:'PFE',   label:'PFE',   name:'Pfizer',        sector:'Healthcare'},
+  {id:'ABBV',  yf:'ABBV',  label:'ABBV',  name:'AbbVie',        sector:'Healthcare'},
+  {id:'MRK',   yf:'MRK',   label:'MRK',   name:'Merck',         sector:'Healthcare'},
+  {id:'TMO',   yf:'TMO',   label:'TMO',   name:'Thermo Fisher', sector:'Healthcare'},
+  {id:'WMT',   yf:'WMT',   label:'WMT',   name:'Walmart',       sector:'Consumer'},
+  {id:'COST',  yf:'COST',  label:'COST',  name:'Costco',        sector:'Consumer'},
+  {id:'HD',    yf:'HD',    label:'HD',    name:'Home Depot',    sector:'Consumer'},
+  {id:'PG',    yf:'PG',    label:'PG',    name:'Procter & G.',  sector:'Consumer'},
+  {id:'KO',    yf:'KO',    label:'KO',    name:'Coca-Cola',     sector:'Consumer'},
+  {id:'PEP',   yf:'PEP',   label:'PEP',   name:'PepsiCo',       sector:'Consumer'},
+  {id:'MCD',   yf:'MCD',   label:'MCD',   name:'McDonald\'s',   sector:'Consumer'},
+  {id:'NKE',   yf:'NKE',   label:'NKE',   name:'Nike',          sector:'Consumer'},
+  {id:'DIS',   yf:'DIS',   label:'DIS',   name:'Disney',        sector:'Consumer'},
+  {id:'CAT',   yf:'CAT',   label:'CAT',   name:'Caterpillar',   sector:'Industrials'},
+  {id:'BA',    yf:'BA',    label:'BA',    name:'Boeing',        sector:'Industrials'},
+  {id:'GE',    yf:'GE',    label:'GE',    name:'General Electric',sector:'Industrials'},
+  {id:'HON',   yf:'HON',   label:'HON',   name:'Honeywell',     sector:'Industrials'},
 ];
+const US_STOCK_SECTORS = ['Technology','Financials','Healthcare','Consumer','Industrials','Energy'];
 
 function marketStateBadge(state) {
   if (state === 'PRE') return '<span style="font-size:8px;padding:1px 5px;border-radius:3px;background:rgba(240,192,64,0.15);color:var(--accent,#f0c040);margin-left:6px;">PRE</span>';
@@ -903,18 +896,18 @@ async function loadUSStocks() {
     const d = await r.json();
     const prices = d.prices || {};
 
-    let techHtml = '', finHtml = '';
-    US_STOCKS.forEach(s => {
-      const p = prices[s.yf];
-      const row = stockRow(s.yf, s.label, s.name, p);
-      if (s.col === 'tech') techHtml += row;
-      else finHtml += row;
-    });
-
-    const techEl = document.getElementById('stocks-tech');
-    const finEl = document.getElementById('stocks-fin');
-    if (techEl) techEl.innerHTML = techHtml || '<div style="padding:16px;color:var(--muted);font-size:10px;font-family:var(--mono);">' + (typeof window.t === 'function' ? window.t('label_loading') : 'Loading...') + '</div>';
-    if (finEl) finEl.innerHTML = finHtml || '<div style="padding:16px;color:var(--muted);font-size:10px;font-family:var(--mono);">' + (typeof window.t === 'function' ? window.t('label_loading') : 'Loading...') + '</div>';
+    const grid = document.getElementById('stocks-by-sector');
+    if (grid) {
+      const sectorHtml = US_STOCK_SECTORS.map(sector => {
+        const rows = US_STOCKS.filter(s => s.sector === sector)
+          .map(s => stockRow(s.yf, s.label, s.name, prices[s.yf])).join('');
+        return `<div class="col-box">
+          <div class="col-head"><span>${sector}</span></div>
+          <div>${rows}</div>
+        </div>`;
+      }).join('');
+      grid.innerHTML = sectorHtml;
+    }
 
     const t = document.getElementById('stocks-time');
     if (t) {
@@ -922,8 +915,8 @@ async function loadUSStocks() {
       t.textContent = n.getHours().toString().padStart(2,'0') + ':' + n.getMinutes().toString().padStart(2,'0') + ' CET';
     }
   } catch(e) {
-    const techEl = document.getElementById('stocks-tech');
-    if (techEl) techEl.innerHTML = '<div style="padding:16px;color:var(--muted);font-size:10px;font-family:var(--mono);"><span data-i18n="label_temporarily_unavailable">Temporarily unavailable</span></div>';
+    const grid = document.getElementById('stocks-by-sector');
+    if (grid) grid.innerHTML = '<div style="padding:16px;color:var(--muted);font-size:10px;font-family:var(--mono);"><span data-i18n="label_temporarily_unavailable">Temporarily unavailable</span></div>';
   }
 }
 
