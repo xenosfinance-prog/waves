@@ -660,11 +660,19 @@ function render() {
   const filtOpen = catFilter === 'All' ? open : open.filter(t => t.cat === catFilter);
   const filtClosed = catFilter === 'All' ? closed : closed.filter(t => t.cat === catFilter);
 
-  renderAccSummary(open, closed);
-  renderKPI(open, closed);
-  renderCharts(closed, open);
-  renderOpenTable(filtOpen);
-  renderClosedTable(filtClosed);
+  // FIX 2026-09-21: render() chiamava queste 5 funzioni in sequenza senza
+  // alcun try/catch — un'eccezione in una qualunque di esse (es. renderCharts
+  // se Chart.js non è ancora pronto, o un elemento DOM mancante) bloccava
+  // JavaScript a metà, lasciando le tabelle vuote E impedendo l'esecuzione
+  // di TUTTO il codice successivo nel blocco di avvio (fetchLivePrices() e
+  // i due setInterval di auto-refresh), perché quel blocco è un'unica
+  // funzione async senza try/catch. Isolando ogni pezzo, un grafico rotto
+  // non blocca più tabelle, KPI o l'avvio dei timer di refresh.
+  try { renderAccSummary(open, closed); } catch(e) { console.error('[render] renderAccSummary failed:', e); }
+  try { renderKPI(open, closed); } catch(e) { console.error('[render] renderKPI failed:', e); }
+  try { renderCharts(closed, open); } catch(e) { console.error('[render] renderCharts failed:', e); }
+  try { renderOpenTable(filtOpen); } catch(e) { console.error('[render] renderOpenTable failed:', e); }
+  try { renderClosedTable(filtClosed); } catch(e) { console.error('[render] renderClosedTable failed:', e); }
 
   document.getElementById('openCount').textContent  = open.length + ' open';
   document.getElementById('closedCount').textContent = closed.length + ' closed';
@@ -1230,7 +1238,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   trades = await loadTrades();
   nextId = trades.length ? Math.max(...trades.map(t => parseInt(t.id)||0)) + 1 : 1;
 
-  render();
+  // FIX 2026-09-21: render() ora non lancia più eccezioni verso l'esterno
+  // (ogni suo pezzo ha il proprio try/catch), ma la chiamata resta protetta
+  // qui comunque — così, qualunque cosa succeda, il codice sotto (avvio dei
+  // timer) viene SEMPRE eseguito, invece di dipendere dal successo di render().
+  try { render(); } catch(e) { console.error('[init] render failed:', e); }
+
+  // Aggiorna subito lo status invece di lasciarlo bloccato su "Loading..."
+  // finché il primo fetchLivePrices() non trova qualcosa da aggiornare.
+  const openNow = trades.filter(t => t.status === 'Open').length;
+  if (el) el.innerHTML = openNow
+    ? '<span style="color:var(--muted)">⟳ Fetching live prices...</span>'
+    : '<span style="color:var(--muted)">— No open positions</span>';
 
   // Start live prices
   fetchLivePrices();
@@ -1249,7 +1268,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const fresh = await loadTrades();
     trades = fresh;
     nextId = trades.length ? Math.max(...trades.map(t => parseInt(t.id)||0)) + 1 : 1;
-    render();
+    try { render(); } catch(e) { console.error('[refresh] render failed:', e); }
   }, TRADES_REFRESH_INTERVAL);
 });
 </script>
