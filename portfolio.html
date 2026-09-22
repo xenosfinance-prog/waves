@@ -439,6 +439,7 @@ textarea{resize:vertical;min-height:70px;}
         <thead>
           <tr>
             <th onclick="sortOpenBy('asset')">Asset</th>
+            <th>Source</th>
             <th onclick="sortOpenBy('dir')">Direction</th>
             <th onclick="sortOpenBy('entry')">Entry</th>
             <th>Live Price</th>
@@ -468,6 +469,7 @@ textarea{resize:vertical;min-height:70px;}
         <thead>
           <tr>
             <th onclick="sortClosedBy('asset')">Asset</th>
+            <th>Source</th>
             <th>Direction</th>
             <th onclick="sortClosedBy('entry')">Entry</th>
             <th onclick="sortClosedBy('exit')">Exit</th>
@@ -830,10 +832,27 @@ function renderCharts(closed, open) {
   });
 }
 
+function sourceBadge(t) {
+  // botSignalSource è scritto da portfolio_sync.py solo per i trade del
+  // bot (source:"auto-bot") — un trade aperto a mano da te non ce l'ha.
+  if (t.source !== 'auto-bot' || !t.botSignalSource) {
+    return '<span style="color:var(--muted);font-size:10px;">Manual</span>';
+  }
+  const map = {
+    ichimoku_engine:    { label: 'Ichimoku',  color: '#3b82f6' },
+    ew_engine:          { label: 'EW',        color: '#a855f7' },
+    bollinger_rsi_engine:{ label: 'Bollinger', color: '#f59e0b' },
+    mko_engine:         { label: 'MKO',       color: '#22c55e' },
+    backfill:           { label: 'Backfill',  color: 'var(--muted)' },
+  };
+  const s = map[t.botSignalSource] || { label: t.botSignalSource, color: 'var(--muted)' };
+  return `<span style="color:${s.color};font-size:10px;font-weight:700;">${s.label}</span>`;
+}
+
 function renderOpenTable(rows) {
   const tbody = document.getElementById('openBody');
   if (!rows.length) {
-    tbody.innerHTML = `<tr class="empty-row"><td colspan="12">No open positions${catFilter!=='All'?' in '+catFilter:''} — click "+ Open Trade" to add one</td></tr>`;
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="13">No open positions${catFilter!=='All'?' in '+catFilter:''} — click "+ Open Trade" to add one</td></tr>`;
     return;
   }
   const sorted = [...rows].sort((a,b) => {
@@ -866,6 +885,7 @@ function renderOpenTable(rows) {
       </td>` : '';
     return `<tr>
       <td><div class="asset-name">${t.asset}</div><div class="asset-cat">${t.cat} · ${t.exch||''}</div></td>
+      <td>${sourceBadge(t)}</td>
       <td><span class="${t.dir==='Long'?'dir-long':'dir-short'}">${t.dir==='Long'?'▲ LONG':'▼ SHORT'}</span></td>
       <td style="color:var(--ink2);">${fmtPrice(t.entry, t.cat)}</td>
       <td style="color:var(--gold2);">${live}</td>
@@ -884,7 +904,7 @@ function renderOpenTable(rows) {
 function renderClosedTable(rows) {
   const tbody = document.getElementById('closedBody');
   if (!rows.length) {
-    tbody.innerHTML = `<tr class="empty-row"><td colspan="12">No closed trades${catFilter!=='All'?' in '+catFilter:''} yet</td></tr>`;
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="13">No closed trades${catFilter!=='All'?' in '+catFilter:''} yet</td></tr>`;
     const pagEl = document.getElementById('closedPagination');
     if (pagEl) pagEl.innerHTML = '';
     return;
@@ -927,6 +947,7 @@ function renderClosedTable(rows) {
       </td>` : '';
     return `<tr>
       <td><div class="asset-name">${t.asset}</div><div class="asset-cat">${t.cat} · ${t.exch||''}</div></td>
+      <td>${sourceBadge(t)}</td>
       <td><span class="${t.dir==='Long'?'dir-long':'dir-short'}">${t.dir==='Long'?'▲ LONG':'▼ SHORT'}</span></td>
       <td style="color:var(--ink2);">${fmtPrice(t.entry, t.cat)}</td>
       <td style="color:var(--ink2);">${fmtPrice(t.exit, t.cat)}</td>
@@ -1233,9 +1254,10 @@ async function fetchLivePrices() {
 // EXPORT
 // ═══════════════════════════════════════════════════════
 function exportCSV() {
-  const rows = [['Asset','Category','Direction','Status','Entry','Exit','P&L($)','P&L%','Volume','Leverage','SL','TP','Exchange','Opened','Closed','Days','Notes']];
+  const rows = [['Asset','Source','Category','Direction','Status','Entry','Exit','P&L($)','P&L%','Volume','Leverage','SL','TP','Exchange','Opened','Closed','Days','Notes']];
   trades.forEach(t => {
-    rows.push([t.asset, t.cat, t.dir, t.status, t.entry, t.exit||'',
+    const src = t.source === 'auto-bot' ? (t.botSignalSource || 'auto-bot') : 'Manual';
+    rows.push([t.asset, src, t.cat, t.dir, t.status, t.entry, t.exit||'',
       calcPnL(t).toFixed(2), calcPnLPct(t).toFixed(2), t.qty, t.lev||1,
       t.sl||'', t.tp||'', t.exch||'', t.open||'', t.close||'', daysOpen(t),
       `"${(t.notes||'').replace(/"/g,'""')}"`]);
