@@ -1084,15 +1084,26 @@ async function generateArticle() {
     var response = await fetch(WORKER_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 2500, messages: [{ role: 'user', content: buildPrompt(lang,market,tech,tone,length,topic,pasteText,asset) }] })
+      body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 4096, messages: [{ role: 'user', content: buildPrompt(lang,market,tech,tone,length,topic,pasteText,asset) }] })
     });
     if (!response.ok) throw new Error('HTTP ' + response.status);
     var data = await response.json();
     if (data.error) throw new Error(data.error);
+    // FIX 2026-09-22: se Claude viene interrotto per limite token, il JSON
+    // risulta incompleto/non chiuso — invece di far fallire il regex/parse
+    // con un errore generico poco chiaro, lo diciamo esplicitamente.
+    if (data.stop_reason === 'max_tokens') {
+      throw new Error('Risposta troncata per limite token (articolo troppo lungo per il budget attuale) — riprova, o scegli una lunghezza inferiore.');
+    }
     var text = data.content.map(function(i){ return i.text||''; }).join('');
     var m = text.match(/\{[\s\S]*\}/);
-    if (!m) throw new Error('JSON non trovato');
-    var article = JSON.parse(m[0]);
+    if (!m) throw new Error('JSON non trovato nella risposta AI');
+    var article;
+    try {
+      article = JSON.parse(m[0]);
+    } catch(parseErr) {
+      throw new Error('JSON malformato nella risposta AI (probabile troncamento) — riprova');
+    }
     currentArticle = Object.assign({}, article, {
       categoryLabel: marketLabels[market] + ' · ' + techLabels[tech],
       market: market, tech: tech, lang: lang, date: new Date().toISOString()
