@@ -834,6 +834,27 @@ function fmtMarketCap(n) {
   return '$' + n.toLocaleString();
 }
 
+function computeXenosBias(f) {
+  // Euristica semplice e trasparente, NON un giudizio AI e NON un
+  // consiglio di investimento — solo un riassunto a colpo d'occhio dei
+  // 4 numeri che contano di più per qualità/crescita, con lo stesso
+  // peso ciascuno. Valutazione (P/E, P/S, EV/EBITDA) è VOLUTAMENTE
+  // esclusa dal punteggio: "caro" non è automaticamente "bearish" (può
+  // essere un premio di crescita giustificato) — includerla renderebbe
+  // il segnale fuorviante più che utile.
+  const checks = [];
+  if (f.eps_growth != null) checks.push(f.eps_growth > 10 ? 1 : (f.eps_growth < 0 ? -1 : 0));
+  if (f.revenue_growth != null) checks.push(f.revenue_growth > 5 ? 1 : (f.revenue_growth < 0 ? -1 : 0));
+  if (f.roe != null) checks.push(f.roe > 15 ? 1 : (f.roe < 5 ? -1 : 0));
+  if (f.debt_equity != null) checks.push(f.debt_equity < 1.0 ? 1 : (f.debt_equity > 2.0 ? -1 : 0));
+
+  if (checks.length < 2) return null; // troppo pochi dati per dire qualcosa di sensato
+  const score = checks.reduce((a,b) => a+b, 0);
+  if (score >= 2) return { label: 'BULLISH', color: '#22c55e' };
+  if (score <= -2) return { label: 'BEARISH', color: '#ef4444' };
+  return { label: 'NEUTRAL', color: '#eab308' };
+}
+
 function renderStockDetails(panel, details) {
   const f = details.fund;
   let fundHtml = '<div style="color:var(--muted);margin-bottom:8px;">Fundamentals unavailable</div>';
@@ -870,6 +891,14 @@ function renderStockDetails(panel, details) {
         cell('Avg Vol (3m)', f.avg_volume_3m ? (f.avg_volume_3m/1e6).toFixed(1)+'M' : null) +
         cell('Div Yield', f.dividend_yield ? pct(f.dividend_yield*100, 2) : null)
       );
+
+    const bias = computeXenosBias(f);
+    if (bias) {
+      fundHtml += `<div style="margin-top:4px;padding-top:8px;border-top:1px solid var(--border);font-size:9px;color:var(--muted);letter-spacing:1px;">
+        XENOSFINANCE BIAS (fundamentals-only): <span style="color:${bias.color};font-weight:700;">${bias.label}</span>
+        <span style="opacity:0.7;"> — euristica su crescita/ROE/leva, non è un consiglio di investimento</span>
+      </div>`;
+    }
   }
 
   let newsHtml = '<div style="color:var(--muted);">No recent news</div>';
