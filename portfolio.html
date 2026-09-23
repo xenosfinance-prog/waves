@@ -368,6 +368,15 @@ textarea{resize:vertical;min-height:70px;}
     <button class="btn btn-outline" style="margin-left:auto;" onclick="exportCSV()">↓ CSV</button>
   </div>
 
+  <!-- ACCOUNT FILTER -->
+  <div class="filter-bar">
+    <span style="font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;">Account:</span>
+    <button class="filter-btn active" data-acct="MT5" onclick="setAcctFilter(this)">MT5 · ActivTrades</button>
+    <button class="filter-btn" data-acct="Dukascopy" onclick="setAcctFilter(this)">Dukascopy</button>
+    <button class="filter-btn" data-acct="Manual" onclick="setAcctFilter(this)">Manual</button>
+    <button class="filter-btn" data-acct="All" onclick="setAcctFilter(this)">All</button>
+  </div>
+
   <!-- ACCOUNT SUMMARY -->
   <div class="acc-bar">
     <div class="acc-item">
@@ -524,6 +533,43 @@ let isAdmin = sessionStorage.getItem('xf_portfolio_admin') === 'true';
 let trades  = [];
 let nextId  = 1;
 let catFilter = 'All';
+
+// FIX 2026-09-23: the journal mixed three separate accounts (Dukascopy
+// demo, MT5 ActivTrades demo, manual trades) against one $10,000
+// capital, so it could never match the MT5 balance. KPIs, charts and
+// tables are now computed per selected account. New bot trades carry
+// an explicit "account" field (portfolio_sync.py); older ones are
+// classified by order-id format (MT5 tickets are 10 digits, Dukascopy
+// ids 9) or, for backfilled rows without an id, by open date.
+const ACCOUNTS = {
+  MT5:       { capital: 10000 },
+  Dukascopy: { capital: 10000 },
+  Manual:    { capital: 10000 },
+};
+const MT5_START = '2026-09-21';
+let acctFilter = 'MT5';
+
+function tradeAccount(t) {
+  if (t.account) return t.account;
+  if (t.source !== 'auto-bot') return 'Manual';
+  const oid = String(t.botOrderId || '');
+  if (oid.length >= 10) return 'MT5';
+  if (oid) return 'Dukascopy';
+  return String(t.open || '') >= MT5_START ? 'MT5' : 'Dukascopy';
+}
+
+function acctCapital() {
+  if (acctFilter === 'All') return Object.values(ACCOUNTS).reduce((s, a) => s + a.capital, 0);
+  return ACCOUNTS[acctFilter]?.capital || CAPITAL;
+}
+
+function setAcctFilter(btn) {
+  document.querySelectorAll('.filter-btn[data-acct]').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  acctFilter = btn.dataset.acct;
+  closedPage = 1;
+  render();
+}
 let openSort  = { field:'open', dir:-1 };
 let closedSort= { field:'close', dir:-1 };
 
@@ -670,10 +716,57 @@ function lotMult(cat, asset) {
   }
 }
 
+// FIX 2026-09-23: P&L of a pair is in its QUOTE currency — GBP/JPY
+// 0.48 lots moving 6.6 pips = 3,181 JPY, which was shown as -$3,181
+// (real: ~-$20). Every JPY/CAD/CHF/EUR/GBP-quoted trade was wrong by
+// the exchange rate, which is why equity/realised P&L diverged wildly
+// from the MT5 balance. Now converted to USD. Rates are refreshed live
+// from the Worker (fetchFxRates); the defaults below are only used
+// until the first fetch succeeds.
+const FX_TO_USD_DEFAULT = { USDJPY:157.5, USDCAD:1.38, USDCHF:0.79, EURUSD:1.145, GBPUSD:1.335, AUDUSD:0.71, NZDUSD:0.572 };
+let FX_TO_USD = { ...FX_TO_USD_DEFAULT };
+const FX_RATE_SYMS = { 'USDJPY=X':'USDJPY','USDCAD=X':'USDCAD','USDCHF=X':'USDCHF','EURUSD=X':'EURUSD','GBPUSD=X':'GBPUSD','AUDUSD=X':'AUDUSD','NZDUSD=X':'NZDUSD' };
+
+function quoteToUsd(asset, exitPrice) {
+  const m = String(asset||'').toUpperCase().match(/^([A-Z]{3})\s*\/\s*([A-Z]{3})$/);
+  if (!m) return 1;
+  const [, base, quote] = m;
+  if (quote === 'USD') return 1;
+  if (base === 'USD' && exitPrice > 0) return 1 / exitPrice;   // USD/JPY, USD/CAD, USD/CHF: the pair itself is the rate
+  switch (quote) {
+    case 'JPY': return 1 / FX_TO_USD.USDJPY;
+    case 'CAD': return 1 / FX_TO_USD.USDCAD;
+    case 'CHF': return 1 / FX_TO_USD.USDCHF;
+    case 'EUR': return FX_TO_USD.EURUSD;
+    case 'GBP': return FX_TO_USD.GBPUSD;
+    case 'AUD': return FX_TO_USD.AUDUSD;
+    case 'NZD': return FX_TO_USD.NZDUSD;
+    default:    return 1;
+  }
+}
+
+async function fetchFxRates() {
+  try {
+    const r = await fetch(WORKER, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ type:'prices', pairs: Object.keys(FX_RATE_SYMS) }),
+      signal: AbortSignal.timeout(15000)
+    });
+    if (!r.ok) return;
+    const prices = (await r.json()).prices || {};
+    let changed = false;
+    for (const [sym, key] of Object.entries(FX_RATE_SYMS)) {
+      const p = prices[sym]?.price;
+      if (p > 0) { FX_TO_USD[key] = p; changed = true; }
+    }
+    if (changed) { try { render(); } catch(e) {} }
+  } catch(e) { /* keep last known / default rates */ }
+}
+
 function calcPnL(t) {
   const exit  = t.status === 'Closed' ? (t.exit || t.current || 0) : (t.current || t.entry || 0);
   const diff  = t.dir === 'Long' ? exit - t.entry : t.entry - exit;
-  return +(diff * (t.qty||1) * lotMult(t.cat, t.asset)).toFixed(2);
+  return +(diff * (t.qty||1) * lotMult(t.cat, t.asset) * quoteToUsd(t.asset, exit)).toFixed(2);
 }
 
 function calcPnLPct(t) {
@@ -725,8 +818,9 @@ function fmtPnL(n) {
 // RENDER
 // ═══════════════════════════════════════════════════════
 function render() {
-  const open   = trades.filter(t => t.status === 'Open');
-  const closed = trades.filter(t => t.status === 'Closed');
+  const acctTrades = acctFilter === 'All' ? trades : trades.filter(t => tradeAccount(t) === acctFilter);
+  const open   = acctTrades.filter(t => t.status === 'Open');
+  const closed = acctTrades.filter(t => t.status === 'Closed');
   const filtOpen = catFilter === 'All' ? open : open.filter(t => t.cat === catFilter);
   const filtClosed = catFilter === 'All' ? closed : closed.filter(t => t.cat === catFilter);
 
@@ -760,8 +854,9 @@ function render() {
 function renderAccSummary(open, closed) {
   const openPnL   = open.reduce((s,t) => s + calcPnL(t), 0);
   const realPnL   = closed.reduce((s,t) => s + calcPnL(t), 0);
-  const equity    = CAPITAL + openPnL + realPnL;
-  const equityPct = ((equity - CAPITAL) / CAPITAL * 100).toFixed(2);
+  const cap       = acctCapital();
+  const equity    = cap + openPnL + realPnL;
+  const equityPct = ((equity - cap) / cap * 100).toFixed(2);
   const winners   = closed.filter(t => calcPnL(t) > 0);
   const wr        = closed.length ? (winners.length / closed.length * 100).toFixed(0) + '%' : '—';
 
@@ -774,10 +869,10 @@ function renderAccSummary(open, closed) {
   // by JS at all — changing the CAPITAL constant above did nothing
   // to this box until now. Setting it here means CAPITAL is the only
   // place that ever needs editing again.
-  set('acc-capital', '$' + CAPITAL.toLocaleString('en-US'));
+  set('acc-capital', '$' + cap.toLocaleString('en-US'));
 
   set('acc-equity', '$' + equity.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}),
-      equity >= CAPITAL ? 'green' : 'red');
+      equity >= cap ? 'green' : 'red');
   const eqSubEl = document.getElementById('acc-equity-sub');
   if(eqSubEl) eqSubEl.textContent = (equityPct >= 0 ? '+' : '') + equityPct + '% vs capital';
 
@@ -1038,7 +1133,7 @@ function goToClosedPage(page) {
 // FILTERS & SORT
 // ═══════════════════════════════════════════════════════
 function setCatFilter(btn) {
-  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.filter-btn[data-cat]').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   catFilter = btn.dataset.cat;
   closedPage = 1;
@@ -1341,7 +1436,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     ? '<span style="color:var(--muted)">⟳ Fetching live prices...</span>'
     : '<span style="color:var(--muted)">— No open positions</span>';
 
-  // Start live prices
+  // Start live prices (+ FX conversion rates for non-USD-quoted P&L)
+  fetchFxRates();
+  setInterval(fetchFxRates, PRICE_INTERVAL);
   fetchLivePrices();
   priceTimer = setInterval(fetchLivePrices, PRICE_INTERVAL);
 
