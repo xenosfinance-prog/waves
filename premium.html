@@ -1145,12 +1145,30 @@ if (window.ethereum) {
 (function() {
   document.querySelectorAll('.nav-dropdown').forEach(function(dropdown) {
     const trigger = dropdown.querySelector(':scope > a');
+    // FIX 2026-09-23: su touch aggiunge la pagina parent come prima voce
+    // del sotto-menu, così è raggiungibile con un tap esplicito.
+    (function() {
+      const menu = dropdown.querySelector(':scope > .nav-dropdown-menu');
+      if (!menu || window.matchMedia('(hover: hover)').matches || menu.querySelector('[data-parent-link]')) return;
+      const a = document.createElement('a');
+      a.href = trigger.href;
+      a.setAttribute('data-parent-link', '');
+      const keyEl = trigger.hasAttribute('data-i18n') ? trigger : trigger.querySelector('[data-i18n]');
+      a.textContent = (keyEl && keyEl !== trigger ? keyEl.textContent : trigger.textContent).replace('\u25BE', '').trim();
+      if (keyEl) a.setAttribute('data-i18n', keyEl.getAttribute('data-i18n'));
+      menu.insertBefore(a, menu.firstChild);
+    })();
     trigger.addEventListener('click', function(e) {
       if (window.matchMedia('(hover: hover)').matches) return;
-      e.preventDefault();
       const wasOpen = dropdown.classList.contains('open');
+      // FIX 2026-09-23: su touch il tap sul parent veniva SEMPRE bloccato
+      // (preventDefault), quindi Dashboard / Trading Ideas / Education erano
+      // irraggiungibili da telefono. Ora: 1° tap apre il sotto-menu,
+      // 2° tap sul parent già aperto naviga normalmente alla pagina.
+      if (wasOpen) return;
+      e.preventDefault();
       document.querySelectorAll('.nav-dropdown.open').forEach(function(d) { d.classList.remove('open'); });
-      if (!wasOpen) dropdown.classList.add('open');
+      dropdown.classList.add('open');
     });
   });
   document.addEventListener('click', function(e) {
