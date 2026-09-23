@@ -764,6 +764,11 @@ async function fetchFxRates() {
 }
 
 function calcPnL(t) {
+  // FIX 2026-09-23: closed MT5 trades carry the broker's exact net result
+  // (profit + commission + swap + fee, written by portfolio_sync.py from
+  // the MT5 deal history) — use it as-is so the journal matches the real
+  // account balance to the cent.
+  if (t.status === 'Closed' && t.pnlUsd != null && isFinite(t.pnlUsd)) return +(+t.pnlUsd).toFixed(2);
   const exit  = t.status === 'Closed' ? (t.exit || t.current || 0) : (t.current || t.entry || 0);
   const diff  = t.dir === 'Long' ? exit - t.entry : t.entry - exit;
   return +(diff * (t.qty||1) * lotMult(t.cat, t.asset) * quoteToUsd(t.asset, exit)).toFixed(2);
