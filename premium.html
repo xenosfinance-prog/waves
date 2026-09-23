@@ -709,6 +709,14 @@ nav {
       <span data-i18n="label_paying_usdc_note">Paying with USDC on Base · Gas fee ~$0.01 · No recurring charges</span>
     </div>
 
+    <!-- CARD PAYMENT -->
+    <div id="cardPayWrap" style="display:none;margin-top:22px;">
+      <a class="btn-pay" id="btnCardPay" href="#" target="_blank" rel="noopener" style="text-decoration:none;background:transparent;border:1px solid var(--gold);color:var(--gold);">
+        <span data-i18n="label_pay_card">💳 Pay by card</span>
+      </a>
+      <div class="pay-note"><span data-i18n="label_pay_card_note">Card payment · Send the receipt to @xenosfin on Telegram to receive your access code</span></div>
+    </div>
+
     <!-- TX STATUS -->
     <div class="tx-status" id="txStatus">
       <div class="tx-spinner" id="txSpinner"></div>
@@ -1176,6 +1184,18 @@ if (window.ethereum) {
       document.querySelectorAll('.nav-dropdown.open').forEach(function(d) { d.classList.remove('open'); });
     }
   });
+})();
+</script>
+<script>
+// ── PAGAMENTO CON CARTA (link esterno) ──────────────────────
+// Incolla qui il link di pagamento della carta. Finché è vuoto il bottone resta nascosto.
+const CARD_PAY_URL = 'https://www.privat24.ua/send/kcjtb';
+(function(){
+  const el = document.getElementById('cardPayWrap');
+  const a  = document.getElementById('btnCardPay');
+  if (!el || !a || !CARD_PAY_URL) return;
+  a.href = CARD_PAY_URL;
+  el.style.display = '';
 })();
 </script>
 </body>

@@ -425,6 +425,14 @@ body{background:var(--bg);color:var(--ink);font-family:var(--mono);min-height:10
           text-decoration:none;font-family:var(--mono);font-size:11px;letter-spacing:2px;
           text-transform:uppercase;padding:14px 24px;border-radius:8px;display:inline-block;
         "><span data-i18n="label_view_plans">View Plans</span></a>
+        <a id="btnCardPay" href="#" target="_blank" rel="noopener" style="
+          background:transparent;border:1px solid var(--gold);color:var(--gold2);
+          text-decoration:none;font-family:var(--mono);font-size:11px;letter-spacing:2px;
+          text-transform:uppercase;padding:14px 24px;border-radius:8px;display:none;
+        " data-show="inline-block"><span data-i18n="label_pay_card">💳 Pay by card</span></a>
+      </div>
+      <div id="cardPayNote" data-show="block" style="display:none;margin-top:10px;font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:1px;">
+        <span data-i18n="label_pay_card_note">Card payment · Send the receipt to @xenosfin on Telegram to receive your access code</span>
       </div>
       <div style="margin-top:14px;font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:1px;">
         <span data-i18n="label_pay_usdc_note_short">Pay with USDC on Base · Gas fee ~$0.01 · Instant access</span>
@@ -575,6 +583,20 @@ document.getElementById('notify-form').addEventListener('submit', function(e) {
     console.error('Notify email error:', err);
   });
 });
+</script>
+<script>
+// ── PAGAMENTO CON CARTA (link esterno) ──────────────────────
+// Incolla qui il link di pagamento della carta. Finché è vuoto il bottone resta nascosto.
+const CARD_PAY_URL = 'https://www.privat24.ua/send/kcjtb';
+(function(){
+  const a = document.getElementById('btnCardPay');
+  if (!a || !CARD_PAY_URL) return;
+  a.href = CARD_PAY_URL;
+  ['btnCardPay','cardPayNote'].forEach(function(id){
+    const el = document.getElementById(id);
+    if (el) el.style.display = el.getAttribute('data-show') || '';
+  });
+})();
 </script>
 </body>
 </html>
