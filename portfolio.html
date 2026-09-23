@@ -559,10 +559,14 @@ async function loadTrades() {
       return _ghTradesCache;
     }
   } catch(e) {}
-  return [];
+  // FIX 2026-09-23: prima tornava [] su timeout/errore di rete, e il refresh
+  // periodico sostituiva i trade con un array vuoto → Open Trades a 0 e
+  // History vuota (tipico su mobile con rete lenta). Ora null = "fetch fallito",
+  // e i chiamanti mantengono i dati che hanno già.
+  return null;
 }
 
-async function saveTrades(data) {
+async function saveTrades(data, change) {
   _ghTradesCache = data;
   const saveEl = document.getElementById('saveStatus');
   if(saveEl){ saveEl.style.display='inline'; saveEl.textContent='⟳ Saving...'; saveEl.style.color='var(--muted)'; }
@@ -588,7 +592,29 @@ async function saveTrades(data) {
       });
       const gd = await getRes.json();
       const sha = gd.data?.sha || null;
-      const content = btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2))));
+
+      // FIX 2026-09-23: prima veniva scritto lo snapshot LOCALE intero
+      // (vecchio fino a 60s), e il retry su conflitto lo riscriveva sopra
+      // il commit del bot → trade aperti/chiusi dal bot nel frattempo
+      // venivano cancellati o riportati indietro (Open ↔ Closed).
+      // Ora si parte dal file remoto attuale e si applica SOLO la modifica
+      // dell'admin (upsert di un trade o delete per id).
+      let toWrite = data;
+      if (change && gd.data?.content) {
+        try {
+          const remote = JSON.parse(decodeURIComponent(escape(atob(gd.data.content.replace(/\n/g, '')))));
+          if (Array.isArray(remote)) {
+            if (change.remove != null) {
+              toWrite = remote.filter(x => x.id !== change.remove);
+            } else if (change.upsert) {
+              const i = remote.findIndex(x => x.id === change.upsert.id);
+              toWrite = remote.slice();
+              if (i >= 0) toWrite[i] = change.upsert; else toWrite.push(change.upsert);
+            }
+          }
+        } catch(err) { console.warn('saveTrades: remote parse failed, writing local snapshot', err); }
+      }
+      const content = btoa(unescape(encodeURIComponent(JSON.stringify(toWrite, null, 2))));
       const payload = { message: 'update portfolio trades', content };
       if (sha) payload.sha = sha;
       const putRes = await fetch(WORKER, {
@@ -606,6 +632,8 @@ async function saveTrades(data) {
       // status code.
       const succeeded = putRes.ok && (putBody?.data?.content || putBody?.content);
       if (succeeded) {
+        _ghTradesCache = toWrite;
+        trades = toWrite; // allinea subito la UI allo stato reale (incluse le scritture del bot)
         if(saveEl){ saveEl.textContent='✓ Saved'; saveEl.style.color='var(--green2)'; setTimeout(()=>{ saveEl.style.display='none'; },2000); }
         return;
       }
@@ -1121,7 +1149,7 @@ async function confirmClose() {
   t.current = exit;
   t.status = 'Closed';
   closeModal('closeModal_overlay');
-  await saveTrades(trades);
+  await saveTrades(trades, { upsert: t });
   render();
   const pnl = calcPnL(t);
   toast(`${t.asset} closed · ${fmtPnL(pnl)}`, pnl >= 0 ? 'green' : 'red');
@@ -1174,7 +1202,7 @@ async function saveTrade() {
   }
   nextId = Math.max(...trades.map(x=>x.id)) + 1;
   closeModal('tradeModal');
-  await saveTrades(trades);
+  await saveTrades(trades, { upsert: t });
   render();
   toast(editId ? 'Trade updated' : t.asset + ' position opened', 'green');
 }
@@ -1183,7 +1211,7 @@ async function deleteTrade(id) {
   const t = trades.find(x => x.id === id);
   if (!confirm(`Delete ${t?.asset||'this trade'}?`)) return;
   trades = trades.filter(x => x.id !== id);
-  await saveTrades(trades);
+  await saveTrades(trades, { remove: id });
   render();
   toast('Trade deleted');
 }
@@ -1297,7 +1325,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Load trades from GitHub
   const el = document.getElementById('priceStatus');
   if(el) el.innerHTML = '<span style="color:var(--muted)">⟳ Loading portfolio...</span>';
-  trades = await loadTrades();
+  trades = (await loadTrades()) || _ghTradesCache || [];
   nextId = trades.length ? Math.max(...trades.map(t => parseInt(t.id)||0)) + 1 : 1;
 
   // FIX 2026-09-21: render() ora non lancia più eccezioni verso l'esterno
@@ -1328,6 +1356,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   const TRADES_REFRESH_INTERVAL = 60000; // 60s — frequent enough to feel live, not so frequent it hammers GitHub's raw CDN
   setInterval(async () => {
     const fresh = await loadTrades();
+    if (!fresh) return; // fetch fallito: tieni i dati attuali invece di svuotare la pagina
+    // Mantieni l'ultimo prezzo live già scaricato per i trade ancora aperti,
+    // così P&L/equity non "saltano" al valore del file fino al prossimo fetchLivePrices().
+    const liveCur = {};
+    trades.forEach(t => { if (t.status === 'Open' && t.current) liveCur[t.id] = t.current; });
+    fresh.forEach(t => { if (t.status === 'Open' && liveCur[t.id]) t.current = liveCur[t.id]; });
     trades = fresh;
     nextId = trades.length ? Math.max(...trades.map(t => parseInt(t.id)||0)) + 1 : 1;
     try { render(); } catch(e) { console.error('[refresh] render failed:', e); }
@@ -1344,12 +1378,30 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.querySelectorAll('.nav-dropdown').forEach(function(dropdown) {
     const trigger = dropdown.querySelector(':scope > .nav-btn');
     if (!trigger) return;
+    // FIX 2026-09-23: su touch aggiunge la pagina parent come prima voce
+    // del sotto-menu, così è raggiungibile con un tap esplicito.
+    (function() {
+      const menu = dropdown.querySelector(':scope > .nav-dropdown-menu');
+      if (!menu || window.matchMedia('(hover: hover)').matches || menu.querySelector('[data-parent-link]')) return;
+      const a = document.createElement('a');
+      a.href = trigger.href;
+      a.setAttribute('data-parent-link', '');
+      const keyEl = trigger.hasAttribute('data-i18n') ? trigger : trigger.querySelector('[data-i18n]');
+      a.textContent = (keyEl && keyEl !== trigger ? keyEl.textContent : trigger.textContent).replace('\u25BE', '').trim();
+      if (keyEl) a.setAttribute('data-i18n', keyEl.getAttribute('data-i18n'));
+      menu.insertBefore(a, menu.firstChild);
+    })();
     trigger.addEventListener('click', function(e) {
       if (window.matchMedia('(hover: hover)').matches) return;
-      e.preventDefault();
       const wasOpen = dropdown.classList.contains('open');
+      // FIX 2026-09-23: su touch il tap sul parent veniva SEMPRE bloccato
+      // (preventDefault), quindi Dashboard / Trading Ideas / Education erano
+      // irraggiungibili da telefono. Ora: 1° tap apre il sotto-menu,
+      // 2° tap sul parent già aperto naviga normalmente alla pagina.
+      if (wasOpen) return;
+      e.preventDefault();
       document.querySelectorAll('.nav-dropdown.open').forEach(function(d) { d.classList.remove('open'); });
-      if (!wasOpen) dropdown.classList.add('open');
+      dropdown.classList.add('open');
     });
   });
   document.addEventListener('click', function(e) {
