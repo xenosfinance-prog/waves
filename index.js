@@ -1,5 +1,10 @@
 // ============================================================
-//  XenosFinance — Cloudflare Worker v2.9
+//  XenosFinance — Cloudflare Worker v2.10
+//  Changes vs v2.9:
+//  - Removed Stripe entirely (helpers, /stripe-webhook route,
+//    stripe-create-checkout / stripe-create-portal handlers).
+//    Card payments are requested privately via the Telegram bot
+//    (link sent on request, never published on the site).
 //  Changes vs v2.8:
 //  - Fixed "delete-idea" / "delete-ew-signal" always returning
 //    401/403 Unauthorized: both checks compared admin_pwd against
@@ -157,18 +162,56 @@ const FX_PAIRS = ["EURUSD","GBPUSD","USDJPY","USDCHF","AUDUSD","NZDUSD","USDCAD"
 const FX_CROSSES = ["AUDCAD","AUDCHF","AUDJPY","CADCHF","CHFJPY","EURNZD","EURAUD","EURCAD","GBPAUD","GBPCAD","GBPNZD","NZDCAD","NZDCHF","NZDJPY","USDMXN","USDNOK","USDSEK","USDTRY","USDZAR"];
 const TD_SYMBOL_MAP = {"EURUSD":"EUR/USD","GBPUSD":"GBP/USD","USDJPY":"USD/JPY","USDCHF":"USD/CHF","AUDUSD":"AUD/USD","NZDUSD":"NZD/USD","USDCAD":"USD/CAD","EURGBP":"EUR/GBP","EURJPY":"EUR/JPY","GBPJPY":"GBP/JPY","CADJPY":"CAD/JPY","AUDNZD":"AUD/NZD","EURCHF":"EUR/CHF","GBPCHF":"GBP/CHF","BTCUSD":"BTC/USD","ETHUSD":"ETH/USD","XRPUSD":"XRP/USD","SOLUSD":"SOL/USD","DOGEUSD":"DOGE/USD","ZECUSD":"ZEC/USD","XAUUSD":"XAU/USD","XAGUSD":"XAG/USD"};
 const FH_SYMBOL_MAP = {"EURUSD":"OANDA:EUR_USD","GBPUSD":"OANDA:GBP_USD","USDJPY":"OANDA:USD_JPY","USDCHF":"OANDA:USD_CHF","AUDUSD":"OANDA:AUD_USD","NZDUSD":"OANDA:NZD_USD","USDCAD":"OANDA:USD_CAD","EURGBP":"OANDA:EUR_GBP","EURJPY":"OANDA:EUR_JPY","GBPJPY":"OANDA:GBP_JPY","CADJPY":"OANDA:CAD_JPY","AUDNZD":"OANDA:AUD_NZD","EURCHF":"OANDA:EUR_CHF","GBPCHF":"OANDA:GBP_CHF","BTCUSD":"BINANCE:BTCUSDT","ETHUSD":"BINANCE:ETHUSDT","XRPUSD":"BINANCE:XRPUSDT","SOLUSD":"BINANCE:SOLUSDT","DOGEUSD":"BINANCE:DOGEUSDT","ZECUSD":"BINANCE:ZECUSDT","XAUUSD":"OANDA:XAU_USD","XAGUSD":"OANDA:XAG_USD"};
-const YAHOO_SYMBOL_MAP = {"XAGUSD":"SI=F","USOIL":"CL=F","UKOIL":"BZ=F","NGAS":"NG=F","COPPER":"HG=F","XAUUSD":"GC=F","US500":"^GSPC","US30":"^DJI","NAS100":"^IXIC","UK100":"^FTSE","GER40":"^GDAXI","FRA40":"^FCHI","JPN225":"^N225","HK50":"^HSI","AUS200":"^AXJO","SPY":"SPY","QQQ":"QQQ","DIA":"DIA","IWM":"IWM","VTI":"VTI","VOO":"VOO","XLK":"XLK","XLF":"XLF","XLE":"XLE","XLV":"XLV","XLY":"XLY","XLI":"XLI","XLU":"XLU","XLRE":"XLRE","XLP":"XLP","XLB":"XLB","XLC":"XLC","GLD":"GLD","GDX":"GDX","GDXJ":"GDXJ","SLV":"SLV","USO":"USO","OIH":"OIH","UNG":"UNG","TLT":"TLT","IEF":"IEF","SHY":"SHY","LQD":"LQD","HYG":"HYG","AGG":"AGG","BND":"BND","BOTZ":"BOTZ","ARKK":"ARKK","ARKG":"ARKG","ARKW":"ARKW","KRE":"KRE","IAI":"IAI","KBWB":"KBWB","DBA":"DBA","WEAT":"WEAT","CORN":"CORN","SOYB":"SOYB","EWG":"EWG","EWU":"EWU","EWQ":"EWQ","EWJ":"EWJ","EWH":"EWH","EEM":"EEM","IWDA.AS":"IWDA.AS","CSPX.L":"CSPX.L","VUSA.AS":"VUSA.AS","EURUSD=X":"EURUSD=X","GBPUSD=X":"GBPUSD=X","USDJPY=X":"USDJPY=X","USDCHF=X":"USDCHF=X","AUDUSD=X":"AUDUSD=X","NZDUSD=X":"NZDUSD=X","USDCAD=X":"USDCAD=X","GBPJPY=X":"GBPJPY=X","EURJPY=X":"EURJPY=X","BTC-USD":"BTC-USD","ETH-USD":"ETH-USD","SOL-USD":"SOL-USD","XRP-USD":"XRP-USD","DOGE-USD":"DOGE-USD","GC=F":"GC=F","CL=F":"CL=F","SI=F":"SI=F","NG=F":"NG=F","BZ=F":"BZ=F","HG=F":"HG=F","^IXIC":"^IXIC","^GSPC":"^GSPC","^DJI":"^DJI","^GDAXI":"^GDAXI","^FTSE":"^FTSE","^TNX":"^TNX","^VIX":"^VIX","^IRX":"^IRX","^TYX":"^TYX","^N225":"^N225","^FCHI":"^FCHI","^HSI":"^HSI","^AXJO":"^AXJO","AAPL":"AAPL","MSFT":"MSFT","NVDA":"NVDA","TSLA":"TSLA","AMZN":"AMZN","GOOGL":"GOOGL","META":"META","JPM":"JPM","V":"V","BRK-B":"BRK-B","BRK-A":"BRK-A","XOM":"XOM","JNJ":"JNJ","GS":"GS","BAC":"BAC","NFLX":"NFLX","CVX":"CVX","WMT":"WMT","PLTR":"PLTR","AMD":"AMD","AVGO":"AVGO","MA":"MA","COP":"COP","COIN":"COIN","TSM":"TSM","ASML":"ASML","ORCL":"ORCL","CRM":"CRM","ADBE":"ADBE","INTC":"INTC","QCOM":"QCOM","MU":"MU","UBER":"UBER","SHOP":"SHOP","COST":"COST","HD":"HD","PG":"PG","UNH":"UNH","LLY":"LLY"};
+const YAHOO_SYMBOL_MAP = {"XAGUSD":"SI=F","USOIL":"CL=F","UKOIL":"BZ=F","NGAS":"NG=F","COPPER":"HG=F","XAUUSD":"GC=F","US500":"^GSPC","US30":"^DJI","NAS100":"^IXIC","UK100":"^FTSE","GER40":"^GDAXI","FRA40":"^FCHI","JPN225":"^N225","HK50":"^HSI","AUS200":"^AXJO","SPY":"SPY","QQQ":"QQQ","DIA":"DIA","IWM":"IWM","VTI":"VTI","VOO":"VOO","XLK":"XLK","XLF":"XLF","XLE":"XLE","XLV":"XLV","XLY":"XLY","XLI":"XLI","XLU":"XLU","XLRE":"XLRE","XLP":"XLP","XLB":"XLB","XLC":"XLC","GLD":"GLD","GDX":"GDX","GDXJ":"GDXJ","SLV":"SLV","USO":"USO","OIH":"OIH","UNG":"UNG","TLT":"TLT","IEF":"IEF","SHY":"SHY","LQD":"LQD","HYG":"HYG","AGG":"AGG","BND":"BND","BOTZ":"BOTZ","ARKK":"ARKK","ARKG":"ARKG","ARKW":"ARKW","KRE":"KRE","IAI":"IAI","KBWB":"KBWB","DBA":"DBA","WEAT":"WEAT","CORN":"CORN","SOYB":"SOYB","EWG":"EWG","EWU":"EWU","EWQ":"EWQ","EWJ":"EWJ","EWH":"EWH","EEM":"EEM","IWDA.AS":"IWDA.AS","CSPX.L":"CSPX.L","VUSA.AS":"VUSA.AS","EURUSD=X":"EURUSD=X","GBPUSD=X":"GBPUSD=X","USDJPY=X":"USDJPY=X","USDCHF=X":"USDCHF=X","AUDUSD=X":"AUDUSD=X","NZDUSD=X":"NZDUSD=X","USDCAD=X":"USDCAD=X","GBPJPY=X":"GBPJPY=X","EURJPY=X":"EURJPY=X","BTC-USD":"BTC-USD","ETH-USD":"ETH-USD","SOL-USD":"SOL-USD","XRP-USD":"XRP-USD","DOGE-USD":"DOGE-USD","GC=F":"GC=F","CL=F":"CL=F","SI=F":"SI=F","NG=F":"NG=F","BZ=F":"BZ=F","HG=F":"HG=F","^IXIC":"^IXIC","^GSPC":"^GSPC","^DJI":"^DJI","^GDAXI":"^GDAXI","^FTSE":"^FTSE","^TNX":"^TNX","^VIX":"^VIX","^IRX":"^IRX","^TYX":"^TYX","^N225":"^N225","^FCHI":"^FCHI","^HSI":"^HSI","^AXJO":"^AXJO","AAPL":"AAPL","MSFT":"MSFT","NVDA":"NVDA","TSLA":"TSLA","AMZN":"AMZN","GOOGL":"GOOGL","META":"META","JPM":"JPM","V":"V","BRK-B":"BRK-B","BRK-A":"BRK-A","XOM":"XOM","JNJ":"JNJ","GS":"GS","BAC":"BAC","NFLX":"NFLX","CVX":"CVX","WMT":"WMT","PLTR":"PLTR","AMD":"AMD","AVGO":"AVGO","MA":"MA","COP":"COP","COIN":"COIN","TSM":"TSM","ASML":"ASML","ORCL":"ORCL","CRM":"CRM","ADBE":"ADBE","INTC":"INTC","QCOM":"QCOM","MU":"MU","UBER":"UBER","SHOP":"SHOP","COST":"COST","HD":"HD","PG":"PG","UNH":"UNH","LLY":"LLY","IBM":"IBM","NOW":"NOW","PANW":"PANW","WFC":"WFC","MS":"MS","PFE":"PFE","ABBV":"ABBV","MRK":"MRK","TMO":"TMO","KO":"KO","PEP":"PEP","MCD":"MCD","NKE":"NKE","DIS":"DIS","CAT":"CAT","BA":"BA","GE":"GE","HON":"HON"};
 const YAHOO_SYMBOLS = new Set(Object.keys(YAHOO_SYMBOL_MAP));
 const MASSIVE_TICKER_MAP = {"EURUSD":"C:EURUSD","GBPUSD":"C:GBPUSD","USDJPY":"C:USDJPY","USDCHF":"C:USDCHF","AUDUSD":"C:AUDUSD","NZDUSD":"C:NZDUSD","USDCAD":"C:USDCAD","EURGBP":"C:EURGBP","EURJPY":"C:EURJPY","GBPJPY":"C:GBPJPY","CADJPY":"C:CADJPY","AUDNZD":"C:AUDNZD","EURCHF":"C:EURCHF","GBPCHF":"C:GBPCHF","AUDCAD":"C:AUDCAD","AUDCHF":"C:AUDCHF","AUDJPY":"C:AUDJPY","CADCHF":"C:CADCHF","CHFJPY":"C:CHFJPY","EURNZD":"C:EURNZD","EURAUD":"C:EURAUD","EURCAD":"C:EURCAD","GBPAUD":"C:GBPAUD","GBPCAD":"C:GBPCAD","GBPNZD":"C:GBPNZD","NZDCAD":"C:NZDCAD","NZDCHF":"C:NZDCHF","NZDJPY":"C:NZDJPY","USDMXN":"C:USDMXN","USDNOK":"C:USDNOK","USDSEK":"C:USDSEK","USDTRY":"C:USDTRY","USDZAR":"C:USDZAR","XAUUSD":"C:XAUUSD","XAGUSD":"C:XAGUSD","BTCUSD":"X:BTCUSD","ETHUSD":"X:ETHUSD","XRPUSD":"X:XRPUSD","SOLUSD":"X:SOLUSD","DOGEUSD":"X:DOGEUSD","BNBUSD":"X:BNBUSD","ADAUSD":"X:ADAUSD","AVAXUSD":"X:AVAXUSD","LINKUSD":"X:LINKUSD","MATICUSD":"X:MATICUSD","DOTUSD":"X:DOTUSD","LTCUSD":"X:LTCUSD","ATOMUSD":"X:ATOMUSD","UNIUSD":"X:UNIUSD","XLMUSD":"X:XLMUSD","TRXUSD":"X:TRXUSD","ETCUSD":"X:ETCUSD","NEARUSD":"X:NEARUSD"};
 const MASSIVE_TF_MAP = {"15":{multiplier:15,timespan:"minute"},"60":{multiplier:1,timespan:"hour"},"240":{multiplier:4,timespan:"hour"},"D":{multiplier:1,timespan:"day"},"15min":{multiplier:15,timespan:"minute"},"1h":{multiplier:1,timespan:"hour"},"4h":{multiplier:4,timespan:"hour"},"1day":{multiplier:1,timespan:"day"}};
 
 async function massiveCandles(ticker,resolution,from,to,apiKey){const tf=MASSIVE_TF_MAP[String(resolution)]||{multiplier:1,timespan:"hour"};const url=`https://api.massive.com/v2/aggs/ticker/${encodeURIComponent(ticker)}/range/${tf.multiplier}/${tf.timespan}/${from*1000}/${to*1000}?adjusted=true&sort=asc&limit=500&apiKey=${apiKey}`;const res=await fetch(url,{headers:{"User-Agent":"XenosFinance/1.0"}});if(!res.ok)throw new Error(`Massive HTTP ${res.status}`);const data=await res.json();if(!data.results||data.results.length===0)return[];return data.results.map(r=>({datetime:new Date(r.t).toISOString(),open:r.o,high:r.h,low:r.l,close:r.c,volume:r.v||0}));}
 async function massivePrice(ticker,apiKey){const url=`https://api.massive.com/v2/snapshot/locale/global/markets/forex/tickers/${encodeURIComponent(ticker)}?apiKey=${apiKey}`;const res=await fetch(url,{headers:{"User-Agent":"XenosFinance/1.0"}});if(!res.ok)throw new Error(`Massive snapshot HTTP ${res.status}`);const d=await res.json();const t=d?.ticker;if(!t)throw new Error("Massive: no ticker data");const price=t.lastTrade?.p||t.lastQuote?.P||t.prevDay?.c;if(!price)throw new Error("Massive: no price");const prev=t.prevDay?.c||price;return{price:parseFloat(price),change_pct:parseFloat(((price-prev)/prev*100).toFixed(3))};}
-async function yahooQuote(sym){const ticker=YAHOO_SYMBOL_MAP[sym]||sym;const res=await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=2d`,{headers:{"User-Agent":"Mozilla/5.0 (compatible; XenosFinance/1.0)","Accept":"application/json"}});if(!res.ok)throw new Error(`Yahoo HTTP ${res.status} for ${ticker}`);const data=await res.json();const meta=data?.chart?.result?.[0]?.meta;if(!meta||!meta.regularMarketPrice)throw new Error(`Yahoo: no price for ${ticker}`);const price=meta.regularMarketPrice;const prevClose=meta.chartPreviousClose||meta.previousClose||price;const change=price-prevClose;return{price,open:meta.regularMarketOpen||0,high:meta.regularMarketDayHigh||0,low:meta.regularMarketDayLow||0,prev_close:prevClose,change:parseFloat(change.toFixed(4)),change_pct:parseFloat((prevClose?(change/prevClose)*100:0).toFixed(3)),timestamp:meta.regularMarketTime||null,source:`yahoo:${ticker}`};}
+async function yahooQuote(sym,attempt=1){const ticker=YAHOO_SYMBOL_MAP[sym]||sym;
+  try{
+    const res=await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=2d`,{headers:{"User-Agent":"Mozilla/5.0 (compatible; XenosFinance/1.0)","Accept":"application/json"}});
+    if(!res.ok)throw new Error(`Yahoo HTTP ${res.status} for ${ticker}`);
+    const data=await res.json();const meta=data?.chart?.result?.[0]?.meta;
+    if(!meta||!meta.regularMarketPrice)throw new Error(`Yahoo: no price for ${ticker}`);
+    const price=meta.regularMarketPrice;const prevClose=meta.chartPreviousClose||meta.previousClose||price;const change=price-prevClose;
+    return{price,open:meta.regularMarketOpen||0,high:meta.regularMarketDayHigh||0,low:meta.regularMarketDayLow||0,prev_close:prevClose,change:parseFloat(change.toFixed(4)),change_pct:parseFloat((prevClose?(change/prevClose)*100:0).toFixed(3)),timestamp:meta.regularMarketTime||null,source:`yahoo:${ticker}`};
+  }catch(e){
+    // FIX 2026-09-21: con la dashboard cresciuta a 55+ titoli, tutte le
+    // richieste Yahoo partivano insieme in un unico Promise.all — troppe
+    // chiamate simultanee non autenticate fanno scattare il rate-limit
+    // informale di Yahoo, e i ticker colpiti restavano silenziosamente
+    // senza prezzo. Un retry con piccola pausa recupera la maggior parte
+    // dei blip transitori (vedi anche la concorrenza limitata sotto).
+    if(attempt<2){await new Promise(r=>setTimeout(r,400+Math.random()*400));return yahooQuote(sym,attempt+1);}
+    throw e;
+  }
+}
+
+// Esegue le funzioni asincrone a gruppi di `limit` invece che tutte
+// insieme — riduce il burst di richieste simultanee verso Yahoo.
+// FIX 2026-09-21 (v2): con 55+ titoli anche gruppi da 8 sparati uno
+// dopo l'altro senza pausa restavano comunque un burst abbastanza
+// fitto da far scattare il rate-limit cumulativo di Yahoo sulle
+// ultime richieste della sequenza (sempre le stesse, in coda) — da
+// qui i "--" fissi su alcuni titoli. Una piccola pausa tra un gruppo
+// e l'altro dà tempo al rate-limit di Yahoo di "raffreddarsi".
+async function mapWithConcurrency(items, limit, fn, delayMs=0){
+  const results=[];
+  for(let i=0;i<items.length;i+=limit){
+    if(i>0 && delayMs>0) await new Promise(r=>setTimeout(r,delayMs));
+    const batch=items.slice(i,i+limit);
+    results.push(...await Promise.all(batch.map(fn)));
+  }
+  return results;
+}
 async function tdFetch(endpoint,params,apiKey){const url=new URL(`https://api.twelvedata.com/${endpoint}`);url.searchParams.set("apikey",apiKey);for(const[k,v]of Object.entries(params))url.searchParams.set(k,v);const res=await fetch(url.toString(),{headers:{"User-Agent":"XenosFinance/1.0"}});if(!res.ok)throw new Error(`TwelveData HTTP ${res.status}`);return res.json();}
 async function fhQuote(symbol,apiKey){const res=await fetch(`https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(symbol)}&token=${apiKey}`,{headers:{"User-Agent":"XenosFinance/1.0"}});if(!res.ok)throw new Error(`Finnhub HTTP ${res.status}`);const d=await res.json();if(!d.c||d.c===0)throw new Error("Finnhub: no price data");return d;}
 async function fhMarketNews(category,apiKey){const res=await fetch(`https://finnhub.io/api/v1/news?category=${category}&token=${apiKey}`,{headers:{"User-Agent":"XenosFinance/1.0"}});if(!res.ok)throw new Error(`Finnhub news HTTP ${res.status}`);return res.json();}
 async function fhNewsSentiment(symbol,apiKey){const res=await fetch(`https://finnhub.io/api/v1/news-sentiment?symbol=${encodeURIComponent(symbol)}&token=${apiKey}`,{headers:{"User-Agent":"XenosFinance/1.0"}});if(!res.ok)throw new Error(`Finnhub sentiment HTTP ${res.status}`);return res.json();}
+async function fhBasicFinancials(symbol,apiKey){const res=await fetch(`https://finnhub.io/api/v1/stock/metric?symbol=${encodeURIComponent(symbol)}&metric=all&token=${apiKey}`,{headers:{"User-Agent":"XenosFinance/1.0"}});if(!res.ok)throw new Error(`Finnhub metric HTTP ${res.status}`);const d=await res.json();return d.metric||{};}
+async function fhCompanyNews(symbol,apiKey,days=14){const to=getISODate(0);const from=getISODate(days);const res=await fetch(`https://finnhub.io/api/v1/company-news?symbol=${encodeURIComponent(symbol)}&from=${from}&to=${to}&token=${apiKey}`,{headers:{"User-Agent":"XenosFinance/1.0"}});if(!res.ok)throw new Error(`Finnhub company-news HTTP ${res.status}`);const d=await res.json();return Array.isArray(d)?d:[];}
 
 function getISODate(daysAgo=0){const d=new Date();d.setDate(d.getDate()-daysAgo);return d.toISOString().slice(0,10);}
 function fxRateFromData(rates,base,quote){if(base==="EUR"&&rates[quote])return rates[quote];if(quote==="EUR"&&rates[base])return 1/rates[base];if(rates[base]&&rates[quote])return rates[quote]/rates[base];return null;}
@@ -183,113 +226,102 @@ async function fetchRSSFeed(feedUrl){const isAllowed=RSS_WHITELIST.some(d=>feedU
 async function fhEconomicCalendar(from,to,apiKey){const res=await fetch(`https://finnhub.io/api/v1/calendar/economic?from=${from}&to=${to}&token=${apiKey}`,{headers:{"User-Agent":"XenosFinance/1.0"}});if(!res.ok)throw new Error(`Finnhub calendar HTTP ${res.status}`);const data=await res.json();const raw=data.economicCalendar||data.economic_calendar||data.calendar||[];return raw.map((e,i)=>({id:e.id||'fh_'+i,time:e.time||e.date||'',country:(e.country||'').toUpperCase(),event:e.event||e.name||'',impact:(e.impact||'').toLowerCase()==='high'?'high':(e.impact||'').toLowerCase()==='medium'?'medium':'low',actual:(e.actual!=null&&e.actual!=='')?String(e.actual):null,estimate:(e.estimate!=null&&e.estimate!=='')?String(e.estimate):null,prev:(e.prev!=null&&e.prev!=='')?String(e.prev):null}));}
 async function fetchInvestingCalendar(from,to){const fromTs=Math.floor(new Date(from).getTime()/1000);const toTs=Math.floor(new Date(to+'T23:59:59Z').getTime()/1000);const res=await fetch(`https://sbcharts.investing.com/events_charts/us/economic_events_calendar.json?from=${fromTs}&to=${toTs}&significance=2&significance=3`,{headers:{'User-Agent':'Mozilla/5.0 (compatible; XenosFinance/1.0)','Accept':'application/json','Referer':'https://www.investing.com/economic-calendar/','X-Requested-With':'XMLHttpRequest'},cf:{cacheTtl:300,cacheEverything:true}});if(!res.ok)throw new Error(`Investing.com HTTP ${res.status}`);const data=await res.json();const raw=Array.isArray(data)?data:(data.data||data.events||[]);return raw.map((e,i)=>({id:'inv_'+(e.id||i),time:e.date||e.dateUtc||'',country:(e.currency||e.countryCode||'').toUpperCase(),event:e.name||e.event||'',impact:(e.significance||e.importance||0)>=3?'high':(e.significance||e.importance||0)>=2?'medium':'low',actual:(e.actual!=null&&e.actual!=='')?String(e.actual):null,estimate:(e.forecast!=null&&e.forecast!=='')?String(e.forecast):null,prev:(e.previous!=null&&e.previous!=='')?String(e.previous):null})).filter(e=>e.event);}
 
-// ── STRIPE HELPERS ──────────────────────────────────────────
-// Nessuna dipendenza npm: usa fetch puro (stesso stile del resto del Worker)
-// e Web Crypto per la verifica firma webhook.
+// ── GEMINI FREE TOOL (blog, whitelist, key isolata dal pipeline) ──
+// Whitelist da riempire con le email autorizzate (arrivano lunedì).
+const GEMINI_FREE_WHITELIST = [
+  'r.rippo92@gmail.com',
+  'francesco.fioravanti01@gmail.com',
+  'info.galema@gmail.com',
+];
+// Limite condiviso: conta TUTTE le chiamate di un utente sui 4 tool insieme
+// (EW AI, Calendar AI, Intermarket AI, ETF AI), non uno per tool.
+const GEMINI_FREE_DAILY_LIMIT = 20;
+const GEMINI_FREE_MAX_TOKENS = 3000;
+// gemini-2.0-flash è stato dismesso da Google il 1 giugno 2026 (causa di
+// TUTTI gli errori "servizio non disponibile" / "generation failed" sui
+// 4 tool gratuiti). gemini-2.5-flash è lo stabile free-tier attuale, ma
+// è previsto in dismissione anch'esso il 16 ottobre 2026 — quando arriva
+// quella data, va aggiornato di nuovo (controllare il modello stabile
+// corrente su ai.google.dev prima di rimpiazzare).
+const GEMINI_FREE_MODEL = "gemini-2.5-flash";
 
-function stripeFormBody(obj, prefix) {
-  // Converte un oggetto JS nel formato x-www-form-urlencoded annidato
-  // richiesto dall'API di Stripe (es. line_items[0][price]=xxx).
-  const parts = [];
-  for (const key in obj) {
-    if (obj[key] === undefined || obj[key] === null) continue;
-    const k = prefix ? `${prefix}[${key}]` : key;
-    const val = obj[key];
-    if (Array.isArray(val)) {
-      val.forEach((item, i) => {
-        if (typeof item === "object") parts.push(stripeFormBody(item, `${k}[${i}]`));
-        else parts.push(`${encodeURIComponent(`${k}[${i}]`)}=${encodeURIComponent(item)}`);
-      });
-    } else if (typeof val === "object") {
-      parts.push(stripeFormBody(val, k));
-    } else {
-      parts.push(`${encodeURIComponent(k)}=${encodeURIComponent(val)}`);
-    }
-  }
-  return parts.join("&");
-}
-
-async function stripeApi(env, path, params) {
-  const secretKey = env.STRIPE_SECRET_KEY;
-  if (!secretKey) throw new Error("STRIPE_SECRET_KEY mancante");
-  const res = await fetch(`https://api.stripe.com/v1/${path}`, {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${secretKey}`,
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: stripeFormBody(params),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error?.message || `Stripe API error ${res.status}`);
-  return data;
-}
-
-async function verifyStripeSignature(rawBody, sigHeader, secret) {
-  // Header formato: "t=1699999999,v1=abcdef..."
-  const parts = Object.fromEntries(sigHeader.split(",").map(p => p.split("=")));
-  const signedPayload = `${parts.t}.${rawBody}`;
-  const key = await crypto.subtle.importKey(
-    "raw", new TextEncoder().encode(secret),
-    { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
-  );
-  const sigBuf = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(signedPayload));
-  const expectedHex = [...new Uint8Array(sigBuf)].map(b => b.toString(16).padStart(2, "0")).join("");
-  return expectedHex === parts.v1;
-}
-
-const STRIPE_PRICE_IDS = {
-  monthly: "price_1U2n1i3OW2DuOvk5tFPPXxde", // Premium Monthly EUR 9.00
-  yearly:  "price_1U2n1p3OW2DuOvk5vnFJKsai", // Premium Yearly  EUR 79.00
-};
-
-async function handleStripeWebhook(request, env) {
-  const sig = request.headers.get("stripe-signature");
-  const rawBody = await request.text();
-  const secret = env.STRIPE_WEBHOOK_SECRET;
-  if (!secret || !sig) return new Response("Missing signature or secret", { status: 400 });
-
-  let valid;
-  try { valid = await verifyStripeSignature(rawBody, sig, secret); }
-  catch { return new Response("Signature check failed", { status: 400 }); }
-  if (!valid) return new Response("Invalid signature", { status: 400 });
-
-  const event = JSON.parse(rawBody);
-
-  switch (event.type) {
-    case "checkout.session.completed": {
-      const session = event.data.object;
-      // TODO: salva { email: session.customer_details?.email, customer_id: session.customer,
-      //   subscription_id: session.subscription, plan: session.metadata?.plan, status: "active" }
-      // usando lo stesso storage dei codici XENOS-PREMIUM-2026 / XF-PRO-00x (GitHub JSON via env.GITHUB_TOKEN).
-      break;
-    }
-    case "invoice.paid": {
-      // rinnovo riuscito — nessuna azione necessaria se già attivo
-      break;
-    }
-    case "invoice.payment_failed": {
-      // rinnovo fallito — Stripe Smart Retries ritenta da solo; qui puoi notificare via Telegram/email
-      break;
-    }
-    case "customer.subscription.deleted": {
-      const sub = event.data.object;
-      // TODO: revoca accesso premium per sub.customer
-      break;
-    }
-    default: break;
+async function handleGeminiFreeChat(body, env, json) {
+  const email = String(body.email || "").trim().toLowerCase();
+  if (!email || !GEMINI_FREE_WHITELIST.includes(email)) {
+    return json({ error: "not_authorized" }, 403);
   }
 
-  return new Response(JSON.stringify({ received: true }), { status: 200, headers: { "Content-Type": "application/json" } });
+  const userMessage = String(body.message || "").trim();
+  if (!userMessage) return json({ error: "empty_message" }, 400);
+  if (userMessage.length > 8000) return json({ error: "message_too_long" }, 400);
+
+  // Immagine opzionale (solo EW AI quando l'utente carica un grafico) —
+  // stesso limite dimensione ragionevole per non sforare il free tier.
+  const imageB64 = typeof body.image_base64 === "string" ? body.image_base64 : null;
+  const imageMime = typeof body.image_mime === "string" ? body.image_mime : "image/jpeg";
+  if (imageB64 && imageB64.length > 6_000_000) {
+    return json({ error: "image_too_large" }, 400);
+  }
+
+  if (!env.FREE_TOOL_KV) return json({ error: "FREE_TOOL_KV non configurato" }, 500);
+  const today = new Date().toISOString().slice(0, 10);
+  const counterKey = `count:${email}:${today}`;
+  const currentCount = parseInt((await env.FREE_TOOL_KV.get(counterKey)) || "0", 10);
+  if (currentCount >= GEMINI_FREE_DAILY_LIMIT) {
+    return json({ error: "daily_limit_reached", message: "Hai raggiunto il limite giornaliero. Riprova domani." }, 429);
+  }
+
+  if (!env.GEMINI_FREE_TOOL_KEY) return json({ error: "GEMINI_FREE_TOOL_KEY non configurata" }, 500);
+  const geminiKey = await env.GEMINI_FREE_TOOL_KEY.get(); // Secrets Store binding
+
+  const parts = [{ text: userMessage }];
+  if (imageB64) parts.unshift({ inline_data: { mime_type: imageMime, data: imageB64 } });
+
+  let geminiResp;
+  try {
+    geminiResp = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_FREE_MODEL}:generateContent?key=${geminiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts }],
+          generationConfig: body.json_mode
+            // FIX 2026-09-21: bug noto di gemini-2.5-flash — con
+            // responseMimeType "application/json" il modello spende una
+            // quota imprevedibile (a volte quasi tutto maxOutputTokens)
+            // nel "thinking" interno prima di scrivere la risposta,
+            // troncando il JSON a metà (stringa non chiusa -> JSON.parse
+            // fallisce lato frontend, che allora mostra il testo grezzo).
+            // thinkingBudget:0 lo disattiva (non serve per un'estrazione
+            // JSON semplice); token alzati anche come margine extra.
+            ? { maxOutputTokens: GEMINI_FREE_MAX_TOKENS, responseMimeType: "application/json", thinkingConfig: { thinkingBudget: 0 } }
+            : { maxOutputTokens: GEMINI_FREE_MAX_TOKENS },
+        }),
+      }
+    );
+  } catch (e) {
+    return json({ error: "upstream_error", message: "Servizio momentaneamente non disponibile." }, 502);
+  }
+
+  if (!geminiResp.ok) {
+    if (geminiResp.status === 429) {
+      return json({ error: "service_busy", message: "Servizio momentaneamente non disponibile, riprova tra poco." }, 503);
+    }
+    return json({ error: "upstream_error", message: "Servizio momentaneamente non disponibile." }, 502);
+  }
+
+  const geminiData = await geminiResp.json();
+  const replyText = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+  if (!replyText) return json({ error: "empty_response", message: "Nessuna risposta generata, riprova." }, 502);
+
+  await env.FREE_TOOL_KV.put(counterKey, String(currentCount + 1), { expirationTtl: 60 * 60 * 24 });
+
+  return json({ reply: replyText, remaining_today: GEMINI_FREE_DAILY_LIMIT - (currentCount + 1) });
 }
 
 export default {
   async fetch(request, env) {
-    const _url = new URL(request.url);
-    if (_url.pathname === "/stripe-webhook" && request.method === "POST") {
-      return handleStripeWebhook(request, env);
-    }
-
     pruneRateLimits();
     const origin = request.headers.get("Origin") || "";
     const isAllowed = !origin || ALLOWED_ORIGINS.some(o => origin.startsWith(o));
@@ -311,6 +343,12 @@ export default {
       const isAnthropicCall = !body.type || body.type === "anthropic" || body.messages;
       const rlType = isAnthropicCall ? "anthropic" : "default";
       if (!checkRateLimit(clientIP, rlType)) return json({ error: "Rate limit exceeded. Please wait before making more requests." }, 429);
+
+      // ── GEMINI FREE TOOL (blog, whitelist, isolato dal pipeline) ─
+      if (body.type === "gemini-free-chat") {
+        try { return await handleGeminiFreeChat(body, env, json); }
+        catch (e) { return json({ error: "internal_error", message: "Errore temporaneo, riprova più tardi." }, 500); }
+      }
 
       // ── NOTIFY EMAIL (Cloudflare Email Routing) ───────────────
       if (body.type === "notify-email") {
@@ -477,9 +515,9 @@ export default {
           } catch(e) {}
         }
         if (yahooPairs.length > 0) {
-          await Promise.all(yahooPairs.map(async sym => {
+          await mapWithConcurrency(yahooPairs, 8, async sym => {
             try { const d = await yahooQuote(sym); if (d.price && d.price > 0) prices[sym] = { price: d.price, change_pct: d.change_pct, change: d.change, prev_close: d.prev_close }; } catch(e) {}
-          }));
+          }, 250);
         }
         if (restPairs.length > 0) {
           const apiKey = env.FINNHUB_API_KEY;
@@ -547,6 +585,51 @@ export default {
         return json({ error: `Azione Twelve Data sconosciuta: "${action}"` }, 400);
       }
 
+      // ── FUNDAMENTALS (dashboard.html click-to-expand stock details) ──
+      // Mancava del tutto: il frontend lo chiamava già ma non esisteva
+      // nessun handler qui, quindi tornava sempre "Fundamentals unavailable".
+      // FIX 2026-09-21 (fase 1): aggiunti crescita/valutazione/salute
+      // finanziaria. Alcuni campi Finnhub (EV/EBITDA, Debt/Equity, le
+      // due growth) non hanno un nome campo documentato con certezza
+      // al 100% — ho messo più chiavi candidate in fallback, ma vanno
+      // verificate contro una risposta reale la prima volta che li vedi
+      // vuoti/sbagliati sul sito.
+      if (body.type === "fundamentals") {
+        const apiKey = env.FINNHUB_API_KEY;
+        if (!apiKey) return json({ error: "FINNHUB_API_KEY mancante" }, 500);
+        const symbols = body.symbols || [];
+        if (symbols.length === 0) return json({ error: "Nessun simbolo fornito" }, 400);
+        const fundamentals = {};
+        await Promise.all(symbols.map(async sym => {
+          try {
+            const m = await fhBasicFinancials(sym, apiKey);
+            const pick = (...keys) => { for (const k of keys) { if (m[k] != null) return m[k]; } return null; };
+            fundamentals[sym] = {
+              // Valuation
+              pe: pick('peBasicExclExtraTTM', 'peExclExtraTTM'),
+              ps: pick('psTTM', 'psAnnual'),
+              ev_ebitda: pick('currentEv/EBITDATTM', 'evEbitdaTTM', 'enterpriseValueOverEBITDATTM'),
+              // Growth — questi campi Finnhub sono presumibilmente già in
+              // formato percentuale (es. 15.3 = 15.3%), NON frazione come il
+              // dividend yield sotto — verificare al primo dato reale.
+              eps_growth: pick('epsGrowthTTMYoy', 'epsGrowth3Y', 'epsGrowth5Y'),
+              revenue_growth: pick('revenueGrowthTTMYoy', 'revenueGrowth3Y', 'revenueGrowth5Y'),
+              // Financial health
+              roe: pick('roeTTM', 'roeRfy'),
+              debt_equity: pick('totalDebt/totalEquityQuarterly', 'totalDebt/totalEquityAnnual'),
+              // Market
+              beta: pick('beta'),
+              market_cap: m.marketCapitalization != null ? m.marketCapitalization * 1e6 : null, // Finnhub: milioni USD -> USD
+              week52_high: m['52WeekHigh'] ?? null,
+              week52_low: m['52WeekLow'] ?? null,
+              avg_volume_3m: m['3MonthAverageTradingVolume'] ?? null,
+              dividend_yield: m.dividendYieldIndicatedAnnual != null ? m.dividendYieldIndicatedAnnual / 100 : null,
+            };
+          } catch(e) { fundamentals[sym] = null; }
+        }));
+        return json({ fundamentals });
+      }
+
       if (body.type === "finnhub") {
         const apiKey = env.FINNHUB_API_KEY;
         if (!apiKey) return json({ error: "FINNHUB_API_KEY mancante" }, 500);
@@ -562,6 +645,19 @@ export default {
             setCache(cacheKey, news);
             return json({ category, news });
           } catch(e) { return json({ error: e.message }, 500); }
+        }
+        if (action === "company_news") {
+          const symbol = body.symbol;
+          if (!symbol) return json({ error: "symbol mancante" }, 400);
+          const cacheKey = 'finnhub_company_news_' + symbol;
+          const cached = getCached(cacheKey, 15 * 60 * 1000);
+          if (cached) return json({ symbol, news: cached, cached: true });
+          try {
+            const articles = await fhCompanyNews(symbol, apiKey);
+            const news = articles.slice(0, 8).map(a => ({ datetime: a.datetime, headline: a.headline, source: a.source, summary: a.summary, url: a.url }));
+            setCache(cacheKey, news);
+            return json({ symbol, news });
+          } catch(e) { return json({ symbol, news: [], error: e.message }); }
         }
         if (action === "quote") {
           const symbols = body.symbols || [];
@@ -649,36 +745,6 @@ export default {
           const raw = Array.isArray(data) ? data : (data.events || data.data || []);
           return json({ events: raw.map((e, i) => ({ id: e.id || 'ra_' + i, time: e.date || e.dateUtc || e.time || e.datetime || '', country: (e.country || e.currency || '').toUpperCase(), event: e.name || e.title || e.event || '', impact: (e.importance || e.impact || '').toLowerCase() === 'high' ? 'high' : (e.importance || e.impact || '').toLowerCase() === 'medium' ? 'medium' : 'low', actual: (e.actual != null && e.actual !== '') ? String(e.actual) : null, estimate: (e.forecast != null && e.forecast !== '') ? String(e.forecast) : null, prev: (e.previous != null && e.previous !== '') ? String(e.previous) : null })).filter(e => e.event), source: 'rapidapi_fxstreet' });
         } catch(e) { return json({ events: [], error: e.message }); }
-      }
-
-      // ── STRIPE: CREATE CHECKOUT SESSION ────────────────────────
-      if (body.type === "stripe-create-checkout") {
-        const priceId = STRIPE_PRICE_IDS[body.plan];
-        if (!priceId) return json({ error: 'Piano non valido (usa "monthly" o "yearly")' }, 400);
-        try {
-          const session = await stripeApi(env, "checkout/sessions", {
-            mode: "subscription",
-            line_items: [{ price: priceId, quantity: 1 }],
-            customer_email: body.email || undefined,
-            success_url: "https://xenosfinance.com/premium-support?success=true&session_id={CHECKOUT_SESSION_ID}",
-            cancel_url: "https://xenosfinance.com/premium-support?canceled=true",
-            allow_promotion_codes: true,
-            subscription_data: { metadata: { source: "xenosfinance_site", plan: body.plan } },
-          });
-          return json({ url: session.url });
-        } catch (e) { return json({ error: e.message }, 500); }
-      }
-
-      // ── STRIPE: CUSTOMER PORTAL SESSION ────────────────────────
-      if (body.type === "stripe-create-portal") {
-        if (!body.customer) return json({ error: 'Manca "customer"' }, 400);
-        try {
-          const portal = await stripeApi(env, "billing_portal/sessions", {
-            customer: body.customer,
-            return_url: "https://xenosfinance.com/premium-support",
-          });
-          return json({ url: portal.url });
-        } catch (e) { return json({ error: e.message }, 500); }
       }
 
       // ── ANTHROPIC ─────────────────────────────────────────────
