@@ -323,7 +323,7 @@ var XF=(function(){
     <div style="font-family:'IBM Plex Mono',monospace;font-size:1.2rem;font-weight:500;color:#e2eaf4;margin-bottom:4px;">XENOS<span style="color:#3b82f6;">FINANCE</span></div>
     <div style="font-family:'IBM Plex Mono',monospace;font-size:0.6rem;color:#5a7a9a;letter-spacing:.15em;text-transform:uppercase;margin-bottom:32px;">Admin · Accesso riservato</div>
     <div style="font-family:'IBM Plex Mono',monospace;font-size:0.6rem;letter-spacing:.12em;text-transform:uppercase;color:#5a7a9a;margin-bottom:6px;">Password</div>
-    <input id="loginPw" type="password" placeholder="••••••••"
+    <input id="loginPw" type="password" placeholder="••••••••" autocapitalize="off" autocorrect="off" autocomplete="current-password" spellcheck="false"
       style="width:100%;background:#131f2e;border:1px solid #1e3050;color:#e2eaf4;font-family:'IBM Plex Mono',monospace;font-size:13px;padding:11px 13px;outline:none;margin-bottom:14px;"
       onkeydown="if(event.key==='Enter') doLogin()">
     <button onclick="doLogin()" style="width:100%;background:#1d4ed8;color:#e2eaf4;border:none;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;padding:13px;cursor:pointer;">Login</button>
@@ -940,7 +940,8 @@ window.addEventListener('DOMContentLoaded', function() {
 });
 
 function doLogin() {
-  if (document.getElementById('loginPw').value === 'RMG@Manu78') {
+  // FIX 2026-09-23: trim — mobile keyboards/autofill often add a trailing space
+  if (document.getElementById('loginPw').value.trim() === 'RMG@Manu78') {
     isAdmin = true;
     sessionStorage.setItem('xf_admin', 'true');
     document.getElementById('loginScreen').style.display = 'none';
