@@ -13,8 +13,10 @@
  * Article JSON-LD block, and the article title + text pre-filled in
  * #artTitle / #artBody. The page's own JavaScript still runs exactly as
  * before (it re-renders the same article), so users see no difference.
- * Requests without ?slug= (the blog index) pass through untouched, and
- * any error falls back to the original page.
+ * Blog index (no ?slug=): the article grid is pre-rendered with real
+ * <a href> links to every article (same markup the page's JS builds), so
+ * Google can discover articles through internal links, not only the
+ * sitemap. Any error falls back to the original page.
  */
 
 const SITE = 'https://xenosfinance.com';
@@ -82,14 +84,55 @@ class AppendHead {
   element(el) { el.append(this.html, { html: true }); }
 }
 
+async function loadIndex(env, origin) {
+  try {
+    if (env && env.ASSETS) {
+      const r = await env.ASSETS.fetch(new URL('/articles/index.json', origin));
+      if (r.ok) return await r.json();
+    }
+  } catch (_) { /* fall through */ }
+  try {
+    const r = await fetch(RAW + 'index.json', { cf: { cacheTtl: 300, cacheEverything: true } });
+    if (r.ok) return await r.json();
+  } catch (_) { /* fall through */ }
+  return null;
+}
+
+// Same markup the page's JavaScript builds (renderGrid), so there is no
+// visual jump when the script re-renders the grid — but the article links
+// are now in the HTML Google downloads, not only after JS runs.
+function gridHtml(list) {
+  const BASE = `${SITE}/assets/blog/`;
+  return list.filter(a => a && a.slug && SLUG_RE.test(a.slug)).map(a => {
+    const title = plain(a.title || 'XenosFinance market analysis');
+    const href = `${SITE}/XenosBlog?slug=${encodeURIComponent(a.slug)}`;
+    const img = a.imageUrl && /^https?:\/\//.test(a.imageUrl) && a.imageUrl.indexOf('brief-') === -1 ? a.imageUrl : BASE + 'macro.png';
+    return `<div class="blog-card"><a href="${href}" class="card-link-wrap" aria-label="${esc(title)}">`
+      + `<div class="card-thumb"><img src="${esc(img)}" alt="${esc(title)}" loading="lazy"></div>`
+      + `<div class="card-body"><div class="card-cat">${esc(a.category || '')}</div>`
+      + `<div class="card-title">${esc(title)}</div>`
+      + `<div class="card-excerpt">${esc(plain(a.excerpt || '').slice(0, 120))}...</div>`
+      + `<div class="card-footer"><span>${esc(a.readTime || '')}</span><span class="card-read"><span>Read →</span></span></div>`
+      + `</div></a></div>`;
+  }).join('');
+}
+
+async function renderIndex(env, url, res) {
+  const list = await loadIndex(env, url.origin);
+  if (!Array.isArray(list) || !list.length) return res;
+  return new HTMLRewriter().on('#blogGrid', new SetText(gridHtml(list), true)).transform(res);
+}
+
 export async function onRequestGet(context) {
   const { request, env, next } = context;
   const res = await next();
   try {
     const url = new URL(request.url);
     const slug = url.searchParams.get('slug');
-    if (!slug || !SLUG_RE.test(slug)) return res;
     if (!(res.headers.get('content-type') || '').includes('text/html')) return res;
+    // Blog index (no slug): pre-render the article grid with real links.
+    if (!slug) return await renderIndex(env, url, res);
+    if (!SLUG_RE.test(slug)) return res;
 
     const a = await loadArticle(env, url.origin, slug);
     if (!a || !a.title) return res;
