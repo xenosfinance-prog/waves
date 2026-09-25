@@ -1107,7 +1107,10 @@ const TF_FH  = { 'M15':'15',    'H1':'60', 'H4':'240','D1':'D'    };
 // ── Fetch candele reali per un pair ──────────────────────────
 async function fetchCandles(pair) {
   const cacheKey = pair + '_' + selectedTF;
-  if (candleCache[cacheKey]) return candleCache[cacheKey];
+  // FIX 2026-09-25: cache used to live for the whole session, so every
+  // re-scan re-used the same old candles and found the same (or no) setups.
+  const cached = candleCache[cacheKey];
+  if (cached && Date.now() - cached.ts < 10 * 60 * 1000) return cached.candles;
 
   const TD_SKIP = ['XAUUSD','XAGUSD','USOIL','UKOIL','NGAS','COPPER',
                    'US500','US30','NAS100','UK100','GER40','FRA40','JPN225','HK50','AUS200'];
@@ -1214,7 +1217,9 @@ async function fetchCandles(pair) {
         if (res.ok) {
           const data = await res.json();
           if (data.candles && data.candles.length >= 10) {
-            candles = data.candles;
+            // FIX 2026-09-25: Yahoo has no 4h interval — H4 was analysed on
+            // raw 1h candles. Aggregate 1h → 4h (UTC 00/04/08/12/16/20 buckets).
+            candles = selectedTF === 'H4' ? resampleTo4h(data.candles) : data.candles;
             console.log('YF via Worker OK:', pair, candles.length);
           }
         }
@@ -1222,8 +1227,30 @@ async function fetchCandles(pair) {
     }
   }
 
-  if (candles && candles.length >= 10) candleCache[cacheKey] = candles;
+  if (candles && candles.length >= 10) candleCache[cacheKey] = { ts: Date.now(), candles };
   return candles && candles.length >= 10 ? candles : null;
+}
+
+function resampleTo4h(c1h) {
+  const out = [];
+  let cur = null, curKey = null;
+  for (const c of c1h) {
+    const d = new Date(c.datetime);
+    if (isNaN(d)) continue;
+    const key = d.toISOString().slice(0, 10) + '_' + Math.floor(d.getUTCHours() / 4);
+    if (key !== curKey) {
+      if (cur) out.push(cur);
+      curKey = key;
+      cur = { datetime: c.datetime, open: c.open, high: c.high, low: c.low, close: c.close, volume: c.volume || 0 };
+    } else {
+      cur.high = Math.max(cur.high, c.high);
+      cur.low = Math.min(cur.low, c.low);
+      cur.close = c.close;
+      cur.volume = (cur.volume || 0) + (c.volume || 0);
+    }
+  }
+  if (cur) out.push(cur);
+  return out;
 }
 
 // ── Calcoli tecnici su array candele ─────────────────────────
@@ -2308,12 +2335,18 @@ async function generateSignals() {
 
     // Step 2: scarica candele reali e analizza ogni pair in parallelo
     document.getElementById('loader-sub').textContent = 'Fetching real candles + running pattern detection...';
-    const analysisResults = await Promise.all(
-      pairs.map(pair => analyzePair(pair, livePrices).catch(e => {
+    // FIX 2026-09-25: all pairs used to fire at once (up to 66 pairs × up
+    // to 3 data sources) → the Worker's 120 req/min limit returned 429 for
+    // many of them and those pairs silently got no candles. Now 6 at a time.
+    const analysisResults = [];
+    for (let i = 0; i < pairs.length; i += 6) {
+      const batch = pairs.slice(i, i + 6);
+      analysisResults.push(...await Promise.all(batch.map(pair => analyzePair(pair, livePrices).catch(e => {
         console.warn('analyzePair failed:', pair, e.message);
         return null;
-      }))
-    );
+      }))));
+      document.getElementById('loader-sub').textContent = `Analysing real candles... ${Math.min(i + 6, pairs.length)}/${pairs.length}`;
+    }
 
     // Filtra null e per minConf
     const validAnalyses = analysisResults
@@ -2337,11 +2370,19 @@ async function generateSignals() {
     activeSavedSignals = activeSavedSignals.filter(a => !a.savedAt || a.savedAt > cutoff);
 
     const prompt = buildPromptFromAnalysis(validAnalyses, selectedTF, marketNews, activeSavedSignals);
-    const raw    = await callClaudeAPI(prompt);
+    // FIX 2026-09-25: if the AI call failed or its JSON was truncated/invalid,
+    // the whole scan ended in "Error: …" and the real patterns already found
+    // were thrown away. Now it falls back to the algorithmic signals below.
+    let parsed = [];
+    try {
+      const raw = await callClaudeAPI(prompt);
+      parsed = parseSignals(raw, minConf, selectedDir);
+    } catch (aiErr) {
+      console.warn('AI validation failed — using algo signals:', aiErr.message);
+      showToast('AI validation unavailable — showing algorithmic signals');
+    }
 
     clearInterval(loaderInterval);
-
-    const parsed = parseSignals(raw, minConf, selectedDir);
 
     // Se Claude torna array vuoto o parziale, fallback sui dati algoritmici
     let finalSignals = parsed;
@@ -2433,7 +2474,7 @@ async function callClaudeAPI(prompt) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       model: 'claude-sonnet-4-6',
-      max_tokens: 4000,
+      max_tokens: 8000,  // FIX 2026-09-25: 4000 truncated the JSON array on larger scans
       messages: [{ role: 'user', content: prompt }]
     })
   });
