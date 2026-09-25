@@ -916,14 +916,23 @@ function renderStockDetails(panel, details) {
 async function loadUSStocks() {
   const allYf = US_STOCKS.map(s => s.yf);
   try {
-    const r = await fetch(WORKER_URL, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({type: 'prices', pairs: allYf})
-    });
-    if (!r.ok) throw new Error('fetch failed');
-    const d = await r.json();
-    const prices = d.prices || {};
+    // FIX 2026-09-25: all 56 tickers went to the Worker in ONE request.
+    // A Cloudflare Worker can make at most 50 outgoing requests per call
+    // (Yahoo retries count too), so the last tickers in the list — the
+    // whole Industrials sector plus NKE/DIS — never got a price. Now sent
+    // in parallel chunks of 20, each well under the limit.
+    const CHUNK = 20;
+    const chunks = [];
+    for (let i = 0; i < allYf.length; i += CHUNK) chunks.push(allYf.slice(i, i + CHUNK));
+    const results = await Promise.all(chunks.map(pairs =>
+      fetch(WORKER_URL, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({type: 'prices', pairs})
+      }).then(r => r.ok ? r.json() : {}).catch(() => ({}))
+    ));
+    const prices = Object.assign({}, ...results.map(d => (d && d.prices) || {}));
+    if (!Object.keys(prices).length) throw new Error('fetch failed');
 
     const grid = document.getElementById('stocks-by-sector');
     if (grid) {
