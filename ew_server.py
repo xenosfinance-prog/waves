@@ -107,37 +107,6 @@ def calc_rsi(closes, period=14):
     ag,al = np.mean(g[-period:]), np.mean(l[-period:])
     return float(100.0 if al==0 else 100-(100/(1+ag/al)))
 
-def calc_vwap(df, period=20):
-    """
-    Rolling VWAP over the last `period` bars — NOT a true session-anchored
-    VWAP. yfinance's resampled FX candles have no clean intraday session
-    boundary to reset against (this data spans weeks, not a single trading
-    day), so a fixed rolling window is used instead, same fallback several
-    charting platforms use when a real session VWAP isn't available. Treat
-    it as "average traded price weighted by volume over the recent window",
-    not the institutional session VWAP a US equities trader would expect.
-
-    FX "volume" caveat: forex is OTC/decentralized — there is no real
-    consolidated volume anywhere. yfinance's Volume column for FX pairs is
-    a tick-count proxy (how many price updates occurred), not contracts or
-    lots traded. Useful as a relative "how much activity right now vs
-    recently" signal, not a literal traded-volume figure.
-
-    Returns None if there's no usable volume data at all for this
-    instrument (some FX pairs on some timeframes get all-zero/missing
-    volume from yfinance) — callers must treat that as "can't confirm",
-    never silently substitute a fake value.
-    """
-    if "Volume" not in df.columns:
-        return None
-    vol = df["Volume"].replace(0, np.nan)
-    if vol.isna().all() or float(vol.sum()) == 0:
-        return None
-    typical = (df["High"] + df["Low"] + df["Close"]) / 3
-    pv = (typical * vol).rolling(period).sum()
-    vsum = vol.rolling(period).sum()
-    return pv / vsum
-
 def get_indicators(df, dp):
     c = df["Close"].values
     rsi = calc_rsi(c, 14)
@@ -1021,17 +990,19 @@ def price_check():
 # ─────────────────────────────────────────────────────────
 def compute_ichimoku_signal(df, htf_df=None, sr_df=None, quality=False, min_room_r=1.5):
     """
-    FIX 2026-09-30 — quality=True (usato dal broker-engine) aggiunge due
-    filtri RIGIDI dopo il 4/4 Ichimoku:
-      1. Timeframe superiore allineato: htf_df (H4 ricampionato) deve
-         avere almeno 3/4 condizioni nella stessa direzione e il prezzo
-         NON dalla parte opposta della nuvola H4.
+    FIX 2026-09-30 — quality=True (usato SOLO dal broker-engine) aggiunge
+    due filtri RIGIDI dopo il 4/4 Ichimoku:
+      1. Timeframe superiore allineato: htf_df (H4, o D1 per i segnali H4)
+         deve avere almeno 3/4 condizioni nella stessa direzione e il
+         prezzo NON dalla parte opposta della nuvola.
       2. Spazio fino al supporto/resistenza: niente SELL se lo swing low
          confermato più vicino (zigzag su sr_df) è a meno di min_room_r ×
          rischio (distanza stop), niente BUY sotto una resistenza vicina.
-         Esattamente il caso AUD/USD del 30/09: short aperto subito
-         sopra un supporto già testato, dopo il crollo.
+         Caso reale AUD/USD 30/09: short aperto subito sopra un supporto
+         già testato, dopo il crollo, con target sotto il supporto.
     Se un filtro fallisce: direction=None e filter_reason spiega perché.
+    Con quality=True viene restituita anche una conviction: 70 base,
+    85 se il timeframe superiore è allineato 4/4.
     quality=False (default, es. il sito) = comportamento invariato.
     """
     """
@@ -1110,55 +1081,12 @@ def compute_ichimoku_signal(df, htf_df=None, sr_df=None, quality=False, min_room
         chikou_clear_bear,
     ]))
 
-    ACTIONABLE_MIN_SCORE = 4  # all four conditions must agree — unchanged, still the hard gate
+    ACTIONABLE_MIN_SCORE = 4  # all four conditions must agree
     direction = None
     if bull_score >= ACTIONABLE_MIN_SCORE and tk_cross != "bearish":
         direction = "UP"
     elif bear_score >= ACTIONABLE_MIN_SCORE and tk_cross != "bullish":
         direction = "DOWN"
-
-    # ── VWAP + volume confirmation (2026-09-21 addition) ──
-    # These do NOT gate whether a signal fires at all (ACTIONABLE_MIN_SCORE
-    # above is unchanged) — they gate how much the caller should TRUST it,
-    # via the conviction score below. Reason: the broker-engine's
-    # ichimoku_signal_source.py was sending a hardcoded conviction=75.0 for
-    # every single signal, so risk_manager.py's min_conviction=70 filter
-    # was never actually filtering anything — a barely-qualifying 4/4
-    # confluence and a textbook-clean one looked identical downstream.
-    vwap_series = calc_vwap(df, 20)
-    vwap_now = None
-    vwap_aligned = False
-    if vwap_series is not None and not pd.isna(vwap_series.iloc[-1]):
-        vwap_now = float(vwap_series.iloc[-1])
-        if direction == "UP":
-            vwap_aligned = price_now > vwap_now
-        elif direction == "DOWN":
-            vwap_aligned = price_now < vwap_now
-
-    volume_confirmed = False
-    vol_now = vol_avg20 = None
-    if "Volume" in df.columns and len(df) >= 20:
-        vol_series = df["Volume"]
-        vol_now = float(vol_series.iloc[-1])
-        vol_avg20 = float(vol_series.iloc[-21:-1].mean())  # avg of the 20 bars BEFORE this one, not including it
-        if vol_avg20 > 0:
-            volume_confirmed = vol_now >= vol_avg20
-
-    conviction = None
-    if direction is not None:
-        # FIX 2026-09-30: sulle coppie FX yfinance non fornisce volume
-        # (tutto 0) → VWAP None e volume mai confermato → conviction
-        # sempre 55 = sotto la soglia 70 del risk manager = NESSUN trade.
-        # Senza dati di volume le due conferme sono "non valutabili",
-        # non "negative": base neutra 70.
-        volume_available = vwap_now is not None and vol_avg20 is not None and vol_avg20 > 0
-        if volume_available:
-            extra_confirmations = int(vwap_aligned) + int(volume_confirmed)
-            # 4/4 confluence alone -> 55 (below min_conviction=70, rejected).
-            # +1 extra confirmation -> 70. +2 -> 85.
-            conviction = round(55 + extra_confirmations * 15, 1)
-        else:
-            conviction = 70.0
 
     dp = 2 if price_now > 10 else 5
     key_levels = None
@@ -1186,7 +1114,9 @@ def compute_ichimoku_signal(df, htf_df=None, sr_df=None, quality=False, min_room
     htf_info = None
     nearest_level = None
     room_r = None
+    conviction = None
     if quality and direction is not None:
+        conviction = 70.0
         # 1) Timeframe superiore
         htf = compute_ichimoku_signal(htf_df) if htf_df is not None else None
         if htf is None:
@@ -1203,8 +1133,8 @@ def compute_ichimoku_signal(df, htf_df=None, sr_df=None, quality=False, min_room
                 htf_full = htf["bull_score"] == 4
             if not htf_ok:
                 filter_reason = "htf_not_aligned"
-            elif htf_full and conviction is not None:
-                conviction = min(85.0, conviction + 15)
+            elif htf_full:
+                conviction = 85.0
 
         # 2) Spazio fino al livello (swing confermati da almeno 3 barre:
         #    un minimo fatto nelle ultime 3 barre è rottura in corso, non supporto)
@@ -1231,7 +1161,7 @@ def compute_ichimoku_signal(df, htf_df=None, sr_df=None, quality=False, min_room
             key_levels = None
             conviction = None
 
-    return {
+    result = {
         "direction": direction,
         "price_regime": price_regime,
         "tk_cross": tk_cross,
@@ -1244,20 +1174,18 @@ def compute_ichimoku_signal(df, htf_df=None, sr_df=None, quality=False, min_room
         "cloud_bottom": round(cloud_bottom, dp),
         "price": round(price_now, dp),
         "key_levels": key_levels,
-        # 2026-09-21: VWAP/volume confirmation + dynamic conviction —
-        # see the block above for what these mean and why they exist.
-        "vwap": round(vwap_now, dp) if vwap_now is not None else None,
-        "vwap_aligned": vwap_aligned,
-        "volume_confirmed": volume_confirmed,
-        "vol_now": round(vol_now, 1) if vol_now is not None else None,
-        "vol_avg20": round(vol_avg20, 1) if vol_avg20 is not None else None,
-        "conviction": conviction,
-        # 2026-09-30: filtri qualità (valorizzati solo con quality=True)
-        "filter_reason": filter_reason,
-        "htf": htf_info,
-        "nearest_level": round(float(nearest_level), dp) if nearest_level is not None else None,
-        "room_r": round(float(room_r), 2) if room_r is not None else None,
     }
+    if quality:
+        # 2026-09-30: campi aggiuntivi solo per il broker-engine — la
+        # risposta per il sito resta identica a prima.
+        result.update({
+            "conviction": conviction,
+            "filter_reason": filter_reason,
+            "htf": htf_info,
+            "nearest_level": round(float(nearest_level), dp) if nearest_level is not None else None,
+            "room_r": round(float(room_r), 2) if room_r is not None else None,
+        })
+    return result
 
 @app.route("/ichimoku-chart", methods=["POST","OPTIONS"])
 def ichimoku_chart():
@@ -1284,7 +1212,7 @@ def ichimoku_chart():
 
         logger.info(f"[ichimoku] Fetching {yf_sym} {iv} {pd_}")
         # FIX 2026-09-30: scarica tutta la storia del periodo (serve ai
-        # filtri qualità: H4 ricampionato + swing per supporti/resistenze);
+        # filtri qualità: timeframe superiore + swing per supporti/resistenze);
         # il segnale Ichimoku usa ancora le stesse ultime max(n, 90) barre.
         df_full = fetch_candles(yf_sym, iv, pd_, 100000, is_h4)
         df = df_full.tail(max(n, 90))
@@ -1305,14 +1233,141 @@ def ichimoku_chart():
             return jsonify({"error":"Insufficient history for Ichimoku cloud (need 80+ bars)."}), 400
 
         logger.info(f"[ichimoku] {sym_raw.upper()} {tf_raw}: direction={result['direction']} "
-                    f"bull={result['bull_score']} bear={result['bear_score']} "
-                    f"conviction={result['conviction']} vwap_aligned={result['vwap_aligned']} "
-                    f"volume_confirmed={result['volume_confirmed']} "
-                    f"quality={quality} filter_reason={result['filter_reason']} "
-                    f"htf={result['htf']} nearest_level={result['nearest_level']} room_r={result['room_r']}")
+                    f"bull={result['bull_score']} bear={result['bear_score']}"
+                    + (f" quality=on conviction={result.get('conviction')} filter_reason={result.get('filter_reason')} "
+                       f"htf={result.get('htf')} nearest_level={result.get('nearest_level')} room_r={result.get('room_r')}"
+                       if quality else ""))
         return jsonify({"symbol": sym_raw.upper(), "tf": tf_raw, **result})
     except Exception as e:
         logger.error(f"ichimoku_chart error: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+def compute_bollinger_rsi_signal(df, bb_period=20, bb_std=2, rsi_period=14,
+                                  rsi_overbought=70, rsi_oversold=30):
+    """
+    Two-step confirmation, per trading-strategy spec (2026-09):
+      1. WARNING — the PREVIOUS candle closed outside a Bollinger Band
+         (a "pierce"), and the CURRENT (latest) candle has closed back
+         inside it (a "re-entry") — classic mean-reversion exhaustion:
+         the move failed to sustain itself outside the band.
+      2. CONFIRMATION — at that same current candle, RSI sits in the
+         matching extreme zone: overbought after an upper-band pierce
+         (bearish confirmation) or oversold after a lower-band pierce
+         (bullish confirmation).
+    Only returns an actionable direction when BOTH conditions hold on
+    the same candle — a pierce+re-entry with RSI still neutral is a
+    "warning" with no direction, same spirit as ew_server.py's other
+    engines returning direction=None when confluence isn't there yet.
+    """
+    if len(df) < max(bb_period, rsi_period) + 5:
+        return None
+
+    close = df["Close"].values
+    sma = pd.Series(close).rolling(bb_period).mean().values
+    std = pd.Series(close).rolling(bb_period).std().values
+    upper = sma + bb_std * std
+    lower = sma - bb_std * std
+
+    if any(np.isnan(v) for v in (upper[-2], upper[-1], lower[-2], lower[-1])):
+        return None
+
+    prev_close, curr_close = float(close[-2]), float(close[-1])
+    prev_upper, curr_upper = float(upper[-2]), float(upper[-1])
+    prev_lower, curr_lower = float(lower[-2]), float(lower[-1])
+    curr_mid = float(sma[-1])
+
+    pierced_upper = prev_close > prev_upper
+    pierced_lower = prev_close < prev_lower
+    reentered_from_upper = pierced_upper and curr_close <= curr_upper
+    reentered_from_lower = pierced_lower and curr_close >= curr_lower
+
+    rsi = calc_rsi(close, rsi_period)
+
+    direction = None
+    warning = None
+    if reentered_from_upper:
+        warning = "upper_pierce_reentry"
+        if rsi >= rsi_overbought:
+            direction = "DOWN"
+    elif reentered_from_lower:
+        warning = "lower_pierce_reentry"
+        if rsi <= rsi_oversold:
+            direction = "UP"
+
+    dp = 2 if curr_close > 10 else 5
+    key_levels = None
+    if direction == "UP":
+        # Stop below the LOW of the piercing candle (df[-2]) — the
+        # candle that actually dipped below the lower band. A real
+        # technical invalidation level: if price falls back below
+        # that low, the reversal read was wrong.
+        stop = float(df["Low"].values[-2])
+        risk = curr_close - stop
+        if risk > 0:
+            key_levels = {
+                "stop_loss": round(stop, dp),
+                "tp1": round(curr_mid, dp),      # mean-reversion target: back to the middle band (the moving average)
+                "tp2": round(curr_upper, dp),    # stretch target: the opposite band
+            }
+        else:
+            direction = None
+    elif direction == "DOWN":
+        stop = float(df["High"].values[-2])
+        risk = stop - curr_close
+        if risk > 0:
+            key_levels = {
+                "stop_loss": round(stop, dp),
+                "tp1": round(curr_mid, dp),
+                "tp2": round(curr_lower, dp),
+            }
+        else:
+            direction = None
+
+    return {
+        "direction": direction,
+        "warning": warning,
+        "rsi": round(rsi, 1),
+        "upper_band": round(curr_upper, dp),
+        "lower_band": round(curr_lower, dp),
+        "mid_band": round(curr_mid, dp),
+        "price": round(curr_close, dp),
+        "key_levels": key_levels,
+    }
+
+
+@app.route("/bollinger-rsi-chart", methods=["POST","OPTIONS"])
+def bollinger_rsi_chart():
+    if request.method == "OPTIONS":
+        return Response(status=200)
+    try:
+        body    = request.get_json(force=True) or {}
+        sym_raw = body.get("symbol","eur/usd").lower().strip()
+        tf_raw  = body.get("tf","H1 (1-Hour)")
+
+        yf_sym = SYMBOL_MAP.get(sym_raw)
+        if not yf_sym:
+            for k,v in SYMBOL_MAP.items():
+                if k in sym_raw or sym_raw in k:
+                    yf_sym = v; break
+        if not yf_sym:
+            return jsonify({"error":f"Unknown symbol: {sym_raw}"}), 400
+
+        cfg = TF_CONFIG.get(tf_raw, ("1h","30d",90,1.2,"1d","90d"))
+        iv, pd_, n, _mult, _piv, _ppd = cfg
+        is_h4 = (tf_raw == "H4 (4-Hour)")
+
+        logger.info(f"[bollinger_rsi] Fetching {yf_sym} {iv} {pd_}")
+        df = fetch_candles(yf_sym, iv, pd_, max(n, 40), is_h4)
+
+        result = compute_bollinger_rsi_signal(df)
+        if result is None:
+            return jsonify({"error":"Insufficient history for Bollinger/RSI (need 25+ bars)."}), 400
+
+        logger.info(f"[bollinger_rsi] {sym_raw.upper()} {tf_raw}: direction={result['direction']} "
+                    f"warning={result['warning']} rsi={result['rsi']}")
+        return jsonify({"symbol": sym_raw.upper(), "tf": tf_raw, **result})
+    except Exception as e:
+        logger.error(f"bollinger_rsi_chart error: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
