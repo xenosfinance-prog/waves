@@ -1421,10 +1421,12 @@ def _ta_rr(entry, stop, target):
     return round(abs(target - entry) / risk, 2) if risk > 0 else None
 
 
-def _ta_compute(yf_sym, dp):
-    df = fetch_candles(yf_sym, "15m", "30d", 100000)
+def _ta_compute(yf_sym, dp, interval="15m", period="30d", htf_rule="1h"):
+    """Default M15 + contesto H1 (dashboard). Le pagine /analysis usano
+    interval="1h", period="60d", htf_rule="4h" (H1 + contesto H4)."""
+    df = fetch_candles(yf_sym, interval, period, 100000)
     if len(df) < 220:
-        raise ValueError("Storico M15 insufficiente per questo strumento.")
+        raise ValueError("Storico insufficiente per questo strumento.")
     c = df["Close"].values
     live = float(c[-1])
     atr = calc_atr(df, 14)
@@ -1458,8 +1460,8 @@ def _ta_compute(yf_sym, dp):
     pdl = float(daily["Low"].iloc[-2]) if len(daily) >= 2 else None
 
     # Contesto H1: Ichimoku + SMA50
-    h1 = df.resample("1h").agg({"Open": "first", "High": "max", "Low": "min",
-                                "Close": "last", "Volume": "sum"}).dropna()
+    h1 = df.resample(htf_rule).agg({"Open": "first", "High": "max", "Low": "min",
+                                    "Close": "last", "Volume": "sum"}).dropna()
     h1_ich = compute_ichimoku_signal(h1.tail(150)) if len(h1) >= 80 else None
     h1_sma50 = _ta_sma(h1["Close"].values, 50)
     h1_ctx = None

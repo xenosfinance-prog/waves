@@ -1,0 +1,55 @@
+# XenosFinance — pagine /analysis (SEO), rigenerate due volte al giorno.
+# Richiede il secret del repository ANTHROPIC_API_KEY
+# (Settings → Secrets and variables → Actions → New repository secret).
+name: Daily analysis pages
+
+on:
+  schedule:
+    - cron: "20 5 * * *"    # 05:20 UTC — prima dell'apertura europea
+    - cron: "20 12 * * *"   # 12:20 UTC — prima dell'apertura USA
+  workflow_dispatch: {}      # avvio manuale da Actions → "Run workflow"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: analysis-pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Generate pages
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: python tools/gen_analysis_pages.py
+
+      - name: Commit and push
+        run: |
+          git config user.name  "xenos-analysis-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add analysis sitemap.xml
+          if git diff --cached --quiet; then
+            echo "No changes."
+            exit 0
+          fi
+          git commit -m "Analysis pages $(date -u '+%Y-%m-%d %H:%M') UTC"
+          # Altri processi automatici scrivono sul repo (brief, trades):
+          # riallinea e riprova in caso di push concorrente.
+          for i in 1 2 3; do
+            git pull --rebase origin main && git push origin HEAD:main && exit 0
+            sleep 10
+          done
+          exit 1
