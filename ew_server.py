@@ -1370,6 +1370,275 @@ def bollinger_rsi_chart():
         logger.error(f"bollinger_rsi_chart error: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
+# ─────────────────────────────────────────────────────────
+# AI TECHNICAL ANALYSIS — dashboard (2026-10-01)
+# Analisi tecnica intraday M15 + contesto H1 per i titoli della dashboard.
+# TUTTI i numeri (indicatori, zone di confluenza, entrate/stop/target e
+# rischio/rendimento) sono calcolati qui in codice; l'AI scrive solo il
+# commento attorno a numeri già dati — niente valori inventati o R/R
+# sbagliati. Cache per (simbolo, lingua) fino alla chiusura della candela
+# M15 successiva: una sola chiamata AI per titolo ogni 15 minuti.
+# ─────────────────────────────────────────────────────────
+TA_ALLOWED = {
+    "CL=F","GC=F","SI=F","NG=F","EURUSD=X","GBPUSD=X","USDJPY=X","USDCHF=X",
+    "BTC-USD","ETH-USD","^GSPC","^IXIC","^GDAXI","^FTSE","PL=F","PA=F","BZ=F",
+    "HG=F","ZW=F","ZC=F","ZS=F","KC=F","SB=F","CT=F",
+}
+TA_LANG = {"en":"English","it":"Italian","es":"Spanish","fr":"French","de":"German",
+           "pt":"Portuguese","ru":"Russian","zh":"Chinese","ja":"Japanese","ar":"Arabic"}
+_TA_CACHE = {}
+
+
+def _ta_sma(c, n):
+    return float(np.mean(c[-n:])) if len(c) >= n else None
+
+
+def _ta_supertrend(df, period=10, mult=3.0):
+    h, l, c = df["High"].values, df["Low"].values, df["Close"].values
+    n = len(c)
+    tr = np.zeros(n)
+    tr[0] = h[0] - l[0]
+    for i in range(1, n):
+        tr[i] = max(h[i] - l[i], abs(h[i] - c[i-1]), abs(l[i] - c[i-1]))
+    atr = pd.Series(tr).ewm(alpha=1/period, adjust=False).mean().values
+    hl2 = (h + l) / 2
+    ub, lb = hl2 + mult * atr, hl2 - mult * atr
+    fub, flb = ub.copy(), lb.copy()
+    st = np.zeros(n)
+    up = True
+    for i in range(1, n):
+        fub[i] = ub[i] if (ub[i] < fub[i-1] or c[i-1] > fub[i-1]) else fub[i-1]
+        flb[i] = lb[i] if (lb[i] > flb[i-1] or c[i-1] < flb[i-1]) else flb[i-1]
+        if up and c[i] < flb[i]:
+            up = False
+        elif not up and c[i] > fub[i]:
+            up = True
+        st[i] = flb[i] if up else fub[i]
+    return float(st[-1]), up
+
+
+def _ta_rr(entry, stop, target):
+    risk = abs(entry - stop)
+    return round(abs(target - entry) / risk, 2) if risk > 0 else None
+
+
+def _ta_compute(yf_sym, dp):
+    df = fetch_candles(yf_sym, "15m", "30d", 100000)
+    if len(df) < 220:
+        raise ValueError("Storico M15 insufficiente per questo strumento.")
+    c = df["Close"].values
+    live = float(c[-1])
+    atr = calc_atr(df, 14)
+    rsi = calc_rsi(c, 14)
+    e12 = pd.Series(c).ewm(span=12, adjust=False).mean()
+    e26 = pd.Series(c).ewm(span=26, adjust=False).mean()
+    macd = e12 - e26
+    sig = macd.ewm(span=9, adjust=False).mean()
+    sma20, sma50, sma200 = _ta_sma(c, 20), _ta_sma(c, 50), _ta_sma(c, 200)
+    st_val, st_up = _ta_supertrend(df.tail(400))
+    vol = df["Volume"].values
+    vol_ratio = float(np.mean(vol[-4:]) / np.mean(vol[-40:])) if np.mean(vol[-40:]) > 0 else None
+
+    # Swing / Fibonacci dell'ultima gamba completata
+    recent = df.tail(300)
+    pivots = find_pivots_zigzag(recent, atr_mult=2.0)
+    fib = {}
+    swing = None
+    if len(pivots) >= 2:
+        a, b = pivots[-2], pivots[-1]
+        lo, hi = min(a["price"], b["price"]), max(a["price"], b["price"])
+        leg_up = b["price"] > a["price"]
+        rng = hi - lo
+        for r in (0.382, 0.5, 0.618):
+            fib[r] = hi - rng * r if leg_up else lo + rng * r
+        swing = {"from": round(a["price"], dp), "to": round(b["price"], dp), "dir": "up" if leg_up else "down"}
+
+    # Giornata precedente (UTC)
+    daily = df.resample("1D").agg({"High": "max", "Low": "min", "Close": "last"}).dropna()
+    pdh = float(daily["High"].iloc[-2]) if len(daily) >= 2 else None
+    pdl = float(daily["Low"].iloc[-2]) if len(daily) >= 2 else None
+
+    # Contesto H1: Ichimoku + SMA50
+    h1 = df.resample("1h").agg({"Open": "first", "High": "max", "Low": "min",
+                                "Close": "last", "Volume": "sum"}).dropna()
+    h1_ich = compute_ichimoku_signal(h1.tail(150)) if len(h1) >= 80 else None
+    h1_sma50 = _ta_sma(h1["Close"].values, 50)
+    h1_ctx = None
+    if h1_ich:
+        h1_ctx = {"regime": h1_ich["price_regime"], "bull_score": h1_ich["bull_score"],
+                  "bear_score": h1_ich["bear_score"],
+                  "above_sma50": bool(h1_sma50 is not None and float(h1["Close"].iloc[-1]) > h1_sma50)}
+
+    # Elliott (motore deterministico esistente) su M15
+    ew = None
+    try:
+        ew_piv = find_pivots_zigzag(df.tail(300), atr_mult=0.9)
+        primary, alternate, _tri, _ms = analyze_structure(ew_piv, live)
+        if primary:
+            wnum, wdesc, _scen, kl = get_wave_position(primary, live, dp, atr)
+            if wnum != "?":
+                ew = {"wave": wnum, "desc": wdesc, "invalidation": kl.get("stop_loss"),
+                      "tp1": kl.get("tp1"), "tp2": kl.get("tp2"),
+                      "prob": primary.get("prob")}
+    except Exception as e:
+        logger.warning(f"[ta] EW count failed for {yf_sym}: {e}")
+
+    # Livelli → zone di confluenza
+    lv = []
+    def add(p, name):
+        if p is not None and abs(p - live) <= 6 * atr:
+            lv.append((float(p), name))
+    add(sma20, "SMA20"); add(sma50, "SMA50"); add(sma200, "SMA200")
+    add(st_val, "SuperTrend")
+    for r, p in fib.items():
+        add(p, f"Fib {r*100:.1f}%")
+    add(pdh, "prev_high"); add(pdl, "prev_low")
+    for p in pivots[-6:]:
+        add(p["price"], "swing_high" if p["type"] == "H" else "swing_low")
+    if ew and ew.get("invalidation") is not None:
+        add(ew["invalidation"], "ew_inv")
+    lv.sort()
+    tol = 0.35 * atr
+    zones = []
+    for p, name in lv:
+        if zones and p - zones[-1]["high"] <= tol:
+            z = zones[-1]; z["high"] = p; z["members"].append(name)
+        else:
+            zones.append({"low": p, "high": p, "members": [name]})
+    for z in zones:
+        z["strength"] = len(z["members"])
+        m = 0.1 * atr  # una zona a ridosso del prezzo è un pivot, non supporto/resistenza
+        z["kind"] = "support" if z["high"] < live - m else "resistance" if z["low"] > live + m else "pivot"
+    supports = sorted([z for z in zones if z["kind"] == "support"], key=lambda z: -z["high"])
+    resists = sorted([z for z in zones if z["kind"] == "resistance"], key=lambda z: z["low"])
+
+    # Bias calcolato (non dall'AI)
+    score = 0
+    score += 1 if sma200 and live > sma200 else -1
+    score += 1 if sma20 and sma50 and sma20 > sma50 else -1
+    score += 1 if float(macd.iloc[-1] - sig.iloc[-1]) > 0 else -1
+    score += 1 if rsi > 55 else (-1 if rsi < 45 else 0)
+    score += 1 if st_up else -1
+    if h1_ctx:
+        score += 1 if h1_ctx["regime"] == "above_cloud" else (-1 if h1_ctx["regime"] == "below_cloud" else 0)
+        score += 1 if h1_ctx["above_sma50"] else -1
+    direction = "bullish" if score >= 2 else "bearish" if score <= -2 else "neutral"
+    confidence = "high" if abs(score) >= 5 else "medium" if abs(score) >= 3 else "low"
+
+    # Scenari calcolati: entrata / stop / target / R:R
+    buf = 0.25 * atr
+    S = supports[0] if supports else None
+    S2 = supports[1] if len(supports) > 1 else None
+    R = resists[0] if resists else None
+    R2 = resists[1] if len(resists) > 1 else None
+    scen = []
+    def mk(key, entry, stop, target, target_note):
+        # R:R calcolato sui valori ARROTONDATI mostrati, così è verificabile a mano.
+        entry, stop, target = round(entry, dp), round(stop, dp), round(target, dp)
+        rr = _ta_rr(entry, stop, target)
+        if rr is None:
+            return
+        scen.append({"key": key, "entry": round(entry, dp), "stop": round(stop, dp),
+                     "target": round(target, dp), "target_note": target_note, "rr": rr,
+                     "quality": "good" if rr >= 2 else "ok" if rr >= 1.5 else "poor"})
+    if S and R:
+        mk("long_pullback", S["high"], S["low"] - 2 * buf, R["low"], "zona di resistenza")
+        mk("short_rejection", R["low"], R["high"] + 2 * buf, S["high"], "zona di supporto")
+    if R:
+        e = R["high"] + buf; s = R["low"] - 2 * buf
+        mk("long_breakout", e, s, R2["low"] if R2 else e + 2 * (e - s),
+           "resistenza successiva" if R2 else "2R (nessun livello sopra)")
+    if S:
+        e = S["low"] - buf; s = S["high"] + 2 * buf
+        mk("short_breakdown", e, s, S2["high"] if S2 else e - 2 * (s - e),
+           "supporto successivo" if S2 else "2R (nessun livello sotto)")
+
+    def zfmt(z):
+        return None if not z else {"low": round(z["low"], dp), "high": round(z["high"], dp),
+                                   "members": z["members"], "strength": z["strength"]}
+
+    return {
+        "live": round(live, dp), "atr": round(atr, dp),
+        "bar_time": str(df.index[-1]),
+        "change_pct_day": round((live / float(daily["Close"].iloc[-2]) - 1) * 100, 2) if len(daily) >= 2 else None,
+        "indicators": {
+            "sma20": round(sma20, dp) if sma20 else None, "sma50": round(sma50, dp) if sma50 else None,
+            "sma200": round(sma200, dp) if sma200 else None,
+            "rsi": round(rsi, 1), "macd": round(float(macd.iloc[-1]), dp + 1),
+            "macd_signal": round(float(sig.iloc[-1]), dp + 1),
+            "supertrend": round(st_val, dp), "supertrend_dir": "up" if st_up else "down",
+            "volume_ratio": round(vol_ratio, 2) if vol_ratio else None,
+        },
+        "swing": swing,
+        "fib": {f"{k*100:.1f}": round(v, dp) for k, v in fib.items()},
+        "prev_day": {"high": round(pdh, dp) if pdh else None, "low": round(pdl, dp) if pdl else None},
+        "h1": h1_ctx,
+        "elliott": ew,
+        "zones": {"supports": [zfmt(z) for z in supports[:3]], "resistances": [zfmt(z) for z in resists[:3]]},
+        "trigger": {"bull": round(R["high"], dp) if R else None, "bear": round(S["low"], dp) if S else None},
+        "bias": {"direction": direction, "confidence": confidence, "score": score},
+        "scenarios": scen,
+    }
+
+
+def _ta_narrative(name, data, lang):
+    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    language = TA_LANG.get(lang, "English")
+    prompt = f"""You are a senior technical analyst at an institutional desk writing for XenosFinance.
+Instrument: {name} — 15-minute chart, intraday. All data below is ALREADY CALCULATED by our engine:
+
+{json.dumps(data, ensure_ascii=False)}
+
+Write the commentary in {language}. Return ONLY minified JSON, no fences:
+{{"headline":"<max 7 words, journalistic, describes the current situation>","summary":"<max 45 words: price, move, where it sits vs the key zones>","momentum":"<max 40 words: MACD, RSI, SuperTrend, volume>","structure":"<max 35 words: H1 context and the Elliott wave position if given>","confirmation":"<max 40 words: what confirms the bullish case and what confirms the bearish case, using the trigger levels>"}}
+
+STRICT RULES:
+- Use ONLY numbers present in the data. Never invent prices, percentages or levels; never recompute risk/reward.
+- The bias is already decided ({data['bias']['direction']}, confidence {data['bias']['confidence']}): your text must be consistent with it.
+- If "elliott" is null, do not mention Elliott waves. If volume_ratio is null, do not mention volume.
+- Technical analysis only: no news, no fundamentals, no investment advice."""
+    msg = client.messages.create(model="claude-sonnet-4-6", max_tokens=700,
+                                 messages=[{"role": "user", "content": prompt}])
+    txt = msg.content[0].text.strip().replace("```json", "").replace("```", "").strip()
+    a, b = txt.find("{"), txt.rfind("}")
+    return json.loads(txt[a:b+1])
+
+
+@app.route("/ta-brief", methods=["POST", "OPTIONS"])
+def ta_brief():
+    if request.method == "OPTIONS":
+        return Response(status=200)
+    try:
+        body = request.get_json(force=True) or {}
+        yf_sym = str(body.get("yf", "")).replace("%3D", "=")
+        if yf_sym not in TA_ALLOWED:
+            return jsonify({"error": f"Unsupported symbol: {yf_sym}"}), 400
+        name = str(body.get("name", yf_sym))[:60]
+        lang = str(body.get("lang", "en"))[:5]
+        dp = max(0, min(5, int(body.get("dec", 2))))
+
+        data = _ta_compute(yf_sym, dp)
+        key = (yf_sym, lang)
+        cached = _TA_CACHE.get(key)
+        if cached and cached["bar_time"] == data["bar_time"]:
+            return jsonify(cached["payload"])
+
+        try:
+            narrative = _ta_narrative(name, data, lang)
+        except Exception as e:
+            logger.warning(f"[ta] narrative failed for {yf_sym}: {e}")
+            narrative = None
+
+        payload = {"symbol": yf_sym, "name": name, "tf": "M15", **data, "narrative": narrative}
+        _TA_CACHE[key] = {"bar_time": data["bar_time"], "payload": payload}
+        logger.info(f"[ta] {yf_sym} {lang}: bias={data['bias']} scenarios={len(data['scenarios'])} "
+                    f"ew={data['elliott']['wave'] if data['elliott'] else None}")
+        return jsonify(payload)
+    except Exception as e:
+        logger.error(f"ta_brief error: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
 if __name__ == "__main__":
     port = int(os.getenv("PORT", os.getenv("EW_PORT",5001)))
     logger.info(f"EW Server v3 on port {port}")
