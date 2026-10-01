@@ -115,6 +115,44 @@ body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:10
 .market-table td{padding:10px 12px;border-bottom:1px solid var(--border2);color:var(--ink2);}
 .market-table tr:hover td{background:var(--bg3);}
 .market-table .sym{color:var(--ink);font-weight:bold;font-size:13px;}
+/* 2026-10-01: AI Technical Analysis (clic sulla riga) */
+.market-table tr.ta-click{cursor:pointer;}
+.market-table tr.ta-click td.sym:after{content:' ⚡';color:var(--gold);font-size:10px;opacity:0;transition:opacity .2s;}
+.market-table tr.ta-click:hover td.sym:after,.market-table tr.ta-open td.sym:after{opacity:1;}
+.market-table tr.ta-open td{background:var(--bg3);}
+.market-table tr.ta-row td{padding:0;border-bottom:1px solid var(--border2);background:var(--bg2);}
+.ta-panel{border-left:2px solid var(--gold);padding:16px 20px 18px;font-family:var(--mono);font-size:11px;line-height:1.7;color:var(--ink2);}
+.ta-h{font-size:9px;letter-spacing:3px;color:var(--gold);text-transform:uppercase;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+.ta-h span:last-child{color:var(--muted);letter-spacing:1px;}
+.ta-title{font-family:var(--serif);font-size:20px;color:var(--ink);margin:6px 0 2px;line-height:1.3;}
+.ta-price{font-size:12px;color:var(--ink);margin-bottom:8px;}
+.ta-price .up{color:var(--green2);} .ta-price .dn{color:var(--red2);}
+.ta-bias{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:4px 0 8px;}
+.ta-tag{font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;}
+.ta-dir{font-size:10px;letter-spacing:2px;text-transform:uppercase;padding:2px 9px;border:1px solid currentColor;}
+.ta-bullish .ta-dir{color:var(--green2);} .ta-bearish .ta-dir{color:var(--red2);} .ta-neutral .ta-dir{color:#facc15;}
+.ta-sec{margin-top:14px;}
+.ta-sh{font-size:9px;letter-spacing:2px;color:var(--gold);text-transform:uppercase;margin-bottom:5px;}
+.ta-p{color:var(--ink2);margin:0;}
+.ta-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.ta-zone{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;align-items:baseline;}
+.ta-zp{color:var(--ink);white-space:nowrap;}
+.ta-zm{color:var(--muted);font-size:10px;}
+.ta-zs{color:var(--gold);letter-spacing:1px;font-size:9px;margin-left:4px;}
+.ta-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;}
+.ta-chip{border:1px solid var(--border2);padding:2px 8px;font-size:10px;color:var(--ink2);}
+.ta-chip b{color:var(--ink);font-weight:normal;}
+.ta-table{width:100%;border-collapse:collapse;font-size:11px;}
+.ta-table th{text-align:left;font-size:9px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;padding:4px 8px;border-bottom:1px solid var(--border2);font-weight:normal;background:transparent;}
+.ta-table td{padding:6px 8px;border-bottom:1px solid var(--border);color:var(--ink);}
+.ta-table tr.poor td{color:var(--muted);}
+.ta-q{font-size:9px;letter-spacing:1px;text-transform:uppercase;padding:1px 6px;border:1px solid currentColor;}
+.ta-q.good{color:var(--green2);} .ta-q.ok{color:#facc15;} .ta-q.poor{color:var(--red2);}
+.ta-trig{display:flex;flex-wrap:wrap;gap:8px 20px;margin-top:6px;font-size:10px;}
+.ta-trig .up{color:var(--green2);} .ta-trig .dn{color:var(--red2);}
+.ta-foot{margin-top:14px;font-size:9px;color:var(--muted);letter-spacing:1px;}
+.ta-load{color:var(--muted);font-style:italic;}
+@media(max-width:760px){.ta-grid{grid-template-columns:1fr;}.ta-table{font-size:10px;}.ta-table th,.ta-table td{padding:4px 5px;}}
 .market-table .price{color:var(--ink);font-size:13px;}
 .market-table .up{color:var(--green2);}
 .market-table .dn{color:var(--red2);}
@@ -574,9 +612,112 @@ function catLabel(cat) {
   return (key && typeof window.t === 'function') ? window.t(key) : cat;
 }
 
+// ─── AI TECHNICAL ANALYSIS (2026-10-01) ─────────────────────────────────────
+// Clic su un titolo → analisi tecnica intraday M15 + contesto H1 dal server
+// waves (/ta-brief). Tutti i numeri (zone, entrate, stop, target, R:R) sono
+// calcolati dal server; l'AI scrive solo il commento. Cache lato server
+// fino alla chiusura della candela M15 successiva.
+const TA_URL = 'https://waves-production-ddbf.up.railway.app/ta-brief';
+window._taOpen = null;
+window._taHtml = {};
+
+const TA_L = {
+  en:{title:'AI Technical Analysis',tf:'M15 · H1 context',bias:'Bias',conf:'Confidence',bullish:'Bullish',bearish:'Bearish',neutral:'Neutral',high:'high',medium:'medium',low:'low',score:'score',summary:'Overview',zones:'Confluence zones',sup:'Supports',res:'Resistances',mom:'Momentum',str:'Structure',scen:'Trade scenarios',sc:'Scenario',entry:'Entry',stop:'Stop',target:'Target',rr:'R:R',q:'Quality',good:'good',ok:'acceptable',poor:'unfavourable',confirm:'Confirmation',trigBull:'Bullish trigger: 15-min close above',trigBear:'Bearish trigger: 15-min close below',loading:'Calculating levels and writing the analysis…',err:'Analysis unavailable right now, try again shortly.',foot:'Levels, scenarios and risk/reward calculated by the XenosFinance engine on 15-minute candles. Not investment advice.',long_pullback:'Bullish aggressive (pullback)',long_breakout:'Bullish conservative (breakout)',short_rejection:'Bearish aggressive (rejection)',short_breakdown:'Bearish conservative (breakdown)',none:'—',ew:'Elliott',inval:'invalidation',h1:'H1',above_cloud:'above cloud',below_cloud:'below cloud',inside_cloud:'inside cloud',vol:'Volume',updated:'bar',prev_high:'Prev. day high',prev_low:'Prev. day low',swing_high:'Swing high',swing_low:'Swing low',ew_inv:'EW invalidation'},
+  it:{title:'Analisi tecnica AI',tf:'M15 · contesto H1',bias:'Bias',conf:'Fiducia',bullish:'Rialzista',bearish:'Ribassista',neutral:'Neutrale',high:'alta',medium:'media',low:'bassa',score:'punteggio',summary:'Quadro',zones:'Zone di confluenza',sup:'Supporti',res:'Resistenze',mom:'Momentum',str:'Struttura',scen:'Scenari operativi',sc:'Scenario',entry:'Entrata',stop:'Stop',target:'Target',rr:'R:R',q:'Qualità',good:'buono',ok:'accettabile',poor:'sfavorevole',confirm:'Conferma',trigBull:'Trigger rialzista: chiusura M15 sopra',trigBear:'Trigger ribassista: chiusura M15 sotto',loading:'Calcolo dei livelli e stesura dell\'analisi…',err:'Analisi non disponibile al momento, riprova tra poco.',foot:'Livelli, scenari e rischio/rendimento calcolati dal motore XenosFinance su candele a 15 minuti. Non è consulenza d\'investimento.',long_pullback:'Rialzista aggressivo (pullback)',long_breakout:'Rialzista conservativo (breakout)',short_rejection:'Ribassista aggressivo (rifiuto)',short_breakdown:'Ribassista conservativo (rottura)',none:'—',ew:'Elliott',inval:'invalidazione',h1:'H1',above_cloud:'sopra la nuvola',below_cloud:'sotto la nuvola',inside_cloud:'dentro la nuvola',vol:'Volume',updated:'candela',prev_high:'Massimo ieri',prev_low:'Minimo ieri',swing_high:'Swing high',swing_low:'Swing low',ew_inv:'Invalidazione EW'},
+};
+
+function taEsc(t) { return String(t == null ? '' : t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function taFmt(sym, v) {
+  if (v == null) return '—';
+  return sym.comma ? Number(v).toLocaleString('en-US', {maximumFractionDigits: sym.dec}) : Number(v).toFixed(sym.dec);
+}
+
+function renderTA(sym, d, L) {
+  const n = d.narrative || {};
+  const dir = d.bias.direction;
+  const f = v => taFmt(sym, v);
+  const chg = d.change_pct_day;
+  let h = `<div class="ta-h"><span>⚡ ${L.title} · ${taEsc(sym.label)} · ${L.tf}</span><span>${L.updated} ${taEsc(String(d.bar_time).slice(0,16))} UTC</span></div>`;
+  if (n.headline) h += `<div class="ta-title">${taEsc(n.headline)}</div>`;
+  h += `<div class="ta-price">${taEsc(sym.name)} · <b>${f(d.live)}</b>${chg != null ? ` <span class="${chg >= 0 ? 'up' : 'dn'}">${chg >= 0 ? '+' : ''}${chg.toFixed(2)}%</span>` : ''} · ATR ${f(d.atr)}</div>`;
+  h += `<div class="ta-bias ta-${dir}"><span class="ta-tag">${L.bias}</span><span class="ta-dir">${L[dir]}</span><span class="ta-tag">${L.conf}: ${L[d.bias.confidence]} · ${L.score} ${d.bias.score > 0 ? '+' : ''}${d.bias.score}/7</span></div>`;
+  if (n.summary) h += `<div class="ta-sec"><div class="ta-sh">${L.summary}</div><p class="ta-p">${taEsc(n.summary)}</p></div>`;
+
+  const zl = zs => zs.length ? zs.map(z => `<span class="ta-zp">${z.low === z.high ? f(z.low) : f(z.low) + '–' + f(z.high)}</span><span class="ta-zm">${taEsc(z.members.map(m => L[m] || m).join(' + '))}<span class="ta-zs">${'●'.repeat(Math.min(z.strength, 4))}</span></span>`).join('') : `<span class="ta-zm">${L.none}</span><span></span>`;
+  h += `<div class="ta-sec"><div class="ta-sh">${L.zones}</div><div class="ta-grid">`
+     + `<div><div class="ta-tag" style="margin-bottom:4px">${L.res}</div><div class="ta-zone">${zl(d.zones.resistances)}</div></div>`
+     + `<div><div class="ta-tag" style="margin-bottom:4px">${L.sup}</div><div class="ta-zone">${zl(d.zones.supports)}</div></div>`
+     + `</div></div>`;
+
+  const ind = d.indicators;
+  h += `<div class="ta-sec"><div class="ta-sh">${L.mom}</div>${n.momentum ? `<p class="ta-p">${taEsc(n.momentum)}</p>` : ''}<div class="ta-chips">`
+     + `<span class="ta-chip">RSI <b>${ind.rsi}</b></span>`
+     + `<span class="ta-chip">MACD <b>${ind.macd}</b> / ${ind.macd_signal}</span>`
+     + `<span class="ta-chip">SuperTrend <b>${f(ind.supertrend)}</b> ${ind.supertrend_dir === 'up' ? '▲' : '▼'}</span>`
+     + `<span class="ta-chip">SMA20 <b>${f(ind.sma20)}</b></span><span class="ta-chip">SMA50 <b>${f(ind.sma50)}</b></span><span class="ta-chip">SMA200 <b>${f(ind.sma200)}</b></span>`
+     + (ind.volume_ratio != null ? `<span class="ta-chip">${L.vol} <b>×${ind.volume_ratio}</b></span>` : '')
+     + `</div></div>`;
+
+  h += `<div class="ta-sec"><div class="ta-sh">${L.str}</div>${n.structure ? `<p class="ta-p">${taEsc(n.structure)}</p>` : ''}<div class="ta-chips">`
+     + (d.h1 ? `<span class="ta-chip">${L.h1}: <b>${L[d.h1.regime] || d.h1.regime}</b> · ${d.h1.bull_score}/4 ▲ ${d.h1.bear_score}/4 ▼</span>` : '')
+     + (d.elliott ? `<span class="ta-chip">${L.ew}: <b>${taEsc(d.elliott.desc)}</b>${d.elliott.invalidation != null ? ` · ${L.inval} ${f(d.elliott.invalidation)}` : ''}</span>` : '')
+     + `</div></div>`;
+
+  if (d.scenarios && d.scenarios.length) {
+    h += `<div class="ta-sec"><div class="ta-sh">${L.scen}</div><div style="overflow-x:auto"><table class="ta-table"><tr><th>${L.sc}</th><th>${L.entry}</th><th>${L.stop}</th><th>${L.target}</th><th>${L.rr}</th><th>${L.q}</th></tr>`;
+    d.scenarios.forEach(sc => {
+      h += `<tr class="${sc.quality}"><td>${L[sc.key] || sc.key}</td><td>${f(sc.entry)}</td><td>${f(sc.stop)}</td><td>${f(sc.target)}</td><td>${sc.rr.toFixed(2)}:1</td><td><span class="ta-q ${sc.quality}">${L[sc.quality]}</span></td></tr>`;
+    });
+    h += `</table></div></div>`;
+  }
+
+  h += `<div class="ta-sec"><div class="ta-sh">${L.confirm}</div>${n.confirmation ? `<p class="ta-p">${taEsc(n.confirmation)}</p>` : ''}<div class="ta-trig">`
+     + (d.trigger.bull != null ? `<span class="up">▲ ${L.trigBull} ${f(d.trigger.bull)}</span>` : '')
+     + (d.trigger.bear != null ? `<span class="dn">▼ ${L.trigBear} ${f(d.trigger.bear)}</span>` : '')
+     + `</div></div>`;
+  h += `<div class="ta-foot">${L.foot}</div>`;
+  return h;
+}
+
+function setTAHtml(id, html) {
+  window._taHtml[id] = html;
+  const el = document.getElementById('ta-panel-' + id);
+  if (el) el.innerHTML = html;
+}
+
+async function toggleTA(id) {
+  if (window._taOpen === id) {
+    window._taOpen = null;
+    if (window._lastTableResults) buildTable(window._lastTableResults);
+    return;
+  }
+  if (!isPremium() && !isFreeUnlocked()) { showPremiumModal(); return; }
+  const sym = SYMS.find(s => s.id === id);
+  if (!sym) return;
+  const lang = localStorage.getItem('xenos_lang') || 'en';
+  const L = TA_L[lang] || TA_L.en;
+  window._taOpen = id;
+  window._taHtml[id] = `<div class="ta-h"><span>⚡ ${L.title} · ${taEsc(sym.label)} · ${L.tf}</span><span></span></div><div class="ta-load" style="margin-top:8px">${L.loading}</div>`;
+  if (window._lastTableResults) buildTable(window._lastTableResults);
+  try {
+    const res = await fetch(TA_URL, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({yf: decodeURIComponent(sym.yf), name: sym.name, dec: sym.dec, lang})
+    });
+    const d = await res.json();
+    if (!res.ok || d.error || !d.bias) throw new Error(d.error || 'error');
+    setTAHtml(id, renderTA(sym, d, L));
+  } catch (e) {
+    setTAHtml(id, `<div class="ta-h"><span>⚡ ${L.title} · ${taEsc(sym.label)}</span><span></span></div><div class="ta-load" style="margin-top:8px;color:var(--red2)">${L.err}</div>`);
+  }
+}
+
 function buildTable(results) {
   const tbody = document.getElementById('market-tbody');
   if (!tbody) return;
+  window._lastTableResults = results;
   let html = '';
   SYMS.forEach(sym => {
     const d = results[sym.id];
@@ -585,7 +726,8 @@ function buildTable(results) {
     const pct = d.chg.toFixed(2);
     const absPct = Math.abs(d.chg);
     const barW = Math.min(absPct * 15 + 20, 100);
-    html += `<tr>
+    const taOpen = window._taOpen === sym.id;
+    html += `<tr class="ta-click${taOpen ? ' ta-open' : ''}" onclick="toggleTA('${sym.id}')" title="AI Technical Analysis · M15">
       <td class="sym">${sym.label}</td>
       <td style="color:var(--muted)">${sym.name}</td>
       <td class="price">${fmtP(sym, d.price)}</td>
@@ -594,6 +736,7 @@ function buildTable(results) {
       <td><div style="background:var(--bg3);border-radius:2px;overflow:hidden;width:100px;height:5px;"><div style="width:${barW}%;height:100%;background:${up ? 'var(--green2)' : 'var(--red2)'};border-radius:2px;"></div></div></td>
       <td style="color:var(--muted);font-size:10px">${catLabel(sym.cat)}</td>
     </tr>`;
+    if (taOpen) html += `<tr class="ta-row"><td colspan="7"><div class="ta-panel" id="ta-panel-${sym.id}">${(window._taHtml || {})[sym.id] || ''}</div></td></tr>`;
   });
   tbody.innerHTML = html || '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px;font-family:var(--mono);font-size:11px;"><span data-i18n="label_no_data">No data available</span></td></tr>';
 }
