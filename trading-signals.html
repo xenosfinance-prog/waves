@@ -977,7 +977,7 @@ function renderOptions() {
     <div class="opt-card ${isCall?'call':'put'}" onclick="toggleOptDetail(${i})" data-pair="${sig.pair||''}" data-tf="${sig.expiry||sig.timeframe||''}">
       <div class="opt-card-row">
         <div class="oc-pair">${sig.pair||'—'}</div>
-        <div class="oc-action ${isCall?'CALL':'PUT'}">${isCall?'BUY CALL':'BUY PUT'}</div>
+        <div class="oc-action ${isCall?'CALL':'PUT'}">${isCall?'CALL SETUP':'PUT SETUP'}</div>
         <div class="oc-entry">${openPx}</div>
         <div style="font-family:var(--mono);font-size:11px;color:var(--green)">${closePx}</div>
         <div style="font-family:var(--mono);font-size:11px;color:var(--yellow)">⏱ ${expiry}</div>
@@ -986,7 +986,7 @@ function renderOptions() {
       <div class="opt-detail" id="opt-detail-${i}">
         <div class="detail-levels" style="margin-bottom:14px;">
           <div class="level-pill"><div class="level-pill-label"><span data-i18n="th_asset">Asset</span></div><div class="level-pill-val" style="color:var(--ink)">${sig.pair||'—'}</div></div>
-          <div class="level-pill"><div class="level-pill-label"><span data-i18n="th_action">Action</span></div><div class="level-pill-val ${isCall?'tp':'sl'}">${isCall?'Buy Call':'Buy Put'}</div></div>
+          <div class="level-pill"><div class="level-pill-label"><span data-i18n="th_action">Action</span></div><div class="level-pill-val ${isCall?'tp':'sl'}">${isCall?'Call setup':'Put setup'}</div></div>
           <div class="level-pill"><div class="level-pill-label"><span data-i18n="th_open_price">Open Price</span></div><div class="level-pill-val entry">${openPx}</div></div>
           <div class="level-pill"><div class="level-pill-label"><span data-i18n="th_close_target">Close Target</span></div><div class="level-pill-val tp">${closePx}</div></div>
           <div class="level-pill"><div class="level-pill-label"><span data-i18n="th_expiry">Expiry</span></div><div class="level-pill-val" style="color:var(--yellow)">${expiry}</div></div>
@@ -1743,7 +1743,7 @@ async function sendToTelegram(event, i, type) {
     let text = '';
     if (type === 'options') {
       const isCall = ['CALL','BUY'].includes((sig.action||sig.direction||'').toUpperCase());
-      const action = isCall ? '🟢 BUY CALL' : '🔴 BUY PUT';
+      const action = isCall ? '🟢 CALL SETUP' : '🔴 PUT SETUP';
       const expiry  = sig.expiry || sig.timeframe || '—';
       const entry   = sig.entry != null ? fmtPrice(sig.entry, sig.pair) : '—';
       const close   = sig.close_price != null ? fmtPrice(sig.close_price, sig.pair) : '—';
@@ -1936,41 +1936,43 @@ async function runAIInterpreter() {
     ].filter(Boolean).join('\n');
   }).join('\n\n');
 
-  const prompt = `You are a senior options trading analyst at XenosFinance with 15+ years of experience in Forex and Crypto derivatives.
+  const prompt = `You are a senior options analyst and trading educator at XenosFinance with 15+ years of experience in Forex and Crypto derivatives. You write educational setup analysis, not personal investment advice.
 
-TASK: Analyze the following multi-timeframe signal data and provide professional directional options guidance (standard Call/Put options with real expiries — NOT binary options). The signals are computed from RSI, MACD, EMA-20/50 with weighted confluence scoring (1D×4, 4H×3, 1H×2, 15M×1, 5M×1). The HTF Bias (4H+1D) is the PRIMARY directional filter — never go against it unless all 5 TFs disagree with it.
+TASK: Analyze the following multi-timeframe data and explain, for educational purposes, which directional options setups the confluence supports and how they would be structured (standard Call/Put options with real expiries — NOT binary options). The signals are computed from RSI, MACD, EMA-20/50 with weighted confluence scoring (1D×4, 4H×3, 1H×2, 15M×1, 5M×1). The HTF Bias (4H+1D) is the PRIMARY directional filter — never go against it unless all 5 TFs disagree with it.
 
 MARKET: ${tab === 'forex' ? 'Forex Major Pairs' : 'Crypto Pairs'}
 SESSION: ${new Date().toUTCString()}
 
---- SIGNAL DATA ---
+--- MULTI-TIMEFRAME DATA ---
 ${signalSummary}
 ---
 
 ANALYSIS RULES:
-1. HTF FIRST: Only trade when HTF Bias aligns with short-TF momentum. If HTF=MIXED → AVOID unless 4+ TFs agree.
+1. HTF FIRST: A setup is valid only when HTF Bias aligns with short-TF momentum. If HTF=MIXED → AVOID unless 4+ TFs agree.
 2. REGIME FILTER: In RANGING markets, prefer mean-reversion setups (shorter-dated expiry, lower confidence). In TRENDING markets, ride momentum (longer-dated expiry, higher confidence).
-3. CONFLUENCE THRESHOLD: Recommend Buy Call / Buy Put only when Alignment ≥ 3/5 AND Weighted Score |x| > 0.4. Otherwise → AVOID.
+3. CONFLUENCE THRESHOLD: Describe a Call setup / Put setup only when Alignment ≥ 3/5 AND Weighted Score |x| > 0.4. Otherwise → AVOID.
 4. CONFLICT PENALTY: If Conflicts ≥ 2, reduce confidence by 20% and shorten the expiry tenor or AVOID.
 5. EXPIRY LOGIC: Use ONLY these exact expiry values: 1 Week, 2 Weeks, 1 Month, 2 Months, 3 Months. Use the pre-calculated Suggested Expiry as your base, but adjust: trending + strong 1D → longer-dated; ranging + conflicts → shorter-dated or AVOID. 3 Months is only for exceptional full-alignment trending setups.
 6. CRYPTO ADJUSTMENT: Crypto is 2–3× more volatile than Forex — use a shorter-dated tenor for crypto pairs vs the equivalent Forex setup (e.g. if Forex → 1 Month, Crypto → 2 Weeks).
-7. STRIKE & PREMIUM: Each pair's data includes pre-calculated CALL and PUT strike/premium (Black-Scholes, indicative — not live quotes). Report only the one matching your Call/Put recommendation, exactly as given. Never calculate or invent your own strike/premium numbers.
+7. STRIKE & PREMIUM: Each pair's data includes pre-calculated CALL and PUT strike/premium (Black-Scholes, indicative — not live quotes). Report only the one matching the Call/Put setup, exactly as given. Never calculate or invent your own strike/premium numbers.
 
-FOR EACH PAIR provide a full entry ONLY when your call is Buy Call or Buy Put. If a pair does not meet the confluence threshold (would be AVOID), OMIT IT ENTIRELY — do not name it, list it, count it, or reference it anywhere in the output, not even in a compact summary line. The report should read as if those pairs were never part of the input at all.
+FOR EACH PAIR provide a full entry ONLY when the data supports a Call setup or a Put setup. If a pair does not meet the confluence threshold (would be AVOID), OMIT IT ENTIRELY — do not name it, list it, count it, or reference it anywhere in the output, not even in a compact summary line. The report should read as if those pairs were never part of the input at all.
 
-**[PAIR]** → [Buy Call / Buy Put]
+**[PAIR]** → [Call setup (bullish) / Put setup (bearish)]
 Expiry: [tenor] | Confidence: [%] | Regime: [TRENDING/RANGING/TRANSITION]
-Strike: [use the CALL strike from the data if recommending Buy Call, or the PUT strike if recommending Buy Put — never invent your own number] | Premium (indic.): [same rule — use the matching pre-calculated premium]
+Strike: [use the CALL strike from the data for a Call setup, or the PUT strike for a Put setup — never invent your own number] | Premium (indic.): [same rule — use the matching pre-calculated premium]
 HTF Bias: [BULLISH/BEARISH/MIXED] | Alignment: [X/5]
-Rationale: [2-3 sentences — mention which TFs drive the call, whether HTF confirms, and any key risk]
+Rationale: [2-3 sentences — which TFs drive the setup, whether HTF confirms, what would invalidate it, and the key risk]
 
 **── MARKET OVERVIEW ──**
-[3 sentences on overall ${tab} sentiment, dominant regime, and whether it's a high or low-probability window for directional options positioning]
+[3 sentences on overall ${tab} sentiment, dominant regime, and whether it's a high or low-probability window for directional options setups]
 
 **── RISK WARNINGS ──**
 [2 sentences on current risks: ranging market trap, news risk, thin liquidity, etc.]
 
-Always end with: ⚠ Educational purposes only — not financial advice. XenosFinance does not execute trades.`;
+Write as an educational setup analysis: never tell the reader to buy, sell or open a position.
+
+Always end with: ⚠ Educational analysis only — not investment advice. XenosFinance does not execute trades.`;
 
   try {
     // Retry logic — handle Cloudflare 529 rate limit with automatic backoff
