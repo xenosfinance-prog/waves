@@ -1376,8 +1376,8 @@ def bollinger_rsi_chart():
 # TUTTI i numeri (indicatori, zone di confluenza, entrate/stop/target e
 # rischio/rendimento) sono calcolati qui in codice; l'AI scrive solo il
 # commento attorno a numeri già dati — niente valori inventati o R/R
-# sbagliati. Cache per (simbolo, lingua) fino alla chiusura della candela
-# M15 successiva: una sola chiamata AI per titolo ogni 15 minuti.
+# sbagliati. Il commento AI lo genera la pagina tramite il Worker, come gli
+# altri tool AI: Claude per i premium, Gemini per gli accessi free.
 # ─────────────────────────────────────────────────────────
 TA_ALLOWED = {
     "CL=F","GC=F","SI=F","NG=F","EURUSD=X","GBPUSD=X","USDJPY=X","USDCHF=X",
@@ -1386,7 +1386,6 @@ TA_ALLOWED = {
 }
 TA_LANG = {"en":"English","it":"Italian","es":"Spanish","fr":"French","de":"German",
            "pt":"Portuguese","ru":"Russian","zh":"Chinese","ja":"Japanese","ar":"Arabic"}
-_TA_CACHE = {}
 
 
 def _ta_sma(c, n):
@@ -1581,8 +1580,10 @@ def _ta_compute(yf_sym, dp):
     }
 
 
-def _ta_narrative(name, data, lang):
-    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+def _ta_prompt(name, data, lang):
+    """Prompt del commento. L'AI NON viene chiamata qui: come tutti gli altri
+    tool AI del sito, la pagina lo invia al Worker — Claude per i premium,
+    Gemini per gli accessi free (email autorizzate, limite giornaliero)."""
     language = TA_LANG.get(lang, "English")
     prompt = f"""You are a senior technical analyst at an institutional desk writing for XenosFinance.
 Instrument: {name} — 15-minute chart, intraday. All data below is ALREADY CALCULATED by our engine:
@@ -1597,11 +1598,7 @@ STRICT RULES:
 - The bias is already decided ({data['bias']['direction']}, confidence {data['bias']['confidence']}): your text must be consistent with it.
 - If "elliott" is null, do not mention Elliott waves. If volume_ratio is null, do not mention volume.
 - Technical analysis only: no news, no fundamentals, no investment advice."""
-    msg = client.messages.create(model="claude-sonnet-4-6", max_tokens=700,
-                                 messages=[{"role": "user", "content": prompt}])
-    txt = msg.content[0].text.strip().replace("```json", "").replace("```", "").strip()
-    a, b = txt.find("{"), txt.rfind("}")
-    return json.loads(txt[a:b+1])
+    return prompt
 
 
 @app.route("/ta-brief", methods=["POST", "OPTIONS"])
@@ -1617,20 +1614,10 @@ def ta_brief():
         lang = str(body.get("lang", "en"))[:5]
         dp = max(0, min(5, int(body.get("dec", 2))))
 
+        # Numeri calcolati qui + prompt del commento (inviato dalla pagina al Worker).
         data = _ta_compute(yf_sym, dp)
-        key = (yf_sym, lang)
-        cached = _TA_CACHE.get(key)
-        if cached and cached["bar_time"] == data["bar_time"]:
-            return jsonify(cached["payload"])
-
-        try:
-            narrative = _ta_narrative(name, data, lang)
-        except Exception as e:
-            logger.warning(f"[ta] narrative failed for {yf_sym}: {e}")
-            narrative = None
-
-        payload = {"symbol": yf_sym, "name": name, "tf": "M15", **data, "narrative": narrative}
-        _TA_CACHE[key] = {"bar_time": data["bar_time"], "payload": payload}
+        payload = {"symbol": yf_sym, "name": name, "tf": "M15", **data,
+                   "narrative_prompt": _ta_prompt(name, data, lang)}
         logger.info(f"[ta] {yf_sym} {lang}: bias={data['bias']} scenarios={len(data['scenarios'])} "
                     f"ew={data['elliott']['wave'] if data['elliott'] else None}")
         return jsonify(payload)
