@@ -186,6 +186,9 @@ body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:10
 .ai-data-k{font-size:9px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;margin-right:5px;}
 .ai-data-v{color:var(--ink);}
 .ai-data-dev{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--gold);}
+.ai-dt{display:grid;grid-template-columns:minmax(160px,auto) auto auto auto 1fr;gap:3px 16px;align-items:baseline;}
+.ai-dt-n{color:var(--ink2);}
+@media(max-width:700px){.ai-dt{grid-template-columns:1fr auto auto auto;}.ai-dt .ai-data-dev{grid-column:1/-1;}}
 .ai-src{margin-top:12px;font-size:9px;letter-spacing:1px;color:var(--muted);}
 @media(max-width:700px){.ai-scen{grid-template-columns:1fr;}.ai-lv{grid-template-columns:auto auto;}.ai-lv-n{grid-column:1/-1;margin-bottom:4px;}}
 @media(max-width:900px){.highlight-grid{grid-template-columns:1fr;}.masthead-name{font-size:40px;}.nav-btn{padding:10px 14px;font-size:10px;letter-spacing:1px;}.cal-table th:nth-child(4),.cal-table td:nth-child(4){display:none;}}
@@ -1214,6 +1217,28 @@ function calEventGuide(ev) {
   return 'EVENT-SPECIFIC GUIDANCE: identify the 1-2 instruments most sensitive to this release and focus the analysis on them.';
 }
 
+// 2026-09-30: report petroliferi = UN report con più righe nel calendario
+// (greggio, benzina, distillati, Cushing, raffinerie). Cliccando una
+// qualsiasi riga, l'analisi riceve TUTTE le componenti della stessa uscita.
+function calPetroKind(ev) {
+  const n = calEventText(ev);
+  if (/natural gas/.test(n)) return null;
+  if (!/crude|gasoline|distillate|cushing|refiner|heating oil|petroleum/.test(n)) return null;
+  return /\bapi\b/.test(n) ? 'API' : 'EIA';
+}
+
+function calPetroGroup(ev) {
+  const kind = calPetroKind(ev);
+  if (!kind) return null;
+  const seen = new Set(), members = [];
+  Object.values(window._evData || {}).forEach(e => {
+    if (e && e.date === ev.date && calPetroKind(e) === kind && !seen.has(e.name)) { seen.add(e.name); members.push(e); }
+  });
+  const isCrude = e => /crude/i.test(e.name) && !/cushing/i.test(e.name);
+  members.sort((a, b) => isCrude(b) - isCrude(a));
+  return {kind, title: kind === 'EIA' ? 'EIA Weekly Petroleum Status Report' : 'API Weekly Petroleum Report', members};
+}
+
 const CAL_AI_LABELS = {
   en:{bias:'Bias',conf:'Confidence',bullish:'Bullish',bearish:'Bearish',neutral:'Neutral',high:'high',medium:'medium',low:'low',exp:'Expectations',scen:'Scenarios',read:'Market read',lv:'Key levels',tail:'Tail risk',support:'support',resistance:'resistance',pivot:'pivot',src:'Live prices used',analysis:'Analysis',data:'Data',actual:'Actual',consensus:'Consensus',previous:'Previous',na:'n/a',due:'due',above:'above consensus',below:'below consensus',inline:'in line with consensus'},
   it:{bias:'Bias',conf:'Fiducia',bullish:'Rialzista',bearish:'Ribassista',neutral:'Neutrale',high:'alta',medium:'media',low:'bassa',exp:'Aspettative',scen:'Scenari',read:'Lettura di mercato',lv:'Livelli chiave',tail:'Rischio di coda',support:'supporto',resistance:'resistenza',pivot:'pivot',src:'Prezzi live usati',analysis:'Analisi',data:'Dati',actual:'Attuale',consensus:'Consensus',previous:'Precedente',na:'n/d',due:'in uscita',above:'sopra il consensus',below:'sotto il consensus',inline:'in linea con il consensus'},
@@ -1278,6 +1303,26 @@ function calRenderNarrative(text) {
   return t.split(/\n\s*\n/).map(p => `<p>${calMd(p.trim())}</p>`).join('');
 }
 
+function calRenderDataRow(ev, L) {
+  const has = v => v && v !== '—' && v !== '';
+  let dev = '';
+  if (has(ev.actual) && has(ev.forecast)) {
+    const av = parseFloat(String(ev.actual).replace(/[^0-9.\-]/g, ''));
+    const fv = parseFloat(String(ev.forecast).replace(/[^0-9.\-]/g, ''));
+    if (!isNaN(av) && !isNaN(fv)) dev = av > fv ? L.above : av < fv ? L.below : L.inline;
+  }
+  return `<span class="ai-dt-n">${calEsc(ev.name)}</span>`
+    + `<span class="ai-data-v">${has(ev.actual) ? calEsc(ev.actual) : '—'}</span>`
+    + `<span class="ai-data-v">${has(ev.forecast) ? calEsc(ev.forecast) : L.na}</span>`
+    + `<span class="ai-data-v">${has(ev.prev) ? calEsc(ev.prev) : L.na}</span>`
+    + `<span class="ai-data-dev">${dev}</span>`;
+}
+
+function calRenderDataGroup(members, L) {
+  const head = `<span></span><span class="ai-data-k">${L.actual}</span><span class="ai-data-k">${L.consensus}</span><span class="ai-data-k">${L.previous}</span><span></span>`;
+  return `<div class="ai-dt">${head}${members.map(m => calRenderDataRow(m, L)).join('')}</div>`;
+}
+
 function calRenderData(ev, L) {
   const has = v => v && v !== '—' && v !== '';
   const a = has(ev.actual), f = has(ev.forecast), p = has(ev.prev);
@@ -1306,7 +1351,8 @@ function calRenderAnalysis(o, lang, liveLines, extra) {
         + (L[confKey] ? `<span class="ai-bias-conf">${L.conf}: ${L[confKey]}</span>` : '')
         + `</div>`;
   if (o.bias.rationale) h += `<div class="ai-bias-why">${calMd(o.bias.rationale)}</div>`;
-  if (extra.ev) h += `<div class="ai-sec"><div class="ai-sec-h">${L.data}</div>${calRenderData(extra.ev, L)}</div>`;
+  if (extra.members && extra.members.length > 1) h += `<div class="ai-sec"><div class="ai-sec-h">${L.data}</div>${calRenderDataGroup(extra.members, L)}</div>`;
+  else if (extra.ev) h += `<div class="ai-sec"><div class="ai-sec-h">${L.data}</div>${calRenderData(extra.ev, L)}</div>`;
   const narr = calRenderNarrative(extra.narrative);
   if (narr) h += `<div class="ai-sec"><div class="ai-sec-h">${L.analysis}</div><div class="ai-narr">${narr}</div></div>`;
   if (o.expectations) h += `<div class="ai-sec"><div class="ai-sec-h">${L.exp}</div><div class="ai-sec-t">${calMd(o.expectations)}</div></div>`;
@@ -1370,13 +1416,22 @@ async function analyzeEvent(evIdx) {
     ? 'LIVE MARKET DATA (fetched seconds ago):\n' + liveLines.map(l => '- ' + l).join('\n')
     : 'LIVE MARKET DATA: unavailable right now.';
 
+  const group = calPetroGroup(ev);
+  const isGroup = !!(group && group.members.length > 1);
+  const hasV = v => v && v !== '—' && v !== '' && !String(v).includes('TODAY');
+  const evLabel = isGroup ? group.title : ev.name;
+  const postRelease = isGroup ? group.members.some(m => hasV(m.actual)) : hasActual;
+  const dataBlock = isGroup
+    ? 'REPORT COMPONENTS (all lines of this release — analyse them TOGETHER, the combination is the signal):\n'
+      + group.members.map(m => `- ${m.name}: actual ${hasV(m.actual) ? m.actual : 'not yet released'} | consensus ${hasV(m.forecast) ? m.forecast : 'NOT AVAILABLE'} | previous ${hasV(m.prev) ? m.prev : 'NOT AVAILABLE'}`).join('\n')
+    : `Consensus: ${hasForecast ? ev.forecast : 'NOT AVAILABLE'}\nPrevious: ${hasPrev ? ev.prev : 'NOT AVAILABLE'}${hasActual ? '\nActual: ' + ev.actual + (beat ? ' (data ' + beat + ' expectations)' : '') : ''}`;
+
   const header = `You are the head of macro & commodities strategy at an institutional trading desk, writing for the premium economic calendar of XenosFinance.
 
-EVENT: ${ev.name}${ev.desc ? ' — ' + ev.desc : ''}
+EVENT: ${evLabel}${!isGroup && ev.desc ? ' — ' + ev.desc : ''}
 Country/Currency: ${ev.country}
 Release: ${ev.date} at ${ev.time} CET
-Consensus: ${hasForecast ? ev.forecast : 'NOT AVAILABLE'}
-Previous: ${hasPrev ? ev.prev : 'NOT AVAILABLE'}${hasActual ? '\nActual: ' + ev.actual + (beat ? ' (data ' + beat + ' expectations)' : '') : ''}
+${dataBlock}
 
 ${liveBlock}
 
@@ -1388,7 +1443,7 @@ ${calEventGuide(ev)}`;
 - Key levels must be derived from the live prices above (nearby round/psychological numbers and the session range implied by today's % change). If live data is unavailable, return "key_levels": [].
 - Take a clear position. Use "neutral" only if the setup is genuinely balanced, and explain why.`;
 
-  const task = hasActual
+  const task = postRelease
     ? `TASK: post-release analysis. Explain what the print means vs expectations and the previous reading, how the main instrument should trade in the next sessions, and what would confirm or invalidate that view. "scenarios" = 2 or 3 cases: follow-through, fade/reversal and (optionally) a range case.`
     : `TASK: pre-release briefing. Explain what is expected and why it matters now, the directional bias into the release, and exactly how each outcome would move the main instrument. "scenarios" = exactly 3 cases: above expectations, in line, below expectations — titles must be event-specific (e.g. "Larger-than-expected draw").`;
 
@@ -1401,11 +1456,11 @@ Maximum 3 key_levels.`;
 
   // 2026-09-30: commento scritto (seconda richiesta, in parallelo) — la
   // parte "da analista" in prosa che accompagna la scheda strutturata.
-  const narrTask = hasActual
-    ? `TASK: write the desk commentary on this release. Paragraph 1: describe the result versus consensus and the previous reading (use only the numbers given) and what it says about the underlying trend. Paragraph 2: the market reaction visible in the live data and what it implies for the next sessions.`
-    : `TASK: write the desk commentary ahead of this release. Paragraph 1: the context and why this release matters right now, using the live data. Paragraph 2: what to look at inside the report and how the market is likely to react to each outcome.`;
+  const narrTask = postRelease
+    ? `TASK: write the desk commentary on this release. Paragraph 1: describe the results versus consensus and the previous readings (use only the numbers given${isGroup ? '; cover every component of the report and how they combine' : ''}) and what they say about the underlying trend. Paragraph 2: the market reaction visible in the live data and what it implies for the next sessions.`
+    : `TASK: write the desk commentary ahead of this release. Paragraph 1: the context and why this release matters right now, using the live data. Paragraph 2: what to look at inside the report${isGroup ? ' (every component: crude, gasoline, distillates, Cushing, refinery utilization — and how their combination changes the read)' : ''} and how the market is likely to react to each outcome.`;
   const narrPrompt = header + '\n\n' + rules.split('\n- Key levels')[0] + '\n\n' + narrTask
-    + `\n\nOUTPUT: exactly 2 short paragraphs separated by a blank line, maximum 120 words in total, plain text in ${langName}. No markdown, no headings, no bullet points, no JSON.`;
+    + `\n\nOUTPUT: exactly 2 short paragraphs separated by a blank line, maximum ${isGroup ? 160 : 120} words in total, plain text in ${langName}. No markdown, no headings, no bullet points, no JSON.`;
 
   try {
     const _useFree = !isPremium() && isFreeUnlocked();
@@ -1423,18 +1478,25 @@ Maximum 3 key_levels.`;
         messages: [{role: 'user', content: narrPrompt}]
       })
     }).then(r => r.ok ? r.json() : {}).then(d => _useFree ? (d.reply || '') : (d.content?.[0]?.text || '')).catch(() => '');
+    // 2026-09-30: SEQUENZIALE — prima il commento scritto, poi bias/scenari/
+    // livelli generati A PARTIRE da quel commento, così sono sempre coerenti.
+    const narrative = await narrativeP;
+    const cleanNarr = calRenderNarrative(narrative) ? narrative.trim() : '';
+    const fullPrompt = cleanNarr
+      ? prompt + '\n\nDESK COMMENTARY already written for this release — your bias, scenarios, market read and levels MUST be consistent with it (same direction, same reasoning, no contradictions):\n"""\n' + cleanNarr + '\n"""'
+      : prompt;
     const res = await fetch(WORKER_URL, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(_useFree ? {
         type: 'gemini-free-chat',
         email: localStorage.getItem('xenos_free_email') || '',
-        message: prompt
+        message: fullPrompt
       } : {
         type: 'anthropic',
         model: 'claude-sonnet-4-6',
         max_tokens: 1500,
-        messages: [{role: 'user', content: prompt}]
+        messages: [{role: 'user', content: fullPrompt}]
       })
     });
     const data = await res.json();
@@ -1453,12 +1515,12 @@ Maximum 3 key_levels.`;
           body: JSON.stringify(_useFree ? {
             type: 'gemini-free-chat',
             email: localStorage.getItem('xenos_free_email') || '',
-            message: prompt
+            message: fullPrompt
           } : {
             type: 'anthropic',
             model: 'claude-sonnet-4-6',
             max_tokens: 1500,
-            messages: [{role: 'user', content: prompt}]
+            messages: [{role: 'user', content: fullPrompt}]
           })
         });
         const data2 = await res2.json();
@@ -1472,12 +1534,11 @@ Maximum 3 key_levels.`;
       inner.innerHTML = `<div class="ai-panel-header"></div><div class="ai-panel-text"></div>`;
       atxt = inner.querySelector('.ai-panel-text');
     }
-    inner.querySelector('.ai-panel-header').textContent = '⚡ AI Market Analysis · ' + ev.name;
+    inner.querySelector('.ai-panel-header').textContent = '⚡ AI Market Analysis · ' + evLabel;
     const parsed = calParseAnalysis(raw);
     if (parsed) {
       atxt.style.whiteSpace = 'normal';
-      const narrative = await narrativeP;
-      atxt.innerHTML = calRenderAnalysis(parsed, lang, liveLines, {narrative, ev});
+      atxt.innerHTML = calRenderAnalysis(parsed, lang, liveLines, {narrative: cleanNarr, ev, members: isGroup ? group.members : null});
     } else {
       // Fallback: risposta non in JSON — mostrata come testo, senza asterischi grezzi.
       // Se è un JSON rotto non lo mostriamo MAI grezzo: messaggio standard.
