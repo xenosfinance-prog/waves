@@ -180,6 +180,12 @@ body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:10
 .ai-lv-k{font-size:9px;letter-spacing:1px;text-transform:uppercase;}
 .ai-lv-k.support{color:var(--green2);} .ai-lv-k.resistance{color:var(--red2);} .ai-lv-k.pivot{color:#facc15;}
 .ai-lv-n{color:var(--ink2);}
+.ai-narr p{margin:0 0 8px;color:var(--ink2);}
+.ai-narr p:last-child{margin-bottom:0;}
+.ai-data{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:baseline;}
+.ai-data-k{font-size:9px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;margin-right:5px;}
+.ai-data-v{color:var(--ink);}
+.ai-data-dev{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--gold);}
 .ai-src{margin-top:12px;font-size:9px;letter-spacing:1px;color:var(--muted);}
 @media(max-width:700px){.ai-scen{grid-template-columns:1fr;}.ai-lv{grid-template-columns:auto auto;}.ai-lv-n{grid-column:1/-1;margin-bottom:4px;}}
 @media(max-width:900px){.highlight-grid{grid-template-columns:1fr;}.masthead-name{font-size:40px;}.nav-btn{padding:10px 14px;font-size:10px;letter-spacing:1px;}.cal-table th:nth-child(4),.cal-table td:nth-child(4){display:none;}}
@@ -1209,12 +1215,12 @@ function calEventGuide(ev) {
 }
 
 const CAL_AI_LABELS = {
-  en:{bias:'Bias',conf:'Confidence',bullish:'Bullish',bearish:'Bearish',neutral:'Neutral',high:'high',medium:'medium',low:'low',exp:'Expectations',scen:'Scenarios',read:'Market read',lv:'Key levels',tail:'Tail risk',support:'support',resistance:'resistance',pivot:'pivot',src:'Live prices used'},
-  it:{bias:'Bias',conf:'Fiducia',bullish:'Rialzista',bearish:'Ribassista',neutral:'Neutrale',high:'alta',medium:'media',low:'bassa',exp:'Aspettative',scen:'Scenari',read:'Lettura di mercato',lv:'Livelli chiave',tail:'Rischio di coda',support:'supporto',resistance:'resistenza',pivot:'pivot',src:'Prezzi live usati'},
-  es:{bias:'Sesgo',conf:'Confianza',bullish:'Alcista',bearish:'Bajista',neutral:'Neutral',high:'alta',medium:'media',low:'baja',exp:'Expectativas',scen:'Escenarios',read:'Lectura de mercado',lv:'Niveles clave',tail:'Riesgo de cola',support:'soporte',resistance:'resistencia',pivot:'pivote',src:'Precios en vivo usados'},
-  fr:{bias:'Biais',conf:'Confiance',bullish:'Haussier',bearish:'Baissier',neutral:'Neutre',high:'élevée',medium:'moyenne',low:'faible',exp:'Attentes',scen:'Scénarios',read:'Lecture du marché',lv:'Niveaux clés',tail:'Risque extrême',support:'support',resistance:'résistance',pivot:'pivot',src:'Prix en direct utilisés'},
-  de:{bias:'Bias',conf:'Konfidenz',bullish:'Bullisch',bearish:'Bärisch',neutral:'Neutral',high:'hoch',medium:'mittel',low:'niedrig',exp:'Erwartungen',scen:'Szenarien',read:'Marktlage',lv:'Schlüsselmarken',tail:'Tail-Risiko',support:'Unterstützung',resistance:'Widerstand',pivot:'Pivot',src:'Verwendete Live-Kurse'},
-  pt:{bias:'Viés',conf:'Confiança',bullish:'Altista',bearish:'Baixista',neutral:'Neutro',high:'alta',medium:'média',low:'baixa',exp:'Expectativas',scen:'Cenários',read:'Leitura de mercado',lv:'Níveis-chave',tail:'Risco de cauda',support:'suporte',resistance:'resistência',pivot:'pivô',src:'Preços ao vivo usados'},
+  en:{bias:'Bias',conf:'Confidence',bullish:'Bullish',bearish:'Bearish',neutral:'Neutral',high:'high',medium:'medium',low:'low',exp:'Expectations',scen:'Scenarios',read:'Market read',lv:'Key levels',tail:'Tail risk',support:'support',resistance:'resistance',pivot:'pivot',src:'Live prices used',analysis:'Analysis',data:'Data',actual:'Actual',consensus:'Consensus',previous:'Previous',na:'n/a',due:'due',above:'above consensus',below:'below consensus',inline:'in line with consensus'},
+  it:{bias:'Bias',conf:'Fiducia',bullish:'Rialzista',bearish:'Ribassista',neutral:'Neutrale',high:'alta',medium:'media',low:'bassa',exp:'Aspettative',scen:'Scenari',read:'Lettura di mercato',lv:'Livelli chiave',tail:'Rischio di coda',support:'supporto',resistance:'resistenza',pivot:'pivot',src:'Prezzi live usati',analysis:'Analisi',data:'Dati',actual:'Attuale',consensus:'Consensus',previous:'Precedente',na:'n/d',due:'in uscita',above:'sopra il consensus',below:'sotto il consensus',inline:'in linea con il consensus'},
+  es:{bias:'Sesgo',conf:'Confianza',bullish:'Alcista',bearish:'Bajista',neutral:'Neutral',high:'alta',medium:'media',low:'baja',exp:'Expectativas',scen:'Escenarios',read:'Lectura de mercado',lv:'Niveles clave',tail:'Riesgo de cola',support:'soporte',resistance:'resistencia',pivot:'pivote',src:'Precios en vivo usados',analysis:'Análisis',data:'Datos',actual:'Actual',consensus:'Consenso',previous:'Anterior',na:'n/d',due:'publicación',above:'por encima del consenso',below:'por debajo del consenso',inline:'en línea con el consenso'},
+  fr:{bias:'Biais',conf:'Confiance',bullish:'Haussier',bearish:'Baissier',neutral:'Neutre',high:'élevée',medium:'moyenne',low:'faible',exp:'Attentes',scen:'Scénarios',read:'Lecture du marché',lv:'Niveaux clés',tail:'Risque extrême',support:'support',resistance:'résistance',pivot:'pivot',src:'Prix en direct utilisés',analysis:'Analyse',data:'Données',actual:'Réel',consensus:'Consensus',previous:'Précédent',na:'n/d',due:'publication',above:'au-dessus du consensus',below:'en dessous du consensus',inline:'conforme au consensus'},
+  de:{bias:'Bias',conf:'Konfidenz',bullish:'Bullisch',bearish:'Bärisch',neutral:'Neutral',high:'hoch',medium:'mittel',low:'niedrig',exp:'Erwartungen',scen:'Szenarien',read:'Marktlage',lv:'Schlüsselmarken',tail:'Tail-Risiko',support:'Unterstützung',resistance:'Widerstand',pivot:'Pivot',src:'Verwendete Live-Kurse',analysis:'Analyse',data:'Daten',actual:'Ist',consensus:'Konsens',previous:'Vorher',na:'k. A.',due:'Veröffentlichung',above:'über Konsens',below:'unter Konsens',inline:'im Rahmen des Konsens'},
+  pt:{bias:'Viés',conf:'Confiança',bullish:'Altista',bearish:'Baixista',neutral:'Neutro',high:'alta',medium:'média',low:'baixa',exp:'Expectativas',scen:'Cenários',read:'Leitura de mercado',lv:'Níveis-chave',tail:'Risco de cauda',support:'suporte',resistance:'resistência',pivot:'pivô',src:'Preços ao vivo usados',analysis:'Análise',data:'Dados',actual:'Atual',consensus:'Consenso',previous:'Anterior',na:'n/d',due:'divulgação',above:'acima do consenso',below:'abaixo do consenso',inline:'em linha com o consenso'},
 };
 const CAL_LANG_NAME = {en:'English',it:'Italian',es:'Spanish',fr:'French',de:'German',pt:'Portuguese',ru:'Russian',zh:'Chinese',ja:'Japanese',ar:'Arabic',tr:'Turkish',nl:'Dutch',pl:'Polish'};
 
@@ -1265,8 +1271,33 @@ function calParseAnalysis(text) {
   return o;
 }
 
-function calRenderAnalysis(o, lang, liveLines) {
+function calRenderNarrative(text) {
+  if (!text) return '';
+  const t = text.replace(/```[a-z]*|```/g, '').trim();
+  if (!t || /^\s*[\{\[]/.test(t)) return '';
+  return t.split(/\n\s*\n/).map(p => `<p>${calMd(p.trim())}</p>`).join('');
+}
+
+function calRenderData(ev, L) {
+  const has = v => v && v !== '—' && v !== '';
+  const a = has(ev.actual), f = has(ev.forecast), p = has(ev.prev);
+  let dev = '';
+  if (a && f) {
+    const av = parseFloat(String(ev.actual).replace(/[^0-9.\-]/g, ''));
+    const fv = parseFloat(String(ev.forecast).replace(/[^0-9.\-]/g, ''));
+    if (!isNaN(av) && !isNaN(fv)) dev = av > fv ? L.above : av < fv ? L.below : L.inline;
+  }
+  return `<div class="ai-data">`
+    + `<span><span class="ai-data-k">${L.actual}</span><span class="ai-data-v">${a ? calEsc(ev.actual) : L.due + ' ' + calEsc(ev.time || '') + ' CET'}</span></span>`
+    + `<span><span class="ai-data-k">${L.consensus}</span><span class="ai-data-v">${f ? calEsc(ev.forecast) : L.na}</span></span>`
+    + `<span><span class="ai-data-k">${L.previous}</span><span class="ai-data-v">${p ? calEsc(ev.prev) : L.na}</span></span>`
+    + (dev ? `<span class="ai-data-dev">${dev}</span>` : '')
+    + `</div>`;
+}
+
+function calRenderAnalysis(o, lang, liveLines, extra) {
   const L = CAL_AI_LABELS[lang] || CAL_AI_LABELS.en;
+  extra = extra || {};
   const dir = ['bullish','bearish','neutral'].includes((o.bias.direction || '').toLowerCase()) ? o.bias.direction.toLowerCase() : 'neutral';
   const confKey = (o.bias.confidence || '').toLowerCase();
   let h = `<div class="ai-bias ai-bias-${dir}"><span class="ai-bias-tag">${L.bias}</span>`
@@ -1275,6 +1306,9 @@ function calRenderAnalysis(o, lang, liveLines) {
         + (L[confKey] ? `<span class="ai-bias-conf">${L.conf}: ${L[confKey]}</span>` : '')
         + `</div>`;
   if (o.bias.rationale) h += `<div class="ai-bias-why">${calMd(o.bias.rationale)}</div>`;
+  if (extra.ev) h += `<div class="ai-sec"><div class="ai-sec-h">${L.data}</div>${calRenderData(extra.ev, L)}</div>`;
+  const narr = calRenderNarrative(extra.narrative);
+  if (narr) h += `<div class="ai-sec"><div class="ai-sec-h">${L.analysis}</div><div class="ai-narr">${narr}</div></div>`;
   if (o.expectations) h += `<div class="ai-sec"><div class="ai-sec-h">${L.exp}</div><div class="ai-sec-t">${calMd(o.expectations)}</div></div>`;
   if (Array.isArray(o.scenarios) && o.scenarios.length) {
     h += `<div class="ai-sec"><div class="ai-sec-h">${L.scen}</div><div class="ai-scen">`;
@@ -1365,8 +1399,30 @@ Maximum 3 key_levels.`;
 
   const prompt = header + '\n\n' + rules + '\n\n' + task + '\n\n' + spec;
 
+  // 2026-09-30: commento scritto (seconda richiesta, in parallelo) — la
+  // parte "da analista" in prosa che accompagna la scheda strutturata.
+  const narrTask = hasActual
+    ? `TASK: write the desk commentary on this release. Paragraph 1: describe the result versus consensus and the previous reading (use only the numbers given) and what it says about the underlying trend. Paragraph 2: the market reaction visible in the live data and what it implies for the next sessions.`
+    : `TASK: write the desk commentary ahead of this release. Paragraph 1: the context and why this release matters right now, using the live data. Paragraph 2: what to look at inside the report and how the market is likely to react to each outcome.`;
+  const narrPrompt = header + '\n\n' + rules.split('\n- Key levels')[0] + '\n\n' + narrTask
+    + `\n\nOUTPUT: exactly 2 short paragraphs separated by a blank line, maximum 120 words in total, plain text in ${langName}. No markdown, no headings, no bullet points, no JSON.`;
+
   try {
     const _useFree = !isPremium() && isFreeUnlocked();
+    const narrativeP = fetch(WORKER_URL, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(_useFree ? {
+        type: 'gemini-free-chat',
+        email: localStorage.getItem('xenos_free_email') || '',
+        message: narrPrompt
+      } : {
+        type: 'anthropic',
+        model: 'claude-sonnet-4-6',
+        max_tokens: 600,
+        messages: [{role: 'user', content: narrPrompt}]
+      })
+    }).then(r => r.ok ? r.json() : {}).then(d => _useFree ? (d.reply || '') : (d.content?.[0]?.text || '')).catch(() => '');
     const res = await fetch(WORKER_URL, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
@@ -1420,7 +1476,8 @@ Maximum 3 key_levels.`;
     const parsed = calParseAnalysis(raw);
     if (parsed) {
       atxt.style.whiteSpace = 'normal';
-      atxt.innerHTML = calRenderAnalysis(parsed, lang, liveLines);
+      const narrative = await narrativeP;
+      atxt.innerHTML = calRenderAnalysis(parsed, lang, liveLines, {narrative, ev});
     } else {
       // Fallback: risposta non in JSON — mostrata come testo, senza asterischi grezzi.
       // Se è un JSON rotto non lo mostriamo MAI grezzo: messaggio standard.
