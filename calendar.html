@@ -157,6 +157,31 @@ body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:10
 .ai-panel-header{font-size:9px;letter-spacing:3px;color:var(--gold);text-transform:uppercase;margin-bottom:8px;}
 .ai-panel-text{color:var(--ink2);white-space:pre-wrap;}
 .ai-loading{color:var(--muted);font-style:italic;}
+/* 2026-09-30: analisi AI strutturata (bias / aspettative / scenari / livelli) */
+.ai-bias{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:4px 0 6px;}
+.ai-bias-tag{font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;}
+.ai-bias-asset{color:var(--ink);font-weight:500;letter-spacing:1px;}
+.ai-bias-dir{font-size:10px;letter-spacing:2px;text-transform:uppercase;padding:2px 9px;border:1px solid currentColor;}
+.ai-bias-bullish .ai-bias-dir{color:var(--green2);}
+.ai-bias-bearish .ai-bias-dir{color:var(--red2);}
+.ai-bias-neutral .ai-bias-dir{color:#facc15;}
+.ai-bias-conf{font-size:9px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;}
+.ai-bias-why{color:var(--ink2);margin-bottom:4px;}
+.ai-sec{margin-top:12px;}
+.ai-sec-h{font-size:9px;letter-spacing:2px;color:var(--gold);text-transform:uppercase;margin-bottom:4px;}
+.ai-sec-t{color:var(--ink2);}
+.ai-sec-t strong,.ai-bias-why strong{color:var(--ink);font-weight:500;}
+.ai-scen{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.ai-scen-c{border:1px solid var(--border2);padding:8px 10px;background:rgba(255,255,255,0.015);}
+.ai-scen-t{color:var(--ink);margin-bottom:3px;}
+.ai-scen-t:before{content:'▸ ';color:var(--gold);}
+.ai-lv{display:grid;grid-template-columns:auto auto 1fr;gap:3px 14px;align-items:baseline;}
+.ai-lv-p{color:var(--ink);}
+.ai-lv-k{font-size:9px;letter-spacing:1px;text-transform:uppercase;}
+.ai-lv-k.support{color:var(--green2);} .ai-lv-k.resistance{color:var(--red2);} .ai-lv-k.pivot{color:#facc15;}
+.ai-lv-n{color:var(--ink2);}
+.ai-src{margin-top:12px;font-size:9px;letter-spacing:1px;color:var(--muted);}
+@media(max-width:700px){.ai-scen{grid-template-columns:1fr;}.ai-lv{grid-template-columns:auto auto;}.ai-lv-n{grid-column:1/-1;margin-bottom:4px;}}
 @media(max-width:900px){.highlight-grid{grid-template-columns:1fr;}.masthead-name{font-size:40px;}.nav-btn{padding:10px 14px;font-size:10px;letter-spacing:1px;}.cal-table th:nth-child(4),.cal-table td:nth-child(4){display:none;}}
 @media(max-width:600px){.masthead-nav{overflow-x:auto;-webkit-overflow-scrolling:touch;justify-content:flex-start;scrollbar-width:none;}.masthead-nav::-webkit-scrollbar{display:none;}.nav-btn{padding:10px 11px;font-size:9px;letter-spacing:1px;white-space:nowrap;flex-shrink:0;}.masthead-name{font-size:28px;}.cal-table th:nth-child(3),.cal-table td:nth-child(3){display:none;}}
 </style>
@@ -1102,6 +1127,145 @@ function getCurrentLangCal() {
   return localStorage.getItem('xf_lang') || 'en';
 }
 
+// ─── 2026-09-30: AI ANALYSIS STRUTTURATA ────────────────────────────────────
+// Prima: testo libero di 4-6 frasi, senza bias né scenari, con consensus e
+// livelli di prezzo INVENTATI (il modello non riceveva né prezzi live né
+// l'istruzione di non inventare). Ora: prezzi live dal Worker, regole dati
+// rigide, guida specifica per tipo di evento, output JSON reso come scheda.
+const CAL_INSTR_META = {
+  'USOIL':    {label:'WTI crude',      dec:2},
+  'XAUUSD':   {label:'Gold',           dec:2},
+  'EURUSD=X': {label:'EUR/USD',        dec:4},
+  'GBPUSD=X': {label:'GBP/USD',        dec:4},
+  'AUDUSD=X': {label:'AUD/USD',        dec:4},
+  'NZDUSD=X': {label:'NZD/USD',        dec:4},
+  'USDJPY=X': {label:'USD/JPY',        dec:3},
+  'USDCAD=X': {label:'USD/CAD',        dec:4},
+  'USDCHF=X': {label:'USD/CHF',        dec:4},
+  'SPY':      {label:'S&P 500 (SPY)',  dec:2},
+  'BTC-USD':  {label:'BTC/USD',        dec:0},
+};
+
+function calEventText(ev) {
+  return ((ev.name || '') + ' ' + (ev.desc || '')).toLowerCase();
+}
+
+function calRelatedInstruments(ev) {
+  const n = calEventText(ev);
+  const c = (ev.country || '').toUpperCase();
+  if (/crude|oil|eia|\bapi\b|gasoline|distillate|cushing|rig count|opec|natural gas/.test(n)) return ['USOIL', 'USDCAD=X'];
+  if (/gold/.test(n)) return ['XAUUSD', 'EURUSD=X'];
+  if (c.includes('USD')) return ['EURUSD=X', 'USDJPY=X', 'XAUUSD', 'SPY'];
+  if (c.includes('EUR')) return ['EURUSD=X', 'XAUUSD'];
+  if (c.includes('GBP')) return ['GBPUSD=X'];
+  if (c.includes('JPY')) return ['USDJPY=X'];
+  if (c.includes('AUD')) return ['AUDUSD=X'];
+  if (c.includes('NZD')) return ['NZDUSD=X'];
+  if (c.includes('CAD')) return ['USDCAD=X', 'USOIL'];
+  if (c.includes('CHF')) return ['USDCHF=X'];
+  if (c.includes('CNY')) return ['AUDUSD=X', 'USOIL'];
+  return ['EURUSD=X', 'XAUUSD'];
+}
+
+async function calFetchLivePrices(syms) {
+  try {
+    const res = await fetch(WORKER_URL, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({type: 'prices', pairs: syms}),
+      signal: AbortSignal.timeout(7000)
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    const prices = data.prices || {};
+    const out = [];
+    syms.forEach(sym => {
+      const p = prices[sym];
+      if (!p || !p.price) return;
+      const meta = CAL_INSTR_META[sym] || {label: sym, dec: 4};
+      const chg = (p.change_pct || 0);
+      out.push(`${meta.label}: ${Number(p.price).toFixed(meta.dec)} (${chg >= 0 ? '+' : ''}${chg.toFixed(2)}% today)`);
+    });
+    return out;
+  } catch (e) { return []; }
+}
+
+function calEventGuide(ev) {
+  const n = calEventText(ev);
+  if (/crude|oil|eia|\bapi\b|gasoline|distillate|cushing/.test(n))
+    return 'EVENT-SPECIFIC GUIDANCE: read the whole petroleum report, not just the headline — crude, gasoline and distillate stock changes, Cushing stocks, refinery utilization and implied product demand (seasonality matters: end of driving season, refinery maintenance). The API report the evening before often shifts expectations. Main instruments: WTI and Brent; secondary: RBOB, CAD, energy equities. A crude draw with product builds is a mixed signal — say so.';
+  if (/cpi|pce|ppi|inflation|price index/.test(n))
+    return 'EVENT-SPECIFIC GUIDANCE: core vs headline, month-on-month vs year-on-year, what the print means for the central-bank path and rate-cut pricing, then 2Y yields, the currency, gold and equities.';
+  if (/nonfarm|payroll|unemployment|jobless|adp|employment|jolts|earnings/.test(n))
+    return 'EVENT-SPECIFIC GUIDANCE: headline jobs vs unemployment rate vs wage growth and revisions; labour-market cooling vs re-acceleration and its read-through to central-bank policy, yields, the currency, gold and equities.';
+  if (/rate decision|fomc|ecb|boe|boj|rba|boc|snb|rbnz|press conference|minutes|monetary policy|speech|testimony/.test(n))
+    return 'EVENT-SPECIFIC GUIDANCE: what is priced in for this meeting and the following ones, the hawkish/dovish skew of the statement and guidance, and the asymmetric reaction if the tone surprises.';
+  if (/gdp|pmi|ism|retail sales|industrial production|durable|sentiment|confidence|housing|trade balance/.test(n))
+    return 'EVENT-SPECIFIC GUIDANCE: growth momentum vs expectations, components that matter more than the headline, and the read-through to central-bank policy, the currency and risk assets.';
+  return 'EVENT-SPECIFIC GUIDANCE: identify the 1-2 instruments most sensitive to this release and focus the analysis on them.';
+}
+
+const CAL_AI_LABELS = {
+  en:{bias:'Bias',conf:'Confidence',bullish:'Bullish',bearish:'Bearish',neutral:'Neutral',high:'high',medium:'medium',low:'low',exp:'Expectations',scen:'Scenarios',read:'Market read',lv:'Key levels',tail:'Tail risk',support:'support',resistance:'resistance',pivot:'pivot',src:'Live prices used'},
+  it:{bias:'Bias',conf:'Fiducia',bullish:'Rialzista',bearish:'Ribassista',neutral:'Neutrale',high:'alta',medium:'media',low:'bassa',exp:'Aspettative',scen:'Scenari',read:'Lettura di mercato',lv:'Livelli chiave',tail:'Rischio di coda',support:'supporto',resistance:'resistenza',pivot:'pivot',src:'Prezzi live usati'},
+  es:{bias:'Sesgo',conf:'Confianza',bullish:'Alcista',bearish:'Bajista',neutral:'Neutral',high:'alta',medium:'media',low:'baja',exp:'Expectativas',scen:'Escenarios',read:'Lectura de mercado',lv:'Niveles clave',tail:'Riesgo de cola',support:'soporte',resistance:'resistencia',pivot:'pivote',src:'Precios en vivo usados'},
+  fr:{bias:'Biais',conf:'Confiance',bullish:'Haussier',bearish:'Baissier',neutral:'Neutre',high:'élevée',medium:'moyenne',low:'faible',exp:'Attentes',scen:'Scénarios',read:'Lecture du marché',lv:'Niveaux clés',tail:'Risque extrême',support:'support',resistance:'résistance',pivot:'pivot',src:'Prix en direct utilisés'},
+  de:{bias:'Bias',conf:'Konfidenz',bullish:'Bullisch',bearish:'Bärisch',neutral:'Neutral',high:'hoch',medium:'mittel',low:'niedrig',exp:'Erwartungen',scen:'Szenarien',read:'Marktlage',lv:'Schlüsselmarken',tail:'Tail-Risiko',support:'Unterstützung',resistance:'Widerstand',pivot:'Pivot',src:'Verwendete Live-Kurse'},
+  pt:{bias:'Viés',conf:'Confiança',bullish:'Altista',bearish:'Baixista',neutral:'Neutro',high:'alta',medium:'média',low:'baixa',exp:'Expectativas',scen:'Cenários',read:'Leitura de mercado',lv:'Níveis-chave',tail:'Risco de cauda',support:'suporte',resistance:'resistência',pivot:'pivô',src:'Preços ao vivo usados'},
+};
+const CAL_LANG_NAME = {en:'English',it:'Italian',es:'Spanish',fr:'French',de:'German',pt:'Portuguese',ru:'Russian',zh:'Chinese',ja:'Japanese',ar:'Arabic',tr:'Turkish',nl:'Dutch',pl:'Polish'};
+
+function calEsc(t) {
+  return String(t == null ? '' : t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function calMd(t) {
+  return calEsc(t).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
+}
+
+function calParseAnalysis(text) {
+  if (!text) return null;
+  let t = text.replace(/```json|```/g, '').trim();
+  const a = t.indexOf('{'), b = t.lastIndexOf('}');
+  if (a < 0 || b <= a) return null;
+  try {
+    const o = JSON.parse(t.slice(a, b + 1));
+    if (!o || !o.bias || !o.bias.direction) return null;
+    return o;
+  } catch (e) { return null; }
+}
+
+function calRenderAnalysis(o, lang, liveLines) {
+  const L = CAL_AI_LABELS[lang] || CAL_AI_LABELS.en;
+  const dir = ['bullish','bearish','neutral'].includes((o.bias.direction || '').toLowerCase()) ? o.bias.direction.toLowerCase() : 'neutral';
+  const confKey = (o.bias.confidence || '').toLowerCase();
+  let h = `<div class="ai-bias ai-bias-${dir}"><span class="ai-bias-tag">${L.bias}</span>`
+        + `<span class="ai-bias-asset">${calEsc(o.bias.asset || '')}</span>`
+        + `<span class="ai-bias-dir">${L[dir]}</span>`
+        + (L[confKey] ? `<span class="ai-bias-conf">${L.conf}: ${L[confKey]}</span>` : '')
+        + `</div>`;
+  if (o.bias.rationale) h += `<div class="ai-bias-why">${calMd(o.bias.rationale)}</div>`;
+  if (o.expectations) h += `<div class="ai-sec"><div class="ai-sec-h">${L.exp}</div><div class="ai-sec-t">${calMd(o.expectations)}</div></div>`;
+  if (Array.isArray(o.scenarios) && o.scenarios.length) {
+    h += `<div class="ai-sec"><div class="ai-sec-h">${L.scen}</div><div class="ai-scen">`;
+    o.scenarios.forEach(sc => {
+      h += `<div class="ai-scen-c"><div class="ai-scen-t">${calEsc(sc.title || '')}</div><div class="ai-sec-t">${calMd(sc.impact || '')}</div></div>`;
+    });
+    h += `</div></div>`;
+  }
+  if (o.market_read) h += `<div class="ai-sec"><div class="ai-sec-h">${L.read}</div><div class="ai-sec-t">${calMd(o.market_read)}</div></div>`;
+  if (Array.isArray(o.key_levels) && o.key_levels.length) {
+    h += `<div class="ai-sec"><div class="ai-sec-h">${L.lv}</div><div class="ai-lv">`;
+    o.key_levels.forEach(lv => {
+      const k = ['support','resistance','pivot'].includes((lv.type || '').toLowerCase()) ? lv.type.toLowerCase() : 'pivot';
+      h += `<span class="ai-lv-p">${calEsc(lv.level)}</span><span class="ai-lv-k ${k}">${L[k]}</span><span class="ai-lv-n">${calMd(lv.note || '')}</span>`;
+    });
+    h += `</div></div>`;
+  }
+  if (o.tail_risk) h += `<div class="ai-sec"><div class="ai-sec-h">${L.tail}</div><div class="ai-sec-t">${calMd(o.tail_risk)}</div></div>`;
+  if (liveLines && liveLines.length) h += `<div class="ai-src">${L.src}: ${calEsc(liveLines.join(' · '))}</div>`;
+  return h;
+}
+
 async function analyzeEvent(evIdx) {
   if (!isPremium() && !isFreeUnlocked()) { window._pendingAnalyzeIdx = evIdx; showPremiumModal(); return; }
 
@@ -1132,29 +1296,48 @@ async function analyzeEvent(evIdx) {
     ? (parseFloat(ev.actual) > parseFloat(ev.forecast) ? 'beat' : parseFloat(ev.actual) < parseFloat(ev.forecast) ? 'missed' : 'met')
     : null;
 
-  let prompt;
-  if (hasActual && hasForecast) {
-    prompt = `You are a senior macro analyst at an institutional trading desk.
+  // ── 2026-09-30: contesto reale + output strutturato ──
+  const lang = getCurrentLangCal();
+  const langName = CAL_LANG_NAME[lang] || 'English';
+  const instruments = calRelatedInstruments(ev);
+  const liveLines = await calFetchLivePrices(instruments);
+  const liveBlock = liveLines.length
+    ? 'LIVE MARKET DATA (fetched seconds ago):\n' + liveLines.map(l => '- ' + l).join('\n')
+    : 'LIVE MARKET DATA: unavailable right now.';
 
-Event: ${ev.name}${ev.desc ? ' — ' + ev.desc : ''}
-Country/Currency: ${ev.flag} ${ev.country}
-Actual: ${ev.actual}
-Forecast: ${ev.forecast}
-Previous: ${hasPrev ? ev.prev : 'N/A'}
-Outcome: Data ${beat} expectations
+  const header = `You are the head of macro & commodities strategy at an institutional trading desk, writing for the premium economic calendar of XenosFinance.
 
-Write a concise institutional market impact analysis (4-6 sentences, Bloomberg terminal style). Cover the economic signal vs expectations, immediate market reaction expected across FX, bonds and equities, central bank implications, and a key tail risk to watch. No bullet points. No headers. No disclaimers. Write as if briefing a senior portfolio manager.`;
-  } else {
-    prompt = `You are a senior macro analyst at an institutional trading desk. An important economic event is scheduled.
+EVENT: ${ev.name}${ev.desc ? ' — ' + ev.desc : ''}
+Country/Currency: ${ev.country}
+Release: ${ev.date} at ${ev.time} CET
+Consensus: ${hasForecast ? ev.forecast : 'NOT AVAILABLE'}
+Previous: ${hasPrev ? ev.prev : 'NOT AVAILABLE'}${hasActual ? '\nActual: ' + ev.actual + (beat ? ' (data ' + beat + ' expectations)' : '') : ''}
 
-Event: ${ev.name}${ev.desc ? ' — ' + ev.desc : ''}
-Country/Currency: ${ev.flag} ${ev.country}
-Date: ${ev.date} at ${ev.time} CET
-${hasForecast ? 'Consensus Forecast: ' + ev.forecast : ''}
-${hasPrev ? 'Previous Reading: ' + ev.prev : ''}
+${liveBlock}
 
-Write a concise forward-looking institutional briefing (4-6 sentences, Bloomberg terminal style). Cover what markets are expecting and why this matters, how a beat vs miss would move key assets, current positioning and key levels, and the tail risk that could surprise markets. No bullet points. No headers. No disclaimers. Write as if briefing a senior portfolio manager ahead of the release.`;
-  }
+${calEventGuide(ev)}`;
+
+  const rules = `DATA RULES — strict, a professional desk cannot publish invented numbers:
+- Use ONLY the numbers given above. Never invent a consensus, a previous reading, an actual or a price.
+- If the consensus is NOT AVAILABLE, say so explicitly and reason on direction and context only.
+- Key levels must be derived from the live prices above (nearby round/psychological numbers and the session range implied by today's % change). If live data is unavailable, return "key_levels": [].
+- Take a clear position. Use "neutral" only if the setup is genuinely balanced, and explain why.`;
+
+  const task = hasActual
+    ? `TASK: post-release analysis. Explain what the print means vs expectations and the previous reading, how the main instrument should trade in the next sessions, and what would confirm or invalidate that view. "scenarios" = 2 or 3 cases: follow-through, fade/reversal and (optionally) a range case.`
+    : `TASK: pre-release briefing. Explain what is expected and why it matters now, the directional bias into the release, and exactly how each outcome would move the main instrument. "scenarios" = exactly 3 cases: above expectations, in line, below expectations — titles must be event-specific (e.g. "Larger-than-expected draw").`;
+
+  const spec = `OUTPUT: return ONLY valid JSON — no markdown fences, no text before or after. All free text in ${langName}. Keep the enum values ("direction", "confidence", "type") in English exactly as listed.
+{
+  "bias": {"asset": "<main instrument, e.g. WTI>", "direction": "bullish|bearish|neutral", "confidence": "high|medium|low", "rationale": "<1-2 sentences: why>"},
+  "expectations": "<2-3 sentences>",
+  "scenarios": [{"title": "<short title>", "impact": "<which instruments move, direction, rough magnitude>"}],
+  "market_read": "<2-3 sentences: price action and momentum from the live data, positioning, what is already priced in>",
+  "key_levels": [{"level": "<price>", "type": "support|resistance|pivot", "note": "<why it matters>"}],
+  "tail_risk": "<1-2 sentences>"
+}`;
+
+  const prompt = header + '\n\n' + rules + '\n\n' + task + '\n\n' + spec;
 
   try {
     const _useFree = !isPremium() && isFreeUnlocked();
@@ -1168,7 +1351,7 @@ Write a concise forward-looking institutional briefing (4-6 sentences, Bloomberg
       } : {
         type: 'anthropic',
         model: 'claude-sonnet-4-6',
-        max_tokens: 1000,
+        max_tokens: 1500,
         messages: [{role: 'user', content: prompt}]
       })
     });
@@ -1178,18 +1361,29 @@ Write a concise forward-looking institutional briefing (4-6 sentences, Bloomberg
       if (data.error === 'daily_limit_reached') throw new Error(data.message || 'Limite giornaliero raggiunto.');
       throw new Error(data.message || 'Servizio momentaneamente non disponibile.');
     }
-    let text = _useFree ? (data.reply || '') : (data.content?.[0]?.text || '');
-    const badPhrases = ['insufficient data','not enough data','cannot provide','unable to analyze','no data provided'];
-    if (!text || badPhrases.some(p => text.toLowerCase().startsWith(p.toLowerCase().slice(0,15)))) {
-      text = ev.name + ' is a key market event for ' + ev.country + ' assets.' + (hasForecast ? ' Consensus is positioned at ' + ev.forecast + '.' : '') + ' Watch for volatility around the release — any deviation from expectations could trigger sharp directional moves in related currency pairs and fixed income.';
-    }
+    const raw = _useFree ? (data.reply || '') : (data.content?.[0]?.text || '');
     if(window.XF) XF.stop();
-    // Translate AI analysis if needed
-    const _aiLang = getCurrentLangCal();
-    if (_aiLang !== 'en') { text = await ltTranslateCal(text, _aiLang); }
-    const atxt=inner.querySelector('.ai-panel-text');
-    inner.querySelector('.ai-panel-header').textContent='⚡ AI Market Analysis · '+ev.name;
-    if(atxt && window.XF){ XF.typeInto(atxt, text.replace(/\n/g,'<br>'), 12, null); } else { inner.innerHTML=`<div class="ai-panel-header">⚡ AI Market Analysis · ${ev.name}</div><div class="ai-panel-text">${text}</div>`; }
+    let atxt = inner.querySelector('.ai-panel-text');
+    if (!atxt || !inner.querySelector('.ai-panel-header')) {
+      inner.innerHTML = `<div class="ai-panel-header"></div><div class="ai-panel-text"></div>`;
+      atxt = inner.querySelector('.ai-panel-text');
+    }
+    inner.querySelector('.ai-panel-header').textContent = '⚡ AI Market Analysis · ' + ev.name;
+    const parsed = calParseAnalysis(raw);
+    if (parsed) {
+      atxt.style.whiteSpace = 'normal';
+      atxt.innerHTML = calRenderAnalysis(parsed, lang, liveLines);
+    } else {
+      // Fallback: risposta non in JSON — mostrata come testo, senza asterischi grezzi.
+      let text = raw;
+      const badPhrases = ['insufficient data','not enough data','cannot provide','unable to analyze','no data provided'];
+      if (!text || badPhrases.some(p => text.toLowerCase().startsWith(p.toLowerCase().slice(0,15)))) {
+        text = ev.name + ' is a key market event for ' + ev.country + ' assets.' + (hasForecast ? ' Consensus is positioned at ' + ev.forecast + '.' : '') + ' Watch for volatility around the release — any deviation from expectations could trigger sharp directional moves in related currency pairs and fixed income.';
+        if (lang !== 'en') { text = await ltTranslateCal(text, lang); }
+      }
+      atxt.style.whiteSpace = 'normal';
+      atxt.innerHTML = calMd(text);
+    }
   } catch(e) {
     if(window.XF) XF.stop();
     inner.innerHTML=`<div class="ai-panel-header">⚡ AI Market Analysis</div><div class="ai-panel-text" style="color:var(--red2)"><span data-i18n="label_analysis_failed">Analysis failed. Check connection.</span></div>`;
