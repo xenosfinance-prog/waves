@@ -1124,7 +1124,10 @@ async function ltTranslateCal(text, target) {
 }
 
 function getCurrentLangCal() {
-  return localStorage.getItem('xf_lang') || 'en';
+  // FIX 2026-09-30: la lingua del sito è in 'xenos_lang' (i18n-engine.js,
+  // quella del selettore lingua). 'xf_lang' è una chiave vecchia che poteva
+  // restare a 'it' nel browser mentre il sito era in inglese.
+  return localStorage.getItem('xenos_lang') || 'en';
 }
 
 // ─── 2026-09-30: AI ANALYSIS STRUTTURATA ────────────────────────────────────
