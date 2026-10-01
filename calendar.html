@@ -1225,16 +1225,44 @@ function calMd(t) {
   return calEsc(t).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
 }
 
+// FIX 2026-09-30: la risposta del modello può arrivare TRONCATA (limite di
+// output del Worker) → JSON invalido → prima veniva mostrato il JSON grezzo.
+// Questo parser chiude un JSON troncato tenendo solo i campi completi.
+function calRepairJson(t) {
+  const start = t.indexOf('{');
+  if (start < 0) return null;
+  t = t.slice(start);
+  const stack = [];
+  let inStr = false, esc = false, cut = -1, cutStack = null;
+  for (let i = 0; i < t.length; i++) {
+    const ch = t[i];
+    if (inStr) {
+      if (esc) esc = false;
+      else if (ch === '\\') esc = true;
+      else if (ch === '"') inStr = false;
+      continue;
+    }
+    if (ch === '"') { inStr = true; continue; }
+    if (ch === '{' || ch === '[') stack.push(ch === '{' ? '}' : ']');
+    else if (ch === '}' || ch === ']') {
+      stack.pop();
+      if (stack.length === 0) { try { return JSON.parse(t.slice(0, i + 1)); } catch (e) {} }
+      cut = i + 1; cutStack = stack.slice();
+    } else if (ch === ',') { cut = i; cutStack = stack.slice(); }
+  }
+  if (cut < 0) return null;
+  try { return JSON.parse(t.slice(0, cut) + cutStack.reverse().join('')); } catch (e) { return null; }
+}
+
 function calParseAnalysis(text) {
   if (!text) return null;
-  let t = text.replace(/```json|```/g, '').trim();
+  const t = text.replace(/```json|```/g, '').trim();
+  let o = null;
   const a = t.indexOf('{'), b = t.lastIndexOf('}');
-  if (a < 0 || b <= a) return null;
-  try {
-    const o = JSON.parse(t.slice(a, b + 1));
-    if (!o || !o.bias || !o.bias.direction) return null;
-    return o;
-  } catch (e) { return null; }
+  if (a >= 0 && b > a) { try { o = JSON.parse(t.slice(a, b + 1)); } catch (e) { o = null; } }
+  if (!o) o = calRepairJson(t);
+  if (!o || !o.bias || !o.bias.direction) return null;
+  return o;
 }
 
 function calRenderAnalysis(o, lang, liveLines) {
@@ -1330,15 +1358,10 @@ ${calEventGuide(ev)}`;
     ? `TASK: post-release analysis. Explain what the print means vs expectations and the previous reading, how the main instrument should trade in the next sessions, and what would confirm or invalidate that view. "scenarios" = 2 or 3 cases: follow-through, fade/reversal and (optionally) a range case.`
     : `TASK: pre-release briefing. Explain what is expected and why it matters now, the directional bias into the release, and exactly how each outcome would move the main instrument. "scenarios" = exactly 3 cases: above expectations, in line, below expectations — titles must be event-specific (e.g. "Larger-than-expected draw").`;
 
-  const spec = `OUTPUT: return ONLY valid JSON — no markdown fences, no text before or after. All free text in ${langName}. Keep the enum values ("direction", "confidence", "type") in English exactly as listed.
-{
-  "bias": {"asset": "<main instrument, e.g. WTI>", "direction": "bullish|bearish|neutral", "confidence": "high|medium|low", "rationale": "<1-2 sentences: why>"},
-  "expectations": "<2-3 sentences>",
-  "scenarios": [{"title": "<short title>", "impact": "<which instruments move, direction, rough magnitude>"}],
-  "market_read": "<2-3 sentences: price action and momentum from the live data, positioning, what is already priced in>",
-  "key_levels": [{"level": "<price>", "type": "support|resistance|pivot", "note": "<why it matters>"}],
-  "tail_risk": "<1-2 sentences>"
-}`;
+  const spec = `OUTPUT: return ONLY minified JSON on a single line — no markdown fences, no text before or after. All free text in ${langName}. Keep the enum values ("direction", "confidence", "type") in English exactly as listed.
+BE CONCISE — the whole answer must stay under 230 words. Respect the word limits.
+{"bias":{"asset":"<main instrument, e.g. WTI>","direction":"bullish|bearish|neutral","confidence":"high|medium|low","rationale":"<max 22 words>"},"expectations":"<max 35 words>","scenarios":[{"title":"<max 6 words>","impact":"<max 22 words: instruments, direction, rough magnitude>"}],"market_read":"<max 30 words: price action from the live data, positioning, what is priced in>","key_levels":[{"level":"<price>","type":"support|resistance|pivot","note":"<max 8 words>"}],"tail_risk":"<max 22 words>"}
+Maximum 3 key_levels.`;
 
   const prompt = header + '\n\n' + rules + '\n\n' + task + '\n\n' + spec;
 
@@ -1364,7 +1387,29 @@ ${calEventGuide(ev)}`;
       if (data.error === 'daily_limit_reached') throw new Error(data.message || 'Limite giornaliero raggiunto.');
       throw new Error(data.message || 'Servizio momentaneamente non disponibile.');
     }
-    const raw = _useFree ? (data.reply || '') : (data.content?.[0]?.text || '');
+    let raw = _useFree ? (data.reply || '') : (data.content?.[0]?.text || '');
+    if (!calParseAnalysis(raw) && /\{\s*"bias"/.test(raw.replace(/```json|```/g, ''))) {
+      // JSON troncato prima ancora del bias: un solo nuovo tentativo.
+      try {
+        const res2 = await fetch(WORKER_URL, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(_useFree ? {
+            type: 'gemini-free-chat',
+            email: localStorage.getItem('xenos_free_email') || '',
+            message: prompt
+          } : {
+            type: 'anthropic',
+            model: 'claude-sonnet-4-6',
+            max_tokens: 1500,
+            messages: [{role: 'user', content: prompt}]
+          })
+        });
+        const data2 = await res2.json();
+        const raw2 = _useFree ? (data2.reply || '') : (data2.content?.[0]?.text || '');
+        if (calParseAnalysis(raw2)) raw = raw2;
+      } catch (e) {}
+    }
     if(window.XF) XF.stop();
     let atxt = inner.querySelector('.ai-panel-text');
     if (!atxt || !inner.querySelector('.ai-panel-header')) {
@@ -1378,7 +1423,8 @@ ${calEventGuide(ev)}`;
       atxt.innerHTML = calRenderAnalysis(parsed, lang, liveLines);
     } else {
       // Fallback: risposta non in JSON — mostrata come testo, senza asterischi grezzi.
-      let text = raw;
+      // Se è un JSON rotto non lo mostriamo MAI grezzo: messaggio standard.
+      let text = /\{\s*"bias"/.test(raw.replace(/```json|```/g, '')) ? '' : raw;
       const badPhrases = ['insufficient data','not enough data','cannot provide','unable to analyze','no data provided'];
       if (!text || badPhrases.some(p => text.toLowerCase().startsWith(p.toLowerCase().slice(0,15)))) {
         text = ev.name + ' is a key market event for ' + ev.country + ' assets.' + (hasForecast ? ' Consensus is positioned at ' + ev.forecast + '.' : '') + ' Watch for volatility around the release — any deviation from expectations could trigger sharp directional moves in related currency pairs and fixed income.';
