@@ -1276,133 +1276,10 @@ canvas { display: block; }
       <div class="admin-err" id="adminErr"></div>
     </div>
 
-    <!-- ADMIN PANEL -->
-    <div class="admin-panel" id="adminPanel" style="display:none;">
-
-      <!-- PUBLISH NOTE STRIP (admin only) -->
-      <div id="adminPublishStrip" style="display:none;background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.2);padding:16px 20px;margin-bottom:20px;">
-        <div style="font-size:9px;letter-spacing:4px;color:var(--gold);text-transform:uppercase;margin-bottom:10px;"><span data-i18n="label_ew_publish">Publish to Public Feed</span></div>
-        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-          <input class="admin-input" id="noteAsset" placeholder="Asset e.g. EURUSD" style="width:160px;">
-          <input class="admin-input" id="noteSetup" placeholder="Label e.g. Bullish Setup – Wave 3 in Development" style="flex:1;min-width:200px;" oninput="noteAutoBias()">
-          <select class="admin-select" id="noteBias" style="width:130px;" onchange="this.dataset.manual='1'">
-            <option value="">Bias…</option>
-            <option value="bullish">▲ Bullish</option>
-            <option value="bearish">▼ Bearish</option>
-            <option value="neutral">◆ Neutral</option>
-          </select>
-          <button class="admin-btn" onclick="publishNote()"><span data-i18n="label_ew_publish">Publish to Public Feed</span></button>
-        </div>
-        <div id="noteErr" style="font-size:11px;color:var(--red2);margin-top:6px;min-height:14px;"></div>
-      </div>
-
-      <!-- MY EW READING → AI ANALYSIS -->
-      <div style="margin-bottom:16px;">
-        <div class="admin-label"><span data-i18n="label_ew_asset">Asset / Pair</span></div>
-        <input class="admin-input" id="aiSymbol" placeholder="e.g. EURUSD, Gold, Oil WTI, BTC/USD" style="width:260px;margin-bottom:12px;">
-        <div style="display:flex;gap:12px;margin-bottom:12px;">
-          <div style="flex:0 0 180px;">
-            <div class="admin-label"><span data-i18n="label_ew_timeframe">Timeframe</span></div>
-            <select class="admin-select" id="aiTf">
-              <option>W1 (Weekly)</option>
-              <option selected>D1 (Daily)</option>
-              <option>H4 (4-Hour)</option>
-              <option>H2 (2-Hour)</option>
-              <option>H1 (1-Hour)</option>
-              <option>M30 (30-Min)</option>
-              <option>M15 (15-Min)</option>
-            </select>
-          </div>
-          <div style="flex:1;">
-            <div class="admin-label"><span data-i18n="label_ew_live_price">Live Price (optional)</span></div>
-            <input class="admin-input" id="aiContext" placeholder="e.g. 1.0845, 2312.50">
-          </div>
-        </div>
-        <div class="admin-label"><span data-i18n="label_ew_reading">Your EW Reading</span></div>
-        <textarea class="admin-textarea" id="aiReading" placeholder="Describe your wave count as you see it on TradingView. Example:&#10;&#10;I see a completed 5-wave impulse up from 1.0780. Wave 1: 1.0780-1.0920. Wave 2 retraced to 1.0850 (61.8%). Wave 3 extended to 1.1080 (161.8%). Wave 4 flat correction to 1.0990. Wave 5 terminal at 1.1150 with bearish RSI divergence. Now starting ABC correction. Wave A target 38.2% at 1.0935, 61.8% at 1.0815. SL above 1.1150." style="min-height:140px;"></textarea>
-      </div>
-
-      <!-- TV CHART UPLOAD -->
-      <div class="admin-label" style="margin-bottom:6px;"><span data-i18n="label_ew_chart_upload">TradingView Chart Upload</span> <span style="color:var(--muted);font-size:9px;letter-spacing:1px;">(optional — attach your labelled chart for visual AI analysis)</span></div>
-      <div class="tv-upload-zone" id="tvUploadZone" onclick="document.getElementById('tvChartInput').click()" ondragover="tvDragOver(event)" ondragleave="tvDragLeave(event)" ondrop="tvDrop(event)">
-        <input type="file" id="tvChartInput" accept="image/*" onchange="tvFileSelected(event)">
-        <div class="tv-upload-label">
-          Drop your TradingView screenshot here<br>
-          or <span><span data-i18n="label_ew_click_browse">click to browse</span></span><br>
-          <span style="color:var(--muted);font-size:9px;"><span data-i18n="label_ew_formats">PNG · JPG · WEBP — max 10 MB</span></span>
-        </div>
-      </div>
-      <div class="tv-upload-preview" id="tvPreview">
-        <span class="tv-upload-badge">✓ Chart attached — AI will analyse labels visually</span>
-        <div style="position:relative;display:inline-block;width:100%;">
-          <img id="tvPreviewImg" src="" alt="TradingView chart">
-          <button class="tv-upload-clear" onclick="tvClearImage(event)" title="Remove chart">✕</button>
-        </div>
-      </div>
-
-      <button class="admin-run-btn" id="aiRunBtn" onclick="runAIAnalysis()">⚡ Generate Analysis</button>
-
-      <button class="admin-tg-btn" id="tgBtn" onclick="sendToTelegram()">📡 Send to Telegram</button>
-      <button id="publishFromAnalysisBtn" onclick="publishFromAnalysis()" style="display:none;padding:12px 24px;background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.35);color:#34d399;font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;cursor:pointer;margin-left:8px;">✦ Publish Note</button>
-
-      <!-- EW SKETCH PAPER — replaces canvas chart -->
-      <div id="ewChartWrap" style="display:none;margin-top:20px;position:relative;">
-        <div id="ewPaper" style="background:#faf8f3;border:1px solid #d4c9b8;border-radius:4px;position:relative;overflow:visible;height:440px;">
-          <!-- Lightweight Charts container — real candles -->
-          <div id="ewLWChart" style="position:absolute;inset:0;width:100%;height:100%;z-index:1;"></div>
-          <!-- Canvas overlay — EW sketch animation on top of candles -->
-          <canvas id="ewSketchCanvas" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:5;display:block;"></canvas>
-          <!-- Hand SVG for sketch animation -->
-          <div id="ewHandWrap" style="position:absolute;pointer-events:none;opacity:0;transition:left 0.05s linear,top 0.05s linear;z-index:10;">
-            <svg width="140" height="160" viewBox="0 0 140 160" style="filter:drop-shadow(0 2px 6px rgba(0,0,0,0.15));">
-  <g transform="rotate(-25,70,140)">
-    <rect x="22" y="118" width="64" height="38" rx="6" fill="#1e3a6e" stroke="#0f1f4a" stroke-width="1.2"/>
-    <line x1="26" y1="122" x2="82" y2="122" stroke="#3b5aaa" stroke-width="0.5" opacity="0.5"/>
-    <line x1="26" y1="128" x2="82" y2="128" stroke="#3b5aaa" stroke-width="0.5" opacity="0.5"/>
-    <line x1="26" y1="134" x2="82" y2="134" stroke="#3b5aaa" stroke-width="0.5" opacity="0.5"/>
-    <line x1="26" y1="140" x2="82" y2="140" stroke="#3b5aaa" stroke-width="0.5" opacity="0.5"/>
-    <line x1="32" y1="118" x2="32" y2="156" stroke="#3b5aaa" stroke-width="0.5" opacity="0.3"/>
-    <line x1="44" y1="118" x2="44" y2="156" stroke="#3b5aaa" stroke-width="0.5" opacity="0.3"/>
-    <line x1="56" y1="118" x2="56" y2="156" stroke="#3b5aaa" stroke-width="0.5" opacity="0.3"/>
-    <line x1="68" y1="118" x2="68" y2="156" stroke="#3b5aaa" stroke-width="0.5" opacity="0.3"/>
-    <path d="M30 122 Q27 96 30 78 Q32 65 38 60 Q44 55 48 60 Q52 65 50 80 L48 104" fill="none" stroke="#1a3a6e" stroke-width="1.4"/>
-    <path d="M31 122 Q28 97 31 79 Q33 67 38 62 Q43 58 47 62 Q50 67 49 81 L47 105" fill="none" stroke="#1a3a6e" stroke-width="0.6" opacity="0.5"/>
-    <path d="M42 122 Q39 94 41 76 Q42 64 48 61 Q54 59 56 66 Q58 74 56 88 L54 108" fill="none" stroke="#1a3a6e" stroke-width="1.4"/>
-    <path d="M54 122 Q52 96 53 80 Q54 68 59 65 Q64 63 66 70 Q68 78 66 92 L64 112" fill="none" stroke="#1a3a6e" stroke-width="1.4"/>
-    <path d="M64 124 Q63 104 64 90 Q65 80 69 78 Q73 77 74 83 Q75 90 73 102 L72 118" fill="none" stroke="#1a3a6e" stroke-width="1.3"/>
-    <path d="M22 122 Q19 108 17 94 Q14 78 18 68 Q22 58 28 61 Q34 64 32 78 L30 122" fill="none" stroke="#1a3a6e" stroke-width="1.4"/>
-    <path d="M22 122 Q37 132 72 124 Q76 130 74 142 Q72 152 52 155 Q28 153 22 142 Q19 132 22 122Z" fill="none" stroke="#1a3a6e" stroke-width="1.4"/>
-    <path d="M24 122 Q38 131 70 123 Q74 129 72 140 Q70 150 52 153 Q30 151 24 141 Q21 132 24 122Z" fill="none" stroke="#1a3a6e" stroke-width="0.7" opacity="0.5"/>
-    <path d="M30 130 Q45 136 66 130" fill="none" stroke="#1a3a6e" stroke-width="0.5" opacity="0.45"/>
-    <path d="M28 137 Q44 143 65 137" fill="none" stroke="#1a3a6e" stroke-width="0.4" opacity="0.38"/>
-    <path d="M36 62 Q40 58 44 60" fill="none" stroke="#1a3a6e" stroke-width="0.9"/>
-    <path d="M47 62 Q51 58 55 61" fill="none" stroke="#1a3a6e" stroke-width="0.9"/>
-    <path d="M57 66 Q61 62 65 65" fill="none" stroke="#1a3a6e" stroke-width="0.9"/>
-    <g transform="rotate(18,40,58)">
-      <rect x="36.5" y="6" width="7" height="52" rx="3.5" fill="#1a3a6e" stroke="#0f1f50" stroke-width="0.7"/>
-      <rect x="37" y="7" width="1.5" height="50" fill="#4a7ab8" opacity="0.35" rx="0.7"/>
-      <rect x="43" y="10" width="2" height="30" rx="1" fill="#0f2050" stroke="#0a1840" stroke-width="0.4"/>
-      <rect x="36.5" y="6" width="7" height="9" rx="3" fill="#2a5aaa" stroke="#1a3a6e" stroke-width="0.5"/>
-      <rect x="36.5" y="44" width="7" height="14" rx="2" fill="#0f2050"/>
-      <line x1="37" y1="47" x2="43" y2="47" stroke="#2a5aaa" stroke-width="0.4" opacity="0.5"/>
-      <line x1="37" y1="50" x2="43" y2="50" stroke="#2a5aaa" stroke-width="0.4" opacity="0.5"/>
-      <line x1="37" y1="53" x2="43" y2="53" stroke="#2a5aaa" stroke-width="0.4" opacity="0.5"/>
-      <polygon points="40,58 37,66 43,66" fill="#222" stroke="#111" stroke-width="0.5"/>
-      <line x1="40" y1="66" x2="40" y2="72" stroke="#555" stroke-width="1.4" stroke-linecap="round"/>
-      <line x1="40" y1="72" x2="42" y2="79" stroke="#333" stroke-width="0.9" stroke-linecap="round"/>
-    </g>
-  </g>
-</svg>
-          </div>
-        </div>
-      </div>
-
-
-      <div class="analysis-output" id="analysisOutput">
-        <pre id="analysisText"></pre>
-      </div>
-
-    </div>
+    <!-- ADMIN PANEL — rimosso (2026-10): generazione analisi ora solo dal pannello EW sopra
+         (Generate Analysis → Send to Telegram / Save as Active Setup). Contenitore vuoto
+         lasciato perché il login admin lo usa. -->
+    <div id="adminPanel" style="display:none;"></div>
   </div><!-- end ew-section -->
   </div><!-- /original-sec8 -->
 
@@ -4568,13 +4445,15 @@ function ewsApplyEngineToJson(json, e) {
 
 // Pannelli (Wave / Target / Invalidation / bias) dal motore, finché non c'è un'analisi AI per questo asset/TF
 function ewsApplyEnginePanels() {
+  // Prima di Generate Analysis i pannelli restano vuoti (niente conteggio anticipato)
   var r = _ewsLastResult;
   if (r && r.asset === _ewsAsset && r.tf === _ewsTf) return;
-  var e = ewsEnginePrimary(), prec = ewsPricePrecision(_ewsAsset);
-  document.getElementById('ews-wave-label').textContent = e ? 'Wave ' + e.wave : '?';
-  document.getElementById('ews-kl-target').textContent = (e && e.target != null) ? e.target.toFixed(prec) : '—';
-  document.getElementById('ews-kl-inval').textContent  = (e && e.inval  != null) ? e.inval.toFixed(prec)  : '—';
-  ewsSetBias(e ? e.bias : 'neutral');
+  document.getElementById('ews-wave-label').textContent = '?';
+  document.getElementById('ews-kl-target').textContent = '—';
+  document.getElementById('ews-kl-inval').textContent  = '—';
+  document.getElementById('ews-conviction').textContent = '— — — —';
+  document.getElementById('ews-probability').textContent = '— / 5';
+  ewsSetBias('neutral');
 }
 
 function ewsDrawEngine(e) {
@@ -4639,12 +4518,15 @@ function ewsDrawWaveOverlay() {
   _ewsStructSeries.forEach(function(se) { try { _ewsChart.removeSeries(se); } catch(e) {} });
   _ewsStructSeries = [];
 
-  // Conteggio del motore (prioritario): disegnato sempre, anche senza analisi AI
+  // Niente sul grafico finché non è stata generata l'analisi per questo asset/TF
+  var r = _ewsLastResult;
+  if (!r || r.asset !== _ewsAsset || r.tf !== _ewsTf) return;
+
+  // Conteggio del motore (prioritario)
   var eng = ewsEnginePrimary();
   if (eng && _ewsChart) { ewsDrawEngine(eng); return; }
 
   // Fallback: nessun conteggio valido → solo l'onda dichiarata dall'AI
-  var r = _ewsLastResult;
   if (!r || r.asset !== _ewsAsset || r.tf !== _ewsTf || _ewsLastCandleTime === null) return;
   var j = r.json || {};
   var bear = j.bias === 'bearish', bull = j.bias === 'bullish';
@@ -4951,9 +4833,22 @@ async function ewsSendToTelegram() {
       method: 'POST', headers: {'Content-Type':'application/json'},
       body: JSON.stringify({ type:'telegram', text: text.slice(0,4000) })
     });
-    var d = await res.json();
-    if (d.ok || d.result) { btn.textContent = '✓ Sent'; setTimeout(function(){ btn.textContent = '📡 Send to Telegram'; }, 2500); }
-    else alert('Telegram error: ' + JSON.stringify(d));
+    var raw = await res.text();
+    var d = null;
+    try { d = JSON.parse(raw); } catch(e) {}
+    console.log('[EWS Telegram] HTTP ' + res.status + ' →', raw);
+    // FIX 2026-10: prima bastava che la risposta avesse "ok" o "result" (anche un
+    // wrapper del Worker con dentro un errore Telegram) → "Sent" senza messaggio.
+    // Ora serve la conferma di Telegram: ok === true e un message_id.
+    var tg = d && d.result && typeof d.result === 'object' && 'ok' in d.result ? d.result : d;
+    var msgId = tg && tg.result && tg.result.message_id;
+    if (res.ok && tg && tg.ok === true && msgId) {
+      btn.textContent = '✓ Sent';
+      setTimeout(function(){ btn.textContent = '📡 Send to Telegram'; }, 2500);
+    } else {
+      var why = (tg && (tg.description || tg.error || tg.message)) || (d && (d.description || d.error || d.message)) || raw.slice(0, 300);
+      alert('Telegram NON ha pubblicato il messaggio.\nHTTP ' + res.status + '\n' + why);
+    }
   } catch(e) {
     alert('Error: ' + e.message);
   } finally {
