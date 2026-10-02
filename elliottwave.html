@@ -1283,11 +1283,12 @@ canvas { display: block; }
       <div id="adminPublishStrip" style="display:none;background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.2);padding:16px 20px;margin-bottom:20px;">
         <div style="font-size:9px;letter-spacing:4px;color:var(--gold);text-transform:uppercase;margin-bottom:10px;"><span data-i18n="label_ew_publish">Publish to Public Feed</span></div>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-          <input class="admin-input" id="noteAsset" placeholder="Asset e.g. EURUSD" style="width:120px;">
-          <input class="admin-input" id="noteSetup" placeholder="Label e.g. Bullish Setup – Wave 3 in Development" style="flex:1;min-width:200px;">
-          <select class="admin-select" id="noteBias" style="width:130px;">
-            <option value="bullish">🟢 Bullish</option>
-            <option value="bearish">🔴 Bearish</option>
+          <input class="admin-input" id="noteAsset" placeholder="Asset e.g. EURUSD" style="width:160px;">
+          <input class="admin-input" id="noteSetup" placeholder="Label e.g. Bullish Setup – Wave 3 in Development" style="flex:1;min-width:200px;" oninput="noteAutoBias()">
+          <select class="admin-select" id="noteBias" style="width:130px;" onchange="this.dataset.manual='1'">
+            <option value="">Bias…</option>
+            <option value="bullish">▲ Bullish</option>
+            <option value="bearish">▼ Bearish</option>
             <option value="neutral">◆ Neutral</option>
           </select>
           <button class="admin-btn" onclick="publishNote()"><span data-i18n="label_ew_publish">Publish to Public Feed</span></button>
@@ -1536,49 +1537,99 @@ const REPO = 'xenosfinance-prog/waves';
 let isAdminUnlocked = false;
 
 // ── GitHub-backed notes storage ──
+// FIX 2026-10: gli Active Setups si sovrascrivevano a vicenda. Causa: la lista
+// veniva letta da raw.githubusercontent (cache CDN ~5 min) e poi riscritta per
+// intero → la pubblicazione successiva ripartiva da una lista vecchia e cancellava
+// le note precedenti. Ora ogni modifica rilegge il file fresco dall'API GitHub
+// (contenuto + sha nella stessa risposta), applica la modifica e scrive con quello
+// sha; in caso di conflitto riprova. Ogni nota ha un id: il delete non dipende più
+// dall'indice.
+const NOTES_WORKER = 'https://xenos-ai-proxy.xenosfinance.workers.dev';
+
+function noteKey(n) { return n.id || ((n.asset||'') + '|' + (n.setup||'') + '|' + (n.date||'')); }
+function newNoteId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+function noteDateStr() { return new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}).toUpperCase(); }
+
+// Lettura fresca via API GitHub (no cache CDN) → { notes, sha }
+async function ghReadNotes() {
+  const r = await fetch(NOTES_WORKER, {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ type:'github', method:'GET',
+      url:`https://api.github.com/repos/${REPO}/contents/${NOTES_GH_FILE}` })
+  });
+  const gd = await r.json();
+  if (gd.status === 404) return { notes: [], sha: null };
+  if (gd.status && gd.status >= 400) throw new Error('GitHub read failed (HTTP ' + gd.status + ')');
+  const d = gd.data || {};
+  let notes = [];
+  if (d.content) {
+    const raw = decodeURIComponent(escape(atob(String(d.content).replace(/\s/g, ''))));
+    try { notes = JSON.parse(raw); } catch(e) { throw new Error('notes.json is not valid JSON'); }
+  }
+  return { notes: Array.isArray(notes) ? notes : [], sha: d.sha || null };
+}
+
 async function loadNotes() {
+  // Admin: sempre lettura fresca dall'API (è l'unico che modifica le note)
+  if (isAdminUnlocked) {
+    try {
+      const { notes } = await ghReadNotes();
+      localStorage.setItem(NOTES_KEY, JSON.stringify(notes));
+      return notes;
+    } catch(e) {}
+  }
+  // Pubblico: file raw (può essere in ritardo di qualche minuto rispetto all'ultima pubblicazione)
   try {
     const url = `https://raw.githubusercontent.com/${REPO}/main/${NOTES_GH_FILE}?t=${Date.now()}`;
-    const r = await fetch(url, { signal: AbortSignal.timeout(6000) });
-    if (r.ok) return await r.json();
+    const r = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(6000) });
+    if (r.ok) { const j = await r.json(); if (Array.isArray(j)) return j; }
   } catch(e) {}
-  // Fallback to localStorage for offline/error
+  // Fallback offline
   try { return JSON.parse(localStorage.getItem(NOTES_KEY) || '[]'); } catch(e) { return []; }
 }
 
-async function saveNotes(notes) {
-  // Mirror to localStorage immediately
-  localStorage.setItem(NOTES_KEY, JSON.stringify(notes));
-  // Save to GitHub via Worker
-  try {
-    const WORKER = 'https://xenos-ai-proxy.xenosfinance.workers.dev';
-    const getRes = await fetch(WORKER, {
-      method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ type:'github', method:'GET',
-        url:`https://api.github.com/repos/${REPO}/contents/${NOTES_GH_FILE}` })
-    });
-    const gd = await getRes.json();
-    if (gd.status && gd.status >= 400 && gd.status !== 404) {
-      return { ok:false, error: 'GitHub read failed (HTTP ' + gd.status + ')' };
-    }
-    const sha = gd.data?.sha || null;
+// Modifica atomica: rilegge → applica mutator → scrive con sha fresco → retry su conflitto
+async function mutateNotes(mutator) {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    let cur;
+    try { cur = await ghReadNotes(); } catch(e) { return { ok:false, error: e.message }; }
+    const notes = mutator(cur.notes.slice());
     const content = btoa(unescape(encodeURIComponent(JSON.stringify(notes, null, 2))));
     const payload = { message: 'update wave notes', content };
-    if (sha) payload.sha = sha;
-    const putRes = await fetch(WORKER, {
-      method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ type:'github', method:'PUT',
-        url:`https://api.github.com/repos/${REPO}/contents/${NOTES_GH_FILE}`, payload })
-    });
-    const pd = await putRes.json();
-    if (pd.status && pd.status >= 400) {
-      const msg = (pd.data && (pd.data.message || pd.data.error)) || ('GitHub write failed (HTTP ' + pd.status + ')');
-      return { ok:false, error: msg };
+    if (cur.sha) payload.sha = cur.sha;
+    try {
+      const putRes = await fetch(NOTES_WORKER, {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ type:'github', method:'PUT',
+          url:`https://api.github.com/repos/${REPO}/contents/${NOTES_GH_FILE}`, payload })
+      });
+      const pd = await putRes.json();
+      if (pd.status === 409 || pd.status === 422) { await new Promise(res => setTimeout(res, 700)); continue; }
+      if (pd.status && pd.status >= 400) {
+        const msg = (pd.data && (pd.data.message || pd.data.error)) || ('GitHub write failed (HTTP ' + pd.status + ')');
+        return { ok:false, error: msg };
+      }
+      localStorage.setItem(NOTES_KEY, JSON.stringify(notes));
+      return { ok:true, notes };
+    } catch(e) {
+      return { ok:false, error: e.message };
     }
-    return { ok:true };
-  } catch(e) {
-    return { ok:false, error: e.message };
   }
+  return { ok:false, error: 'GitHub conflict after 3 attempts — retry' };
+}
+
+function addNote(note) {
+  note.id = newNoteId();
+  return mutateNotes(function(list) { list.push(note); return list; });
+}
+
+// Bias automatico dal testo della label (strip manuale), finché non lo scegli a mano
+function noteAutoBias() {
+  const sel = document.getElementById('noteBias');
+  if (!sel || sel.dataset.manual === '1') return;
+  const t = (document.getElementById('noteSetup').value || '').toLowerCase();
+  const bull = /\b(bullish|long|rialzist)/.test(t), bear = /\b(bearish|short|ribassist)/.test(t);
+  sel.value = (bull && !bear) ? 'bullish' : (bear && !bull) ? 'bearish' : '';
 }
 
 async function renderPublicFeed(preloadedNotes) {
@@ -1592,19 +1643,19 @@ async function renderPublicFeed(preloadedNotes) {
     if (isAdminUnlocked) wrap.classList.add('admin-active');
     else wrap.classList.remove('admin-active');
   }
+  if (typeof ewsRefreshAdminButtons === 'function') ewsRefreshAdminButtons();
   if (!notes.length) {
     if (empty) empty.style.display = 'block';
     return;
   }
   if (empty) empty.style.display = 'none';
-  notes.slice().reverse().forEach(function(n, ri) {
-    var realIdx = notes.length - 1 - ri;
+  const ttB = (k, f) => (typeof window.t === 'function') ? window.t(k) : f;
+  notes.slice().reverse().forEach(function(n) {
     var row = document.createElement('div');
     row.className = 'wave-note';
     var bias = document.createElement('span');
     bias.className = 'wave-note-bias ' + (n.bias || 'neutral');
-    const ttB = (k, f) => (typeof window.t === 'function') ? window.t(k) : f;
-    bias.textContent = n.bias === 'bullish' ? '🟢 ' + ttB('label_bullish','Bullish') : n.bias === 'bearish' ? '🔴 ' + ttB('label_bearish','Bearish') : '◆ ' + ttB('label_neutral_bias','Neutral');
+    bias.textContent = n.bias === 'bullish' ? '▲ ' + ttB('label_bullish','Bullish') : n.bias === 'bearish' ? '▼ ' + ttB('label_bearish','Bearish') : '◆ ' + ttB('label_neutral_bias','Neutral');
     var asset = document.createElement('span');
     asset.className = 'wave-note-asset';
     asset.textContent = n.asset || '';
@@ -1618,7 +1669,7 @@ async function renderPublicFeed(preloadedNotes) {
     del.className = 'wave-note-del';
     del.title = 'Delete';
     del.textContent = 'x';
-    (function(i) { del.addEventListener('click', function() { deleteNote(i); }); })(realIdx);
+    (function(key) { del.addEventListener('click', function() { deleteNote(key); }); })(noteKey(n));
     row.appendChild(bias);
     row.appendChild(asset);
     row.appendChild(setup);
@@ -1631,29 +1682,31 @@ async function renderPublicFeed(preloadedNotes) {
 async function publishNote() {
   const asset = (document.getElementById('noteAsset').value||'').trim().toUpperCase();
   const setup = (document.getElementById('noteSetup').value||'').trim();
-  const bias  = document.getElementById('noteBias').value;
+  const biasEl = document.getElementById('noteBias');
+  const bias  = biasEl.value;
   const err   = document.getElementById('noteErr');
   if (!asset) { err.textContent='⚠ Asset required'; return; }
   if (!setup) { err.textContent='⚠ Setup label required'; return; }
+  if (!bias)  { err.textContent='⚠ Select bias'; return; }
   err.textContent='Saving...';
-  const notes = await loadNotes();
-  const now = new Date();
-  notes.push({asset, setup, bias, date: now.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}).toUpperCase()});
-  const result = await saveNotes(notes);
+  const result = await addNote({ asset, setup, bias, date: noteDateStr() });
   if (!result.ok) { err.textContent = '⚠ Save failed: ' + result.error; return; }
   document.getElementById('noteAsset').value='';
   document.getElementById('noteSetup').value='';
+  biasEl.value=''; delete biasEl.dataset.manual;
   err.textContent='';
-  renderPublicFeed(notes);
+  renderPublicFeed(result.notes);
 }
 
-async function deleteNote(idx) {
+async function deleteNote(key) {
   if (!confirm('Delete this wave setup note?')) return;
-  const notes = await loadNotes();
-  notes.splice(idx,1);
-  const result = await saveNotes(notes);
+  const result = await mutateNotes(function(list) {
+    const i = list.findIndex(function(n) { return noteKey(n) === key; });
+    if (i >= 0) list.splice(i, 1);
+    return list;
+  });
   if (!result.ok) { alert('Delete failed: ' + result.error); return; }
-  renderPublicFeed(notes);
+  renderPublicFeed(result.notes);
 }
 
 async function publishFromAnalysis() {
@@ -1662,47 +1715,37 @@ async function publishFromAnalysis() {
   if(btn){ btn.disabled=true; btn.textContent='Publishing...'; }
 
   try {
+    // FIX 2026-10: aiSymbol è un <input>, non un <select> → .options[...] lanciava TypeError
     const symbolEl = document.getElementById('aiSymbol');
-    const asset = symbolEl ? (symbolEl.options[symbolEl.selectedIndex]?.text || symbolEl.value || '').toUpperCase() : '';
-    const tf = (document.getElementById('aiTf')?.value || '').toUpperCase();
+    const asset = ((symbolEl && symbolEl.value) || '').trim().toUpperCase();
+    const tf = ((document.getElementById('aiTf')?.value || '').split(' ')[0] || '').toUpperCase();
     const txt = document.getElementById('analysisText')?.textContent || '';
+    const body = txt.slice(txt.lastIndexOf('━') + 1).trim();
+
+    if(!asset || !body){ alert('Run the analysis first.'); reset(); return; }
 
     let bias = 'neutral';
-    if (/main scenario[^\r\n]*(long|bullish)/i.test(txt)) bias = 'bullish';
-    else if (/main scenario[^\r\n]*(short|bearish)/i.test(txt)) bias = 'bearish';
-    else if (/bullish scenario/i.test(txt)) bias = 'bullish';
-    else if (/bearish scenario/i.test(txt)) bias = 'bearish';
+    if (/main scenario[^\r\n]*(long|bullish)/i.test(body)) bias = 'bullish';
+    else if (/main scenario[^\r\n]*(short|bearish)/i.test(body)) bias = 'bearish';
+    else {
+      const nb = (body.match(/\b(bullish|long)\b/gi) || []).length;
+      const ns = (body.match(/\b(bearish|short)\b/gi) || []).length;
+      if (nb > ns) bias = 'bullish'; else if (ns > nb) bias = 'bearish';
+    }
 
-    const takeLine = txt.match(/Main scenario[^\r\n]{0,20}[^\r\n]{0,100}/i);
-    const setup = takeLine ? takeLine[0].replace(/Main scenario[^:\-]*/i,'').replace(/^[:\- ]+/,'').trim().slice(0,80) || 'AI Wave Analysis' : 'AI Wave Analysis';
+    const takeLine = body.match(/Main scenario[^\r\n]{0,140}/i);
+    let setup = takeLine ? takeLine[0].replace(/Main scenario[^:\-]*/i,'').replace(/^[:\- ]+/,'').trim() : '';
+    if (!setup) setup = (body.split('\n').map(l => l.replace(/[*#_]/g,'').trim()).find(l => l.length > 20) || 'AI Wave Analysis');
+    setup = setup.slice(0, 140);
 
-    if(!asset){ alert('No asset found — run the analysis first.'); reset(); return; }
+    const result = await addNote({ asset: asset + (tf ? ' · ' + tf : ''), setup, bias, date: noteDateStr() });
+    if (!result.ok) { alert('Publish failed: ' + result.error); reset(); return; }
 
-    // Save to localStorage immediately (instant), GitHub in background
-    const notes = await Promise.race([
-      loadNotes(),
-      new Promise((_,rej) => setTimeout(() => rej(new Error('timeout')), 5000))
-    ]).catch(() => {
-      try { return JSON.parse(localStorage.getItem(NOTES_KEY) || '[]'); } catch(e) { return []; }
-    });
-
-    const label = asset + (tf ? ' · ' + tf : '');
-    notes.push({
-      asset: label, setup, bias,
-      date: new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}).toUpperCase()
-    });
-
-    // Save to localStorage immediately so UI updates now
-    localStorage.setItem(NOTES_KEY, JSON.stringify(notes));
-    renderPublicFeed();
+    renderPublicFeed(result.notes);
     if(btn){ btn.disabled=false; btn.textContent='✦ Published ✓'; setTimeout(()=>{ btn.textContent='✦ Publish Note'; },3000); }
 
-    // Scroll to feed
     const feed = document.getElementById('publicWaveFeed');
     if(feed) setTimeout(()=>feed.scrollIntoView({behavior:'smooth', block:'start'}), 200);
-
-    // Save to GitHub in background (non-blocking)
-    saveNotes(notes).catch(e => console.warn('GitHub save failed (note still saved locally):', e));
 
   } catch(e) {
     console.error('publishFromAnalysis error:', e);
@@ -3188,7 +3231,7 @@ async function sendToTelegram(){
 
   // Build compact professional caption (fits Telegram 1024 char limit)
   const symbolEl = document.getElementById('aiSymbol');
-  const assetName = symbolEl ? (symbolEl.options[symbolEl.selectedIndex]?.text || symbolEl.value || '') : '';
+  const assetName = ((symbolEl && symbolEl.value) || '').trim().toUpperCase();
   const tf = document.getElementById('aiTf')?.value || '';
   // Extract key lines from analysis for caption
   const lines = fullText.split('\n').filter(l => l.trim().length > 0);
@@ -4071,20 +4114,37 @@ const EWS_EMA_RIBBON_COLORS  = ['#f59e0b', '#fb923c', '#60a5fa', '#3b82f6', '#a7
 
 let _ewsChart = null, _ewsCandleSeries = null, _ewsRsiChart = null, _ewsMacdChart = null;
 
+// Decimali per asset (scala prezzi, live price, MACD)
+function ewsPricePrecision(sym) {
+  if (/JPY/.test(sym)) return 3;
+  if (/^(EUR|GBP|AUD|NZD|USD)(USD|CHF|CAD)$/.test(sym)) return 5;
+  if (sym === 'XAGUSD' || sym === 'NATGAS') return 3;
+  if (sym === 'BTCUSD') return 0;
+  return 2;
+}
+function ewsPriceFormat(precision) {
+  return { type: 'price', precision: precision, minMove: Math.pow(10, -precision) };
+}
+
 function ewsResampleTo4H(candles) {
   const out = [];
-  for (let i = 0; i < candles.length; i += 4) {
-    const chunk = candles.slice(i, i + 4);
-    if (!chunk.length) continue;
-    out.push({
-      datetime: chunk[0].datetime,
-      open: chunk[0].open,
-      high: Math.max.apply(null, chunk.map(c => c.high)),
-      low:  Math.min.apply(null, chunk.map(c => c.low)),
-      close: chunk[chunk.length - 1].close,
-      volume: chunk.reduce((s, c) => s + (c.volume || 0), 0)
-    });
-  }
+  let cur = null, curKey = null;
+  candles.forEach(function(c) {
+    const ts = new Date(c.datetime).getTime();
+    if (!isFinite(ts)) return;
+    const key = Math.floor(ts / 14400000);
+    if (key !== curKey) {
+      if (cur) out.push(cur);
+      curKey = key;
+      cur = { datetime: new Date(key * 14400000).toISOString(), open: c.open, high: c.high, low: c.low, close: c.close, volume: c.volume || 0 };
+    } else {
+      cur.high = Math.max(cur.high, c.high);
+      cur.low = Math.min(cur.low, c.low);
+      cur.close = c.close;
+      cur.volume += (c.volume || 0);
+    }
+  });
+  if (cur) out.push(cur);
   return out;
 }
 
@@ -4098,9 +4158,20 @@ async function ewsFetchCandlesForChart(sym, tf) {
   });
   const d = await res.json();
   if (d.error) throw new Error(d.error);
-  let candles = d.candles || [];
+  let candles = (d.candles || []).filter(function(c) {
+    return c && [c.open, c.high, c.low, c.close].every(function(v) { return typeof v === 'number' && isFinite(v) && v > 0; })
+      && isFinite(new Date(c.datetime).getTime());
+  });
   if (tf === 'H4') candles = ewsResampleTo4H(candles);
-  return candles;
+  // Ordine crescente + timestamp unici (richiesto da Lightweight Charts)
+  candles.sort(function(a, b) { return new Date(a.datetime) - new Date(b.datetime); });
+  const seen = {};
+  const clean = [];
+  candles.forEach(function(c) {
+    const t = Math.floor(new Date(c.datetime).getTime() / 1000);
+    if (seen[t] !== undefined) clean[seen[t]] = c; else { seen[t] = clean.length; clean.push(c); }
+  });
+  return clean;
 }
 
 // ATR(14), Wilder smoothing — matches Pine's ta.atr()
@@ -4239,8 +4310,10 @@ async function ewsRenderCustomChart(sym, tf) {
   };
 
   _ewsChart = LightweightCharts.createChart(document.getElementById('ews-main-chart'), Object.assign({ height: 420 }, chartOpts));
+  var _ewsPrec = ewsPricePrecision(sym);
   _ewsCandleSeries = _ewsChart.addCandlestickSeries({
-    upColor: '#34d399', downColor: '#f87171', borderVisible: false, wickUpColor: '#34d399', wickDownColor: '#f87171'
+    upColor: '#34d399', downColor: '#f87171', borderVisible: false, wickUpColor: '#34d399', wickDownColor: '#f87171',
+    priceFormat: ewsPriceFormat(_ewsPrec)
   });
   var candleData = candles.map(function(c) { return { time: ewsTimeToUnix(c.datetime), open: c.open, high: c.high, low: c.low, close: c.close }; });
   _ewsCandleSeries.setData(candleData);
@@ -4248,7 +4321,7 @@ async function ewsRenderCustomChart(sym, tf) {
   // EMA Ribbon
   EWS_EMA_RIBBON_PERIODS.forEach(function(period, idx) {
     var ema = ewsComputeEMA(candles, period);
-    var s = _ewsChart.addLineSeries({ color: EWS_EMA_RIBBON_COLORS[idx], lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+    var s = _ewsChart.addLineSeries({ color: EWS_EMA_RIBBON_COLORS[idx], lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false, priceFormat: ewsPriceFormat(_ewsPrec) });
     s.setData(candles.map(function(c, i) { return ema[i] === null ? null : { time: ewsTimeToUnix(c.datetime), value: ema[i] }; }).filter(Boolean));
   });
 
@@ -4262,7 +4335,7 @@ async function ewsRenderCustomChart(sym, tf) {
   // RSI sub-panel
   var rsi = ewsComputeRSI(candles, 14);
   _ewsRsiChart = LightweightCharts.createChart(document.getElementById('ews-rsi-chart'), Object.assign({ height: 90 }, chartOpts));
-  var rsiSeries = _ewsRsiChart.addLineSeries({ color: '#60a5fa', lineWidth: 1, priceLineVisible: false });
+  var rsiSeries = _ewsRsiChart.addLineSeries({ color: '#60a5fa', lineWidth: 1, priceLineVisible: false, priceFormat: ewsPriceFormat(2) });
   rsiSeries.setData(candles.map(function(c, i) { return rsi[i] === null ? null : { time: ewsTimeToUnix(c.datetime), value: rsi[i] }; }).filter(Boolean));
   rsiSeries.createPriceLine({ price: 70, color: 'rgba(248,113,113,0.4)', lineWidth: 1, lineStyle: LightweightCharts.LineStyle.Dashed, axisLabelVisible: false });
   rsiSeries.createPriceLine({ price: 30, color: 'rgba(52,211,153,0.4)', lineWidth: 1, lineStyle: LightweightCharts.LineStyle.Dashed, axisLabelVisible: false });
@@ -4270,11 +4343,12 @@ async function ewsRenderCustomChart(sym, tf) {
   // MACD sub-panel
   var macd = ewsComputeMACD(candles, 12, 26, 9);
   _ewsMacdChart = LightweightCharts.createChart(document.getElementById('ews-macd-chart'), Object.assign({ height: 90 }, chartOpts));
-  var macdLineSeries = _ewsMacdChart.addLineSeries({ color: '#60a5fa', lineWidth: 1, priceLineVisible: false });
+  var _ewsMacdFmt = ewsPriceFormat(_ewsPrec + 1);
+  var macdLineSeries = _ewsMacdChart.addLineSeries({ color: '#60a5fa', lineWidth: 1, priceLineVisible: false, priceFormat: _ewsMacdFmt });
   macdLineSeries.setData(candles.map(function(c, i) { return macd.macdLine[i] === null ? null : { time: ewsTimeToUnix(c.datetime), value: macd.macdLine[i] }; }).filter(Boolean));
-  var signalSeries = _ewsMacdChart.addLineSeries({ color: '#f59e0b', lineWidth: 1, priceLineVisible: false });
+  var signalSeries = _ewsMacdChart.addLineSeries({ color: '#f59e0b', lineWidth: 1, priceLineVisible: false, priceFormat: _ewsMacdFmt });
   signalSeries.setData(candles.map(function(c, i) { return macd.signalLine[i] === null ? null : { time: ewsTimeToUnix(c.datetime), value: macd.signalLine[i] }; }).filter(Boolean));
-  var histSeries = _ewsMacdChart.addHistogramSeries({ priceLineVisible: false });
+  var histSeries = _ewsMacdChart.addHistogramSeries({ priceLineVisible: false, priceFormat: _ewsMacdFmt });
   histSeries.setData(candles.map(function(c, i) { return macd.hist[i] === null ? null : { time: ewsTimeToUnix(c.datetime), value: macd.hist[i], color: macd.hist[i] >= 0 ? 'rgba(52,211,153,0.5)' : 'rgba(248,113,113,0.5)' }; }).filter(Boolean));
 
   // Sync time scales across the three panels
@@ -4318,8 +4392,7 @@ function ewsSelectAsset(sym, name, bias, btn) {
   document.getElementById('ews-probability').textContent = '— / 5';
   document.getElementById('ews-wave-label').textContent = '?';
   _ewsLastResult = null;
-  document.getElementById('ews-tg-btn').style.display = 'none';
-  document.getElementById('ews-save-btn').style.display = 'none';
+  ewsRefreshAdminButtons();
 }
 
 function ewsSetTf(tf, btn) {
@@ -4357,7 +4430,7 @@ async function ewsFetchPrice(sym) {
     var d = await r.json();
     var p = d.prices && d.prices[sym];
     if (p && p.price) {
-      el.textContent = p.price.toFixed(sym.includes('JPY') ? 3 : sym === 'BTCUSD' ? 0 : 4);
+      el.textContent = p.price.toFixed(ewsPricePrecision(sym));
     } else {
       el.textContent = '—';
     }
@@ -4496,10 +4569,7 @@ async function ewsRunAnalysis() {
 
       // Store result for Telegram / Save-as-Active-Setup actions
       _ewsLastResult = { asset: _ewsAsset, assetName: _ewsAssetName, tf: _ewsTf, price: price, json: json };
-      if (typeof isAdminUnlocked !== 'undefined' && isAdminUnlocked) {
-        document.getElementById('ews-tg-btn').style.display = 'inline-block';
-        document.getElementById('ews-save-btn').style.display = 'inline-block';
-      }
+      ewsRefreshAdminButtons();
     } else {
       status.textContent = 'Could not parse AI response. Try again.';
       document.getElementById('ews-full-analysis').textContent = text.slice(0, 500);
@@ -4512,20 +4582,35 @@ async function ewsRunAnalysis() {
   btn.textContent = '⚡ Generate Analysis';
 }
 
+// Mostra Telegram / Active Setup solo ad admin e solo se c'è un'analisi.
+// Chiamata anche dopo il login admin (via renderPublicFeed), così i pulsanti
+// compaiono anche se l'analisi è stata generata prima di sbloccare.
+function ewsRefreshAdminButtons() {
+  var show = !!(_ewsLastResult && typeof isAdminUnlocked !== 'undefined' && isAdminUnlocked);
+  ['ews-tg-btn', 'ews-save-btn'].forEach(function(id) {
+    var b = document.getElementById(id);
+    if (b) b.style.display = show ? 'inline-block' : 'none';
+  });
+}
+
 async function ewsSendToTelegram() {
   if (!_ewsLastResult) return;
   var btn = document.getElementById('ews-tg-btn');
   btn.disabled = true; btn.textContent = '📡 Sending...';
 
-  var j = _ewsLastResult.json;
+  // FIX 2026-10: testo semplice (niente HTML) — "S&P 500" o un "<" nell'analisi
+  // facevano fallire il parse HTML di Telegram.
+  var r = _ewsLastResult, j = r.json;
   var biasIcon = j.bias === 'bullish' ? '🟢' : j.bias === 'bearish' ? '🔴' : '◆';
-  var stars = '★'.repeat(j.conviction||0) + '☆'.repeat(5-(j.conviction||0));
+  var conv = Math.max(0, Math.min(5, parseInt(j.conviction, 10) || 0));
+  var stars = '★'.repeat(conv) + '☆'.repeat(5 - conv);
   var text =
-    '📊 <b>' + _ewsLastResult.assetName + '</b> · ' + _ewsLastResult.tf + ' · XenosFinance\n' +
-    biasIcon + ' ' + (j.bias||'neutral').toUpperCase() + ' · Wave ' + (j.wave||'?') + ' · ' + stars + ' (' + (j.probability||'-') + '/5)\n\n' +
+    '📊 ' + r.assetName + ' · ' + r.tf + ' · XenosFinance\n' +
+    biasIcon + ' ' + (j.bias || 'neutral').toUpperCase() + ' · Wave ' + (j.wave || '?') + ' · ' + stars + ' (' + (j.probability || '-') + '/5)\n' +
+    (r.price && r.price !== '—' ? '💲 Price: ' + r.price + '\n' : '') + '\n' +
     (j.summary ? j.summary + '\n\n' : '') +
-    '🎯 Target: ' + (j.target||'—') + '\n' +
-    '⛔ Invalidation: ' + (j.invalidation||'—') + '\n\n' +
+    '🎯 Target: ' + (j.target || '—') + '\n' +
+    '⛔ Invalidation: ' + (j.invalidation || '—') + '\n\n' +
     (j.analysis || '') +
     '\n\nFull chart on @xenoswavefinance';
 
@@ -4533,7 +4618,7 @@ async function ewsSendToTelegram() {
     var WORKER = 'https://xenos-ai-proxy.xenosfinance.workers.dev';
     var res = await fetch(WORKER, {
       method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ type:'telegram', text: text.slice(0,4000), parse_mode:'HTML' })
+      body: JSON.stringify({ type:'telegram', text: text.slice(0,4000) })
     });
     var d = await res.json();
     if (d.ok || d.result) { btn.textContent = '✓ Sent'; setTimeout(function(){ btn.textContent = '📡 Send to Telegram'; }, 2500); }
@@ -4551,26 +4636,29 @@ async function ewsSaveAsActiveSetup() {
   var btn = document.getElementById('ews-save-btn');
   btn.disabled = true; btn.textContent = '💾 Saving...';
 
-  var j = _ewsLastResult.json;
-  var setupLabel = (j.bias === 'bullish' ? 'Bullish' : j.bias === 'bearish' ? 'Bearish' : 'Neutral') +
-    ' setup · Wave ' + (j.wave||'?') + (j.summary ? ' — ' + j.summary : '');
+  var r = _ewsLastResult, j = r.json;
+  var bias = (j.bias === 'bullish' || j.bias === 'bearish') ? j.bias : 'neutral';
+  var setupLabel = 'Wave ' + (j.wave || '?') +
+    (j.target ? ' · Target ' + j.target : '') +
+    (j.invalidation ? ' · Inval. ' + j.invalidation : '') +
+    (j.summary ? ' — ' + j.summary : '');
 
   try {
-    var notes = await loadNotes();
-    var now = new Date();
-    notes.push({
-      asset: _ewsLastResult.assetName,
+    var result = await addNote({
+      asset: r.assetName + ' · ' + r.tf,
       setup: setupLabel,
-      bias: j.bias || 'neutral',
-      date: now.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}).toUpperCase()
+      bias: bias,
+      date: noteDateStr()
     });
-    var result = await saveNotes(notes);
-    if (!result.ok) { alert('Save failed: ' + result.error); return; }
+    if (!result.ok) { alert('Save failed: ' + result.error); btn.textContent = '💾 Save as Active Setup'; return; }
     btn.textContent = '✓ Saved';
     setTimeout(function(){ btn.textContent = '💾 Save as Active Setup'; }, 2500);
-    renderPublicFeed(notes);
+    renderPublicFeed(result.notes);
+    var feed = document.getElementById('publicWaveFeed');
+    if (feed) setTimeout(function(){ feed.scrollIntoView({behavior:'smooth', block:'start'}); }, 200);
   } catch(e) {
     alert('Error: ' + e.message);
+    btn.textContent = '💾 Save as Active Setup';
   } finally {
     btn.disabled = false;
   }
