@@ -270,6 +270,12 @@ def build_instrument_page(inst, d, ai, now, all_rows):
         rows += f'<tr><td>Elliott Wave</td><td>{esc(ew["desc"])}</td></tr>'
         if ew.get("invalidation") is not None:
             rows += f'<tr><td>Elliott invalidation</td><td>{f(ew["invalidation"])}</td></tr>'
+        tps = [f(t) for t in (ew.get("tp1"), ew.get("tp2")) if t is not None]
+        if tps:
+            rows += f'<tr><td>Elliott targets</td><td>{" · ".join(tps)}</td></tr>'
+    pdv = d.get("prev_day") or {}
+    if pdv.get("high") is not None and pdv.get("low") is not None:
+        rows += f'<tr><td>Previous-day range</td><td>{f(pdv["low"])} – {f(pdv["high"])}</td></tr>'
     if rows:
         b.append(f"<table><tr><th>Element</th><th>Level</th></tr>{rows}</table>")
 
