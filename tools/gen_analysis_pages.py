@@ -312,7 +312,7 @@ def build_instrument_page(inst, d, ai, now, all_rows):
 
     b.append('<div class="box"><p><b>Live intraday analysis.</b> For a 15-minute read updated every candle, open the '
              '<a href="/dashboard">XenosFinance dashboard</a> and click any instrument. Daily briefs and Elliott Wave studies are published on our '
-             '<a href="https://t.me/xenosfin">Telegram channel</a>.</p><div class="cta"><a href="/dashboard">Open the dashboard</a><a href="/premium">Premium tools</a></div></div>')
+             '<a href="https://t.me/xenoswavefinance">Telegram channel</a>.</p><div class="cta"><a href="/dashboard">Open the dashboard</a><a href="/premium">Premium tools</a></div></div>')
 
     others = [r for r in all_rows if r[0] != slug]
     b.append("<h2>Other daily analyses</h2><div class=\"rel\">" + "".join(f'<a href="/analysis/{r[0]}">{esc(r[2])}</a>' for r in others) + "</div>")
