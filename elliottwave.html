@@ -4301,6 +4301,10 @@ async function ewsRenderCustomChart(sym, tf) {
     '<div id="ews-rsi-chart" style="height:90px;width:100%;border-top:1px solid rgba(255,255,255,0.06);position:relative;"><span style="position:absolute;top:4px;left:8px;font-family:var(--mono);font-size:8px;color:var(--muted);letter-spacing:1px;z-index:2;">RSI 14</span></div>' +
     '<div id="ews-macd-chart" style="height:90px;width:100%;border-top:1px solid rgba(255,255,255,0.06);position:relative;"><span style="position:absolute;top:4px;left:8px;font-family:var(--mono);font-size:8px;color:var(--muted);letter-spacing:1px;z-index:2;">MACD 12/26/9</span></div>';
 
+  // Nuovo grafico → i riferimenti all'overlay precedente non valgono più
+  _ewsStructSeries = []; _ewsOverlayLines = [];
+  _ewsEngine = { sym: sym, tf: tf, candles: candles, res: ewsEngineRun(candles) };
+
   var chartOpts = {
     layout: { background: { color: 'transparent' }, textColor: '#8ba3c7', fontFamily: 'IBM Plex Mono, monospace', fontSize: 10 },
     grid: { vertLines: { color: 'rgba(255,255,255,0.04)' }, horzLines: { color: 'rgba(255,255,255,0.04)' } },
@@ -4317,6 +4321,8 @@ async function ewsRenderCustomChart(sym, tf) {
   });
   var candleData = candles.map(function(c) { return { time: ewsTimeToUnix(c.datetime), open: c.open, high: c.high, low: c.low, close: c.close }; });
   _ewsCandleSeries.setData(candleData);
+  _ewsLastCandleTime  = candleData[candleData.length - 1].time;
+  _ewsLastCandleClose = candleData[candleData.length - 1].close;
 
   // EMA Ribbon
   EWS_EMA_RIBBON_PERIODS.forEach(function(period, idx) {
@@ -4325,11 +4331,9 @@ async function ewsRenderCustomChart(sym, tf) {
     s.setData(candles.map(function(c, i) { return ema[i] === null ? null : { time: ewsTimeToUnix(c.datetime), value: ema[i] }; }).filter(Boolean));
   });
 
-  // Wave count labels are intentionally NOT drawn here. The Auto-Adaptive zigzag
-  // above is a raw swing detector with zero Elliott Wave rule validation (no
-  // Rule III overlap check, no Fibonacci extension check) — labeling it 1-2-3-4-5-A-B-C
-  // produced counts that violated basic EW rules. The validated count (Rule III,
-  // Fibonacci filters) only comes from the ew_server.py engine via "Generate Analysis".
+  // Il conteggio onde NON viene da uno zigzag grezzo: lo disegna ewsDrawWaveOverlay()
+  // solo se il motore XenosFinance trova una struttura che rispetta le regole
+  // (W2 28–78.6%, W3 estensioni ±15%, W4 15–65% senza overlap, ABC validato).
   _ewsChart.timeScale().fitContent();
 
   // RSI sub-panel
@@ -4359,6 +4363,325 @@ async function ewsRenderCustomChart(sym, tf) {
       allCharts.forEach(function(other) { if (other !== c) other.timeScale().setVisibleLogicalRange(range); });
     });
   });
+
+  // Conteggio del motore + pannelli Wave / Key Levels
+  ewsDrawWaveOverlay();
+  ewsApplyEnginePanels();
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// XenosFinance EW Engine (client) — conteggio con regole Fibonacci validate
+// Scritto da zero per XenosFinance. Regole allineate a ew_server.py:
+// W2 28–78.6% · W3 su estensioni standard ±15% · W4 15–65% senza overlap con W1 ·
+// W3 mai la più corta · ABC con B 23.6–100% di A. Calcola 3 gradi di zigzag,
+// sceglie la struttura valida più completa e la passa sia al grafico sia all'AI.
+// ══════════════════════════════════════════════════════════════════════════
+const EWS_ENGINE_RULES = {
+  w2:    [0.28, 0.786],
+  w3Ext: [1.0, 1.272, 1.618, 2.0, 2.618], w3Tol: 0.15,
+  w4:    [0.15, 0.65],
+  b:     [0.236, 1.0]
+};
+const EWS_ENGINE_DEGREES = [
+  { name: 'Minor',        len: 4  },
+  { name: 'Intermediate', len: 8  },
+  { name: 'Primary',      len: 16 }
+];
+const EWS_WAVE_LABELS = ['0', '1', '2', '3', '4', '5', 'A', 'B', 'C'];
+var _ewsEngine = null, _ewsStructSeries = [];
+
+function ewsInRange(x, r) { return x >= r[0] && x <= r[1]; }
+function ewsNearAny(x, arr, tol) { return arr.some(function(e) { return Math.abs(x / e - 1) <= tol; }); }
+
+// Zigzag a pivot simmetrici (len barre a sx e dx) + ultimo tratto provvisorio fino a oggi
+function ewsEngineZigzag(candles, len) {
+  var n = candles.length, piv = [], i, j, k;
+  for (i = len; i < n - len; i++) {
+    var h = candles[i].high, l = candles[i].low, isH = true, isL = true;
+    for (j = i - len; j <= i + len; j++) {
+      if (j === i) continue;
+      if (candles[j].high > h || (j < i && candles[j].high === h)) isH = false;
+      if (candles[j].low  < l || (j < i && candles[j].low  === l)) isL = false;
+    }
+    if (isH && isL) continue;
+    if (isH) piv.push({ i: i, p: h, hi: true });
+    if (isL) piv.push({ i: i, p: l, hi: false });
+  }
+  var zz = [];
+  piv.forEach(function(q) {
+    var last = zz[zz.length - 1];
+    if (!last) { zz.push(q); return; }
+    if (last.hi === q.hi) { if (q.hi ? q.p > last.p : q.p < last.p) zz[zz.length - 1] = q; return; }
+    if (q.hi ? q.p > last.p : q.p < last.p) zz.push(q);
+  });
+  if (!zz.length) return zz;
+  // Inizio serie: l'estremo opposto prima del primo pivot fa da ancora (non ha len barre a sinistra)
+  var first = zz[0], anc = null;
+  for (k = 0; k < first.i; k++) {
+    var va = first.hi ? candles[k].low : candles[k].high;
+    if (!anc || (first.hi ? va < anc.p : va > anc.p)) anc = { i: k, p: va, hi: !first.hi };
+  }
+  if (anc && (first.hi ? anc.p < first.p : anc.p > first.p)) zz.unshift(anc);
+  // Se dopo l'ultimo pivot il prezzo è andato oltre nella stessa direzione, lo sposto lì
+  var last = zz[zz.length - 1];
+  for (k = last.i + 1; k < n; k++) {
+    var v0 = last.hi ? candles[k].high : candles[k].low;
+    if (last.hi ? v0 > last.p : v0 < last.p) { last = { i: k, p: v0, hi: last.hi }; zz[zz.length - 1] = last; }
+  }
+  // Tratto in corso: estremo opposto dopo l'ultimo pivot
+  var best = null;
+  for (k = last.i + 1; k < n; k++) {
+    var v = last.hi ? candles[k].low : candles[k].high;
+    if (!best || (last.hi ? v < best.p : v > best.p)) best = { i: k, p: v, hi: !last.hi };
+  }
+  if (best) zz.push(best);
+  return zz;
+}
+
+// P = prezzi normalizzati (trend principale sempre "verso l'alto"); l'ultimo punto è provvisorio
+function ewsEngineCheck(P) {
+  var R = EWS_ENGINE_RULES, L = P.length - 1;
+  function len(a, b) { return Math.abs(P[b] - P[a]); }
+  for (var i = 1; i <= L; i++) {
+    var conf = i < L;
+    switch (i) {
+      case 1: if (!(P[1] > P[0])) return false; break;
+      case 2: { var r2 = (P[1] - P[2]) / (P[1] - P[0]);
+        if (conf ? !ewsInRange(r2, R.w2) : !(r2 > 0 && r2 < 1)) return false; break; }
+      case 3: if (!(P[3] > P[2])) return false;
+        if (conf && (!(P[3] > P[1]) || !ewsNearAny(len(2, 3) / len(0, 1), R.w3Ext, R.w3Tol))) return false; break;
+      case 4: { var r4 = (P[3] - P[4]) / (P[3] - P[2]);
+        if (!(P[4] > P[1])) return false;
+        if (conf ? !ewsInRange(r4, R.w4) : !(r4 > 0 && r4 < 1)) return false; break; }
+      case 5: if (!(P[5] > P[4])) return false;
+        if (conf) { if (!(P[5] > P[3])) return false;
+          if (len(2, 3) < len(0, 1) && len(2, 3) < len(4, 5)) return false; } break;
+      case 6: if (!(P[6] < P[5])) return false; break;
+      case 7: { var rb = (P[7] - P[6]) / (P[5] - P[6]);
+        if (conf ? !ewsInRange(rb, R.b) : !(rb > 0 && rb < 1)) return false; break; }
+      case 8: if (!(P[8] < P[7])) return false; break;
+    }
+  }
+  return true;
+}
+
+// Struttura valida più completa che termina sul tratto in corso (min: W2 confermata, W3 in corso)
+function ewsEngineMatch(zz) {
+  var end = zz.length - 1;
+  for (var s = Math.max(0, end - 8); s <= end - 3; s++) {
+    var d = zz[s].hi ? -1 : 1;
+    var P = zz.slice(s).map(function(z) { return d * z.p; });
+    if (ewsEngineCheck(P)) return { s: s, d: d };
+  }
+  return null;
+}
+
+function ewsEngineDescribe(m, zz, candles, deg) {
+  var pts = zz.slice(m.s), d = m.d, k = pts.length;
+  var p = pts.map(function(z) { return z.p; });
+  var wave = EWS_WAVE_LABELS[k - 1];
+  var corrective = ['A', 'B', 'C'].indexOf(wave) >= 0;
+  var waveDir = (['1', '3', '5', 'B'].indexOf(wave) >= 0) ? d : -d;   // direzione dell'onda in corso
+  var biasDir = corrective ? -d : d;                                   // direzione attesa del setup
+  function L(a, b) { return Math.abs(p[b] - p[a]); }
+  function lv(base, sign, size, rs) { return rs.map(function(r) { return { r: r, v: base + sign * size * r }; }); }
+  var fibs = [], inval = null, basis = '';
+  switch (wave) {
+    case '3': fibs = lv(p[2], d,  L(0, 1), [1, 1.618, 2.618]); inval = p[2]; basis = 'extension of wave 1 from end of wave 2'; break;
+    case '4': fibs = lv(p[3], -d, L(2, 3), [0.236, 0.382, 0.5]); inval = p[1]; basis = 'retracement of wave 3'; break;
+    case '5': fibs = lv(p[4], d,  L(0, 1), [0.618, 1, 1.618]); inval = p[4]; basis = 'wave 1 length projected from end of wave 4'; break;
+    case 'A': fibs = lv(p[5], -d, L(0, 5), [0.382, 0.5, 0.618]); inval = p[5]; basis = 'retracement of the whole 1-5 impulse'; break;
+    case 'B': fibs = lv(p[6], d,  L(5, 6), [0.382, 0.5, 0.618]); inval = p[5]; basis = 'retracement of wave A'; break;
+    case 'C': fibs = lv(p[7], -d, L(5, 6), [0.618, 1, 1.618]); inval = p[7]; basis = 'wave A length projected from end of wave B'; break;
+  }
+  // Target = primo livello non ancora raggiunto nella direzione dell'onda in corso
+  var cur = p[k - 1], tgt = null;
+  for (var i = 0; i < fibs.length; i++) { if ((fibs[i].v - cur) * waveDir > 0) { tgt = fibs[i]; break; } }
+  if (!tgt && fibs.length) tgt = fibs[fibs.length - 1];
+  return {
+    degree: deg.name, len: deg.len, k: k, wave: wave,
+    trend: d > 0 ? 'bullish' : 'bearish',
+    structure: corrective ? 'correction' : 'impulse',
+    waveUp: waveDir > 0,
+    bias: biasDir > 0 ? 'bullish' : 'bearish',
+    pivots: pts.map(function(z, idx) { return { label: EWS_WAVE_LABELS[idx], i: z.i, p: z.p, time: candles[z.i].datetime }; }),
+    fibs: fibs, fibBasis: basis, target: tgt ? tgt.v : null, targetRatio: tgt ? tgt.r : null, inval: inval
+  };
+}
+
+function ewsEngineRun(candles) {
+  var degrees = EWS_ENGINE_DEGREES.map(function(deg) {
+    var zz = ewsEngineZigzag(candles, deg.len);
+    var m = zz.length >= 4 ? ewsEngineMatch(zz) : null;
+    return m ? ewsEngineDescribe(m, zz, candles, deg) : { degree: deg.name, len: deg.len, none: true };
+  });
+  var valid = degrees.filter(function(o) { return !o.none; });
+  valid.sort(function(a, b) { return (b.k - a.k) || (b.len - a.len); });
+  return { primary: valid[0] || null, degrees: degrees };
+}
+
+function ewsEnginePrimary() {
+  return (_ewsEngine && _ewsEngine.sym === _ewsAsset && _ewsEngine.tf === _ewsTf && _ewsEngine.res) ? _ewsEngine.res.primary : null;
+}
+
+async function ewsEnsureEngine() {
+  if (_ewsEngine && _ewsEngine.sym === _ewsAsset && _ewsEngine.tf === _ewsTf) return _ewsEngine.res.primary;
+  try {
+    var c = await ewsFetchCandlesForChart(_ewsAsset, _ewsTf);
+    if (!c || c.length < 30) return null;
+    _ewsEngine = { sym: _ewsAsset, tf: _ewsTf, candles: c, res: ewsEngineRun(c) };
+    return _ewsEngine.res.primary;
+  } catch(e) { return null; }
+}
+
+function ewsEnginePromptBlock(e) {
+  var prec = ewsPricePrecision(_ewsAsset);
+  var f = function(v) { return v == null ? '—' : Number(v).toFixed(prec); };
+  var piv = e.pivots.map(function(pv, i) {
+    var last = i === e.pivots.length - 1;
+    return '(' + pv.label + ') ' + f(pv.p) + ' on ' + String(pv.time).slice(0, 16) + (last ? ' [in progress]' : '');
+  }).join('; ');
+  var others = (_ewsEngine.res.degrees || []).filter(function(o) { return o !== e; }).map(function(o) {
+    return o.none ? o.degree + ': no valid count' : o.degree + ': wave ' + o.wave + ' in progress (' + o.trend + ' ' + o.structure + ')';
+  }).join('; ');
+  return '\n\nXENOSFINANCE EW ENGINE COUNT (rule-validated, authoritative — do NOT change it):\n' +
+    '- Degree: ' + e.degree + '. Trend of the impulse: ' + e.trend + '. Wave in progress: ' + e.wave + ' (' + e.structure + ').\n' +
+    '- Pivots: ' + piv + '.\n' +
+    '- Fibonacci levels (' + e.fibBasis + '): ' + e.fibs.map(function(x) { return x.r + ' = ' + f(x.v); }).join(', ') + '.\n' +
+    '- Target: ' + f(e.target) + '. Invalidation: ' + f(e.inval) + '. Setup bias: ' + e.bias + '.\n' +
+    (others ? '- Other degrees: ' + others + '.\n' : '') +
+    'Use exactly this wave, structure, bias, target and invalidation. Only cite Fibonacci ratios and prices listed above — never invent others. ' +
+    'Your job: judge conviction and probability, and write the summary and analysis commenting this count.\n';
+}
+
+function ewsApplyEngineToJson(json, e) {
+  var prec = ewsPricePrecision(_ewsAsset);
+  json.wave = e.wave;
+  json.structure = e.structure;
+  json.bias = e.bias;
+  if (e.target != null) json.target = e.target.toFixed(prec);
+  if (e.inval != null) json.invalidation = e.inval.toFixed(prec);
+  return json;
+}
+
+// Pannelli (Wave / Target / Invalidation / bias) dal motore, finché non c'è un'analisi AI per questo asset/TF
+function ewsApplyEnginePanels() {
+  var r = _ewsLastResult;
+  if (r && r.asset === _ewsAsset && r.tf === _ewsTf) return;
+  var e = ewsEnginePrimary(), prec = ewsPricePrecision(_ewsAsset);
+  document.getElementById('ews-wave-label').textContent = e ? 'Wave ' + e.wave : '?';
+  document.getElementById('ews-kl-target').textContent = (e && e.target != null) ? e.target.toFixed(prec) : '—';
+  document.getElementById('ews-kl-inval').textContent  = (e && e.inval  != null) ? e.inval.toFixed(prec)  : '—';
+  ewsSetBias(e ? e.bias : 'neutral');
+}
+
+function ewsDrawEngine(e) {
+  var prec = ewsPricePrecision(_ewsAsset);
+  var cs = _ewsEngine.candles;
+  var tOf = function(i) { return ewsTimeToUnix(cs[i].datetime); };
+  var pv = e.pivots, n = pv.length;
+  var lineOpts = { lineWidth: 2, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false, priceFormat: ewsPriceFormat(prec) };
+  try {
+    var done = _ewsChart.addLineSeries(Object.assign({ color: 'rgba(226,232,240,0.75)' }, lineOpts));
+    done.setData(pv.slice(0, n - 1).map(function(x) { return { time: tOf(x.i), value: x.p }; }));
+    var live = _ewsChart.addLineSeries(Object.assign({ color: e.waveUp ? '#34d399' : '#f87171', lineStyle: LightweightCharts.LineStyle.Dashed }, lineOpts));
+    live.setData(pv.slice(n - 2).map(function(x) { return { time: tOf(x.i), value: x.p }; }));
+    _ewsStructSeries.push(done, live);
+  } catch(err) {}
+
+  var upLabels = ['1', '3', '5', 'B'];
+  var bullTrend = e.trend === 'bullish';
+  var markers = pv.slice(1).map(function(x, idx) {
+    var isHigh = (upLabels.indexOf(x.label) >= 0) === bullTrend;
+    var isLast = idx === n - 2;
+    if (isLast) {
+      return { time: tOf(x.i), position: isHigh ? 'aboveBar' : 'belowBar', color: e.waveUp ? '#34d399' : '#f87171',
+        shape: isHigh ? 'arrowUp' : 'arrowDown', size: 2,
+        text: 'Wave (' + x.label + ')' + (isHigh ? ' ▲' : ' ▼') + (e.structure === 'correction' ? ' · ABC' : '') };
+    }
+    return { time: tOf(x.i), position: isHigh ? 'aboveBar' : 'belowBar', color: '#e2e8f0', shape: 'circle', size: 0.5, text: x.label };
+  });
+  if (typeof _ewsCandleSeries.setMarkers === 'function') { try { _ewsCandleSeries.setMarkers(markers); } catch(err) {} }
+
+  function pl(price, color, style, title) {
+    if (price == null) return;
+    try {
+      _ewsOverlayLines.push(_ewsCandleSeries.createPriceLine({ price: price, color: color, lineWidth: 1, lineStyle: style, axisLabelVisible: true, title: title }));
+    } catch(err) {}
+  }
+  e.fibs.forEach(function(f) {
+    if (f.r === e.targetRatio) return;
+    pl(f.v, 'rgba(139,163,199,0.55)', LightweightCharts.LineStyle.Dotted, String(f.r));
+  });
+  pl(e.target, '#60a5fa', LightweightCharts.LineStyle.Dashed, 'TARGET ' + e.targetRatio);
+  pl(e.inval, '#f87171', LightweightCharts.LineStyle.Dashed, 'INVAL.');
+}
+
+// ── Overlay onda corrente (dall'analisi AI) ─────────────────────────────────
+// Disegna SOLO l'onda in corso sull'ultima candela (es. "Wave (3) ▼") più le
+// linee di Target e Invalidation. Niente conteggio completo: quello resta
+// del motore ew_server.py con le regole validate.
+var _ewsLastCandleTime = null, _ewsLastCandleClose = null, _ewsOverlayLines = [];
+
+function ewsParseLevel(v) {
+  var m = String(v == null ? '' : v).replace(/,/g, '').match(/-?\d+(\.\d+)?/);
+  var n = m ? parseFloat(m[0]) : NaN;
+  return isFinite(n) ? n : null;
+}
+
+function ewsDrawWaveOverlay() {
+  if (!_ewsCandleSeries) return;
+  if (typeof _ewsCandleSeries.setMarkers === 'function') { try { _ewsCandleSeries.setMarkers([]); } catch(e) {} }
+  _ewsOverlayLines.forEach(function(l) { try { _ewsCandleSeries.removePriceLine(l); } catch(e) {} });
+  _ewsOverlayLines = [];
+  _ewsStructSeries.forEach(function(se) { try { _ewsChart.removeSeries(se); } catch(e) {} });
+  _ewsStructSeries = [];
+
+  // Conteggio del motore (prioritario): disegnato sempre, anche senza analisi AI
+  var eng = ewsEnginePrimary();
+  if (eng && _ewsChart) { ewsDrawEngine(eng); return; }
+
+  // Fallback: nessun conteggio valido → solo l'onda dichiarata dall'AI
+  var r = _ewsLastResult;
+  if (!r || r.asset !== _ewsAsset || r.tf !== _ewsTf || _ewsLastCandleTime === null) return;
+  var j = r.json || {};
+  var bear = j.bias === 'bearish', bull = j.bias === 'bullish';
+  var col = bear ? '#f87171' : bull ? '#34d399' : '#8ba3c7';
+
+  // Etichetta onda sull'ultima candela
+  // Normalizza l'etichetta: "Wave (3)", "C of ABC", "wave c" → "3" / "C"
+  var wr = String(j.wave || '').toUpperCase().replace(/WAVE/g, ' ');
+  var wm = wr.match(/(?:^|[^A-Z0-9])([1-5]|[ABCWXY])(?![A-Z0-9])/);
+  var w = wm ? wm[1] : (/ABC/.test(wr) ? 'ABC' : '');
+  var corrective = /[ABCWXY]/.test(w) || /correct/i.test(j.structure || '');
+  var structTag = corrective ? (/[WXY]/.test(w) ? ' · WXY' : ' · ABC') : '';
+  if (w && typeof _ewsCandleSeries.setMarkers === 'function') {
+    try {
+      _ewsCandleSeries.setMarkers([{
+        time: _ewsLastCandleTime,
+        position: bear ? 'belowBar' : 'aboveBar',
+        color: col,
+        shape: bear ? 'arrowDown' : bull ? 'arrowUp' : 'circle',
+        text: (w === 'ABC' ? 'ABC' : 'Wave (' + w + ')') + (bear ? ' ▼' : bull ? ' ▲' : '') + (w === 'ABC' ? '' : structTag),
+        size: 2
+      }]);
+    } catch(e) {}
+  }
+
+  // Linee Target / Invalidation (scartate se assurde rispetto al prezzo)
+  function addLine(val, color, title) {
+    var n = ewsParseLevel(val);
+    if (n === null || !_ewsLastCandleClose || Math.abs(n / _ewsLastCandleClose - 1) > 0.5) return;
+    try {
+      _ewsOverlayLines.push(_ewsCandleSeries.createPriceLine({
+        price: n, color: color, lineWidth: 1,
+        lineStyle: LightweightCharts.LineStyle.Dashed,
+        axisLabelVisible: true, title: title
+      }));
+    } catch(e) {}
+  }
+  addLine(j.target, '#60a5fa', 'TARGET');
+  addLine(j.invalidation, '#f87171', 'INVAL.');
 }
 
 function ewsSelectAsset(sym, name, bias, btn) {
@@ -4507,11 +4830,14 @@ async function ewsRunAnalysis() {
     // Build prompt and call AI via existing runAIAnalysis logic
     var WORKER = 'https://xenos-ai-proxy.xenosfinance.workers.dev';
     var price = document.getElementById('ews-live-price').textContent;
+    var eng = await ewsEnsureEngine();
     var prompt = 'You are a senior Elliott Wave analyst. Analyse ' + _ewsAssetName + ' on the ' + _ewsTf + ' timeframe.' +
       (price && price !== '—' ? ' Current price: ' + price + '.' : '') +
+      (eng ? ewsEnginePromptBlock(eng) : '') +
       ' Provide:\n1. Current wave count (which wave are we in?)\n2. Bias: bullish, bearish, or neutral\n3. Conviction score 1-5 stars\n4. Probability score X/5\n5. Key target level\n6. Invalidation level\n7. Full analysis (3-5 sentences)\n\n' +
       'Reply in this exact JSON format:\n' +
-      '{"wave":"3","bias":"bearish","conviction":4,"probability":4,"target":"1.0650","invalidation":"1.1050","summary":"One sentence summary.","analysis":"Full 3-5 sentence professional analysis."}';
+      'Rules: "wave" must be ONE label only (1, 2, 3, 4, 5, A, B, C, W, X or Y) — the wave currently in progress. "structure" is "impulse" or "correction". "bias" is the direction of the wave in progress.\n' +
+      '{"wave":"3","structure":"impulse","bias":"bearish","conviction":4,"probability":4,"target":"1.0650","invalidation":"1.1050","summary":"One sentence summary.","analysis":"Full 3-5 sentence professional analysis."}';
 
     var _ewsUseFree = !isPremium() && !isAdmin() && isFreeUnlocked();
     var r = await fetch(WORKER, {
@@ -4543,6 +4869,8 @@ async function ewsRunAnalysis() {
     } catch(e) {}
 
     if (json) {
+      // Il conteggio del motore vince sempre su quello dell'AI
+      if (eng) ewsApplyEngineToJson(json, eng);
       // Update all panels
       ewsSetBias(json.bias || 'neutral');
       ewsSetScores(json.conviction || 3, json.probability || 3);
@@ -4569,6 +4897,7 @@ async function ewsRunAnalysis() {
 
       // Store result for Telegram / Save-as-Active-Setup actions
       _ewsLastResult = { asset: _ewsAsset, assetName: _ewsAssetName, tf: _ewsTf, price: price, json: json };
+      ewsDrawWaveOverlay();
       ewsRefreshAdminButtons();
     } else {
       status.textContent = 'Could not parse AI response. Try again.';
