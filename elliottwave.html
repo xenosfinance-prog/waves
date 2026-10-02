@@ -4497,15 +4497,17 @@ function ewsEngineDescribe(m, zz, candles, deg) {
   // Target = primo livello non ancora raggiunto nella direzione dell'onda in corso
   var cur = p[k - 1], tgt = null;
   for (var i = 0; i < fibs.length; i++) { if ((fibs[i].v - cur) * waveDir > 0) { tgt = fibs[i]; break; } }
-  if (!tgt && fibs.length) tgt = fibs[fibs.length - 1];
+  var reached = false;
+  if (!tgt && fibs.length) { tgt = fibs[fibs.length - 1]; reached = true; }   // onda già oltre tutti i livelli
   return {
     degree: deg.name, len: deg.len, k: k, wave: wave,
     trend: d > 0 ? 'bullish' : 'bearish',
     structure: corrective ? 'correction' : 'impulse',
     waveUp: waveDir > 0,
-    bias: biasDir > 0 ? 'bullish' : 'bearish',
+    bias: (reached && ['3', '5', 'A', 'C'].indexOf(wave) >= 0) ? 'neutral' : (biasDir > 0 ? 'bullish' : 'bearish'),
     pivots: pts.map(function(z, idx) { return { label: EWS_WAVE_LABELS[idx], i: z.i, p: z.p, time: candles[z.i].datetime }; }),
-    fibs: fibs, fibBasis: basis, target: tgt ? tgt.v : null, targetRatio: tgt ? tgt.r : null, inval: inval
+    fibs: fibs, fibBasis: basis, target: tgt ? tgt.v : null, targetRatio: tgt ? tgt.r : null, inval: inval,
+    targetsReached: reached
   };
 }
 
@@ -4548,7 +4550,7 @@ function ewsEnginePromptBlock(e) {
     '- Degree: ' + e.degree + '. Trend of the impulse: ' + e.trend + '. Wave in progress: ' + e.wave + ' (' + e.structure + ').\n' +
     '- Pivots: ' + piv + '.\n' +
     '- Fibonacci levels (' + e.fibBasis + '): ' + e.fibs.map(function(x) { return x.r + ' = ' + f(x.v); }).join(', ') + '.\n' +
-    '- Target: ' + f(e.target) + '. Invalidation: ' + f(e.inval) + '. Setup bias: ' + e.bias + '.\n' +
+    '- Target: ' + f(e.target) + (e.targetsReached ? ' (already reached — wave completion likely, no new entry)' : '') + '. Invalidation: ' + f(e.inval) + '. Setup bias: ' + e.bias + '.\n' +
     (others ? '- Other degrees: ' + others + '.\n' : '') +
     'Use exactly this wave, structure, bias, target and invalidation. Only cite Fibonacci ratios and prices listed above — never invent others. ' +
     'Your job: judge conviction and probability, and write the summary and analysis commenting this count.\n';
@@ -4613,7 +4615,7 @@ function ewsDrawEngine(e) {
     if (f.r === e.targetRatio) return;
     pl(f.v, 'rgba(139,163,199,0.55)', LightweightCharts.LineStyle.Dotted, String(f.r));
   });
-  pl(e.target, '#60a5fa', LightweightCharts.LineStyle.Dashed, 'TARGET ' + e.targetRatio);
+  pl(e.target, '#60a5fa', LightweightCharts.LineStyle.Dashed, 'TARGET ' + e.targetRatio + (e.targetsReached ? ' (reached)' : ''));
   pl(e.inval, '#f87171', LightweightCharts.LineStyle.Dashed, 'INVAL.');
 }
 
