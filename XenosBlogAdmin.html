@@ -1281,6 +1281,63 @@ function copyArticle() {
 // ── TELEGRAM ──
 function toggleTgConfig() { document.getElementById('tgConfig').classList.toggle('open'); }
 
+// FIX 2026-10: "Bad Request: message is too long" — Telegram accetta max 4096
+// caratteri per messaggio e un articolo completo li supera. Ora l'articolo viene
+// diviso in più messaggi (≤ 3900 caratteri), tagliando su sezioni/paragrafi,
+// numerati (1/3, 2/3…), inviati in sequenza; i pulsanti solo sull'ultimo.
+var TG_MAX_CHUNK = 3900;
+
+function tgPlain(t) {
+  t = String(t == null ? '' : t);
+  if (!/<[a-z!\/][^>]*>/i.test(t)) return t;
+  var d = document.createElement('div');
+  d.innerHTML = t.replace(/<br\s*\/?>/gi, '\n').replace(/<\/(p|div|h[1-6]|li)>/gi, '\n\n');
+  return (d.textContent || '').replace(/\n{3,}/g, '\n\n').trim();
+}
+
+// Spezza un blocco troppo lungo: paragrafo → riga → fine frase → spazio → taglio netto
+function tgSplitBlock(text, max) {
+  var parts = [], rest = String(text).trim();
+  while (rest.length > max) {
+    var cut = rest.lastIndexOf('\n\n', max);
+    if (cut < max * 0.5) cut = rest.lastIndexOf('\n', max);
+    if (cut < max * 0.5) { var m = rest.slice(0, max).match(/^[\s\S]*[.!?]\s/); cut = m ? m[0].length : -1; }
+    if (cut < max * 0.3) cut = rest.lastIndexOf(' ', max);
+    if (cut <= 0) cut = max;
+    parts.push(rest.slice(0, cut).trim());
+    rest = rest.slice(cut).trim();
+  }
+  if (rest) parts.push(rest);
+  return parts;
+}
+
+function tgBuildChunks(a) {
+  var footer = '━━━━━━━━━━━━━━━\n📡 XenosFinance — Elliott Wave · Markets · Macro\nhttps://t.me/xenoswavefinance\n🔔 Enable notifications to stay updated';
+  var blocks = [];
+  blocks.push(tgPlain(a.title) + '\n\n' + tgPlain(a.categoryLabel) + ' · XenosFinance\n\n' + tgPlain(a.intro));
+  (a.sections || []).forEach(function(sec) {
+    blocks.push('——— ' + tgPlain(sec.heading).toUpperCase() + ' ———\n' + tgPlain(sec.content));
+  });
+  var closing = '';
+  if (a.quote) closing += '"' + tgPlain(a.quote) + '"\n\n';
+  if (a.conclusion) closing += '✦ ' + tgPlain(a.conclusion);
+  if (closing) blocks.push(closing.trim());
+  blocks.push(footer);
+
+  var limit = TG_MAX_CHUNK - 12;   // spazio per l'etichetta "(1/3)"
+  var chunks = [], cur = '';
+  blocks.forEach(function(b) {
+    tgSplitBlock(b, limit).forEach(function(piece) {
+      if (!cur) { cur = piece; return; }
+      if ((cur + '\n\n' + piece).length <= limit) cur += '\n\n' + piece;
+      else { chunks.push(cur); cur = piece; }
+    });
+  });
+  if (cur) chunks.push(cur);
+  if (chunks.length > 1) chunks = chunks.map(function(c, i) { return '(' + (i + 1) + '/' + chunks.length + ')\n' + c; });
+  return chunks;
+}
+
 async function sendToTelegram() {
   if (!currentArticle) return;
   var token   = document.getElementById('tgToken').value.trim();
@@ -1289,23 +1346,33 @@ async function sendToTelegram() {
   var btn = document.getElementById('tgSendBtn');
   if (!token || !channel) { tgStatus.textContent = '⚠ Enter token and channel ID'; return; }
   btn.disabled = true;
-  tgStatus.textContent = 'Sending...';
-  var msg = currentArticle.title + '\n\n' + currentArticle.categoryLabel + ' · XenosFinance\n\n' + currentArticle.intro + '\n\n';
-  currentArticle.sections.forEach(function(s){ msg += '——— ' + s.heading.toUpperCase() + ' ———\n' + s.content + '\n\n'; });
-  msg += '"' + currentArticle.quote + '"\n\n✦ ' + currentArticle.conclusion + '\n\n━━━━━━━━━━━━━━━\n📡 XenosFinance — Elliott Wave · Markets · Macro\nhttps://t.me/xenoswavefinance\n🔔 Enable notifications to stay updated';
+
+  var chunks = tgBuildChunks(currentArticle);
+  var keyboard = { inline_keyboard:[[{text:'✦ AI Blog',url:'https://xenosfinance.com/XenosBlog'},{text:'📊 Charts',url:'https://xenosfinance.com/xenoswaves_charts'},{text:'📰 News',url:'https://xenosfinance.com'}]] };
+  var sent = 0, failed = null;
   try {
-    var res = await fetch(WORKER_URL, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ type:'telegram', token:token, chat_id:channel, text:msg,
-        reply_markup:{ inline_keyboard:[[{text:'✦ AI Blog',url:'https://xenosfinance.com/XenosBlog'},{text:'📊 Charts',url:'https://xenosfinance.com/xenoswaves_charts'},{text:'📰 News',url:'https://xenosfinance.com'}]] }
-      })
-    });
-    var data = await res.json();
-    if (data.ok) { tgStatus.textContent='✓ Published to channel!'; document.getElementById('tgConfig').classList.remove('open'); }
-    else tgStatus.textContent = '⚠ ' + (data.description||'Check token and channel ID');
-  } catch(e) { tgStatus.textContent = '⚠ Connection error: ' + e.message; }
+    for (var i = 0; i < chunks.length; i++) {
+      tgStatus.textContent = 'Sending ' + (i + 1) + '/' + chunks.length + '...';
+      var payload = { type:'telegram', token:token, chat_id:channel, text:chunks[i] };
+      if (i === chunks.length - 1) payload.reply_markup = keyboard;
+      var res = await fetch(WORKER_URL, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(payload)
+      });
+      var data = await res.json();
+      if (!data.ok) { failed = 'part ' + (i + 1) + '/' + chunks.length + ': ' + (data.description || 'Check token and channel ID'); break; }
+      sent++;
+      if (i < chunks.length - 1) await new Promise(function(r) { setTimeout(r, 700); });  // evita il rate limit
+    }
+    if (failed) {
+      tgStatus.textContent = '⚠ ' + (sent ? sent + ' sent, then failed at ' : 'Failed at ') + failed;
+    } else {
+      tgStatus.textContent = '✓ Published to channel' + (chunks.length > 1 ? ' (' + chunks.length + ' messages)' : '') + '!';
+      document.getElementById('tgConfig').classList.remove('open');
+    }
+  } catch(e) { tgStatus.textContent = '⚠ Connection error' + (sent ? ' after ' + sent + '/' + chunks.length + ' parts' : '') + ': ' + e.message; }
   btn.disabled = false;
-  setTimeout(function(){ tgStatus.textContent=''; }, 5000);
+  if (!failed) setTimeout(function(){ tgStatus.textContent=''; }, 6000);
 }
 
 // ── DELETE ARTICLE ──
