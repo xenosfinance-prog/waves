@@ -1628,6 +1628,99 @@ def ta_brief():
         return jsonify({"error": str(e)}), 500
 
 
+# ─────────────────────────────────────────────────────────
+# EARNINGS CALENDAR — dashboard US Stocks (2026-10-02)
+# Data della prossima trimestrale per i titoli della dashboard, da yfinance
+# (Ticker.calendar). Cache 6 ore per titolo (le date cambiano raramente);
+# un errore viene ritentato dopo 30 minuti. Le richieste sono in parallelo
+# (8 thread) per non rallentare il caricamento della pagina.
+# ─────────────────────────────────────────────────────────
+import re as _re
+import time as _time
+from datetime import date as _date, datetime as _dt
+from concurrent.futures import ThreadPoolExecutor as _TPE
+
+_EARN_CACHE = {}
+_EARN_TTL = 6 * 3600
+_EARN_RETRY = 30 * 60
+
+
+def _to_date(x):
+    try:
+        if isinstance(x, _dt):
+            return x.date()
+        if isinstance(x, _date):
+            return x
+        return pd.Timestamp(x).date()
+    except Exception:
+        return None
+
+
+def _num(x):
+    try:
+        v = float(x)
+        return None if np.isnan(v) else v
+    except Exception:
+        return None
+
+
+def _earnings_one(sym):
+    try:
+        cal = yf.Ticker(sym).calendar
+    except Exception as e:
+        logger.warning(f"[earnings] {sym}: {e}")
+        return None
+    dates, eps, rev = [], None, None
+    if isinstance(cal, dict):
+        raw = cal.get("Earnings Date") or []
+        dates = raw if isinstance(raw, (list, tuple)) else [raw]
+        eps, rev = cal.get("Earnings Average"), cal.get("Revenue Average")
+    elif cal is not None and hasattr(cal, "empty") and not cal.empty:
+        # versioni vecchie di yfinance: DataFrame con le voci come indice
+        try:
+            if "Earnings Date" in cal.index:
+                dates = list(cal.loc["Earnings Date"].values)
+                eps = cal.loc["Earnings Average"].values[0] if "Earnings Average" in cal.index else None
+                rev = cal.loc["Revenue Average"].values[0] if "Revenue Average" in cal.index else None
+        except Exception:
+            pass
+    today = _dt.utcnow().date()
+    ds = sorted(d for d in (_to_date(x) for x in dates) if d and d >= today)
+    if not ds:
+        return {"date": None}
+    return {"date": ds[0].isoformat(),
+            "date_end": ds[-1].isoformat() if ds[-1] != ds[0] else None,  # finestra stimata
+            "eps_est": _num(eps), "rev_est": _num(rev)}
+
+
+@app.route("/earnings", methods=["POST", "OPTIONS"])
+def earnings_calendar():
+    if request.method == "OPTIONS":
+        return Response(status=200)
+    body = request.get_json(force=True) or {}
+    syms = [str(x).upper() for x in (body.get("symbols") or [])
+            if _re.fullmatch(r"[A-Za-z0-9.\-]{1,10}", str(x))][:80]
+    now = _time.time()
+    out, todo = {}, []
+    for sym in syms:
+        c = _EARN_CACHE.get(sym)
+        if c and now - c[0] < _EARN_TTL:
+            if c[1] is not None:
+                out[sym] = c[1]
+        else:
+            todo.append(sym)
+    if todo:
+        with _TPE(max_workers=8) as ex:
+            for sym, res in zip(todo, ex.map(_earnings_one, todo)):
+                if res is None:
+                    _EARN_CACHE[sym] = (now - _EARN_TTL + _EARN_RETRY, None)
+                else:
+                    _EARN_CACHE[sym] = (now, res)
+                    out[sym] = res
+        logger.info(f"[earnings] fetched {len(todo)} symbols, {sum(1 for s in todo if s in out)} ok")
+    return jsonify({"earnings": out})
+
+
 if __name__ == "__main__":
     port = int(os.getenv("PORT", os.getenv("EW_PORT",5001)))
     logger.info(f"EW Server v3 on port {port}")
