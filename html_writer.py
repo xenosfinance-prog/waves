@@ -533,7 +533,7 @@ a:hover {{ color: var(--ink); }}
     <div class="footer-links">
       <a href="https://xenosfinance.com" data-i18n="nav_news_plain">Home</a>
       <a href="https://xenosfinance.com/dashboard" data-i18n="nav_dashboard_plain">Dashboard</a>
-      <a href="https://t.me/xenosfin" target="_blank">Telegram</a>
+      <a href="https://t.me/xenoswavefinance" target="_blank">Telegram</a>
       <a href="https://xenosfinance.com/premium-support"><span data-i18n="label_premium_tier">Premium</span></a>
     </div>
     <span><span data-i18n="label_not_investment_advice">⚠ Not investment advice</span></span>
