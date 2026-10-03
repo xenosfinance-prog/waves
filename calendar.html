@@ -1609,8 +1609,10 @@ function calCanon(name) {
   if (/core durable/.test(n)) return 'coredurable';
   if (/durable goods/.test(n)) return 'durable';
   if (/\bapi\b.*crude/.test(n)) return 'api_crude';
+  if (/cushing/.test(n)) return 'eia_cushing';
   if (/crude oil (inventor|stock)/.test(n)) return 'eia_crude';
   if (/gasoline (inventor|stock)/.test(n)) return 'eia_gas';
+  if (/distillate (fuel )?(inventor|stock)/.test(n)) return 'eia_dist';
   if (/natural gas storage/.test(n)) return 'natgas';
   if (/ism manufacturing/.test(n)) return 'ism_mfg';
   if (/ism (services|non.?manufacturing)/.test(n)) return 'ism_svc';
@@ -1637,7 +1639,9 @@ async function applyOfficialActuals() {
     EVENTS.forEach(ev => {
       if (String(ev.country || '').toUpperCase() !== 'USD') return;
       const k = calCanon(ev.name);
-      const hit = list.find(a => a.key === k && a.release_date === ev.date);
+      // Report EIA settimanali: con festività USA escono un giorno dopo → tolleranza ±1 giorno
+      const _dd = (a, b) => Math.abs((new Date(a + 'T12:00:00Z') - new Date(b + 'T12:00:00Z')) / 86400000);
+      const hit = list.find(a => a.key === k && (a.release_date === ev.date || (a.tolerance_days && _dd(a.release_date, ev.date) <= a.tolerance_days)));
       if (!hit) return;
       const manualKey = 'xf_actual_' + ev.date + '_' + String(ev.name).slice(0, 20).replace(/\s/g, '_');
       if (localStorage.getItem(manualKey)) return;
