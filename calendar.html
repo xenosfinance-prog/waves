@@ -1561,6 +1561,92 @@ Maximum 3 key_levels.`;
 const WORKER_URL = 'https://xenos-ai-proxy.xenosfinance.workers.dev';
 let liveByNameDate = {};  // "normalizedname|date" -> actual
 
+// ── FIX 2026-10: fuso orario, doppioni tra fonti, actual ufficiali (FRED) ──────────
+// 1) Gli orari live venivano presi con slice(11,16) ignorando il fuso del timestamp:
+//    ora ogni timestamp con offset (Z / +02:00 / -04:00) viene convertito in ora italiana.
+// 2) Lo stesso dato arrivava con nomi diversi dalle fonti ("US Non-Farm Payrolls" vs
+//    "Non-Farm Employment Change", "Initial Jobless Claims" vs "Unemployment Claims")
+//    → righe doppie. Ora ogni evento ha una chiave canonica; i doppioni vengono uniti
+//    e il forecast/previous mancante viene preso dall'altra fonte.
+// 3) Actual USA dalle serie ufficiali FRED (BLS, BEA, Census, Fed, EIA) via Worker.
+const CAL_TZ = 'Europe/Rome';
+const _calTzFmt = new Intl.DateTimeFormat('en-CA', { timeZone: CAL_TZ, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+
+function calToLocal(raw) {
+  const s = String(raw || '').trim();
+  if (/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2}(\.\d+)?)?\s*(Z|[+-]\d{2}:?\d{2})$/i.test(s)) {
+    const d = new Date(s.replace(' ', 'T').replace(/([+-]\d{2})(\d{2})$/, '$1:$2'));
+    if (!isNaN(d)) {
+      const p = {}; _calTzFmt.formatToParts(d).forEach(x => { p[x.type] = x.value; });
+      return { date: p.year + '-' + p.month + '-' + p.day, time: p.hour + ':' + p.minute };
+    }
+  }
+  return { date: s.slice(0, 10), time: s.length >= 16 ? s.slice(11, 16) : s.slice(0, 5) };
+}
+
+function calCanon(name) {
+  const n = String(name || '').toLowerCase().replace(/\s+/g, ' ').trim();
+  const per = /y\/y|yoy|year/.test(n) ? 'yy' : 'mm';
+  if (/\badp\b/.test(n)) return 'adp';
+  if (/non.?farm/.test(n)) return 'nfp';
+  if (/unemployment rate/.test(n)) return 'unrate';
+  if (/continuing/.test(n)) return 'contclaims';
+  if (/jobless claims|unemployment claims/.test(n)) return 'claims';
+  if (/average hourly earnings/.test(n)) return 'ahe_' + per;
+  if (/jolts/.test(n)) return 'jolts';
+  if (/core pce/.test(n)) return 'corepce_' + per;
+  if (/pce price/.test(n)) return 'pce_' + per;
+  if (/core cpi/.test(n)) return 'corecpi_' + per;
+  if (/\bcpi\b/.test(n)) return 'cpi_' + per;
+  if (/core ppi/.test(n)) return 'coreppi_' + per;
+  if (/\bppi\b/.test(n)) return 'ppi_' + per;
+  if (/core retail sales/.test(n)) return 'coreretail';
+  if (/retail sales/.test(n)) return 'retail';
+  if (/\bgdp\b/.test(n)) return 'gdp_' + (/y\/y/.test(n) ? 'yy' : n.match(/m\/m/) ? 'mm' : 'qq');
+  if (/industrial production/.test(n)) return 'indpro';
+  if (/building permits/.test(n)) return 'permits';
+  if (/housing starts/.test(n)) return 'starts';
+  if (/core durable/.test(n)) return 'coredurable';
+  if (/durable goods/.test(n)) return 'durable';
+  if (/\bapi\b.*crude/.test(n)) return 'api_crude';
+  if (/crude oil (inventor|stock)/.test(n)) return 'eia_crude';
+  if (/gasoline (inventor|stock)/.test(n)) return 'eia_gas';
+  if (/natural gas storage/.test(n)) return 'natgas';
+  if (/ism manufacturing/.test(n)) return 'ism_mfg';
+  if (/ism (services|non.?manufacturing)/.test(n)) return 'ism_svc';
+  if (/consumer confidence/.test(n)) return 'consconf';
+  if (/michigan|uom consumer sentiment|prelim uom/.test(n)) return 'umich';
+  return n.replace(/^(us|eu|uk|eurozone|german|japan|canada|australia|swiss|china)\s+/, '')
+          .replace(/\((flash|prelim|advance|final|2nd est)\)/g, '').replace(/[^a-z0-9/ ]/g, '').trim();
+}
+
+const _isBlank = v => !v || v === '—' || v === '-' || v === 'TBD';
+
+// Applica gli actual ufficiali FRED agli eventi USA (dove la data di pubblicazione coincide)
+async function applyOfficialActuals() {
+  try {
+    const r = await fetch(WORKER_URL, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'fred_actuals' }),
+      signal: (() => { const c = new AbortController(); setTimeout(() => c.abort(), 9000); return c.signal; })()
+    });
+    if (!r.ok) return;
+    const d = await r.json();
+    const list = d.actuals || [];
+    if (!list.length) { if (d.error) console.warn('FRED actuals:', d.error); return; }
+    EVENTS.forEach(ev => {
+      if (String(ev.country || '').toUpperCase() !== 'USD') return;
+      const k = calCanon(ev.name);
+      const hit = list.find(a => a.key === k && a.release_date === ev.date);
+      if (!hit) return;
+      const manualKey = 'xf_actual_' + ev.date + '_' + String(ev.name).slice(0, 20).replace(/\s/g, '_');
+      if (localStorage.getItem(manualKey)) return;
+      ev.actual = hit.actual;
+      ev._official = hit.source || 'FRED';
+    });
+  } catch (e) { console.warn('FRED actuals:', e.message); }
+}
+
 function normalizeEventName(s) {
   return s.toLowerCase().replace(/\s+/g,' ').replace(/[^a-z0-9 ]/g,'').trim().slice(0,30);
 }
@@ -1598,6 +1684,10 @@ async function fetchLiveCalendar(weekStr) {
   function findMatchingEvent(dateRaw, name, country) {
     let existing = EVENTS.find(e => evKey(e.date, e.name, e.country) === evKey(dateRaw, name, country));
     if (existing) return existing;
+    const cn = calCanon(name), cc = String(country || '').toUpperCase();
+    existing = EVENTS.find(e => e.date === dateRaw && calCanon(e.name) === cn &&
+      (!cc || !e.country || String(e.country).toUpperCase() === cc || String(e.country).toUpperCase() === ({US:'USD',EU:'EUR',GB:'GBP',UK:'GBP',JP:'JPY',CA:'CAD',AU:'AUD',CH:'CHF'})[cc]));
+    if (existing) return existing;
     const nameWords = name.toLowerCase().split(/\s+/).filter(w => w.length > 3);
     if (!nameWords.length) return null;
     return EVENTS.find(e => {
@@ -1615,7 +1705,7 @@ async function fetchLiveCalendar(weekStr) {
     events.forEach(ev => {
       const actual = String(ev[actualField] || ev.actual || '').trim();
       if (!actual || actual === '—') return;
-      const dateRaw = String(ev[dateField] || ev.date || ev.time || '').slice(0,10);
+      const dateRaw = calToLocal(ev[dateField] || ev.date || ev.time || '').date;
       const name = String(ev[nameField] || ev.event || ev.name || '').trim();
       const country = String(ev.country || ev.currency || '').trim();
       if (!dateRaw || !name) return;
@@ -1643,13 +1733,25 @@ async function fetchLiveCalendar(weekStr) {
       const nameLower = name.toLowerCase();
       const skipWords = ['easter','christmas','holiday','closed','orthodox','coptic','election','parliamentary','presidential','independence day','thanksgiving','new year','ramadan','eid','diwali','hanukkah','kwanzaa','boxing day','labour day','labor day','veterans day','memorial day','columbus day','martin luther','inauguration','coronation','funeral','observance'];
       if (skipWords.some(w => nameLower.includes(w))) return;
-      const dateRaw = String(ev[cfg.date]||ev.date||ev.time||'').slice(0,10);
+      const _loc = calToLocal(ev[cfg.date]||ev.date||ev.time||'');
+      const dateRaw = _loc.date;
       if (!dateRaw.match(/^\d{4}-\d{2}-\d{2}/)) return;
       const date = dateRaw.slice(0,10);
       if (!weekDays.includes(date)) return;
       const country = mapCountry(ev[cfg.country]||ev.country||ev.currency||'');
       const key = evKey(date, name, country);
       if (existingKeys.has(key)) return;
+      // Stesso dato con un altro nome (es. "Non-Farm Employment Change" = "US Non-Farm Payrolls"):
+      // niente riga doppia — si completano forecast/previous dell'evento già presente.
+      const _cn = calCanon(name);
+      const _twin = EVENTS.find(e => e.date === date && String(e.country||'').toUpperCase() === country && calCanon(e.name) === _cn);
+      if (_twin) {
+        const _fc = String(ev[cfg.forecast]||ev.forecast||ev.estimate||'').slice(0,12);
+        const _pv = String(ev[cfg.prev]||ev.previous||ev.revised||'').slice(0,12);
+        if (_isBlank(_twin.forecast) && !_isBlank(_fc)) _twin.forecast = _fc;
+        if (_isBlank(_twin.prev) && !_isBlank(_pv)) _twin.prev = _pv;
+        return;
+      }
       // Fuzzy check: skip if same date, same country, and name starts the same
       // (catches "EIA Crude Oil Inventories" vs "EIA Crude Oil Inventory")
       const fuzzyKey = date + '|' + country + '|' + name.toLowerCase().slice(0,20);
@@ -1671,8 +1773,7 @@ async function fetchLiveCalendar(weekStr) {
       existingKeys.add(key);
       existingFuzzy.add(fuzzyKey);
       const impact  = mapImpact(ev[cfg.impact]||ev.impact||ev.importance||'');
-      const timeRaw = String(ev[cfg.time]||ev.time||'');
-      const time    = timeRaw.length>=16 ? timeRaw.slice(11,16) : timeRaw.slice(0,5);
+      const time    = calToLocal(ev[cfg.time]||ev.time||'').time;
       EVENTS.push({
         date, time:(time.match(/^\d{2}:\d{2}$/)?time:'--:--'),
         country, flag:COUNTRY_FLAG[country]||'🌐', name,
@@ -1856,6 +1957,8 @@ async function refreshActuals(_isRetry) {
     fetchLiveCalendar('week2'),
     fetchLiveCalendar('week3'),
   ]);
+  // Actual ufficiali (FRED) dopo le fonti live, poi quelli manuali (vincono sempre)
+  await applyOfficialActuals();
   // Re-apply manual actuals AFTER live fetch — manual data always wins
   loadSavedActuals();
   renderWeekTabs();
