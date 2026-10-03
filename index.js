@@ -1,10 +1,30 @@
 // ============================================================
-//  XenosFinance — Cloudflare Worker v2.10
+//  XenosFinance — Cloudflare Worker v2.11
+//  Changes vs v2.10:
+//  - NEW type:'fred_actuals' — official US actuals (NFP, Unemployment
+//    Rate, Avg Hourly Earnings, Jobless Claims, JOLTS, CPI, PCE, PPI,
+//    Retail Sales, Industrial Production, Housing Starts, Building
+//    Permits, Durable Goods, GDP, EIA crude/gasoline stocks) from FRED
+//    (sources: BLS, BEA, Census, Fed, EIA). Used by calendar.html.
+//    Requires the secret FRED_API_KEY. Cached 10 min.
+//  - FIX ForexFactory times +2h in the calendar: the FF XML feed
+//    already gives times in GMT/UTC, but parseForexFactoryXML added +4h
+//    (treating them as New York time) and then labelled them "Z".
+//    NFP (12:30 UTC) became 16:30Z → shown as 16:30 instead of 14:30.
+//    Now the feed time is used as UTC (no shift, no day-wrap bug);
+//    events without a clock time ("All Day", "Tentative") return the
+//    date only, so the calendar shows "--:--" instead of a fake 12:00.
+//  - FIX Telegram "Bad Request: can't parse entities": type:'telegram'
+//    always sent parse_mode HTML, so plain-text messages containing
+//    "&" or "<" (e.g. "S&P 500", "M&A", "R/R < 1") were rejected.
+//    Now: an explicit body.parse_mode is respected; if none is given,
+//    HTML is used only when the text actually contains HTML tags,
+//    otherwise the message is sent as plain text.
 //  Changes vs v2.9:
 //  - Removed Stripe entirely (helpers, /stripe-webhook route,
 //    stripe-create-checkout / stripe-create-portal handlers).
-//    Card payments are requested privately via the Telegram bot
-//    (link sent on request, never published on the site).
+//    Card payments now go through an external Privat24 link
+//    on premium.html / premium-support.html.
 //  Changes vs v2.8:
 //  - Fixed "delete-idea" / "delete-ew-signal" always returning
 //    401/403 Unauthorized: both checks compared admin_pwd against
@@ -49,7 +69,7 @@ const SECURITY_HEADERS = {
   "X-XSS-Protection":          "1; mode=block",
   "Referrer-Policy":            "strict-origin-when-cross-origin",
   "Permissions-Policy":         "camera=(), microphone=(), geolocation=(), payment=()",
-  "Content-Security-Policy":    "default-src 'self'; connect-src 'self' https://api.anthropic.com https://finnhub.io https://api.twelvedata.com https://api.massive.com https://query1.finance.yahoo.com https://api.frankfurter.app https://api.coingecko.com https://api.github.com https://raw.githubusercontent.com https://api.telegram.org https://nfs.faireconomy.media https://economic-trading-forex-events-calendar.p.rapidapi.com https://sbcharts.investing.com https://www.barchart.com https://feeds.reuters.com; img-src *; font-src *; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';",
+  "Content-Security-Policy":    "default-src 'self'; connect-src 'self' https://api.anthropic.com https://finnhub.io https://api.twelvedata.com https://api.massive.com https://query1.finance.yahoo.com https://api.frankfurter.app https://api.coingecko.com https://api.github.com https://raw.githubusercontent.com https://api.telegram.org https://nfs.faireconomy.media https://economic-trading-forex-events-calendar.p.rapidapi.com https://sbcharts.investing.com https://www.barchart.com https://feeds.reuters.com https://api.stlouisfed.org; img-src *; font-src *; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';",
 };
 
 const rateLimitMap = new Map();
@@ -218,13 +238,123 @@ function fxRateFromData(rates,base,quote){if(base==="EUR"&&rates[quote])return r
 async function frankfurterFXWithChange(pair){const base=pair.slice(0,3);const quote=pair.slice(3,6);const today=getISODate(0);const yesterday=getISODate(1);const[resToday,resYesterday]=await Promise.all([fetch(`https://api.frankfurter.app/${today}?base=EUR`,{headers:{"User-Agent":"XenosFinance/1.0"}}),fetch(`https://api.frankfurter.app/${yesterday}?base=EUR`,{headers:{"User-Agent":"XenosFinance/1.0"}})]);const[dataToday,dataYesterday]=await Promise.all([resToday.json(),resYesterday.json()]);const rToday=dataToday.rates||{};const rYesterday=dataYesterday.rates||{};const rateToday=fxRateFromData(rToday,base,quote);const rateYesterday=fxRateFromData(rYesterday,base,quote);if(rateToday==null)throw new Error(`Frankfurter: no rate for ${pair}`);const dec=pair.includes("JPY")?3:5;const change_pct=(rateYesterday&&rateYesterday>0)?parseFloat(((rateToday-rateYesterday)/rateYesterday*100).toFixed(3)):0;return{price:parseFloat(rateToday.toFixed(dec)),change_pct,change:rateYesterday?parseFloat((rateToday-rateYesterday).toFixed(6)):0};}
 
 async function fetchForexFactoryXML(week){const feedUrl=`https://nfs.faireconomy.media/ff_calendar_${week}.xml`;const cache=caches.default;const cacheKey=new Request(`https://xenos-cache.internal/ff_${week}`);const cached=await cache.match(cacheKey);if(cached){const xml=await cached.text();if(xml&&xml.length>200)return parseForexFactoryXML(xml);}const res=await fetch(feedUrl,{headers:{"User-Agent":"Mozilla/5.0 (compatible; XenosFinance/1.0)","Accept":"application/xml, text/xml, */*"}});if(!res.ok)throw new Error(`ForexFactory HTTP ${res.status}`);const xml=await res.text();await cache.put(cacheKey,new Response(xml,{headers:{"Content-Type":"text/xml","Cache-Control":"public, max-age=480"}}));return parseForexFactoryXML(xml);}
-function parseForexFactoryXML(xml){if(!xml||xml.length<200)throw new Error('ForexFactory: empty response');const events=[];const eventBlocks=xml.match(/<event>([\s\S]*?)<\/event>/g)||[];for(const block of eventBlocks){const get=(tag)=>{const m=block.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`));return m?m[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g,'$1').trim():'';};const impact=get('impact');if(!['High','Medium'].includes(impact))continue;const dateRaw=get('date');const timeRaw=get('time');const country=get('country');const title=get('title');const dm=dateRaw.match(/^(\d{2})-(\d{2})-(\d{4})$/);if(!dm)continue;const isoDay=`${dm[3]}-${dm[1]}-${dm[2]}`;let timeUTC='T12:00:00Z';const tm=timeRaw.toLowerCase().replace(/\s/g,'').match(/^(\d{1,2}):(\d{2})(am|pm)$/);if(tm){let h=parseInt(tm[1]);const m=parseInt(tm[2]);if(tm[3]==='pm'&&h!==12)h+=12;if(tm[3]==='am'&&h===12)h=0;const hUTC=(h+4)%24;timeUTC=`T${String(hUTC).padStart(2,'0')}:${String(m).padStart(2,'00')}:00Z`;}events.push({id:`ff_${isoDay}_${title.slice(0,20).replace(/\s/g,'_')}`,time:isoDay+timeUTC,country:country.toUpperCase(),event:title,impact:impact.toLowerCase(),actual:get('actual')||null,estimate:get('forecast')||null,prev:get('previous')||null});}return events;}
+
+// FIX v2.11: il feed XML di ForexFactory dà già gli orari in GMT/UTC
+// (es. NFP "12:30pm" = 08:30 New York). Prima veniva aggiunto +4h come
+// se fosse ora di New York → tutto il calendario spostato di +2h in Italia
+// (NFP alle 16:30 invece che alle 14:30). Ora l'orario del feed è usato
+// come UTC; gli eventi senza orario ("All Day", "Tentative") tornano con
+// la sola data, così il calendario mostra "--:--" invece di un 12:00 finto.
+function parseForexFactoryXML(xml){
+  if(!xml||xml.length<200)throw new Error('ForexFactory: empty response');
+  const events=[];
+  const eventBlocks=xml.match(/<event>([\s\S]*?)<\/event>/g)||[];
+  for(const block of eventBlocks){
+    const get=(tag)=>{const m=block.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`));return m?m[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g,'$1').trim():'';};
+    const impact=get('impact');
+    if(!['High','Medium'].includes(impact))continue;
+    const dateRaw=get('date');const timeRaw=get('time');const country=get('country');const title=get('title');
+    const dm=dateRaw.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+    if(!dm)continue;
+    const isoDay=`${dm[3]}-${dm[1]}-${dm[2]}`;
+    let time=isoDay;   // senza orario → solo data
+    const tm=timeRaw.toLowerCase().replace(/\s/g,'').match(/^(\d{1,2}):(\d{2})(am|pm)$/);
+    if(tm){
+      let h=parseInt(tm[1],10);const m=parseInt(tm[2],10);
+      if(tm[3]==='pm'&&h!==12)h+=12;
+      if(tm[3]==='am'&&h===12)h=0;
+      time=`${isoDay}T${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:00Z`;
+    }
+    events.push({id:`ff_${isoDay}_${title.slice(0,20).replace(/\s/g,'_')}`,time,country:country.toUpperCase(),event:title,impact:impact.toLowerCase(),actual:get('actual')||null,estimate:get('forecast')||null,prev:get('previous')||null});
+  }
+  return events;
+}
 
 const RSS_WHITELIST = ['barchart.com', 'reuters.com', 'cnbc.com', 'feeds.reuters.com'];
 async function fetchRSSFeed(feedUrl){const isAllowed=RSS_WHITELIST.some(d=>feedUrl.includes(d));if(!isAllowed)throw new Error("Feed URL not whitelisted");const cached=getCached('rss:'+feedUrl,10*60*1000);if(cached)return cached;const res=await fetch(feedUrl,{headers:{"User-Agent":"Mozilla/5.0 (compatible; XenosFinance/1.0)","Accept":"application/rss+xml, application/xml, text/xml, */*","Referer":"https://xenosfinance.com/"},cf:{cacheTtl:600,cacheEverything:true}});if(!res.ok)throw new Error(`RSS HTTP ${res.status}`);const xml=await res.text();if(!xml||xml.length<100)throw new Error("RSS: empty response");const items=[];const itemBlocks=xml.match(/<item>([\s\S]*?)<\/item>/g)||[];for(const block of itemBlocks.slice(0,20)){const get=(tag)=>{const m=block.match(new RegExp(`<${tag}[^>]*><!\\[CDATA\\[([\\s\\S]*?)\\]\\]><\\/${tag}>|<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`));return m?(m[1]||m[2]||'').trim():'';};const title=get('title');const desc=get('description').replace(/<[^>]+>/g,'').trim();const link=get('link');if(!title||title.length<5)continue;items.push({title,desc:desc.substring(0,300),link});}setCache('rss:'+feedUrl,items);return items;}
 
 async function fhEconomicCalendar(from,to,apiKey){const res=await fetch(`https://finnhub.io/api/v1/calendar/economic?from=${from}&to=${to}&token=${apiKey}`,{headers:{"User-Agent":"XenosFinance/1.0"}});if(!res.ok)throw new Error(`Finnhub calendar HTTP ${res.status}`);const data=await res.json();const raw=data.economicCalendar||data.economic_calendar||data.calendar||[];return raw.map((e,i)=>({id:e.id||'fh_'+i,time:e.time||e.date||'',country:(e.country||'').toUpperCase(),event:e.event||e.name||'',impact:(e.impact||'').toLowerCase()==='high'?'high':(e.impact||'').toLowerCase()==='medium'?'medium':'low',actual:(e.actual!=null&&e.actual!=='')?String(e.actual):null,estimate:(e.estimate!=null&&e.estimate!=='')?String(e.estimate):null,prev:(e.prev!=null&&e.prev!=='')?String(e.prev):null}));}
 async function fetchInvestingCalendar(from,to){const fromTs=Math.floor(new Date(from).getTime()/1000);const toTs=Math.floor(new Date(to+'T23:59:59Z').getTime()/1000);const res=await fetch(`https://sbcharts.investing.com/events_charts/us/economic_events_calendar.json?from=${fromTs}&to=${toTs}&significance=2&significance=3`,{headers:{'User-Agent':'Mozilla/5.0 (compatible; XenosFinance/1.0)','Accept':'application/json','Referer':'https://www.investing.com/economic-calendar/','X-Requested-With':'XMLHttpRequest'},cf:{cacheTtl:300,cacheEverything:true}});if(!res.ok)throw new Error(`Investing.com HTTP ${res.status}`);const data=await res.json();const raw=Array.isArray(data)?data:(data.data||data.events||[]);return raw.map((e,i)=>({id:'inv_'+(e.id||i),time:e.date||e.dateUtc||'',country:(e.currency||e.countryCode||'').toUpperCase(),event:e.name||e.event||'',impact:(e.significance||e.importance||0)>=3?'high':(e.significance||e.importance||0)>=2?'medium':'low',actual:(e.actual!=null&&e.actual!=='')?String(e.actual):null,estimate:(e.forecast!=null&&e.forecast!=='')?String(e.forecast):null,prev:(e.previous!=null&&e.previous!=='')?String(e.previous):null})).filter(e=>e.event);}
+
+// ── FRED: ACTUAL UFFICIALI USA (v2.11) ─────────────────────────────
+// Ogni chiave corrisponde a calCanon() in calendar.html.
+// release_date = realtime_start dell'ultima osservazione = giorno in
+// cui FRED ha pubblicato il dato: il calendario assegna l'actual solo
+// all'evento di quel giorno, quindi mai un valore vecchio su un evento nuovo.
+const FRED_SPECS = [
+  { key: 'nfp',        series: 'PAYEMS',          fmt: 'chg_k'     },  // Non-Farm Payrolls (BLS)
+  { key: 'unrate',     series: 'UNRATE',          fmt: 'level_pct' },  // Unemployment Rate (BLS)
+  { key: 'ahe_mm',     series: 'CES0500000003',   fmt: 'mm_pct'    },  // Avg Hourly Earnings m/m (BLS)
+  { key: 'ahe_yy',     series: 'CES0500000003',   fmt: 'yy_pct'    },
+  { key: 'claims',     series: 'ICSA',            fmt: 'units_k'   },  // Initial Jobless Claims (DOL)
+  { key: 'contclaims', series: 'CCSA',            fmt: 'units_m'   },  // Continuing Claims (DOL)
+  { key: 'jolts',      series: 'JTSJOL',          fmt: 'k_to_m'    },  // JOLTS Job Openings (BLS)
+  { key: 'cpi_mm',     series: 'CPIAUCSL',        fmt: 'mm_pct'    },  // CPI (BLS)
+  { key: 'cpi_yy',     series: 'CPIAUCSL',        fmt: 'yy_pct'    },
+  { key: 'corecpi_mm', series: 'CPILFESL',        fmt: 'mm_pct'    },
+  { key: 'corecpi_yy', series: 'CPILFESL',        fmt: 'yy_pct'    },
+  { key: 'pce_mm',     series: 'PCEPI',           fmt: 'mm_pct'    },  // PCE (BEA)
+  { key: 'pce_yy',     series: 'PCEPI',           fmt: 'yy_pct'    },
+  { key: 'corepce_mm', series: 'PCEPILFE',        fmt: 'mm_pct'    },
+  { key: 'corepce_yy', series: 'PCEPILFE',        fmt: 'yy_pct'    },
+  { key: 'ppi_mm',     series: 'PPIFIS',          fmt: 'mm_pct'    },  // PPI final demand (BLS)
+  { key: 'ppi_yy',     series: 'PPIFIS',          fmt: 'yy_pct'    },
+  { key: 'retail',     series: 'RSAFS',           fmt: 'mm_pct'    },  // Retail Sales (Census)
+  { key: 'indpro',     series: 'INDPRO',          fmt: 'mm_pct'    },  // Industrial Production (Fed)
+  { key: 'starts',     series: 'HOUST',           fmt: 'k_to_m'    },  // Housing Starts (Census)
+  { key: 'permits',    series: 'PERMIT',          fmt: 'k_to_m'    },  // Building Permits (Census)
+  { key: 'durable',    series: 'DGORDER',         fmt: 'mm_pct'    },  // Durable Goods Orders (Census)
+  { key: 'gdp_qq',     series: 'A191RL1Q225SBEA', fmt: 'level_pct' },  // GDP q/q annualizzato (BEA)
+  { key: 'eia_crude',  series: 'WCESTUS1',        fmt: 'chg_kbbl'  },  // EIA crude stocks, var. settimanale
+  { key: 'eia_gas',    series: 'WGTSTUS1',        fmt: 'chg_kbbl'  },  // EIA gasoline stocks, var. settimanale
+];
+const FRED_TTL_MS = 10 * 60 * 1000;   // la pagina calendario si aggiorna ogni 5 min
+let _fredCache = { ts: 0, data: null };
+
+function fredFormat(fmt, obs) {
+  const v = obs.map(o => parseFloat(o.value));
+  const n0 = v[0], n1 = v[1], n12 = v[12];
+  const pct = x => x.toFixed(1) + '%';
+  switch (fmt) {
+    case 'chg_k':     return isFinite(n1) ? Math.round(n0 - n1) + 'K' : null;         // migliaia → var. in K
+    case 'level_pct': return n0.toFixed(1) + '%';
+    case 'mm_pct':    return isFinite(n1) && n1 ? pct((n0 / n1 - 1) * 100) : null;
+    case 'yy_pct':    return isFinite(n12) && n12 ? pct((n0 / n12 - 1) * 100) : null;
+    case 'units_k':   return Math.round(n0 / 1000) + 'K';                              // persone → K
+    case 'units_m':   return (n0 / 1e6).toFixed(3) + 'M';                              // persone → M
+    case 'k_to_m':    return (n0 / 1000).toFixed(2) + 'M';                             // migliaia → M
+    case 'chg_kbbl':  return isFinite(n1) ? ((n0 - n1) / 1000).toFixed(3) + 'M' : null; // migl. barili → var. in M
+  }
+  return null;
+}
+
+async function fetchFredActuals(apiKey) {
+  if (_fredCache.data && Date.now() - _fredCache.ts < FRED_TTL_MS) return { actuals: _fredCache.data, cached: true };
+  const seriesIds = [...new Set(FRED_SPECS.map(s => s.series))];
+  const bySeries = {};
+  const errors = [];
+  await Promise.all(seriesIds.map(async id => {
+    try {
+      const url = 'https://api.stlouisfed.org/fred/series/observations'
+        + '?series_id=' + id + '&api_key=' + apiKey
+        + '&file_type=json&sort_order=desc&limit=14';
+      const r = await fetch(url, { headers: { "User-Agent": "XenosFinance/1.0" } });
+      if (!r.ok) { errors.push(`${id}: HTTP ${r.status}`); return; }
+      const j = await r.json();
+      bySeries[id] = (j.observations || []).filter(o => o.value !== '.' && isFinite(parseFloat(o.value)));
+    } catch (e) { errors.push(`${id}: ${e.message}`); }
+  }));
+  const actuals = [];
+  for (const spec of FRED_SPECS) {
+    const obs = bySeries[spec.series];
+    if (!obs || !obs.length) continue;
+    const actual = fredFormat(spec.fmt, obs);
+    if (!actual || actual.includes('NaN')) continue;
+    actuals.push({ key: spec.key, release_date: obs[0].realtime_start, period: obs[0].date, actual, series: spec.series, source: 'FRED' });
+  }
+  if (actuals.length) _fredCache = { ts: Date.now(), data: actuals };   // non mette in cache un risultato vuoto
+  return { actuals, cached: false, errors: errors.length ? errors : undefined };
+}
 
 // ── GEMINI FREE TOOL (blog, whitelist, key isolata dal pipeline) ──
 // Whitelist da riempire con le email autorizzate (arrivano lunedì).
@@ -417,6 +547,13 @@ export default {
         catch(e) { return json({ events: [], error: e.message }); }
       }
 
+      // ── FRED: actual ufficiali USA per il calendario (v2.11) ──
+      if (body.type === "fred_actuals") {
+        if (!env.FRED_API_KEY) return json({ actuals: [], error: "FRED_API_KEY not configured in Worker env" });
+        try { return json(await fetchFredActuals(env.FRED_API_KEY)); }
+        catch(e) { return json({ actuals: [], error: e.message }); }
+      }
+
       if (body.type === "barchart" || body.type === "rss") {
         const feedUrl = body.url;
         if (!feedUrl) return json({ items: [], error: "Missing feed URL" });
@@ -453,10 +590,19 @@ export default {
         const botToken = env.TELEGRAM_BOT_TOKEN;
         const channelId = env.TELEGRAM_CHANNEL_ID;
         if (!botToken || !channelId) return json({ ok: false, description: "Telegram env vars not configured" }, 500);
+        // FIX v2.11: parse_mode HTML solo se richiesto o se il testo contiene
+        // davvero tag HTML. Prima era sempre HTML → un "&" o "<" in un testo
+        // semplice ("S&P 500", "M&A", "R/R < 1") faceva rifiutare il messaggio.
+        const text = String(body.text || "");
+        const looksHtml = /<\/?(b|i|u|s|a|code|pre|strong|em|ins|del|strike|blockquote|tg-spoiler|span)\b/i.test(text);
+        const parseMode = (body.parse_mode !== undefined) ? (body.parse_mode || null) : (looksHtml ? "HTML" : null);
+        const tgPayload = { chat_id: channelId, text, disable_web_page_preview: true };
+        if (parseMode) tgPayload.parse_mode = parseMode;
+        if (body.reply_markup) tgPayload.reply_markup = body.reply_markup;
         const r = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ chat_id: channelId, text: body.text, parse_mode: body.parse_mode || "HTML", disable_web_page_preview: true, reply_markup: body.reply_markup })
+          body: JSON.stringify(tgPayload)
         });
         return json(await r.json());
       }
