@@ -1792,30 +1792,10 @@ async function fetchLiveCalendar(weekStr) {
     });
   }
 
-  // 1. Investing.com (free, no API key) — patch actuals + add new events
-  let finnhubOk = false, rapidapiOk = false, finnhubErr = null, rapidapiErr = null;
-  try {
-    const r = await fetch(WORKER_URL, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ type:'investing', from, to }),
-      signal:(()=>{const c=new AbortController();setTimeout(()=>c.abort(),8000);return c.signal;})()
-    });
-    if (r.ok) {
-      const d = await r.json();
-      const evs = d.events || [];
-      if (d.error) { console.warn('Investing.com calendar error:', d.error); finnhubErr = 'api:' + d.error; }
-      if (evs.length > 0) {
-        finnhubOk = true;
-        patchActuals(evs, 'event', 'time', 'actual');
-        addNewEvents(evs, {name:'event',date:'time',time:'time',impact:'impact',country:'country',forecast:'estimate',prev:'prev',actual:'actual'});
-      } else if (!finnhubErr) {
-        finnhubErr = 'empty-response';
-      }
-    } else {
-      console.warn('Investing.com calendar HTTP', r.status);
-      finnhubErr = 'http:' + r.status;
-    }
-  } catch(e) { console.warn('Investing.com calendar:', e.message); finnhubErr = 'network:' + e.message; }
+  // FIX 2026-10: rimosse le chiamate a Investing.com (endpoint chiuso → sempre 404)
+  // e RapidAPI (a pagamento, nessun abbonamento → sempre 402): solo richieste inutili
+  // e avvisi in console. Fonti attive: ForexFactory (eventi/forecast) + FRED (actual USA).
+  let finnhubOk = false, rapidapiOk = false, finnhubErr = 'removed', rapidapiErr = null;
 
   // 2. ForexFactory (free, no API key) — patch actuals only
   try {
@@ -1829,7 +1809,11 @@ async function fetchLiveCalendar(weekStr) {
       if (r0.ok) {
         const d0 = await r0.json();
         const evs0 = d0.events || [];
-        if (d0.error) { console.warn('ForexFactory calendar error:', d0.error); rapidapiErr = 'api:' + d0.error; }
+        if (d0.error) {
+          rapidapiErr = 'api:' + d0.error;
+          // Il feed della settimana prossima esce solo a fine settimana: un 404 lì è normale
+          if (ffWeek === 'thisweek') console.warn('ForexFactory calendar error:', d0.error);
+        }
         if (evs0.length > 0 && !d0.error) {
           rapidapiOk = true;
           patchActuals(evs0, 'event', 'time', 'actual');
@@ -1841,7 +1825,6 @@ async function fetchLiveCalendar(weekStr) {
           rapidapiErr = 'empty-response';
         }
       } else {
-        console.warn('ForexFactory calendar HTTP', r0.status);
         rapidapiErr = 'http:' + r0.status;
       }
     } else {
@@ -1850,33 +1833,7 @@ async function fetchLiveCalendar(weekStr) {
     }
   } catch(e) { console.warn('ForexFactory calendar:', e.message); rapidapiErr = 'network:' + e.message; }
 
-  // 3. RapidAPI economic calendar (real API, not a scraper) — used as a
-  // resilient third source since investing.com/forexfactory are both
-  // unofficial endpoints that can silently break (as happened Sep 2026).
-  // Requires RAPIDAPI_KEY to be set in the Worker's environment variables.
-  let rapidCalOk = false, rapidCalErr = null;
-  try {
-    const rc = await fetch(WORKER_URL, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ type:'rapidapi_calendar' }),
-      signal:(()=>{const c=new AbortController();setTimeout(()=>c.abort(),8000);return c.signal;})()
-    });
-    if (rc.ok) {
-      const dc = await rc.json();
-      const evsc = dc.events || [];
-      if (dc.error) { console.warn('RapidAPI calendar error:', dc.error); rapidCalErr = 'api:' + dc.error; }
-      if (evsc.length > 0) {
-        rapidCalOk = true;
-        patchActuals(evsc, 'event', 'time', 'actual');
-        addNewEvents(evsc, {name:'event',date:'time',time:'time',impact:'impact',country:'country',forecast:'estimate',prev:'prev',actual:'actual'});
-      } else if (!rapidCalErr) {
-        rapidCalErr = 'empty-response';
-      }
-    } else {
-      console.warn('RapidAPI calendar HTTP', rc.status);
-      rapidCalErr = 'http:' + rc.status;
-    }
-  } catch(e) { console.warn('RapidAPI calendar:', e.message); rapidCalErr = 'network:' + e.message; }
+  const rapidCalOk = false, rapidCalErr = 'removed';
 
   return { finnhubOk, rapidapiOk, finnhubErr, rapidapiErr, rapidCalOk, rapidCalErr };
 }
