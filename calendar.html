@@ -1837,7 +1837,26 @@ async function fetchLiveCalendar(weekStr) {
     }
   } catch(e) { console.warn('ForexFactory calendar:', e.message); rapidapiErr = 'network:' + e.message; }
 
-  const rapidCalOk = false, rapidCalErr = 'removed';
+  // FIX 2026-10: il feed ForexFactory copre solo la settimana corrente → la settimana
+  // prossima (e le successive) restavano vuote. Il Worker fornisce le date ufficiali
+  // delle pubblicazioni USA (calendario FRED) + gli appuntamenti EIA settimanali.
+  // I doppioni con ForexFactory/lista statica vengono scartati da addNewEvents (chiave canonica).
+  let rapidCalOk = false, rapidCalErr = null;
+  try {
+    const rs = await fetch(WORKER_URL, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ type:'fred_schedule', from, to }),
+      signal:(()=>{const c=new AbortController();setTimeout(()=>c.abort(),9000);return c.signal;})()
+    });
+    const ds = await rs.json();
+    const evs = ds.events || [];
+    if (evs.length) {
+      rapidCalOk = true;
+      addNewEvents(evs, {name:'event',date:'time',time:'time',impact:'impact',country:'country',forecast:'estimate',prev:'prev',actual:'actual'});
+    } else {
+      rapidCalErr = ds.error ? 'api:' + ds.error : 'empty-response';
+    }
+  } catch(e) { rapidCalErr = 'network:' + e.message; }
 
   return { finnhubOk, rapidapiOk, finnhubErr, rapidapiErr, rapidCalOk, rapidCalErr };
 }
