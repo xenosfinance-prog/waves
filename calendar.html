@@ -1630,7 +1630,8 @@ async function applyOfficialActuals() {
     const r = await fetch(WORKER_URL, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ type: 'fred_actuals' }),
-      signal: (() => { const c = new AbortController(); setTimeout(() => c.abort(), 9000); return c.signal; })()
+      // FIX 2026-10: 9s non bastavano a FRED + EIA a cache fredda → nessun actual
+      signal: (() => { const c = new AbortController(); setTimeout(() => c.abort(), 25000); return c.signal; })()
     });
     if (!r.ok) return;
     const d = await r.json();
@@ -1803,11 +1804,15 @@ async function fetchLiveCalendar(weekStr) {
 
   // 2. ForexFactory (free, no API key) — patch actuals only
   try {
-    const ffWeek = weekStr === 'nextweek' ? 'nextweek' : weekStr === 'thisweek' ? 'thisweek' : null;
+    // FIX 2026-10: il feed ForexFactory passa alla nuova settimana la domenica.
+    // Si chiede sempre il feed corrente + l'archivio del Worker per le date di
+    // questa settimana di calendario: così la settimana appena finita non perde
+    // eventi e forecast, e nel weekend la settimana prossima è già coperta.
+    const ffWeek = (weekStr === 'thisweek' || weekStr === 'nextweek') ? 'thisweek' : null;
     if (ffWeek) {
       const r0 = await fetch(WORKER_URL, {
         method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ type:'forexfactory', week: ffWeek }),
+        body: JSON.stringify({ type:'forexfactory', week: ffWeek, from, to }),
         signal:(()=>{const c=new AbortController();setTimeout(()=>c.abort(),8000);return c.signal;})()
       });
       if (r0.ok) {
@@ -1816,9 +1821,9 @@ async function fetchLiveCalendar(weekStr) {
         if (d0.error) {
           rapidapiErr = 'api:' + d0.error;
           // Il feed della settimana prossima esce solo a fine settimana: un 404 lì è normale
-          if (ffWeek === 'thisweek') console.warn('ForexFactory calendar error:', d0.error);
+          if (weekStr === 'thisweek' && !evs0.length) console.warn('ForexFactory calendar error:', d0.error);
         }
-        if (evs0.length > 0 && !d0.error) {
+        if (evs0.length > 0) {
           rapidapiOk = true;
           patchActuals(evs0, 'event', 'time', 'actual');
           // ForexFactory is the more reliable free source (no scraping/blocking issues
