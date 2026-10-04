@@ -1647,6 +1647,7 @@ async function applyOfficialActuals() {
       const manualKey = 'xf_actual_' + ev.date + '_' + String(ev.name).slice(0, 20).replace(/\s/g, '_');
       if (localStorage.getItem(manualKey)) return;
       ev.actual = hit.actual;
+      if (_isBlank(ev.prev) && hit.previous) ev.prev = hit.previous;   // previous ufficiale se manca
       ev._official = hit.source || 'FRED';
     });
   } catch (e) { console.warn('FRED actuals:', e.message); }
