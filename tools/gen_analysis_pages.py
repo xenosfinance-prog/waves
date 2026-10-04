@@ -63,6 +63,31 @@ MEMBER_NAME = {"prev_high": "Previous-day high", "prev_low": "Previous-day low",
                "swing_high": "Swing high", "swing_low": "Swing low", "ew_inv": "Elliott invalidation"}
 REGIME = {"above_cloud": "above the cloud", "below_cloud": "below the cloud", "inside_cloud": "inside the cloud"}
 
+# 2026-10: intestazione chiara (il bias è su 1H/4H, la pagina si aggiorna ogni giorno)
+TF_LABEL = "Daily refresh · 1H/4H technical bias"
+
+# 2026-10: spread Brent–WTI (calcolato in main quando ci sono entrambi i prezzi)
+SPREAD = None
+
+
+def market_closed(now, group):
+    """Forex, materie prime e indici chiusi nel weekend (ven 21:00 UTC → dom 22:00 UTC). Crypto sempre aperte."""
+    if group == "Crypto":
+        return False
+    wd, h = now.weekday(), now.hour
+    return wd == 5 or (wd == 6 and h < 22) or (wd == 4 and h >= 21)
+
+
+def spread_html():
+    """Riga sullo spread Brent–WTI: spiega perché i due benchmark possono avere bias diversi sull'1H."""
+    if not SPREAD:
+        return ""
+    v = SPREAD
+    side = "Brent premium" if v >= 0 else "WTI premium"
+    return (f'<p class="spread">Brent–WTI spread: <b>${abs(v):.2f}</b> ({side}). '
+            "The two benchmarks usually move together, but on 1-hour charts they can show different biases "
+            "while the spread is widening or narrowing.</p>")
+
 
 def esc(t):
     return html.escape(str(t if t is not None else ""), quote=True)
@@ -211,7 +236,11 @@ def build_instrument_page(inst, d, ai, now, all_rows):
 
     b = [f'<div class="crumb"><a href="/">Home</a> › <a href="/analysis">Daily Analysis</a> › {esc(name)}</div>',
          f"<h1>{esc(name)} Technical Analysis Today</h1>",
-         f'<div class="upd">Updated {now.strftime("%d %b %Y, %H:%M")} UTC · 1-hour chart with 4-hour context · {esc(group)}</div>']
+         f'<div class="upd">Updated {now.strftime("%d %b %Y, %H:%M")} UTC · {TF_LABEL} · {esc(group)}</div>']
+    if market_closed(now, group):
+        b.append('<div class="upd">Market closed — data as of Friday close</div>')
+    if slug in ("wti-crude-oil", "brent-crude-oil"):
+        b.append(spread_html())
     if ai and ai.get("headline"):
         b.append(f'<div class="headline">{esc(ai["headline"])}</div>')
     b.append(f'<div class="px">{esc(short)} <b>{f(d["live"])}</b>'
@@ -346,7 +375,9 @@ def build_index(rows, now):
     desc = "Daily technical analysis for Gold, Oil, Forex, Bitcoin and stock indices: bias, confluence zones, Elliott Wave and trade scenarios with risk/reward. Updated twice a day."
     b = ['<div class="crumb"><a href="/">Home</a> › Daily Analysis</div>',
          "<h1>Daily Technical Analysis</h1>",
-         f'<div class="upd">Updated {now.strftime("%d %b %Y, %H:%M")} UTC · 1-hour charts with 4-hour context</div>',
+         f'<div class="upd">Updated {now.strftime("%d %b %Y, %H:%M")} UTC · {TF_LABEL}</div>',
+         ('<div class="upd">Market closed — Forex, Commodities and Indices show data as of Friday close; Crypto is live.</div>'
+          if market_closed(now, "Forex") else ""),
          "<p>Every analysis is built by the XenosFinance engine on real market data: moving averages, SuperTrend, MACD, RSI, Fibonacci, "
          "Ichimoku and an Elliott Wave count combine into confluence zones and trade scenarios with calculated risk/reward. "
          "Pages are refreshed twice a day for market analysis and trading education.</p>"]
@@ -361,6 +392,8 @@ def build_index(rows, now):
             b.append(f'<tr><td><a href="/analysis/{slug}">{esc(name)}</a></td><td>{esc(price)}</td>'
                      f'<td class="{cls}">{esc(bias.capitalize() if bias else "—")}</td><td>{esc(s1 or "—")}</td><td>{esc(r1 or "—")}</td></tr>')
         b.append("</table>")
+        if g == "Commodities":
+            b.append(spread_html())
     jsonld = [{"@context": "https://schema.org", "@type": "CollectionPage", "name": "Daily Technical Analysis",
                "description": desc, "url": url, "dateModified": now.strftime("%Y-%m-%dT%H:%M:%SZ")}]
     return page_shell(title, desc, url, "\n".join(b), jsonld,
@@ -405,6 +438,11 @@ def main():
     if not built:
         print("Nothing built — aborting without changes.")
         return 1
+    global SPREAD
+    px = {inst[0]: d.get("live") for inst, d, ai in built}
+    if px.get("wti-crude-oil") and px.get("brent-crude-oil"):
+        SPREAD = float(px["brent-crude-oil"]) - float(px["wti-crude-oil"])
+        print(f"  Brent–WTI spread: {SPREAD:+.2f}")
     for inst, d, ai in built:
         path = os.path.join(OUT_DIR, f"{inst[0]}.html")
         with open(path, "w", encoding="utf-8") as fh:
