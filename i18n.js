@@ -1833,9 +1833,12 @@ const XENOS_I18N = {
 (function () {
   var SUPPORT_URL = 'https://t.me/XenosFIN_bot?start=support';
   var TXT = {
-    en: { btn: '☕ Support', foot: 'XenosFinance is independent — no sponsors, no brokers, no ads.', link: '☕ Support XenosFinance' },
-    ru: { btn: '☕ Поддержать', foot: 'XenosFinance независим — без спонсоров, брокеров и рекламы.', link: '☕ Поддержать XenosFinance' },
-    it: { btn: '☕ Supporta', foot: 'XenosFinance è indipendente — niente sponsor, broker o pubblicità.', link: '☕ Supporta XenosFinance' }
+    en: { btn: '☕ Support', foot: 'XenosFinance is independent — no sponsors, no brokers, no ads.', link: '☕ Support XenosFinance',
+          token: 'XenosFinance has never issued any cryptocurrency or token. Any coin or token using the name "Xenos Finance" or the ticker XNF is not affiliated with us.' },
+    ru: { btn: '☕ Поддержать', foot: 'XenosFinance независим — без спонсоров, брокеров и рекламы.', link: '☕ Поддержать XenosFinance',
+          token: 'XenosFinance никогда не выпускал криптовалюту или токены. Любая монета или токен с названием «Xenos Finance» или тикером XNF не имеет к нам отношения.' },
+    it: { btn: '☕ Supporta', foot: 'XenosFinance è indipendente — niente sponsor, broker o pubblicità.', link: '☕ Supporta XenosFinance',
+          token: 'XenosFinance non ha mai emesso criptovalute o token. Qualsiasi moneta o token con il nome "Xenos Finance" o il ticker XNF non è collegato a noi.' }
   };
   function lang() {
     try { var l = (localStorage.getItem('xenos_lang') || document.documentElement.lang || 'en').slice(0, 2).toLowerCase(); return TXT[l] ? l : 'en'; }
@@ -1879,6 +1882,12 @@ const XENOS_I18N = {
     a.textContent = t.link;
     a.style.cssText = 'color:#f59e0b;text-decoration:none;font-weight:600;border:1px solid rgba(245,158,11,.45);padding:5px 12px;margin-left:6px;display:inline-block;';
     d.appendChild(a);
+    // 2026-10: avviso anti-confusione — esiste un token "Xenos Finance" (XNF) non collegato al sito
+    var tk = document.createElement('div');
+    tk.id = 'xf-no-token';
+    tk.style.cssText = 'margin-top:12px;font-size:10px;letter-spacing:.3px;color:#6b7f9e;max-width:760px;margin-left:auto;margin-right:auto;line-height:1.6;';
+    tk.textContent = '⚠ ' + t.token;
+    d.appendChild(tk);
     document.body.appendChild(d);
   }
   function init() {
