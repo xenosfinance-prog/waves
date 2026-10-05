@@ -88,7 +88,8 @@ body{background:var(--bg);color:var(--ink);font-family:var(--mono);min-height:10
 .charts-row{display:grid;grid-template-columns:2fr 1fr;gap:1px;background:var(--border);border:1px solid var(--border);margin-bottom:28px;}
 .chart-card{background:var(--bg2);padding:22px;}
 .chart-label{font-size:8px;letter-spacing:3px;color:var(--muted);text-transform:uppercase;margin-bottom:16px;}
-.chart-wrap{position:relative;height:180px;}
+.chart-wrap{position:relative;height:240px;width:100%;min-width:0;}
+.chart-card{min-width:0;}
 
 /* ── SECTION HEADER ── */
 .section-hdr{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--bg2);border:1px solid var(--border);border-bottom:none;}
@@ -422,7 +423,7 @@ textarea{resize:vertical;min-height:70px;}
       <div class="chart-wrap"><canvas id="equityChart"></canvas></div>
     </div>
     <div class="chart-card">
-      <div class="chart-label">Allocation by Category</div>
+      <div class="chart-label" id="pieLabel">Allocation by Category</div>
       <div class="chart-wrap"><canvas id="pieChart"></canvas></div>
     </div>
   </div>
@@ -915,7 +916,29 @@ function renderKPI(open, closed) {
   }
 }
 
+// FIX 2026-10: grafici vuoti finché non si ricaricava la pagina.
+// Se Chart.js (CDN) non è ancora pronto, o il contenitore non ha ancora la sua
+// larghezza (layout/font in caricamento, pagina ripristinata dalla cache del
+// browser con "Indietro"), il disegno falliva o usciva a dimensione zero e
+// nessuno lo rifaceva. Ora: nuovo tentativo finché Chart.js è disponibile,
+// ridimensionamento a layout pronto, e ridisegno su pageshow/font pronti.
+let _chartArgs = null, _chartRetry = 0;
 function renderCharts(closed, open) {
+  _chartArgs = [closed, open];
+  if (typeof Chart === 'undefined') {
+    if (_chartRetry++ < 20) setTimeout(() => renderCharts(..._chartArgs), 500);
+    return;
+  }
+  _chartRetry = 0;
+  _renderChartsNow(closed, open);
+  requestAnimationFrame(() => { try { equityChart && equityChart.resize(); pieChart && pieChart.resize(); } catch(e) {} });
+}
+function redrawCharts() { if (_chartArgs) { try { renderCharts(..._chartArgs); } catch(e) { console.error('[charts] redraw failed:', e); } } }
+window.addEventListener('pageshow', redrawCharts);
+window.addEventListener('load', redrawCharts);
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(redrawCharts);
+
+function _renderChartsNow(closed, open) {
   // Equity curve from closed trades sorted by close date
   const sorted = [...closed].filter(t => t.close).sort((a,b) => a.close > b.close ? 1 : -1);
   let running = 0;
@@ -937,14 +960,18 @@ function renderCharts(closed, open) {
         titleColor:'#5a7a9a', bodyColor:'#c8d8ea', borderColor:'#1e3050', borderWidth:1,
         callbacks:{ label: ctx => (ctx.parsed.y >= 0 ? '+$' : '-$') + Math.abs(ctx.parsed.y).toFixed(2) }
       }},
-      scales:{ x:{ grid:{color:'rgba(30,48,80,0.4)'}, ticks:{color:'#5a7a9a',font:{family:'IBM Plex Mono',size:9}} },
+      scales:{ x:{ grid:{color:'rgba(30,48,80,0.4)'}, ticks:{color:'#5a7a9a',font:{family:'IBM Plex Mono',size:9},autoSkip:true,maxTicksLimit:8,maxRotation:0} },
                y:{ grid:{color:'rgba(30,48,80,0.4)'}, ticks:{color:'#5a7a9a',font:{family:'IBM Plex Mono',size:9},callback:v=>'$'+v} } }
     }
   });
 
-  // Pie — open positions by category
+  // Pie — posizioni aperte per categoria; senza posizioni aperte (prima il
+  // grafico restava vuoto) mostra la ripartizione dei trade chiusi.
   const catMap = {};
-  open.forEach(t => { catMap[t.cat] = (catMap[t.cat]||0) + 1; });
+  const pieSrc = open.length ? open : closed;
+  pieSrc.forEach(t => { const k = t.cat || 'Other'; catMap[k] = (catMap[k]||0) + 1; });
+  const pl = document.getElementById('pieLabel');
+  if (pl) pl.textContent = open.length ? 'Allocation by Category — open positions' : 'Allocation by Category — closed trades';
   const pieColors = ['#3b82f6','#10b981','#f59e0b','#ef4444','#a855f7','#f97316','#06b6d4'];
   const ctx2 = document.getElementById('pieChart').getContext('2d');
   if (pieChart) pieChart.destroy();
