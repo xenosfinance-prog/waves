@@ -1822,3 +1822,68 @@ const XENOS_I18N = {
   },
 
 };
+
+// ══════════════════════════════════════════════════════════════════════════
+// ☕ SUPPORT XENOSFINANCE (2026-10) — pulsante nel menu + riga in fondo alla pagina.
+// Sta qui perché i18n.js è caricato da tutte le pagine: un solo file da modificare.
+// Il link apre il bot Telegram (?start=support): il bot invia il link di pagamento
+// con carta (importo libero) dopo l'approvazione del proprietario. Nessun dato di
+// pagamento è pubblicato sul sito.
+// ══════════════════════════════════════════════════════════════════════════
+(function () {
+  var SUPPORT_URL = 'https://t.me/XenosFIN_bot?start=support';
+  var TXT = {
+    en: { btn: '☕ Support', foot: 'XenosFinance is independent — no sponsors, no brokers, no ads.', link: '☕ Support XenosFinance' },
+    ru: { btn: '☕ Поддержать', foot: 'XenosFinance независим — без спонсоров, брокеров и рекламы.', link: '☕ Поддержать XenosFinance' },
+    it: { btn: '☕ Supporta', foot: 'XenosFinance è indipendente — niente sponsor, broker o pubblicità.', link: '☕ Supporta XenosFinance' }
+  };
+  function lang() {
+    try { var l = (localStorage.getItem('xenos_lang') || document.documentElement.lang || 'en').slice(0, 2).toLowerCase(); return TXT[l] ? l : 'en'; }
+    catch (e) { return 'en'; }
+  }
+  function addNav(t) {
+    if (document.getElementById('xf-support-nav')) return;
+    // la voce Premium del menu: si clona (stesso stile del menu di ogni pagina) e si mette subito dopo
+    var links = document.querySelectorAll('a[href*="premium"]');
+    var navA = null;
+    for (var i = 0; i < links.length; i++) {
+      if (links[i].closest && links[i].closest('nav, header, .masthead-nav, .nav, .navbar, .topnav, .nav-bar, .menu')) { navA = links[i]; break; }
+    }
+    if (!navA) return;
+    var a = navA.cloneNode(false);
+    a.id = 'xf-support-nav';
+    a.href = SUPPORT_URL;
+    a.target = '_blank';
+    a.rel = 'noopener';
+    a.removeAttribute('data-i18n');
+    a.classList && a.classList.remove('active');
+    a.textContent = t.btn;
+    var host = navA.parentNode;
+    if (host && host.tagName === 'LI') {
+      var li = host.cloneNode(false);
+      li.classList && li.classList.remove('active');
+      li.appendChild(a);
+      host.parentNode.insertBefore(li, host.nextSibling);
+    } else {
+      host.insertBefore(a, navA.nextSibling);
+    }
+  }
+  function addFooter(t) {
+    if (document.getElementById('xf-support-foot')) return;
+    var d = document.createElement('div');
+    d.id = 'xf-support-foot';
+    d.style.cssText = 'text-align:center;padding:22px 16px 30px;font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.5px;color:#8ba3c7;border-top:1px solid rgba(139,163,199,.15);margin-top:24px;';
+    d.appendChild(document.createTextNode(t.foot + ' '));
+    var a = document.createElement('a');
+    a.href = SUPPORT_URL; a.target = '_blank'; a.rel = 'noopener';
+    a.textContent = t.link;
+    a.style.cssText = 'color:#f59e0b;text-decoration:none;font-weight:600;border:1px solid rgba(245,158,11,.45);padding:5px 12px;margin-left:6px;display:inline-block;';
+    d.appendChild(a);
+    document.body.appendChild(d);
+  }
+  function init() {
+    try { var t = TXT[lang()]; addNav(t); addFooter(t); } catch (e) { /* mai bloccare la pagina */ }
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+})();
