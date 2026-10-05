@@ -1098,7 +1098,9 @@ function etfTab(name, btn) {
   document.querySelectorAll('.etf-tab').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.etf-section').forEach(s => s.classList.remove('active'));
   if (btn && typeof btn === 'object') btn.classList.add('active');
-  document.getElementById('etf-' + name).classList.add('active');
+  const sec = document.getElementById('etf-' + name);
+  if (!sec) { const h = document.getElementById('etf-heatmap'); if (h) h.classList.add('active'); return; }
+  sec.classList.add('active');
   if (name === 'search') etfSearch(document.getElementById('etf-search-input')?.value || '');
   if (name === 'themes') loadThemesPrices();
   if (name === 'vsfutures') {}
@@ -1120,6 +1122,17 @@ const ETF_DB = [
   {ticker:'USO',  name:'United States Oil Fund',        isin:'US91232N1081', wsym:'USO',     aum:'$1.4B', ter:'0.60%', bench:'WTI Crude',    type:'Commodity', dist:'None',      incep:'Apr 2006', tags:['Commodity','Oil','USD']},
   {ticker:'TLT',  name:'iShares 20+ Year Treasury',    isin:'US4642874659', wsym:'TLT',     aum:'$52B',  ter:'0.15%', bench:'ICE 20+Y US',  type:'Bond',      dist:'Monthly',   incep:'Jul 2002', tags:['Bond','Long Duration','USD']},
   {ticker:'XLK',  name:'Technology Select Sector SPDR',isin:'US81369Y8030', wsym:'XLK',     aum:'$64B',  ter:'0.09%', bench:'S&P Tech Sec.',type:'Equity',    dist:'Quarterly', incep:'Dec 1998', tags:['Equity','Technology','USD']},
+  // 2026-10: le altre Select Sector SPDR della Sector Heatmap (prima cliccandole non si apriva nulla)
+  {ticker:'XLF',  name:'Financial Select Sector SPDR',      isin:'US81369Y6059', wsym:'XLF',  aum:'—', ter:'0.09%', bench:'S&P Fin. Sec.',      type:'Equity', dist:'Quarterly', incep:'Dec 1998', tags:['Equity','Financials','USD']},
+  {ticker:'XLE',  name:'Energy Select Sector SPDR',         isin:'US81369Y5069', wsym:'XLE',  aum:'—', ter:'0.09%', bench:'S&P Energy Sec.',    type:'Equity', dist:'Quarterly', incep:'Dec 1998', tags:['Equity','Energy','USD']},
+  {ticker:'XLV',  name:'Health Care Select Sector SPDR',    isin:'US81369Y2090', wsym:'XLV',  aum:'—', ter:'0.09%', bench:'S&P Health Sec.',    type:'Equity', dist:'Quarterly', incep:'Dec 1998', tags:['Equity','Healthcare','USD']},
+  {ticker:'XLI',  name:'Industrial Select Sector SPDR',     isin:'US81369Y7046', wsym:'XLI',  aum:'—', ter:'0.09%', bench:'S&P Ind. Sec.',      type:'Equity', dist:'Quarterly', incep:'Dec 1998', tags:['Equity','Industrials','USD']},
+  {ticker:'XLY',  name:'Consumer Discretionary Select Sector SPDR', isin:'US81369Y4070', wsym:'XLY', aum:'—', ter:'0.09%', bench:'S&P Cons. Disc. Sec.', type:'Equity', dist:'Quarterly', incep:'Dec 1998', tags:['Equity','Consumer','USD']},
+  {ticker:'XLP',  name:'Consumer Staples Select Sector SPDR', isin:'US81369Y3080', wsym:'XLP', aum:'—', ter:'0.09%', bench:'S&P Cons. Stap. Sec.', type:'Equity', dist:'Quarterly', incep:'Dec 1998', tags:['Equity','Consumer','USD']},
+  {ticker:'XLU',  name:'Utilities Select Sector SPDR',      isin:'US81369Y8865', wsym:'XLU',  aum:'—', ter:'0.09%', bench:'S&P Util. Sec.',     type:'Equity', dist:'Quarterly', incep:'Dec 1998', tags:['Equity','Utilities','USD']},
+  {ticker:'XLRE', name:'Real Estate Select Sector SPDR',    isin:'US81369Y8600', wsym:'XLRE', aum:'—', ter:'0.09%', bench:'S&P Real Est. Sec.', type:'Equity', dist:'Quarterly', incep:'Oct 2015', tags:['Equity','Real Estate','USD']},
+  {ticker:'XLB',  name:'Materials Select Sector SPDR',      isin:'US81369Y1001', wsym:'XLB',  aum:'—', ter:'0.09%', bench:'S&P Mat. Sec.',      type:'Equity', dist:'Quarterly', incep:'Dec 1998', tags:['Equity','Materials','USD']},
+  {ticker:'XLC',  name:'Communication Services Select Sector SPDR', isin:'US81369Y8527', wsym:'XLC', aum:'—', ter:'0.09%', bench:'S&P Comm. Sec.', type:'Equity', dist:'Quarterly', incep:'Jun 2018', tags:['Equity','Communication','USD']},
   {ticker:'CSPX', name:'iShares Core S&P 500 UCITS',   isin:'IE00B5BMR087', wsym:'CSPX.L',  aum:'$80B',  ter:'0.07%', bench:'S&P 500',      type:'Equity',    dist:'Accumulating',incep:'May 2010',tags:['Equity','US Large Cap','USD','UCITS']},
   {ticker:'VUSA', name:'Vanguard S&P 500 UCITS ETF',   isin:'IE00B3XXRP09', wsym:'VUSA.AS', aum:'$42B',  ter:'0.07%', bench:'S&P 500',      type:'Equity',    dist:'Quarterly', incep:'May 2012', tags:['Equity','US Large Cap','EUR','UCITS']},
   {ticker:'SLV',  name:'iShares Silver Trust',          isin:'US46428Q1094', wsym:'SLV',     aum:'$10B',  ter:'0.50%', bench:'Silver Spot',  type:'Commodity', dist:'None',      incep:'Apr 2006', tags:['Commodity','Silver','USD']},
@@ -1179,12 +1192,20 @@ async function loadETFHeatmap() {
     const cls = chg == null ? 'hm-neu' : chg >= 1 ? 'hm-up' : chg <= -1 ? 'hm-dn' : chg >= 0 ? 'hm-up-mild' : 'hm-dn-mild';
     const val = chg != null ? (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%' : '—';
     const priceStr = price != null ? '$' + price.toFixed(2) : '';
-    return `<div class="hm-cell ${cls}" onclick="etfSearch('${s.sym}');etfTab('search',document.querySelectorAll('.etf-tab')[1])" style="cursor:pointer">
+    return `<div class="hm-cell ${cls}" onclick="etfHeatmapClick('${s.sym}')" style="cursor:pointer">
       <div class="hm-name">${s.name}</div>
       <div class="hm-val">${val}</div>
       ${priceStr ? `<div style="font-family:var(--mono);font-size:9px;opacity:.7;margin-top:2px">${priceStr}</div>` : ''}
     </div>`;
   }).join('');
+}
+
+// FIX 2026-10: il click su un settore chiamava etfTab('search', <pulsante Macro Themes>),
+// ma la tab "Search" non esiste più → errore, tutte le sezioni nascoste e "Macro Themes"
+// evidenziato con la pagina vuota. Ora apre direttamente la scheda dell'ETF del settore.
+function etfHeatmapClick(sym) {
+  if (ETF_DB.some(e => e.ticker === sym)) showETFInfo(sym);
+  else etfTab('top', document.querySelectorAll('.etf-tab')[3]);
 }
 
 function etfSearch(query) {
