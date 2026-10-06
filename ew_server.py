@@ -918,6 +918,48 @@ def health():
     return jsonify({"status":"ok","service":"XenosFinance EW Server v3"})
 
 # ─────────────────────────────────────────────────────────
+# 2026-10-06 — /quotes: prezzi per i simboli che il Worker
+# (xenos-ai-proxy, in sola lettura) non fornisce: Nasdaq 100 e
+# Dollar Index. Stessa forma della risposta del Worker:
+#   GET /quotes?symbols=^NDX,DX-Y.NYB
+#   → {"prices": {"^NDX": {"price": 31234.5, "change_pct": 1.42}, ...}}
+# Solo simboli in whitelist (niente proxy Yahoo aperto), cache 60 s.
+# ─────────────────────────────────────────────────────────
+QUOTES_WHITELIST = {"^NDX", "DX-Y.NYB", "^GSPC", "^IXIC"}
+QUOTES_TTL = 60
+_quotes_cache = {}
+
+def _quote(sym):
+    import time as _t
+    hit = _quotes_cache.get(sym)
+    if hit and _t.time() - hit[0] < QUOTES_TTL:
+        return hit[1]
+    hist = yf.Ticker(sym).history(period="5d", interval="1d")
+    closes = hist["Close"].dropna() if not hist.empty else []
+    if len(closes) < 2:
+        return None
+    price = float(closes.iloc[-1])
+    prev = float(closes.iloc[-2])
+    data = {"price": round(price, 4), "change_pct": round((price / prev - 1) * 100, 3)}
+    _quotes_cache[sym] = (_t.time(), data)
+    return data
+
+@app.route("/quotes", methods=["GET"])
+def quotes():
+    syms = [x.strip() for x in request.args.get("symbols", "").split(",") if x.strip()]
+    out = {}
+    for sym in syms[:10]:
+        if sym not in QUOTES_WHITELIST:
+            continue
+        try:
+            q = _quote(sym)
+            if q:
+                out[sym] = q
+        except Exception as e:
+            logger.warning(f"quotes: {sym} failed: {e}")
+    return jsonify({"prices": out})
+
+# ─────────────────────────────────────────────────────────
 # Price divergence check — flags when a live yfinance quote
 # diverges from the price stored in a published trading idea
 # by more than a configurable threshold (default 2%).
@@ -1248,18 +1290,31 @@ def ichimoku_chart():
         logger.error(f"ichimoku_chart error: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
+# 2026-10-06 — conferma RSI a ZONA invece che a estremo: non serve più
+# ipercomprato (>=70) / ipervenduto (<=30), basta che l'RSI sia NELLA
+# PARTE ALTA della scala per uno short (spazio per scendere) o NELLA PARTE
+# BASSA per un long (spazio per salire). Soglie regolabili da Railway sul
+# servizio "waves" senza toccare il codice:
+#   BB_RSI_SHORT_MIN  default 60 — short se RSI >= 60 dopo foratura banda alta
+#   BB_RSI_LONG_MAX   default 40 — long  se RSI <= 40 dopo foratura banda bassa
+# (70 / 30 = vecchia regola a estremo.)
+BB_RSI_SHORT_MIN = float(os.getenv("BB_RSI_SHORT_MIN", "60"))
+BB_RSI_LONG_MAX = float(os.getenv("BB_RSI_LONG_MAX", "40"))
+
+
 def compute_bollinger_rsi_signal(df, bb_period=20, bb_std=2, rsi_period=14,
-                                  rsi_overbought=70, rsi_oversold=30):
+                                  rsi_overbought=BB_RSI_SHORT_MIN, rsi_oversold=BB_RSI_LONG_MAX):
     """
     Two-step confirmation, per trading-strategy spec (2026-09):
       1. WARNING — the PREVIOUS candle closed outside a Bollinger Band
          (a "pierce"), and the CURRENT (latest) candle has closed back
          inside it (a "re-entry") — classic mean-reversion exhaustion:
          the move failed to sustain itself outside the band.
-      2. CONFIRMATION — at that same current candle, RSI sits in the
-         matching extreme zone: overbought after an upper-band pierce
-         (bearish confirmation) or oversold after a lower-band pierce
-         (bullish confirmation).
+      2. CONFIRMATION — RSI (on the pierce candle or the current one)
+         sits in the matching ZONE: upper part of the scale after an
+         upper-band pierce (>= BB_RSI_SHORT_MIN, room to fall → bearish)
+         or lower part after a lower-band pierce (<= BB_RSI_LONG_MAX,
+         room to rise → bullish). 2026-10-06: zone, not strict 70/30.
     Only returns an actionable direction when BOTH conditions hold on
     the same candle — a pierce+re-entry with RSI still neutral is a
     "warning" with no direction, same spirit as ew_server.py's other

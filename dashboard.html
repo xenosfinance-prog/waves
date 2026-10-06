@@ -331,8 +331,8 @@ body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:10
     <div class="card" id="card-GOLD"><div class="card-sym">GOLD</div><div class="card-price" id="cp-GOLD">--</div><div class="card-chg" id="cc-GOLD">--</div><div class="card-meta" id="cm-GOLD"><span data-i18n="label_futures_comex">Futures · COMEX</span></div><canvas class="card-spark" id="spark-GOLD"></canvas></div>
     <div class="card" id="card-EURUSD"><div class="card-sym">EUR / USD</div><div class="card-price" id="cp-EURUSD">--</div><div class="card-chg" id="cc-EURUSD">--</div><div class="card-meta" id="cm-EURUSD">Forex · Major</div><canvas class="card-spark" id="spark-EURUSD"></canvas></div>
     <div class="card" id="card-BTCUSD"><div class="card-sym">BTC / USD</div><div class="card-price" id="cp-BTCUSD">--</div><div class="card-chg" id="cc-BTCUSD">--</div><div class="card-meta" id="cm-BTCUSD">Crypto · Spot</div><canvas class="card-spark" id="spark-BTCUSD"></canvas></div>
-    <div class="card" id="card-SPY"><div class="card-sym">S&amp;P 500</div><div class="card-price" id="cp-SPY">--</div><div class="card-chg" id="cc-SPY">--</div><div class="card-meta" id="cm-SPY">Index · ETF</div><canvas class="card-spark" id="spark-SPY"></canvas></div>
-    <div class="card" id="card-NASDAQ"><div class="card-sym">NASDAQ</div><div class="card-price" id="cp-NASDAQ">--</div><div class="card-chg" id="cc-NASDAQ">--</div><div class="card-meta" id="cm-NASDAQ">Index · Composite</div><canvas class="card-spark" id="spark-NASDAQ"></canvas></div>
+    <div class="card" id="card-SPY"><div class="card-sym">S&amp;P 500</div><div class="card-price" id="cp-SPY">--</div><div class="card-chg" id="cc-SPY">--</div><div class="card-meta" id="cm-SPY">Index · Cash</div><canvas class="card-spark" id="spark-SPY"></canvas></div>
+    <div class="card" id="card-NASDAQ"><div class="card-sym" id="cs-NASDAQ">NASDAQ 100</div><div class="card-price" id="cp-NASDAQ">--</div><div class="card-chg" id="cc-NASDAQ">--</div><div class="card-meta" id="cm-NASDAQ">Index · Nasdaq 100</div><canvas class="card-spark" id="spark-NASDAQ"></canvas></div>
     <div class="card" id="card-USDJPY"><div class="card-sym">USD / JPY</div><div class="card-price" id="cp-USDJPY">--</div><div class="card-chg" id="cc-USDJPY">--</div><div class="card-meta" id="cm-USDJPY">Forex · Major</div><canvas class="card-spark" id="spark-USDJPY"></canvas></div>
     <div class="card" id="card-SILVER"><div class="card-sym">SILVER</div><div class="card-price" id="cp-SILVER">--</div><div class="card-chg" id="cc-SILVER">--</div><div class="card-meta" id="cm-SILVER">Futures · COMEX</div><canvas class="card-spark" id="spark-SILVER"></canvas></div>
   </div>
@@ -450,7 +450,7 @@ const SYMS = [
   {id:'BTCUSD',yf:'BTC-USD',    label:'BTC/USD',  name:'Bitcoin',        dec:0, prefix:'$', comma:true, cat:'Crypto'},
   {id:'ETHUSD',yf:'ETH-USD',    label:'ETH/USD',  name:'Ethereum',       dec:2, prefix:'$', comma:true, cat:'Crypto'},
   {id:'SPY',   yf:'^GSPC',      label:'S&P 500',  name:'S&P 500 Index',  dec:0, prefix:'',  comma:true, cat:'Equities'},
-  {id:'NASDAQ',yf:'^IXIC',    label:'NASDAQ',   name:'Nasdaq Composite',dec:0,prefix:'',  comma:true, cat:'Equities'},
+  {id:'NASDAQ',yf:'^NDX',     label:'NASDAQ 100', name:'Nasdaq 100',   dec:0, prefix:'',  comma:true, cat:'Equities'},
   {id:'DAX',   yf:'^GDAXI',   label:'DAX',      name:'DAX 40',         dec:0, prefix:'',  comma:true, cat:'Equities'},
   {id:'FTSE',  yf:'^FTSE',    label:'FTSE 100', name:'FTSE 100',       dec:0, prefix:'',  comma:true, cat:'Equities'},
   {id:'PLATINUM', yf:'PL%3DF',   label:'PLATINUM', name:'Platinum',       dec:2, prefix:'$', cat:'Commodities'},
@@ -502,6 +502,20 @@ const WORKER_SYM_MAP = {
   'SUGAR':    'SB=F',
   'COTTON':   'CT=F',
 };
+
+// 2026-10-06: Nasdaq 100 (^NDX) non è fornito dal Worker (in sola
+// lettura) — arriva dal server waves (/quotes). Se non risponde si usa il
+// Composite del Worker (^IXIC) con l'etichetta corretta.
+const EW_QUOTES_URL = 'https://waves-production-ddbf.up.railway.app/quotes';
+async function fetchEwQuotes(syms) {
+  try {
+    const r = await fetch(EW_QUOTES_URL + '?symbols=' + encodeURIComponent(syms.join(',')), {
+      cache: 'no-store', signal: AbortSignal.timeout(15000)
+    });
+    if (!r.ok) return {};
+    return (await r.json()).prices || {};
+  } catch (e) { return {}; }
+}
 
 // Fetch ALL symbols in ONE request — fast and parallel inside Worker
 async function fetchAllPrices() {
@@ -848,8 +862,18 @@ async function updateAll() {
   const tt = (k, f) => (typeof window.t === 'function') ? window.t(k) : f;
   if (status) status.textContent = '⟳ ' + tt('label_loading', 'Loading...');
 
-  // Single batch request for all symbols
-  const prices = await fetchAllPrices();
+  // Single batch request for all symbols (+ Nasdaq 100 dal server waves)
+  const [prices, ewPrices] = await Promise.all([fetchAllPrices(), fetchEwQuotes(['^NDX'])]);
+  const nasSym = SYMS.find(s => s.id === 'NASDAQ');
+  if (ewPrices['^NDX']?.price) {
+    prices[WORKER_SYM_MAP['NASDAQ']] = ewPrices['^NDX'];
+    nasSym.label = 'NASDAQ 100'; nasSym.name = 'Nasdaq 100';
+  } else {
+    nasSym.label = 'NASDAQ COMP'; nasSym.name = 'Nasdaq Composite';
+  }
+  const csN = document.getElementById('cs-NASDAQ'), cmN = document.getElementById('cm-NASDAQ');
+  if (csN) csN.textContent = nasSym.label;
+  if (cmN) cmN.textContent = ewPrices['^NDX']?.price ? 'Index · Nasdaq 100' : 'Index · Composite';
   const results = {};
   SYMS.forEach(sym => {
     const wsym = WORKER_SYM_MAP[sym.id] || sym.id;
