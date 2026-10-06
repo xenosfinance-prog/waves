@@ -804,7 +804,10 @@ async function fetchMacroData() {
   } catch(e) { console.warn('Macro worker error:', e); }
 
   // Fetch bonds + VIX via Worker
-  const yfSyms = { 'US10Y':'^TNX','US02Y':'^IRX','US30Y':'^TYX','US3M':'^IRX','VIX':'^VIX' };
+  // 2026-10-06: tolto 'US02Y':'^IRX' — ^IRX è il T-bill a 3 MESI, non il
+  // 2 anni (3M e 2Y mostravano lo stesso 4.04% e lo "spread 2Y-10Y" era in
+  // realtà 3M-10Y). 2Y e 5Y arrivano dal server waves (/quotes) qui sotto.
+  const yfSyms = { 'US10Y':'^TNX','US30Y':'^TYX','US3M':'^IRX','VIX':'^VIX' };
   try {
     const bondRes = await fetch(MACRO_WORKER, {
       method:'POST', headers:{'Content-Type':'application/json'},
@@ -823,9 +826,12 @@ async function fetchMacroData() {
   // DXY=F) → il box mostrava 55.46* da una formula errata e il "Dollar
   // Strength" del regime usava un 104 fisso. Ora il DXY reale (DX-Y.NYB)
   // arriva dal server waves (/quotes) e finisce nella stessa chiave.
-  if (!macroCache['CAPITALCOM:DXY']?.price) {
-    const ew = await fetchEwQuotes(['DX-Y.NYB']);
-    if (ew['DX-Y.NYB']?.price) macroCache['CAPITALCOM:DXY'] = ew['DX-Y.NYB'];
+  // 2026-10-06: + rendimenti 2Y (2YY=F) e 5Y (^FVX) nella stessa chiamata.
+  {
+    const ew = await fetchEwQuotes(['DX-Y.NYB', '2YY=F', '^FVX']);
+    if (!macroCache['CAPITALCOM:DXY']?.price && ew['DX-Y.NYB']?.price) macroCache['CAPITALCOM:DXY'] = ew['DX-Y.NYB'];
+    if (ew['2YY=F']?.price) macroCache['US02Y'] = ew['2YY=F'];
+    if (ew['^FVX']?.price)  macroCache['US05Y'] = ew['^FVX'];
   }
 
   renderMacroKPI();
@@ -885,41 +891,57 @@ function renderMacroKPI() {
 }
 
 function renderYieldCurve() {
+  // 2026-10-06: solo dati REALI. Prima: 5Y = 10Y × 0.97 (inventato), 2Y =
+  // T-bill 3M, e valori fissi (4.0/4.2/4.3/4.6) quando mancava il dato.
+  // Ora un rendimento mancante mostra "--" e non entra nel grafico.
+  const num = (k) => { const v = parseFloat(macroCache[k]?.price); return isFinite(v) && v > 0 ? v : null; };
   const yields = {
-    '3m': parseFloat(macroCache['US3M']?.price || macroCache['US02Y']?.price * 0.85 || 4.2),
-    '2y': parseFloat(macroCache['US02Y']?.price || 4.0),
-    '5y': parseFloat(macroCache['US10Y']?.price ? macroCache['US10Y'].price * 0.97 : 4.2),
-    '10y': parseFloat(macroCache['US10Y']?.price || 4.3),
-    '30y': parseFloat(macroCache['US30Y']?.price || 4.6),
+    '3m':  num('US3M'),
+    '2y':  num('US02Y'),
+    '5y':  num('US05Y'),
+    '10y': num('US10Y'),
+    '30y': num('US30Y'),
   };
 
-  const maxY = Math.max(...Object.values(yields));
-  const minY = Math.min(...Object.values(yields));
+  const vals = Object.values(yields).filter(v => v !== null);
+  const maxY = vals.length ? Math.max(...vals) : 1;
+  const minY = vals.length ? Math.min(...vals) : 0;
   const range = maxY - minY || 1;
+  const inverted = yields['2y'] !== null && yields['10y'] !== null && yields['2y'] > yields['10y'];
 
   Object.entries(yields).forEach(([k, v]) => {
     const bar = document.getElementById('yb-'+k);
     const val = document.getElementById('yc-'+k);
     if (bar) {
-      const pct = 20 + ((v - minY) / range) * 75;
-      bar.style.height = pct + '%';
-      // Color: normal curve = blue, inverted (short > long) = red
-      bar.style.background = yields['2y'] > yields['10y'] ? '#ef4444' : '#3b82f6';
+      if (v === null) {
+        bar.style.height = '4px';
+        bar.style.background = '#2a3a52';
+      } else {
+        const pct = 20 + ((v - minY) / range) * 75;
+        bar.style.height = pct + '%';
+        // Color: normal curve = blue, inverted (short > long) = red
+        bar.style.background = inverted ? '#ef4444' : '#3b82f6';
+      }
     }
-    if (val) val.textContent = v.toFixed(2) + '%';
+    if (val) val.textContent = v === null ? '--' : v.toFixed(2) + '%';
   });
 
-  const spread = (yields['10y'] - yields['2y']).toFixed(2);
   const spreadEl = document.getElementById('yc-spread');
   const signalEl = document.getElementById('yc-signal');
-  if (spreadEl) { spreadEl.textContent = spread + '%'; spreadEl.style.color = parseFloat(spread) >= 0 ? '#34d399' : '#ef4444'; }
-  if (signalEl) {
-    if (parseFloat(spread) < -0.2) { signalEl.textContent = '⚠ INVERTED · Recession Signal'; signalEl.style.color = '#ef4444'; }
-    else if (parseFloat(spread) < 0.2) { signalEl.textContent = '⚡ FLAT · Caution'; signalEl.style.color = '#f59e0b'; }
-    else { signalEl.textContent = '✓ NORMAL · Healthy'; signalEl.style.color = '#34d399'; }
+  if (yields['2y'] !== null && yields['10y'] !== null) {
+    const spread = (yields['10y'] - yields['2y']).toFixed(2);
+    if (spreadEl) { spreadEl.textContent = spread + '%'; spreadEl.style.color = parseFloat(spread) >= 0 ? '#34d399' : '#ef4444'; }
+    if (signalEl) {
+      if (parseFloat(spread) < -0.2) { signalEl.textContent = '⚠ INVERTED · Recession Signal'; signalEl.style.color = '#ef4444'; }
+      else if (parseFloat(spread) < 0.2) { signalEl.textContent = '⚡ FLAT · Caution'; signalEl.style.color = '#f59e0b'; }
+      else { signalEl.textContent = '✓ NORMAL · Healthy'; signalEl.style.color = '#34d399'; }
+    }
+  } else {
+    if (spreadEl) { spreadEl.textContent = '--'; spreadEl.style.color = '#5a7a9a'; }
+    if (signalEl) { signalEl.textContent = '--'; signalEl.style.color = '#5a7a9a'; }
   }
   const ycStatus = document.getElementById('yc-status');
-  if (ycStatus) ycStatus.textContent = '✓ Live';
+  if (ycStatus) ycStatus.textContent = vals.length === 5 ? '✓ Live' : (vals.length ? '◐ Partial' : '--');
 }
 
 function renderFearGreed() {

@@ -925,7 +925,9 @@ def health():
 #   → {"prices": {"^NDX": {"price": 31234.5, "change_pct": 1.42}, ...}}
 # Solo simboli in whitelist (niente proxy Yahoo aperto), cache 60 s.
 # ─────────────────────────────────────────────────────────
-QUOTES_WHITELIST = {"^NDX", "DX-Y.NYB", "^GSPC", "^IXIC"}
+# 2026-10-06: + rendimenti USA per la Yield Curve di xenoswaves_charts:
+# 2YY=F (2Y, futures CBOT sul rendimento) e ^FVX (5Y).
+QUOTES_WHITELIST = {"^NDX", "DX-Y.NYB", "^GSPC", "^IXIC", "2YY=F", "^FVX"}
 QUOTES_TTL = 60
 _quotes_cache = {}
 
