@@ -47,6 +47,11 @@ SYMBOL_MAP = {
     "usd/brl":"USDBRL=X",
     "copper":"HG=F","cocoa":"CC=F","coffee":"KC=F","wheat":"ZW=F","corn":"ZC=F",
     "vix":"^VIX",
+    # 2026-10-06: alias per gli asset MT5 (ActivTrades) dell'auto-trading.
+    # Indici sul livello REALE dell'indice (^GSPC/^NDX), non sugli ETF
+    # SPY/QQQ: stop e target devono stare sulla stessa scala del CFD.
+    "xau/usd":"GC=F",
+    "us500":"^GSPC","ustec":"^NDX","ger40":"^GDAXI","uk100":"^FTSE",
 }
 
 TF_CONFIG = {
@@ -1282,16 +1287,23 @@ def compute_bollinger_rsi_signal(df, bb_period=20, bb_std=2, rsi_period=14,
     reentered_from_lower = pierced_lower and curr_close >= curr_lower
 
     rsi = calc_rsi(close, rsi_period)
+    # FIX 2026-10-06: la conferma RSI veniva cercata SOLO sulla candela di
+    # rientro. Ma la chiusura dentro la banda fa già scendere/salire l'RSI:
+    # nei log del broker-engine i rientri arrivavano sempre con RSI 50-65
+    # (o 35-47), mai oltre 70/30 → zero segnali in giorni. L'estremo RSI va
+    # letto sulla candela che ha FORATO la banda (df[-2]): foratura con RSI
+    # in ipercomprato/ipervenduto + rientro = setup completo.
+    rsi_pierce = calc_rsi(close[:-1], rsi_period)
 
     direction = None
     warning = None
     if reentered_from_upper:
         warning = "upper_pierce_reentry"
-        if rsi >= rsi_overbought:
+        if max(rsi, rsi_pierce) >= rsi_overbought:
             direction = "DOWN"
     elif reentered_from_lower:
         warning = "lower_pierce_reentry"
-        if rsi <= rsi_oversold:
+        if min(rsi, rsi_pierce) <= rsi_oversold:
             direction = "UP"
 
     dp = 2 if curr_close > 10 else 5
@@ -1327,6 +1339,7 @@ def compute_bollinger_rsi_signal(df, bb_period=20, bb_std=2, rsi_period=14,
         "direction": direction,
         "warning": warning,
         "rsi": round(rsi, 1),
+        "rsi_pierce": round(rsi_pierce, 1),
         "upper_band": round(curr_upper, dp),
         "lower_band": round(curr_lower, dp),
         "mid_band": round(curr_mid, dp),
