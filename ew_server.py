@@ -52,6 +52,7 @@ SYMBOL_MAP = {
     # SPY/QQQ: stop e target devono stare sulla stessa scala del CFD.
     "xau/usd":"GC=F",
     "us500":"^GSPC","ustec":"^NDX","ger40":"^GDAXI","uk100":"^FTSE",
+    "solusd":"SOL-USD","xrpusd":"XRP-USD",
 }
 
 TF_CONFIG = {
