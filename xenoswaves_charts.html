@@ -1,4 +1,4 @@
-<!DOCTYPE html>   
+<!DOCTYPE html>  
 <html lang="en"> 
 <head>
 <meta charset="UTF-8">
@@ -819,10 +819,31 @@ async function fetchMacroData() {
     }
   } catch(e) {}
 
+  // 2026-10-06: il Worker non restituisce il DXY (né CAPITALCOM:DXY né
+  // DXY=F) → il box mostrava 55.46* da una formula errata e il "Dollar
+  // Strength" del regime usava un 104 fisso. Ora il DXY reale (DX-Y.NYB)
+  // arriva dal server waves (/quotes) e finisce nella stessa chiave.
+  if (!macroCache['CAPITALCOM:DXY']?.price) {
+    const ew = await fetchEwQuotes(['DX-Y.NYB']);
+    if (ew['DX-Y.NYB']?.price) macroCache['CAPITALCOM:DXY'] = ew['DX-Y.NYB'];
+  }
+
   renderMacroKPI();
   renderYieldCurve();
   renderFearGreed();
   renderRegime();
+}
+
+// 2026-10-06: prezzi non forniti dal Worker (Nasdaq 100, DXY) — server waves
+const EW_QUOTES_URL = 'https://waves-production-ddbf.up.railway.app/quotes';
+async function fetchEwQuotes(syms) {
+  try {
+    const r = await fetch(EW_QUOTES_URL + '?symbols=' + encodeURIComponent(syms.join(',')), {
+      cache: 'no-store', signal: AbortSignal.timeout(15000)
+    });
+    if (!r.ok) return {};
+    return (await r.json()).prices || {};
+  } catch (e) { return {}; }
 }
 
 function fmt(val, dec=2, prefix='') {
@@ -847,16 +868,13 @@ function renderMacroKPI() {
   };
   const g = (sym) => macroCache[sym] || {};
   // DXY from CAPITALCOM via Worker
-  const dxyData = g('CAPITALCOM:DXY') || g('DXY=F');
+  // 2026-10-06: niente più stima (1/EURUSD)*62.5 (dava 55 invece di ~101):
+  // se il DXY reale non arriva si mostra "--".
+  const dxyData = g('CAPITALCOM:DXY').price ? g('CAPITALCOM:DXY') : g('DXY=F');
   if (dxyData.price) {
     set('dxy', fmt(dxyData.price, 2), dxyData.change_pct);
   } else {
-    const eurUsd = g('EURUSD').price;
-    if (eurUsd) {
-      set('dxy', fmt((1/eurUsd)*62.5, 2)+'*', g('EURUSD').change_pct ? -g('EURUSD').change_pct : 0);
-    } else {
-      set('dxy', '--', 0);
-    }
+    set('dxy', '--', 0);
   }
   set('10y',  fmt(g('US10Y').price, 3)+'%', g('US10Y').change_pct);
   set('vix',  fmt(g('VIX').price, 2), g('VIX').change_pct);
@@ -2013,13 +2031,22 @@ const TICKER_SYMS = [
 // così il ticker non mostra mai un numero sotto il nome sbagliato.
 const TICKER_WORKER_MAP = {
   'OIL':'USOIL','GOLD':'XAUUSD','EURUSD':'EURUSD=X','BTCUSD':'BTC-USD',
-  'SPY':['^GSPC','SPY'],'NASDAQ':['^NDX','NAS100'],'USDJPY':'USDJPY=X','SILVER':'XAGUSD','NGAS':'NGAS',
+  'SPY':['^GSPC','SPY'],'NASDAQ':['ew:^NDX','NAS100'],'USDJPY':'USDJPY=X','SILVER':'XAGUSD','NGAS':'NGAS',
 };
 const TICKER_FALLBACK_LABEL = { 'SPY':'SPY ETF', 'NASDAQ':'NASDAQ COMP' };
 async function fetchTick(s) {
   const cands = [].concat(TICKER_WORKER_MAP[s.id] || s.id);
   for (let i = 0; i < cands.length; i++) {
-    const d = await fetchTickSym(cands[i]);
+    // 'ew:' = simbolo dal server waves (/quotes), es. Nasdaq 100 (^NDX)
+    // che il Worker non fornisce.
+    let d = null;
+    if (cands[i].startsWith('ew:')) {
+      const sym = cands[i].slice(3);
+      const q = (await fetchEwQuotes([sym]))[sym];
+      if (q?.price) d = { price: q.price, chg: q.change_pct || 0 };
+    } else {
+      d = await fetchTickSym(cands[i]);
+    }
     if (d) return { ...d, fallback: i > 0 };
   }
   return null;
