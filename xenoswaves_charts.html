@@ -1999,19 +1999,32 @@ const TICKER_SYMS = [
   {id:'GOLD',  yf:'GC%3DF',     label:'GOLD',    dec:2, prefix:'$'},
   {id:'EURUSD',yf:'EURUSD%3DX', label:'EUR/USD', dec:4, prefix:''},
   {id:'BTCUSD',yf:'BTC-USD',    label:'BTC/USD', dec:0, prefix:'$', comma:true},
-  {id:'SPY',   yf:'SPY',        label:'S&P 500', dec:2, prefix:'$'},
-  {id:'NASDAQ',yf:'%5EIXIC',    label:'NASDAQ',  dec:0, prefix:'$', comma:true},
+  {id:'SPY',   yf:'%5EGSPC',    label:'S&P 500', dec:0, prefix:'', comma:true},
+  {id:'NASDAQ',yf:'%5ENDX',     label:'NASDAQ 100', dec:0, prefix:'', comma:true},
   {id:'USDJPY',yf:'USDJPY%3DX', label:'USD/JPY', dec:4, prefix:''},
   {id:'SILVER',yf:'SI%3DF',     label:'SILVER',  dec:2, prefix:'$'},
   {id:'NGAS',  yf:'NG%3DF',     label:'NAT GAS', dec:3, prefix:'$'},
 ];
 
+// 2026-10-06: il ticker mostrava "NASDAQ" = Nasdaq Composite (NAS100 nel
+// Worker → ^IXIC, ~27.600) e "S&P 500" = ETF SPY (~779). Ora si chiede
+// prima l'indice vero (^NDX Nasdaq 100, ^GSPC S&P 500); se il Worker non
+// lo restituisce si usa il simbolo di prima ma con l'etichetta CORRETTA,
+// così il ticker non mostra mai un numero sotto il nome sbagliato.
 const TICKER_WORKER_MAP = {
   'OIL':'USOIL','GOLD':'XAUUSD','EURUSD':'EURUSD=X','BTCUSD':'BTC-USD',
-  'SPY':'SPY','NASDAQ':'NAS100','USDJPY':'USDJPY=X','SILVER':'XAGUSD','NGAS':'NGAS',
+  'SPY':['^GSPC','SPY'],'NASDAQ':['^NDX','NAS100'],'USDJPY':'USDJPY=X','SILVER':'XAGUSD','NGAS':'NGAS',
 };
+const TICKER_FALLBACK_LABEL = { 'SPY':'SPY ETF', 'NASDAQ':'NASDAQ COMP' };
 async function fetchTick(s) {
-  const wsym = TICKER_WORKER_MAP[s.id] || s.id;
+  const cands = [].concat(TICKER_WORKER_MAP[s.id] || s.id);
+  for (let i = 0; i < cands.length; i++) {
+    const d = await fetchTickSym(cands[i]);
+    if (d) return { ...d, fallback: i > 0 };
+  }
+  return null;
+}
+async function fetchTickSym(wsym) {
   try {
     const r = await fetch('https://xenos-ai-proxy.xenosfinance.workers.dev', {
       method: 'POST', headers: {'Content-Type':'application/json'},
@@ -2032,10 +2045,12 @@ async function loadTicker() {
     const d = await fetchTick(s);
     if (!d) continue;
     const up = d.chg >= 0;
-    const ps = s.comma ? s.prefix + Math.round(d.price).toLocaleString('en-US') : s.prefix + d.price.toFixed(s.dec);
+    const label = (d.fallback && TICKER_FALLBACK_LABEL[s.id]) || s.label;
+    const ps = (d.fallback && s.id === 'SPY') ? '$' + d.price.toFixed(2)
+             : s.comma ? s.prefix + Math.round(d.price).toLocaleString('en-US') : s.prefix + d.price.toFixed(s.dec);
     const cs = (up ? '+' : '') + d.chg.toFixed(2) + '%';
     const arr = up ? '▲' : '▼';
-    html += `<span class="t-item"><span class="t-sym">${s.label}</span><span class="${up?'t-up':'t-dn'}">${ps}</span><span class="${up?'t-up':'t-dn'}">${arr} ${cs}</span></span>`;
+    html += `<span class="t-item"><span class="t-sym">${label}</span><span class="${up?'t-up':'t-dn'}">${ps}</span><span class="${up?'t-up':'t-dn'}">${arr} ${cs}</span></span>`;
   }
   if (html) {
     const tc = document.getElementById('ticker-content');
