@@ -1,7 +1,9 @@
 // XenosFinance Service Worker v1.0
 // Caches shell pages for offline access, sempre fetch live per prezzi e news
 
-const CACHE_NAME = 'xenos-v2';
+// 2026-10-07: v3 — nuovo logo XE. Le icone sono cache-first: senza cambiare
+// nome alla cache, chi aveva già il sito/PWA continuava a vedere il vecchio logo XF.
+const CACHE_NAME = 'xenos-v3';
 const SHELL_URLS = [
   '/',
   '/dashboard',
