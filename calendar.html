@@ -1653,6 +1653,82 @@ async function applyOfficialActuals() {
   } catch (e) { console.warn('FRED actuals:', e.message); }
 }
 
+// ── FIX 2026-10-07: actual dal calendario economico Yahoo (server waves) ─────────
+// Il feed ForexFactory del Worker NON ha gli actual, FRED copre solo alcuni dati
+// USA: ISM, Ivey PMI, API, dati esteri ecc. restavano "—". Il server waves
+// (/econ-actuals) legge il calendario Yahoo Finance, che ha actual, attese e
+// precedente. Abbinamento: stessa valuta + stessa data + orario entro 5 min (o
+// nome molto simile), con controllo m/m vs y/y. FRED e i valori manuali vincono.
+const ECON_ACTUALS_URL = 'https://waves-production-ddbf.up.railway.app/econ-actuals';
+
+function _ecoTokens(name) {
+  const n = String(name || '').toLowerCase()
+    .replace(/m\/m/g, ' mm ').replace(/y\/y/g, ' yy ').replace(/q\/q/g, ' qq ')
+    .replace(/n-mfg|non-manufacturing|services/g, ' svc ').replace(/manufacturing|mfg/g, ' mfg ')
+    .replace(/inventories|inventory|stocks?|stk/g, ' stock ').replace(/[^a-z0-9 ]/g, ' ');
+  const stop = new Set(['the','and','for','of','us','eu','uk','sa','nsa','index','change','rate','prelim','final','flash','eia','wkly','weekly']);
+  return n.split(/\s+/).filter(w => w.length >= 2 && !stop.has(w));
+}
+function _ecoScore(a, b) {
+  const ta = _ecoTokens(a), tb = _ecoTokens(b);
+  const per = t => t.find(x => x === 'mm' || x === 'yy' || x === 'qq');
+  const pa = per(ta), pb = per(tb);
+  if (pa && pb && pa !== pb) return -1;                     // m/m vs y/y: mai
+  if (ta.includes('core') !== tb.includes('core')) return -1; // core vs headline: mai
+  if ((ta.includes('svc') && tb.includes('mfg')) || (ta.includes('mfg') && tb.includes('svc'))) return -1; // servizi vs manifattura: mai
+  let sc = 0;
+  ta.forEach(w => { if (tb.some(x => x === w || (w.length >= 4 && x.length >= 4 && (x.startsWith(w.slice(0, 4)) || w.startsWith(x.slice(0, 4)))))) sc++; });
+  return sc;
+}
+// Formatta il numero Yahoo con l'unità usata da forecast/previous dell'evento
+function _ecoFmt(v, tmpl) {
+  if (v === null || v === undefined || !isFinite(v)) return '';
+  const t = String(tmpl || '').trim();
+  const dec = (x) => { const m = t.match(/\.(\d+)/); return x.toFixed(m ? m[1].length : (Number.isInteger(x) ? 0 : 1)); };
+  if (/%$/.test(t)) return dec(v) + '%';
+  if (/K$/i.test(t)) return dec(Math.abs(v) >= 10000 ? v / 1000 : v) + 'K';
+  if (/M$/i.test(t)) return dec(Math.abs(v) >= 100000 ? v / 1e6 : v) + 'M';
+  if (/B$/i.test(t)) return dec(Math.abs(v) >= 1e8 ? v / 1e9 : v) + 'B';
+  return String(Math.round(v * 1000) / 1000);
+}
+async function applyYahooActuals() {
+  try {
+    const { from, to } = isoWeekRange(0);
+    const r = await fetch(ECON_ACTUALS_URL + '?from=' + from + '&to=' + to, {
+      cache: 'no-store', signal: AbortSignal.timeout(25000)
+    });
+    if (!r.ok) return;
+    const d = await r.json();
+    const list = (d.events || []).map(y => ({ ...y, _loc: calToLocal(y.time) }));
+    if (!list.length) { if (d.error) console.warn('Yahoo actuals:', d.error); return; }
+    const toMin = t => { const m = String(t || '').match(/^(\d{2}):(\d{2})$/); return m ? (+m[1]) * 60 + (+m[2]) : null; };
+    EVENTS.forEach(ev => {
+      if (ev.date < from || ev.date > to) return;
+      if (ev._official) return;                                   // FRED/EIA ufficiale vince
+      const manualKey = 'xf_actual_' + ev.date + '_' + String(ev.name).slice(0, 20).replace(/\s/g, '_');
+      if (localStorage.getItem(manualKey)) return;                // manuale vince
+      const ccy = String(ev.country || '').toUpperCase();
+      const evMin = toMin(ev.time);
+      const cands = list.filter(y => y.currency === ccy && y._loc.date === ev.date).map(y => {
+        const sc = _ecoScore(ev.name, y.name);
+        const dt = (evMin !== null && toMin(y._loc.time) !== null) ? Math.abs(toMin(y._loc.time) - evMin) : 999;
+        return { y, sc, dt };
+      // stesso orario (±5 min) e almeno 1 parola in comune, oppure orario diverso
+      // fino a 90 min (es. API pubblicato alle 22:30 ma in lista alle 21:30) solo
+      // se il nome coincide molto (≥3 parole)
+      }).filter(c => c.sc >= 0 && ((c.dt <= 5 && c.sc >= 1) || (c.dt <= 90 && c.sc >= 3)));
+      if (!cands.length) return;
+      cands.sort((a, b) => (b.sc - a.sc) || (a.dt - b.dt));
+      if (cands.length > 1 && cands[0].sc === cands[1].sc && cands[0].dt === cands[1].dt) return; // ambiguo: meglio niente
+      const y = cands[0].y;
+      const tmpl = !_isBlank(ev.forecast) ? ev.forecast : ev.prev;
+      if (_isBlank(ev.actual) && y.actual !== null) { ev.actual = _ecoFmt(y.actual, tmpl); ev._yahoo = true; }
+      if (_isBlank(ev.forecast) && y.expected !== null) ev.forecast = _ecoFmt(y.expected, ev.prev);
+      if (_isBlank(ev.prev) && y.last !== null) ev.prev = _ecoFmt(y.last, ev.forecast);
+    });
+  } catch (e) { console.warn('Yahoo actuals:', e.message); }
+}
+
 function normalizeEventName(s) {
   return s.toLowerCase().replace(/\s+/g,' ').replace(/[^a-z0-9 ]/g,'').trim().slice(0,30);
 }
@@ -1945,6 +2021,8 @@ async function refreshActuals(_isRetry) {
   ]);
   // Actual ufficiali (FRED) dopo le fonti live, poi quelli manuali (vincono sempre)
   await applyOfficialActuals();
+  // 2026-10-07: poi Yahoo per tutto ciò che FRED non copre (ISM, Ivey, API, esteri)
+  await applyYahooActuals();
   // Re-apply manual actuals AFTER live fetch — manual data always wins
   loadSavedActuals();
   renderWeekTabs();

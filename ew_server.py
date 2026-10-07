@@ -946,6 +946,85 @@ def _quote(sym):
     _quotes_cache[sym] = (_t.time(), data)
     return data
 
+# ─────────────────────────────────────────────────────────
+# 2026-10-07 — /econ-actuals: ACTUAL (+ attese/precedente) del calendario
+# economico Yahoo Finance, per calendar.html. Il feed ForexFactory usato dal
+# Worker NON contiene gli actual e FRED copre solo alcuni dati USA: ISM,
+# Ivey PMI, API, banche centrali estere ecc. restavano sempre "—".
+#   GET /econ-actuals?from=2026-10-05&to=2026-10-11
+#   → {"events":[{"name","currency","time" (ISO UTC),"actual","expected","last"}]}
+# Cache 10 minuti per intervallo. Richiede yfinance con yf.Calendars.
+# ─────────────────────────────────────────────────────────
+_ECON_CCY = {
+    "US": "USD", "CA": "CAD", "JP": "JPY", "GB": "GBP", "UK": "GBP", "AU": "AUD",
+    "NZ": "NZD", "CH": "CHF", "CN": "CNY", "EU": "EUR", "EZ": "EUR", "EMU": "EUR",
+    "DE": "EUR", "FR": "EUR", "IT": "EUR", "ES": "EUR", "NL": "EUR",
+}
+_econ_cache = {}
+
+def _econ_num(v):
+    try:
+        f = float(v)
+        return None if f != f else f   # NaN → None
+    except (TypeError, ValueError):
+        return None
+
+@app.route("/econ-actuals", methods=["GET"])
+def econ_actuals():
+    import time as _t
+    from datetime import datetime as _dt, timedelta as _td
+    frm = request.args.get("from", "")
+    to = request.args.get("to", "")
+    try:
+        d_from = _dt.strptime(frm, "%Y-%m-%d")
+        d_to = _dt.strptime(to, "%Y-%m-%d")
+    except ValueError:
+        return jsonify({"events": [], "error": "from/to must be YYYY-MM-DD"}), 400
+    if (d_to - d_from).days > 14 or d_to < d_from:
+        return jsonify({"events": [], "error": "range max 14 days"}), 400
+
+    key = f"{frm}|{to}"
+    hit = _econ_cache.get(key)
+    if hit and _t.time() - hit[0] < 600:
+        return jsonify({"events": hit[1], "cached": True})
+
+    if not hasattr(yf, "Calendars"):
+        return jsonify({"events": [], "error": "yfinance too old (no Calendars) — bump requirements"}), 200
+
+    out = []
+    try:
+        cal = yf.Calendars(start=frm, end=(d_to + _td(days=1)).strftime("%Y-%m-%d"))
+        for page in range(8):   # max 800 eventi
+            df = cal.get_economic_events_calendar(limit=100, offset=page * 100, force=True)
+            if df is None or df.empty:
+                break
+            for name, row in df.iterrows():
+                region = str(row.get("Region", "") or "").upper()
+                ts = row.get("Event Time")
+                try:
+                    ts = pd.Timestamp(ts)
+                    ts = ts.tz_localize("UTC") if ts.tzinfo is None else ts.tz_convert("UTC")
+                    iso = ts.strftime("%Y-%m-%dT%H:%M:%SZ")
+                except Exception:
+                    continue
+                out.append({
+                    "name": str(name),
+                    "currency": _ECON_CCY.get(region, region or "OTHER"),
+                    "time": iso,
+                    "period": str(row.get("For", "") or ""),
+                    "actual": _econ_num(row.get("Actual")),
+                    "expected": _econ_num(row.get("Expected")),
+                    "last": _econ_num(row.get("Last")),
+                })
+            if len(df) < 100:
+                break
+    except Exception as e:
+        logger.warning(f"econ-actuals failed: {e}")
+        return jsonify({"events": out, "error": str(e)[:200]}), 200
+
+    _econ_cache[key] = (_t.time(), out)
+    return jsonify({"events": out})
+
 @app.route("/quotes", methods=["GET"])
 def quotes():
     syms = [x.strip() for x in request.args.get("symbols", "").split(",") if x.strip()]
