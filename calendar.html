@@ -1377,6 +1377,37 @@ function calRenderAnalysis(o, lang, liveLines, extra) {
   return h;
 }
 
+// ── 2026-10-08: storico ufficiale delle ultime uscite + reazione di prezzo ──
+// Server Railway /event-history: EIA (scorte crude/benzina/distillati, gas) e
+// FRED (NFP, CPI, PCE, retail sales, claims…). L'AI riceve le ultime 6 uscite
+// con la reazione close-to-close nel giorno di pubblicazione e le medie per
+// segno del dato (es. draw vs build). Evento non coperto o errore → nessun blocco.
+const CAL_HIST_URL = 'https://waves-production-ddbf.up.railway.app/event-history';
+async function calFetchEventHistory(name, currency) {
+  try {
+    const u = CAL_HIST_URL + '?event=' + encodeURIComponent(name || '') + '&currency=' + encodeURIComponent(currency || '') + '&n=6';
+    const r = await fetch(u, { signal: AbortSignal.timeout(15000) });
+    if (!r.ok) return null;
+    const d = await r.json();
+    return (d && d.supported && d.releases && d.releases.length) ? d : null;
+  } catch (e) { return null; }
+}
+function calHistoryBlock(h) {
+  if (!h) return '';
+  const sg = v => v == null ? 'n/a' : (v > 0 ? '+' : '') + v;
+  const lines = h.releases.map(r => {
+    const re = Object.entries(r.reactions || {}).map(([s, v]) => s + ' ' + sg(v) + '%').join(', ');
+    return '- ' + r.date + ': ' + sg(r.value) + ' (previous ' + sg(r.prev) + ')' + (re ? ' → ' + re : '');
+  });
+  const st = Object.entries(h.stats || {}).map(([s, x]) =>
+    s + ': avg ' + sg(x.avg) + '% (avg abs ' + x.avg_abs + '%), up ' + x.up + ' / down ' + x.down +
+    (x.when_negative != null ? '; after negative prints avg ' + sg(x.when_negative) + '% (n=' + x.n_negative + ')' : '') +
+    (x.when_positive != null ? '; after positive prints avg ' + sg(x.when_positive) + '% (n=' + x.n_positive + ')' : '')
+  );
+  return '\nHISTORY OF THIS RELEASE (official ' + h.source + ' data, unit: ' + h.unit + '; reaction = close-to-close % change on release day; past consensus NOT available):\n'
+    + lines.join('\n') + (st.length ? '\nPATTERN: ' + st.join(' | ') : '') + '\n';
+}
+
 async function analyzeEvent(evIdx) {
   if (!isPremium() && !isFreeUnlocked()) { window._pendingAnalyzeIdx = evIdx; showPremiumModal(); return; }
 
@@ -1411,7 +1442,13 @@ async function analyzeEvent(evIdx) {
   const lang = getCurrentLangCal();
   const langName = CAL_LANG_NAME[lang] || 'English';
   const instruments = calRelatedInstruments(ev);
-  const liveLines = await calFetchLivePrices(instruments);
+  const _histGroup = calPetroGroup(ev);
+  const _histName = (_histGroup && _histGroup.members.length > 1) ? 'Crude Oil Inventories' : ev.name;
+  const [liveLines, _hist] = await Promise.all([
+    calFetchLivePrices(instruments),
+    calFetchEventHistory(_histName, ev.country)
+  ]);
+  const histBlock = calHistoryBlock(_hist);
   const liveBlock = liveLines.length
     ? 'LIVE MARKET DATA (fetched seconds ago):\n' + liveLines.map(l => '- ' + l).join('\n')
     : 'LIVE MARKET DATA: unavailable right now.';
@@ -1434,14 +1471,15 @@ Release: ${ev.date} at ${ev.time} CET
 ${dataBlock}
 
 ${liveBlock}
-
+${histBlock}
 ${calEventGuide(ev)}`;
 
   const rules = `DATA RULES — strict, a professional desk cannot publish invented numbers:
 - Use ONLY the numbers given above. Never invent a consensus, a previous reading, an actual or a price.
 - If the consensus is NOT AVAILABLE, say so explicitly and reason on direction and context only.
 - Key levels must be derived from the live prices above (nearby round/psychological numbers and the session range implied by today's % change). If live data is unavailable, return "key_levels": [].
-- Take a clear position. Use "neutral" only if the setup is genuinely balanced, and explain why.`;
+- Take a clear position. Use "neutral" only if the setup is genuinely balanced, and explain why.${histBlock ? `
+- Use the HISTORY block to say how this market has actually reacted to recent releases (cite the averages). With fewer than 8 releases treat it as indicative, not statistical proof. Never invent past consensus figures.` : ''}`;
 
   const task = postRelease
     ? `TASK: post-release analysis. Explain what the print means vs expectations and the previous reading, how the main instrument should trade in the next sessions, and what would confirm or invalidate that view. "scenarios" = 2 or 3 cases: follow-through, fade/reversal and (optionally) a range case.`
