@@ -1025,6 +1025,69 @@ def econ_actuals():
     _econ_cache[key] = (_t.time(), out)
     return jsonify({"events": out})
 
+# ─────────────────────────────────────────────────────────
+# 2026-10-08 — /ff-calendar: feed ForexFactory (faireconomy) servito da Railway.
+# Le chiamate calendario al Worker Cloudflare falliscono in silenzio e il Worker
+# non è aggiornabile (editor read-only) → calendar.html usa anche questa fonte.
+#   GET /ff-calendar?weeks=thisweek,nextweek
+#   → {"events":[{"event","country","time" (ISO con offset),"impact","estimate","prev","actual"}],
+#      "sources":{"thisweek":"ok|stale|error:..."}}
+# Cache 30 min per settimana (il feed limita le richieste); in caso di errore
+# si serve l'ultima copia valida.
+# ─────────────────────────────────────────────────────────
+_ff_cache = {}
+_FF_URLS = {
+    "thisweek": "https://nfs.faireconomy.media/ff_calendar_thisweek.json",
+    "nextweek": "https://nfs.faireconomy.media/ff_calendar_nextweek.json",
+}
+
+@app.route("/ff-calendar", methods=["GET"])
+def ff_calendar():
+    import time as _t
+    import requests
+    weeks = [w.strip() for w in request.args.get("weeks", "thisweek").split(",") if w.strip() in _FF_URLS]
+    if not weeks:
+        weeks = ["thisweek"]
+    out, sources = [], {}
+    for w in weeks:
+        hit = _ff_cache.get(w)
+        rows, state = None, ""
+        if hit and _t.time() - hit[0] < 1800:
+            rows, state = hit[1], "cached"
+        else:
+            try:
+                r = requests.get(_FF_URLS[w], timeout=12,
+                                 headers={"User-Agent": "Mozilla/5.0 (XenosFinance calendar)"})
+                if r.status_code == 200:
+                    rows = r.json()
+                    if not isinstance(rows, list):
+                        raise ValueError("unexpected payload")
+                    _ff_cache[w] = (_t.time(), rows)
+                    state = "ok"
+                else:
+                    state = f"error:http {r.status_code}"
+            except Exception as e:
+                state = f"error:{str(e)[:120]}"
+            if rows is None and hit:
+                rows, state = hit[1], state + " (stale)"
+        if state.startswith("error"):
+            logger.warning(f"ff-calendar {w}: {state}")
+        sources[w] = state
+        for ev in rows or []:
+            imp = str(ev.get("impact", "") or "")
+            if imp.lower() in ("holiday", "non-economic"):
+                continue
+            out.append({
+                "event":    str(ev.get("title", "") or ""),
+                "country":  str(ev.get("country", "") or ""),
+                "time":     str(ev.get("date", "") or ""),
+                "impact":   imp.lower(),
+                "estimate": str(ev.get("forecast", "") or ""),
+                "prev":     str(ev.get("previous", "") or ""),
+                "actual":   str(ev.get("actual", "") or ""),
+            })
+    return jsonify({"events": out, "sources": sources})
+
 @app.route("/quotes", methods=["GET"])
 def quotes():
     syms = [x.strip() for x in request.args.get("symbols", "").split(",") if x.strip()]
