@@ -1388,6 +1388,157 @@ async function _lt(text, lang) {
 }
 function _lang() { return localStorage.getItem('xenos_lang') || 'en'; }
 
+// ─── INTERMARKET CONTEXT (2026-10-08) ───────────────────────────────────────
+// Prima l'AI riceveva solo prezzo + variazione del giorno: nessun trend, niente
+// dollaro, niente correlazioni, niente calendario → analisi generiche e un
+// "RISK-ON/OFF" indovinato via regex sul testo. Ora il codice calcola da 3 mesi
+// di candele giornaliere: variazioni 5 giorni / 1 mese, DXY e rame, correlazioni
+// a 20 giorni tra coppie chiave e un punteggio di regime risk-on/off (0-100);
+// più le news ad alto impatto delle prossime 24h (server Railway /ff-calendar).
+// L'AI commenta questi numeri; barra e etichetta del sentiment usano il punteggio.
+const IM_FF_URL = 'https://waves-production-ddbf.up.railway.app/ff-calendar?weeks=thisweek';
+const IM_TREND_SYMS = {
+  'DX-Y.NYB':'DXY', '^GSPC':'S&P 500', '^IXIC':'NASDAQ', '^VIX':'VIX', '^TNX':'US 10Y',
+  'GC=F':'GOLD', 'CL=F':'OIL WTI', 'HG=F':'COPPER', 'USDJPY=X':'USD/JPY', 'EURUSD=X':'EUR/USD', 'BTC-USD':'BTC'
+};
+window._imCandleCache = window._imCandleCache || {};
+
+async function imFetchDaily(sym) {
+  const c = window._imCandleCache[sym];
+  if (c && Date.now() - c.ts < 30 * 60 * 1000) return c.closes;
+  const r = await fetch(WORKER_URL, {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({type: 'yahoocandles', symbol: sym, interval: '1d', range: '3mo'}),
+    signal: AbortSignal.timeout(12000)
+  });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  const d = await r.json();
+  const rows = (d.candles || [])
+    .filter(k => k && typeof k.close === 'number' && isFinite(k.close) && k.close > 0)
+    .sort((a, b) => new Date(a.datetime) - new Date(b.datetime));
+  if (rows.length < 25) throw new Error('short history');
+  const closes = rows.map(k => ({d: String(k.datetime).slice(0, 10), c: k.close}));
+  window._imCandleCache[sym] = {ts: Date.now(), closes};
+  return closes;
+}
+
+function imChg(closes, bars) {
+  const n = closes.length;
+  return n > bars ? (closes[n - 1].c / closes[n - 1 - bars].c - 1) * 100 : null;
+}
+
+// Correlazione dei rendimenti giornalieri sulle date in comune (ultime `len`)
+function imCorr(a, b, len = 20) {
+  const mb = {}; b.forEach(x => { mb[x.d] = x.c; });
+  const common = a.filter(x => mb[x.d] != null);
+  if (common.length < len + 1) return null;
+  const s = common.slice(-(len + 1));
+  const ra = [], rb = [];
+  for (let i = 1; i < s.length; i++) {
+    ra.push(s[i].c / s[i - 1].c - 1);
+    rb.push(mb[s[i].d] / mb[s[i - 1].d] - 1);
+  }
+  const mean = v => v.reduce((x, y) => x + y, 0) / v.length;
+  const ma = mean(ra), mbb = mean(rb);
+  let num = 0, da = 0, db = 0;
+  for (let i = 0; i < ra.length; i++) { num += (ra[i] - ma) * (rb[i] - mbb); da += (ra[i] - ma) ** 2; db += (rb[i] - mbb) ** 2; }
+  return da && db ? num / Math.sqrt(da * db) : null;
+}
+
+// Mappa v da [bad, good] a [-1, +1]
+function imUnit(v, bad, good) {
+  if (v == null || !isFinite(v)) return null;
+  return Math.max(-1, Math.min(1, -1 + 2 * (v - bad) / (good - bad)));
+}
+
+async function imFetchEvents() {
+  try {
+    const r = await fetch(IM_FF_URL, {cache: 'no-store', signal: AbortSignal.timeout(10000)});
+    if (!r.ok) return [];
+    const d = await r.json();
+    const now = Date.now();
+    return (d.events || [])
+      .filter(e => e.impact === 'high')
+      .map(e => ({...e, t: new Date(e.time).getTime()}))
+      .filter(e => isFinite(e.t) && e.t >= now - 2 * 3600e3 && e.t <= now + 24 * 3600e3)
+      .sort((a, b) => a.t - b.t)
+      .slice(0, 8);
+  } catch (e) { return []; }
+}
+
+async function imContext() {
+  const syms = Object.keys(IM_TREND_SYMS);
+  const [settled, events] = await Promise.all([
+    Promise.allSettled(syms.map(imFetchDaily)),
+    imFetchEvents()
+  ]);
+  const C = {};
+  syms.forEach((s, i) => { if (settled[i].status === 'fulfilled') C[s] = settled[i].value; });
+  if (Object.keys(C).length < 5) return null; // troppo pochi dati: analisi come prima
+
+  const trend = syms.filter(s => C[s]).map(s => ({
+    label: IM_TREND_SYMS[s], d5: imChg(C[s], 5), m1: imChg(C[s], 21)
+  }));
+  const g = s => C[s] ? imChg(C[s], 5) : null;
+
+  const corrPairs = [
+    ['^GSPC', '^TNX', 'S&P 500 vs US 10Y yield'],
+    ['GC=F', 'DX-Y.NYB', 'Gold vs DXY'],
+    ['CL=F', '^GSPC', 'Oil vs S&P 500'],
+    ['BTC-USD', '^IXIC', 'BTC vs NASDAQ'],
+    ['USDJPY=X', '^TNX', 'USD/JPY vs US 10Y yield'],
+  ];
+  const corrs = corrPairs
+    .filter(([a, b]) => C[a] && C[b])
+    .map(([a, b, label]) => ({label, v: imCorr(C[a], C[b])}))
+    .filter(x => x.v != null);
+
+  // Punteggio regime: ogni componente in [-1, +1], media → 0-100
+  const vixLast = C['^VIX'] ? C['^VIX'][C['^VIX'].length - 1].c : null;
+  const cuGold = (g('HG=F') != null && g('GC=F') != null) ? g('HG=F') - g('GC=F') : null;
+  const spxGold = (g('^GSPC') != null && g('GC=F') != null) ? g('^GSPC') - g('GC=F') : null;
+  const parts = [
+    ['VIX level', imUnit(vixLast, 30, 12)],
+    ['VIX 5D change', imUnit(g('^VIX'), 25, -15)],
+    ['S&P 500 5D', imUnit(g('^GSPC'), -3, 3)],
+    ['Equities vs Gold 5D', imUnit(spxGold, -3, 3)],
+    ['USD/JPY 5D (yen)', imUnit(g('USDJPY=X'), -1.5, 1.5)],
+    ['Copper vs Gold 5D', imUnit(cuGold, -3, 3)],
+  ].filter(([, v]) => v != null);
+  const score = parts.length >= 3
+    ? Math.round(50 + 50 * parts.reduce((s, [, v]) => s + v, 0) / parts.length)
+    : null;
+
+  return {trend, corrs, score, parts, vixLast, events};
+}
+
+function imContextText(ctx) {
+  const pct = v => v == null ? '--' : (v >= 0 ? '+' : '') + v.toFixed(2) + '%';
+  const lines = [];
+  lines.push('MULTI-DAY TREND (daily closes):');
+  ctx.trend.forEach(t => lines.push(`- ${t.label}: 5D ${pct(t.d5)} | 1M ${pct(t.m1)}`));
+  if (ctx.corrs.length) {
+    lines.push('', '20-DAY CORRELATION OF DAILY RETURNS (-1 to +1):');
+    ctx.corrs.forEach(c => lines.push(`- ${c.label}: ${c.v.toFixed(2)}`));
+  }
+  if (ctx.score != null) {
+    lines.push('', `COMPUTED RISK REGIME SCORE: ${ctx.score}/100 (0 = full risk-off, 50 = neutral, 100 = full risk-on)`);
+    lines.push('Components (-1 risk-off … +1 risk-on): ' + ctx.parts.map(([n, v]) => `${n} ${v.toFixed(2)}`).join(', '));
+  }
+  lines.push('', 'HIGH-IMPACT EVENTS (last 2h / next 24h, UTC):');
+  if (ctx.events.length) {
+    ctx.events.forEach(e => {
+      const d = new Date(e.t);
+      const hhmm = d.toISOString().slice(11, 16);
+      const extra = [e.estimate ? 'f ' + e.estimate : '', e.prev ? 'p ' + e.prev : '', e.actual ? 'A ' + e.actual : ''].filter(Boolean).join(' · ');
+      lines.push(`- ${d.toISOString().slice(5, 10)} ${hhmm} ${e.country} ${e.event}${extra ? ' (' + extra + ')' : ''}`);
+    });
+  } else {
+    lines.push('- none / calendar unavailable');
+  }
+  return lines.join('\n');
+}
+
 async function runIntermarketAI() {
   if (!isPremium() && !isFreeUnlocked()) { showPremiumModal(); return; }
 
@@ -1415,6 +1566,10 @@ async function runIntermarketAI() {
     if (!r.ok) throw new Error('price fetch failed');
     const priceData = (await r.json()).prices || {};
 
+    // 2026-10-08: trend multi-giorno, correlazioni, regime e news (vedi imContext)
+    status.textContent = '⟳ ' + tt('label_fetching_live_data', 'Fetching live data...');
+    const ctx = await imContext().catch(e => { console.warn('[intermarket] context unavailable:', e); return null; });
+
     // Build market snapshot string for the prompt
     const fmt = (v, dec=2) => v != null ? v.toFixed(dec) : '--';
     const chg = (v) => v != null ? (v >= 0 ? `+${v.toFixed(2)}%` : `${v.toFixed(2)}%`) : '--';
@@ -1441,12 +1596,14 @@ async function runIntermarketAI() {
 
     const prompt = `You are a senior intermarket analyst at XenosFinance. Analyze the following live market data and produce a professional intermarket analysis.
 
-LIVE MARKET DATA:
+LIVE MARKET DATA (price and today's change):
 ${snap}
+${ctx ? '\n' + imContextText(ctx) + '\n' : ''}
+DATA RULES: use ONLY the numbers above — never invent prices, levels, yields or events. Distinguish today's move from the 5-day / 1-month trend (a one-day bounce inside a down-trend is not a reversal). Where correlations are provided, say whether the usual relationship is holding or breaking down.${ctx && ctx.score != null ? ' Your RISK SENTIMENT must be consistent with the computed risk regime score.' : ''}${ctx && ctx.events.length ? ' Mention the upcoming high-impact events that matter for the theme.' : ''}
 
 Write a structured analysis with these exact sections:
 
-**RISK SENTIMENT** — Is the market in risk-on or risk-off mode? Evidence from VIX, Gold, JPY, Bonds.
+**RISK SENTIMENT** — Is the market in risk-on or risk-off mode? Evidence from VIX, Gold, JPY, Bonds${ctx && ctx.score != null ? ', anchored on the computed regime score' : ''}.
 
 **DOLLAR & FOREX** — USD strength/weakness and implications for major pairs. Identify the strongest and weakest currency.
 
@@ -1458,7 +1615,7 @@ Write a structured analysis with these exact sections:
 
 **INTERMARKET CONCLUSION** — 3-4 sentences: the dominant macro theme, the most important correlation in play today, and one key level or asset to watch.
 
-Be concise, professional, data-driven. Use the actual prices provided. No disclaimers.`;
+Be concise, professional, data-driven. Use the actual numbers provided. No disclaimers.`;
 
     const _useFree = !isPremium() && isFreeUnlocked();
     const aiRes = await fetch(WORKER_URL, {
@@ -1516,9 +1673,18 @@ Be concise, professional, data-driven. Use the actual prices provided. No discla
     const sentimentText = sections['RISK SENTIMENT'] || '';
     const isRiskOn = /risk.on|bullish|appetite|rally/i.test(sentimentText);
     const isRiskOff = /risk.off|bearish|safe.haven|flight/i.test(sentimentText);
-    const sentimentLabel = isRiskOn ? 'RISK-ON' : isRiskOff ? 'RISK-OFF' : 'MIXED / CAUTIOUS';
-    const sentimentColor = isRiskOn ? '#22c55e' : isRiskOff ? '#ef4444' : '#f59e0b';
-    const sentimentPct = isRiskOn ? '72%' : isRiskOff ? '25%' : '42%';
+    // 2026-10-08: barra ed etichetta dal punteggio CALCOLATO (prima: regex sul testo AI
+    // e percentuali fisse 72/25/42); regex solo se i dati storici non sono arrivati.
+    const _score = ctx && ctx.score != null ? ctx.score : null;
+    const sentimentLabel = _score != null
+      ? (_score >= 60 ? 'RISK-ON' : _score <= 40 ? 'RISK-OFF' : 'MIXED / CAUTIOUS')
+      : (isRiskOn ? 'RISK-ON' : isRiskOff ? 'RISK-OFF' : 'MIXED / CAUTIOUS');
+    const sentimentColor = sentimentLabel === 'RISK-ON' ? '#22c55e' : sentimentLabel === 'RISK-OFF' ? '#ef4444' : '#f59e0b';
+    const sentimentPct = _score != null ? Math.max(4, _score) + '%' : (isRiskOn ? '72%' : isRiskOff ? '25%' : '42%');
+    const imDataLine = ctx ? [
+      _score != null ? `Regime ${_score}/100` : '',
+      ...ctx.corrs.slice(0, 3).map(c => `${c.label.replace(' yield', '')} ρ20 ${c.v >= 0 ? '+' : ''}${c.v.toFixed(2)}`)
+    ].filter(Boolean).join(' · ') : '';
 
     const cardData = [
       { key:'RISK SENTIMENT',    color:'#f59e0b', icon:'🛡' },
@@ -1554,7 +1720,7 @@ Be concise, professional, data-driven. Use the actual prices provided. No discla
     body.innerHTML = `
       <div style="font-size:9px;color:var(--muted);letter-spacing:2px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;">
         <span>✦ INTERMARKET ANALYSIS · XENOSFINANCE AI</span>
-        <span>${hm} CET · Live prices</span>
+        <span>${hm} CET · Live prices${ctx ? ' · 3M daily history' : ''}</span>
       </div>
 
       <div style="margin-bottom:12px;">
@@ -1570,6 +1736,7 @@ Be concise, professional, data-driven. Use the actual prices provided. No discla
           <span style="font-size:8px;color:var(--muted);">NEUTRAL</span>
           <span style="font-size:8px;color:#22c55e;"><span data-i18n="label_risk_on">RISK-ON</span></span>
         </div>
+        ${imDataLine ? `<div style="font-size:8px;color:var(--muted);letter-spacing:.5px;margin-top:6px;">${imDataLine}</div>` : ''}
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);margin-bottom:1px;">${cards}</div>
