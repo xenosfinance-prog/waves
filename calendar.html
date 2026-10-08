@@ -1633,9 +1633,10 @@ async function applyOfficialActuals() {
       // FIX 2026-10: 9s non bastavano a FRED + EIA a cache fredda → nessun actual
       signal: (() => { const c = new AbortController(); setTimeout(() => c.abort(), 25000); return c.signal; })()
     });
-    if (!r.ok) return;
+    if (!r.ok) { console.warn('[XF-CAL] FRED actuals HTTP', r.status); return; }
     const d = await r.json();
     const list = d.actuals || [];
+    console.info('[XF-CAL] FRED actuals:', list.length, d.error ? '(error: ' + d.error + ')' : '');
     if (!list.length) { if (d.error) console.warn('FRED actuals:', d.error); return; }
     EVENTS.forEach(ev => {
       if (String(ev.country || '').toUpperCase() !== 'USD') return;
@@ -1700,6 +1701,7 @@ async function applyYahooActuals() {
     if (!r.ok) return;
     const d = await r.json();
     const list = (d.events || []).map(y => ({ ...y, _loc: calToLocal(y.time) }));
+    console.info('[XF-CAL] Yahoo actuals:', list.length, d.error ? '(error: ' + d.error + ')' : '');
     if (!list.length) { if (d.error) console.warn('Yahoo actuals:', d.error); return; }
     const toMin = t => { const m = String(t || '').match(/^(\d{2}):(\d{2})$/); return m ? (+m[1]) * 60 + (+m[2]) : null; };
     EVENTS.forEach(ev => {
@@ -1727,6 +1729,18 @@ async function applyYahooActuals() {
       if (_isBlank(ev.prev) && y.last !== null) ev.prev = _ecoFmt(y.last, ev.forecast);
     });
   } catch (e) { console.warn('Yahoo actuals:', e.message); }
+}
+
+// Railway ForexFactory feed — una sola richiesta condivisa per refresh
+const FF_RAIL_URL = 'https://waves-production-ddbf.up.railway.app/ff-calendar?weeks=thisweek,nextweek';
+let _calRailFFp = null;
+function calRailFF() {
+  if (!_calRailFFp) {
+    _calRailFFp = fetch(FF_RAIL_URL, { cache: 'no-store', signal: AbortSignal.timeout(20000) })
+      .then(r => r.ok ? r.json() : { events: [], error: 'http ' + r.status })
+      .finally(() => { setTimeout(() => { _calRailFFp = null; }, 60000); });
+  }
+  return _calRailFFp;
 }
 
 function normalizeEventName(s) {
@@ -1919,6 +1933,27 @@ async function fetchLiveCalendar(weekStr) {
     }
   } catch(e) { console.warn('ForexFactory calendar:', e.message); rapidapiErr = 'network:' + e.message; }
 
+  // FIX 2026-10-08: ForexFactory anche dal server Railway (/ff-calendar). Le chiamate
+  // calendario al Worker fallivano in silenzio (nessun evento live aggiunto) e il
+  // Worker non è aggiornabile. I doppioni con la fonte Worker vengono scartati da addNewEvents.
+  let railFfOk = false, railFfErr = null;
+  if (weekStr === 'thisweek' || weekStr === 'nextweek') {
+    try {
+      const dr = await calRailFF();
+      const evsR = dr.events || [];
+      if (evsR.length) {
+        railFfOk = true;
+        const before = EVENTS.length;
+        patchActuals(evsR, 'event', 'time', 'actual');
+        addNewEvents(evsR, {name:'event',date:'time',time:'time',impact:'impact',country:'country',forecast:'estimate',prev:'prev',actual:'actual'});
+        console.info('[XF-CAL] Railway FF ' + weekStr + ': ' + evsR.length + ' ricevuti, +' + (EVENTS.length - before) + ' nuovi', dr.sources || '');
+      } else {
+        railFfErr = 'empty:' + JSON.stringify(dr.sources || dr.error || '');
+        console.warn('[XF-CAL] Railway FF vuoto:', dr.sources || dr.error);
+      }
+    } catch(e) { railFfErr = 'network:' + e.message; console.warn('[XF-CAL] Railway FF:', e.message); }
+  }
+
   // FIX 2026-10: il feed ForexFactory copre solo la settimana corrente → la settimana
   // prossima (e le successive) restavano vuote. Il Worker fornisce le date ufficiali
   // delle pubblicazioni USA (calendario FRED) + gli appuntamenti EIA settimanali.
@@ -1940,7 +1975,8 @@ async function fetchLiveCalendar(weekStr) {
     }
   } catch(e) { rapidCalErr = 'network:' + e.message; }
 
-  return { finnhubOk, rapidapiOk, finnhubErr, rapidapiErr, rapidCalOk, rapidCalErr };
+  console.info('[XF-CAL] ' + weekStr + ' → Worker FF:', rapidapiOk ? 'ok' : rapidapiErr, '| Worker FRED schedule:', rapidCalOk ? 'ok' : rapidCalErr, '| Railway FF:', railFfOk ? 'ok' : railFfErr);
+  return { finnhubOk, rapidapiOk: rapidapiOk || railFfOk, finnhubErr, rapidapiErr, rapidCalOk, rapidCalErr };
 }
 
 function getLiveActual(ev) {
@@ -2013,6 +2049,7 @@ function renderKeyEventsCards() {
 }
 
 async function refreshActuals(_isRetry) {
+  console.info('[XF-CAL] calendar.html build 2026-10-08 — refresh');
   const results = await Promise.all([
     fetchLiveCalendar('thisweek'),
     fetchLiveCalendar('nextweek'),
