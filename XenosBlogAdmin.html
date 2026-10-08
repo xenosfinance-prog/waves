@@ -95,6 +95,12 @@
   .card-del { position:absolute; top:8px; right:8px; background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.3); color:#f87171; font-size:10px; padding:3px 8px; cursor:pointer; font-family:'IBM Plex Mono',monospace; letter-spacing:0.05em; z-index:2; display:none; transition:background 0.2s; }
   .blog-card:hover .card-del { display:block; }
   .card-del:hover { background:rgba(239,68,68,0.25); }
+  .card-edit { position:absolute; top:8px; left:8px; background:rgba(59,130,246,0.12); border:1px solid rgba(59,130,246,0.35); color:var(--gold2); font-size:10px; padding:3px 8px; cursor:pointer; font-family:'IBM Plex Mono',monospace; letter-spacing:0.05em; z-index:2; display:none; transition:background 0.2s; }
+  .blog-card:hover .card-edit { display:block; }
+  .card-edit:hover { background:rgba(59,130,246,0.25); }
+  /* FIX 2026-10-08: su touch (mobile/tablet) :hover non esiste → Edit/Delete sempre visibili */
+  @media (hover:none) { .card-del, .card-edit { display:block; } }
+  .edit-sec-block { background:rgba(59,130,246,0.04); border:1px solid rgba(59,130,246,0.15); padding:14px; margin-bottom:10px; }
   .blog-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--border); border:1px solid var(--border); margin-top:24px; }
   .card-num { font-family:'IBM Plex Mono',monospace; font-size:0.52rem; color:var(--text-dim); opacity:0.5; margin-bottom:10px; letter-spacing:0.12em; }
   .card-cat { display:inline-block; font-family:'IBM Plex Mono',monospace; font-size:0.52rem; letter-spacing:0.18em; text-transform:uppercase; color:var(--gold); background:rgba(245,190,80,0.08); border:1px solid rgba(245,190,80,0.2); padding:2px 8px; margin-bottom:10px; }
@@ -990,6 +996,7 @@ async function loadArticlesFromGitHub() {
       var catKey = (a.market||'').toLowerCase().replace(/[^a-z]/g,'');
       var catLabel = a.category||a.categoryLabel||'';
       card.innerHTML =
+        '<button class="card-edit" onclick="event.stopPropagation();openEditArticle(\'' + a.slug + '\', this)">✎ Edit</button>' +
         '<button class="card-del" onclick="event.stopPropagation();deleteArticle(\'' + a.slug + '\', this)">✕ Delete</button>' +
         imgHtml +
         '<div class="card-body-wrap">' +
@@ -1256,7 +1263,7 @@ async function publishToBlog() {
     var card = document.createElement('div');
     card.className = 'blog-card';
     var pCatKey = (currentArticle.market||'').toLowerCase().replace(/[^a-z]/g,'');
-    card.innerHTML = '<div class="card-num">'+String(cardCount).padStart(3,'0')+'</div><div class="card-cat" data-cat="'+pCatKey+'">'+currentArticle.categoryLabel+'</div><div class="card-title">'+currentArticle.title+'</div><div class="card-excerpt">'+(newEntry.excerpt)+'…</div><div class="card-footer"><span>'+currentArticle.readTime+'</span><span class="card-read">Read →</span></div>';
+    card.innerHTML = '<button class="card-edit" onclick="event.stopPropagation();openEditArticle(\''+slug+'\', this)">✎ Edit</button><button class="card-del" onclick="event.stopPropagation();deleteArticle(\''+slug+'\', this)">✕ Delete</button><div class="card-num">'+String(cardCount).padStart(3,'0')+'</div><div class="card-cat" data-cat="'+pCatKey+'">'+currentArticle.categoryLabel+'</div><div class="card-title">'+currentArticle.title+'</div><div class="card-excerpt">'+(newEntry.excerpt)+'…</div><div class="card-footer"><span>'+currentArticle.readTime+'</span><span class="card-read">Read →</span></div>';
       card.onclick = function(){ window.open('XenosBlog.html?slug='+slug,'_blank'); };
     grid.insertBefore(card, grid.firstChild);
 
@@ -1746,6 +1753,210 @@ async function publishPasteArticle() {
   icon.textContent = '✦';
 }
 
+// ── EDIT ARTICLE (aggiunto 2026-10-08) ──
+var editState = null;
+var LANG_LONG  = { en:'inglese', it:'italiano', ru:'russo' };
+var LANG_SHORT = { inglese:'en', italiano:'it', russo:'ru', en:'en', it:'it', ru:'ru' };
+
+function editHtmlToText(h) {
+  return String(h||'').replace(/<br\s*\/?>/gi, '\n').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&amp;/g,'&');
+}
+
+function editField(label, id, isArea, rows) {
+  return '<div class="manual-field full" style="margin-bottom:12px;"><label class="manual-label">' + label + '</label>' +
+    (isArea ? '<textarea class="manual-textarea" id="' + id + '" rows="' + (rows||5) + '"></textarea>'
+            : '<input class="manual-input" id="' + id + '" type="text">') + '</div>';
+}
+
+function editSetStatus(msg, color) {
+  var st = document.getElementById('editStatus');
+  st.textContent = msg; st.style.color = color || 'var(--gold)';
+}
+
+async function openEditArticle(slug, btn) {
+  var oldTxt = btn ? btn.textContent : '';
+  if (btn) { btn.textContent = '...'; btn.disabled = true; }
+  try {
+    var apiBase = 'https://api.github.com/repos/' + GITHUB_REPO + '/contents';
+    var res = await githubRequest(apiBase + '/articles/' + slug + '.json', 'GET');
+    if (res.status !== 200 || !res.data || !res.data.content) throw new Error('Articolo non trovato (' + res.status + ')');
+    var data = JSON.parse(fromBase64(res.data.content));
+    var isPaste = data.source === 'paste-manual' || !(data.sections && data.sections.length) && !data.quote && !data.conclusion;
+    editState = { slug: slug, sha: res.data.sha, data: data, isPaste: isPaste,
+                  longLang: ['italiano','inglese','russo'].indexOf(data.lang) > -1, card: btn ? btn.closest('.blog-card') : null };
+
+    document.getElementById('editSlugLabel').textContent = slug;
+    document.getElementById('edit-title').value    = data.title || '';
+    document.getElementById('edit-category').value = data.categoryLabel || data.category || '';
+    document.getElementById('edit-lang').value     = LANG_SHORT[data.lang] || 'it';
+    document.getElementById('edit-readtime').value = data.readTime || '';
+    document.getElementById('edit-excerpt').value  = data.excerpt || '';
+
+    var box = document.getElementById('editContentFields');
+    if (isPaste) {
+      box.innerHTML = editField('Testo (pubblicato così com\'è, a capo preservati)', 'edit-paste-body', true, 16);
+      document.getElementById('edit-paste-body').value = editHtmlToText(data.intro);
+    } else {
+      var h = editField('Intro (HTML)', 'edit-intro', true, 5);
+      (data.sections || []).forEach(function(sec, i) {
+        h += '<div class="edit-sec-block"><div class="manual-section-num">Sezione ' + (i+1) + '</div>' +
+             editField('Titolo sezione', 'edit-sec-h-' + i, false) +
+             editField('Contenuto (HTML)', 'edit-sec-c-' + i, true, 6) + '</div>';
+      });
+      h += editField('Quote', 'edit-quote', true, 3) + editField('Conclusione (HTML)', 'edit-conclusion', true, 5);
+      box.innerHTML = h;
+      document.getElementById('edit-intro').value = data.intro || '';
+      (data.sections || []).forEach(function(sec, i) {
+        document.getElementById('edit-sec-h-' + i).value = sec.heading || '';
+        document.getElementById('edit-sec-c-' + i).value = sec.content || '';
+      });
+      document.getElementById('edit-quote').value = data.quote || '';
+      document.getElementById('edit-conclusion').value = data.conclusion || '';
+    }
+    editSetStatus('');
+    document.getElementById('editOverlay').classList.add('open');
+  } catch(e) {
+    alert('Edit: ' + e.message);
+  }
+  if (btn) { btn.textContent = oldTxt; btn.disabled = false; }
+}
+
+function closeEditArticle() {
+  document.getElementById('editOverlay').classList.remove('open');
+}
+
+function editCollect() {
+  var d = Object.assign({}, editState.data);
+  var shortLang = document.getElementById('edit-lang').value;
+  d.title    = document.getElementById('edit-title').value.trim();
+  var cat    = document.getElementById('edit-category').value.trim();
+  d.categoryLabel = cat;
+  if ('category' in d) d.category = cat;
+  d.lang     = editState.longLang ? LANG_LONG[shortLang] : shortLang;
+  d.readTime = document.getElementById('edit-readtime').value.trim();
+  d.excerpt  = document.getElementById('edit-excerpt').value.trim();
+  if (editState.isPaste) {
+    var body = document.getElementById('edit-paste-body').value;
+    d.intro = pasteEscapeHtml(body).replace(/\n/g, '<br>');
+    if (!d.excerpt) d.excerpt = body.trim().substring(0,120);
+  } else {
+    d.intro = document.getElementById('edit-intro').value;
+    d.sections = (editState.data.sections || []).map(function(sec, i) {
+      return Object.assign({}, sec, {
+        heading: document.getElementById('edit-sec-h-' + i).value,
+        content: document.getElementById('edit-sec-c-' + i).value
+      });
+    });
+    d.quote = document.getElementById('edit-quote').value;
+    d.conclusion = document.getElementById('edit-conclusion').value;
+  }
+  d.updatedAt = new Date().toISOString();
+  return d;
+}
+
+async function saveEditedArticle() {
+  if (!editState) return;
+  var btn = document.getElementById('editSaveBtn');
+  var d = editCollect();
+  if (!d.title) { editSetStatus('⚠ Titolo obbligatorio', '#ef4444'); return; }
+  btn.disabled = true;
+  editSetStatus('Salvataggio...');
+  try {
+    var apiBase = 'https://api.github.com/repos/' + GITHUB_REPO + '/contents';
+    // 1. Articolo
+    var r1 = await githubRequest(apiBase + '/articles/' + editState.slug + '.json', 'PUT', {
+      message: 'Edit: ' + editState.slug, content: toBase64(JSON.stringify(d, null, 2)),
+      sha: editState.sha, branch: GITHUB_BRANCH });
+    if (r1.status !== 200 && r1.status !== 201) throw new Error('Articolo: ' + ((r1.data && r1.data.message) || r1.status));
+    if (r1.data && r1.data.content && r1.data.content.sha) editState.sha = r1.data.content.sha;
+    editState.data = d;
+
+    // 2. Indice
+    var idxRes = await githubRequest(apiBase + '/articles/index.json', 'GET');
+    if (idxRes.status !== 200 || !idxRes.data || !idxRes.data.content) throw new Error('Impossibile leggere index.json');
+    var list = JSON.parse(fromBase64(idxRes.data.content));
+    var found = false;
+    list.forEach(function(e) {
+      if (e.slug === editState.slug) {
+        found = true;
+        e.title = d.title; e.excerpt = d.excerpt || e.excerpt; e.category = d.categoryLabel;
+        e.lang = d.lang; e.readTime = d.readTime; e.updatedAt = d.updatedAt;
+      }
+    });
+    if (found) {
+      var r2 = await githubRequest(apiBase + '/articles/index.json', 'PUT', {
+        message: 'Index edit: ' + editState.slug, content: toBase64(JSON.stringify(list, null, 2)),
+        sha: idxRes.data.sha, branch: GITHUB_BRANCH });
+      if (r2.status !== 200 && r2.status !== 201) throw new Error('Indice: ' + ((r2.data && r2.data.message) || r2.status));
+    }
+
+    // 3. Aggiorna card
+    if (editState.card) {
+      var t = editState.card.querySelector('.card-title'); if (t) t.textContent = d.title;
+      var ex = editState.card.querySelector('.card-excerpt'); if (ex) ex.textContent = (d.excerpt||'').substring(0,110) + '…';
+      var c = editState.card.querySelector('.card-cat'); if (c) c.textContent = d.categoryLabel;
+    }
+    editSetStatus(found ? '✓ Salvato' : '✓ Articolo salvato (non presente in index.json)', '#22c55e');
+    setTimeout(closeEditArticle, 1200);
+  } catch(e) {
+    editSetStatus('⚠ ' + e.message, '#ef4444');
+  }
+  btn.disabled = false;
+}
+
+async function translateEditArticle(target) {
+  if (!editState) return;
+  var btn = document.getElementById('editTranslateBtn');
+  var d = editCollect();
+  var src = { title: d.title, excerpt: d.excerpt, category: d.categoryLabel, readTime: d.readTime };
+  if (editState.isPaste) src.body = document.getElementById('edit-paste-body').value;
+  else { src.intro = d.intro; src.sections = d.sections.map(function(s){ return { heading: s.heading, content: s.content }; }); src.quote = d.quote; src.conclusion = d.conclusion; }
+
+  var prompt = 'Translate this financial/trading blog article into professional English for traders. ' +
+    'Keep ALL HTML tags, line breaks, numbers, price levels, tickers and Elliott Wave notation exactly as they are. ' +
+    'Do not add, remove or summarize anything. Return ONLY a JSON object with exactly the same keys and structure, no markdown, no comments.\n\n' +
+    JSON.stringify(src);
+
+  btn.disabled = true;
+  editSetStatus('Traduzione in corso...');
+  try {
+    var response = await fetch(WORKER_URL, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 8192, messages: [{ role: 'user', content: prompt }] })
+    });
+    if (!response.ok) throw new Error('HTTP ' + response.status);
+    var data = await response.json();
+    if (data.error) throw new Error(typeof data.error === 'string' ? data.error : (data.error.message || 'API error'));
+    if (data.stop_reason === 'max_tokens') throw new Error('Risposta troncata (articolo troppo lungo)');
+    var text = data.content.map(function(i){ return i.text||''; }).join('');
+    var m = text.match(/\{[\s\S]*\}/);
+    if (!m) throw new Error('JSON non trovato nella risposta AI');
+    var tr = JSON.parse(m[0]);
+
+    if (tr.title)    document.getElementById('edit-title').value = tr.title;
+    if (tr.excerpt)  document.getElementById('edit-excerpt').value = tr.excerpt;
+    if (tr.category) document.getElementById('edit-category').value = tr.category;
+    if (tr.readTime) document.getElementById('edit-readtime').value = tr.readTime;
+    if (editState.isPaste) {
+      if (tr.body) document.getElementById('edit-paste-body').value = tr.body;
+    } else {
+      if (tr.intro) document.getElementById('edit-intro').value = tr.intro;
+      (tr.sections || []).forEach(function(s, i) {
+        var hEl = document.getElementById('edit-sec-h-' + i), cEl = document.getElementById('edit-sec-c-' + i);
+        if (hEl && s.heading) hEl.value = s.heading;
+        if (cEl && s.content) cEl.value = s.content;
+      });
+      if (tr.quote) document.getElementById('edit-quote').value = tr.quote;
+      if (tr.conclusion) document.getElementById('edit-conclusion').value = tr.conclusion;
+    }
+    document.getElementById('edit-lang').value = target;
+    editSetStatus('✓ Tradotto — controlla e premi Salva', '#22c55e');
+  } catch(e) {
+    editSetStatus('⚠ ' + e.message, '#ef4444');
+  }
+  btn.disabled = false;
+}
+
 </script>
 
 <!-- PREVIEW MODAL -->
@@ -1760,6 +1971,36 @@ async function publishPasteArticle() {
       <button class="btn-prev-pub" onclick="closePreview();publishToBlog()">✦ Publish to Blog</button>
       <button class="btn-prev-tg" onclick="closePreview();setTimeout(()=>{toggleTgConfig();document.getElementById('articleDisplay').scrollIntoView({behavior:'smooth'})},100)">✈ Invia Telegram</button>
       <span class="prev-note">Controlla il contenuto, poi scegli dove pubblicare</span>
+    </div>
+  </div>
+</div>
+<!-- EDIT MODAL (aggiunto 2026-10-08) -->
+<div class="preview-overlay" id="editOverlay">
+  <div class="preview-modal">
+    <div class="preview-modal-head">
+      <span class="preview-modal-title">// Modifica articolo — <span id="editSlugLabel"></span></span>
+      <button class="preview-modal-close" onclick="closeEditArticle()">✕ Chiudi</button>
+    </div>
+    <div class="preview-modal-body" style="padding:24px 28px;">
+      <div class="manual-grid">
+        <div class="manual-field full"><label class="manual-label">Titolo *</label><input class="manual-input" id="edit-title" type="text"></div>
+        <div class="manual-field"><label class="manual-label">Categoria / Label</label><input class="manual-input" id="edit-category" type="text"></div>
+        <div class="manual-field"><label class="manual-label">Lingua</label>
+          <select class="manual-select" id="edit-lang">
+            <option value="it">🇮🇹 Italiano</option>
+            <option value="en">🇬🇧 English</option>
+            <option value="ru">🇷🇺 Русский</option>
+          </select>
+        </div>
+        <div class="manual-field"><label class="manual-label">Tempo di lettura</label><input class="manual-input" id="edit-readtime" type="text"></div>
+        <div class="manual-field full"><label class="manual-label">Excerpt (anteprima card)</label><textarea class="manual-textarea" id="edit-excerpt" rows="2"></textarea></div>
+      </div>
+      <div id="editContentFields"></div>
+    </div>
+    <div class="preview-modal-foot">
+      <button class="btn-prev-pub" id="editSaveBtn" onclick="saveEditedArticle()">✓ Salva modifiche</button>
+      <button class="btn-prev-tg" id="editTranslateBtn" onclick="translateEditArticle('en')">🌐 Traduci in EN</button>
+      <span class="prev-note" id="editStatus"></span>
     </div>
   </div>
 </div>
