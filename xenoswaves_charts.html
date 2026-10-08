@@ -1379,6 +1379,117 @@ document.addEventListener('keydown', function(e) {
 });
 
 // ── XenosFinance Research™ AI Engine ─────────────────────────────
+// 2026-10-08: numeri REALI, calcolati nel codice da 1 anno di candele
+// giornaliere (Worker type 'yahoocandles'): performance 1M/3M/6M/1Y, SMA
+// 50/200, RSI 14, volatilità annualizzata, max drawdown, range 52 settimane.
+// I punteggi (Trend, Momentum, Risk, Liquidity, Cost) e il BIAS sono derivati
+// da questi numeri con regole fisse — prima li inventava l'AI ricevendo solo
+// prezzo e variazione del giorno. "Valuation" e "Quality" rimossi: non sono
+// calcolabili da prezzo/costi di un ETF. "RECOMMENDATION" (STRONG BUY…)
+// sostituito da BIAS (BULLISH / NEUTRAL / BEARISH). L'AI scrive solo
+// opinione e bull/bear case, usando esclusivamente i numeri forniti.
+window._xfrCandleCache = window._xfrCandleCache || {};
+
+async function xfrFetchDaily(wsym) {
+  const c = window._xfrCandleCache[wsym];
+  if (c && Date.now() - c.ts < 30 * 60 * 1000) return c.candles;
+  const r = await fetch(ETF_WORKER, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type: 'yahoocandles', symbol: wsym, interval: '1d', range: '1y' }),
+    signal: AbortSignal.timeout(15000)
+  });
+  if (!r.ok) throw new Error('candles HTTP ' + r.status);
+  const d = await r.json();
+  if (d.error) throw new Error(d.error);
+  const candles = (d.candles || [])
+    .filter(k => k && typeof k.close === 'number' && isFinite(k.close) && k.close > 0)
+    .sort((a, b) => new Date(a.datetime) - new Date(b.datetime));
+  if (candles.length < 60) throw new Error('not enough history (' + candles.length + ' bars)');
+  window._xfrCandleCache[wsym] = { ts: Date.now(), candles };
+  return candles;
+}
+
+function xfrParseMoney(s) {
+  const m = String(s || '').replace(/[$€£,\s]/g, '').match(/^([\d.]+)([KMBT]?)$/i);
+  if (!m) return null;
+  const mult = { '': 1, K: 1e3, M: 1e6, B: 1e9, T: 1e12 }[m[2].toUpperCase()];
+  return parseFloat(m[1]) * mult;
+}
+
+function xfrMetrics(candles, aum, ter) {
+  const cl = candles.map(k => k.close);
+  const n = cl.length, last = cl[n - 1];
+  const perf = bars => n > bars ? (last / cl[n - 1 - bars] - 1) * 100 : null;
+  const sma = len => n >= len ? cl.slice(n - len).reduce((a, b) => a + b, 0) / len : null;
+  const sma50 = sma(50), sma200 = sma(200);
+  // RSI 14 (Wilder)
+  let g = 0, l = 0;
+  for (let i = 1; i <= 14; i++) { const d = cl[i] - cl[i - 1]; d > 0 ? g += d : l -= d; }
+  g /= 14; l /= 14;
+  for (let i = 15; i < n; i++) {
+    const d = cl[i] - cl[i - 1];
+    g = (g * 13 + Math.max(d, 0)) / 14;
+    l = (l * 13 + Math.max(-d, 0)) / 14;
+  }
+  const rsi = l === 0 ? 100 : 100 - 100 / (1 + g / l);
+  const rets = [];
+  for (let i = 1; i < n; i++) rets.push(Math.log(cl[i] / cl[i - 1]));
+  const sd = arr => { const m = arr.reduce((a, b) => a + b, 0) / arr.length; return Math.sqrt(arr.reduce((a, b) => a + (b - m) ** 2, 0) / (arr.length - 1)); };
+  const vol = sd(rets) * Math.sqrt(252) * 100;
+  const vol1m = sd(rets.slice(-21)) * Math.sqrt(252) * 100;
+  let peak = cl[0], mdd = 0;
+  cl.forEach(p => { peak = Math.max(peak, p); mdd = Math.min(mdd, (p / peak - 1) * 100); });
+  const hi = Math.max(...candles.map(k => k.high || k.close)), lo = Math.min(...candles.map(k => k.low || k.close));
+  return {
+    last, sma50, sma200, rsi, vol, vol1m, mdd, hi, lo,
+    p1m: perf(21), p3m: perf(63), p6m: perf(126), p1y: (last / cl[0] - 1) * 100,
+    vsSma50: sma50 ? (last / sma50 - 1) * 100 : null,
+    vsSma200: sma200 ? (last / sma200 - 1) * 100 : null,
+    fromHi: (last / hi - 1) * 100,
+    aumNum: xfrParseMoney(aum),
+    terNum: parseFloat(String(ter).replace('%', '')),
+    bars: n
+  };
+}
+
+// Mappa lineare con limiti → punteggio 1-10
+function xfrScale(v, lo, hi) {
+  if (v == null || !isFinite(v)) return null;
+  const t = Math.max(0, Math.min(1, (v - lo) / (hi - lo)));
+  return Math.round((1 + 9 * t) * 10) / 10;
+}
+
+function xfrScores(m) {
+  // Trend: posizione rispetto a SMA50/200, incrocio medie, direzione 6 mesi
+  const checks = [m.sma50 != null && m.last > m.sma50, m.sma200 != null && m.last > m.sma200,
+                  m.sma50 != null && m.sma200 != null && m.sma50 > m.sma200, m.p6m != null && m.p6m > 0];
+  const valid = [m.sma50 != null, m.sma200 != null, m.sma50 != null && m.sma200 != null, m.p6m != null].filter(Boolean).length;
+  const trend = valid ? Math.round((1 + 9 * checks.filter(Boolean).length / valid) * 10) / 10 : null;
+  // Momentum: RSI 14 (30→basso, 70→alto) + performance 3 mesi (±15%)
+  const mParts = [xfrScale(m.rsi, 30, 70), xfrScale(m.p3m, -15, 15)].filter(v => v != null);
+  const momentum = mParts.length ? Math.round(mParts.reduce((a, b) => a + b, 0) / mParts.length * 10) / 10 : null;
+  // Risk (alto = rischio BASSO): volatilità annua 8%→10, 40%→1; drawdown 1Y 0%→10, -35%→1
+  const rParts = [xfrScale(-m.vol, -40, -8), xfrScale(m.mdd, -35, 0)].filter(v => v != null);
+  const risk = rParts.length ? Math.round(rParts.reduce((a, b) => a + b, 0) / rParts.length * 10) / 10 : null;
+  // Liquidity: AUM in scala logaritmica, 100M→1, 100B→10
+  const liquidity = m.aumNum ? xfrScale(Math.log10(m.aumNum), 8, 11) : null;
+  // Cost: TER 0.03%→10, 0.75%→1
+  const cost = isFinite(m.terNum) ? xfrScale(-m.terNum, -0.75, -0.03) : null;
+  const rows = { trend, momentum, risk, liquidity, cost };
+  const vals = Object.values(rows).filter(v => v != null);
+  const overall = vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length * 10) / 10 : null;
+  let bias = 'NEUTRAL';
+  if (trend != null && momentum != null) {
+    // decide il trend; il momentum non deve contraddirlo (soglie simmetriche)
+    if (trend >= 7 && momentum >= 4.5) bias = 'BULLISH';
+    else if (trend <= 4 && momentum <= 5.5) bias = 'BEARISH';
+  }
+  return { rows, overall, bias };
+}
+
+const xfrPct = v => v == null || !isFinite(v) ? 'N/A' : (v >= 0 ? '+' : '') + v.toFixed(1) + '%';
+const xfrNum = v => v == null || !isFinite(v) ? 'N/A' : (v >= 100 ? v.toFixed(2) : v.toFixed(3));
+
 async function generateXFResearch(ticker, name, type, aum, ter, bench, tagsStr) {
   if (!isPremium() && !isFreeUnlocked()) return; // defensive check — button is hidden otherwise, but don't trust the DOM alone
   const container = document.getElementById('xfr-content-' + ticker);
@@ -1388,43 +1499,42 @@ async function generateXFResearch(ticker, name, type, aum, ter, bench, tagsStr) 
   container.innerHTML = `
     <div class="xfr-loading">
       <div class="xfr-spinner"></div>
-      <span style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--muted);">GENERATING XF RESEARCH™ · AI ANALYSIS IN PROGRESS</span>
+      <span style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--muted);">GENERATING XF RESEARCH™ · CALCULATING 1Y METRICS + AI ANALYSIS</span>
     </div>`;
 
-  const priceData = etfPrices[ticker] || {};
-  const priceStr = priceData.price ? '$' + priceData.price.toFixed(2) : 'N/A';
-  const chgStr = priceData.change_pct != null ? (priceData.change_pct >= 0 ? '+' : '') + priceData.change_pct.toFixed(2) + '%' : 'N/A';
+  const retryBtn = `<button class="xfr-generate-btn" onclick="generateXFResearch('${ticker}','${name}','${type}','${aum}','${ter}','${bench}','${tagsStr}')">↻ Retry</button>`;
+  const etf = (typeof ETF_DB !== 'undefined' && ETF_DB.find(e => e.ticker === ticker)) || {};
+  const wsym = etf.wsym || ticker;
 
-  const prompt = `You are XenosFinance Research™, a professional financial intelligence engine for traders and investors. Analyze this ETF and return ONLY a JSON object (no markdown, no backticks, no extra text).
+  // 1) Numeri reali dalle candele giornaliere
+  let m, s;
+  try {
+    const candles = await xfrFetchDaily(wsym);
+    m = xfrMetrics(candles, aum, ter);
+    s = xfrScores(m);
+  } catch (err) {
+    console.error('[ETF Research] historical data unavailable:', err);
+    container.innerHTML = `<div style="font-family:var(--mono);font-size:9px;color:var(--red2);padding:20px;text-align:center;letter-spacing:1px;">⚠ Historical data unavailable for ${ticker} right now. Try again shortly.</div>${retryBtn}`;
+    return;
+  }
+
+  // 2) Commento AI sui numeri calcolati (se fallisce, i numeri restano)
+  const prompt = `You are XenosFinance Research™, writing an educational ETF review for traders and investors. Use ONLY the numbers below — they were calculated from the last 12 months of daily prices. Never invent other figures (no P/E, yields, flows or holdings that are not listed). This is market education, not investment advice: never say buy, sell, accumulate or similar.
 
 ETF: ${ticker} — ${name}
-Type: ${type} | AUM: ${aum} | TER: ${ter} | Benchmark: ${bench}
-Tags: ${tagsStr}
-Current Price: ${priceStr} | 1D Change: ${chgStr}
+Type: ${type} | AUM: ${aum} | TER: ${ter} | Benchmark: ${bench} | Tags: ${tagsStr}
+Last price: ${xfrNum(m.last)}
+Performance: 1M ${xfrPct(m.p1m)} | 3M ${xfrPct(m.p3m)} | 6M ${xfrPct(m.p6m)} | 1Y ${xfrPct(m.p1y)}
+Trend: price vs SMA50 ${xfrPct(m.vsSma50)}, vs SMA200 ${xfrPct(m.vsSma200)}; SMA50 ${m.sma50 && m.sma200 ? (m.sma50 > m.sma200 ? 'above' : 'below') : 'n/a vs'} SMA200
+RSI(14) daily: ${m.rsi.toFixed(1)}
+Volatility (annualised): 1Y ${m.vol.toFixed(1)}% | last month ${m.vol1m.toFixed(1)}%
+Max drawdown 1Y: ${m.mdd.toFixed(1)}% | Distance from 52-week high: ${xfrPct(m.fromHi)}
+Computed bias: ${s.bias} (trend score ${s.rows.trend}/10, momentum score ${s.rows.momentum}/10)
 
-Return this exact JSON structure:
-{
-  "overall_score": <number 1-10, one decimal>,
-  "recommendation": <"STRONG BUY"|"BUY"|"NEUTRAL"|"SELL"|"STRONG SELL">,
-  "rating": {
-    "trend": <1-10>,
-    "momentum": <1-10>,
-    "valuation": <1-10>,
-    "quality": <1-10>,
-    "liquidity": <1-10>,
-    "risk": <1-10>
-  },
-  "outlook": {
-    "1m": <"Bullish"|"Neutral"|"Bearish">,
-    "3m": <"Bullish"|"Neutral"|"Bearish">,
-    "6m": <"Bullish"|"Neutral"|"Bearish">,
-    "12m": <"Bullish"|"Neutral"|"Bearish">
-  },
-  "ai_opinion": <2-3 sentences of professional analysis, branded as XenosFinance Research>,
-  "bull_case": [<3 short bullet strings>],
-  "bear_case": [<3 short bullet strings>]
-}`;
+Return ONLY this JSON (no markdown, no extra text):
+{"ai_opinion":"<2-3 sentences: what the numbers say about trend, momentum and risk, consistent with the computed bias>","bull_case":["<3 short bullets, each tied to a number above or to the ETF's exposure>"],"bear_case":["<3 short bullets, same rule>"]}`;
 
+  let ai = null;
   try {
     const _useFree = !isPremium() && isFreeUnlocked();
     const res = await fetch(ETF_WORKER, {
@@ -1437,7 +1547,7 @@ Return this exact JSON structure:
         json_mode: true
       } : {
         model: 'claude-sonnet-4-6',
-        max_tokens: 1000,
+        max_tokens: 700,
         messages: [{ role: 'user', content: prompt }]
       })
     });
@@ -1446,55 +1556,49 @@ Return this exact JSON structure:
       if (data.error === 'not_authorized') { localStorage.removeItem('xenos_free_email'); throw new Error('Email non autorizzata.'); }
       throw new Error(data.message || 'Servizio momentaneamente non disponibile.');
     }
-    const raw = _useFree ? (data.reply || '').trim() : data.content?.map(b => b.text || '').join('').trim();
-    const clean = raw.replace(/```json|```/g, '').trim();
-    // FIX 2026-09-21: non fidarsi che tutto il testo sia JSON puro —
-    // Gemini a volte aggiunge una frase prima/dopo nonostante json_mode;
-    // estrae solo il blocco {...} più ampio prima di fare il parse.
-    const jsonMatch = clean.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('Risposta AI senza JSON valido: ' + clean.slice(0, 200));
-    const d = JSON.parse(jsonMatch[0]);
-    renderXFResearch(container, d, ticker);
-  } catch(err) {
-    console.error('[ETF AI] generation failed:', err);
-    container.innerHTML = `<div style="font-family:var(--mono);font-size:9px;color:var(--red2);padding:20px;text-align:center;letter-spacing:1px;">⚠ Research generation failed. Try again.</div>
-    <button class="xfr-generate-btn" onclick="generateXFResearch('${ticker}','${name}','${type}','${aum}','${ter}','${bench}','${tagsStr}')">↻ Retry</button>`;
+    const raw = _useFree ? (data.reply || '').trim() : (data.content?.map(b => b.text || '').join('').trim() || '');
+    // Gemini a volte aggiunge testo attorno al JSON nonostante json_mode
+    const jsonMatch = raw.replace(/```json|```/g, '').match(/\{[\s\S]*\}/);
+    if (jsonMatch) ai = JSON.parse(jsonMatch[0]);
+  } catch (err) {
+    console.error('[ETF Research] AI commentary failed:', err);
   }
+  renderXFResearch(container, m, s, ai, ticker);
 }
 
-function renderXFResearch(container, d, ticker) {
-  const recColor = {
-    'STRONG BUY':'var(--green2)','BUY':'var(--green)',
-    'NEUTRAL':'var(--yellow)','SELL':'var(--red2)','STRONG SELL':'var(--red)'
-  }[d.recommendation] || 'var(--muted)';
+function renderXFResearch(container, m, s, ai, ticker) {
+  const biasColor = { 'BULLISH': 'var(--green2)', 'NEUTRAL': 'var(--yellow)', 'BEARISH': 'var(--red2)' }[s.bias] || 'var(--muted)';
+  const esc = t => String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
   const stars = (val) => {
-    const full = Math.round(val / 2);
+    const full = Math.round((val || 0) / 2);
     return '★'.repeat(full) + '☆'.repeat(5 - full);
   };
 
-  const outlookIcon = (v) => v === 'Bullish' ? '🟢' : v === 'Bearish' ? '🔴' : '🟡';
+  const perfIcon = (v) => v == null ? '⚪' : v > 1 ? '🟢' : v < -1 ? '🔴' : '🟡';
 
   const ratingRows = [
-    ['Trend',      d.rating.trend],
-    ['Momentum',   d.rating.momentum],
-    ['Valuation',  d.rating.valuation],
-    ['Quality',    d.rating.quality],
-    ['Liquidity',  d.rating.liquidity],
-    ['Risk',       d.rating.risk],
-  ];
+    ['Trend',     s.rows.trend],
+    ['Momentum',  s.rows.momentum],
+    ['Risk',      s.rows.risk],
+    ['Liquidity', s.rows.liquidity],
+    ['Cost',      s.rows.cost],
+  ].filter(([, v]) => v != null);
+
+  const bull = Array.isArray(ai?.bull_case) ? ai.bull_case.slice(0, 3) : [];
+  const bear = Array.isArray(ai?.bear_case) ? ai.bear_case.slice(0, 3) : [];
 
   container.innerHTML = `
-    <!-- Score + Recommendation -->
+    <!-- Score + Bias -->
     <div class="xfr-score-row">
       <div class="xfr-score-block">
         <div class="xfr-score-label">OVERALL SCORE</div>
-        <div class="xfr-score-val">${d.overall_score}<span style="font-size:14px;color:var(--muted)">/10</span></div>
-        <div style="color:var(--yellow);font-size:18px;letter-spacing:2px;">${stars(d.overall_score)}</div>
+        <div class="xfr-score-val">${s.overall ?? '—'}<span style="font-size:14px;color:var(--muted)">/10</span></div>
+        <div style="color:var(--yellow);font-size:18px;letter-spacing:2px;">${stars(s.overall)}</div>
       </div>
-      <div class="xfr-rec-block" style="border-color:${recColor};">
-        <div class="xfr-rec-label">RECOMMENDATION</div>
-        <div class="xfr-rec-val" style="color:${recColor};">${d.recommendation}</div>
+      <div class="xfr-rec-block" style="border-color:${biasColor};">
+        <div class="xfr-rec-label">BIAS</div>
+        <div class="xfr-rec-val" style="color:${biasColor};">${s.bias}</div>
       </div>
     </div>
 
@@ -1511,34 +1615,38 @@ function renderXFResearch(container, d, ticker) {
         </div>`;
       }).join('')}
     </div>
+    <div style="font-family:var(--mono);font-size:8px;color:var(--muted);letter-spacing:.5px;line-height:1.7;margin-top:8px;">
+      SMA50 ${xfrPct(m.vsSma50)} · SMA200 ${xfrPct(m.vsSma200)} · RSI ${m.rsi.toFixed(0)} · Vol 1Y ${m.vol.toFixed(1)}% · Max DD ${m.mdd.toFixed(1)}% · from 52W high ${xfrPct(m.fromHi)}
+    </div>
 
-    <!-- Outlook -->
-    <div class="xfr-section-title">XenosFinance Outlook™</div>
+    <!-- Performance (reale, 12 mesi di candele giornaliere) -->
+    <div class="xfr-section-title">XenosFinance Performance™</div>
     <div class="xfr-outlook-grid">
-      <div class="xfr-outlook-item"><span class="xfr-outlook-period">1 Month</span><span>${outlookIcon(d.outlook['1m'])} ${d.outlook['1m']}</span></div>
-      <div class="xfr-outlook-item"><span class="xfr-outlook-period">3 Months</span><span>${outlookIcon(d.outlook['3m'])} ${d.outlook['3m']}</span></div>
-      <div class="xfr-outlook-item"><span class="xfr-outlook-period">6 Months</span><span>${outlookIcon(d.outlook['6m'])} ${d.outlook['6m']}</span></div>
-      <div class="xfr-outlook-item"><span class="xfr-outlook-period">12 Months</span><span>${outlookIcon(d.outlook['12m'])} ${d.outlook['12m']}</span></div>
+      <div class="xfr-outlook-item"><span class="xfr-outlook-period">1 Month</span><span>${perfIcon(m.p1m)} ${xfrPct(m.p1m)}</span></div>
+      <div class="xfr-outlook-item"><span class="xfr-outlook-period">3 Months</span><span>${perfIcon(m.p3m)} ${xfrPct(m.p3m)}</span></div>
+      <div class="xfr-outlook-item"><span class="xfr-outlook-period">6 Months</span><span>${perfIcon(m.p6m)} ${xfrPct(m.p6m)}</span></div>
+      <div class="xfr-outlook-item"><span class="xfr-outlook-period">12 Months</span><span>${perfIcon(m.p1y)} ${xfrPct(m.p1y)}</span></div>
     </div>
 
     <!-- AI Opinion -->
     <div class="xfr-section-title">XenosFinance AI Opinion™</div>
-    <div class="xfr-opinion">${d.ai_opinion}</div>
+    <div class="xfr-opinion">${ai?.ai_opinion ? esc(ai.ai_opinion) : '<span style="color:var(--muted)">AI commentary unavailable right now — scores, bias and performance above are complete.</span>'}</div>
 
+    ${bull.length || bear.length ? `
     <!-- Bull / Bear -->
     <div class="xfr-two-col">
       <div class="xfr-case xfr-bull">
         <div class="xfr-case-title">🟢 Bull Case</div>
-        ${d.bull_case.map(b => `<div class="xfr-case-item">✅ ${b}</div>`).join('')}
+        ${bull.map(b => `<div class="xfr-case-item">✅ ${esc(b)}</div>`).join('')}
       </div>
       <div class="xfr-case xfr-bear">
         <div class="xfr-case-title">🔴 Bear Case</div>
-        ${d.bear_case.map(b => `<div class="xfr-case-item">⚠ ${b}</div>`).join('')}
+        ${bear.map(b => `<div class="xfr-case-item">⚠ ${esc(b)}</div>`).join('')}
       </div>
-    </div>
+    </div>` : ''}
 
     <div style="font-family:var(--mono);font-size:7px;color:var(--muted);letter-spacing:1px;text-align:right;margin-top:12px;padding-top:8px;border-top:1px solid var(--border);">
-      XenosFinance Research™ · AI-Generated · Not Financial Advice · ${new Date().toLocaleDateString('en-GB')}
+      XenosFinance Research™ · Scores calculated from ${m.bars} daily bars · AI commentary · Not Financial Advice · ${new Date().toLocaleDateString('en-GB')}
     </div>`;
 }
 
