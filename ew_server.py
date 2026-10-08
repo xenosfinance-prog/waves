@@ -1934,6 +1934,199 @@ def earnings_calendar():
     return jsonify({"earnings": out})
 
 
+# ─────────────────────────────────────────────────────────
+# 2026-10-08 — /event-history: storico UFFICIALE delle ultime uscite di un
+# dato macro + reazione di prezzo nel giorno di pubblicazione, per l'AI di
+# calendar.html (prima l'AI vedeva solo l'uscita corrente).
+#   GET /event-history?event=Crude%20Oil%20Inventories&currency=USD&n=6
+#   → {"event","source","unit","instruments":[...],
+#      "releases":[{"date","value","prev","change","reactions":{"CL=F":1.23}}],
+#      "stats":{"CL=F":{"avg":..,"avg_abs":..,"up":..,"down":..,
+#                       "when_positive":..,"when_negative":..}}}
+# Fonti: EIA API v2 (petrolio e gas, EIA_API_KEY) e FRED (macro USA,
+# FRED_API_KEY: vintage dates = date reali di pubblicazione).
+# Reazione = variazione % close-to-close nel giorno di uscita (yfinance).
+# Il consensus storico NON è disponibile da fonti gratuite: si confronta
+# solo con il dato precedente. Cache 6 ore per evento.
+# ─────────────────────────────────────────────────────────
+_EH_CACHE = {}
+_EH_TTL = 6 * 3600
+_EH_USD_MACRO = ["DX-Y.NYB", "^GSPC", "GC=F"]
+
+# (parole chiave nel nome evento ForexFactory, in ordine: la prima che combacia vince)
+_EH_MAP = [
+    (("crude oil inventories",),        {"src": "eia", "route": "petroleum/stoc/wstk", "series": "WCESTUS1", "release_offset": 5, "unit": "M bbl (weekly change)", "scale": 0.001, "kind": "change", "syms": ["CL=F"]}),
+    (("gasoline inventories",),         {"src": "eia", "route": "petroleum/stoc/wstk", "series": "WGTSTUS1", "release_offset": 5, "unit": "M bbl (weekly change)", "scale": 0.001, "kind": "change", "syms": ["RB=F", "CL=F"]}),
+    (("distillate inventories", "distillates"), {"src": "eia", "route": "petroleum/stoc/wstk", "series": "WDISTUS1", "release_offset": 5, "unit": "M bbl (weekly change)", "scale": 0.001, "kind": "change", "syms": ["HO=F", "CL=F"]}),
+    (("natural gas storage",),          {"src": "eia", "route": "natural-gas/stor/wkly", "series": "NW2_EPG0_SWO_R48_BCF", "release_offset": 6, "unit": "Bcf (weekly change)", "scale": 1.0, "kind": "change", "syms": ["NG=F"]}),
+    (("non-farm employment change", "nonfarm payrolls", "non-farm payrolls"), {"src": "fred", "series": "PAYEMS", "unit": "K jobs (m/m change)", "kind": "change"}),
+    (("unemployment claims", "jobless claims"), {"src": "fred", "series": "ICSA", "unit": "claims (K)", "kind": "level", "scale": 0.001}),
+    (("unemployment rate",),            {"src": "fred", "series": "UNRATE", "unit": "%", "kind": "level"}),
+    (("average hourly earnings m/m",),  {"src": "fred", "series": "CES0500000003", "unit": "% m/m", "kind": "pct_mom"}),
+    (("core cpi m/m",),                 {"src": "fred", "series": "CPILFESL", "unit": "% m/m", "kind": "pct_mom"}),
+    (("core cpi y/y",),                 {"src": "fred", "series": "CPILFESL", "unit": "% y/y", "kind": "pct_yoy"}),
+    (("cpi m/m",),                      {"src": "fred", "series": "CPIAUCSL", "unit": "% m/m", "kind": "pct_mom"}),
+    (("cpi y/y",),                      {"src": "fred", "series": "CPIAUCSL", "unit": "% y/y", "kind": "pct_yoy"}),
+    (("core pce price index m/m",),     {"src": "fred", "series": "PCEPILFE", "unit": "% m/m", "kind": "pct_mom"}),
+    (("pce price index m/m",),          {"src": "fred", "series": "PCEPI", "unit": "% m/m", "kind": "pct_mom"}),
+    (("core retail sales m/m",),        {"src": "fred", "series": "RSFSXMV", "unit": "% m/m", "kind": "pct_mom"}),
+    (("retail sales m/m",),             {"src": "fred", "series": "RSAFS", "unit": "% m/m", "kind": "pct_mom"}),
+    (("ppi m/m",),                      {"src": "fred", "series": "PPIFIS", "unit": "% m/m", "kind": "pct_mom"}),
+]
+
+
+def _eh_lookup(name):
+    n = (name or "").lower()
+    for keys, cfg in _EH_MAP:
+        if any(k in n for k in keys):
+            return cfg
+    return None
+
+
+def _eh_eia(cfg, n):
+    import requests as _rq
+    from datetime import datetime as _dt, timedelta as _td
+    key = os.getenv("EIA_API_KEY", "")
+    if not key:
+        raise RuntimeError("EIA_API_KEY not set")
+    params = {
+        "api_key": key, "frequency": "weekly", "data[0]": "value",
+        "facets[series][]": cfg["series"],
+        "sort[0][column]": "period", "sort[0][direction]": "desc",
+        "offset": 0, "length": n + 1,
+    }
+    r = _rq.get(f"https://api.eia.gov/v2/{cfg['route']}/data/", params=params, timeout=15)
+    r.raise_for_status()
+    rows = (r.json().get("response") or {}).get("data") or []
+    vals = [(row["period"], float(row["value"])) for row in rows if row.get("value") not in (None, "")]
+    out = []
+    for i in range(min(n, len(vals) - 1)):
+        period, v = vals[i]
+        prev = vals[i + 1][1]
+        rel = (_dt.strptime(period, "%Y-%m-%d") + _td(days=cfg["release_offset"])).strftime("%Y-%m-%d")
+        sc = cfg.get("scale", 1.0)
+        out.append({"date": rel, "period": period, "value": round((v - prev) * sc, 3),
+                    "level": round(v * sc, 3), "prev": None})
+    # "prev" = variazione della settimana precedente (per confronto)
+    for i in range(len(out) - 1):
+        out[i]["prev"] = out[i + 1]["value"]
+    return out
+
+
+def _eh_fred(cfg, n):
+    import requests as _rq
+    key = os.getenv("FRED_API_KEY", "")
+    if not key:
+        raise RuntimeError("FRED_API_KEY not set")
+    base = "https://api.stlouisfed.org/fred"
+    sid = cfg["series"]
+    r = _rq.get(f"{base}/series/vintagedates", params={"series_id": sid, "api_key": key, "file_type": "json",
+                                                        "sort_order": "desc", "limit": n}, timeout=15)
+    r.raise_for_status()
+    vdates = r.json().get("vintage_dates") or []
+    need = 14 if cfg["kind"] == "pct_yoy" else 3
+    out = []
+    for vd in vdates[:n]:
+        r2 = _rq.get(f"{base}/series/observations", params={
+            "series_id": sid, "api_key": key, "file_type": "json", "realtime_start": vd, "realtime_end": vd,
+            "sort_order": "desc", "limit": need}, timeout=15)
+        if r2.status_code != 200:
+            continue
+        obs = [o for o in r2.json().get("observations", []) if o.get("value") not in (".", None, "")]
+        v = [float(o["value"]) for o in obs]
+        if len(v) < 2:
+            continue
+        sc = cfg.get("scale", 1.0)
+        k = cfg["kind"]
+        if k == "change":
+            val, prev = v[0] - v[1], (v[1] - v[2]) if len(v) > 2 else None
+        elif k == "pct_mom":
+            val, prev = (v[0] / v[1] - 1) * 100, ((v[1] / v[2] - 1) * 100) if len(v) > 2 else None
+        elif k == "pct_yoy":
+            if len(v) < 14:
+                continue
+            val, prev = (v[0] / v[12] - 1) * 100, (v[1] / v[13] - 1) * 100
+        else:
+            val, prev = v[0] * sc, v[1] * sc
+        out.append({"date": vd, "period": obs[0]["date"], "value": round(val, 3),
+                    "prev": None if prev is None else round(prev, 3)})
+    return out
+
+
+def _eh_reactions(releases, syms):
+    """Variazione % close-to-close nel giorno di uscita (o primo giorno di borsa successivo)."""
+    from datetime import datetime as _dt, timedelta as _td
+    if not releases:
+        return
+    d0 = min(_dt.strptime(x["date"], "%Y-%m-%d") for x in releases) - _td(days=10)
+    d1 = max(_dt.strptime(x["date"], "%Y-%m-%d") for x in releases) + _td(days=5)
+    for sym in syms:
+        try:
+            h = yf.Ticker(sym).history(start=d0.strftime("%Y-%m-%d"), end=d1.strftime("%Y-%m-%d"), interval="1d")
+            closes = h["Close"].dropna()
+            if closes.empty:
+                continue
+            idx = [ts.strftime("%Y-%m-%d") for ts in closes.index]
+        except Exception as e:
+            logger.warning(f"event-history reaction {sym}: {e}")
+            continue
+        for rel in releases:
+            pos = next((i for i, d in enumerate(idx) if d >= rel["date"]), None)
+            if pos is None or pos == 0:
+                continue
+            chg = (float(closes.iloc[pos]) / float(closes.iloc[pos - 1]) - 1) * 100
+            rel.setdefault("reactions", {})[sym] = round(chg, 2)
+
+
+def _eh_stats(releases, syms):
+    st = {}
+    for sym in syms:
+        rs = [(r["value"], r["reactions"][sym]) for r in releases if sym in r.get("reactions", {})]
+        if not rs:
+            continue
+        ch = [c for _, c in rs]
+        pos = [c for v, c in rs if v > 0]
+        neg = [c for v, c in rs if v < 0]
+        st[sym] = {
+            "n": len(rs), "avg": round(sum(ch) / len(ch), 2),
+            "avg_abs": round(sum(abs(c) for c in ch) / len(ch), 2),
+            "up": sum(1 for c in ch if c > 0), "down": sum(1 for c in ch if c < 0),
+            "when_positive": round(sum(pos) / len(pos), 2) if pos else None,
+            "when_negative": round(sum(neg) / len(neg), 2) if neg else None,
+            "n_positive": len(pos), "n_negative": len(neg),
+        }
+    return st
+
+
+@app.route("/event-history", methods=["GET"])
+def event_history():
+    import time as _t
+    name = request.args.get("event", "")[:120]
+    ccy = request.args.get("currency", "USD").upper()
+    try:
+        n = max(3, min(int(request.args.get("n", 6)), 12))
+    except ValueError:
+        n = 6
+    cfg = _eh_lookup(name)
+    if cfg is None or ccy not in ("USD", "ALL", ""):
+        return jsonify({"event": name, "supported": False, "releases": []})
+    key = f"{cfg['series']}|{cfg['kind']}|{n}"
+    hit = _EH_CACHE.get(key)
+    if hit and _t.time() - hit[0] < _EH_TTL:
+        return jsonify({**hit[1], "event": name, "cached": True})
+    syms = cfg.get("syms") or _EH_USD_MACRO
+    try:
+        releases = _eh_eia(cfg, n) if cfg["src"] == "eia" else _eh_fred(cfg, n)
+        _eh_reactions(releases, syms)
+    except Exception as e:
+        logger.warning(f"event-history {name}: {e}")
+        return jsonify({"event": name, "supported": True, "releases": [], "error": str(e)[:200]})
+    data = {"supported": True, "source": cfg["src"].upper(), "series": cfg["series"], "unit": cfg["unit"],
+            "instruments": syms, "releases": releases, "stats": _eh_stats(releases, syms)}
+    _EH_CACHE[key] = (_t.time(), data)
+    return jsonify({**data, "event": name})
+
+
 if __name__ == "__main__":
     port = int(os.getenv("PORT", os.getenv("EW_PORT",5001)))
     logger.info(f"EW Server v3 on port {port}")
