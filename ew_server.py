@@ -985,7 +985,11 @@ def econ_actuals():
 
     key = f"{frm}|{to}"
     hit = _econ_cache.get(key)
-    if hit and _t.time() - hit[0] < 600:
+    # 2026-10-08: cache 60 s quando l'intervallo include oggi (flash macro del
+    # bot Telegram: l'actual deve arrivare entro pochi minuti dall'uscita).
+    _today = _dt.utcnow().strftime("%Y-%m-%d")
+    _ttl = 60 if frm <= _today <= to else 600
+    if hit and _t.time() - hit[0] < _ttl:
         return jsonify({"events": hit[1], "cached": True})
 
     if not hasattr(yf, "Calendars"):
