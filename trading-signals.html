@@ -2043,7 +2043,7 @@ Always end with: ⚠ Educational analysis only — not investment advice. XenosF
       body: JSON.stringify({
         type: 'anthropic',
         model: 'claude-sonnet-4-6',
-        max_tokens: 1000,
+        max_tokens: 3000,
         messages: [{role: 'user', content: prompt}]
       }),
       signal: AbortSignal.timeout(40000)
@@ -2051,7 +2051,8 @@ Always end with: ⚠ Educational analysis only — not investment advice. XenosF
 
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
-    const text = data?.content?.[0]?.text || data?.error || 'No response received.';
+    const text = _optCleanText(data?.content?.[0]?.text || data?.error || 'No response received.');
+    window._optLast = (data?.content?.[0]?.text) ? { text, tab, at: new Date() } : null;
 
     const html = text
       .replace(/\*\*(.+?)\*\*/g, '<span style="color:var(--ink);font-weight:700;">$1</span>')
@@ -2071,7 +2072,10 @@ Always end with: ⚠ Educational analysis only — not investment advice. XenosF
 
     const now = new Date();
     const hm = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
-    body.innerHTML = `<div style="color:var(--muted);font-size:9px;letter-spacing:2px;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--border);">✦ AI ANALYSIS · ${tab.toUpperCase()} · ${hm} CET</div>${html}`;
+    const pubBtn = (isAdmin && window._optLast)
+      ? `<button id="opt-blog-btn" onclick="publishOptionsToBlog()" style="font-family:var(--mono);font-size:8px;letter-spacing:2px;text-transform:uppercase;padding:4px 12px;background:none;border:1px solid var(--gold);color:var(--gold);cursor:pointer;">✦ Publish to Blog</button>`
+      : '';
+    body.innerHTML = `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;color:var(--muted);font-size:9px;letter-spacing:2px;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--border);"><span>✦ AI ANALYSIS · ${tab.toUpperCase()} · ${hm} CET</span>${pubBtn}</div>${html}`;
 
   } catch(e) {
     body.innerHTML = `<span style="color:var(--red2);letter-spacing:1px;">⚠ Analysis failed: ${e.message}. Please try again.</span>`;
@@ -2079,6 +2083,110 @@ Always end with: ⚠ Educational analysis only — not investment advice. XenosF
 
   btn.disabled = false;
   btn.textContent = '⟳ Analyse';
+}
+
+// ── OPTIONS ANALYSIS → BLOG (admin only) ───────────────────────
+// Rimuove i residui markdown che il modello a volte aggiunge (# titoli, ---, ## vuoti)
+function _optCleanText(t) {
+  return String(t || '').split('\n')
+    .filter(l => !/^\s*(-{3,}|#{1,6})\s*$/.test(l))
+    .map(l => l.replace(/^\s*#{1,6}\s+/, ''))
+    .join('\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
+function _optBuildArticle(raw, tab, at) {
+  const LABEL = { forex: 'Forex', crypto: 'Crypto', commodities: 'Commodities', indices: 'Indices' };
+  const MARKET = { forex: 'forex', crypto: 'crypto', commodities: 'commodities', indices: 'equity' };
+  const IMG = { forex: 'forex.png', crypto: 'crypto.png', commodities: 'commodities.png', indices: 'equity.png' };
+  const label = LABEL[tab] || 'Markets';
+  const setups = [], overview = [], risks = [];
+  let cur = null, mode = 'pre';
+  _optCleanText(raw).split('\n').forEach(ln => {
+    const l = ln.trim();
+    if (!l || /^⚠/.test(l)) return;
+    if (/──\s*MARKET OVERVIEW/i.test(l)) { mode = 'ov'; cur = null; return; }
+    if (/──\s*RISK WARNINGS/i.test(l)) { mode = 'risk'; cur = null; return; }
+    if (/──.*──/.test(l)) return;
+    const m = l.match(/^\*{0,2}([A-Z0-9][A-Z0-9\/.\- ]{1,20}?)\*{0,2}\s*(?:→|->)\s*(.+)$/);
+    if (m) { cur = { pair: m[1].trim(), head: m[2].replace(/\*/g, '').trim(), lines: [] }; setups.push(cur); mode = 'setup'; return; }
+    const c = l.replace(/\*\*/g, '');
+    if (mode === 'setup' && cur) cur.lines.push(c);
+    else if (mode === 'ov') overview.push(c);
+    else if (mode === 'risk') risks.push(c);
+  });
+  if (!setups.length) return null;
+
+  const cap = s => s.replace(/\b(call|put|setup|bullish|bearish)\b/gi, w => w[0].toUpperCase() + w.slice(1).toLowerCase());
+  const d = at || new Date();
+  const dateStr = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' });
+  const hm = d.toISOString().slice(11, 16);
+  const sections = setups.map(su => {
+    const out = [];
+    su.lines.forEach(l => {
+      if (/^rationale\s*:/i.test(l)) out.push('', '*Rationale:* ' + l.replace(/^rationale\s*:\s*/i, ''));
+      else out.push('- ' + l.split(/\s*\|\s*/).join(' · '));
+    });
+    return { heading: su.pair + ' — ' + cap(su.head), content: out.join('\n').trim() };
+  });
+  if (risks.length) sections.push({ heading: 'Risk Warnings', content: risks.join('\n') });
+
+  const n = setups.length;
+  const intro = `Multi-timeframe options setup screen for ${label} (${dateStr}, ${hm} UTC): ${n} qualifying setup${n > 1 ? 's' : ''} where the 4H/1D bias and short-term momentum line up.` +
+    (overview.length ? '\n' + overview.join('\n') : '');
+  const words = (intro + sections.map(s => s.content).join(' ')).split(/\s+/).length;
+  return {
+    title: `${label} Options Setups — ${dateStr}`,
+    intro,
+    sections,
+    quote: '',
+    conclusion: 'Educational analysis only — not investment advice. Strikes and premiums are indicative model estimates (Black-Scholes), not live quotes. XenosFinance does not execute trades.',
+    excerpt: (overview[0] || `${n} ${label} options setups from multi-timeframe confluence: ` + setups.map(s => s.pair).join(', ')).slice(0, 150),
+    categoryLabel: 'OPTIONS · AI SETUP ANALYSIS',
+    market: MARKET[tab] || 'forex',
+    tech: 'ai',
+    lang: 'EN',
+    readTime: Math.max(2, Math.round(words / 200)) + ' min read',
+    imageUrl: 'https://xenosfinance.com/assets/blog/' + (IMG[tab] || 'macro.png'),
+  };
+}
+
+async function publishOptionsToBlog() {
+  if (!isAdmin) return;
+  const last = window._optLast;
+  const btn = document.getElementById('opt-blog-btn');
+  if (!last) { showToast('⚠ Run the analysis first'); return; }
+  const art = _optBuildArticle(last.text, last.tab, last.at);
+  if (!art) { showToast('⚠ No qualifying setups to publish'); return; }
+  if (!confirm(`Publish to the blog?\n\n${art.title}\n${art.sections.length} sections`)) return;
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Publishing...'; }
+  const gh = async (method, path, payload) => {
+    const r = await fetch(WORKER, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'github', method, url: `https://api.github.com/repos/xenosfinance-prog/waves/contents/${path}`, payload: payload || null }),
+      signal: AbortSignal.timeout(20000) });
+    return r.json();
+  };
+  const b64 = o => btoa(unescape(encodeURIComponent(JSON.stringify(o, null, 2))));
+  try {
+    const slug = 'article-' + Date.now();
+    const publishedAt = new Date().toISOString();
+    const full = Object.assign({}, art, { slug, publishedAt, date: publishedAt });
+    const put = await gh('PUT', `articles/${slug}.json`, { message: 'Blog: ' + art.title, content: b64(full), branch: 'main' });
+    if (put.status !== 200 && put.status !== 201) throw new Error('save ' + (put.data?.message || put.status));
+    const idx = await gh('GET', 'articles/index.json');
+    let list = [];
+    const sha = idx.data?.sha;
+    if (idx.data?.content) list = JSON.parse(decodeURIComponent(escape(atob(idx.data.content.replace(/\s/g, '')))));
+    list.unshift({ slug, title: art.title, excerpt: art.excerpt, category: art.categoryLabel, market: art.market,
+                   tech: art.tech, lang: art.lang, readTime: art.readTime, publishedAt, imageUrl: art.imageUrl });
+    const up = await gh('PUT', 'articles/index.json', Object.assign({ message: 'Indice blog', content: b64(list), branch: 'main' }, sha ? { sha } : {}));
+    if (up.status !== 200 && up.status !== 201) throw new Error('index ' + (up.data?.message || up.status));
+    showToast('✦ Published to the blog');
+    if (btn) { btn.textContent = '✓ Published'; }
+    setTimeout(() => window.open('https://xenosfinance.com/XenosBlog?slug=' + slug, '_blank'), 400);
+  } catch (e) {
+    showToast('❌ Blog: ' + e.message);
+    if (btn) { btn.disabled = false; btn.textContent = '✦ Publish to Blog'; }
+  }
 }
 
 // ── Global Logout ──────────────────────────────────────────────
