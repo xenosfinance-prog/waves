@@ -22,21 +22,40 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 50
+
+      # 2026-10-13: il bot Telegram avvia questo workflow all'orario esatto
+      # (05:20 / 12:20 UTC). Il cron qui sotto resta come riserva: se parte in
+      # ritardo e le pagine sono già state aggiornate da meno di 4 ore, si ferma
+      # (niente doppia generazione né doppie chiamate API).
+      - name: Skip late scheduled run if pages are fresh
+        id: fresh
+        if: github.event_name == 'schedule'
+        run: |
+          last=$(git log -1 --format=%ct -- analysis/index.html || echo 0)
+          age=$(( $(date +%s) - ${last:-0} ))
+          echo "analysis pages age: ${age}s"
+          if [ "$age" -lt 14400 ]; then echo "skip=1" >> "$GITHUB_OUTPUT"; fi
 
       - uses: actions/setup-python@v5
+        if: steps.fresh.outputs.skip != '1'
         with:
           python-version: "3.11"
           cache: pip
 
       - name: Install dependencies
+        if: steps.fresh.outputs.skip != '1'
         run: pip install -r requirements.txt
 
       - name: Generate pages
+        if: steps.fresh.outputs.skip != '1'
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: python tools/gen_analysis_pages.py
 
       - name: Commit and push
+        if: steps.fresh.outputs.skip != '1'
         run: |
           git config user.name  "xenos-analysis-bot"
           git config user.email "actions@users.noreply.github.com"
