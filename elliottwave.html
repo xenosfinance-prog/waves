@@ -3983,7 +3983,7 @@ const EWS_YAHOO_INTERVAL_MAP = {
 const EWS_YAHOO_SYMBOL_MAP = {
   'EURUSD':'EURUSD=X','GBPUSD':'GBPUSD=X','USDJPY':'USDJPY=X','USDCHF':'USDCHF=X','AUDUSD':'AUDUSD=X',
   'XAUUSD':'GC=F','XAGUSD':'SI=F','USOIL':'CL=F','UKOIL':'BZ=F','NATGAS':'NG=F',
-  'US500':'^GSPC','NAS100':'^IXIC','US30':'^DJI','GER40':'^GDAXI',
+  'US500':'^GSPC','NAS100':'^NDX','US30':'^DJI','GER40':'^GDAXI', // 2026-10-13: Nasdaq 100 (era ^IXIC = Composite)
   'BTCUSD':'BTC-USD','ETHUSD':'ETH-USD','SOLUSD':'SOL-USD'
 };
 const EWS_EMA_RIBBON_PERIODS = [8, 13, 21, 34, 55];
@@ -4029,11 +4029,20 @@ async function ewsFetchCandlesForChart(sym, tf) {
   const cfg = EWS_YAHOO_INTERVAL_MAP[tf] || EWS_YAHOO_INTERVAL_MAP['H4'];
   const ySym = EWS_YAHOO_SYMBOL_MAP[sym] || sym;
   const WORKER = 'https://xenos-ai-proxy.xenosfinance.workers.dev';
-  const res = await fetch(WORKER, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ type: 'yahoocandles', symbol: ySym, interval: cfg.interval, range: cfg.range })
-  });
-  const d = await res.json();
+  async function _ewsYahoo(ys) {
+    const r = await fetch(WORKER, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'yahoocandles', symbol: ys, interval: cfg.interval, range: cfg.range })
+    });
+    return r.json();
+  }
+  let d = await _ewsYahoo(ySym);
+  // 2026-10-13: se il Worker non restituisce ^NDX, ripiego sul future Nasdaq 100
+  // (NQ=F) — mai sul Composite (^IXIC), che è un altro indice.
+  if (sym === 'NAS100' && (d.error || !(d.candles || []).length)) {
+    console.warn('EWS: ^NDX non disponibile, uso NQ=F (Nasdaq 100 future)');
+    d = await _ewsYahoo('NQ=F');
+  }
   if (d.error) throw new Error(d.error);
   let candles = (d.candles || []).filter(function(c) {
     return c && [c.open, c.high, c.low, c.close].every(function(v) { return typeof v === 'number' && isFinite(v) && v > 0; })
