@@ -1,0 +1,64 @@
+# XenosFinance — daily Futures Flow (/futures-flow) + futures-flow/latest.json for the bot.
+# Runs Tuesday–Saturday morning (US session of the previous day). The Telegram bot
+# dispatches it at 05:30 UTC (GitHub cron often runs hours late); cron is a backup.
+# Data: Yahoo per-contract futures quotes (no CME scraping — CME forbids it).
+name: Futures flow
+
+on:
+  schedule:
+    - cron: "40 5 * * 2-6"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: futures-flow
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 20
+
+      - name: Skip late scheduled run if already built today
+        id: fresh
+        if: github.event_name == 'schedule'
+        run: |
+          last=$(git log -1 --format=%cs -- futures-flow/latest.json || true)
+          if [ "$last" = "$(date -u +%F)" ]; then echo "skip=1" >> "$GITHUB_OUTPUT"; fi
+
+      - uses: actions/setup-python@v5
+        if: steps.fresh.outputs.skip != '1'
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        if: steps.fresh.outputs.skip != '1'
+        run: pip install -r requirements.txt
+
+      - name: Generate Futures Flow
+        if: steps.fresh.outputs.skip != '1'
+        run: python tools/gen_futures_flow.py
+
+      - name: Commit and push
+        if: steps.fresh.outputs.skip != '1'
+        run: |
+          git config user.name  "xenos-analysis-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add futures-flow sitemap.xml
+          if git diff --cached --quiet; then
+            echo "No changes."
+            exit 0
+          fi
+          git commit -m "Futures flow $(date -u '+%Y-%m-%d %H:%M') UTC"
+          for i in 1 2 3; do
+            git pull --rebase origin main && git push origin HEAD:main && exit 0
+            sleep 10
+          done
+          exit 1
