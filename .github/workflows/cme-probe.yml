@@ -17,6 +17,6 @@ jobs:
             "https://www.cmegroup.com/CmeWS/mvc/Settlements/Futures/Settlements/425/FUT?tradeDate=$(date -u -d yesterday +%m/%d/%Y)" \
             "https://www.cmegroup.com/market-data/volume-open-interest/exchange-volume.html" ; do
             code=$(curl -s -L -m 30 -A "$UA" -H "Accept: application/json,text/html,*/*" -H "Referer: https://www.cmegroup.com/" -o /tmp/out -w "%{http_code} %{size_download} %{content_type}" "$u")
-            echo "== $u -> $code"
-            head -c 600 /tmp/out | tr -d '\000' ; echo
+            snip=$(head -c 300 /tmp/out | tr -d '\000\r\n%' | tr ',' ';')
+            echo "::notice title=$code::$u :: $snip"
           done
