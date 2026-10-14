@@ -2907,10 +2907,10 @@ async function runFreeAnalysis() {
     const signal   = data.signal || 'WAIT';
     const symName  = symbolEl.options[symbolEl.selectedIndex].text;
 
-    // Draw canvas — identical to demo style
+    // Draw canvas — identical to reference style
     drawFreeCanvas(candles, wavePts, isBull, data.invalidation, data.tp1, data.tp2, data.live_price, symName, tf, curWave, dp);
 
-    // Header badges — exactly like demo
+    // Header badges — exactly like reference
     const title    = document.getElementById('freeChartTitle');
     const sigBadge = document.getElementById('freeSignalBadge');
     const wavBadge = document.getElementById('freeWaveBadge');
@@ -2928,7 +2928,7 @@ async function runFreeAnalysis() {
       wavBadge.style.display = 'inline-block';
     }
 
-    // Metrics — 5 cards like demo
+    // Metrics — 5 cards like reference
     const mc = document.getElementById('freeChartMetrics');
     if (mc) mc.innerHTML = [
       { l:'Live Price',  v: (+data.live_price||0).toFixed(dp),                   c:'#3b82f6' },
@@ -2940,7 +2940,7 @@ async function runFreeAnalysis() {
       '<div style="font-size:9px;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;margin-bottom:6px;">' + m.l + '</div>' +
       '<div style="font-size:15px;font-weight:500;color:' + m.c + ';">' + m.v + '</div></div>').join('');
 
-    // Narrative — like demo
+    // Narrative — like reference
     const narEl   = document.getElementById('freeNarrative');
     const narText = document.getElementById('freeNarrativeText');
     if (data.narrative && narEl && narText) {
@@ -2960,7 +2960,7 @@ async function runFreeAnalysis() {
   btn.textContent = '⚡ Generate Wave Chart';
 }
 
-// ── Canvas renderer — identical to demo ───────────────────────────────────────
+// ── Canvas renderer — identical to reference ───────────────────────────────────────
 function drawFreeCanvas(candles, wavePts, isBull, sl, tp1, tp2, livePrice, symName, tf, curWave, dp) {
   const canvas = document.getElementById('freeChartCanvas');
   if (!canvas) return;
@@ -3040,7 +3040,7 @@ function drawFreeCanvas(candles, wavePts, isBull, sl, tp1, tp2, livePrice, symNa
     });
   }
 
-  // Wave colors — impulse=blue, corrective=amber (same as demo)
+  // Wave colors — impulse=blue, corrective=amber (same as reference)
   const wCol  = isBull ? '#3b82f6' : '#f59e0b';
   const wCol2 = isBull ? '#60a5fa' : '#fcd34d';
 
@@ -3057,7 +3057,7 @@ function drawFreeCanvas(candles, wavePts, isBull, sl, tp1, tp2, livePrice, symNa
     ctx.globalAlpha=1; ctx.lineJoin='miter'; ctx.lineCap='butt';
   }
 
-  // Dots + labels — exactly like demo
+  // Dots + labels — exactly like reference
   wavePts.forEach(p => {
     const x=toX(p.i), y=toY(p.price);
     const isCur = p.label === curWave;
@@ -3079,7 +3079,7 @@ function drawFreeCanvas(candles, wavePts, isBull, sl, tp1, tp2, livePrice, symNa
     ctx.lineJoin='miter'; ctx.textBaseline='alphabetic';
   });
 
-  // Header — exactly like demo
+  // Header — exactly like reference
   ctx.textAlign='left'; ctx.font='bold 11px monospace'; ctx.fillStyle='#3b82f6';
   ctx.fillText('XENOS', ML, 24);
   ctx.fillStyle='#c8d8ea'; ctx.fillText('FINANCE', ML+46, 24);
