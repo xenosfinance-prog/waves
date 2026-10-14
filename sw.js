@@ -3,7 +3,9 @@
 
 // 2026-10-07: v3 — nuovo logo XE. Le icone sono cache-first: senza cambiare
 // nome alla cache, chi aveva già il sito/PWA continuava a vedere il vecchio logo XF.
-const CACHE_NAME = 'xenos-v3';
+// 2026-10-14: v4 — svuota le cache vecchie (migliaia di copie di trades.json
+// "?t=..." accumulate dal portfolio, una ogni minuto per ogni visitatore).
+const CACHE_NAME = 'xenos-v4';
 const SHELL_URLS = [
   '/',
   '/dashboard',
@@ -45,6 +47,15 @@ self.addEventListener('activate', event => {
 // - Static assets (fonts, icons) → cache first
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
+
+  // FIX 2026-10-14: grafici del portfolio vuoti finché non si ricaricava.
+  // Il SW intercettava anche le richieste ad ALTRI domini (Chart.js da
+  // cdnjs, trades.json da GitHub) e le rifaceva con fetch() dal proprio
+  // contesto: lì vale la CSP di sw.js (header _headers), il cui connect-src
+  // non include cdnjs → Chart.js bloccato → nessun grafico. Ora il SW gestisce
+  // solo le risorse del sito stesso; tutto il resto va diretto in rete dal
+  // browser, con la CSP della pagina (che permette cdnjs/jsdelivr/unpkg).
+  if (url.origin !== self.location.origin) return;
 
   // Never cache API/Worker calls
   if (
