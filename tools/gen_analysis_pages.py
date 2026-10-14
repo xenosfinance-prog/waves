@@ -49,7 +49,7 @@ INSTRUMENTS = [
     ("bitcoin",         "BTC-USD",  "Bitcoin",         "BTC/USD",  0, "Crypto",      "bitcoin price, BTC/USD"),
     ("ethereum",        "ETH-USD",  "Ethereum",        "ETH/USD",  2, "Crypto",      "ethereum price, ETH/USD"),
     ("sp500",           "^GSPC",    "S&P 500",         "SPX",      2, "Indices",     "S&P 500, SPX, US stocks"),
-    ("nasdaq",          "^IXIC",    "Nasdaq Composite", "NASDAQ",  2, "Indices",     "Nasdaq, tech stocks"),
+    ("nasdaq",          "^NDX",     "Nasdaq 100",      "NAS100",   2, "Indices",     "Nasdaq 100, NAS100, tech stocks"),
     ("dax",             "^GDAXI",   "DAX 40",          "DAX",      2, "Indices",     "DAX, German stocks"),
 ]
 
@@ -178,8 +178,13 @@ tr.poor td{color:var(--muted);}
 @media(max-width:720px){h1{font-size:26px;}.grid{grid-template-columns:1fr;}table{font-size:11px;}th,td{padding:5px;}}"""
 
 
-def page_shell(title, desc, canonical, body, jsonld, keywords):
+NAV = [("/", "Home"), ("/dashboard", "Dashboard"), ("/analysis", "Daily Analysis"), ("/cot", "COT Positioning"),
+       ("/calendar", "Calendar"), ("/elliottwave", "Elliott Wave"), ("/trading-signals", "Trade Setups"), ("/premium", "Premium")]
+
+
+def page_shell(title, desc, canonical, body, jsonld, keywords, active="/analysis"):
     ld = "\n".join(f'<script type="application/ld+json">{json.dumps(x, ensure_ascii=False)}</script>' for x in jsonld)
+    nav = "".join('<a href="%s"%s>%s</a>' % (h, ' class="on"' if h == active else "", t) for h, t in NAV)
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -206,7 +211,7 @@ def page_shell(title, desc, canonical, body, jsonld, keywords):
 </head>
 <body>
 <header class="top"><div class="brand">Xenos<span>Finance</span></div><div class="tag">Market analysis &amp; trading education</div></header>
-<nav><a href="/">Home</a><a href="/dashboard">Dashboard</a><a href="/analysis" class="on">Daily Analysis</a><a href="/calendar">Calendar</a><a href="/elliottwave">Elliott Wave</a><a href="/trading-signals">Trade Setups</a><a href="/premium">Premium</a></nav>
+<nav>{nav}</nav>
 <main>
 {body}
 <div class="disc">Educational content only. This analysis is generated algorithmically from public market data for market analysis and trading education purposes and does not constitute investment advice or a recommendation to buy or sell any financial instrument. Trading involves a significant risk of loss. © XenosFinance</div>
