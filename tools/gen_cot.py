@@ -128,7 +128,7 @@ def px_on(series, day):
 
 def kfmt(v):
     a = abs(v)
-    s = f"{a / 1000:.1f}k" if a >= 1000 else f"{a:.0f}"
+    s = f"{a / 1e6:.2f}M" if a >= 1e6 else f"{a / 1000:.1f}k" if a >= 1000 else f"{a:.0f}"
     return ("+" if v > 0 else "-" if v < 0 else "") + s
 
 
@@ -229,7 +229,7 @@ def telegram_html(res, report_date, release_date):
         rows.append(grp_title)
         for r in part:
             arrow = "▲" if r["chg"] > 0 else "▼" if r["chg"] < 0 else "="
-            rows.append(f"{r['name'][:13]:<13} {kfmt(r['net']):>7}  {arrow}{kfmt(r['chg']).lstrip('+-'):>6}  idx {int(r['cot_index']):>3}")
+            rows.append(f"{r['name'][:13]:<13} {kfmt(r['net']):>8}  {arrow}{kfmt(r['chg']).lstrip('+-'):>6}  idx {int(r['cot_index']):>3}")
         rows.append("")
     ext = [r for r in res if r["flag"].startswith("Crowded")]
     divs = [r for r in res if r["divergence"]]
