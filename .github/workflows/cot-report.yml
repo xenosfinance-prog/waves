@@ -1,0 +1,51 @@
+# XenosFinance — COT positioning page (/cot) + cot/latest.json for the Telegram bot.
+# CFTC publishes on Friday 15:30 ET (data as of Tuesday). Main run Saturday,
+# fallback Monday early (holiday-delayed releases). Free CFTC public API, no secrets.
+name: COT report
+
+on:
+  schedule:
+    - cron: "30 6 * * 6"   # Saturday 06:30 UTC
+    - cron: "15 3 * * 1"   # Monday 03:15 UTC (fallback)
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: cot-report
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt requests
+
+      - name: Generate COT page
+        run: python tools/gen_cot.py
+
+      - name: Commit and push
+        run: |
+          git config user.name  "xenos-analysis-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add cot sitemap.xml
+          if git diff --cached --quiet; then
+            echo "No changes."
+            exit 0
+          fi
+          git commit -m "COT report $(date -u '+%Y-%m-%d %H:%M') UTC"
+          for i in 1 2 3; do
+            git pull --rebase origin main && git push origin HEAD:main && exit 0
+            sleep 10
+          done
+          exit 1
