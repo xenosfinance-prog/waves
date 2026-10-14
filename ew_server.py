@@ -2131,6 +2131,9 @@ def event_history():
     return jsonify({**data, "event": name})
 
 
+# 2026-10-14: in produzione (Railway) il server gira con gunicorn — 1 worker, 8 thread,
+# worker riciclato ogni ~300 richieste (la memoria cresceva fino a ~2 GB col server
+# di sviluppo Flask) + MALLOC_ARENA_MAX=2. Il blocco sotto resta per l'uso locale.
 if __name__ == "__main__":
     port = int(os.getenv("PORT", os.getenv("EW_PORT",5001)))
     logger.info(f"EW Server v3 on port {port}")
