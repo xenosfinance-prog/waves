@@ -134,7 +134,17 @@ def analyse(prod, rows, prev_rows, vol_now, vol_avg):
     oi_prev = sum(prev_map[r["sym"]]["oi"] for r in rows if r["sym"] in prev_map) if prev_map else None
     oi_chg = (oi_tot - oi_prev) if oi_prev else None
     ref = active  # price change measured on the most active month (avoids expiry noise)
-    pchg = (ref["price"] / ref["prev"] - 1) * 100 if ref.get("prev") else None
+    pchg = None
+    try:  # 2026-10-14: ultime due chiusure giornaliere reali (previousClose di Yahoo a volte è vecchio)
+        import yfinance as yf
+        h = yf.Ticker(f"{ref['sym']}.{prod[2]}").history(period="10d", interval="1d")
+        c = [float(x) for x in h["Close"] if x and x > 0]
+        if len(c) >= 2:
+            pchg = (c[-1] / c[-2] - 1) * 100
+    except Exception as e:
+        print(f"  ! closes {ref['sym']}: {e}")
+    if pchg is None and ref.get("prev"):
+        pchg = (ref["price"] / ref["prev"] - 1) * 100
     by_oi_chg = []
     if prev_map:
         for r in rows:
