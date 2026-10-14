@@ -1,0 +1,22 @@
+name: CME probe (temporary)
+on: { workflow_dispatch: {} }
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe CME sources
+        run: |
+          UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+          D=$(date -u -d "yesterday" +%Y%m%d)
+          for u in \
+            "https://www.cmegroup.com/ftp/bulletin/" \
+            "https://www.cmegroup.com/ftp/bulletin/DailyBulletin_pdf_${D}.zip" \
+            "https://www.cmegroup.com/CmeWS/mvc/Volume/Details/F/425/${D}/P?tradeDate=${D}" \
+            "https://www.cmegroup.com/CmeWS/mvc/Volume/TradeDates?exchange=CME" \
+            "https://www.cmegroup.com/CmeWS/mvc/Quotes/Future/425/G" \
+            "https://www.cmegroup.com/CmeWS/mvc/Settlements/Futures/Settlements/425/FUT?tradeDate=$(date -u -d yesterday +%m/%d/%Y)" \
+            "https://www.cmegroup.com/market-data/volume-open-interest/exchange-volume.html" ; do
+            code=$(curl -s -L -m 30 -A "$UA" -H "Accept: application/json,text/html,*/*" -H "Referer: https://www.cmegroup.com/" -o /tmp/out -w "%{http_code} %{size_download} %{content_type}" "$u")
+            echo "== $u -> $code"
+            head -c 600 /tmp/out | tr -d '\000' ; echo
+          done
