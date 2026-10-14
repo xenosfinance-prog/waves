@@ -4,19 +4,33 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
-      - name: Probe CME sources
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install yfinance
+      - name: Probe Yahoo futures contracts
+        shell: python
         run: |
-          UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
-          D=$(date -u -d "yesterday" +%Y%m%d)
-          for u in \
-            "https://www.cmegroup.com/ftp/bulletin/" \
-            "https://www.cmegroup.com/ftp/bulletin/DailyBulletin_pdf_${D}.zip" \
-            "https://www.cmegroup.com/CmeWS/mvc/Volume/Details/F/425/${D}/P?tradeDate=${D}" \
-            "https://www.cmegroup.com/CmeWS/mvc/Volume/TradeDates?exchange=CME" \
-            "https://www.cmegroup.com/CmeWS/mvc/Quotes/Future/425/G" \
-            "https://www.cmegroup.com/CmeWS/mvc/Settlements/Futures/Settlements/425/FUT?tradeDate=$(date -u -d yesterday +%m/%d/%Y)" \
-            "https://www.cmegroup.com/market-data/volume-open-interest/exchange-volume.html" ; do
-            code=$(curl -s -L -m 30 -A "$UA" -H "Accept: application/json,text/html,*/*" -H "Referer: https://www.cmegroup.com/" -o /tmp/out -w "%{http_code} %{size_download} %{content_type}" "$u")
-            snip=$(head -c 300 /tmp/out | tr -d '\000\r\n%' | tr ',' ';')
-            echo "::notice title=$code::$u :: $snip"
-          done
+          import yfinance as yf, datetime as dt
+          codes = "FGHJKMNQUVXZ"
+          now = dt.date.today()
+          syms = []
+          for root, ex in (("CL","NYM"),("NG","NYM"),("BZ","NYM"),("GC","CMX")):
+              y, m = now.year, now.month
+              for i in range(7):
+                  mm = (m + i - 1) % 12 + 1; yy = y + (m + i - 1) // 12
+                  syms.append(f"{root}{codes[mm-1]}{str(yy)[2:]}.{ex}")
+          for s in syms:
+              try:
+                  t = yf.Ticker(s)
+                  h = t.history(period="5d", interval="1d")
+                  fi = {}
+                  try:
+                      inf = t.info
+                      fi = {k: inf.get(k) for k in ("openInterest","volume","expireDate","regularMarketPrice")}
+                  except Exception as e:
+                      fi = {"info_err": str(e)[:60]}
+                  last = h.tail(1)
+                  msg = f"rows={len(h)} close={float(last['Close'].iloc[0]) if len(h) else None} vol={int(last['Volume'].iloc[0]) if len(h) else None} {fi}"
+              except Exception as e:
+                  msg = f"ERR {str(e)[:120]}"
+              print(f"::notice title={s}::{msg}")
