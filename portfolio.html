@@ -372,9 +372,9 @@ textarea{resize:vertical;min-height:70px;}
   <!-- ACCOUNT FILTER -->
   <div class="filter-bar">
     <span style="font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;">Account:</span>
-    <button class="filter-btn active" data-acct="MT5" onclick="setAcctFilter(this)">MT5 · ActivTrades</button>
-    <button class="filter-btn" data-acct="MT5-old" onclick="setAcctFilter(this)">MT5 · Old demo</button>
-    <button class="filter-btn" data-acct="Dukascopy" onclick="setAcctFilter(this)">Dukascopy</button>
+    <button class="filter-btn active" data-acct="MT5" onclick="setAcctFilter(this)">RMG ACC 3</button>
+    <button class="filter-btn" data-acct="MT5-old" onclick="setAcctFilter(this)">RMG ACC 2</button>
+    <button class="filter-btn" data-acct="Dukascopy" onclick="setAcctFilter(this)">RMG ACC 1</button>
     <button class="filter-btn" data-acct="Manual" onclick="setAcctFilter(this)">Manual</button>
     <button class="filter-btn" data-acct="All" onclick="setAcctFilter(this)">All</button>
   </div>
@@ -536,15 +536,15 @@ let trades  = [];
 let nextId  = 1;
 let catFilter = 'All';
 
-// FIX 2026-09-23: the journal mixed three separate accounts (Dukascopy
-// demo, MT5 ActivTrades demo, manual trades) against one $10,000
+// FIX 2026-09-23: the journal mixed three separate accounts (RMG ACC 1,
+// RMG ACC 2, manual trades) against one $10,000
 // capital, so it could never match the MT5 balance. KPIs, charts and
 // tables are now computed per selected account. New bot trades carry
 // an explicit "account" field (portfolio_sync.py); older ones are
 // classified by order-id format (MT5 tickets are 10 digits, Dukascopy
 // ids 9) or, for backfilled rows without an id, by open date.
-// 2026-10-13: il demo ActivTrades scaduto il 12/10 è separato ("MT5-old"):
-// il conto attuale (aperto il 12/10 con 10.000) deve combaciare con MT5.
+// 2026-10-13: conti visualizzati con nickname — MT5 = RMG ACC 3 (dal 12/10,
+// 10.000), MT5-old = RMG ACC 2 (chiuso il 12/10), Dukascopy = RMG ACC 1.
 const ACCOUNTS = {
   MT5:       { capital: 10000 },
   'MT5-old': { capital: 10000 },
