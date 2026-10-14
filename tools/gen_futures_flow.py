@@ -42,8 +42,8 @@ PRODUCTS = [
     ("gc", "GC", "CMX", "Gold", "GC=F", 14, 1, "$/oz"),
     ("si", "SI", "CMX", "Silver", "SI=F", 14, 3, "$/oz"),
     ("hg", "HG", "CMX", "Copper", "HG=F", 14, 4, "$/lb"),
-    ("es", "ES", "CME", "E-mini S&P 500", "ES=F", 12, 2, "pts"),
-    ("nq", "NQ", "CME", "E-mini Nasdaq 100", "NQ=F", 12, 2, "pts"),
+    ("es", "ES", "CME", "S&P 500", "ES=F", 12, 2, "pts"),
+    ("nq", "NQ", "CME", "Nasdaq 100", "NQ=F", 12, 2, "pts"),
 ]
 
 
@@ -79,15 +79,27 @@ def snapshot(prod, today):
     return rows
 
 
-def front_volume_stats(cont):
+def total_volume_stats(prod, rows):
+    """FIX 2026-10-14: volume TOTALE della curva (somma dei mesi quotati) vs la sua media a
+    20 sedute. Il volume del continuo (SI=F, HG=F) salta ai roll: argento risultava 262x."""
     import yfinance as yf
+    syms = [f"{r['sym']}.{prod[2]}" for r in rows]
     try:
-        h = yf.Ticker(cont).history(period="2mo", interval="1d")
-        v = [float(x) for x in h["Volume"] if x and x > 0]
-        if len(v) >= 21:
-            return v[-1], sum(v[-21:-1]) / 20
+        df = yf.download(syms, period="3mo", interval="1d", group_by="ticker", progress=False, threads=True)
+        tot = None
+        for sy in syms:
+            try:
+                v = df[sy]["Volume"].fillna(0) if len(syms) > 1 else df["Volume"].fillna(0)
+            except Exception:
+                continue
+            tot = v if tot is None else tot.add(v, fill_value=0)
+        if tot is None:
+            return None, None
+        tot = [float(x) for x in tot if x and x > 0]
+        if len(tot) >= 21:
+            return tot[-1], sum(tot[-21:-1]) / 20
     except Exception as e:
-        print(f"  ! volume {cont}: {e}")
+        print(f"  ! volume {prod[0]}: {e}")
     return None, None
 
 
@@ -138,12 +150,13 @@ def analyse(prod, rows, prev_rows, vol_now, vol_avg):
         "key": key, "name": name, "unit": unit, "dec": dec,
         "front": front["sym"], "active": active["sym"], "active_price": active["price"], "price_chg": pchg,
         "oi_total": oi_tot, "oi_chg": oi_chg, "vol_total": vol_tot,
-        "front_vol": vol_now, "front_vol_avg20": vol_avg,
+        "vol_today": vol_now, "vol_avg20": vol_avg,
         "vol_ratio": (vol_now / vol_avg) if vol_now and vol_avg else None,
         "flow": quadrant(pchg, oi_chg), "top_oi_move": top_oi,
         "m1": m1["sym"], "m2": m2["sym"], "m6": m6["sym"],
         "spread_m1m2": sp12, "spread_m1m6": sp16,
-        "structure": "backwardation" if sp16 > 0 else "contango",
+        # gas naturale: curva stagionale (inverno > primavera) → struttura letta su M1–M2
+        "structure": ("backwardation" if (sp12 if key == "ng" else sp16) > 0 else "contango"),
         "curve": [[r["sym"], r["price"], r["oi"], r["vol"]] for r in rows],
     }
     if prev_map and m1["sym"] in prev_map and m6["sym"] in prev_map:
@@ -280,7 +293,7 @@ def main():
             print("  ! no contracts")
             continue
         snap[prod[0]] = rows
-        vn, va = front_volume_stats(prod[4])
+        vn, va = total_volume_stats(prod, rows)
         try:
             res.append(analyse(prod, rows, (prev_snap or {}).get(prod[0]), vn, va))
         except Exception as e:
