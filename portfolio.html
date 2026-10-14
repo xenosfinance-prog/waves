@@ -933,7 +933,15 @@ let _chartArgs = null, _chartRetry = 0;
 function renderCharts(closed, open) {
   _chartArgs = [closed, open];
   if (typeof Chart === 'undefined') {
-    if (_chartRetry++ < 20) setTimeout(() => renderCharts(..._chartArgs), 500);
+    // 2026-10-14: se Chart.js dal CDN principale non arriva, caricalo da un CDN alternativo.
+    if (_chartRetry === 4 && !document.getElementById('chartjs-fallback')) {
+      const sc = document.createElement('script');
+      sc.id = 'chartjs-fallback';
+      sc.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js';
+      sc.onload = () => redrawCharts();
+      document.head.appendChild(sc);
+    }
+    if (_chartRetry++ < 40) setTimeout(() => renderCharts(..._chartArgs), 500);
     return;
   }
   _chartRetry = 0;
