@@ -59,6 +59,7 @@ STRICT RULES:
 - Do not compute new numbers (no sums, differences, averages or percentages of your own).
 - Respect the direction words given in the FACTS exactly ("toward long", "toward short", "more short", "less long"...). A negative change on a net short position means the short got BIGGER, not smaller.
 - A single-contract open-interest change is not part of the total change: never describe it as a share of the total.
+- Use the words "crowded", "extended" or "extreme" only for markets the FACTS label that way.
 - No news, no fundamentals, no forecasts of price targets, never tell the reader to buy or sell.
 - Positioning is context, not a timing signal: say "risk of a squeeze" or "fragile", never "will rise/fall"."""
     try:
