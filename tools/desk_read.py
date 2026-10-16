@@ -36,7 +36,7 @@ def numbers_ok(text, facts):
     return not bad, bad
 
 
-def ai_read(kind, facts, n_sentences="4-6"):
+def ai_read(kind, facts, n_sentences="4-5"):
     """kind: 'cot' | 'flow'. Ritorna (testo, None) oppure (None, motivo)."""
     key = os.environ.get("ANTHROPIC_API_KEY", "")
     if not key:
@@ -51,12 +51,14 @@ Readers are traders and students: they see the tables below your text, so do not
 FACTS (the only source you may use):
 {json.dumps(facts, ensure_ascii=False, indent=0)}
 
-Write {n_sentences} sentences in English, one paragraph, plain text (no markdown, no bullet points, no headings).
-Cover: the dominant theme, where positioning or flow is strongest, where it is crowded or fragile, and any divergence between price and positioning.
+Write {n_sentences} short sentences in English, one paragraph, MAXIMUM 120 words, plain text (no markdown, no bullet points, no headings).
+Cover: the dominant theme, where positioning or flow is strongest, where it is crowded or fragile, and any divergence between price and positioning. Pick the 3-4 most important markets; do not try to mention all of them.
 
 STRICT RULES:
 - Every number you write must appear EXACTLY as written in the FACTS (same digits, same decimals). If a number is not in the FACTS, do not write it. Prefer fewer numbers.
 - Do not compute new numbers (no sums, differences, averages or percentages of your own).
+- Respect the direction words given in the FACTS exactly ("toward long", "toward short", "more short", "less long"...). A negative change on a net short position means the short got BIGGER, not smaller.
+- A single-contract open-interest change is not part of the total change: never describe it as a share of the total.
 - No news, no fundamentals, no forecasts of price targets, never tell the reader to buy or sell.
 - Positioning is context, not a timing signal: say "risk of a squeeze" or "fragile", never "will rise/fall"."""
     try:
@@ -79,6 +81,20 @@ def _kfmt(v):
     a = abs(v)
     s = f"{a / 1e6:.2f}M" if a >= 1e6 else f"{a / 1000:.1f}k" if a >= 1000 else f"{a:.0f}"
     return ("+" if v > 0 else "-" if v < 0 else "") + s
+
+
+def _dirword(net, chg):
+    """Verso della variazione del netto, senza ambiguità sul segno."""
+    if chg == 0:
+        return "unchanged"
+    prev = net - chg
+    if prev > 0 > net:
+        return "flipped from net long to net short"
+    if prev < 0 < net:
+        return "flipped from net short to net long"
+    if net > 0 or (net == 0 and prev > 0):
+        return "more long" if chg > 0 else "less long"
+    return "less short" if chg > 0 else "more short"
 
 
 def _streak(chart):
@@ -105,7 +121,8 @@ def cot_facts(res):
         side = "net long" if r["net"] > 0 else "net short" if r["net"] < 0 else "flat"
         n, sg = _streak(r.get("chart"))
         f = (f"{r['name']} ({r['group']}): {r['trader'].lower()} {side} {_kfmt(r['net'])} contracts; "
-             f"1-week change {_kfmt(r['chg'])}; 4-week change {_kfmt(r['chg4'])}; "
+             f"1-week change {_kfmt(r['chg'])} ({_dirword(r['net'], r['chg'])}); "
+             f"4-week change {_kfmt(r['chg4'])} ({_dirword(r['net'], r['chg4'])}); "
              f"COT index {int(r['cot_index'])} (0 = most short, 100 = most long of the 3-year range)")
         if r.get("net_pct_oi") is not None:
             f += f"; net = {r['net_pct_oi']:+.1f}% of open interest"
@@ -116,7 +133,7 @@ def cot_facts(res):
         if r.get("divergence"):
             f += f"; divergence: {r['divergence'].lower()}"
         if n >= 2:
-            f += f"; net position {'increased' if sg > 0 else 'decreased'} for {n} consecutive weeks"
+            f += f"; net position moved {'toward long' if sg > 0 else 'toward short'} for {n} consecutive weeks"
         if r["key"] == "wti" and "pm_net" in r:
             f += f"; producers/merchants net {_kfmt(r['pm_net'])}, swap dealers net {_kfmt(r.get('swap_net', 0))}"
         facts.append(f)
@@ -168,7 +185,7 @@ def flow_facts(res):
             f += f"; price {r['price_chg']:+.2f}% on the session"
         if r.get("oi_chg") is not None:
             pct = r["oi_chg"] / (r["oi_total"] - r["oi_chg"]) * 100 if r["oi_total"] - r["oi_chg"] else None
-            f += f"; total open interest {_kfmt(r['oi_chg'])} contracts" + (f" ({pct:+.1f}%)" if pct is not None else "")
+            f += f"; total open interest across all months {_kfmt(r['oi_chg'])} contracts" + (f" ({pct:+.1f}%)" if pct is not None else "")
         if r.get("vol_ratio"):
             f += f"; volume {r['vol_ratio']:.1f}x its 20-day average"
         if r.get("flow"):
@@ -179,7 +196,8 @@ def flow_facts(res):
         if r.get("spread_m1m6_chg") is not None and r["key"] != "ng":
             f += f" ({r['spread_m1m6_chg']:+.{r['dec']}f} vs previous session)"
         if r.get("top_oi_move"):
-            f += f"; largest open-interest change in {r['top_oi_move'][1]} ({_kfmt(r['top_oi_move'][0])})"
+            f += (f"; largest single-contract open-interest change: {r['top_oi_move'][1]} {_kfmt(r['top_oi_move'][0])} "
+                  "(single months include rolling between months; only the total is the net flow)")
         facts.append(f)
     cl = next((r for r in res if r["key"] == "cl"), None)
     bz = next((r for r in res if r["key"] == "bz"), None)
