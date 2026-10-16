@@ -32,6 +32,8 @@ jobs:
         run: pip install -r requirements.txt requests
 
       - name: Generate COT page
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: python tools/gen_cot.py
 
       - name: Commit and push

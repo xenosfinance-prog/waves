@@ -44,6 +44,8 @@ jobs:
 
       - name: Generate Futures Flow
         if: steps.fresh.outputs.skip != '1'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: python tools/gen_futures_flow.py
 
       - name: Commit and push

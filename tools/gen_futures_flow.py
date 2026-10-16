@@ -15,7 +15,12 @@ Output:
   futures-flow/history.json → per-day snapshots (OI, volume, settle per contract)
   sitemap.xml          → /futures-flow entry
 
-All numbers computed in code. No AI.
+All numbers computed in code.
+2026-10-16: "Desk read" summary (tools/desk_read.py): Claude rewrites ONLY the computed
+figures, every number is checked against them; otherwise a rule-based summary is used.
+2026-10-16: FIX price d/d and volume — the run is at 05:30 UTC, when Yahoo already has a
+partial daily bar for the new session (volumes read 0.01-0.16x, price change = overnight
+move). Both now use only completed sessions (bars dated before today UTC).
 """
 
 import json
@@ -27,6 +32,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "tools"))
 sys.path.insert(0, ROOT)
 import gen_analysis_pages as G  # noqa: E402
+import desk_read as D  # noqa: E402  Desk read (sintesi)
 
 SITE = "https://xenosfinance.com"
 OUT_DIR = os.path.join(ROOT, "futures-flow")
@@ -95,6 +101,8 @@ def total_volume_stats(prod, rows):
             tot = v if tot is None else tot.add(v, fill_value=0)
         if tot is None:
             return None, None
+        today = datetime.now(timezone.utc).date()
+        tot = tot[[i.date() < today for i in tot.index]]   # solo sedute concluse (niente barra parziale)
         tot = [float(x) for x in tot if x and x > 0]
         if len(tot) >= 21:
             return tot[-1], sum(tot[-21:-1]) / 20
@@ -138,13 +146,14 @@ def analyse(prod, rows, prev_rows, vol_now, vol_avg):
     try:  # 2026-10-14: ultime due chiusure giornaliere reali (previousClose di Yahoo a volte è vecchio)
         import yfinance as yf
         h = yf.Ticker(f"{ref['sym']}.{prod[2]}").history(period="10d", interval="1d")
+        today = datetime.now(timezone.utc).date()
+        h = h[[i.date() < today for i in h.index]]          # solo sedute concluse (niente barra parziale)
         c = [float(x) for x in h["Close"] if x and x > 0]
         if len(c) >= 2:
             pchg = (c[-1] / c[-2] - 1) * 100
     except Exception as e:
         print(f"  ! closes {ref['sym']}: {e}")
-    if pchg is None and ref.get("prev"):
-        pchg = (ref["price"] / ref["prev"] - 1) * 100
+    # (nessun fallback su price/previousClose di .info: a quell'ora è il movimento overnight, non la seduta)
     by_oi_chg = []
     if prev_map:
         for r in rows:
@@ -199,7 +208,7 @@ def fp(v, dec):
     return f"{v:,.{dec}f}"
 
 
-def telegram_html(res, day):
+def telegram_html(res, day, desk=None):
     import html as H
     lines = ["<b>XENOS WAVE · FUTURES FLOW</b>", f"<b>Session {day:%a %d %b} · open interest &amp; curve</b>", ""]
     tab = []
@@ -209,6 +218,8 @@ def telegram_html(res, day):
         vr = f"{r['vol_ratio']:.1f}x" if r["vol_ratio"] else " n/a"
         tab.append(f"{r['name'][:13]:<13} {pc:>6}  OI {oc:>7}  vol {vr:>4}")
     lines.append("<pre>" + H.escape("\n".join(tab)) + "</pre>")
+    if desk:
+        lines += ["<b>Desk read</b>", H.escape(desk), ""]
     flows = [r for r in res if r["flow"]]
     if flows:
         lines.append("<b>Positioning read</b>")
@@ -236,7 +247,7 @@ def telegram_html(res, day):
     return "\n".join(lines)
 
 
-def build_page(res, prev_snap, day, now):
+def build_page(res, prev_snap, day, now, desk=None):
     title = "Futures Flow — Open Interest, Volume & Curves: Oil, Gas, Gold, Indices | XenosFinance"
     desc = (f"Daily futures flow for {day:%d %B %Y}: open interest and volume changes, positioning read and "
             "forward curves for WTI, Brent, natural gas, gold, silver, copper, S&P 500 and Nasdaq 100 futures.")
@@ -247,8 +258,11 @@ def build_page(res, prev_snap, day, now):
          "total open interest across listed months: rising price with rising open interest means new longs; "
          "falling price with rising open interest, new shorts; rising price with falling open interest, short "
          "covering; falling price with falling open interest, long liquidation. Volume is compared with its "
-         "20-day average.</p>",
-         "<h2>Overview</h2>",
+         "20-day average.</p>"]
+    if desk:
+        b += ["<h2>Desk read</h2>", f"<p>{esc(desk)}</p>",
+              '<p style="font-family:var(--mono);font-size:10px;color:var(--muted)">Written from the figures in the tables below — no external data.</p>']
+    b += ["<h2>Overview</h2>",
          "<table><tr><th>Market</th><th>Most active</th><th>Price d/d</th><th>Open interest</th><th>OI d/d</th>"
          "<th>Volume vs 20d</th><th>Flow</th></tr>"]
     for r in res:
@@ -319,9 +333,11 @@ def main():
     for d in sorted(hist)[:-KEEP_DAYS]:
         hist.pop(d, None)
     json.dump(hist, open(HIST, "w", encoding="utf-8"), separators=(",", ":"))
-    open(os.path.join(OUT_DIR, "index.html"), "w", encoding="utf-8").write(build_page(res, prev_snap, sess, now))
+    desk, desk_src = D.build("flow", res)
+    open(os.path.join(OUT_DIR, "index.html"), "w", encoding="utf-8").write(build_page(res, prev_snap, sess, now, desk))
     latest = {"session": sess.isoformat(), "generated": now.isoformat(), "has_oi_change": prev_snap is not None,
-              "telegram_html": telegram_html(res, sess),
+              "desk_read": desk, "desk_read_source": desk_src,
+              "telegram_html": telegram_html(res, sess, desk),
               "products": [{k: v for k, v in r.items() if k != "curve"} for r in res]}
     json.dump(latest, open(os.path.join(OUT_DIR, "latest.json"), "w", encoding="utf-8"), indent=1)
     G.update_sitemap([f"{SITE}/futures-flow"], today.isoformat())

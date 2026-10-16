@@ -12,7 +12,9 @@ Output:
   cot/latest.json  → read by the Telegram bot for the Monday channel post
   sitemap.xml      → /cot entry refreshed
 
-All numbers are computed here from CFTC data and prices (Yahoo). No AI.
+All numbers are computed here from CFTC data and prices (Yahoo).
+2026-10-16: "Desk read" summary (tools/desk_read.py): Claude rewrites ONLY the computed
+figures, every number is checked against them; otherwise a rule-based summary is used.
 Run by .github/workflows/cot-report.yml (Saturday, Monday fallback).
 """
 
@@ -27,6 +29,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "tools"))
 sys.path.insert(0, ROOT)
 import gen_analysis_pages as G  # noqa: E402  page shell, CSS, sitemap (same look as /analysis)
+import desk_read as D  # noqa: E402  Desk read (sintesi)
 
 SITE = "https://xenosfinance.com"
 OUT_DIR = os.path.join(ROOT, "cot")
@@ -218,7 +221,7 @@ def svg_chart(points, w=300, h=80):
             f'stroke="#243a5e"/>{"".join(bars)}{line}</svg>')
 
 
-def telegram_html(res, report_date, release_date):
+def telegram_html(res, report_date, release_date, desk=None):
     import html as H
     rows = []
     for grp_title, groups in (("COMMODITIES · managed money net", ("Energy", "Metals")),
@@ -236,6 +239,8 @@ def telegram_html(res, report_date, release_date):
     lines = ["<b>XENOS WAVE · COT POSITIONING</b>",
              f"<b>Week to Tue {datetime.strptime(report_date, '%Y-%m-%d'):%d %b} · CFTC</b>", "",
              "<pre>" + H.escape("\n".join(rows).rstrip()) + "</pre>"]
+    if desk:
+        lines += ["<b>Desk read</b>", H.escape(desk), ""]
     if ext:
         lines.append("<b>Extremes</b> (3-year range)")
         lines += [f"• {H.escape(r['name'])}: {r['flag'].lower()} — COT index {int(r['cot_index'])}" for r in ext]
@@ -251,7 +256,7 @@ def telegram_html(res, report_date, release_date):
     return "\n".join(lines)
 
 
-def build_page(res, report_date, release_date, now):
+def build_page(res, report_date, release_date, now, desk=None):
     title = "COT Report — Futures Positioning: Oil, Gold, Indices, FX | XenosFinance"
     desc = (f"Weekly Commitments of Traders analysis (week to {report_date}): managed money and leveraged fund "
             "positioning in WTI, natural gas, gold, silver, copper, S&P 500, Nasdaq 100, euro, yen, pound and "
@@ -265,6 +270,10 @@ def build_page(res, report_date, release_date, now):
          "funds</b>. The COT index places this week's net position within its 3-year range: 0 is the most "
          "short, 100 the most long. Readings above 90 or below 10 mark crowded positioning, where the risk of a "
          "squeeze or a reversal rises.</p>"]
+    if desk:
+        b.append("<h2>Desk read</h2>")
+        b.append(f"<p>{esc(desk)}</p>")
+        b.append('<p style="font-family:var(--mono);font-size:10px;color:var(--muted)">Written from the figures in the tables below — no external data.</p>')
     ext = [r for r in res if r["flag"]]
     if ext:
         b.append('<div class="box"><p><b>Key reads this week</b></p>' + "".join(
@@ -331,10 +340,12 @@ def main():
     res = [r for r in res if r["date"] == report_date] or res
     rel = datetime.strptime(report_date, "%Y-%m-%d") + timedelta(days=3)
     release_date = f"{rel:%d %b %Y}"
+    desk, desk_src = D.build("cot", res)
     os.makedirs(OUT_DIR, exist_ok=True)
-    open(os.path.join(OUT_DIR, "index.html"), "w", encoding="utf-8").write(build_page(res, report_date, release_date, now))
+    open(os.path.join(OUT_DIR, "index.html"), "w", encoding="utf-8").write(build_page(res, report_date, release_date, now, desk))
     latest = {"report_date": report_date, "release_date": release_date, "generated": now.isoformat(),
-              "telegram_html": telegram_html(res, report_date, release_date),
+              "desk_read": desk, "desk_read_source": desk_src,
+              "telegram_html": telegram_html(res, report_date, release_date, desk),
               "markets": [{k: v for k, v in r.items() if k != "chart"} for r in res]}
     json.dump(latest, open(os.path.join(OUT_DIR, "latest.json"), "w", encoding="utf-8"), indent=1)
     G.update_sitemap([f"{SITE}/cot"], now.strftime("%Y-%m-%d"))
