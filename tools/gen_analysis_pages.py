@@ -64,7 +64,7 @@ MEMBER_NAME = {"prev_high": "Previous-day high", "prev_low": "Previous-day low",
 REGIME = {"above_cloud": "above the cloud", "below_cloud": "below the cloud", "inside_cloud": "inside the cloud"}
 
 # 2026-10: intestazione chiara (il bias è su 1H/4H, la pagina si aggiorna ogni giorno)
-TF_LABEL = "Daily refresh · 1H/4H technical bias"
+TF_LABEL = "Commentary twice a day · levels live · 1H/4H technical bias"
 
 # 2026-10: spread Brent–WTI (calcolato in main quando ci sono entrambi i prezzi)
 SPREAD = None
@@ -241,17 +241,19 @@ def build_instrument_page(inst, d, ai, now, all_rows):
 
     b = [f'<div class="crumb"><a href="/">Home</a> › <a href="/analysis">Daily Analysis</a> › {esc(name)}</div>',
          f"<h1>{esc(name)} Technical Analysis Today</h1>",
-         f'<div class="upd">Updated {now.strftime("%d %b %Y, %H:%M")} UTC · {TF_LABEL} · {esc(group)}</div>']
+         f'<div class="upd" id="lv-upd">Updated {now.strftime("%d %b %Y, %H:%M")} UTC · {TF_LABEL} · {esc(group)}</div>',
+         # 2026-10-16: configurazione per /analysis/live.js (numeri aggiornati dal vivo)
+         f'<div id="lv-cfg" hidden data-yf="{esc(yf)}" data-dec="{dec}" data-short="{esc(short)}" data-name="{esc(name)}"></div>']
     if market_closed(now, group):
         b.append('<div class="upd">Market closed — data as of Friday close</div>')
     if slug in ("wti-crude-oil", "brent-crude-oil"):
         b.append(spread_html())
     if ai and ai.get("headline"):
         b.append(f'<div class="headline">{esc(ai["headline"])}</div>')
-    b.append(f'<div class="px">{esc(short)} <b>{f(d["live"])}</b>'
+    b.append(f'<div class="px" id="lv-px">{esc(short)} <b>{f(d["live"])}</b>'
              + (f' <span class="{"up" if chg >= 0 else "dn"}">{chg:+.2f}%</span>' if chg is not None else "")
              + f' · ATR(14) {f(d["atr"])}</div>')
-    b.append(f'<div class="bias {dirw}"><span>Bias</span><b>{bias_word}</b><span>Confidence {d["bias"]["confidence"]} · score {d["bias"]["score"]:+d}/7</span></div>')
+    b.append(f'<div class="bias {dirw}" id="lv-bias"><span>Bias</span><b>{bias_word}</b><span>Confidence {d["bias"]["confidence"]} · score {d["bias"]["score"]:+d}/7</span></div>')
 
     if ai:
         b.append("<h2>Summary</h2>")
@@ -264,7 +266,7 @@ def build_instrument_page(inst, d, ai, now, all_rows):
         return "".join(f'<tr><td>{zone_txt(z, dec)}</td><td class="m">{esc(" + ".join(MEMBER_NAME.get(m, m) for m in z["members"]))}</td><td>{"●" * min(z["strength"], 4)}</td></tr>' for z in zs)
     b.append("<h2>Key levels — confluence zones</h2>")
     b.append("<p>Zones where several technical levels cluster together (moving averages, SuperTrend, Fibonacci retracements, previous-day range, swing points). More converging levels mean a more relevant zone.</p>")
-    b.append('<div class="grid"><div><table><tr><th>Resistance</th><th>Levels</th><th>Strength</th></tr>' + zrows(res)
+    b.append('<div class="grid" id="lv-zones"><div><table><tr><th>Resistance</th><th>Levels</th><th>Strength</th></tr>' + zrows(res)
              + '</table></div><div><table><tr><th>Support</th><th>Levels</th><th>Strength</th></tr>' + zrows(sup) + "</table></div></div>")
 
     # Trend & momentum
@@ -273,21 +275,21 @@ def build_instrument_page(inst, d, ai, now, all_rows):
     if ai and ai.get("trend"):
         b.append(f"<p>{esc(ai['trend'])}</p>")
     h1c = d.get("h1")
-    b.append("<table><tr><th>Indicator</th><th>Value</th><th>Reading</th></tr>"
+    b.append('<div id="lv-trend"><table><tr><th>Indicator</th><th>Value</th><th>Reading</th></tr>'
              f'<tr><td>SMA 20</td><td>{f(ind["sma20"])}</td><td class="m">{"price above" if ind["sma20"] and d["live"] > ind["sma20"] else "price below"}</td></tr>'
              f'<tr><td>SMA 50</td><td>{f(ind["sma50"])}</td><td class="m">{"price above" if ind["sma50"] and d["live"] > ind["sma50"] else "price below"}</td></tr>'
              f'<tr><td>SMA 200</td><td>{f(ind["sma200"])}</td><td class="m">{"price above" if ind["sma200"] and d["live"] > ind["sma200"] else "price below"}</td></tr>'
              f'<tr><td>SuperTrend (10,3)</td><td>{f(ind["supertrend"])}</td><td class="m">{"bullish" if ind["supertrend_dir"] == "up" else "bearish"}</td></tr>'
              + (f'<tr><td>Ichimoku 4H</td><td>{REGIME.get(h1c["regime"], h1c["regime"])}</td><td class="m">{h1c["bull_score"]}/4 bullish · {h1c["bear_score"]}/4 bearish</td></tr>' if h1c else "")
-             + "</table>")
+             + "</table></div>")
     b.append("<h2>Momentum</h2>")
     if ai and ai.get("momentum"):
         b.append(f"<p>{esc(ai['momentum'])}</p>")
-    b.append("<table><tr><th>Indicator</th><th>Value</th></tr>"
+    b.append('<div id="lv-mom"><table><tr><th>Indicator</th><th>Value</th></tr>'
              f'<tr><td>RSI (14)</td><td>{ind["rsi"]}</td></tr>'
              f'<tr><td>MACD / signal</td><td>{ind["macd"]} / {ind["macd_signal"]}</td></tr>'
              + (f'<tr><td>Volume vs 40-bar average</td><td>×{ind["volume_ratio"]}</td></tr>' if ind.get("volume_ratio") else "")
-             + "</table>")
+             + "</table></div>")
 
     # Struttura
     b.append("<h2>Structure — swing, Fibonacci and Elliott Wave</h2>")
@@ -310,28 +312,31 @@ def build_instrument_page(inst, d, ai, now, all_rows):
     pdv = d.get("prev_day") or {}
     if pdv.get("high") is not None and pdv.get("low") is not None:
         rows += f'<tr><td>Previous-day range</td><td>{f(pdv["low"])} – {f(pdv["high"])}</td></tr>'
-    if rows:
-        b.append(f"<table><tr><th>Element</th><th>Level</th></tr>{rows}</table>")
+    b.append(f'<div id="lv-struct">' + (f"<table><tr><th>Element</th><th>Level</th></tr>{rows}</table>" if rows else "") + "</div>")
 
     # Scenari
+    b.append("<h2>Trade scenarios</h2>")
+    b.append("<p>Educational scenarios built from the confluence zones. Entry, stop and target are calculated by our engine; risk/reward is computed from the published numbers, and scenarios with an unfavourable ratio are flagged rather than presented as opportunities.</p>")
     if d.get("scenarios"):
-        b.append("<h2>Trade scenarios</h2>")
-        b.append("<p>Educational scenarios built from the confluence zones. Entry, stop and target are calculated by our engine; risk/reward is computed from the published numbers, and scenarios with an unfavourable ratio are flagged rather than presented as opportunities.</p>")
         t = "<table><tr><th>Scenario</th><th>Entry</th><th>Stop</th><th>Target</th><th>R:R</th><th>Quality</th></tr>"
         for sc in d["scenarios"]:
             ql = {"good": "good", "ok": "acceptable", "poor": "unfavourable"}[sc["quality"]]
             t += (f'<tr class="{sc["quality"]}"><td>{SCEN_NAME.get(sc["key"], sc["key"])}</td><td>{f(sc["entry"])}</td>'
                   f'<td>{f(sc["stop"])}</td><td>{f(sc["target"])}</td><td>{sc["rr"]:.2f}:1</td><td><span class="q {sc["quality"]}">{ql}</span></td></tr>')
-        b.append(t + "</table>")
+        b.append('<div id="lv-scen">' + t + "</table></div>")
+    else:
+        b.append('<div id="lv-scen"><p>No scenario with valid levels at the moment.</p></div>')
 
     b.append("<h2>Outlook and confirmation</h2>")
     if ai and ai.get("outlook"):
         b.append(f"<p>{esc(ai['outlook'])}</p>")
     tr = d.get("trigger") or {}
+    trg = ""
     if tr.get("bull") is not None:
-        b.append(f'<div class="trig up">▲ Bullish confirmation: hourly close above {f(tr["bull"])}</div>')
+        trg += f'<div class="trig up">▲ Bullish confirmation: hourly close above {f(tr["bull"])}</div>'
     if tr.get("bear") is not None:
-        b.append(f'<div class="trig dn">▼ Bearish confirmation: hourly close below {f(tr["bear"])}</div>')
+        trg += f'<div class="trig dn">▼ Bearish confirmation: hourly close below {f(tr["bear"])}</div>'
+    b.append(f'<div id="lv-trig">{trg}</div>')
 
     # FAQ deterministica (numeri dal motore, nessun testo AI)
     faq = [
@@ -371,34 +376,36 @@ def build_instrument_page(inst, d, ai, now, all_rows):
             {"@type": "Question", "name": q, "acceptedAnswer": {"@type": "Answer", "text": a}} for q, a in faq]},
     ]
     kw = f"{name} technical analysis, {name} analysis today, {terms}, {short} support resistance, {short} forecast levels, Elliott Wave {name}"
+    b.append('<script src="/analysis/live.js" defer></script>')
     return page_shell(title, desc, url, "\n".join(b), jsonld, kw)
 
 
 def build_index(rows, now):
     url = f"{SITE}/analysis"
     title = "Daily Technical Analysis — Gold, Oil, Forex, Crypto & Indices | XenosFinance"
-    desc = "Daily technical analysis for Gold, Oil, Forex, Bitcoin and stock indices: bias, confluence zones, Elliott Wave and trade scenarios with risk/reward. Updated twice a day."
+    desc = "Daily technical analysis for Gold, Oil, Forex, Bitcoin and stock indices: bias, confluence zones, Elliott Wave and trade scenarios with risk/reward. Levels updated live."
     b = ['<div class="crumb"><a href="/">Home</a> › Daily Analysis</div>',
          "<h1>Daily Technical Analysis</h1>",
-         f'<div class="upd">Updated {now.strftime("%d %b %Y, %H:%M")} UTC · {TF_LABEL}</div>',
+         f'<div class="upd" id="lv-upd">Updated {now.strftime("%d %b %Y, %H:%M")} UTC · {TF_LABEL}</div>',
          ('<div class="upd">Market closed — Forex, Commodities and Indices show data as of Friday close; Crypto is live.</div>'
           if market_closed(now, "Forex") else ""),
          "<p>Every analysis is built by the XenosFinance engine on real market data: moving averages, SuperTrend, MACD, RSI, Fibonacci, "
          "Ichimoku and an Elliott Wave count combine into confluence zones and trade scenarios with calculated risk/reward. "
-         "Pages are refreshed twice a day for market analysis and trading education.</p>"]
+         "Prices, levels and scenarios update live while the page is open; the written commentary is refreshed twice a day.</p>"]
     groups = []
     for r in rows:
         if r[5] not in groups:
             groups.append(r[5])
     for g in groups:
         b.append(f"<h2>{esc(g)}</h2><table><tr><th>Instrument</th><th>Price</th><th>Bias</th><th>Nearest support</th><th>Nearest resistance</th></tr>")
-        for slug, name, short, dec, bias, price, s1, r1 in [(r[0], r[2], r[3], r[4], r[6], r[7], r[8], r[9]) for r in rows if r[5] == g]:
+        for slug, yf, name, short, dec, bias, price, s1, r1 in [(r[0], r[1], r[2], r[3], r[4], r[6], r[7], r[8], r[9]) for r in rows if r[5] == g]:
             cls = {"bullish": "up", "bearish": "dn"}.get(bias, "")
-            b.append(f'<tr><td><a href="/analysis/{slug}">{esc(name)}</a></td><td>{esc(price)}</td>'
-                     f'<td class="{cls}">{esc(bias.capitalize() if bias else "—")}</td><td>{esc(s1 or "—")}</td><td>{esc(r1 or "—")}</td></tr>')
+            b.append(f'<tr class="lv-row" data-yf="{esc(yf)}" data-dec="{dec}"><td><a href="/analysis/{slug}">{esc(name)}</a></td><td class="lv-price">{esc(price)}</td>'
+                     f'<td class="lv-b {cls}">{esc(bias.capitalize() if bias else "—")}</td><td class="lv-s1">{esc(s1 or "—")}</td><td class="lv-r1">{esc(r1 or "—")}</td></tr>')
         b.append("</table>")
         if g == "Commodities":
             b.append(spread_html())
+    b.append('<script src="/analysis/live.js" defer></script>')
     jsonld = [{"@context": "https://schema.org", "@type": "CollectionPage", "name": "Daily Technical Analysis",
                "description": desc, "url": url, "dateModified": now.strftime("%Y-%m-%dT%H:%M:%SZ")}]
     return page_shell(title, desc, url, "\n".join(b), jsonld,

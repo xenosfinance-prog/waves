@@ -69,7 +69,42 @@ TF_CONFIG = {
 # ─────────────────────────────────────────────────────────
 # DATA
 # ─────────────────────────────────────────────────────────
+# 2026-10-16: il continuo Yahoo CL=F passa al contratto successivo giorni prima della scadenza
+# (il 15-16/10 dava già il dicembre, ~1.4$ sotto il novembre di Investing/TradingView CL1!).
+# Per il WTI si usa il front month NYMEX esplicito (es. CLX26.NYM) fino all'ultimo giorno di
+# contrattazione — stessa regola del Worker e del bot. Se Yahoo non risponde si torna a CL=F.
+def _cl_front_contract(now=None):
+    from datetime import datetime as _d, timedelta as _td
+    now = now or _d.utcnow()
+    codes = "FGHJKMNQUVXZ"
+    def biz(d):
+        return d.weekday() < 5 and not (d.month == 12 and d.day == 25) and not (d.month == 1 and d.day == 1)
+    today = now.date()
+    for k in range(1, 4):
+        m0 = now.month - 1 + k
+        cy, cm = now.year + m0 // 12, m0 % 12 + 1
+        py, pm = (cy, cm - 1) if cm > 1 else (cy - 1, 12)
+        ref = _d(py, pm, 25).date()
+        while not biz(ref):
+            ref -= _td(days=1)
+        lt, n = ref, 0
+        while n < 3:
+            lt -= _td(days=1)
+            if biz(lt):
+                n += 1
+        if today <= lt:
+            return f"CL{codes[cm - 1]}{str(cy)[-2:]}.NYM"
+    return None
+
+
 def fetch_candles(yf_sym, interval, period, n, is_h4=False):
+    if yf_sym == "CL=F":
+        try:
+            fc = _cl_front_contract()
+            if fc:
+                return fetch_candles(fc, interval, period, n, is_h4)
+        except Exception as e:
+            logger.warning(f"fetch_candles WTI front month failed, using CL=F: {e}")
     # Retry with backoff: on Railway, the first yfinance call after a cold
     # container start frequently fails with a curl timeout (Yahoo's
     # session/cookie handshake not warmed up yet) or a spurious "possibly
@@ -1818,6 +1853,54 @@ STRICT RULES:
 - If "elliott" is null, do not mention Elliott waves. If volume_ratio is null, do not mention volume.
 - Technical analysis only: no news, no fundamentals, no investment advice."""
     return prompt
+
+
+# ─────────────────────────────────────────────────────────
+# ANALYSIS LIVE — numeri delle pagine /analysis aggiornati dal vivo (2026-10-16)
+# Le pagine statiche (testo AI 2 volte al giorno) chiedono qui prezzo, bias,
+# zone, indicatori e scenari: stesso calcolo di gen_analysis_pages.py (H1 +
+# contesto H4). Cache 15 minuti per simbolo e un calcolo alla volta (yfinance
+# non è thread-safe): nessun commit, nessun deploy, nessuna chiamata AI.
+# ─────────────────────────────────────────────────────────
+import threading as _threading
+import time as _alt
+from datetime import datetime as _al_dt
+ANALYSIS_LIVE_ALLOWED = {
+    "GC=F", "SI=F", "CL=F", "BZ=F", "NG=F", "HG=F", "EURUSD=X", "GBPUSD=X", "USDJPY=X",
+    "USDCHF=X", "BTC-USD", "ETH-USD", "^GSPC", "^NDX", "^GDAXI",
+}
+_AL_CACHE = {}
+_AL_TTL = 15 * 60
+_AL_LOCK = _threading.Lock()
+
+
+@app.route("/analysis-live", methods=["GET"])
+def analysis_live():
+    yf_sym = str(request.args.get("yf", "")).replace("%3D", "=")
+    if yf_sym not in ANALYSIS_LIVE_ALLOWED:
+        return jsonify({"error": f"Unsupported symbol: {yf_sym}"}), 400
+    try:
+        dp = max(0, min(5, int(request.args.get("dec", 2))))
+    except Exception:
+        dp = 2
+    key = (yf_sym, dp)
+    hit = _AL_CACHE.get(key)
+    if hit and _alt.time() - hit[0] < _AL_TTL:
+        return jsonify(hit[1])
+    with _AL_LOCK:
+        hit = _AL_CACHE.get(key)          # calcolato da un'altra richiesta nel frattempo
+        if hit and _alt.time() - hit[0] < _AL_TTL:
+            return jsonify(hit[1])
+        try:
+            data = _ta_compute(yf_sym, dp, interval="1h", period="60d", htf_rule="4h")
+            data["computed_at"] = _al_dt.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+            _AL_CACHE[key] = (_alt.time(), data)
+            return jsonify(data)
+        except Exception as e:
+            logger.error(f"analysis_live {yf_sym}: {e}")
+            if hit:                           # meglio un dato di qualche minuto fa che niente
+                return jsonify(hit[1])
+            return jsonify({"error": str(e)}), 500
 
 
 @app.route("/ta-brief", methods=["POST", "OPTIONS"])
