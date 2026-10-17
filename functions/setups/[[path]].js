@@ -269,6 +269,9 @@ export async function onRequestGet(context) {
   const list = (await loadSetups(env, url.origin))
     .filter(s => s && s.timestamp && s.id && (s.price !== undefined))
     .sort((a, b) => String(b.timestamp).localeCompare(String(a.timestamp)));
+  if (url.searchParams.has('dbg')) {
+    return new Response(JSON.stringify({ route: 'setups', parts, setups: list.length }), { headers: { 'content-type': 'application/json' } });
+  }
   if (!parts.length) {
     if (!list.length) return context.next();
     return html(indexPage(list));
