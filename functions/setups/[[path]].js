@@ -35,16 +35,19 @@ function decimals(s) { return Math.min(5, Math.max(decOf(s.target), decOf(s.inva
 function fmt(v, dec) {
   const x = num(v);
   if (x === null) return '—';
-  return dec <= 2 && Math.abs(x) >= 1000
-    ? x.toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec })
-    : x.toFixed(dec);
+  // niente Intl/toLocaleString: troppo lento per il limite CPU delle Functions (10 ms)
+  const t = x.toFixed(dec);
+  if (!(dec <= 2 && Math.abs(x) >= 1000)) return t;
+  const [i, f] = t.split('.');
+  return i.replace(/\B(?=(\d{3})+(?!\d))/g, ',') + (f ? '.' + f : '');
 }
 
 function isLong(s) { return /^(BUY|LONG|BULL)/i.test(String(s.bias || '')); }
 function day(ts) { return String(ts || '').slice(0, 10); }
+const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 function dateH(ts) {
   const d = new Date(ts);
-  return isNaN(d) ? '' : d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' });
+  return isNaN(d) ? '' : `${String(d.getUTCDate()).padStart(2, '0')} ${MON[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
 }
 function slugOf(s) {
   const t = String(s.ticker || s.name || 'setup').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
