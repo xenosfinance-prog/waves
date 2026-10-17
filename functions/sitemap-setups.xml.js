@@ -21,7 +21,7 @@ export async function onRequestGet(context) {
   } catch (_) { /* empty sitemap */ }
   if (!Array.isArray(list)) list = [];
   list = list.filter(s => s && s.timestamp && s.id).sort((a, b) => String(b.timestamp).localeCompare(String(a.timestamp)));
-  const urls = [`  <url><loc>${SITE}/setups</loc>${list[0] ? `<lastmod>${String(list[0].timestamp).slice(0, 10)}</lastmod>` : ''}<changefreq>daily</changefreq><priority>0.8</priority></url>`]
+  const urls = [`  <url><loc>${SITE}/trade-setups</loc>${list[0] ? `<lastmod>${String(list[0].timestamp).slice(0, 10)}</lastmod>` : ''}<changefreq>daily</changefreq><priority>0.8</priority></url>`]
     .concat(list.map(s => `  <url><loc>${SITE}/setups/${slugOf(s)}</loc><lastmod>${String(s.timestamp).slice(0, 10)}</lastmod><priority>0.6</priority></url>`));
   return new Response(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join('\n')}\n</urlset>\n`,
     { headers: { 'content-type': 'application/xml; charset=utf-8', 'cache-control': 'public, max-age=1800' } });

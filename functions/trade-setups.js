@@ -1,4 +1,4 @@
-// /setups (pagina indice). index.js nella cartella non veniva instradato da Pages:
+// /trade-setups (pagina indice dei setup; le singole pagine restano su /setups/<slug>).
 // route esplicita a livello superiore, stesso handler del catch-all.
 import { onRequestGet as handler } from './setups/[[path]].js';
 
