@@ -5,7 +5,7 @@
  * trading_ideas/ideas.json: Google scarica un HTML senza contenuto e senza link.
  * Qui le stesse pagine vengono generate sul server, ad ogni richiesta, dal file
  * pubblicato dal bot (nessun commit, nessun deploy in più, nessuna AI):
- *   /setups          → indice con tutti i setup (link reali, ItemList JSON-LD)
+ *   /trade-setups    → indice con tutti i setup (link reali, ItemList JSON-LD) — functions/trade-setups.js
  *   /setups/<slug>   → pagina del singolo setup (titolo, livelli, analisi, grafico)
  * Ogni numero mostrato è quello salvato dal bot nel setup: niente viene ricalcolato.
  */
@@ -110,11 +110,11 @@ td.m{color:var(--muted);font-size:11px;}
 .disc{font-family:var(--mono);font-size:10px;color:var(--muted);line-height:1.6;margin-top:34px;border-top:1px solid var(--border);padding-top:14px;}
 @media(max-width:720px){h1{font-size:25px;}table{font-size:11px;}th,td{padding:5px;}}`;
 
-const NAV = [['/', 'Home'], ['/dashboard', 'Dashboard'], ['/analysis', 'Daily Analysis'], ['/setups', 'Trade Setups'],
+const NAV = [['/', 'Home'], ['/dashboard', 'Dashboard'], ['/analysis', 'Daily Analysis'], ['/trade-setups', 'Trade Setups'],
   ['/cot', 'COT Positioning'], ['/futures-flow', 'Futures Flow'], ['/calendar', 'Calendar'], ['/elliottwave', 'Elliott Wave'], ['/premium', 'Premium']];
 
 function shell({ title, desc, canonical, body, jsonld, robots }) {
-  const nav = NAV.map(([h, t]) => `<a href="${h}"${h === '/setups' ? ' class="on"' : ''}>${t}</a>`).join('');
+  const nav = NAV.map(([h, t]) => `<a href="${h}"${h === '/trade-setups' ? ' class="on"' : ''}>${t}</a>`).join('');
   const ld = (jsonld || []).map(x => `<script type="application/ld+json">${JSON.stringify(x).replace(/</g, '\\u003c')}</script>`).join('\n');
   return `<!DOCTYPE html>
 <html lang="en">
@@ -171,7 +171,7 @@ function setupPage(s, all) {
   const ageDays = (Date.now() - new Date(s.timestamp).getTime()) / 864e5;
 
   const b = [];
-  b.push(`<div class="crumb"><a href="/">Home</a> › <a href="/setups">Trade Setups</a> › ${esc(name)}</div>`);
+  b.push(`<div class="crumb"><a href="/">Home</a> › <a href="/trade-setups">Trade Setups</a> › ${esc(name)}</div>`);
   b.push(`<h1>${esc(name)} ${sideW} Setup — ${esc(tf)} Chart</h1>`);
   b.push(`<div class="upd">Published ${esc(dh)} ${esc(String(s.timestamp || '').slice(11, 16))} UTC · ${esc(plain(s.ticker))} · source: XenosFinance ${esc(plain(s.source || 'engine'))}</div>`);
   if (ageDays > 2) b.push(`<div class="upd">Historical setup — levels refer to the publication time and are not updated.</div>`);
@@ -202,7 +202,7 @@ function setupPage(s, all) {
   b.push('<div class="box"><p><b>How to use this setup.</b> A setup is a study of where the engine sees a favourable risk/reward, '
     + 'not a call to trade. Check the current price and structure first: the <a href="/analysis">daily technical analysis</a> '
     + 'shows live levels, and the <a href="/dashboard">dashboard</a> a 15-minute read.</p>'
-    + `<div class="cta"><a href="/setups">All trade setups</a><a href="/trading-signals">Live setups</a>`
+    + `<div class="cta"><a href="/trade-setups">All trade setups</a><a href="/trading-signals">Live setups</a>`
     + (s.tg_url && /^https:\/\/t\.me\//.test(s.tg_url) ? `<a href="${esc(s.tg_url)}">Telegram post</a>` : '') + '</div></div>');
 
   const same = all.filter(x => x !== s && x.ticker === s.ticker).slice(0, 6);
@@ -219,14 +219,14 @@ function setupPage(s, all) {
       publisher: { '@type': 'Organization', name: 'XenosFinance', logo: { '@type': 'ImageObject', url: `${SITE}/favicon-192.png` } } },
     { '@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: [
       { '@type': 'ListItem', position: 1, name: 'Home', item: SITE },
-      { '@type': 'ListItem', position: 2, name: 'Trade Setups', item: `${SITE}/setups` },
+      { '@type': 'ListItem', position: 2, name: 'Trade Setups', item: `${SITE}/trade-setups` },
       { '@type': 'ListItem', position: 3, name: `${name} ${sideW} Setup`, item: url }] },
   ];
   return shell({ title, desc, canonical: url, body: b.join('\n'), jsonld });
 }
 
 function indexPage(list) {
-  const url = `${SITE}/setups`;
+  const url = `${SITE}/trade-setups`;
   const title = 'Trade Setups — Forex, Gold, Oil, Indices & Crypto | XenosFinance';
   const desc = 'Trade setups from the XenosFinance engine for Forex, Gold, Oil, stock indices, US stocks and crypto: entry, stop, target, risk/reward and the reasoning behind each setup. For market analysis and trading education.';
   const b = ['<div class="crumb"><a href="/">Home</a> › Trade Setups</div>',
@@ -269,18 +269,15 @@ export async function onRequestGet(context) {
   const list = (await loadSetups(env, url.origin))
     .filter(s => s && s.timestamp && s.id && (s.price !== undefined))
     .sort((a, b) => String(b.timestamp).localeCompare(String(a.timestamp)));
-  if (url.searchParams.has('dbg')) {
-    return new Response(JSON.stringify({ route: 'setups', parts, setups: list.length }), { headers: { 'content-type': 'application/json' } });
-  }
   if (!parts.length) {
     if (!list.length) return context.next();
     return html(indexPage(list));
   }
   const slug = String(parts[0]).toLowerCase();
-  if (parts.length > 1 || !SLUG_RE.test(slug)) return html(shell({ title: 'Setup not found | XenosFinance', desc: '', canonical: `${SITE}/setups`,
-    body: '<h1>Setup not found</h1><p><a href="/setups">All trade setups</a></p>', robots: 'noindex' }), 404);
+  if (parts.length > 1 || !SLUG_RE.test(slug)) return html(shell({ title: 'Setup not found | XenosFinance', desc: '', canonical: `${SITE}/trade-setups`,
+    body: '<h1>Setup not found</h1><p><a href="/trade-setups">All trade setups</a></p>', robots: 'noindex' }), 404);
   const s = list.find(x => slugOf(x) === slug);
-  if (!s) return html(shell({ title: 'Setup not found | XenosFinance', desc: '', canonical: `${SITE}/setups`,
-    body: '<h1>Setup not found</h1><p>This setup is no longer in the archive. <a href="/setups">All trade setups</a></p>', robots: 'noindex' }), 404);
+  if (!s) return html(shell({ title: 'Setup not found | XenosFinance', desc: '', canonical: `${SITE}/trade-setups`,
+    body: '<h1>Setup not found</h1><p>This setup is no longer in the archive. <a href="/trade-setups">All trade setups</a></p>', robots: 'noindex' }), 404);
   return html(setupPage(s, list));
 }
