@@ -179,7 +179,7 @@ tr.poor td{color:var(--muted);}
 
 
 NAV = [("/", "Home"), ("/dashboard", "Dashboard"), ("/analysis", "Daily Analysis"), ("/cot", "COT Positioning"), ("/futures-flow", "Futures Flow"),
-       ("/calendar", "Calendar"), ("/elliottwave", "Elliott Wave"), ("/trading-signals", "Trade Setups"), ("/premium", "Premium")]
+       ("/calendar", "Calendar"), ("/elliottwave", "Elliott Wave"), ("/setups", "Trade Setups"), ("/premium", "Premium")]
 
 
 def page_shell(title, desc, canonical, body, jsonld, keywords, active="/analysis"):
