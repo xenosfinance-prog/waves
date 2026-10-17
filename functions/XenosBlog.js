@@ -19,6 +19,8 @@
  * sitemap. Any error falls back to the original page.
  */
 
+import { TOPICS, topicsFor } from './topics/[[path]].js';
+
 const SITE = 'https://xenosfinance.com';
 const RAW = 'https://raw.githubusercontent.com/xenosfinance-prog/waves/main/articles/';
 const SLUG_RE = /^[A-Za-z0-9_-]{1,120}$/;
@@ -79,6 +81,10 @@ class SetText {
   constructor(value, html = false) { this.value = value; this.html = html; }
   element(el) { el.setInnerContent(this.value, { html: this.html }); }
 }
+class After {
+  constructor(html) { this.html = html; }
+  element(el) { if (this.html) el.after(this.html, { html: true }); }
+}
 class AppendHead {
   constructor(html) { this.html = html; }
   element(el) { el.append(this.html, { html: true }); }
@@ -117,10 +123,17 @@ function gridHtml(list) {
   }).join('');
 }
 
+// 2026-10-17: barra dei temi sopra la griglia (link reali verso /topics/...)
+const TOPIC_BAR = '<div style="display:flex;flex-wrap:wrap;gap:8px;margin:0 0 18px;font-family:\'IBM Plex Mono\',monospace;font-size:11px">'
+  + `<a href="${SITE}/topics" style="padding:5px 10px;border:1px solid currentColor;text-decoration:none">All topics</a>`
+  + TOPICS.map(tp => `<a href="${SITE}/topics/${tp.slug}" style="padding:5px 10px;border:1px solid rgba(128,128,128,.4);text-decoration:none">${esc(tp.short)}</a>`).join('')
+  + '</div>';
+class Prepend { constructor(html) { this.html = html; } element(el) { el.prepend(this.html, { html: true }); } }
+
 async function renderIndex(env, url, res) {
   const list = await loadIndex(env, url.origin);
-  if (!Array.isArray(list) || !list.length) return res;
-  return new HTMLRewriter().on('#blogGrid', new SetText(gridHtml(list), true)).transform(res);
+  if (!Array.isArray(list) || !list.length) return new HTMLRewriter().on('#gridView', new Prepend(TOPIC_BAR)).transform(res);
+  return new HTMLRewriter().on('#gridView', new Prepend(TOPIC_BAR)).on('#blogGrid', new SetText(gridHtml(list), true)).transform(res);
 }
 
 export async function onRequestGet(context) {
@@ -154,6 +167,14 @@ export async function onRequestGet(context) {
     }
     if (a.quote) body += `<blockquote>${esc(plain(a.quote))}</blockquote>`;
     if (a.conclusion) body += `<div class="edu-section"><div class="edu-section-title">// Conclusion</div>${paragraphs(a.conclusion)}</div>`;
+    // 2026-10-17: link alle pagine tema (/topics/...) per collegare gli articoli tra loro
+    // (fuori da #artBody: lo script della pagina riscrive #artBody, il blocco temi deve restare)
+    const tps = topicsFor(a);
+    const topicsHtml = tps.length
+      ? `<div class="edu-section"><div class="edu-section-title">// Topics</div><p>`
+        + tps.map(tp => `<a href="${SITE}/topics/${tp.slug}">${esc(tp.name)}</a>`).join(' · ')
+        + ` · <a href="${SITE}/topics">All topics</a></p></div>`
+      : '';
 
     const jsonLd = {
       '@context': 'https://schema.org',
@@ -186,6 +207,7 @@ export async function onRequestGet(context) {
       .on('#artTitle', new SetText(esc(clip(headline, 140)), true))
       .on('#artCat', new SetText(esc(a.categoryLabel || a.category || ''), true))
       .on('#artBody', new SetText(body, true))
+      .on('#artBody', new After(topicsHtml))
       .transform(res);
 
     const headers = new Headers(out.headers);
