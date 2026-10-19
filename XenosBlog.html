@@ -645,6 +645,7 @@ async function loadGrid() {
         var sImg   = BASE + 'macro.png';
         if      (cat2.indexOf('forex') > -1 || cat2.indexOf('fx market') > -1 || title2.indexOf('fx brief') > -1) sImg = BASE + 'forex.png';
         else if (cat2.indexOf('crypto') > -1 || title2.indexOf('crypto') > -1) sImg = BASE + 'crypto.png';
+        else if (/\b(oil|wti|brent|crude|eia|api|opec\+?|petroleum|gasoline|distillates?|natural gas|natgas|energy|petrolio|greggio)\b/.test(title2 + ' ' + cat2)) sImg = BASE + 'energy.png';
         else if (cat2.indexOf('commodit') > -1 || title2.indexOf('commodit') > -1) sImg = BASE + 'commodities.png';
         else if (cat2.indexOf('equit') > -1 || title2.indexOf('equity') > -1) sImg = BASE + 'equity.png';
         else if (cat2.indexOf('pre-market') > -1 || title2.indexOf('pre-market') > -1) sImg = BASE + 'premarket.png';
@@ -822,6 +823,7 @@ async function loadArticle(slug) {
     var artImgSrc = (artUseGemini) ? (
       t2.indexOf('fx brief')>-1||t2.indexOf('forex')>-1 ? BASE2+'forex.png' :
       t2.indexOf('crypto')>-1 ? BASE2+'crypto.png' :
+      /\b(oil|wti|brent|crude|eia|api|opec\+?|petroleum|gasoline|distillates?|natural gas|natgas|energy|petrolio|greggio)\b/.test(t2 + ' ' + c2) ? BASE2+'energy.png' :
       t2.indexOf('commodit')>-1 ? BASE2+'commodities.png' :
       t2.indexOf('equity')>-1 ? BASE2+'equity.png' :
       t2.indexOf('pre-market')>-1 ? BASE2+'premarket.png' :

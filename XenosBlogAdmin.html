@@ -1221,6 +1221,9 @@ async function publishToBlog() {
       var ttl = (title || '').toLowerCase();
       if (mk === 'forex' || cat.indexOf('forex') > -1 || cat.indexOf('fx market') > -1 || ttl.indexOf('fx brief') > -1) return BLOG_IMG_BASE + 'forex.png';
       if (mk === 'crypto' || cat.indexOf('crypto') > -1 || ttl.indexOf('crypto') > -1) return BLOG_IMG_BASE + 'crypto.png';
+      // Oil / WTI / Brent / EIA / API inventories / OPEC → energy.png
+      var ENERGY_RE = /\b(oil|wti|brent|crude|eia|api|opec\+?|petroleum|gasoline|distillates?|natural gas|natgas|energy|petrolio|greggio)\b/;
+      if (mk === 'energy' || ENERGY_RE.test(ttl) || ENERGY_RE.test(cat)) return BLOG_IMG_BASE + 'energy.png';
       if (mk === 'commodities' || cat.indexOf('commodit') > -1 || ttl.indexOf('commodit') > -1 || ttl.indexOf('oil') > -1 || ttl.indexOf('gold') > -1 || ttl.indexOf('wti') > -1) return BLOG_IMG_BASE + 'commodities.png';
       if (mk === 'equity' || cat.indexOf('equit') > -1 || ttl.indexOf('equity') > -1) return BLOG_IMG_BASE + 'equity.png';
       if (cat.indexOf('pre-market') > -1 || ttl.indexOf('pre-market') > -1) return BLOG_IMG_BASE + 'premarket.png';
