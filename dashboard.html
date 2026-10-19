@@ -552,7 +552,7 @@ async function fetchSym(s) {
     if (!p || !p.price) return null;
     const prev = p.price / (1 + (p.change_pct || 0) / 100);
     sparkData[s.id] = [prev, p.price];
-    return { price: p.price, chg: p.change_pct || 0, weekChg: p.change_pct || 0 };
+    return { price: p.price, chg: p.change_pct || 0 };
   } catch(e) { return null; }
 }
 
@@ -817,6 +817,24 @@ function buildTable(results) {
   tbody.innerHTML = html || '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px;font-family:var(--mono);font-size:11px;"><span data-i18n="label_no_data">No data available</span></td></tr>';
 }
 
+// ─── WEEKLY PERFORMANCE (2026-10-19) ── variazione a 5 sedute, server waves /week-change (cache 15 min)
+const EW_WEEK_URL = 'https://waves-production-ddbf.up.railway.app/week-change';
+window._weekChg = window._weekChg || {};
+window._weekLoadedAt = 0;
+async function loadWeekPerf(results) {
+  if (Date.now() - window._weekLoadedAt < 15 * 60 * 1000) return;
+  const syms = SYMS.slice(0, 8);
+  try {
+    const q = syms.map(s => decodeURIComponent(s.yf)).join(',');
+    const r = await fetch(EW_WEEK_URL + '?symbols=' + encodeURIComponent(q), {cache: 'no-store', signal: AbortSignal.timeout(30000)});
+    if (!r.ok) return;
+    const ch = (await r.json()).changes || {};
+    syms.forEach(s => { const v = ch[decodeURIComponent(s.yf)]; if (typeof v === 'number') window._weekChg[s.id] = v; });
+    window._weekLoadedAt = Date.now();
+    buildSentiment(results);
+  } catch (e) { /* resta "—": meglio nessun dato che un dato sbagliato */ }
+}
+
 function buildSentiment(results) {
   const sentRows = document.getElementById('sentiment-rows');
   const perfRows = document.getElementById('perf-rows');
@@ -832,11 +850,19 @@ function buildSentiment(results) {
       <div class="sent-bar"><div class="sent-fill" style="width:${strength}%;background:${up ? 'var(--green2)' : 'var(--red2)'}"></div></div>
       <span class="sent-val ${up ? 't-up' : 't-dn'}">${up ? '+' : ''}${d.chg.toFixed(1)}%</span>
     </div>`;
-    const weekUp = d.weekChg >= 0;
-    perfHtml += `<div class="sentiment-row">
+    // FIX 2026-10-19: era la variazione giornaliera (weekChg = change_pct). Ora 5 sedute reali dal server waves.
+    const wk = window._weekChg[sym.id];
+    const weekUp = wk >= 0;
+    perfHtml += wk == null
+      ? `<div class="sentiment-row">
       <span class="sent-label">${sym.label}</span>
-      <div class="sent-bar"><div class="sent-fill" style="width:${Math.min(Math.abs(d.weekChg) * 8 + 20, 100)}%;background:${weekUp ? 'var(--green2)' : 'var(--red2)'}"></div></div>
-      <span class="sent-val ${weekUp ? 't-up' : 't-dn'}">${weekUp ? '+' : ''}${d.weekChg.toFixed(1)}%</span>
+      <div class="sent-bar"></div>
+      <span class="sent-val" style="color:var(--muted)">—</span>
+    </div>`
+      : `<div class="sentiment-row">
+      <span class="sent-label">${sym.label}</span>
+      <div class="sent-bar"><div class="sent-fill" style="width:${Math.min(Math.abs(wk) * 8 + 20, 100)}%;background:${weekUp ? 'var(--green2)' : 'var(--red2)'}"></div></div>
+      <span class="sent-val ${weekUp ? 't-up' : 't-dn'}">${weekUp ? '+' : ''}${wk.toFixed(1)}%</span>
     </div>`;
   });
   if (sentRows) sentRows.innerHTML = sentHtml;
@@ -883,12 +909,13 @@ async function updateAll() {
     if (!p || !p.price) return;
     const prev = p.price / (1 + (p.change_pct || 0) / 100);
     sparkData[sym.id] = [prev, p.price];
-    results[sym.id] = { price: p.price, chg: p.change_pct || 0, weekChg: p.change_pct || 0 };
+    results[sym.id] = { price: p.price, chg: p.change_pct || 0 };
   });
 
   buildCards(results);
   buildTable(results);
   buildSentiment(results);
+  loadWeekPerf(results);
   // Ticker
   let th = '';
   SYMS.slice(0, 10).forEach(sym => {

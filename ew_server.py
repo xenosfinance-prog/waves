@@ -1143,6 +1143,46 @@ def quotes():
     return jsonify({"prices": out})
 
 # ─────────────────────────────────────────────────────────
+# 2026-10-19 — /week-change: variazione a 5 sedute per il pannello "Weekly Performance"
+# della dashboard (prima mostrava la variazione giornaliera con l'etichetta "5-day change").
+#   GET /week-change?symbols=CL=F,GC=F,EURUSD=X  → {"changes": {"CL=F": -2.31, ...}}
+# ─────────────────────────────────────────────────────────
+WEEK_WHITELIST = {"CL=F", "GC=F", "SI=F", "NG=F", "EURUSD=X", "GBPUSD=X", "USDJPY=X", "USDCHF=X",
+                  "BTC-USD", "ETH-USD", "^GSPC", "^NDX", "^GDAXI", "^FTSE", "BZ=F", "HG=F", "PL=F", "PA=F"}
+WEEK_TTL = 15 * 60
+_week_cache = {}
+
+
+def _week_change(sym):
+    import time as _t
+    hit = _week_cache.get(sym)
+    if hit and _t.time() - hit[0] < WEEK_TTL:
+        return hit[1]
+    hist = yf.Ticker(sym).history(period="1mo", interval="1d")
+    closes = hist["Close"].dropna() if not hist.empty else []
+    if len(closes) < 6:
+        return None
+    v = round((float(closes.iloc[-1]) / float(closes.iloc[-6]) - 1) * 100, 3)
+    _week_cache[sym] = (_t.time(), v)
+    return v
+
+
+@app.route("/week-change", methods=["GET"])
+def week_change():
+    syms = [x.strip() for x in request.args.get("symbols", "").split(",") if x.strip()]
+    out = {}
+    for sym in syms[:20]:
+        if sym not in WEEK_WHITELIST:
+            continue
+        try:
+            v = _week_change(sym)
+            if v is not None:
+                out[sym] = v
+        except Exception as e:
+            logger.warning(f"week-change: {sym} failed: {e}")
+    return jsonify({"changes": out})
+
+# ─────────────────────────────────────────────────────────
 # Price divergence check — flags when a live yfinance quote
 # diverges from the price stored in a published trading idea
 # by more than a configurable threshold (default 2%).
@@ -1987,6 +2027,21 @@ def _earnings_one(sym):
     today = _dt.utcnow().date()
     ds = sorted(d for d in (_to_date(x) for x in dates) if d and d >= today)
     if not ds:
+        # FIX 2026-10-19: per molti titoli (AAPL, MSFT, NVDA, AMZN...) .calendar di Yahoo non ha
+        # la prossima data → badge mancante. Fallback sulla tabella earnings dates di Yahoo,
+        # che contiene le trimestrali future già programmate.
+        try:
+            ed = yf.Ticker(sym).get_earnings_dates(limit=8)
+            if ed is not None and len(ed):
+                ds = sorted(d for d in (_to_date(x) for x in ed.index) if d and d >= today)[:1]
+                if ds and eps is None and "EPS Estimate" in ed.columns:
+                    try:
+                        eps = ed["EPS Estimate"][[_to_date(x) == ds[0] for x in ed.index]].iloc[0]
+                    except Exception:
+                        pass
+        except Exception as e:
+            logger.warning(f"[earnings] {sym} fallback: {e}")
+    if not ds:
         return {"date": None}
     return {"date": ds[0].isoformat(),
             "date_end": ds[-1].isoformat() if ds[-1] != ds[0] else None,  # finestra stimata
@@ -2014,10 +2069,16 @@ def earnings_calendar():
             for sym, res in zip(todo, ex.map(_earnings_one, todo)):
                 if res is None:
                     _EARN_CACHE[sym] = (now - _EARN_TTL + _EARN_RETRY, None)
+                elif not res.get("date"):
+                    # senza data: riprova tra 30 min invece di tenerla vuota per 6 ore
+                    _EARN_CACHE[sym] = (now - _EARN_TTL + _EARN_RETRY, res)
+                    out[sym] = res
                 else:
                     _EARN_CACHE[sym] = (now, res)
                     out[sym] = res
-        logger.info(f"[earnings] fetched {len(todo)} symbols, {sum(1 for s in todo if s in out)} ok")
+        nodate = [s for s in todo if s in out and not out[s].get("date")]
+        logger.info(f"[earnings] fetched {len(todo)} symbols, {sum(1 for s in todo if s in out) - len(nodate)} with date"
+                    + (f", no date: {','.join(nodate)}" if nodate else ""))
     return jsonify({"earnings": out})
 
 
