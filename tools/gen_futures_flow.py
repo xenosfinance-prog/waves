@@ -306,6 +306,11 @@ def build_page(res, prev_snap, day, now, desk=None, oil=None):
 def main():
     now = datetime.now(timezone.utc)
     today = now.date()
+    # 2026-10-19: domenica e lunedì mattina non c'è una seduta nuova rispetto allo snapshot del sabato
+    # (OI invariato → variazioni 0 e lettura falsata). Un avvio manuale in quei giorni non cambia niente.
+    if today.weekday() in (6, 0) and os.environ.get("FORCE_FLOW") != "1":
+        print("No new session since Saturday's snapshot (Sunday/Monday) — nothing to do.")
+        return 0
     os.makedirs(OUT_DIR, exist_ok=True)
     hist = {}
     if os.path.exists(HIST):

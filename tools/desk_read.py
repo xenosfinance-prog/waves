@@ -290,6 +290,8 @@ STRICT RULES:
 - Every number you write must appear EXACTLY as written in the FACTS. Do not compute new numbers.
 - Respect the direction words in the FACTS exactly ("more long", "less long", "more short"...).
 - A single-contract open-interest change is not part of the total change.
+- If the FACTS give no open-interest change for a market, do not mention open interest for it at all.
+- Do not start with a title or heading.
 - Use "crowded", "extended" or "extreme" only if the FACTS say so.
 - No news, no fundamentals, no price targets, never tell the reader to buy or sell."""
     try:
@@ -299,6 +301,8 @@ STRICT RULES:
         txt = " ".join(msg.content[0].text.split()).strip()
     except Exception as e:
         return None, f"AI error: {e}"
+    import re as _re   # il modello a volte ripete il titolo del blocco
+    txt = _re.sub(r"^\s*\**\s*oil desk[^a-z0-9]*(?:wti\s*(?:&|and)\s*brent)?\s*\**[:\-—\s]*", "", txt, flags=_re.I).strip()
     if len(txt) < 60:
         return None, "AI text too short"
     ok, bad = numbers_ok(txt, facts)
