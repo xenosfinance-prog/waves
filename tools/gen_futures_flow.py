@@ -208,7 +208,7 @@ def fp(v, dec):
     return f"{v:,.{dec}f}"
 
 
-def telegram_html(res, day, desk=None, oil=None):
+def telegram_html(res, day, desk=None, oil=None, bias=None):
     import html as H
     lines = ["<b>XENOS WAVE · FUTURES FLOW</b>", f"<b>Session {day:%a %d %b} · open interest &amp; curve</b>", ""]
     tab = []
@@ -245,12 +245,14 @@ def telegram_html(res, day, desk=None, oil=None):
     if curve:
         lines.append("<b>Curve</b>")
         lines += [H.escape(x) for x in curve]
+    if bias:   # 2026-10-19: conclusione finale — bias e trend
+        lines += [""] + D.bias_telegram(bias[0], bias[1])
     lines += ["", "Flow: price vs open-interest change (new longs / new shorts / short covering / liquidation).",
               f'Curves and contract detail: <a href="{SITE}/futures-flow">xenosfinance.com/futures-flow</a>']
     return "\n".join(lines)
 
 
-def build_page(res, prev_snap, day, now, desk=None, oil=None):
+def build_page(res, prev_snap, day, now, desk=None, oil=None, bias=None):
     title = "Futures Flow — Open Interest, Volume & Curves: Oil, Gas, Gold, Indices | XenosFinance"
     desc = (f"Daily futures flow for {day:%d %B %Y}: open interest and volume changes, positioning read and "
             "forward curves for WTI, Brent, natural gas, gold, silver, copper, S&P 500 and Nasdaq 100 futures.")
@@ -293,6 +295,8 @@ def build_page(res, prev_snap, day, now, desk=None, oil=None):
     b.append('<p style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:12px">Curves: blue = '
              'latest settlement by contract month, dashed = previous session; bars = open interest by month. '
              'Source: exchange futures quotes via Yahoo Finance; open-interest history stored by XenosFinance.</p>')
+    if bias:   # 2026-10-19: conclusione finale — bias e trend
+        b += D.bias_html("flow", bias[0], bias[1], esc)
     b.append('<div class="box"><p><b>Related</b></p><div class="cta"><a href="/cot">COT positioning</a>'
              '<a href="/analysis">Daily technical analysis</a><a href="https://t.me/xenoswavefinance">Telegram channel</a></div></div>')
     jsonld = [{"@context": "https://schema.org", "@type": "Article", "headline": title, "description": desc,
@@ -346,10 +350,13 @@ def main():
     json.dump(hist, open(HIST, "w", encoding="utf-8"), separators=(",", ":"))
     desk, desk_src = D.build("flow", res)
     oil, oil_src = D.build_oil("flow", res)
-    open(os.path.join(OUT_DIR, "index.html"), "w", encoding="utf-8").write(build_page(res, prev_snap, sess, now, desk, oil))
+    b_rows, b_txt, b_src = D.build_bias("flow", res)
+    bias = (b_rows, b_txt)
+    open(os.path.join(OUT_DIR, "index.html"), "w", encoding="utf-8").write(build_page(res, prev_snap, sess, now, desk, oil, bias))
     latest = {"session": sess.isoformat(), "generated": now.isoformat(), "has_oi_change": prev_snap is not None,
               "desk_read": desk, "desk_read_source": desk_src, "oil_read": oil, "oil_read_source": oil_src,
-              "telegram_html": telegram_html(res, sess, desk, oil),
+              "bias_read": b_txt, "bias_read_source": b_src, "bias": b_rows,
+              "telegram_html": telegram_html(res, sess, desk, oil, bias),
               "products": [{k: v for k, v in r.items() if k != "curve"} for r in res]}
     json.dump(latest, open(os.path.join(OUT_DIR, "latest.json"), "w", encoding="utf-8"), indent=1)
     G.update_sitemap([f"{SITE}/futures-flow"], today.isoformat())
