@@ -208,7 +208,7 @@ def fp(v, dec):
     return f"{v:,.{dec}f}"
 
 
-def telegram_html(res, day, desk=None):
+def telegram_html(res, day, desk=None, oil=None):
     import html as H
     lines = ["<b>XENOS WAVE · FUTURES FLOW</b>", f"<b>Session {day:%a %d %b} · open interest &amp; curve</b>", ""]
     tab = []
@@ -220,6 +220,8 @@ def telegram_html(res, day, desk=None):
     lines.append("<pre>" + H.escape("\n".join(tab)) + "</pre>")
     if desk:
         lines += ["<b>Desk read</b>", H.escape(desk), ""]
+    if oil:
+        lines += ["<b>Oil desk — WTI &amp; Brent</b>", H.escape(oil), ""]
     flows = [r for r in res if r["flow"]]
     if flows:
         lines.append("<b>Positioning read</b>")
@@ -235,8 +237,9 @@ def telegram_html(res, day, desk=None):
         c = (f"WTI {cl['m1']}-{cl['m2']} {cl['spread_m1m2']:+.2f} · {cl['m1']}-{cl['m6']} {cl['spread_m1m6']:+.2f} ({cl['structure']}"
              + (f", {cl['spread_m1m6_chg']:+.2f} d/d" if cl.get("spread_m1m6_chg") is not None else "") + ")")
         curve.append(c)
-    if cl and bz:
-        curve.append(f"Brent–WTI {bz['curve'][0][1] - cl['curve'][0][1]:+.2f} (front months)")
+    bw = D.brent_wti(res)   # 2026-10-19: stesso mese di consegna, non i due front month
+    if bw:
+        curve.append(f"Brent–WTI {bw[0]:+.2f} ({bw[1]} contracts)")
     if ng:
         curve.append(f"NatGas {ng['m1']}-{ng['m2']} {ng['spread_m1m2']:+.3f} ({ng['structure']})")
     if curve:
@@ -247,7 +250,7 @@ def telegram_html(res, day, desk=None):
     return "\n".join(lines)
 
 
-def build_page(res, prev_snap, day, now, desk=None):
+def build_page(res, prev_snap, day, now, desk=None, oil=None):
     title = "Futures Flow — Open Interest, Volume & Curves: Oil, Gas, Gold, Indices | XenosFinance"
     desc = (f"Daily futures flow for {day:%d %B %Y}: open interest and volume changes, positioning read and "
             "forward curves for WTI, Brent, natural gas, gold, silver, copper, S&P 500 and Nasdaq 100 futures.")
@@ -262,6 +265,9 @@ def build_page(res, prev_snap, day, now, desk=None):
     if desk:
         b += ["<h2>Desk read</h2>", f"<p>{esc(desk)}</p>",
               '<p style="font-family:var(--mono);font-size:10px;color:var(--muted)">Written from the figures in the tables below — no external data.</p>']
+    if oil:
+        b += ["<h2>Oil desk — WTI &amp; Brent</h2>", f"<p>{esc(oil)}</p>",
+              '<p style="font-family:var(--mono);font-size:10px;color:var(--muted)">WTI and Brent are always covered here, whatever the theme of the week.</p>']
     b += ["<h2>Overview</h2>",
          "<table><tr><th>Market</th><th>Most active</th><th>Price d/d</th><th>Open interest</th><th>OI d/d</th>"
          "<th>Volume vs 20d</th><th>Flow</th></tr>"]
@@ -334,10 +340,11 @@ def main():
         hist.pop(d, None)
     json.dump(hist, open(HIST, "w", encoding="utf-8"), separators=(",", ":"))
     desk, desk_src = D.build("flow", res)
-    open(os.path.join(OUT_DIR, "index.html"), "w", encoding="utf-8").write(build_page(res, prev_snap, sess, now, desk))
+    oil, oil_src = D.build_oil("flow", res)
+    open(os.path.join(OUT_DIR, "index.html"), "w", encoding="utf-8").write(build_page(res, prev_snap, sess, now, desk, oil))
     latest = {"session": sess.isoformat(), "generated": now.isoformat(), "has_oi_change": prev_snap is not None,
-              "desk_read": desk, "desk_read_source": desk_src,
-              "telegram_html": telegram_html(res, sess, desk),
+              "desk_read": desk, "desk_read_source": desk_src, "oil_read": oil, "oil_read_source": oil_src,
+              "telegram_html": telegram_html(res, sess, desk, oil),
               "products": [{k: v for k, v in r.items() if k != "curve"} for r in res]}
     json.dump(latest, open(os.path.join(OUT_DIR, "latest.json"), "w", encoding="utf-8"), indent=1)
     G.update_sitemap([f"{SITE}/futures-flow"], today.isoformat())
