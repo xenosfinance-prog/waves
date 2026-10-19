@@ -178,13 +178,28 @@ def rule_cot(res):
 
 
 # ───────────────────────── FUTURES FLOW ─────────────────────────
+def brent_wti(res):
+    """2026-10-19: spread Brent–WTI sullo STESSO mese di consegna (il front month Brent è un mese avanti
+    rispetto al WTI: confrontare i due front month mescolava due scadenze). -> (spread, 'Z26') o None."""
+    cl = next((r for r in res if r["key"] == "cl"), None)
+    bz = next((r for r in res if r["key"] == "bz"), None)
+    if not cl or not bz or not cl.get("curve") or not bz.get("curve"):
+        return None
+    clm = {c[0][2:]: c[1] for c in cl["curve"]}
+    for c in bz["curve"]:
+        m = c[0][2:]
+        if m in clm:
+            return c[1] - clm[m], m
+    return None
+
+
 def flow_facts(res):
     facts = []
     for r in res:
         f = f"{r['name']}: most active {r['active']}"
         if r.get("price_chg") is not None:
             f += f"; price {r['price_chg']:+.2f}% on the session"
-        if r.get("oi_chg") is not None:
+        if r.get("oi_chg"):   # 0 = open interest non aggiornato dalla fonte: non è un dato
             pct = r["oi_chg"] / (r["oi_total"] - r["oi_chg"]) * 100 if r["oi_total"] - r["oi_chg"] else None
             f += f"; total open interest across all months {_kfmt(r['oi_chg'])} contracts" + (f" ({pct:+.1f}%)" if pct is not None else "")
         if r.get("vol_ratio"):
@@ -200,10 +215,9 @@ def flow_facts(res):
             f += (f"; largest single-contract open-interest change: {r['top_oi_move'][1]} {_kfmt(r['top_oi_move'][0])} "
                   "(single months include rolling between months; only the total is the net flow)")
         facts.append(f)
-    cl = next((r for r in res if r["key"] == "cl"), None)
-    bz = next((r for r in res if r["key"] == "bz"), None)
-    if cl and bz:
-        facts.append(f"Brent (NYMEX) minus WTI, front months: {bz['curve'][0][1] - cl['curve'][0][1]:+.2f} $/bbl")
+    bw = brent_wti(res)
+    if bw:
+        facts.append(f"Brent (NYMEX) minus WTI, same delivery month {bw[1]}: {bw[0]:+.2f} $/bbl")
     return facts
 
 
@@ -237,6 +251,108 @@ def rule_flow(res):
             t += f" ({cl['spread_m1m6_chg']:+.2f} vs previous session)"
         s.append(t + ".")
     return " ".join(s)
+
+
+# ───────────────────────── OIL DESK (WTI & Brent) ─────────────────────────
+# 2026-10-19: blocco fisso sul petrolio in COT e Futures Flow, qualunque sia il tema della settimana.
+_OIL_KEYS = {"cot": ("wti", "brent"), "flow": ("cl", "bz")}
+
+
+def oil_facts(kind, res):
+    oil = [r for r in res if r["key"] in _OIL_KEYS[kind]]
+    if not oil:
+        return []
+    facts = cot_facts(oil) if kind == "cot" else flow_facts(oil)
+    if kind == "cot":
+        w = next((r for r in oil if r["key"] == "wti"), None)
+        if w and w.get("mm_ls_ratio"):
+            facts.append(f"WTI managed money long/short ratio {w['mm_ls_ratio']:.2f}")
+    else:
+        for r in oil:
+            facts.append(f"{r['name']}: {r['m1']}-{r['m2']} spread {r['spread_m1m2']:+.{r['dec']}f} {r['unit']} (front month minus second month)")
+    return facts
+
+
+def ai_oil(kind, facts):
+    key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not key or not facts:
+        return None, "no key or no oil data"
+    what = ("CFTC Commitments of Traders positioning (managed money; producers/merchants and swap dealers are the commercial side)"
+            if kind == "cot" else "yesterday's futures session: price vs total open interest, volume vs its 20-day average, and the forward curve")
+    prompt = f"""You run the oil desk at XenosFinance and write the short "Oil desk" note on WTI and Brent for {what}.
+
+FACTS (the only source you may use):
+{json.dumps(facts, ensure_ascii=False, indent=0)}
+
+Write 2-3 short sentences in English, one paragraph, MAXIMUM 75 words, plain text. Talk only about WTI and Brent: speculative positioning or flow, how strong or fragile it is, and the curve or commercial structure when the FACTS give it.
+
+STRICT RULES:
+- Every number you write must appear EXACTLY as written in the FACTS. Do not compute new numbers.
+- Respect the direction words in the FACTS exactly ("more long", "less long", "more short"...).
+- A single-contract open-interest change is not part of the total change.
+- Use "crowded", "extended" or "extreme" only if the FACTS say so.
+- No news, no fundamentals, no price targets, never tell the reader to buy or sell."""
+    try:
+        import anthropic
+        client = anthropic.Anthropic(api_key=key)
+        msg = client.messages.create(model=MODEL, max_tokens=400, messages=[{"role": "user", "content": prompt}])
+        txt = " ".join(msg.content[0].text.split()).strip()
+    except Exception as e:
+        return None, f"AI error: {e}"
+    if len(txt) < 60:
+        return None, "AI text too short"
+    ok, bad = numbers_ok(txt, facts)
+    if not ok:
+        return None, f"AI used numbers not in the facts: {bad}"
+    return txt, None
+
+
+def rule_oil(kind, res):
+    s = []
+    for r in res:
+        if r["key"] not in _OIL_KEYS[kind]:
+            continue
+        if kind == "cot":
+            side = "long" if r["net"] > 0 else "short"
+            t = (f"{r['name']}: managed money net {side} {_kfmt(r['net'])}, 1-week change {_kfmt(r['chg'])} "
+                 f"({_dirword(r['net'], r['chg'])}), COT index {int(r['cot_index'])}")
+            if "pm_net" in r:
+                t += f"; producers/merchants net {_kfmt(r['pm_net'])}, swap dealers net {_kfmt(r.get('swap_net', 0))}"
+            if r.get("mm_ls_ratio"):
+                t += f"; fund long/short {r['mm_ls_ratio']:.2f}"
+        else:
+            t = f"{r['name']} ({r['active']})"
+            if r.get("price_chg") is not None:
+                t += f" {r['price_chg']:+.2f}%"
+            if r.get("oi_chg"):
+                t += f", total open interest {_kfmt(r['oi_chg'])}"
+            if r.get("flow"):
+                t += f" ({r['flow'].lower()})"
+            if r.get("vol_ratio"):
+                t += f", volume {r['vol_ratio']:.1f}x the 20-day average"
+            t += (f"; curve in {r['structure']}, {r['m1']}-{r['m2']} {r['spread_m1m2']:+.{r['dec']}f}, "
+                  f"{r['m1']}-{r['m6']} {r['spread_m1m6']:+.{r['dec']}f} {r['unit']}")
+            if r.get("spread_m1m6_chg") is not None:
+                t += f" ({r['spread_m1m6_chg']:+.{r['dec']}f} vs previous session)"
+        s.append(t + ".")
+    if kind == "flow":
+        bw = brent_wti(res)
+        if bw:
+            s.append(f"Brent (NYMEX) minus WTI, same delivery month {bw[1]}: {bw[0]:+.2f} $/bbl.")
+    return " ".join(s)
+
+
+def build_oil(kind, res):
+    """Ritorna (testo, fonte) del blocco Oil desk; ('', 'none') se mancano WTI e Brent."""
+    facts = oil_facts(kind, res)
+    if not facts:
+        return "", "none"
+    txt, why = ai_oil(kind, facts)
+    if txt:
+        print(f"  Oil desk: AI ({len(txt)} chars)")
+        return txt, "ai"
+    print(f"  Oil desk: rule-based ({why})")
+    return rule_oil(kind, res), "rules"
 
 
 def build(kind, res):

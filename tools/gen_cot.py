@@ -41,6 +41,8 @@ CHART_WEEKS = 52
 # key, CFTC code, dataset, display name, group, price ticker (Yahoo), primary trader group
 MARKETS = [
     ("wti",    "067651", DS_DISAGG, "WTI Crude Oil", "Energy",     "CL=F", "mm"),
+    # 2026-10-19: Brent (NYMEX Brent Last Day) cercato per nome nel dataset CFTC, codice non fissato
+    ("brent",  "name:BRENT LAST DAY", DS_DISAGG, "Brent (NYMEX)", "Energy", "BZ=F", "mm"),
     ("natgas", "023651", DS_DISAGG, "Natural Gas",   "Energy",     "NG=F", "mm"),
     ("gold",   "088691", DS_DISAGG, "Gold",          "Metals",     "GC=F", "mm"),
     ("silver", "084691", DS_DISAGG, "Silver",        "Metals",     "SI=F", "mm"),
@@ -74,6 +76,8 @@ def _num(row, k):
 
 
 def fetch(code, ds):
+    if code.startswith("name:"):
+        return fetch_by_name(code[5:], ds)
     params = {"$where": f"cftc_contract_market_code='{code}'",
               "$order": "report_date_as_yyyy_mm_dd DESC", "$limit": LOOKBACK_WEEKS + 10}
     r = requests.get(API.format(ds=ds), params=params, timeout=40,
@@ -91,6 +95,47 @@ def fetch(code, ds):
     for d, x in out:
         dd[d] = x
     return sorted(dd.items())
+
+
+def fetch_by_name(name_like, ds):
+    """2026-10-19: mercato cercato per nome (es. Brent NYMEX); se più codici, quello con più open interest."""
+    params = {"$where": f"upper(market_and_exchange_names) like '%{name_like.upper()}%'",
+              "$order": "report_date_as_yyyy_mm_dd DESC", "$limit": (LOOKBACK_WEEKS + 10) * 3}
+    r = requests.get(API.format(ds=ds), params=params, timeout=40,
+                     headers={"User-Agent": "XenosFinance COT (xenosfinance.com)"})
+    r.raise_for_status()
+    rows = r.json()
+    if not rows:
+        raise ValueError(f"no CFTC market matching {name_like}")
+    latest = max(str(x.get("report_date_as_yyyy_mm_dd", ""))[:10] for x in rows)
+    best = max((x for x in rows if str(x.get("report_date_as_yyyy_mm_dd", ""))[:10] == latest),
+               key=lambda x: _num(x, "open_interest_all") or 0)
+    code = best.get("cftc_contract_market_code")
+    print(f"  {name_like}: CFTC code {code} — {best.get('market_and_exchange_names')}")
+    dd = {}
+    for x in rows:
+        if x.get("cftc_contract_market_code") == code:
+            d = str(x.get("report_date_as_yyyy_mm_dd", ""))[:10]
+            if d:
+                dd[d] = x
+    return sorted(dd.items())[-(LOOKBACK_WEEKS + 10):]
+
+
+def _wti_front_px(day, prev_day):
+    """2026-10-19: variazione settimanale WTI sul front month NYMEX (stesso contratto alle due date):
+    il continuo CL=F di Yahoo cambia contratto prima della scadenza e falsava la variazione."""
+    try:
+        import yfinance as yf
+        fc = G.E._cl_front_contract(datetime.strptime(day, "%Y-%m-%d"))
+        if not fc:
+            return None
+        h = yf.Ticker(fc).history(period="3mo", interval="1d", auto_adjust=False)
+        ser = [(i.strftime("%Y-%m-%d"), float(v)) for i, v in zip(h.index, h["Close"])]
+        a, b = px_on(ser, day), px_on(ser, prev_day)
+        return (a, b) if a and b else None
+    except Exception as e:
+        print(f"  ! WTI front-month price: {e}")
+        return None
 
 
 def net_series(rows, grp):
@@ -161,6 +206,10 @@ def analyse(m, rows, px):
     idx = (net - lo) / (hi - lo) * 100 if hi > lo else 50.0
     rng = hi - lo if hi > lo else 1.0
     p_now, p_prev = px_on(px.get(ticker), d), px_on(px.get(ticker), s[-2][0])
+    if ticker == "CL=F":
+        fp = _wti_front_px(d, s[-2][0])
+        if fp:
+            p_now, p_prev = fp
     p_chg = (p_now / p_prev - 1) * 100 if p_now and p_prev else None
     chg = net - prev
     div = ""
@@ -182,7 +231,7 @@ def analyse(m, rows, px):
         a1, a2 = _num(last, lk), _num(last, sk)
         if a1 is not None and a2 is not None:
             res["am_net"] = a1 - a2
-    if key == "wti":  # oil detail: who is on the other side
+    if key in ("wti", "brent"):  # oil detail: who is on the other side
         for g in ("pm", "swap"):
             lk, sk = FIELDS[g]
             a1, a2 = _num(last, lk), _num(last, sk)
@@ -221,7 +270,7 @@ def svg_chart(points, w=300, h=80):
             f'stroke="#243a5e"/>{"".join(bars)}{line}</svg>')
 
 
-def telegram_html(res, report_date, release_date, desk=None):
+def telegram_html(res, report_date, release_date, desk=None, oil=None):
     import html as H
     rows = []
     for grp_title, groups in (("COMMODITIES · managed money net", ("Energy", "Metals")),
@@ -241,6 +290,8 @@ def telegram_html(res, report_date, release_date, desk=None):
              "<pre>" + H.escape("\n".join(rows).rstrip()) + "</pre>"]
     if desk:
         lines += ["<b>Desk read</b>", H.escape(desk), ""]
+    if oil:
+        lines += ["<b>Oil desk — WTI &amp; Brent</b>", H.escape(oil), ""]
     if ext:
         lines.append("<b>Extremes</b> (3-year range)")
         lines += [f"• {H.escape(r['name'])}: {r['flag'].lower()} — COT index {int(r['cot_index'])}" for r in ext]
@@ -256,7 +307,7 @@ def telegram_html(res, report_date, release_date, desk=None):
     return "\n".join(lines)
 
 
-def build_page(res, report_date, release_date, now, desk=None):
+def build_page(res, report_date, release_date, now, desk=None, oil=None):
     title = "COT Report — Futures Positioning: Oil, Gold, Indices, FX | XenosFinance"
     desc = (f"Weekly Commitments of Traders analysis (week to {report_date}): managed money and leveraged fund "
             "positioning in WTI, natural gas, gold, silver, copper, S&P 500, Nasdaq 100, euro, yen, pound and "
@@ -274,6 +325,10 @@ def build_page(res, report_date, release_date, now, desk=None):
         b.append("<h2>Desk read</h2>")
         b.append(f"<p>{esc(desk)}</p>")
         b.append('<p style="font-family:var(--mono);font-size:10px;color:var(--muted)">Written from the figures in the tables below — no external data.</p>')
+    if oil:
+        b.append("<h2>Oil desk — WTI &amp; Brent</h2>")
+        b.append(f"<p>{esc(oil)}</p>")
+        b.append('<p style="font-family:var(--mono);font-size:10px;color:var(--muted)">WTI and Brent are always covered here, whatever the theme of the week.</p>')
     ext = [r for r in res if r["flag"]]
     if ext:
         b.append('<div class="box"><p><b>Key reads this week</b></p>' + "".join(
@@ -341,11 +396,12 @@ def main():
     rel = datetime.strptime(report_date, "%Y-%m-%d") + timedelta(days=3)
     release_date = f"{rel:%d %b %Y}"
     desk, desk_src = D.build("cot", res)
+    oil, oil_src = D.build_oil("cot", res)
     os.makedirs(OUT_DIR, exist_ok=True)
-    open(os.path.join(OUT_DIR, "index.html"), "w", encoding="utf-8").write(build_page(res, report_date, release_date, now, desk))
+    open(os.path.join(OUT_DIR, "index.html"), "w", encoding="utf-8").write(build_page(res, report_date, release_date, now, desk, oil))
     latest = {"report_date": report_date, "release_date": release_date, "generated": now.isoformat(),
-              "desk_read": desk, "desk_read_source": desk_src,
-              "telegram_html": telegram_html(res, report_date, release_date, desk),
+              "desk_read": desk, "desk_read_source": desk_src, "oil_read": oil, "oil_read_source": oil_src,
+              "telegram_html": telegram_html(res, report_date, release_date, desk, oil),
               "markets": [{k: v for k, v in r.items() if k != "chart"} for r in res]}
     json.dump(latest, open(os.path.join(OUT_DIR, "latest.json"), "w", encoding="utf-8"), indent=1)
     G.update_sitemap([f"{SITE}/cot"], now.strftime("%Y-%m-%d"))
