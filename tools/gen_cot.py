@@ -270,7 +270,7 @@ def svg_chart(points, w=300, h=80):
             f'stroke="#243a5e"/>{"".join(bars)}{line}</svg>')
 
 
-def telegram_html(res, report_date, release_date, desk=None, oil=None):
+def telegram_html(res, report_date, release_date, desk=None, oil=None, bias=None):
     import html as H
     rows = []
     for grp_title, groups in (("COMMODITIES · managed money net", ("Energy", "Metals")),
@@ -302,12 +302,14 @@ def telegram_html(res, report_date, release_date, desk=None, oil=None):
     if wti and "pm_net" in wti:
         lines.append(f"<b>WTI detail</b>: producers {kfmt(wti['pm_net'])} · swap dealers {kfmt(wti.get('swap_net', 0))}"
                      + (f" · fund long/short {wti['mm_ls_ratio']:.2f}" if wti.get("mm_ls_ratio") else ""))
+    if bias:   # 2026-10-19: conclusione finale — bias e trend
+        lines += [""] + D.bias_telegram(bias[0], bias[1])
     lines += ["", "COT index: 0 = most short, 100 = most long of the last 3 years.",
               f'Full table and charts: <a href="{SITE}/cot">xenosfinance.com/cot</a>']
     return "\n".join(lines)
 
 
-def build_page(res, report_date, release_date, now, desk=None, oil=None):
+def build_page(res, report_date, release_date, now, desk=None, oil=None, bias=None):
     title = "COT Report — Futures Positioning: Oil, Gold, Indices, FX | XenosFinance"
     desc = (f"Weekly Commitments of Traders analysis (week to {report_date}): managed money and leveraged fund "
             "positioning in WTI, natural gas, gold, silver, copper, S&P 500, Nasdaq 100, euro, yen, pound and "
@@ -364,6 +366,8 @@ def build_page(res, report_date, release_date, now, desk=None, oil=None):
         b.append("</div>")
     b.append('<p style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:12px">Charts: bars = '
              'net position (52 weeks), blue line = futures price. Source: CFTC Commitments of Traders, futures only.</p>')
+    if bias:   # 2026-10-19: conclusione finale — bias e trend
+        b += D.bias_html("cot", bias[0], bias[1], esc)
     b.append('<div class="box"><p><b>How to read it</b></p><p>Positioning is a context tool, not a timing signal: '
              'crowded trades can stay crowded for weeks. It becomes useful when an extreme meets a technical '
              'turning point — for example a completed Elliott Wave count at a support or resistance zone.</p>'
@@ -397,11 +401,14 @@ def main():
     release_date = f"{rel:%d %b %Y}"
     desk, desk_src = D.build("cot", res)
     oil, oil_src = D.build_oil("cot", res)
+    b_rows, b_txt, b_src = D.build_bias("cot", res)
+    bias = (b_rows, b_txt)
     os.makedirs(OUT_DIR, exist_ok=True)
-    open(os.path.join(OUT_DIR, "index.html"), "w", encoding="utf-8").write(build_page(res, report_date, release_date, now, desk, oil))
+    open(os.path.join(OUT_DIR, "index.html"), "w", encoding="utf-8").write(build_page(res, report_date, release_date, now, desk, oil, bias))
     latest = {"report_date": report_date, "release_date": release_date, "generated": now.isoformat(),
               "desk_read": desk, "desk_read_source": desk_src, "oil_read": oil, "oil_read_source": oil_src,
-              "telegram_html": telegram_html(res, report_date, release_date, desk, oil),
+              "bias_read": b_txt, "bias_read_source": b_src, "bias": b_rows,
+              "telegram_html": telegram_html(res, report_date, release_date, desk, oil, bias),
               "markets": [{k: v for k, v in r.items() if k != "chart"} for r in res]}
     json.dump(latest, open(os.path.join(OUT_DIR, "latest.json"), "w", encoding="utf-8"), indent=1)
     G.update_sitemap([f"{SITE}/cot"], now.strftime("%Y-%m-%d"))

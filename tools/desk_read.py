@@ -368,3 +368,204 @@ def build(kind, res):
         return txt, "ai"
     print(f"  Desk read: rule-based ({why})")
     return (rule_cot(res) if kind == "cot" else rule_flow(res)), "rules"
+
+
+# ───────────────────────── BIAS & TREND READ ─────────────────────────
+# 2026-10-19: conclusione finale — cosa dicono le posizioni sul possibile trend.
+# Il BIAS è calcolato in codice con regole fisse sui dati già calcolati (niente AI nel punteggio);
+# l'AI scrive solo la conclusione in prosa, con lo stesso controllo dei numeri.
+# Orizzonte: COT = settimane (posizionamento dei fondi), Futures Flow = breve termine (1 seduta).
+
+def _sg(v):
+    return 1 if v and v > 0 else -1 if v and v < 0 else 0
+
+
+def _bias_label(score):
+    if score >= 4:
+        return "Bullish"
+    if score >= 2:
+        return "Mildly bullish"
+    if score <= -4:
+        return "Bearish"
+    if score <= -2:
+        return "Mildly bearish"
+    return "Neutral"
+
+
+def bias_cot(r):
+    """Punteggio di bias (settimane) per un mercato COT → (score, label, motivi[(segno, testo)])."""
+    score, why = 0, []
+    s1, s4 = _sg(r["chg"]), _sg(r["chg4"])
+    if s4:
+        score += s4
+        why.append((s4, f"funds moved {'toward long' if s4 > 0 else 'toward short'} over 4 weeks"))
+    if s1:
+        score += s1
+        if s1 != s4:
+            why.append((s1, f"last week funds turned {'toward long' if s1 > 0 else 'toward short'}"))
+    n, sg = _streak(r.get("chart"))
+    if n >= 3:
+        score += sg
+        why.append((sg, f"{n} straight weeks {'toward long' if sg > 0 else 'toward short'}"))
+    pc = r.get("price_chg")
+    if r.get("divergence"):
+        score -= s1
+        why.append((-s1, "price and positioning diverge — the move lacks new speculative positions"))
+    elif pc is not None and s1 and _sg(pc) == s1 and abs(pc) >= 0.5:
+        score += s1
+        why.append((s1, "price confirms the positioning change"))
+    idx = int(r["cot_index"])
+    if idx >= 90:
+        score -= 2
+        why.append((-1, f"crowded long (COT index {idx}): trend mature, reversal risk"))
+    elif idx <= 10:
+        score += 2
+        why.append((1, f"crowded short (COT index {idx}): short-squeeze risk"))
+    elif idx >= 80:
+        score -= 1
+        why.append((-1, f"extended long (COT index {idx})"))
+    elif idx <= 20:
+        score += 1
+        why.append((1, f"extended short (COT index {idx})"))
+    return score, _bias_label(score), why
+
+
+_FLOW_PTS = {"New longs": 2, "Short covering": 1, "New shorts": -2, "Long liquidation": -1}
+
+
+def bias_flow(r):
+    """Punteggio di bias (breve termine, 1 seduta) per un prodotto Futures Flow → (score, label, motivi)."""
+    score, why = 0, []
+    fl = r.get("flow") or ""
+    pts = _FLOW_PTS.get(fl, 0)
+    pc = r.get("price_chg")
+    if pts:
+        score += pts
+        why.append((_sg(pts), fl.lower() + (" (fresh positions)" if abs(pts) == 2 else " (positions closing, less durable)")))
+    elif pc is not None and abs(pc) >= 0.5:
+        score += _sg(pc)
+        why.append((_sg(pc), f"price {'up' if pc > 0 else 'down'} without an open-interest reading"))
+    vr = r.get("vol_ratio")
+    dirn = _sg(score)
+    if vr and dirn:
+        if vr >= 1.2:
+            score += dirn
+            why.append((dirn, f"volume {vr:.1f}x the 20-day average (conviction)"))
+        elif vr < 0.7:
+            score -= dirn
+            why.append((-dirn, f"light volume {vr:.1f}x the 20-day average"))
+    if r["key"] in ("cl", "bz"):   # struttura della curva: segnale reale solo sul petrolio
+        cs = 1 if r["structure"] == "backwardation" else -1
+        score += cs
+        why.append((cs, f"curve in {r['structure']}"))
+        ch = r.get("spread_m1m6_chg")
+        if ch is not None and abs(ch) >= 0.1:
+            score += _sg(ch)
+            why.append((_sg(ch), "backwardation steepening" if ch > 0 else "curve weakening (spread narrowing)"))
+    return score, _bias_label(score), why
+
+
+def bias_rows(kind, res):
+    fn = bias_cot if kind == "cot" else bias_flow
+    okeys = _OIL_KEYS[kind]
+    rows = []
+    for r in res:
+        sc, lab, why = fn(r)
+        d = _sg(sc)
+        why = [t for g, t in why if d and g == d] + [t for g, t in why if not (d and g == d)]  # prima i motivi a favore
+        rows.append({"key": r["key"], "name": r["name"], "score": sc, "bias": lab, "why": why})
+    rows.sort(key=lambda x: (x["key"] not in okeys,))   # petrolio sempre in cima
+    return rows
+
+
+def bias_facts(kind, rows):
+    hz = "medium term (weeks, from fund positioning)" if kind == "cot" else "short term (from the last session's flow)"
+    facts = [f"Horizon of this bias: {hz}"]
+    for b in rows:
+        facts.append(f"{b['name']}: bias {b['bias'].lower()}" + (f" — {'; '.join(b['why'])}" if b["why"] else ""))
+    return facts
+
+
+def ai_bias(kind, facts):
+    key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not key or not facts:
+        return None, "no key or no data"
+    prompt = f"""You run the futures desk at XenosFinance and write the closing "Bias & trend read" of a page about {'CFTC COT positioning' if kind == 'cot' else "yesterday's futures flow (open interest, volume, curve)"}.
+The bias of each market is ALREADY computed from the data and given below: explain what it means for a possible trend. Do not change any bias.
+
+FACTS (the only source you may use):
+{json.dumps(facts, ensure_ascii=False, indent=0)}
+
+Write 4-5 short sentences in English, one paragraph, MAXIMUM 120 words, plain text, no headings.
+Start with WTI and Brent (always), then the 2-3 other markets with the clearest bias. For each, say whether the positioning supports the current trend, warns of exhaustion/reversal (crowded), or is too weak to back the move. Close with the overall picture across markets.
+
+STRICT RULES:
+- Use exactly the bias words given (bullish, mildly bullish, neutral, mildly bearish, bearish).
+- Every number you write must appear EXACTLY as written in the FACTS. Prefer no numbers at all.
+- Positioning is context, not a timing signal: say "supports", "warns of", "risk of a squeeze", never "will rise/fall".
+- No news, no fundamentals, no price targets, never tell the reader to buy or sell."""
+    try:
+        import anthropic
+        client = anthropic.Anthropic(api_key=key)
+        msg = client.messages.create(model=MODEL, max_tokens=600, messages=[{"role": "user", "content": prompt}])
+        txt = " ".join(msg.content[0].text.split()).strip()
+    except Exception as e:
+        return None, f"AI error: {e}"
+    txt = re.sub(r"^\s*\**\s*bias\s*(?:&|and)\s*trend read\s*\**[:\-—\s]*", "", txt, flags=re.I).strip()
+    if len(txt) < 80:
+        return None, "AI text too short"
+    ok, bad = numbers_ok(txt, facts)
+    if not ok:
+        return None, f"AI used numbers not in the facts: {bad}"
+    return txt, None
+
+
+def rule_bias(kind, rows):
+    okeys = _OIL_KEYS[kind]
+    s = []
+    for b in [x for x in rows if x["key"] in okeys]:
+        s.append(f"{b['name']}: {b['bias'].lower()}" + (f" — {'; '.join(b['why'][:2])}" if b["why"] else "") + ".")
+    others = sorted([x for x in rows if x["key"] not in okeys and x["bias"] != "Neutral"],
+                    key=lambda x: abs(x["score"]), reverse=True)[:3]
+    for b in others:
+        s.append(f"{b['name']}: {b['bias'].lower()}" + (f" — {b['why'][0]}" if b["why"] else "") + ".")
+    up = sum(1 for x in rows if x["score"] >= 2)
+    dn = sum(1 for x in rows if x["score"] <= -2)
+    mk = lambda n, v: f"{n} market {v}s" if n == 1 else f"{n} markets {v}"
+    s.append(f"Overall: {mk(up, 'lean')} bullish, {mk(dn, 'lean')} bearish, the rest neutral.")
+    return " ".join(s)
+
+
+def build_bias(kind, res):
+    """Ritorna (righe_bias, testo, fonte). Le righe hanno sempre il bias calcolato in codice."""
+    rows = bias_rows(kind, res)
+    txt, why = ai_bias(kind, bias_facts(kind, rows))
+    if txt:
+        print(f"  Bias read: AI ({len(txt)} chars)")
+        return rows, txt, "ai"
+    print(f"  Bias read: rule-based ({why})")
+    return rows, rule_bias(kind, rows), "rules"
+
+
+def bias_html(kind, rows, text, esc):
+    """Sezione finale della pagina: tabella bias + conclusione."""
+    hz = ("Medium-term bias (weeks) from speculative positioning." if kind == "cot" else
+          "Short-term bias (next sessions) from the last session's flow and, for oil, the curve.")
+    cls = lambda b: "up" if "ullish" in b else "dn" if "earish" in b else ""
+    h = ["<h2>Bias &amp; trend read</h2>", f"<p>{esc(text)}</p>",
+         "<table><tr><th>Market</th><th>Bias</th><th>Why</th></tr>"]
+    for b in rows:
+        h.append(f'<tr><td>{esc(b["name"])}</td><td class="{cls(b["bias"])}"><b>{esc(b["bias"])}</b></td>'
+                 f'<td class="m">{esc("; ".join(b["why"]) or "no clear signal")}</td></tr>')
+    h.append("</table>")
+    h.append(f'<p style="font-family:var(--mono);font-size:10px;color:var(--muted)">{hz} Bias is computed in code '
+             "from the figures on this page with fixed rules (direction and persistence of positioning, price "
+             "confirmation, crowding" + (", curve" if kind == "flow" else "") + "). Context, not a trade signal.</p>")
+    return h
+
+
+def bias_telegram(rows, text):
+    import html as H
+    arrow = lambda b: "▲" if "ullish" in b else "▼" if "earish" in b else "•"
+    tab = "\n".join(f"{b['name'][:13]:<13} {arrow(b['bias'])} {b['bias']}" for b in rows)
+    return ["<b>Bias &amp; trend read</b>", "<pre>" + H.escape(tab) + "</pre>", H.escape(text)]
