@@ -891,13 +891,20 @@ async function updateAll() {
   if (status) status.textContent = '⟳ ' + tt('label_loading', 'Loading...');
 
   // Single batch request for all symbols (+ Nasdaq 100 dal server waves)
-  const [prices, ewPrices] = await Promise.all([fetchAllPrices(), fetchEwQuotes(['^NDX'])]);
+  const [prices, ewPrices] = await Promise.all([fetchAllPrices(), fetchEwQuotes(['^NDX', 'CL=F'])]);
   const nasSym = SYMS.find(s => s.id === 'NASDAQ');
   if (ewPrices['^NDX']?.price) {
     prices[WORKER_SYM_MAP['NASDAQ']] = ewPrices['^NDX'];
     nasSym.label = 'NASDAQ 100'; nasSym.name = 'Nasdaq 100';
   } else {
     nasSym.label = 'NASDAQ COMP'; nasSym.name = 'Nasdaq Composite';
+  }
+  // 2026-10-20: WTI dal contratto front del server (roll 2 giorni lavorativi prima della scadenza, come
+  // Investing). Il Worker restava sul contratto in scadenza fino all'ultimo giorno.
+  if (ewPrices['CL=F']?.price) {
+    prices[WORKER_SYM_MAP['OIL']] = ewPrices['CL=F'];
+    const cmO = document.getElementById('cm-OIL');
+    if (cmO && ewPrices['CL=F'].contract) cmO.textContent = 'Futures · NYMEX · ' + ewPrices['CL=F'].contract;
   }
   const csN = document.getElementById('cs-NASDAQ'), cmN = document.getElementById('cm-NASDAQ');
   if (csN) csN.textContent = nasSym.label;
