@@ -71,8 +71,11 @@ TF_CONFIG = {
 # ─────────────────────────────────────────────────────────
 # 2026-10-16: il continuo Yahoo CL=F passa al contratto successivo giorni prima della scadenza
 # (il 15-16/10 dava già il dicembre, ~1.4$ sotto il novembre di Investing/TradingView CL1!).
-# Per il WTI si usa il front month NYMEX esplicito (es. CLX26.NYM) fino all'ultimo giorno di
-# contrattazione — stessa regola del Worker e del bot. Se Yahoo non risponde si torna a CL=F.
+# Per il WTI si usa il front month NYMEX esplicito (es. CLX26.NYM), con roll 2 giorni lavorativi prima
+# dell'ultimo giorno di contrattazione (2026-10-20) — stessa regola del bot. Se Yahoo non risponde si torna a CL=F.
+CL_ROLL_BDAYS = 2
+
+
 def _cl_front_contract(now=None):
     from datetime import datetime as _d, timedelta as _td
     now = now or _d.utcnow()
@@ -92,7 +95,15 @@ def _cl_front_contract(now=None):
             lt -= _td(days=1)
             if biz(lt):
                 n += 1
-        if today <= lt:
+        # 2026-10-20: roll negli ultimi giorni di vita del contratto (come Investing): il contratto in
+        # scadenza è illiquido e prezza diverso; si passa al successivo CL_ROLL_BDAYS giorni lavorativi
+        # prima dell'ultimo giorno di contrattazione (es. novembre: LTD 20/10 → dicembre dal 19/10).
+        roll, n = lt, 0
+        while n < CL_ROLL_BDAYS:
+            roll -= _td(days=1)
+            if biz(roll):
+                n += 1
+        if today <= roll:
             return f"CL{codes[cm - 1]}{str(cy)[-2:]}.NYM"
     return None
 
@@ -962,7 +973,7 @@ def health():
 # ─────────────────────────────────────────────────────────
 # 2026-10-06: + rendimenti USA per la Yield Curve di xenoswaves_charts:
 # 2YY=F (2Y, futures CBOT sul rendimento) e ^FVX (5Y).
-QUOTES_WHITELIST = {"^NDX", "DX-Y.NYB", "^GSPC", "^IXIC", "2YY=F", "^FVX"}
+QUOTES_WHITELIST = {"^NDX", "DX-Y.NYB", "^GSPC", "^IXIC", "2YY=F", "^FVX", "CL=F"}   # CL=F → front month (2026-10-20)
 QUOTES_TTL = 60
 _quotes_cache = {}
 
@@ -971,13 +982,28 @@ def _quote(sym):
     hit = _quotes_cache.get(sym)
     if hit and _t.time() - hit[0] < QUOTES_TTL:
         return hit[1]
-    hist = yf.Ticker(sym).history(period="5d", interval="1d")
+    ysym = sym
+    if sym == "CL=F":   # 2026-10-20: WTI sul contratto front esplicito (stesso del grafico e dell'analisi)
+        try:
+            ysym = _cl_front_contract() or sym
+        except Exception:
+            ysym = sym
+    hist = yf.Ticker(ysym).history(period="5d", interval="1d")
     closes = hist["Close"].dropna() if not hist.empty else []
     if len(closes) < 2:
         return None
     price = float(closes.iloc[-1])
     prev = float(closes.iloc[-2])
+    if ysym != sym:   # prezzo live del contratto (la barra giornaliera Yahoo può essere in ritardo)
+        try:
+            lp = yf.Ticker(ysym).fast_info.get("lastPrice")
+            if lp and lp > 0:
+                price = float(lp)
+        except Exception:
+            pass
     data = {"price": round(price, 4), "change_pct": round((price / prev - 1) * 100, 3)}
+    if ysym != sym:
+        data["contract"] = ysym.split(".")[0]
     _quotes_cache[sym] = (_t.time(), data)
     return data
 
@@ -1158,7 +1184,8 @@ def _week_change(sym):
     hit = _week_cache.get(sym)
     if hit and _t.time() - hit[0] < WEEK_TTL:
         return hit[1]
-    hist = yf.Ticker(sym).history(period="1mo", interval="1d")
+    ysym = (_cl_front_contract() or sym) if sym == "CL=F" else sym
+    hist = yf.Ticker(ysym).history(period="1mo", interval="1d")
     closes = hist["Close"].dropna() if not hist.empty else []
     if len(closes) < 6:
         return None
