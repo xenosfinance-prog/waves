@@ -849,7 +849,7 @@ function renderCFD() {
     const outcomeLabel = outcome === 'win' ? '✓ WIN' : outcome === 'loss' ? '✗ LOSS' : '● OPEN';
 
     return `
-    <div class="signal-card ${isBull?'bull':'bear'}" onclick="toggleCFDDetail(${i})" data-pair="${sig.pair||''}" data-tf="${sig.timeframe||''}">
+    <div class="signal-card ${isBull?'bull':'bear'}" onclick="toggleCFDDetail(${i})" data-pair="${sig.pair||''}" data-tf="${sig.timeframe||''}" data-tv="${sig.tv_symbol||''}">
       <div class="signal-card-row">
         <div class="sc-pair">${sig.pair||'—'}</div>
         <div class="sc-dir ${sig.direction||''}">${isBull?'BUY':'SELL'}</div>
@@ -928,7 +928,8 @@ function toggleCFDDetail(i) {
     const card = d.closest('[data-pair]');
     const pair = card ? card.dataset.pair : (filtered[i] ? filtered[i].pair : null);
     const tf   = card ? card.dataset.tf   : (filtered[i] ? filtered[i].timeframe : null);
-    if (pair) setTimeout(() => injectTVChart('tv-cfd-' + i, pair, tf), 150);
+    const tvSym = card ? card.dataset.tv : (filtered[i] ? filtered[i].tv_symbol : '');
+    if (pair) setTimeout(() => injectTVChart('tv-cfd-' + i, pair, tf, tvSym), 150);
   }
 }
 
@@ -980,7 +981,7 @@ function renderOptions() {
     const ivStr = opt ? (opt.impliedVol * 100).toFixed(0) + '%' : '—';
 
     return `
-    <div class="opt-card ${isCall?'call':'put'}" onclick="toggleOptDetail(${i})" data-pair="${sig.pair||''}" data-tf="${sig.expiry||sig.timeframe||''}">
+    <div class="opt-card ${isCall?'call':'put'}" onclick="toggleOptDetail(${i})" data-pair="${sig.pair||''}" data-tf="${sig.expiry||sig.timeframe||''}" data-tv="${sig.tv_symbol||''}">
       <div class="opt-card-row">
         <div class="oc-pair">${sig.pair||'—'}</div>
         <div class="oc-action ${isCall?'CALL':'PUT'}">${isCall?'CALL SETUP':'PUT SETUP'}</div>
@@ -1037,7 +1038,8 @@ function toggleOptDetail(i) {
     const card = d.closest('[data-pair]');
     const pair = card ? card.dataset.pair : (filtered[i] ? filtered[i].pair : null);
     const tf   = card ? card.dataset.tf   : (filtered[i] ? (filtered[i].expiry||filtered[i].timeframe) : null);
-    if (pair) setTimeout(() => injectTVChart('tv-opt-' + i, pair, tf), 150);
+    const tvSym = card ? card.dataset.tv : (filtered[i] ? filtered[i].tv_symbol : '');
+    if (pair) setTimeout(() => injectTVChart('tv-opt-' + i, pair, tf, tvSym), 150);
   }
 }
 
@@ -1227,6 +1229,12 @@ const TV_SYM_MAP = {
   'SPY':'AMEX:SPY','AAPL':'NASDAQ:AAPL','TSLA':'NASDAQ:TSLA',
   'NVDA':'NASDAQ:NVDA','MSFT':'NASDAQ:MSFT','AMZN':'NASDAQ:AMZN',
   'META':'NASDAQ:META','GOOGL':'NASDAQ:GOOGL','AMD':'NASDAQ:AMD',
+  // 2026-10-21: ticker/nome usati dalle Trading Ideas (MKO) promosse a setup
+  'GOLD':'OANDA:XAUUSD','SILVER':'OANDA:XAGUSD','OIL':'CAPITALCOM:OIL_CRUDE','CRUDEOIL':'CAPITALCOM:OIL_CRUDE',
+  'NATURALGAS':'CAPITALCOM:NATURALGAS','QQQ':'NASDAQ:QQQ','NASDAQETF':'NASDAQ:QQQ','S&P500ETF':'AMEX:SPY',
+  'AMAZON':'NASDAQ:AMZN','APPLE':'NASDAQ:AAPL','NVIDIA':'NASDAQ:NVDA','TESLA':'NASDAQ:TSLA','MICROSOFT':'NASDAQ:MSFT',
+  'BITCOIN':'BINANCE:BTCUSDT','ETHEREUM':'BINANCE:ETHUSDT','SOLANA':'BINANCE:SOLUSDT','RIPPLE':'BINANCE:XRPUSDT',
+  'BNB':'BINANCE:BNBUSDT','BNBUSDT':'BINANCE:BNBUSDT','SOLUSDT':'BINANCE:SOLUSDT','XRPUSDT':'BINANCE:XRPUSDT',
 };
 
 // Normalize a pair string from the bot (e.g. "AUD/JPY", "xauusd", "BTC/USD") → map key
@@ -1234,9 +1242,12 @@ function normalizePair(raw) {
   return (raw || '').toUpperCase().replace(/[\s\/\-_]/g, '');
 }
 
-function injectTVChart(containerId, pair, tf) {
+function injectTVChart(containerId, pair, tf, tvSym) {
   const key = normalizePair(pair);
-  const sym = TV_SYM_MAP[key] || ('OANDA:' + key);  // fallback to OANDA instead of raw symbol
+  // 2026-10-21: simbolo TradingView salvato nel setup (tv_symbol) ha la priorità;
+  // il fallback OANDA solo per coppie FX a 6 lettere (OANDA:AMAZON non esiste),
+  // altrimenti il ticker semplice, che TradingView risolve da solo.
+  const sym = tvSym || TV_SYM_MAP[key] || (/^[A-Z]{6}$/.test(key) ? 'OANDA:' + key : key);
   const interval = {'M1':'M','W1':'W','D1':'D','H4':'240','H1':'60','M30':'30','M15':'15','M5':'5'}[tf] || 'D';
   const el = document.getElementById(containerId);
   if (!el) return;

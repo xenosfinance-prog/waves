@@ -889,6 +889,19 @@ function _setupTf(tf){
   const n=/\d/.test(m[1])?m[1]:m[2], u=/\d/.test(m[1])?m[2]:m[1];
   return u+n;
 }
+// 2026-10-21: simbolo TradingView per il grafico del setup (prima la pagina
+// Trade Setups costruiva "OANDA:"+nome → OANDA:AMAZON inesistente).
+const _TV_IDEA = {GOLD:'OANDA:XAUUSD',SILVER:'OANDA:XAGUSD',OIL:'CAPITALCOM:OIL_CRUDE',BRENT:'CAPITALCOM:OIL_BRENT',
+  NGAS:'CAPITALCOM:NATURALGAS',COPPER:'CAPITALCOM:COPPER',SPY:'AMEX:SPY',QQQ:'NASDAQ:QQQ',
+  US500:'CAPITALCOM:US500',NAS100:'CAPITALCOM:NDAQ',US30:'CAPITALCOM:DOW',GER40:'CAPITALCOM:DE40',UK100:'CAPITALCOM:UK100',
+  AAPL:'NASDAQ:AAPL',AMZN:'NASDAQ:AMZN',NVDA:'NASDAQ:NVDA',TSLA:'NASDAQ:TSLA',MSFT:'NASDAQ:MSFT',META:'NASDAQ:META',GOOGL:'NASDAQ:GOOGL',AMD:'NASDAQ:AMD'};
+function _ideaTvSymbol(idea){
+  const t=String(idea.ticker||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  if(_TV_IDEA[t]) return _TV_IDEA[t];
+  if(/USDT$/.test(t)) return 'BINANCE:'+t;
+  if(/^[A-Z]{6}$/.test(t) && getCategory(idea.ticker, idea)==='forex') return 'OANDA:'+t;
+  return t;  // azioni: TradingView risolve il ticker da solo (AMZN, NVDA…)
+}
 function _ideaToSetup(idea){
   const bias=(idea.bias||'').toUpperCase();
   const dir=(bias==='LONG'||bias==='BUY')?'BUY':'SELL';
@@ -921,6 +934,7 @@ function _ideaToSetup(idea){
     idea_id:idea.id||null,
     image_url:idea.image_url||null,
     tg_url:idea.tg_url||null,
+    tv_symbol:_ideaTvSymbol(idea),
     saved_at:now,
     timestamp:now
   };
