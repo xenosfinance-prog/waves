@@ -1,5 +1,6 @@
 # One-off (2026-10-21): Market Brief del mattino pubblicato da Actions perché
 # Railway aveva build/deploy in pausa. Parte al push di questo file; da eliminare.
+# run 2: salva il log per capire perché il primo giro non ha pubblicato.
 name: Market brief (one-off)
 
 on:
@@ -30,4 +31,14 @@ jobs:
           GITHUB_REPO: xenosfinance-prog/waves
           GITHUB_PATH: market-brief.html
           GITHUB_BRANCH: main
-        run: python tools/brief_once/run_once.py
+        run: |
+          set -o pipefail
+          python tools/brief_once/run_once.py 2>&1 | tee tools/brief_once/last_run.log
+      - name: Save run log (debug)
+        if: always()
+        run: |
+          git config user.name  "xenos-analysis-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add -f tools/brief_once/last_run.log
+          git commit -m "brief one-off: run log" || exit 0
+          for i in 1 2 3; do git pull --rebase origin main && git push origin HEAD:main && exit 0; sleep 5; done

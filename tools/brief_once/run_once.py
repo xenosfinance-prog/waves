@@ -28,6 +28,16 @@ if not os.getenv("GEMINI_API_KEY"):
     gw.GeminiWriter.generate = _claude_generate
 
 from pipeline import MarketIntelligencePipeline
+import github_publisher as gp
+_orig_publish = gp.GitHubPublisher.publish
+def _strict_publish(self, html_path):
+    ok = _orig_publish(self, html_path)
+    print("GitHub publish result:", ok, "| token set:", bool(self.token), "| repo:", self.repo)
+    if not ok:
+        sys.exit("publish failed")
+    return ok
+gp.GitHubPublisher.publish = _strict_publish
+print("GEMINI key set:", bool(os.getenv("GEMINI_API_KEY")), "| ANTHROPIC key set:", bool(os.getenv("ANTHROPIC_API_KEY")))
 res = MarketIntelligencePipeline(output_path="site/market-brief.html", publish=True).run()
 if not res:
     sys.exit("pipeline failed")
