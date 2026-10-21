@@ -652,8 +652,43 @@ window._taOpen = null;
 window._taHtml = {};
 window._taNarrCache = {};
 
+// 2026-10-21: il commento risultava "non disponibile" senza alcuna traccia del
+// motivo. Ora: un nuovo tentativo automatico, più spazio per la risposta
+// (1500 token: russo/italiano occupano più token), lettura tollerante del JSON
+// e motivo dell'errore in console ([TA AI]) e, in breve, nel pannello.
+function taParseNarr(raw) {
+  raw = String(raw || '').replace(/```json|```/g, '').trim();
+  const a = raw.indexOf('{'), b = raw.lastIndexOf('}');
+  if (a >= 0 && b > a) {
+    try { return JSON.parse(raw.slice(a, b + 1)); } catch (e) {}
+  }
+  // JSON troncato o con virgolette non escapate: recupera i campi uno per uno
+  const out = {};
+  ['headline', 'summary', 'momentum', 'structure', 'confirmation'].forEach(k => {
+    const m = raw.match(new RegExp('"' + k + '"\\s*:\\s*"([\\s\\S]*?)"\\s*(?:,\\s*"[a-z]+"\\s*:|}|$)'));
+    if (m) out[k] = m[1].replace(/\\"/g, '"').trim();
+  });
+  return Object.keys(out).length ? out : null;
+}
+
 async function taNarrative(prompt, cacheKey) {
   if (window._taNarrCache[cacheKey]) return window._taNarrCache[cacheKey];
+  let lastErr = null;
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const n = await taNarrativeOnce(prompt);
+      if (n) { window._taNarrCache[cacheKey] = n; return n; }
+      lastErr = new Error('ai_bad_json');
+    } catch (e) {
+      lastErr = e;
+      if (e.message === 'not_authorized' || /daily_limit/.test(e.message)) throw e;
+    }
+    console.warn('[TA AI] attempt ' + attempt + ' failed:', lastErr && lastErr.message);
+  }
+  throw lastErr || new Error('ai_unavailable');
+}
+
+async function taNarrativeOnce(prompt) {
   const _useFree = !isPremium() && isFreeUnlocked();
   const aiRes = await fetch(WORKER_URL, {
     method: 'POST',
@@ -664,31 +699,36 @@ async function taNarrative(prompt, cacheKey) {
       message: prompt
     } : {
       model: 'claude-sonnet-4-6',
-      max_tokens: 900,
+      max_tokens: 1500,
       messages: [{role: 'user', content: prompt}]
     }),
-    signal: AbortSignal.timeout(35000)
+    signal: AbortSignal.timeout(45000)
   });
-  const aiData = await aiRes.json();
+  const bodyText = await aiRes.text();
+  let aiData = {};
+  try { aiData = JSON.parse(bodyText); } catch (e) {}
+  if (!aiRes.ok || aiData.error) {
+    console.warn('[TA AI] ' + (_useFree ? 'gemini-free' : 'claude') + ' HTTP ' + aiRes.status + ':', bodyText.slice(0, 400));
+  }
   if (_useFree && !aiRes.ok) {
     if (aiData.error === 'not_authorized') { localStorage.removeItem('xenos_free_email'); throw new Error('not_authorized'); }
     if (aiData.error === 'daily_limit_reached') throw new Error(aiData.message || 'daily_limit_reached');
-    throw new Error(aiData.message || 'ai_unavailable');
+    throw new Error('ai_unavailable (' + aiRes.status + ')');
   }
   if (!_useFree && !aiRes.ok) throw new Error('AI HTTP ' + aiRes.status);
-  const raw = (_useFree ? (aiData.reply || '') : (aiData?.content?.[0]?.text || '')).replace(/```json|```/g, '').trim();
-  const a = raw.indexOf('{'), b = raw.lastIndexOf('}');
-  if (a < 0 || b <= a) return null;
-  try {
-    const n = JSON.parse(raw.slice(a, b + 1));
-    window._taNarrCache[cacheKey] = n;
-    return n;
-  } catch (e) { return null; }
+  const raw = _useFree ? (aiData.reply || '') : (aiData?.content?.[0]?.text || '');
+  if (!raw) {
+    console.warn('[TA AI] empty reply:', bodyText.slice(0, 400));
+    throw new Error('ai_empty' + (aiData?.error?.type ? ' ' + aiData.error.type : ''));
+  }
+  const n = taParseNarr(raw);
+  if (!n) console.warn('[TA AI] unparseable reply:', raw.slice(0, 400));
+  return n;
 }
 
 const TA_L = {
-  en:{loadingAi:'Writing the AI commentary…',aiNote:'AI commentary unavailable right now — levels and scenarios below are complete.',tf:'M15 · H1 context',bias:'Bias',conf:'Confidence',bullish:'Bullish',bearish:'Bearish',neutral:'Neutral',high:'high',medium:'medium',low:'low',score:'score',summary:'Overview',zones:'Confluence zones',sup:'Supports',res:'Resistances',mom:'Momentum',str:'Structure',scen:'Trade scenarios',sc:'Scenario',entry:'Entry',stop:'Stop',target:'Target',rr:'R:R',q:'Quality',good:'good',ok:'acceptable',poor:'unfavourable',confirm:'Confirmation',trigBull:'Bullish trigger: 15-min close above',trigBear:'Bearish trigger: 15-min close below',loading:'Calculating levels and writing the analysis…',err:'Analysis unavailable right now, try again shortly.',foot:'Levels, scenarios and risk/reward calculated by the XenosFinance engine on 15-minute candles. Not investment advice.',long_pullback:'Bullish aggressive (pullback)',long_breakout:'Bullish conservative (breakout)',short_rejection:'Bearish aggressive (rejection)',short_breakdown:'Bearish conservative (breakdown)',none:'—',ew:'Elliott',inval:'invalidation',h1:'H1',above_cloud:'above cloud',below_cloud:'below cloud',inside_cloud:'inside cloud',vol:'Volume',updated:'bar',prev_high:'Prev. day high',prev_low:'Prev. day low',swing_high:'Swing high',swing_low:'Swing low',ew_inv:'EW invalidation'},
-  it:{loadingAi:'Stesura del commento AI…',aiNote:'Commento AI non disponibile al momento — livelli e scenari qui sotto sono completi.',tf:'M15 · contesto H1',bias:'Bias',conf:'Fiducia',bullish:'Rialzista',bearish:'Ribassista',neutral:'Neutrale',high:'alta',medium:'media',low:'bassa',score:'punteggio',summary:'Quadro',zones:'Zone di confluenza',sup:'Supporti',res:'Resistenze',mom:'Momentum',str:'Struttura',scen:'Scenari operativi',sc:'Scenario',entry:'Entrata',stop:'Stop',target:'Target',rr:'R:R',q:'Qualità',good:'buono',ok:'accettabile',poor:'sfavorevole',confirm:'Conferma',trigBull:'Trigger rialzista: chiusura M15 sopra',trigBear:'Trigger ribassista: chiusura M15 sotto',loading:'Calcolo dei livelli e stesura dell\'analisi…',err:'Analisi non disponibile al momento, riprova tra poco.',foot:'Livelli, scenari e rischio/rendimento calcolati dal motore XenosFinance su candele a 15 minuti. Non è consulenza d\'investimento.',long_pullback:'Rialzista aggressivo (pullback)',long_breakout:'Rialzista conservativo (breakout)',short_rejection:'Ribassista aggressivo (rifiuto)',short_breakdown:'Ribassista conservativo (rottura)',none:'—',ew:'Elliott',inval:'invalidazione',h1:'H1',above_cloud:'sopra la nuvola',below_cloud:'sotto la nuvola',inside_cloud:'dentro la nuvola',vol:'Volume',updated:'candela',prev_high:'Massimo ieri',prev_low:'Minimo ieri',swing_high:'Swing high',swing_low:'Swing low',ew_inv:'Invalidazione EW'},
+  en:{title:'AI Technical Analysis',loadingAi:'Writing the AI commentary…',aiNote:'AI commentary unavailable right now — levels and scenarios below are complete.',tf:'M15 · H1 context',bias:'Bias',conf:'Confidence',bullish:'Bullish',bearish:'Bearish',neutral:'Neutral',high:'high',medium:'medium',low:'low',score:'score',summary:'Overview',zones:'Confluence zones',sup:'Supports',res:'Resistances',mom:'Momentum',str:'Structure',scen:'Trade scenarios',sc:'Scenario',entry:'Entry',stop:'Stop',target:'Target',rr:'R:R',q:'Quality',good:'good',ok:'acceptable',poor:'unfavourable',confirm:'Confirmation',trigBull:'Bullish trigger: 15-min close above',trigBear:'Bearish trigger: 15-min close below',loading:'Calculating levels and writing the analysis…',err:'Analysis unavailable right now, try again shortly.',foot:'Levels, scenarios and risk/reward calculated by the XenosFinance engine on 15-minute candles. Not investment advice.',long_pullback:'Bullish aggressive (pullback)',long_breakout:'Bullish conservative (breakout)',short_rejection:'Bearish aggressive (rejection)',short_breakdown:'Bearish conservative (breakdown)',none:'—',ew:'Elliott',inval:'invalidation',h1:'H1',above_cloud:'above cloud',below_cloud:'below cloud',inside_cloud:'inside cloud',vol:'Volume',updated:'bar',prev_high:'Prev. day high',prev_low:'Prev. day low',swing_high:'Swing high',swing_low:'Swing low',ew_inv:'EW invalidation'},
+  it:{title:'Analisi Tecnica AI',loadingAi:'Stesura del commento AI…',aiNote:'Commento AI non disponibile al momento — livelli e scenari qui sotto sono completi.',tf:'M15 · contesto H1',bias:'Bias',conf:'Fiducia',bullish:'Rialzista',bearish:'Ribassista',neutral:'Neutrale',high:'alta',medium:'media',low:'bassa',score:'punteggio',summary:'Quadro',zones:'Zone di confluenza',sup:'Supporti',res:'Resistenze',mom:'Momentum',str:'Struttura',scen:'Scenari operativi',sc:'Scenario',entry:'Entrata',stop:'Stop',target:'Target',rr:'R:R',q:'Qualità',good:'buono',ok:'accettabile',poor:'sfavorevole',confirm:'Conferma',trigBull:'Trigger rialzista: chiusura M15 sopra',trigBear:'Trigger ribassista: chiusura M15 sotto',loading:'Calcolo dei livelli e stesura dell\'analisi…',err:'Analisi non disponibile al momento, riprova tra poco.',foot:'Livelli, scenari e rischio/rendimento calcolati dal motore XenosFinance su candele a 15 minuti. Non è consulenza d\'investimento.',long_pullback:'Rialzista aggressivo (pullback)',long_breakout:'Rialzista conservativo (breakout)',short_rejection:'Ribassista aggressivo (rifiuto)',short_breakdown:'Ribassista conservativo (rottura)',none:'—',ew:'Elliott',inval:'invalidazione',h1:'H1',above_cloud:'sopra la nuvola',below_cloud:'sotto la nuvola',inside_cloud:'dentro la nuvola',vol:'Volume',updated:'candela',prev_high:'Massimo ieri',prev_low:'Minimo ieri',swing_high:'Swing high',swing_low:'Swing low',ew_inv:'Invalidazione EW'},
 };
 
 function taEsc(t) { return String(t == null ? '' : t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
@@ -782,7 +822,10 @@ async function toggleTA(id) {
       if (!d.narrative) d.narrative_error = L.aiNote;
     } catch (e) {
       d.narrative = null;
-      d.narrative_error = e.message === 'not_authorized' ? 'Email non autorizzata.' : (e.message && !/^AI HTTP|ai_unavailable/.test(e.message) ? e.message : L.aiNote);
+      // messaggio standard + codice tecnico breve, così si capisce subito la causa
+      d.narrative_error = e.message === 'not_authorized' ? 'Email non autorizzata.'
+        : /daily_limit/.test(e.message || '') ? e.message
+        : L.aiNote + ' [' + String(e.message || 'error').slice(0, 60) + ']';
     }
     if (window._taOpen === id) setTAHtml(id, renderTA(sym, d, L));
   } catch (e) {
