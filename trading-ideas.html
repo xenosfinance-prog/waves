@@ -128,6 +128,12 @@ body{background:var(--bg4);color:var(--ink);font-family:var(--mono);min-height:1
 .delete-btn:hover{background:var(--red);}
 .admin-mode .delete-btn{display:flex;}
 .admin-mode .card-badge{right:36px;}
+/* 2026-10-21: admin — promuove l'idea a Trade Setup (trading-signals) */
+.promote-btn{position:absolute;bottom:8px;right:8px;height:22px;padding:0 9px;border-radius:2px;background:rgba(59,130,246,0.9);border:none;color:#fff;font-size:9px;font-family:var(--mono);letter-spacing:1px;text-transform:uppercase;cursor:pointer;display:none;align-items:center;gap:4px;z-index:10;transition:background 0.15s;}
+.promote-btn:hover{background:var(--gold);}
+.promote-btn:disabled{opacity:0.6;cursor:default;}
+.promote-btn.done{background:rgba(16,185,129,0.9);}
+.admin-mode .promote-btn{display:flex;}
 .skel{background:var(--bg3);border-radius:2px;animation:pulse 1.5s ease-in-out infinite;}
 @keyframes pulse{0%,100%{opacity:0.4;}50%{opacity:0.8;}}
 .state-box{grid-column:1/-1;text-align:center;padding:5rem 2rem;color:var(--muted);}
@@ -176,7 +182,7 @@ body{background:var(--bg4);color:var(--ink);font-family:var(--mono);min-height:1
 .ti-modal-box h3{margin:0 0 16px;font-size:13px;letter-spacing:1px;color:#e5e7eb;font-weight:600;text-transform:uppercase;}
 .ti-modal-box input{width:100%;box-sizing:border-box;background:#0b1220;border:1px solid rgba(255,255,255,0.15);color:#e5e7eb;padding:10px 12px;border-radius:6px;font-size:14px;margin-bottom:16px;font-family:inherit;}
 .ti-modal-box input:focus{outline:none;border-color:#3b82f6;}
-.ti-modal-box .ti-modal-msg{font-size:13px;color:#cbd5e1;margin:0 0 16px;line-height:1.5;}
+.ti-modal-box .ti-modal-msg{font-size:13px;color:#cbd5e1;margin:0 0 16px;line-height:1.5;white-space:pre-line;}
 .ti-modal-box .ti-modal-err{color:#f87171;font-size:12px;margin:-8px 0 12px;min-height:14px;}
 .ti-modal-actions{display:flex;gap:10px;justify-content:flex-end;}
 .ti-modal-actions button{padding:8px 16px;border-radius:6px;border:none;font-size:12px;letter-spacing:0.5px;cursor:pointer;font-family:inherit;}
@@ -632,6 +638,7 @@ function buildCard(idea, idx){
         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="1"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
       </div>
       <button class="delete-btn" onclick="deleteIdea('${idea.id}',event)" title="Delete">✕</button>
+      <button class="promote-btn" onclick="promoteIdea('${idea.id}',event,this)" title="Salva come Trade Setup">★ Setup</button>
       <div class="card-wave-tag">${waveTag}</div>
       <div class="card-badge ${badgeCls}">${badgeLabel}</div>
     </div>
@@ -867,6 +874,92 @@ async function deleteIdea(ideaId,e){
     renderGrid();
     document.getElementById('ideas-grid').classList.add('admin-mode');
   }catch(err){
+    tiModalError('❌ Errore: '+err.message);
+  }
+}
+
+// ── 2026-10-21: PROMUOVI IDEA → TRADE SETUP ─────────────────────────────
+// Solo admin. Copia l'idea nel formato dei Trade Setups (cartella signals_cfd,
+// letta da trading-signals.html) con outcome "open". Il nome file deriva dall'id
+// dell'idea, quindi la stessa idea non può essere salvata due volte.
+function _setupTf(tf){
+  const t=String(tf||'').toUpperCase().trim();
+  const m=t.match(/^(\d+)\s*([MHDW])$/) || t.match(/^([MHDW])\s*(\d+)$/);
+  if(!m) return t||'H1';
+  const n=/\d/.test(m[1])?m[1]:m[2], u=/\d/.test(m[1])?m[2]:m[1];
+  return u+n;
+}
+function _ideaToSetup(idea){
+  const bias=(idea.bias||'').toUpperCase();
+  const dir=(bias==='LONG'||bias==='BUY')?'BUY':'SELL';
+  const pair=idea.name||idea.ticker||'';
+  const entry=parseFloat(idea.price), sl=parseFloat(idea.invalidation), tp=parseFloat(idea.target);
+  let rr=parseFloat(idea.rr);
+  if(!isFinite(rr) && isFinite(entry)&&isFinite(sl)&&isFinite(tp)&&Math.abs(entry-sl)>0) rr=Math.abs(tp-entry)/Math.abs(entry-sl);
+  const ms=idea.market_state||{};
+  const isMKO=idea.source==='MKO';
+  const tf=_setupTf(idea.timeframe);
+  const now=new Date().toISOString().replace(/\.\d{3}Z$/,'Z');
+  const ctx=[ms.trend&&('Trend: '+ms.trend),ms.momentum&&('Momentum: '+ms.momentum),ms.volatility&&('Volatility: '+ms.volatility),ms.sentiment&&('Sentiment: '+ms.sentiment)].filter(Boolean).join(' | ');
+  return {
+    pair, direction:dir,
+    entry:isFinite(entry)?entry:null, sl:isFinite(sl)?sl:null, tp:isFinite(tp)?tp:null,
+    rr:isFinite(rr)?('1:'+rr.toFixed(1)):'—',
+    timeframe:tf,
+    confidence:idea.confidence||null,
+    pattern:idea.scenario_title||((idea.source||'XENOS')+' '+dir+' setup'),
+    pattern_desc:idea.analysis||idea.narrative||'',
+    ew_context:isMKO
+      ? ('MKO signal'+(ms.trend?(' · '+ms.trend):''))
+      : ('Wave '+(idea.wave_num||'?')+(idea.wave_phase?(' · '+idea.wave_phase):'')),
+    market_context:ctx||(idea.score_label||''),
+    key_levels:'Entry: '+(idea.price??'—')+' | SL: '+(idea.invalidation??'—')+' | TP: '+(idea.target??'—'),
+    invalidation:isFinite(sl)?((dir==='BUY'?'Close below ':'Close above ')+idea.invalidation):'—',
+    tags:[(idea.source||'xenos').toLowerCase(),String(idea.ticker||pair).toLowerCase().replace(/[^a-z0-9]/g,''),dir.toLowerCase(),tf.toLowerCase()],
+    source:idea.source||'XENOS',
+    outcome:'open',
+    idea_id:idea.id||null,
+    image_url:idea.image_url||null,
+    tg_url:idea.tg_url||null,
+    saved_at:now,
+    timestamp:now
+  };
+}
+async function promoteIdea(ideaId,e,btn){
+  e.stopPropagation();
+  if(!isAdmin) return;
+  const idea=allIdeas.find(i=>i.id===ideaId);
+  if(!idea){tiModalError('❌ Idea non trovata');return;}
+  const setup=_ideaToSetup(idea);
+  if(setup.entry==null||setup.sl==null||setup.tp==null){tiModalError('❌ Idea senza livelli completi (prezzo/target/invalidazione)');return;}
+  const ok=await tiModalConfirm('Salvare come Trade Setup?\n'+setup.pair+' '+setup.direction+' · Entry '+setup.entry+' · SL '+setup.sl+' · TP '+setup.tp);
+  if(!ok) return;
+  const tick=String(idea.ticker||setup.pair).toUpperCase().replace(/[^A-Z0-9]/g,'');
+  // Nome stabile (stessa idea = stesso file) e che in ordine alfabetico va DOPO tutti
+  // i file esistenti: trading-signals.html carica solo gli ultimi 50 per nome.
+  const ts=String(idea.timestamp||'').replace(/[^0-9]/g,'').slice(0,14)||'00000000000000';
+  const filename='signal_idea_'+ts+'_'+tick+'_'+String(ideaId).replace(/[^a-zA-Z0-9]/g,'').slice(0,8)+'.json';
+  const url='https://api.github.com/repos/xenosfinance-prog/waves/contents/signals_cfd/'+filename;
+  const label=btn.textContent;
+  btn.disabled=true; btn.textContent='…';
+  try{
+    const chk=await fetch(WORKER,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({type:'github',method:'GET',url})});
+    const cd=await chk.json();
+    if(cd.status===200||(cd.data&&cd.data.sha)){
+      btn.textContent='✓ Setup'; btn.classList.add('done');
+      tiModalConfirm('Questa idea è già nei Trade Setups.');
+      return;
+    }
+    const res=await fetch(WORKER,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({type:'github',method:'PUT',url,
+        payload:{message:'trade setup from idea: '+setup.pair+' '+setup.direction,
+          content:btoa(unescape(encodeURIComponent(JSON.stringify(setup,null,2)))),branch:'main'}})});
+    const d=await res.json();
+    if(d.status!==200&&d.status!==201) throw new Error('GitHub '+d.status);
+    btn.textContent='✓ Setup'; btn.classList.add('done');
+  }catch(err){
+    btn.disabled=false; btn.textContent=label;
     tiModalError('❌ Errore: '+err.message);
   }
 }
