@@ -1,0 +1,33 @@
+# One-off (2026-10-21): Market Brief del mattino pubblicato da Actions perché
+# Railway aveva build/deploy in pausa. Parte al push di questo file; da eliminare.
+name: Market brief (one-off)
+
+on:
+  push:
+    branches: [main]
+    paths: [".github/workflows/market-brief-once.yml"]
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  brief:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install
+        run: pip install feedparser google-genai tzdata
+      - name: Run pipeline
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPO: xenosfinance-prog/waves
+          GITHUB_PATH: market-brief.html
+          GITHUB_BRANCH: main
+        run: python tools/brief_once/run_once.py
