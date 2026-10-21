@@ -4,6 +4,10 @@ market-intelligence-agent; il testo AI usa Claude se Gemini non è configurato.
 Da eliminare dopo l'esecuzione."""
 import os, sys, json, urllib.request
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# GITHUB_PATH è una variabile riservata di GitHub Actions (file temporaneo del
+# runner): il publisher la leggeva come percorso del brief → 422 "path cannot
+# start with a slash". Qui va forzata prima di importare il publisher.
+os.environ["GITHUB_PATH"] = "market-brief.html"
 import gemini_writer as gw
 
 
