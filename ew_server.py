@@ -977,6 +977,29 @@ QUOTES_WHITELIST = {"^NDX", "DX-Y.NYB", "^GSPC", "^IXIC", "2YY=F", "^FVX", "CL=F
 QUOTES_TTL = 60
 _quotes_cache = {}
 
+def _fred_yield(series_id):
+    """Ultimi due valori validi di una serie FRED di rendimenti (in %)."""
+    import requests as _rq
+    key = os.getenv("FRED_API_KEY", "")
+    if not key:
+        return None
+    try:
+        r = _rq.get("https://api.stlouisfed.org/fred/series/observations", params={
+            "series_id": series_id, "api_key": key, "file_type": "json",
+            "sort_order": "desc", "limit": 10}, timeout=15)
+        r.raise_for_status()
+        vals = [float(o["value"]) for o in r.json().get("observations", [])
+                if o.get("value") not in (".", None, "")]
+    except Exception as e:
+        logger.warning(f"FRED {series_id} failed: {e}")
+        return None
+    if len(vals) < 2:
+        return None
+    price, prev = vals[0], vals[1]
+    return {"price": round(price, 4), "change_pct": round((price / prev - 1) * 100, 3) if prev else 0.0,
+            "source": "FRED " + series_id}
+
+
 def _quote(sym):
     import time as _t
     hit = _quotes_cache.get(sym)
@@ -991,6 +1014,14 @@ def _quote(sym):
     hist = yf.Ticker(ysym).history(period="5d", interval="1d")
     closes = hist["Close"].dropna() if not hist.empty else []
     if len(closes) < 2:
+        # 2026-10-21: Yahoo non restituisce più dati per 2YY=F ("possibly delisted")
+        # e il box US 2Y della pagina grafici restava vuoto → rendimento ufficiale
+        # Treasury 2 anni da FRED (DGS2, giornaliero), stesso formato.
+        if sym == "2YY=F":
+            data = _fred_yield("DGS2")
+            if data:
+                _quotes_cache[sym] = (_t.time(), data)
+            return data
         return None
     price = float(closes.iloc[-1])
     prev = float(closes.iloc[-2])
