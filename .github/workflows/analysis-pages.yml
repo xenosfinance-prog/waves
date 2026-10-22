@@ -29,14 +29,22 @@ jobs:
       # (05:20 / 12:20 UTC). Il cron qui sotto resta come riserva: se parte in
       # ritardo e le pagine sono già state aggiornate da meno di 4 ore, si ferma
       # (niente doppia generazione né doppie chiamate API).
-      - name: Skip late scheduled run if pages are fresh
+      # 2026-10-22: il cron di GitHub parte anche 5 ore in ritardo (10:08, 17:18):
+      # con la vecchia soglia "meno di 4 ore" la riserva rigenerava comunque le
+      # pagine → 4 generazioni al giorno invece di 2 (costo API doppio). Ora salta
+      # se le pagine sono già state create dopo l'orario dell'edizione corrente
+      # (05:20 o 12:20 UTC, la più recente già passata).
+      - name: Skip late scheduled run if this edition is already built
         id: fresh
         if: github.event_name == 'schedule'
         run: |
           last=$(git log -1 --format=%ct -- analysis/index.html || echo 0)
-          age=$(( $(date +%s) - ${last:-0} ))
-          echo "analysis pages age: ${age}s"
-          if [ "$age" -lt 14400 ]; then echo "skip=1" >> "$GITHUB_OUTPUT"; fi
+          now=$(date -u +%s)
+          slot=$(date -u -d "$(date -u +%F) 12:20" +%s)
+          if [ "$now" -lt "$slot" ]; then slot=$(date -u -d "$(date -u +%F) 05:20" +%s); fi
+          if [ "$now" -lt "$slot" ]; then slot=$(( slot - 86400 + 25200 )); fi   # prima delle 05:20: edizione 12:20 di ieri
+          echo "last build: $(date -u -d @${last:-0}) | edition slot: $(date -u -d @$slot)"
+          if [ "${last:-0}" -ge "$slot" ]; then echo "skip=1" >> "$GITHUB_OUTPUT"; fi
 
       - uses: actions/setup-python@v5
         if: steps.fresh.outputs.skip != '1'
