@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Xenos Intelligence — Energy Desk | XenosFinance</title>
+<meta name="description" content="Energy Desk: satellite thermal anomalies at key oil facilities and disruptions at the main maritime chokepoints, verified across independent sources and read through WTI and Brent levels.">
+<!-- 2026-10-22: fase di prova (solo anteprima) — togliere noindex al lancio -->
+<meta name="robots" content="noindex">
+<link rel="canonical" href="https://xenosfinance.com/intelligence">
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+<link rel="apple-touch-icon" sizes="192x192" href="/favicon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=PT+Serif:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>:root{--bg:#0f1724;--bg2:#131f2e;--bg3:#172032;--ink:#e2eaf4;--ink2:#b8cce0;--muted:#5a7a9a;--border:#1e3050;--border2:#243a5e;--red2:#f87171;--green2:#34d399;--amber:#facc15;--gold:#3b82f6;--mono:'IBM Plex Mono',monospace;--serif:'Playfair Display',Georgia,serif;--body:'PT Serif',Georgia,serif;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);line-height:1.7;}
+a{color:var(--gold);text-decoration:none;} a:hover{text-decoration:underline;}
+.top{border-bottom:3px double var(--gold);text-align:center;padding:22px 20px 14px;}
+.brand{font-family:var(--serif);font-size:34px;font-weight:900;letter-spacing:-1px;text-transform:uppercase;color:var(--ink);}
+.brand span{color:var(--gold);}
+.tag{font-family:var(--mono);font-size:9px;letter-spacing:4px;color:var(--muted);text-transform:uppercase;margin-top:4px;}
+nav{display:flex;flex-wrap:wrap;justify-content:center;border-bottom:1px solid var(--border);background:var(--bg2);}
+nav a{font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;padding:11px 18px;color:var(--muted);}
+nav a.on,nav a:hover{color:var(--gold);text-decoration:none;}
+main{max-width:980px;margin:0 auto;padding:26px 22px 60px;}
+.crumb{font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:1px;margin-bottom:14px;}
+h1{font-family:var(--serif);font-size:34px;line-height:1.2;margin-bottom:6px;}
+.upd{font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:1px;margin-bottom:16px;}
+h2{font-family:var(--mono);font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--gold);margin:30px 0 10px;border-bottom:1px solid var(--border);padding-bottom:6px;}
+p{color:var(--ink2);margin-bottom:10px;font-size:15px;}
+#map{height:380px;border:1px solid var(--border2);background:var(--bg2);}
+.legend{display:flex;flex-wrap:wrap;gap:16px;font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:1px;margin:8px 0 0;}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:middle;}
+.ev{border:1px solid var(--border2);background:var(--bg2);padding:14px 16px;margin-bottom:12px;}
+.ev-h{display:flex;justify-content:space-between;gap:12px;align-items:baseline;flex-wrap:wrap;}
+.ev-t{font-family:var(--body);font-size:17px;font-weight:700;color:var(--ink);}
+.ev-time{font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:1px;white-space:nowrap;}
+.ev-place{font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin:2px 0 8px;}
+.ev p{font-size:14px;margin-bottom:6px;}
+.ev .mkt{font-family:var(--mono);font-size:12px;color:var(--ink);}
+.rel{display:inline-block;font-family:var(--mono);font-size:9px;letter-spacing:1px;text-transform:uppercase;padding:1px 7px;border:1px solid currentColor;margin-right:8px;}
+.rel.high{color:var(--green2);} .rel.medium{color:var(--amber);}
+.src{font-family:var(--mono);font-size:10px;color:var(--muted);}
+.empty{border:1px dashed var(--border2);padding:22px;text-align:center;font-family:var(--mono);font-size:12px;color:var(--muted);}
+.lock{border:1px solid var(--border2);background:var(--bg3);padding:16px 18px;margin-top:6px;font-family:var(--mono);font-size:12px;color:var(--ink2);}
+.lock a{display:inline-block;margin-top:8px;padding:8px 14px;border:1px solid var(--gold);color:var(--ink);font-size:11px;letter-spacing:1px;}
+.box{border:1px solid var(--border2);background:var(--bg2);padding:16px 18px;margin-top:26px;}
+.box p{font-size:14px;}
+.disc{font-family:var(--mono);font-size:10px;color:var(--muted);line-height:1.6;margin-top:34px;border-top:1px solid var(--border);padding-top:14px;}
+.leaflet-container{background:#0b1220;font-family:var(--mono);}
+.leaflet-popup-content-wrapper,.leaflet-popup-tip{background:var(--bg2);color:var(--ink);border:1px solid var(--border2);}
+.leaflet-popup-content{font-family:var(--mono);font-size:11px;line-height:1.5;margin:10px 12px;}
+.leaflet-control-attribution{background:rgba(15,23,36,.8)!important;color:var(--muted)!important;}
+.leaflet-control-attribution a{color:var(--muted)!important;}
+@media(max-width:720px){h1{font-size:26px;}#map{height:280px;}}</style>
+</head>
+<body>
+<header class="top"><div class="brand">Xenos<span>Finance</span></div><div class="tag">Market analysis &amp; trading education</div></header>
+<nav><a href="/">Home</a><a href="/dashboard">Dashboard</a><a href="/analysis">Daily Analysis</a><a href="/intelligence" class="on">Intelligence</a><a href="/cot">COT Positioning</a><a href="/futures-flow">Futures Flow</a><a href="/calendar">Calendar</a><a href="/elliottwave">Elliott Wave</a><a href="/trade-setups">Trade Setups</a><a href="/premium">Premium</a></nav>
+<main>
+<div class="crumb"><a href="/">Home</a> › Intelligence</div>
+<h1>Xenos Intelligence — Energy Desk</h1>
+<div class="upd" id="upd">Loading…</div>
+<p>What moves oil before it reaches the headlines: satellite thermal anomalies at key oil facilities and disruptions at the main maritime chokepoints. Every event is checked across independent sources and read through WTI and Brent levels from the XenosFinance engine.</p>
+
+<h2>Map — last 48 hours</h2>
+<div id="map" role="img" aria-label="Map of confirmed energy events in the last 48 hours"></div>
+<div class="legend"><span><span class="dot" style="background:#f87171"></span>Thermal anomaly (satellite)</span><span><span class="dot" style="background:#3b82f6"></span>Chokepoint disruption</span><span>Bright = high reliability · faded = medium</span></div>
+
+<h2>Latest events</h2>
+<div id="list"></div>
+<div id="archive"></div>
+
+<div class="box"><p><b>How the desk works</b></p>
+<p>The desk watches 25 key oil facilities — Gulf export terminals, Russian ports and refineries, Libya, Nigeria, Turkey, India and the US Gulf Coast — through NASA FIRMS satellite fire data, compared with each site's own recent baseline so that routine flaring is ignored. It also tracks the Strait of Hormuz, the Red Sea, Suez, the Turkish Straits, Russian oil ports and Libya through global news event data, counting how many independent outlets report the same disruption.</p>
+<p><b>Reliability:</b> <span class="rel high">High</span> two independent kinds of source agree (satellite and news) or many independent outlets report the same event. <span class="rel medium">Medium</span> one kind of source only, reviewed by the desk before publication. Single-source reports are never published.</p></div>
+<div class="disc">Educational content only. Events are compiled algorithmically from public data (NASA FIRMS, GDELT) and may be incomplete or later revised; a thermal anomaly is not by itself proof of an attack or outage. Market levels are calculated by the XenosFinance engine. This page does not constitute investment advice or a recommendation to buy or sell any financial instrument. Map data © OpenStreetMap contributors, © CARTO.</div>
+</main>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// Feed scritto dal bot (osint_desk.py) nel repo del sito: solo eventi pubblicati.
+// Gratuito: ultime 48 ore. Archivio oltre 48 ore: Premium.
+const FREE_HOURS = 48;
+function isPremium() {
+  const codes = ['XENOS-PREMIUM-2026', 'XF-PRO-001', 'XF-PRO-002', 'XF-PRO-003'];
+  const admin = ['RMG@Manu78', 'RMG@manu78'];
+  let s = '';
+  try { s = localStorage.getItem('xenos_premium_code') || ''; } catch (e) {}
+  return codes.includes(s.toUpperCase()) || admin.includes(s);
+}
+function esc(t) { return String(t == null ? '' : t).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function ago(ts) {
+  const m = Math.max(0, Math.round((Date.now() - Date.parse(ts)) / 60000));
+  if (m < 60) return m + ' min ago';
+  const h = Math.round(m / 60);
+  return h < 48 ? h + ' h ago' : Math.round(h / 24) + ' days ago';
+}
+function utc(ts) { const d = new Date(ts); return d.toISOString().slice(0, 16).replace('T', ' ') + ' UTC'; }
+function card(e) {
+  const icon = e.type === 'thermal' ? '🛰' : '⚓';
+  return `<div class="ev"><div class="ev-h"><div class="ev-t">${icon} ${esc(e.title)}</div><div class="ev-time" title="${esc(utc(e.ts))}">${esc(ago(e.ts))} · ${esc(utc(e.ts))}</div></div>
+    <div class="ev-place">${esc(e.place)} · ${esc((e.assets || []).join(', '))}</div>
+    <p>${esc(e.body)}</p>${e.market ? `<p class="mkt">${esc(e.market)}</p>` : ''}
+    <div><span class="rel ${e.reliability === 'high' ? 'high' : 'medium'}">${e.reliability === 'high' ? 'High' : 'Medium'} reliability</span><span class="src">${esc(e.sources)}</span></div></div>`;
+}
+let map = null;
+function drawMap(events) {
+  if (!window.L) return;
+  if (!map) {
+    map = L.map('map', {worldCopyJump: true, scrollWheelZoom: false}).setView([30, 35], 2);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      maxZoom: 10, subdomains: 'abcd',
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
+    }).addTo(map);
+  }
+  events.forEach(e => {
+    const color = e.type === 'thermal' ? '#f87171' : '#3b82f6';
+    L.circleMarker([e.lat, e.lon], {radius: 8, color, weight: 2, fillColor: color,
+      fillOpacity: e.reliability === 'high' ? 0.6 : 0.2, opacity: e.reliability === 'high' ? 1 : 0.6})
+      .addTo(map).bindPopup(`<b>${esc(e.title)}</b><br>${esc(e.place)}<br>${esc(ago(e.ts))}`);
+  });
+}
+async function load() {
+  let feed = [];
+  try {
+    const r = await fetch('/intelligence/feed.json?t=' + Date.now(), {cache: 'no-store'});
+    if (r.ok) feed = await r.json();
+  } catch (e) {}
+  const pub = (Array.isArray(feed) ? feed : []).filter(e => e.published).sort((a, b) => Date.parse(b.ts) - Date.parse(a.ts));
+  const cut = Date.now() - FREE_HOURS * 3600e3;
+  const recent = pub.filter(e => Date.parse(e.ts) >= cut);
+  const older = pub.filter(e => Date.parse(e.ts) < cut);
+  document.getElementById('upd').textContent = pub.length
+    ? `Latest event ${ago(pub[0].ts)} · ${recent.length} event${recent.length === 1 ? '' : 's'} in the last 48 hours · page refreshes every 5 minutes`
+    : 'Watching 25 oil facilities and 6 chokepoints · page refreshes every 5 minutes';
+  document.getElementById('list').innerHTML = recent.length ? recent.map(card).join('')
+    : '<div class="empty">No confirmed energy events in the last 48 hours.</div>';
+  const arch = document.getElementById('archive');
+  if (older.length) {
+    arch.innerHTML = isPremium()
+      ? '<h2>Archive</h2>' + older.map(card).join('')
+      : `<div class="lock">${older.length} earlier event${older.length === 1 ? '' : 's'} in the archive — available with Premium.<br><a href="/premium">Unlock the archive</a></div>`;
+  } else arch.innerHTML = '';
+  drawMap(recent);
+}
+load();
+setInterval(() => { if (map) { map.eachLayer(l => { if (l instanceof L.CircleMarker) map.removeLayer(l); }); } load(); }, 5 * 60 * 1000);
+</script>
+</body>
+</html>
