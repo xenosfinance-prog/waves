@@ -67,14 +67,14 @@ p{color:var(--ink2);margin-bottom:10px;font-size:15px;}
 
 <h2>Map — last 48 hours</h2>
 <div id="map" role="img" aria-label="Map of confirmed energy events in the last 48 hours"></div>
-<div class="legend"><span><span class="dot" style="background:#f87171"></span>Thermal anomaly (satellite)</span><span><span class="dot" style="background:#3b82f6"></span>Chokepoint disruption</span><span>Bright = high reliability · faded = medium</span></div>
+<div class="legend"><span><span class="dot" style="background:#f87171"></span>Thermal anomaly (satellite)</span><span><span class="dot" style="background:#3b82f6"></span>Chokepoint disruption</span><span><span class="dot" style="background:#facc15"></span>OPEC+ decision</span><span>Bright = high reliability · faded = medium · sanctions and strikes on Russian energy appear in the list only</span></div>
 
 <h2>Latest events</h2>
 <div id="list"></div>
 <div id="archive"></div>
 
 <div class="box"><p><b>How the desk works</b></p>
-<p>The desk watches 25 key oil facilities — Gulf export terminals, Russian ports and refineries, Libya, Nigeria, Turkey, India and the US Gulf Coast — through NASA FIRMS satellite fire data, compared with each site's own recent baseline so that routine flaring is ignored. It also tracks the Strait of Hormuz, the Red Sea, Suez, the Turkish Straits, Russian oil ports and Libya through global news event data, counting how many independent outlets report the same disruption.</p>
+<p>The desk watches 25 key oil facilities — Gulf export terminals, Russian ports and refineries, Libya, Nigeria, Turkey, India and the US Gulf Coast — through NASA FIRMS satellite fire data, compared with each site's own recent baseline so that routine flaring is ignored. It also tracks the Strait of Hormuz, the Red Sea, Suez, the Turkish Straits, Russian oil ports and Libya through global news event data, counting how many independent outlets report the same disruption, and follows OPEC+ output decisions, new sanctions on Russian, Iranian and Venezuelan oil, and strikes on Russian energy infrastructure. A headline only counts when it reports a decision or event that has happened, not speculation.</p>
 <p><b>Reliability:</b> <span class="rel high">High</span> two independent kinds of source agree (satellite and news) or many independent outlets report the same event. <span class="rel medium">Medium</span> one kind of source only, reviewed by the desk before publication. Single-source reports are never published.</p></div>
 <div class="disc">Educational content only. Events are compiled algorithmically from public data (NASA FIRMS, GDELT) and may be incomplete or later revised; a thermal anomaly is not by itself proof of an attack or outage. Market levels are calculated by the XenosFinance engine. This page does not constitute investment advice or a recommendation to buy or sell any financial instrument. Map data © OpenStreetMap contributors, © CARTO.</div>
 </main>
@@ -99,7 +99,7 @@ function ago(ts) {
 }
 function utc(ts) { const d = new Date(ts); return d.toISOString().slice(0, 16).replace('T', ' ') + ' UTC'; }
 function card(e) {
-  const icon = e.type === 'thermal' ? '🛰' : '⚓';
+  const icon = {thermal: '🛰', maritime: '⚓', policy: '🏛', conflict: '💥'}[e.type] || '•';
   return `<div class="ev"><div class="ev-h"><div class="ev-t">${icon} ${esc(e.title)}</div><div class="ev-time" title="${esc(utc(e.ts))}">${esc(ago(e.ts))} · ${esc(utc(e.ts))}</div></div>
     <div class="ev-place">${esc(e.place)} · ${esc((e.assets || []).join(', '))}</div>
     <p>${esc(e.body)}</p>${e.market ? `<p class="mkt">${esc(e.market)}</p>` : ''}
@@ -115,8 +115,8 @@ function drawMap(events) {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
     }).addTo(map);
   }
-  events.forEach(e => {
-    const color = e.type === 'thermal' ? '#f87171' : '#3b82f6';
+  events.filter(e => e.lat != null && e.lon != null).forEach(e => {
+    const color = {thermal: '#f87171', maritime: '#3b82f6', policy: '#facc15', conflict: '#fb923c'}[e.type] || '#3b82f6';
     L.circleMarker([e.lat, e.lon], {radius: 8, color, weight: 2, fillColor: color,
       fillOpacity: e.reliability === 'high' ? 0.6 : 0.2, opacity: e.reliability === 'high' ? 1 : 0.6})
       .addTo(map).bindPopup(`<b>${esc(e.title)}</b><br>${esc(e.place)}<br>${esc(ago(e.ts))}`);
