@@ -65,11 +65,6 @@ async function loadArticle(env, origin, slug) {
       if (r.ok) return await r.json();
     }
   } catch (_) { /* fall through */ }
-  try {
-    // Very fresh articles may not be in the Pages deploy yet.
-    const r = await fetch(RAW + slug + '.json', { cf: { cacheTtl: 300, cacheEverything: true } });
-    if (r.ok) return await r.json();
-  } catch (_) { /* fall through */ }
   return null;
 }
 

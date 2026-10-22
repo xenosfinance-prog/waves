@@ -66,11 +66,7 @@ function paragraphs(text) {
 }
 
 async function loadSetups(env, origin) {
-  // Prima il file su GitHub (aggiornato appena il bot pubblica), poi la copia del deploy.
-  try {
-    const r = await fetch(RAW, { cf: { cacheTtl: 300, cacheEverything: true } });
-    if (r.ok) { const d = await r.json(); if (Array.isArray(d)) return d; }
-  } catch (_) { /* fall through */ }
+  // 2026-10-22: repo privato → solo la copia del deploy (ASSETS).
   try {
     if (env && env.ASSETS) {
       const r = await env.ASSETS.fetch(new URL('/trading_ideas/ideas.json', origin));

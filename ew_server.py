@@ -1245,7 +1245,7 @@ def week_change():
 # diverges from the price stored in a published trading idea
 # by more than a configurable threshold (default 2%).
 # ─────────────────────────────────────────────────────────
-IDEAS_JSON_URL = "https://raw.githubusercontent.com/xenosfinance-prog/waves/main/trading_ideas/ideas.json"
+IDEAS_JSON_URL = "https://xenosfinance.com/trading_ideas/ideas.json"  # 2026-10-22: repo privato
 # Tickers most prone to contract/roll mismatch (futures-based instruments)
 DIVERGENCE_CHECK_TICKERS = {
     "OIL": "CL=F", "USOIL": "CL=F", "UKOIL": "BZ=F", "WTI": "CL=F", "BRENT": "BZ=F",

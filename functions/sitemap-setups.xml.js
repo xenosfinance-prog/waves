@@ -16,7 +16,10 @@ function slugOf(s) {
 export async function onRequestGet(context) {
   let list = [];
   try {
-    const r = await fetch(RAW, { cf: { cacheTtl: 300, cacheEverything: true } });
+    // 2026-10-22: repo privato → file del deploy (ASSETS)
+    const r = context.env && context.env.ASSETS
+      ? await context.env.ASSETS.fetch(new URL('/trading_ideas/ideas.json', context.request.url))
+      : await fetch(new URL('/trading_ideas/ideas.json', context.request.url));
     if (r.ok) list = await r.json();
   } catch (_) { /* empty sitemap */ }
   if (!Array.isArray(list)) list = [];
