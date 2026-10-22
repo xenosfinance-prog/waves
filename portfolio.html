@@ -602,6 +602,12 @@ let _ghTradesCache = null;
 // ═══════════════════════════════════════════════════════
 // GITHUB STORAGE
 // ═══════════════════════════════════════════════════════
+// 2026-10-22: righe con "hidden": true (es. test manuali da non mostrare) restano
+// nel file — servono al sync per non ricrearle — ma la pagina non le mostra né le
+// conta. Le modifiche admin scrivono sul file remoto (upsert/delete), quindi
+// filtrarle qui non le cancella.
+function visibleTrades(arr) { return (arr || []).filter(t => !t.hidden); }
+
 async function loadTrades() {
   try {
     const url = `https://raw.githubusercontent.com/${REPO}/main/${GH_FILE}?t=${Date.now()}`;
@@ -686,7 +692,7 @@ async function saveTrades(data, change) {
       const succeeded = putRes.ok && (putBody?.data?.content || putBody?.content);
       if (succeeded) {
         _ghTradesCache = toWrite;
-        trades = toWrite; // allinea subito la UI allo stato reale (incluse le scritture del bot)
+        trades = visibleTrades(toWrite); // allinea subito la UI allo stato reale (incluse le scritture del bot)
         if(saveEl){ saveEl.textContent='✓ Saved'; saveEl.style.color='var(--green2)'; setTimeout(()=>{ saveEl.style.display='none'; },2000); }
         return;
       }
@@ -1469,7 +1475,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Load trades from GitHub
   const el = document.getElementById('priceStatus');
   if(el) el.innerHTML = '<span style="color:var(--muted)">⟳ Loading portfolio...</span>';
-  trades = (await loadTrades()) || _ghTradesCache || [];
+  trades = visibleTrades((await loadTrades()) || _ghTradesCache || []);
   nextId = trades.length ? Math.max(...trades.map(t => parseInt(t.id)||0)) + 1 : 1;
 
   // FIX 2026-09-21: render() ora non lancia più eccezioni verso l'esterno
@@ -1508,7 +1514,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const liveCur = {};
     trades.forEach(t => { if (t.status === 'Open' && t.current) liveCur[t.id] = t.current; });
     fresh.forEach(t => { if (t.status === 'Open' && liveCur[t.id]) t.current = liveCur[t.id]; });
-    trades = fresh;
+    trades = visibleTrades(fresh);
     nextId = trades.length ? Math.max(...trades.map(t => parseInt(t.id)||0)) + 1 : 1;
     try { render(); } catch(e) { console.error('[refresh] render failed:', e); }
   }, TRADES_REFRESH_INTERVAL);
