@@ -1467,7 +1467,7 @@ async function loadNotes() {
   }
   // Pubblico: file raw (può essere in ritardo di qualche minuto rispetto all'ultima pubblicazione)
   try {
-    const url = `https://raw.githubusercontent.com/${REPO}/main/${NOTES_GH_FILE}?t=${Date.now()}`;
+    const url = `/${NOTES_GH_FILE}?t=${Date.now()}`;  // 2026-10-22: dal sito (repo privato)
     const r = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(6000) });
     if (r.ok) { const j = await r.json(); if (Array.isArray(j)) return j; }
   } catch(e) {}
@@ -3757,7 +3757,7 @@ function renderEWSketch(analysis, symbol, tf){
 
 
 // ── BOT SIGNALS (Section 9: EW + AI from Telegram bot) ──────────────────────
-const TRADING_IDEAS_URL = 'https://raw.githubusercontent.com/xenosfinance-prog/waves/main/ew_signals/signals.json';
+const TRADING_IDEAS_URL = '/ew_signals/signals.json';
 let botSignalsUnlocked = false;
 let currentBotTab = 'ew';
 

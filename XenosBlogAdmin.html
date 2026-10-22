@@ -974,7 +974,7 @@ let cardCount = 0;
 async function loadArticlesFromGitHub() {
   const grid = document.getElementById('blogGrid');
   try {
-    const res = await fetch('https://raw.githubusercontent.com/' + GITHUB_REPO + '/main/articles/index.json?t=' + Date.now());
+    const res = await fetch('/articles/index.json?t=' + Date.now());
     if (res.status === 404) {
       grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:var(--text-dim);letter-spacing:2px;">No articles published yet.</div>';
       return;
@@ -1484,7 +1484,7 @@ async function regenerateAllImages() {
 
         const imgRes = await githubRequest(apiBase + '/' + imgPath, 'PUT', putPayload);
         if (imgRes.status === 200 || imgRes.status === 201) {
-          const newUrl = 'https://raw.githubusercontent.com/' + GITHUB_REPO + '/main/' + imgPath;
+          const newUrl = 'https://xenosfinance.com/' + imgPath;  // 2026-10-22: URL del sito (repo privato)
           articles[i].imageUrl = newUrl;
           // Small delay to avoid GitHub rate limiting
           await new Promise(r => setTimeout(r, 800));

@@ -610,7 +610,7 @@ function visibleTrades(arr) { return (arr || []).filter(t => !t.hidden); }
 
 async function loadTrades() {
   try {
-    const url = `https://raw.githubusercontent.com/${REPO}/main/${GH_FILE}?t=${Date.now()}`;
+    const url = `/${GH_FILE}?t=${Date.now()}`;  // 2026-10-22: dal sito (repo privato)
     const r = await fetch(url, { signal: AbortSignal.timeout(8000) });
     if (r.ok) {
       const data = await r.json();
