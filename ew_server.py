@@ -1133,6 +1133,7 @@ def econ_actuals():
 # si serve l'ultima copia valida.
 # ─────────────────────────────────────────────────────────
 _ff_cache = {}
+_ff_fail = {}   # 2026-10-23: dopo un errore (429) niente nuovi tentativi per 10 min
 _FF_URLS = {
     "thisweek": "https://nfs.faireconomy.media/ff_calendar_thisweek.json",
     "nextweek": "https://nfs.faireconomy.media/ff_calendar_nextweek.json",
@@ -1151,6 +1152,8 @@ def ff_calendar():
         rows, state = None, ""
         if hit and _t.time() - hit[0] < 1800:
             rows, state = hit[1], "cached"
+        elif _t.time() - _ff_fail.get(w, 0) < 600:
+            rows, state = (hit[1] if hit else None), ("stale (backoff)" if hit else "error:backoff")
         else:
             try:
                 r = requests.get(_FF_URLS[w], timeout=12,
@@ -1165,9 +1168,11 @@ def ff_calendar():
                     state = f"error:http {r.status_code}"
             except Exception as e:
                 state = f"error:{str(e)[:120]}"
+            if state.startswith("error"):
+                _ff_fail[w] = _t.time()
             if rows is None and hit:
                 rows, state = hit[1], state + " (stale)"
-        if state.startswith("error"):
+        if state.startswith("error") and "backoff" not in state:
             logger.warning(f"ff-calendar {w}: {state}")
         sources[w] = state
         for ev in rows or []:
