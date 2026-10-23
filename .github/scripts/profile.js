@@ -20,7 +20,7 @@ const fs = require('fs');
     const c = e.args.data.cpuProfile || {}; const d = e.args.data.timeDeltas || [];
     for (const n of c.nodes || []) nodes.set(n.id, n.callFrame);
     (c.samples || []).forEach((id, i) => { const cf = nodes.get(id); const dt = (d[i] || 0) / 1000; if (!cf) return;
-      const k = `${cf.functionName || '(anon)'} ${cf.url.split('/').pop()}:${cf.lineNumber + 1}`; self.set(k, (self.get(k) || 0) + dt); });
+      const k = `${cf.functionName || '(anon)'} ${(cf.url || '').split('/').pop()}:${(cf.lineNumber || 0) + 1}`; self.set(k, (self.get(k) || 0) + dt); });
   }
   const top = [...self].filter(([k]) => !k.startsWith('(idle)') && !k.startsWith('(program)')).sort((a, b) => b[1] - a[1]).slice(0, 40);
   const tasks = ev.filter(e => e.name === 'RunTask' && e.dur > 50000).map(e => ({ start: e.ts, ms: Math.round(e.dur / 1000) }));
