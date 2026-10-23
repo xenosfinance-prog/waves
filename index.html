@@ -23,11 +23,18 @@
 <meta name="twitter:title" content="XenosFinance — AI Market Analysis & Trading Education">
 <meta name="twitter:description" content="Elliott Wave, macro and trade setups from an independent oil trader. No sponsors, no brokers. Forex, Gold, Oil and Crypto.">
 <link rel="canonical" href="https://xenosfinance.com/">
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=PT+Serif:wght@400;700&family=IBM+Plex+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<!-- 2026-10-23 PageSpeed: collegamenti anticipati + font non bloccanti -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://xenos-ai-proxy.xenosfinance.workers.dev" crossorigin>
+<link rel="preconnect" href="https://widgets.tradingview-widget.com" crossorigin>
+<link rel="preconnect" href="https://widget-sheriff.tradingview-widget.com" crossorigin>
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=PT+Serif:wght@400;700&family=IBM+Plex+Mono:wght@300;400;500&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=PT+Serif:wght@400;700&family=IBM+Plex+Mono:wght@300;400;500&display=swap"></noscript>
 <style>
 :root{
   --bg:#0f1724;--bg2:#131f2e;--bg3:#172032;--bg4:#0d1520;
-  --ink:#e2eaf4;--ink2:#b8cce0;--muted:#5a7a9a;
+  --ink:#e2eaf4;--ink2:#b8cce0;--muted:#7f9ab5; /* 2026-10-23: contrasto AA (era #5a7a9a) */
   --border:#1e3050;--border2:#243a5e;
   --red:#ef4444;--red2:#f87171;--green:#10b981;--green2:#34d399;
   --gold:#3b82f6;--gold2:#60a5fa;
@@ -123,12 +130,19 @@ body{background:var(--bg4);color:var(--ink);font-family:var(--mono);min-height:1
 @media(max-width:480px){
   #xenos-hero div[style*="grid-template-columns:repeat(3"] { grid-template-columns:1fr !important; }
 }
+#xenos-lang-switcher{min-width:64px;min-height:20px;}
 @media(max-width:640px){
+  /* 2026-10-23 PageSpeed: riga superiore ad altezza fissa (niente spostamenti) e testi più leggibili */
+  .masthead-top{padding:6px 16px;height:34px;flex-wrap:nowrap;overflow:hidden;white-space:nowrap;}
+  .masthead-top > span:nth-child(2){display:none;}
+  .news-desc{font-size:12px;}
+  .ai-text{font-size:12px;}
+  .news-src{font-size:9px;}
   .terminal{grid-template-columns:1fr;}
   .masthead-name{font-size:26px;letter-spacing:-1px;}
   .masthead-center{padding:14px 16px 12px;}
-  .masthead-eyebrow{font-size:7px;letter-spacing:3px;}
-  .masthead-sub{font-size:7px;letter-spacing:2px;}
+  .masthead-eyebrow{font-size:8px;letter-spacing:3px;}
+  .masthead-sub{font-size:8px;letter-spacing:2px;}
   .masthead-nav{flex-wrap:wrap;justify-content:flex-start;}
   .nav-btn{padding:8px 10px;font-size:8px;letter-spacing:1px;flex:1;text-align:center;min-width:80px;}
   .ticker-bar{font-size:10px;}
@@ -142,9 +156,15 @@ body{background:var(--bg4);color:var(--ink);font-family:var(--mono);min-height:1
   .bottom-bar{flex-direction:column;gap:4px;padding:8px 12px;font-size:8px;}
 }
 </style>
-<script src="/i18n.js?v=4"></script>
-<script src="/i18n-engine.js?v=4"></script>
-<script src="/xf-hand.js"></script>
+<script>
+/* 2026-10-23 PageSpeed: gli script lingua ora sono "defer" (non bloccano la pagina).
+   Questo velo nasconde i testi traducibili finché la lingua salvata non è applicata
+   (prima lo faceva i18n-engine.js con document.write, che con defer non funziona). */
+(function(){try{var l=localStorage.getItem('xenos_lang');if(l==='it'||l==='ru'){var st=document.createElement('style');st.id='xf-foil';st.textContent='[data-i18n]{visibility:hidden!important}';document.head.appendChild(st);setTimeout(function(){var f=document.getElementById('xf-foil');if(f)f.remove();},3000);}}catch(e){}})();
+</script>
+<script defer src="/i18n.js?v=4"></script>
+<script defer src="/i18n-engine.js?v=4"></script>
+<script defer src="/xf-hand.js"></script>
 </head>
 <body>
 
@@ -393,8 +413,14 @@ body{background:var(--bg4);color:var(--ink);font-family:var(--mono);min-height:1
             color-scheme: dark;
           }
         </style>
-        <script type="module" src="https://widgets.tradingview-widget.com/w/en/tv-economic-map.js"></script>
-        <tv-economic-map></tv-economic-map>
+        <tv-economic-map id="xf-econ-map"></tv-economic-map>
+        <script>
+        /* 2026-10-23 PageSpeed: il widget TradingView si carica solo quando la mappa sta per entrare nello schermo */
+        (function(){var el=document.getElementById('xf-econ-map'),done=false;
+          function load(){if(done)return;done=true;var s=document.createElement('script');s.type='module';s.src='https://widgets.tradingview-widget.com/w/en/tv-economic-map.js';document.body.appendChild(s);}
+          if(!('IntersectionObserver' in window)){window.addEventListener('load',load);return;}
+          var io=new IntersectionObserver(function(es){if(es.some(function(e){return e.isIntersecting;})){io.disconnect();load();}},{rootMargin:'400px'});io.observe(el);})();
+        </script>
       </div>
     </div>
   </div>
