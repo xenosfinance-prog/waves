@@ -1,0 +1,24 @@
+name: Lighthouse audit
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: URL da analizzare
+        default: https://xenosfinance.com/
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Lighthouse mobile + desktop
+        run: |
+          npx -y lighthouse@12 "${{ inputs.url }}" --quiet --chrome-flags="--headless=new --no-sandbox" \
+            --output=json --output-path=mobile.json || true
+          npx -y lighthouse@12 "${{ inputs.url }}" --quiet --preset=desktop --chrome-flags="--headless=new --no-sandbox" \
+            --output=json --output-path=desktop.json || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse
+          path: "*.json"
