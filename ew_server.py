@@ -1,4 +1,5 @@
 #!/usr/bin/env python3 
+# deploy 2026-10-23: FRED DGS2 fallback + ideas URL sul sito
 """
 XenosFinance — Elliott Wave Server v3
 Full glossary implementation: hard Fibonacci filters, alternate scenarios,
