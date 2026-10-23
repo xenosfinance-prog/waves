@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Xenos Intelligence — Energy Desk | XenosFinance</title>
-<meta name="description" content="Energy Desk: satellite thermal anomalies at key oil facilities and disruptions at the main maritime chokepoints, verified across independent sources and read through WTI and Brent levels.">
+<title>Xenos Intelligence — Geopolitics, Macro, Energy &amp; Markets | XenosFinance</title>
+<meta name="description" content="Real-time desk on wars and geopolitical crises, central bank decisions, macro surprises, market shocks and energy disruptions — verified across independent sources and read through the markets they move.">
 <!-- 2026-10-22: fase di prova (solo anteprima) — togliere noindex al lancio -->
 <meta name="robots" content="noindex">
 <link rel="canonical" href="https://xenosfinance.com/intelligence">
@@ -61,22 +61,23 @@ p{color:var(--ink2);margin-bottom:10px;font-size:15px;}
 <nav><a href="/">Home</a><a href="/dashboard">Dashboard</a><a href="/analysis">Daily Analysis</a><a href="/intelligence" class="on">Intelligence</a><a href="/cot">COT Positioning</a><a href="/futures-flow">Futures Flow</a><a href="/calendar">Calendar</a><a href="/elliottwave">Elliott Wave</a><a href="/trade-setups">Trade Setups</a><a href="/premium">Premium</a></nav>
 <main>
 <div class="crumb"><a href="/">Home</a> › Intelligence</div>
-<h1>Xenos Intelligence — Energy Desk</h1>
+<h1>Xenos Intelligence</h1>
 <div class="upd" id="upd">Loading…</div>
-<p>What moves oil before it reaches the headlines: satellite thermal anomalies at key oil facilities and disruptions at the main maritime chokepoints. Every event is checked across independent sources and read through WTI and Brent levels from the XenosFinance engine.</p>
+<p>The events that move markets, as they happen: wars and geopolitical crises, trade measures, central bank decisions, macro surprises, market shocks and energy disruptions — including satellite thermal anomalies at key oil facilities. Every event is checked across independent sources and read through the markets it moves: oil, gold, the dollar, indices, currencies and yields.</p>
 
 <h2>Map — last 48 hours</h2>
-<div id="map" role="img" aria-label="Map of confirmed energy events in the last 48 hours"></div>
-<div class="legend"><span><span class="dot" style="background:#f87171"></span>Thermal anomaly (satellite)</span><span><span class="dot" style="background:#3b82f6"></span>Chokepoint disruption</span><span><span class="dot" style="background:#facc15"></span>OPEC+ decision</span><span>Bright = high reliability · faded = medium · sanctions and strikes on Russian energy appear in the list only</span></div>
+<div id="map" role="img" aria-label="Map of confirmed events in the last 48 hours"></div>
+<div class="legend"><span><span class="dot" style="background:#f87171"></span>Thermal anomaly (satellite)</span><span><span class="dot" style="background:#3b82f6"></span>Chokepoint disruption</span><span><span class="dot" style="background:#facc15"></span>Policy &amp; trade</span><span><span class="dot" style="background:#fb923c"></span>War &amp; crisis</span><span><span class="dot" style="background:#a78bfa"></span>Central banks &amp; macro</span><span><span class="dot" style="background:#22d3ee"></span>Markets</span><span>Bright = high reliability · faded = medium · global events without a single location appear in the list only</span></div>
 
 <h2>Latest events</h2>
 <div id="list"></div>
 <div id="archive"></div>
 
 <div class="box"><p><b>How the desk works</b></p>
-<p>The desk watches 25 key oil facilities — Gulf export terminals, Russian ports and refineries, Libya, Nigeria, Turkey, India and the US Gulf Coast — through NASA FIRMS satellite fire data, compared with each site's own recent baseline so that routine flaring is ignored. It also tracks the Strait of Hormuz, the Red Sea, Suez, the Turkish Straits, Russian oil ports and Libya through global news event data, counting how many independent outlets report the same disruption, and follows OPEC+ output decisions, new sanctions on Russian, Iranian and Venezuelan oil, and strikes on Russian energy infrastructure. A headline only counts when it reports a decision or event that has happened, not speculation.</p>
+<p><b>Geopolitics, Macro and Markets desks.</b> The desk follows the Middle East, the Russia–Ukraine war, China–Taiwan, North Korea, coups and states of emergency, and new tariffs or export controls; rate decisions of the Fed, ECB, Bank of Japan and Bank of England; surprises in US jobs, inflation and growth data; and sharp equity sell-offs or banking stress. Each event is shown with the markets it moves.</p>
+<p><b>Energy desk.</b> The desk watches 25 key oil facilities — Gulf export terminals, Russian ports and refineries, Libya, Nigeria, Turkey, India and the US Gulf Coast — through NASA FIRMS satellite fire data, compared with each site's own recent baseline so that routine flaring is ignored. It also tracks the Strait of Hormuz, the Red Sea, Suez, the Turkish Straits, Russian oil ports and Libya through global news event data, counting how many independent outlets report the same disruption, and follows OPEC+ output decisions, new sanctions on Russian, Iranian and Venezuelan oil, and strikes on Russian energy infrastructure. A headline only counts when it reports a decision or event that has happened, not speculation.</p>
 <p><b>Reliability:</b> <span class="rel high">High</span> two independent kinds of source agree (satellite and news) or many independent outlets report the same event. <span class="rel medium">Medium</span> one kind of source only, reviewed by the desk before publication. Single-source reports are never published.</p></div>
-<div class="disc">Educational content only. Events are compiled algorithmically from public data (NASA FIRMS, GDELT) and may be incomplete or later revised; a thermal anomaly is not by itself proof of an attack or outage. Market levels are calculated by the XenosFinance engine. This page does not constitute investment advice or a recommendation to buy or sell any financial instrument. Map data © OpenStreetMap contributors, © CARTO.</div>
+<div class="disc">Educational content only. Events are compiled algorithmically from public data (NASA FIRMS, GDELT, news aggregators) and may be incomplete or later revised; a thermal anomaly is not by itself proof of an attack or outage. Market levels are calculated by the XenosFinance engine. This page does not constitute investment advice or a recommendation to buy or sell any financial instrument. Map data © OpenStreetMap contributors, © CARTO.</div>
 </main>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
@@ -99,10 +100,10 @@ function ago(ts) {
 }
 function utc(ts) { const d = new Date(ts); return d.toISOString().slice(0, 16).replace('T', ' ') + ' UTC'; }
 function card(e) {
-  const icon = {thermal: '🛰', maritime: '⚓', policy: '🏛', conflict: '💥'}[e.type] || '•';
+  const icon = {thermal: '🛰', maritime: '⚓', policy: '🏛', conflict: '💥', macro: '🏦', markets: '📉'}[e.type] || '•';
   return `<div class="ev"><div class="ev-h"><div class="ev-t">${icon} ${esc(e.title)}</div><div class="ev-time" title="${esc(utc(e.ts))}">${esc(ago(e.ts))} · ${esc(utc(e.ts))}</div></div>
     <div class="ev-place">${esc(e.place)} · ${esc((e.assets || []).join(', '))}</div>
-    <p>${esc(e.body)}</p>${e.market ? `<p class="mkt">${esc(e.market)}</p>` : ''}
+    <p style="white-space:pre-line">${esc(e.body)}</p>${e.market ? `<p class="mkt">${esc(e.market)}</p>` : ''}
     <div><span class="rel ${e.reliability === 'high' ? 'high' : 'medium'}">${e.reliability === 'high' ? 'High' : 'Medium'} reliability</span><span class="src">${esc(e.sources)}</span></div></div>`;
 }
 let map = null;
@@ -116,7 +117,7 @@ function drawMap(events) {
     }).addTo(map);
   }
   events.filter(e => e.lat != null && e.lon != null).forEach(e => {
-    const color = {thermal: '#f87171', maritime: '#3b82f6', policy: '#facc15', conflict: '#fb923c'}[e.type] || '#3b82f6';
+    const color = {thermal: '#f87171', maritime: '#3b82f6', policy: '#facc15', conflict: '#fb923c', macro: '#a78bfa', markets: '#22d3ee'}[e.type] || '#3b82f6';
     L.circleMarker([e.lat, e.lon], {radius: 8, color, weight: 2, fillColor: color,
       fillOpacity: e.reliability === 'high' ? 0.6 : 0.2, opacity: e.reliability === 'high' ? 1 : 0.6})
       .addTo(map).bindPopup(`<b>${esc(e.title)}</b><br>${esc(e.place)}<br>${esc(ago(e.ts))}`);
