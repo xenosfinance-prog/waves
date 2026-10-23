@@ -5,6 +5,8 @@ on:
       url:
         description: URL da analizzare
         default: https://xenosfinance.com/
+permissions:
+  contents: write
 jobs:
   audit:
     runs-on: ubuntu-latest
@@ -18,7 +20,10 @@ jobs:
             --output=json --output-path=mobile.json || true
           npx -y lighthouse@12 "${{ inputs.url }}" --quiet --preset=desktop --chrome-flags="--headless=new --no-sandbox" \
             --output=json --output-path=desktop.json || true
-      - uses: actions/upload-artifact@v4
-        with:
-          name: lighthouse
-          path: "*.json"
+      - name: Pubblica il report sul branch lighthouse-report
+        run: |
+          mkdir out && mv mobile.json desktop.json out/ 2>/dev/null || true
+          cd out && git init -q && git checkout -q -b lighthouse-report
+          git config user.name "lighthouse-bot" && git config user.email "actions@github.com"
+          git add -A && git commit -qm "Lighthouse report $(date -u +%FT%TZ)"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" lighthouse-report
