@@ -798,11 +798,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
 <script>
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
+  // 2026-10-23 PageSpeed: registrazione 4 s dopo il caricamento, così il pre-caching
+  // delle pagine (prima visita) non ruba banda ai dati della homepage.
+  window.addEventListener('load', () => setTimeout(() => {
     navigator.serviceWorker.register('/sw.js')
       .then(reg => console.log('XenosFinance SW registered:', reg.scope))
       .catch(err => console.warn('SW registration failed:', err));
-  });
+  }, 4000));
 }
 </script>
 <script>
