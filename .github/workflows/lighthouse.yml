@@ -25,11 +25,11 @@ jobs:
             --output=json --output-path=desktop.json || true
       - name: Profilo CPU (task lunghi)
         run: |
-          npm i --no-save puppeteer@23 >/dev/null 2>&1
-          node .github/scripts/profile.js "${{ inputs.url }}" || true
+          npm i --no-save puppeteer@23 > profile.log 2>&1 || true
+          node .github/scripts/profile.js "${{ inputs.url }}" >> profile.log 2>&1 || true
       - name: Pubblica il report sul branch lighthouse-report
         run: |
-          mkdir out && mv mobile.json desktop.json profile.json out/ 2>/dev/null || true
+          mkdir out && mv mobile.json desktop.json profile.json profile.log out/ 2>/dev/null || true
           cd out && git init -q && git checkout -q -b lighthouse-report
           git config user.name "lighthouse-bot" && git config user.email "actions@github.com"
           git add -A && git commit -qm "Lighthouse report $(date -u +%FT%TZ)"
