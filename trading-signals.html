@@ -299,8 +299,9 @@ body{background:var(--bg);color:var(--ink);font-family:var(--mono);min-height:10
   ]
 }
 </script>
-<script src="/i18n.js?v=6"></script>
-<script src="/i18n-engine.js?v=6"></script>
+<script src="/xf-translate.js?v=1"></script>
+<script src="/i18n.js?v=8"></script>
+<script src="/i18n-engine.js?v=8"></script>
 <script src="/xf-hand.js"></script>
 </head>
 <body>
@@ -792,36 +793,13 @@ function updateStats() {
 
 // ── RENDER CFD ────────────────────────────────────────────────
 // ── LibreTranslate helper (TS) ─────────────────────────────────────────────
-const _LT_BASE_TS = 'https://libretranslatelibretranslate-production-ecfe.up.railway.app';
 const _ltCTS = {};
-async function _ltTS(text, lang) {
-  if (!text || !lang || lang === 'en') return text;
-  const k = lang + '|' + text.slice(0, 40);
-  if (_ltCTS[k]) return _ltCTS[k];
-  try {
-    const r = await fetch(_LT_BASE_TS + '/translate', {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({q: text, source: 'en', target: lang, format: 'text'})
-    });
-    if (!r.ok) return text;
-    const t = (await r.json()).translatedText || text;
-    _ltCTS[k] = t; return t;
-  } catch(e) { return text; }
-}
 function _langTS() { return localStorage.getItem('xenos_lang') || 'en'; }
 const _ltCacheTS = {};
 async function _ltTS(text, lang) {
-  if (!text || text === '—' || lang === 'en') return text;
-  const k = lang + '|' + text.slice(0,60);
-  if (_ltCacheTS[k]) return _ltCacheTS[k];
-  try {
-    const r = await fetch('https://libretranslatelibretranslate-production-ecfe.up.railway.app/translate', {method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({q:text,source:'en',target:lang,format:'text'})});
-    if (!r.ok) return text;
-    const d = await r.json();
-    _ltCacheTS[k] = d.translatedText || text;
-    return _ltCacheTS[k];
-  } catch(e) { return text; }
+  // 2026-10-25: LibreTranslate rimosso → traduttore gratuito condiviso (xf-translate.js)
+  if (!text || !lang || lang === 'en' || text === '—') return text;
+  return (typeof window.xfTranslate === 'function') ? window.xfTranslate(text, lang) : text;
 }
 async function translateSignalCards() {
   const lang = _langTS();

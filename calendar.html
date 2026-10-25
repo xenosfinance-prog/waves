@@ -266,8 +266,9 @@ body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:10
   ]
 }
 </script>
-<script src="/i18n.js?v=6"></script>
-<script src="/i18n-engine.js?v=6"></script>
+<script src="/xf-translate.js?v=1"></script>
+<script src="/i18n.js?v=8"></script>
+<script src="/i18n-engine.js?v=8"></script>
 <script src="/xf-hand.js"></script>
 </head>
 <body>
@@ -1114,25 +1115,12 @@ function checkPremiumCode() {
 }
 
 // ── LibreTranslate integration ────────────────────────────────────────────
-const LT_URL_CAL = 'https://libretranslatelibretranslate-production-ecfe.up.railway.app';
 const _ltCacheCal = {};
 
 async function ltTranslateCal(text, target) {
+  // 2026-10-25: LibreTranslate rimosso → traduttore gratuito condiviso (xf-translate.js)
   if (!text || !target || target === 'en') return text;
-  const key = target + '|' + text.slice(0, 40);
-  if (_ltCacheCal[key]) return _ltCacheCal[key];
-  try {
-    const r = await fetch(LT_URL_CAL + '/translate', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({q: text, source: 'en', target: target, format: 'text'})
-    });
-    if (!r.ok) return text;
-    const d = await r.json();
-    const t = d.translatedText || text;
-    _ltCacheCal[key] = t;
-    return t;
-  } catch(e) { return text; }
+  return (typeof window.xfTranslate === 'function') ? window.xfTranslate(text, target) : text;
 }
 
 function getCurrentLangCal() {

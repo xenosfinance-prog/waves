@@ -567,6 +567,7 @@
   }
 </style>
 
+<script src="/xf-translate.js?v=1"></script>
 <script src="https://xenosfinance.com/i18n.js"></script>
 <script src="https://xenosfinance.com/i18n-engine.js"></script>
 </head>
@@ -700,29 +701,46 @@ const WORKER_URL_EDU = 'https://xenos-ai-proxy.xenosfinance.workers.dev';
 const _ltCacheEdu = {};
 
 async function ltTranslateEdu(text, target) {
+  // 2026-10-25: LibreTranslate rimosso → traduttore gratuito condiviso (xf-translate.js)
   if (!text || !target || target === 'en') return text;
-  const key = target + '|' + text.slice(0, 60);
-  if (_ltCacheEdu[key]) return _ltCacheEdu[key];
-  try {
-    const controller = new AbortController();
-    const tid = setTimeout(() => controller.abort(), 8000);
-    const r = await fetch(WORKER_URL_EDU, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({type: 'translate', q: text, source: 'en', target: target, format: 'text'}),
-      signal: controller.signal
-    });
-    clearTimeout(tid);
-    if (!r.ok) return text;
-    const d = await r.json();
-    const t = d.translatedText || text;
-    _ltCacheEdu[key] = t;
-    return t;
-  } catch(e) { return text; } // graceful fallback: return original on error/timeout
+  return (typeof window.xfTranslate === 'function') ? window.xfTranslate(text, target) : text;
 }
 
 function getCurrentLangEdu() {
-  return localStorage.getItem('xenos_lang') || 'en';
+  const l = localStorage.getItem('xenos_lang') || 'en';
+  return l === 'it' ? 'it' : 'en';
+}
+
+// Anteprima archivio: file italiano se esiste, altrimenti solo l'inizio tradotto al volo.
+async function eduPreviewSource(post, enContent) {
+  try {
+    const r = await fetch(`/i18n/it/daily_education/${post.date}.json?t=${Date.now()}`);
+    if (r.ok) { const d = await r.json(); if (d && d.content) { _eduItCache[post.date] = d.content; return d.content; } }
+  } catch (e) {}
+  const head = String(enContent).replace(/━+/g, '').replace(/\n{3,}/g, '\n').trim().substring(0, 220);
+  return ltTranslateEdu(head, 'it');
+}
+
+// 2026-10-25: contenuto nella lingua attiva. In italiano usa prima la versione
+// pre-generata (i18n/it/daily_education/<data>.json, GitHub Action "Italian
+// translations"); se non c'è ancora, traduce al volo; in errore resta l'inglese.
+const _eduItCache = {};
+async function eduContentFor(post, enContent) {
+  if (getCurrentLangEdu() !== 'it' || !enContent) return enContent;
+  const date = (post && (post.date || (post.file || '').replace(/^.*\//, '').replace(/\.json$/, ''))) || '';
+  if (date && _eduItCache[date]) return _eduItCache[date];
+  if (date) {
+    try {
+      const r = await fetch(`/i18n/it/daily_education/${date}.json?t=${Date.now()}`);
+      if (r.ok) {
+        const d = await r.json();
+        if (d && d.content) { _eduItCache[date] = d.content; return d.content; }
+      }
+    } catch (e) {}
+  }
+  const t = await ltTranslateEdu(enContent, 'it');
+  if (date && t !== enContent) _eduItCache[date] = t;
+  return t;
 }
 
 // ─────────────────────────────────────────────
@@ -764,8 +782,7 @@ async function renderToday() {
     dateEl.className = 'today-date';
     dateEl.textContent = formatDateFull(latest.date);
 
-    const lang = getCurrentLangEdu();
-    const translatedContent = lang !== 'en' ? await ltTranslateEdu(data.content || '', lang) : (data.content || '');
+    const translatedContent = await eduContentFor(latest, data.content || '');
 
     const contentEl = document.createElement('div');
     contentEl.className = 'today-content';
@@ -844,13 +861,15 @@ async function loadPreview(post) {
     const data = await res.json();
     const el = document.getElementById(`preview-${post.date}`);
     if (el) {
-      let text = data.content
+      // 2026-10-25: in italiano l'anteprima viene dalla versione italiana (pre-generata se c'è)
+      const srcText = getCurrentLangEdu() === 'it'
+        ? (_eduItCache[post.date] || await eduPreviewSource(post, data.content || ''))
+        : data.content;
+      let text = String(srcText || data.content || '')
         .replace(/━+/g, '')
         .replace(/\n{3,}/g, '\n')
         .trim()
         .substring(0, 180);
-      const lang = getCurrentLangEdu();
-      if (lang !== 'en') text = await ltTranslateEdu(text, lang);
       el.textContent = text + '...';
     }
   } catch(e) {
@@ -893,7 +912,7 @@ async function openModal(post) {
   try {
     const res = await fetch(`${GITHUB_RAW}/${post.file}?t=${Date.now()}`);
     const data = await res.json();
-    document.getElementById('modalContent').innerHTML = formatEduContent(data.content);
+    document.getElementById('modalContent').innerHTML = formatEduContent(await eduContentFor(post, data.content || ''));
   } catch(e) {
     document.getElementById('modalContent').textContent = 'Error loading content.';
   }

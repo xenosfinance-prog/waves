@@ -1,0 +1,64 @@
+# XenosFinance — versione italiana di blog e Daily Education (2026-10-25).
+# Crea/aggiorna i file in i18n/it/ con tools/translate_content.py.
+# Costo zero: Gemini piano gratuito se esiste il secret GEMINI_API_KEY,
+# altrimenti Google Translate pubblico. Gli articoli già tradotti non vengono
+# ritradotti (solo se l'originale inglese cambia).
+name: Italian translations
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "articles/**"
+      - "daily_education/**"
+  schedule:
+    - cron: "17 */2 * * *"   # ogni 2 ore: smaltisce l'arretrato e recupera eventuali errori
+  workflow_dispatch:
+    inputs:
+      max:
+        description: "Documenti massimi da tradurre in questo run"
+        required: false
+        default: "40"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: translate-it
+  cancel-in-progress: false
+
+jobs:
+  translate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 20
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Translate new content
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          TRANSLATE_MAX: ${{ github.event.inputs.max || '40' }}
+        run: python tools/translate_content.py
+
+      - name: Commit translations
+        run: |
+          git config user.name  "xenos-translate-bot"
+          git config user.email "xenos-translate-bot@users.noreply.github.com"
+          git add i18n/it
+          if git diff --cached --quiet; then
+            echo "Nessuna nuova traduzione."
+            exit 0
+          fi
+          git commit -m "Traduzioni IT $(date -u +'%Y-%m-%d %H:%M') UTC"
+          for i in 1 2 3 4 5; do
+            git pull --rebase --no-edit origin main && git push origin HEAD:main && exit 0
+            echo "push rifiutato (altri commit in arrivo), nuovo tentativo $i…"
+            sleep $((i * 5))
+          done
+          exit 1
