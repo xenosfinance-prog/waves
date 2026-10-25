@@ -185,11 +185,11 @@ tr.poor td{color:var(--muted);}
 @media(max-width:720px){h1{font-size:26px;}.grid{grid-template-columns:1fr;}table{font-size:11px;}th,td{padding:5px;}}"""
 
 
-NAV = [("/", "Home"), ("/dashboard", "Dashboard"), ("/analysis", "Daily Analysis"), ("/cot", "COT Positioning"), ("/futures-flow", "Futures Flow"),
+NAV = [("/", "Home"), ("/dashboard", "Dashboard"), ("/analysis/", "Daily Analysis"), ("/cot/", "COT Positioning"), ("/futures-flow/", "Futures Flow"),
        ("/calendar", "Calendar"), ("/elliottwave", "Elliott Wave"), ("/trade-setups", "Trade Setups"), ("/premium", "Premium")]
 
 
-def page_shell(title, desc, canonical, body, jsonld, keywords, active="/analysis", it_title=None):
+def page_shell(title, desc, canonical, body, jsonld, keywords, active="/analysis/", it_title=None):
     ld = "\n".join(f'<script type="application/ld+json">{json.dumps(x, ensure_ascii=False)}</script>' for x in jsonld)
     nav = "".join('<a href="%s"%s>%s</a>' % (h, ' class="on"' if h == active else "", t) for h, t in NAV)
     # 2026-10-25: versione italiana. Tutte le pagine hanno le bandierine EN/IT
@@ -275,7 +275,7 @@ def build_instrument_page(inst, d, ai, now, all_rows):
             + (f", support {s1}" if s1 else "") + (f", resistance {r1}" if r1 else "")
             + ". Confluence zones, Elliott Wave, trade scenarios with risk/reward.")
 
-    b = [f'<div class="crumb"><a href="/">Home</a> › <a href="/analysis">{L("Daily Analysis", "Analisi giornaliera")}</a> › '
+    b = [f'<div class="crumb"><a href="/">Home</a> › <a href="/analysis/">{L("Daily Analysis", "Analisi giornaliera")}</a> › '
          f'{L(esc(name), esc(name_it))}</div>',
          f"<h1>{L(esc(name) + ' Technical Analysis Today', esc(name_it) + ' — analisi tecnica di oggi')}</h1>",
          f'<div class="upd" id="lv-upd">' + L(
@@ -474,7 +474,7 @@ def build_instrument_page(inst, d, ai, now, all_rows):
          "publisher": {"@type": "Organization", "name": "XenosFinance", "logo": {"@type": "ImageObject", "url": f"{SITE}/favicon-192.png"}}},
         {"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [
             {"@type": "ListItem", "position": 1, "name": "Home", "item": SITE},
-            {"@type": "ListItem", "position": 2, "name": "Daily Analysis", "item": f"{SITE}/analysis"},
+            {"@type": "ListItem", "position": 2, "name": "Daily Analysis", "item": f"{SITE}/analysis/"},
             {"@type": "ListItem", "position": 3, "name": name, "item": url}]},
         {"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [
             {"@type": "Question", "name": q, "acceptedAnswer": {"@type": "Answer", "text": a}} for q, a in faq]},
@@ -487,7 +487,7 @@ def build_instrument_page(inst, d, ai, now, all_rows):
 def build_index(rows, now):
     import page_i18n as PI
     L = PI.L
-    url = f"{SITE}/analysis"
+    url = f"{SITE}/analysis/"
     title = "Daily Technical Analysis — Gold, Oil, Forex, Crypto & Indices | XenosFinance"
     title_it = "Analisi tecnica giornaliera — oro, petrolio, forex, crypto e indici | XenosFinance"
     desc = "Daily technical analysis for Gold, Oil, Forex, Bitcoin and stock indices: bias, confluence zones, Elliott Wave and trade scenarios with risk/reward. Levels updated live."
@@ -546,7 +546,7 @@ def update_sitemap(urls, day):
                        lambda m: f"{loc}{m.group(1)}<lastmod>{day}</lastmod>", s, count=1)
         else:
             entry = (f"  <url>\n    {loc}\n    <lastmod>{day}</lastmod>\n"
-                     f"    <changefreq>daily</changefreq>\n    <priority>{'0.8' if u.endswith('/analysis') else '0.7'}</priority>\n  </url>\n")
+                     f"    <changefreq>daily</changefreq>\n    <priority>{'0.8' if u.endswith('/analysis/') else '0.7'}</priority>\n  </url>\n")
             s = s.replace("</urlset>", entry + "</urlset>")
     open(SITEMAP, "w", encoding="utf-8").write(s)
 
@@ -595,7 +595,7 @@ def main():
         print(f"  ✓ analysis/{inst[0]}.html  (AI: {'yes' if ai else 'no'})")
     with open(os.path.join(OUT_DIR, "index.html"), "w", encoding="utf-8") as fh:
         fh.write(build_index(rows, now))
-    update_sitemap([f"{SITE}/analysis"] + [f"{SITE}/analysis/{r[0]}" for r in rows], now.strftime("%Y-%m-%d"))
+    update_sitemap([f"{SITE}/analysis/"] + [f"{SITE}/analysis/{r[0]}" for r in rows], now.strftime("%Y-%m-%d"))
     print(f"Done: {len(built)} pages + index, sitemap updated.")
     return 0
 

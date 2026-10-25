@@ -118,8 +118,8 @@ td.m{color:var(--muted);font-size:11px;}
 .disc{font-family:var(--mono);font-size:10px;color:var(--muted);line-height:1.6;margin-top:34px;border-top:1px solid var(--border);padding-top:14px;}
 @media(max-width:720px){h1{font-size:25px;}table{font-size:11px;}th,td{padding:5px;}}`;
 
-const NAV = [['/', 'Home'], ['/dashboard', 'Dashboard'], ['/analysis', 'Daily Analysis'], ['/trade-setups', 'Trade Setups'],
-  ['/cot', 'COT Positioning'], ['/futures-flow', 'Futures Flow'], ['/calendar', 'Calendar'], ['/elliottwave', 'Elliott Wave'], ['/premium', 'Premium']];
+const NAV = [['/', 'Home'], ['/dashboard', 'Dashboard'], ['/analysis/', 'Daily Analysis'], ['/trade-setups', 'Trade Setups'],
+  ['/cot/', 'COT Positioning'], ['/futures-flow/', 'Futures Flow'], ['/calendar', 'Calendar'], ['/elliottwave', 'Elliott Wave'], ['/premium', 'Premium']];
 
 function shell({ title, desc, canonical, body, jsonld, robots }) {
   const nav = NAV.map(([h, t]) => `<a href="${h}"${h === '/trade-setups' ? ' class="on"' : ''}>${L(t, NAV_IT[t])}</a>`).join('');
@@ -215,10 +215,10 @@ function setupPage(s, all) {
     b.push(`<img class="chart" src="${esc(s.image_url)}" alt="${esc(name)} ${sideW.toLowerCase()} setup chart, ${esc(tf)}, ${esc(dh)}" loading="lazy">`);
   }
   b.push('<div class="box"><p>' + L('<b>How to use this setup.</b> A setup is a study of where the engine sees a favourable risk/reward, '
-    + 'not a call to trade. Check the current price and structure first: the <a href="/analysis">daily technical analysis</a> '
+    + 'not a call to trade. Check the current price and structure first: the <a href="/analysis/">daily technical analysis</a> '
     + 'shows live levels, and the <a href="/dashboard">dashboard</a> a 15-minute read.',
     '<b>Come usare questo setup.</b> Un setup è uno studio di dove il motore vede un rapporto rischio/rendimento favorevole, '
-    + 'non un invito a operare. Verifica prima prezzo e struttura attuali: l\'<a href="/analysis">analisi tecnica giornaliera</a> '
+    + 'non un invito a operare. Verifica prima prezzo e struttura attuali: l\'<a href="/analysis/">analisi tecnica giornaliera</a> '
     + 'mostra i livelli live, e la <a href="/dashboard">dashboard</a> una lettura a 15 minuti.') + '</p>'
     + `<div class="cta"><a href="/trade-setups">${L('All trade setups', 'Tutti i trade setup')}</a><a href="/trading-signals">${L('Live setups', 'Setup live')}</a>`
     + (s.tg_url && /^https:\/\/t\.me\//.test(s.tg_url) ? `<a href="${esc(s.tg_url)}">${L('Telegram post', 'Post su Telegram')}</a>` : '') + '</div></div>');
@@ -271,7 +271,7 @@ function indexPage(list) {
     '<b>Setup live e analisi giornaliera.</b> I nuovi setup vengono pubblicati prima sul nostro canale Telegram; '
     + 'le pagine di analisi giornaliera mostrano i livelli live dei principali mercati.')
     + `</p><div class="cta"><a href="/trading-signals">${L('Live setups', 'Setup live')}</a>`
-    + `<a href="/analysis">${L('Daily analysis', 'Analisi giornaliera')}</a><a href="https://t.me/xenoswavefinance">${L('Telegram channel', 'Canale Telegram')}</a></div></div>`);
+    + `<a href="/analysis/">${L('Daily analysis', 'Analisi giornaliera')}</a><a href="https://t.me/xenoswavefinance">${L('Telegram channel', 'Canale Telegram')}</a></div></div>`);
   const jsonld = [
     { '@context': 'https://schema.org', '@type': 'CollectionPage', name: 'Trade Setups', description: desc, url,
       dateModified: list[0] ? list[0].timestamp : undefined },

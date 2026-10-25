@@ -248,7 +248,7 @@ def telegram_html(res, day, desk=None, oil=None, bias=None):
     if bias:   # 2026-10-19: conclusione finale — bias e trend
         lines += [""] + D.bias_telegram(bias[0], bias[1])
     lines += ["", "Flow: price vs open-interest change (new longs / new shorts / short covering / liquidation).",
-              f'Curves and contract detail: <a href="{SITE}/futures-flow">xenosfinance.com/futures-flow</a>']
+              f'Curves and contract detail: <a href="{SITE}/futures-flow/">xenosfinance.com/futures-flow</a>']
     return "\n".join(lines)
 
 
@@ -319,15 +319,15 @@ def build_page(res, prev_snap, day, now, desk=None, oil=None, bias=None, it=None
     if bias:   # 2026-10-19: conclusione finale — bias e trend
         b += D.bias_html("flow", bias[0], bias[1], esc, it.get("bias"))
     b.append(f'<div class="box"><p><b>{L("Related", "Correlati")}</b></p><div class="cta">'
-             f'<a href="/cot">{L("COT positioning", "Posizionamento COT")}</a>'
-             f'<a href="/analysis">{L("Daily technical analysis", "Analisi tecnica giornaliera")}</a>'
+             f'<a href="/cot/">{L("COT positioning", "Posizionamento COT")}</a>'
+             f'<a href="/analysis/">{L("Daily technical analysis", "Analisi tecnica giornaliera")}</a>'
              f'<a href="https://t.me/xenoswavefinance">{L("Telegram channel", "Canale Telegram")}</a></div></div>')
     jsonld = [{"@context": "https://schema.org", "@type": "Article", "headline": title, "description": desc,
                "dateModified": now.isoformat(), "author": {"@type": "Organization", "name": "XenosFinance"},
-               "publisher": {"@type": "Organization", "name": "XenosFinance"}, "mainEntityOfPage": f"{SITE}/futures-flow"}]
-    return G.page_shell(title, desc, f"{SITE}/futures-flow", "\n".join(b), jsonld,
+               "publisher": {"@type": "Organization", "name": "XenosFinance"}, "mainEntityOfPage": f"{SITE}/futures-flow/"}]
+    return G.page_shell(title, desc, f"{SITE}/futures-flow/", "\n".join(b), jsonld,
                         "futures open interest, oil futures curve, WTI spread, contango backwardation, futures volume",
-                        active="/futures-flow", it_title=title_it)
+                        active="/futures-flow/", it_title=title_it)
 
 
 def main():
@@ -386,7 +386,7 @@ def main():
               "telegram_html": telegram_html(res, sess, desk, oil, bias),
               "products": [{k: v for k, v in r.items() if k != "curve"} for r in res]}
     json.dump(latest, open(os.path.join(OUT_DIR, "latest.json"), "w", encoding="utf-8"), indent=1)
-    G.update_sitemap([f"{SITE}/futures-flow"], today.isoformat())
+    G.update_sitemap([f"{SITE}/futures-flow/"], today.isoformat())
     print(f"Done: {len(res)} products, session {sess}, OI change {'yes' if prev_snap else 'from next run'}")
     return 0
 

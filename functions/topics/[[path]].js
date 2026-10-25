@@ -24,15 +24,15 @@ export const TOPICS = [
     match: a => a.market === 'equity' || cat(a).includes('equit') },
   { slug: 'forex', name: 'Forex Analysis', short: 'Forex',
     intro: 'Currency market analysis: the US dollar, the euro, the yen and the pound, central-bank expectations, rate differentials and the technical structure of the main FX pairs.',
-    links: [['/analysis/eur-usd', 'EUR/USD daily analysis'], ['/analysis/usd-jpy', 'USD/JPY daily analysis'], ['/analysis/gbp-usd', 'GBP/USD daily analysis'], ['/cot', 'COT positioning']],
+    links: [['/analysis/eur-usd', 'EUR/USD daily analysis'], ['/analysis/usd-jpy', 'USD/JPY daily analysis'], ['/analysis/gbp-usd', 'GBP/USD daily analysis'], ['/cot/', 'COT positioning']],
     match: a => a.market === 'forex' },
   { slug: 'commodities', name: 'Commodities Analysis — Energy & Metals', short: 'Commodities',
     intro: 'Commodity market analysis across energy and metals: crude oil, natural gas, gold, silver and copper, with supply and demand, inventories, positioning and price structure.',
-    links: [['/analysis/gold', 'Gold daily analysis'], ['/analysis/copper', 'Copper daily analysis'], ['/futures-flow', 'Futures flow'], ['/cot', 'COT positioning']],
+    links: [['/analysis/gold', 'Gold daily analysis'], ['/analysis/copper', 'Copper daily analysis'], ['/futures-flow/', 'Futures flow'], ['/cot/', 'COT positioning']],
     match: a => a.market === 'commodities' },
   { slug: 'oil-market', name: 'Oil Market Analysis — WTI, Brent, EIA & OPEC', short: 'Oil',
     intro: 'Crude oil analysis from an oil-trading desk: WTI and Brent, EIA inventory reports, OPEC+ decisions, the futures curve and the geopolitics that move the energy complex.',
-    links: [['/analysis/wti-crude-oil', 'WTI daily analysis'], ['/analysis/brent-crude-oil', 'Brent daily analysis'], ['/futures-flow', 'Futures flow & curves'], ['/cot', 'COT positioning']],
+    links: [['/analysis/wti-crude-oil', 'WTI daily analysis'], ['/analysis/brent-crude-oil', 'Brent daily analysis'], ['/futures-flow/', 'Futures flow & curves'], ['/cot/', 'COT positioning']],
     match: a => /\b(oil|crude|wti|brent|eia|opec\+?|petroleum)\b/.test(t(a)) },
   { slug: 'crypto', name: 'Crypto Market Analysis', short: 'Crypto',
     intro: 'Bitcoin, Ethereum and the wider crypto market: trend, liquidity, sentiment and the macro backdrop for digital assets.',
@@ -48,11 +48,11 @@ export const TOPICS = [
     match: a => a.market === 'geopolitics' || cat(a).includes('geopolit') },
   { slug: 'weekly-market-outlook', name: 'Weekly Market Outlook', short: 'Weekly outlook',
     intro: 'The week ahead for markets: key economic releases, earnings, central-bank events and the levels to watch across futures, FX and commodities.',
-    links: [['/calendar', 'Economic calendar'], ['/cot', 'COT positioning']],
+    links: [['/calendar', 'Economic calendar'], ['/cot/', 'COT positioning']],
     match: a => /weekly|week ahead|week of/.test(t(a)) },
   { slug: 'technical-analysis', name: 'Technical Analysis & Elliott Wave', short: 'Technical analysis',
     intro: 'Technical studies: Elliott Wave counts, Fibonacci levels, order flow, trend and momentum, written for market analysis and trading education.',
-    links: [['/analysis', 'Daily technical analysis'], ['/elliottwave', 'Elliott Wave'], ['/trade-setups', 'Trade setups']],
+    links: [['/analysis/', 'Daily technical analysis'], ['/elliottwave', 'Elliott Wave'], ['/trade-setups', 'Trade setups']],
     match: a => ['technical', 'elliott', 'orderflow'].includes(a.tech) || /technical|elliott|fibonacci/.test(t(a)) },
   { slug: 'pre-market-brief', name: 'Pre-Market Brief', short: 'Pre-market',
     intro: 'Pre-market briefs before the US open: futures, overnight moves, catalysts of the day and the market bias.',
@@ -60,7 +60,7 @@ export const TOPICS = [
     match: a => /pre-market|premarket/.test(t(a) + ' ' + cat(a)) },
   { slug: 'market-sentiment', name: 'Market Sentiment', short: 'Sentiment',
     intro: 'Market sentiment and positioning: risk appetite, volatility, fund flows and the crowd behaviour behind price moves.',
-    links: [['/cot', 'COT positioning'], ['/futures-flow', 'Futures flow']],
+    links: [['/cot/', 'COT positioning'], ['/futures-flow/', 'Futures flow']],
     match: a => a.tech === 'sentiment' || cat(a).includes('sentiment') },
 ];
 
@@ -184,8 +184,8 @@ p{color:var(--ink2);margin-bottom:10px;font-size:15px;}
 .disc{font-family:var(--mono);font-size:10px;color:var(--muted);line-height:1.6;margin-top:34px;border-top:1px solid var(--border);padding-top:14px;}
 @media(max-width:720px){h1{font-size:25px;}}`;
 
-const NAV = [['/', 'Home'], ['/dashboard', 'Dashboard'], ['/analysis', 'Daily Analysis'], ['/trade-setups', 'Trade Setups'],
-  ['/XenosBlog', 'Blog'], ['/topics', 'Topics'], ['/cot', 'COT Positioning'], ['/calendar', 'Calendar'], ['/elliottwave', 'Elliott Wave']];
+const NAV = [['/', 'Home'], ['/dashboard', 'Dashboard'], ['/analysis/', 'Daily Analysis'], ['/trade-setups', 'Trade Setups'],
+  ['/XenosBlog', 'Blog'], ['/topics', 'Topics'], ['/cot/', 'COT Positioning'], ['/calendar', 'Calendar'], ['/elliottwave', 'Elliott Wave']];
 
 function shell({ title, desc, canonical, body, jsonld, robots }) {
   const nav = NAV.map(([h, n]) => `<a href="${h}"${h === '/topics' ? ' class="on"' : ''}>${L(n, NAV_IT[n])}</a>`).join('');

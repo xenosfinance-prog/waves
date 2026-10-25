@@ -305,7 +305,7 @@ def telegram_html(res, report_date, release_date, desk=None, oil=None, bias=None
     if bias:   # 2026-10-19: conclusione finale — bias e trend
         lines += [""] + D.bias_telegram(bias[0], bias[1])
     lines += ["", "COT index: 0 = most short, 100 = most long of the last 3 years.",
-              f'Full table and charts: <a href="{SITE}/cot">xenosfinance.com/cot</a>']
+              f'Full table and charts: <a href="{SITE}/cot/">xenosfinance.com/cot</a>']
     return "\n".join(lines)
 
 
@@ -408,15 +408,15 @@ def build_page(res, report_date, release_date, now, desk=None, oil=None, bias=No
         "Il posizionamento è uno strumento di contesto, non un segnale di timing: un trade affollato può restarlo "
         "per settimane. Diventa utile quando un estremo coincide con un punto di svolta tecnico — per esempio un "
         "conteggio di Elliott completato su una zona di supporto o resistenza.") + '</p>'
-        f'<div class="cta"><a href="/analysis">{L("Daily technical analysis", "Analisi tecnica giornaliera")}</a>'
+        f'<div class="cta"><a href="/analysis/">{L("Daily technical analysis", "Analisi tecnica giornaliera")}</a>'
         f'<a href="/elliottwave">{L("Elliott Wave", "Onde di Elliott")}</a>'
         f'<a href="https://t.me/xenoswavefinance">{L("Telegram channel", "Canale Telegram")}</a></div></div>')
     jsonld = [{"@context": "https://schema.org", "@type": "Article", "headline": title, "description": desc,
                "dateModified": now.isoformat(), "author": {"@type": "Organization", "name": "XenosFinance"},
-               "publisher": {"@type": "Organization", "name": "XenosFinance"}, "mainEntityOfPage": f"{SITE}/cot"}]
-    return G.page_shell(title, desc, f"{SITE}/cot", "\n".join(b), jsonld,
+               "publisher": {"@type": "Organization", "name": "XenosFinance"}, "mainEntityOfPage": f"{SITE}/cot/"}]
+    return G.page_shell(title, desc, f"{SITE}/cot/", "\n".join(b), jsonld,
                         "COT report, commitments of traders, managed money, hedge fund positioning, oil positioning, "
-                        "gold positioning, CFTC", active="/cot", it_title=title_it)
+                        "gold positioning, CFTC", active="/cot/", it_title=title_it)
 
 
 def main():
@@ -453,7 +453,7 @@ def main():
               "telegram_html": telegram_html(res, report_date, release_date, desk, oil, bias),
               "markets": [{k: v for k, v in r.items() if k != "chart"} for r in res]}
     json.dump(latest, open(os.path.join(OUT_DIR, "latest.json"), "w", encoding="utf-8"), indent=1)
-    G.update_sitemap([f"{SITE}/cot"], now.strftime("%Y-%m-%d"))
+    G.update_sitemap([f"{SITE}/cot/"], now.strftime("%Y-%m-%d"))
     print(f"Done: {len(res)} markets, week to {report_date}")
     return 0
 
