@@ -64,6 +64,60 @@ export const TOPICS = [
     match: a => a.tech === 'sentiment' || cat(a).includes('sentiment') },
 ];
 
+// 2026-10-25: versione italiana dei temi (mostrata con la lingua IT del sito, /xf-page-i18n.js)
+const TOPICS_IT = {
+  'stock-market': { name: 'Analisi del mercato azionario', short: 'Azioni',
+    intro: 'Analisi dei mercati azionari USA e globali: trend degli indici, rotazione settoriale, stagione delle trimestrali e le forze macro che muovono S&P 500, Nasdaq 100 e borse europee.' },
+  'forex': { name: 'Analisi Forex', short: 'Forex',
+    intro: 'Analisi del mercato valutario: dollaro USA, euro, yen e sterlina, aspettative sulle banche centrali, differenziali di tasso e struttura tecnica delle principali coppie FX.' },
+  'commodities': { name: 'Analisi delle materie prime — energia e metalli', short: 'Materie prime',
+    intro: 'Analisi delle materie prime tra energia e metalli: petrolio greggio, gas naturale, oro, argento e rame, con domanda e offerta, scorte, posizionamento e struttura dei prezzi.' },
+  'oil-market': { name: 'Analisi del mercato petrolifero — WTI, Brent, EIA e OPEC', short: 'Petrolio',
+    intro: 'Analisi del petrolio greggio da un desk di trading petrolifero: WTI e Brent, report EIA sulle scorte, decisioni OPEC+, curva dei futures e la geopolitica che muove il comparto energetico.' },
+  'crypto': { name: 'Analisi del mercato crypto', short: 'Crypto',
+    intro: 'Bitcoin, Ethereum e il mercato crypto in generale: trend, liquidità, sentiment e contesto macro per gli asset digitali.' },
+  'macro': { name: 'Macro e banche centrali', short: 'Macro',
+    intro: 'Analisi macroeconomica: inflazione, crescita, mercato del lavoro, politica monetaria di Fed, BCE e BoJ, e come il calendario dei dati influenza ogni asset class.' },
+  'geopolitics': { name: 'Geopolitica e mercati', short: 'Geopolitica',
+    intro: 'Come gli eventi geopolitici — conflitti, sanzioni, politica commerciale ed elezioni — si riflettono su petrolio, oro, valute e rischio azionario.' },
+  'weekly-market-outlook': { name: 'Outlook settimanale dei mercati', short: 'Outlook settimanale',
+    intro: 'La settimana che arriva sui mercati: dati economici chiave, trimestrali, eventi delle banche centrali e i livelli da monitorare su futures, FX e materie prime.' },
+  'technical-analysis': { name: 'Analisi tecnica e onde di Elliott', short: 'Analisi tecnica',
+    intro: 'Studi tecnici: conteggi delle onde di Elliott, livelli di Fibonacci, order flow, trend e momentum, scritti per l\'analisi di mercato e la formazione al trading.' },
+  'pre-market-brief': { name: 'Pre-Market Brief', short: 'Pre-market',
+    intro: 'Brief prima dell\'apertura USA: futures, movimenti overnight, catalizzatori della giornata e bias di mercato.' },
+  'market-sentiment': { name: 'Sentiment di mercato', short: 'Sentiment',
+    intro: 'Sentiment e posizionamento di mercato: propensione al rischio, volatilità, flussi dei fondi e il comportamento della massa dietro i movimenti di prezzo.' },
+};
+const LINK_IT = { 'S&P 500 daily analysis': 'Analisi giornaliera S&P 500', 'Nasdaq 100 daily analysis': 'Analisi giornaliera Nasdaq 100',
+  'DAX daily analysis': 'Analisi giornaliera DAX', 'Live dashboard': 'Dashboard live', 'EUR/USD daily analysis': 'Analisi giornaliera EUR/USD',
+  'USD/JPY daily analysis': 'Analisi giornaliera USD/JPY', 'GBP/USD daily analysis': 'Analisi giornaliera GBP/USD', 'COT positioning': 'Posizionamento COT',
+  'Gold daily analysis': 'Analisi giornaliera oro', 'Copper daily analysis': 'Analisi giornaliera rame', 'Futures flow': 'Futures flow',
+  'WTI daily analysis': 'Analisi giornaliera WTI', 'Brent daily analysis': 'Analisi giornaliera Brent', 'Futures flow & curves': 'Futures flow e curve',
+  'Bitcoin daily analysis': 'Analisi giornaliera Bitcoin', 'Ethereum daily analysis': 'Analisi giornaliera Ethereum', 'Economic calendar': 'Calendario economico',
+  'Daily pre-market brief': 'Pre-market brief del giorno', 'Daily technical analysis': 'Analisi tecnica giornaliera', 'Elliott Wave': 'Onde di Elliott',
+  'Trade setups': 'Trade setup', "Today's pre-market brief": 'Pre-market brief di oggi' };
+const NAV_IT = { 'Home': 'Home', 'Dashboard': 'Dashboard', 'Daily Analysis': 'Analisi giornaliera', 'Trade Setups': 'Trade Setups', 'Blog': 'Blog',
+  'Topics': 'Temi', 'COT Positioning': 'Posizionamento COT', 'Calendar': 'Calendario', 'Elliott Wave': 'Onde di Elliott' };
+const MON_IT = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
+function dateIt(ts) {
+  const d = new Date(ts);
+  return isNaN(d) ? '' : `${String(d.getUTCDate()).padStart(2, '0')} ${MON_IT[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+}
+// testo bilingue: inglese nell'HTML (SEO), italiano in data-it
+function L(en, it) { return it && it !== en ? `<span data-it="${esc(it)}">${en}</span>` : en; }
+const tpIt = tp => TOPICS_IT[tp.slug] || {};
+// titoli/estratti italiani degli articoli (creati dalla GitHub Action "Italian translations")
+async function loadItIndex(env, origin) {
+  try {
+    if (env && env.ASSETS) {
+      const r = await env.ASSETS.fetch(new URL('/i18n/it/articles/index.json', origin));
+      if (r.ok) { const d = await r.json(); if (d && typeof d === 'object') return d; }
+    }
+  } catch (_) { /* nessuna traduzione: solo inglese */ }
+  return {};
+}
+
 export function topicsFor(a) {
   return TOPICS.filter(tp => { try { return tp.match(a || {}); } catch { return false; } });
 }
@@ -134,7 +188,7 @@ const NAV = [['/', 'Home'], ['/dashboard', 'Dashboard'], ['/analysis', 'Daily An
   ['/XenosBlog', 'Blog'], ['/topics', 'Topics'], ['/cot', 'COT Positioning'], ['/calendar', 'Calendar'], ['/elliottwave', 'Elliott Wave']];
 
 function shell({ title, desc, canonical, body, jsonld, robots }) {
-  const nav = NAV.map(([h, n]) => `<a href="${h}"${h === '/topics' ? ' class="on"' : ''}>${n}</a>`).join('');
+  const nav = NAV.map(([h, n]) => `<a href="${h}"${h === '/topics' ? ' class="on"' : ''}>${L(n, NAV_IT[n])}</a>`).join('');
   const ld = (jsonld || []).map(x => `<script type="application/ld+json">${JSON.stringify(x).replace(/</g, '\\u003c')}</script>`).join('\n');
   return `<!DOCTYPE html>
 <html lang="en">
@@ -158,33 +212,38 @@ ${robots ? `<meta name="robots" content="${robots}">` : ''}
 ${ld}
 </head>
 <body>
-<header class="top"><div class="brand">Xenos<span>Finance</span></div><div class="tag">Market analysis &amp; trading education</div></header>
+<header class="top"><div class="brand">Xenos<span>Finance</span></div><div class="tag">${L('Market analysis &amp; trading education', 'Analisi di mercato &amp; formazione al trading')}</div></header>
 <nav>${nav}</nav>
 <main>
 ${body}
-<div class="disc">Educational content only. Articles are market analysis for trading education and do not constitute investment advice or a recommendation to buy or sell any financial instrument. Trading involves a significant risk of loss. © XenosFinance</div>
+<div class="disc">${L('Educational content only. Articles are market analysis for trading education and do not constitute investment advice or a recommendation to buy or sell any financial instrument. Trading involves a significant risk of loss. © XenosFinance',
+  'Contenuto solo educativo. Gli articoli sono analisi di mercato a scopo di formazione al trading e non costituiscono consulenza finanziaria né una raccomandazione ad acquistare o vendere alcuno strumento finanziario. Il trading comporta un rischio significativo di perdita. © XenosFinance')}</div>
 </main>
+<script src="/xf-page-i18n.js?v=1" defer></script>
 </body>
 </html>`;
 }
 
-function topicPage(tp, arts) {
+function topicPage(tp, arts, itIdx = {}) {
+  const ti = tpIt(tp);
   const url = `${SITE}/topics/${tp.slug}`;
   const title = `${tp.name} — Articles & Insights | XenosFinance`;
   const desc = `${tp.intro} ${arts.length} articles from the XenosFinance desk.`.slice(0, 158);
-  const b = [`<div class="crumb"><a href="/">Home</a> › <a href="/topics">Topics</a> › ${esc(tp.short)}</div>`,
-    `<h1>${esc(tp.name)}</h1>`,
-    `<div class="upd">${arts.length} articles · latest ${esc(dateH(arts[0] && arts[0].publishedAt))}</div>`,
-    `<p>${esc(tp.intro)}</p>`];
-  if (tp.links && tp.links.length) b.push('<div class="chips">' + tp.links.map(([h, n]) => `<a href="${h}">${esc(n)}</a>`).join('') + '</div>');
-  b.push('<h2>Articles</h2>');
+  const b = [`<div class="crumb"><a href="/">Home</a> › <a href="/topics">${L('Topics', 'Temi')}</a> › ${L(esc(tp.short), esc(ti.short || ''))}</div>`,
+    `<h1>${L(esc(tp.name), esc(ti.name || ''))}</h1>`,
+    `<div class="upd">${L(`${arts.length} articles · latest ${esc(dateH(arts[0] && arts[0].publishedAt))}`,
+      `${arts.length} articoli · ultimo ${esc(dateIt(arts[0] && arts[0].publishedAt))}`)}</div>`,
+    `<p>${L(esc(tp.intro), esc(ti.intro || ''))}</p>`];
+  if (tp.links && tp.links.length) b.push('<div class="chips">' + tp.links.map(([h, n]) => `<a href="${h}">${L(esc(n), esc(LINK_IT[n] || ''))}</a>`).join('') + '</div>');
+  b.push(`<h2>${L('Articles', 'Articoli')}</h2>`);
   for (const a of arts) {
-    b.push(`<div class="art"><a class="ttl" href="${artUrl(a)}">${esc(plain(a.title))}</a>`
-      + `<div class="meta">${esc(dateH(a.publishedAt))}${a.category ? ' · ' + esc(plain(a.category)) : ''}${a.readTime ? ' · ' + esc(plain(a.readTime).replace('lettura', 'read')) : ''}</div>`
-      + (a.excerpt ? `<p>${esc(plain(a.excerpt))}</p>` : '') + '</div>');
+    const it = itIdx[a.slug] || {};
+    b.push(`<div class="art"><a class="ttl" href="${artUrl(a)}">${L(esc(plain(a.title)), it.title ? esc(plain(it.title)) : '')}</a>`
+      + `<div class="meta">${esc(dateH(a.publishedAt))}${a.category ? ' · ' + L(esc(plain(a.category)), it.category ? esc(plain(it.category)) : '') : ''}${a.readTime ? ' · ' + esc(plain(a.readTime).replace('lettura', 'read')) : ''}</div>`
+      + (a.excerpt ? `<p>${L(esc(plain(a.excerpt)), it.excerpt ? esc(plain(it.excerpt)) : '')}</p>` : '') + '</div>');
   }
   const others = TOPICS.filter(x => x.slug !== tp.slug);
-  b.push('<h2>Other topics</h2><div class="chips">' + others.map(x => `<a href="/topics/${x.slug}">${esc(x.short)}</a>`).join('') + '</div>');
+  b.push(`<h2>${L('Other topics', 'Altri temi')}</h2><div class="chips">` + others.map(x => `<a href="/topics/${x.slug}">${L(esc(x.short), esc(tpIt(x).short || ''))}</a>`).join('') + '</div>');
   const jsonld = [
     { '@context': 'https://schema.org', '@type': 'CollectionPage', name: tp.name, description: tp.intro, url,
       dateModified: arts[0] ? arts[0].publishedAt : undefined },
@@ -202,14 +261,17 @@ export function topicsIndexPage(list) {
   const url = `${SITE}/topics`;
   const title = 'Market Analysis Topics — Stocks, Forex, Oil, Commodities, Crypto & Macro | XenosFinance';
   const desc = 'Browse XenosFinance market analysis by topic: stock market, forex, oil, commodities, crypto, macro and central banks, weekly market outlook, technical analysis and Elliott Wave.';
-  const b = ['<div class="crumb"><a href="/">Home</a> › Topics</div>', '<h1>Market Analysis by Topic</h1>',
-    `<div class="upd">${list.length} articles · latest ${esc(dateH(list[0] && list[0].publishedAt))}</div>`,
-    '<p>Every article from the XenosFinance desk, grouped by market and theme.</p>'];
+  const b = [`<div class="crumb"><a href="/">Home</a> › ${L('Topics', 'Temi')}</div>`, `<h1>${L('Market Analysis by Topic', 'Analisi di mercato per tema')}</h1>`,
+    `<div class="upd">${L(`${list.length} articles · latest ${esc(dateH(list[0] && list[0].publishedAt))}`,
+      `${list.length} articoli · ultimo ${esc(dateIt(list[0] && list[0].publishedAt))}`)}</div>`,
+    `<p>${L('Every article from the XenosFinance desk, grouped by market and theme.', 'Tutti gli articoli del desk di XenosFinance, raggruppati per mercato e tema.')}</p>`];
   for (const tp of TOPICS) {
     const arts = list.filter(a => tp.match(a));
     if (!arts.length) continue;
-    b.push(`<div class="tp"><a href="/topics/${tp.slug}">${esc(tp.name)}</a>`
-      + `<div class="meta">${arts.length} articles · latest ${esc(dateH(arts[0].publishedAt))}</div><p>${esc(tp.intro)}</p></div>`);
+    const ti = tpIt(tp);
+    b.push(`<div class="tp"><a href="/topics/${tp.slug}">${L(esc(tp.name), esc(ti.name || ''))}</a>`
+      + `<div class="meta">${L(`${arts.length} articles · latest ${esc(dateH(arts[0].publishedAt))}`, `${arts.length} articoli · ultimo ${esc(dateIt(arts[0].publishedAt))}`)}</div>`
+      + `<p>${L(esc(tp.intro), esc(ti.intro || ''))}</p></div>`);
   }
   const jsonld = [{ '@context': 'https://schema.org', '@type': 'CollectionPage', name: 'Market Analysis by Topic', description: desc, url }];
   return shell({ title, desc, canonical: url, body: b.join('\n'), jsonld });
@@ -231,5 +293,5 @@ export async function onRequestGet(context) {
     return htmlResponse(shell({ title: 'Topic not found | XenosFinance', desc: '', canonical: `${SITE}/topics`,
       body: '<h1>Topic not found</h1><p><a href="/topics">All topics</a></p>', robots: 'noindex' }), 404);
   }
-  return htmlResponse(topicPage(tp, list.filter(a => tp.match(a))));
+  return htmlResponse(topicPage(tp, list.filter(a => tp.match(a)), await loadItIndex(env, url.origin)));
 }

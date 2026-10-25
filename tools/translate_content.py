@@ -92,7 +92,7 @@ def log(*a):
     msg = " ".join(str(x) for x in a)
     print(msg, flush=True)
     # 2026-10-25: errori e riepilogo anche come annotazioni di GitHub Actions (visibili dall'API)
-    if os.environ.get("GITHUB_ACTIONS") and re.search(r"✗|gemini|gtx|Troppi|Tradotti in questo run|Traduttore:", msg):
+    if os.environ.get("GITHUB_ACTIONS") and "✓" not in msg and re.search(r"✗|gemini|gtx|Troppi|Tradotti in questo run|Traduttore:", msg):
         kind = "notice" if ("Tradotti in questo run" in msg or "Traduttore:" in msg) else "warning"
         print(f"::{kind}::" + msg.replace("\n", " ")[:900], flush=True)
 
