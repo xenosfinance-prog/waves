@@ -781,6 +781,67 @@ async function translateArticleFields(a) {
   return {...a, title, intro, conclusion, quote, categoryLabel, sections, bullets, keyLevels};
 }
 
+// ── Analisi tecniche collegate all'articolo (2026-10-25, SEO) ─────────────
+// Stesse regole di functions/XenosBlog.js (versione lato server letta da Google):
+// se cambi le regole lì, cambiale anche qui. Serve quando si apre un articolo
+// dalla griglia senza ricaricare la pagina.
+var XF_AN_PAGES = {'wti-crude-oil':'WTI Crude Oil','brent-crude-oil':'Brent Crude Oil','natural-gas':'Natural Gas','gold':'Gold',
+  'silver':'Silver','copper':'Copper','eur-usd':'EUR/USD','gbp-usd':'GBP/USD','usd-jpy':'USD/JPY','usd-chf':'USD/CHF',
+  'bitcoin':'Bitcoin','ethereum':'Ethereum','sp500':'S&P 500','nasdaq':'Nasdaq 100','dax':'DAX 40'};
+var XF_AN_RULES = [
+  [/\b(wti|crude|oil|eia|opec\+?|petroleum|gasoline|distillates?|refiner\w*|barrels?)\b/, ['wti-crude-oil','brent-crude-oil']],
+  [/\bbrent\b/, ['brent-crude-oil','wti-crude-oil']],
+  [/\b(natural gas|natgas|lng|henry hub)\b/, ['natural-gas']],
+  [/\b(gold|xau|bullion)\b/, ['gold']],
+  [/\b(silver|xag)\b/, ['silver']],
+  [/\bcopper\b/, ['copper']],
+  [/\b(bitcoin|btc)\b/, ['bitcoin']],
+  [/\b(ethereum|eth)\b/, ['ethereum']],
+  [/\bcrypto\w*/, ['bitcoin','ethereum']],
+  [/\b(eur\/?usd|euro|ecb)\b/, ['eur-usd']],
+  [/\b(gbp\/?usd|pound|sterling|boe|bank of england)\b/, ['gbp-usd']],
+  [/\b(usd\/?jpy|yen|boj|bank of japan)\b/, ['usd-jpy']],
+  [/\b(usd\/?chf|swiss franc|snb)\b/, ['usd-chf']],
+  [/\b(nasdaq|ndx|nas100|tech stocks|megacap|mega-cap|semiconductor\w*)\b/, ['nasdaq']],
+  [/(s&p|\bspx\b|\bspy\b|wall street|\bequit\w*|\bstocks?\b|\bpre-market\b|\bearnings\b)/, ['sp500','nasdaq']],
+  [/\b(dax|german\w*|bund|european (stocks|equities))\b/, ['dax']],
+  [/\b(dollar|dxy|fed|fomc|forex|\bfx\b|treasur\w*|yields?)\b/, ['eur-usd','usd-jpy']]
+];
+var XF_AN_MARKET = {equity:['sp500','nasdaq'], forex:['eur-usd','usd-jpy'], crypto:['bitcoin','ethereum'],
+  commodities:['gold','wti-crude-oil'], macro:['sp500','eur-usd','gold'], geopolitics:['wti-crude-oil','gold']};
+function relatedAnalysisFor(a) {
+  var txt = [a.title, a.category, a.categoryLabel, String(a.intro || '').slice(0, 800)].map(function (x) { return String(x || ''); }).join(' ').toLowerCase();
+  var out = [];
+  for (var i = 0; i < XF_AN_RULES.length && out.length < 4; i++) {
+    if (XF_AN_RULES[i][0].test(txt)) XF_AN_RULES[i][1].forEach(function (p) { if (out.indexOf(p) < 0) out.push(p); });
+  }
+  if (!out.length) (XF_AN_MARKET[a.market] || ['gold','wti-crude-oil','sp500']).forEach(function (p) { if (out.indexOf(p) < 0) out.push(p); });
+  return { pages: out.slice(0, 4), oil: /\b(wti|crude|oil|eia|opec\+?|brent|petroleum|natural gas)\b/.test(txt) };
+}
+function renderRelatedAnalysis(a) {
+  var T = function (k, d) { var v = (typeof window.t === 'function') ? window.t(k) : k; return (v && v !== k) ? v : d; };
+  var r = relatedAnalysisFor(a);
+  var links = r.pages.map(function (p) {
+    return '<a href="https://xenosfinance.com/analysis/' + p + '">' + T('label_rel_an_' + p.replace(/-/g, '_'), XF_AN_PAGES[p]) + '</a>';
+  });
+  if (r.oil) {
+    links.push('<a href="https://xenosfinance.com/futures-flow/">' + T('label_rel_futures_flow', 'Futures Flow') + '</a>');
+    links.push('<a href="https://xenosfinance.com/cot/">' + T('label_rel_cot', 'COT positioning') + '</a>');
+  }
+  links.push('<a href="https://xenosfinance.com/analysis/">' + T('label_rel_all_analyses', 'All daily analyses') + '</a>');
+  var html = '<div class="edu-section-title">// ' + T('label_rel_analysis_title', "Today's technical analysis") + '</div><p>' + links.join(' · ') + '</p>';
+  var box = document.getElementById('xf-rel-an');
+  if (!box) {
+    var body = document.getElementById('artBody');
+    if (!body || !body.parentNode) return;
+    box = document.createElement('div');
+    box.className = 'edu-section';
+    box.id = 'xf-rel-an';
+    body.parentNode.insertBefore(box, body.nextSibling);
+  }
+  box.innerHTML = html;
+}
+
 function parseBoldBlog(text) {
   return String(text||'').replace(/\*([^*]+)\*/g, '<b>$1</b>');
 }
@@ -837,6 +898,7 @@ async function loadArticle(slug) {
     var res = await fetch(GITHUB_RAW + 'articles/' + slug + '.json?t=' + Date.now());
     if (!res.ok) throw new Error('Article not found');
     var a = await res.json();
+    try { renderRelatedAnalysis(a); } catch (e) {}   // 2026-10-25: analisi tecniche collegate (SEO)
     a = await translateArticleFields(a);
     document.getElementById('artCat').textContent = a.categoryLabel || a.category || '';
     document.getElementById('artTitle').textContent = a.title;
