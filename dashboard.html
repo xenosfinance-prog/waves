@@ -234,8 +234,9 @@ body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:10
   .ev-tab { font-family: var(--mono); font-size: 9px; letter-spacing: 2px; text-transform: uppercase; padding: 8px 16px; cursor: pointer; color: var(--muted); border-bottom: 2px solid transparent; background: none; border-top: none; border-left: none; border-right: none; transition: all 0.2s; }
   .ev-tab.active { color: var(--gold); border-bottom-color: var(--gold); }
 </style>
-<script src="/i18n.js?v=6"></script>
-<script src="/i18n-engine.js?v=6"></script>
+<script src="/xf-translate.js?v=1"></script>
+<script src="/i18n.js?v=8"></script>
+<script src="/i18n-engine.js?v=8"></script>
 <script src="/xf-hand.js"></script>
 </head>
 <body>
@@ -1450,21 +1451,11 @@ function checkPremiumCode() {
 }
 
 // ── LibreTranslate helper ──────────────────────────────────────────────────
-const _LT_BASE = 'https://libretranslatelibretranslate-production-ecfe.up.railway.app';
 const _ltC = {};
 async function _lt(text, lang) {
+  // 2026-10-25: LibreTranslate rimosso → traduttore gratuito condiviso (xf-translate.js)
   if (!text || !lang || lang === 'en') return text;
-  const k = lang + '|' + text.slice(0, 40);
-  if (_ltC[k]) return _ltC[k];
-  try {
-    const r = await fetch(_LT_BASE + '/translate', {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({q: text, source: 'en', target: lang, format: 'text'})
-    });
-    if (!r.ok) return text;
-    const t = (await r.json()).translatedText || text;
-    _ltC[k] = t; return t;
-  } catch(e) { return text; }
+  return (typeof window.xfTranslate === 'function') ? window.xfTranslate(text, lang) : text;
 }
 function _lang() { return localStorage.getItem('xenos_lang') || 'en'; }
 

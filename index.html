@@ -160,10 +160,11 @@ body{background:var(--bg4);color:var(--ink);font-family:var(--mono);min-height:1
 /* 2026-10-23 PageSpeed: gli script lingua ora sono "defer" (non bloccano la pagina).
    Questo velo nasconde i testi traducibili finché la lingua salvata non è applicata
    (prima lo faceva i18n-engine.js con document.write, che con defer non funziona). */
-(function(){try{var l=localStorage.getItem('xenos_lang');if(l==='it'||l==='ru'){var st=document.createElement('style');st.id='xf-foil';st.textContent='[data-i18n]{visibility:hidden!important}';document.head.appendChild(st);setTimeout(function(){var f=document.getElementById('xf-foil');if(f)f.remove();},3000);}}catch(e){}})();
+(function(){try{var l=localStorage.getItem('xenos_lang');if(l==='it'){var st=document.createElement('style');st.id='xf-foil';st.textContent='[data-i18n]{visibility:hidden!important}';document.head.appendChild(st);setTimeout(function(){var f=document.getElementById('xf-foil');if(f)f.remove();},3000);}}catch(e){}})();
 </script>
-<script defer src="/i18n.js?v=4"></script>
-<script defer src="/i18n-engine.js?v=4"></script>
+<script defer src="/xf-translate.js?v=1"></script>
+<script defer src="/i18n.js?v=8"></script>
+<script defer src="/i18n-engine.js?v=8"></script>
 <script defer src="/xf-hand.js"></script>
 </head>
 <body>
@@ -673,8 +674,16 @@ async function loadNews() {
     const geo = articles.filter(a => a.cat === 'geo');
     const feedEco = document.getElementById('feed-eco');
     const feedGeo = document.getElementById('feed-geo');
-    if (feedEco) feedEco.innerHTML = (eco.length ? eco.map(a => itemHtml(a, hm)).join('') : '<div class="empty-row">No economic stories right now</div>');
-    if (feedGeo) feedGeo.innerHTML = (geo.length ? geo.map(a => itemHtml(a, hm)).join('') : '<div class="empty-row">No geopolitical stories right now</div>');
+    const renderFeeds = () => {
+      if (feedEco) feedEco.innerHTML = (eco.length ? eco.map(a => itemHtml(a, hm)).join('') : '<div class="empty-row">No economic stories right now</div>');
+      if (feedGeo) feedGeo.innerHTML = (geo.length ? geo.map(a => itemHtml(a, hm)).join('') : '<div class="empty-row">No geopolitical stories right now</div>');
+    };
+    renderFeeds();
+    // 2026-10-25: news in italiano — prima si mostrano subito in inglese, poi
+    // titoli e sommari vengono tradotti in blocco (gratis, xf-translate.js).
+    if (typeof window.xfTranslate === 'function' && window.xfLang && window.xfLang() === 'it') {
+      translateNewsIT(articles).then(renderFeeds).catch(() => {});
+    }
     const stEco = document.getElementById('st-eco'); if (stEco) stEco.textContent = `✓ ${eco.length} · ${hm}`;
     const stGeo = document.getElementById('st-geo'); if (stGeo) stGeo.textContent = `✓ ${geo.length} · ${hm}`;
     const stNews = document.getElementById('news-status'); if (stNews) stNews.textContent = `✓ ${articles.length} stories · ${hm} CET`;
@@ -684,6 +693,21 @@ async function loadNews() {
     ['feed-eco','feed-geo'].forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = msg; });
     return [];
   }
+}
+
+// 2026-10-25: traduce titoli e sommari delle news in due sole richieste
+// (una riga per notizia). Se il numero di righe non torna, si lascia l'inglese.
+async function translateNewsIT(list) {
+  const clean = t => String(t || '').replace(/\s*\n+\s*/g, ' ').trim();
+  const titles = list.map(a => clean(a.title));
+  const descs  = list.map(a => clean(a.desc).slice(0, 400) || '-');
+  const [tT, tD] = await Promise.all([
+    window.xfTranslate(titles.join('\n'), 'it'),
+    window.xfTranslate(descs.join('\n'), 'it')
+  ]);
+  const lt = tT.split('\n'), ld = tD.split('\n');
+  if (lt.length === list.length) list.forEach((a, i) => { if (lt[i].trim()) a.title = lt[i].trim(); });
+  if (ld.length === list.length) list.forEach((a, i) => { if (a.desc && ld[i].trim() && ld[i].trim() !== '-') a.desc = ld[i].trim(); });
 }
 
 let aiBriefLoading = false;
@@ -696,7 +720,7 @@ async function loadAIBrief(headlines) {
   if (!el || !headlines.length) { aiBriefLoading = false; return; }
   if (st) st.textContent = '⟳ generating';
   try {
-    const prompt = `XenosFinance senior analyst. Write 3 tight paragraphs: (1) dominant macro/geopolitical themes today, (2) asset class implications for FX/equities/commodities/crypto, (3) key risk to monitor. Max 110 words. No disclaimers.\n\nHeadlines:\n${headlines.slice(0,8).map((h,i)=>`${i+1}. ${h}`).join('\n')}`;
+    const prompt = `XenosFinance senior analyst. Write 3 tight paragraphs: (1) dominant macro/geopolitical themes today, (2) asset class implications for FX/equities/commodities/crypto, (3) key risk to monitor. Max 110 words. No disclaimers.${(window.xfLang && window.xfLang()==='it') ? ' Write the whole answer in Italian (professional trading Italian; keep standard terms like risk-on, bias, yield in English).' : ''}\n\nHeadlines:\n${headlines.slice(0,8).map((h,i)=>`${i+1}. ${h}`).join('\n')}`;
     const res = await fetch(WORKER, {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({messages:[{role:'user',content:prompt}], max_tokens:200}),

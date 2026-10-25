@@ -21,8 +21,9 @@
 <meta name="twitter:card" content="summary_large_image">
 <link rel="canonical" href="https://xenosfinance.com/trading-ideas">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=PT+Serif:wght@400;700&family=IBM+Plex+Mono:wght@300;400;500&display=swap" rel="stylesheet">
-<script src="/i18n.js?v=6"></script>
-<script src="/i18n-engine.js?v=6"></script>
+<script src="/xf-translate.js?v=1"></script>
+<script src="/i18n.js?v=8"></script>
+<script src="/i18n-engine.js?v=8"></script>
 <style>
 :root{
   --bg:#0f1724;--bg2:#131f2e;--bg3:#172032;--bg4:#0d1520;
@@ -672,23 +673,13 @@ function buildCard(idea, idx){
   </div>`;
 }
 // ── LibreTranslate helper (TI) ─────────────────────────────────────────────
-const _LT_BASE_TI = 'https://libretranslatelibretranslate-production-ecfe.up.railway.app';
 const _ltCTI = {};
 async function _ltTI(text, lang) {
+  // 2026-10-25: LibreTranslate rimosso → traduttore gratuito condiviso (xf-translate.js)
   if (!text || !lang || lang === 'en') return text;
-  const k = lang + '|' + text.slice(0, 40);
-  if (_ltCTI[k]) return _ltCTI[k];
-  try {
-    const r = await fetch(_LT_BASE_TI + '/translate', {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({q: text, source: 'en', target: lang, format: 'text'})
-    });
-    if (!r.ok) return text;
-    const t = (await r.json()).translatedText || text;
-    _ltCTI[k] = t; return t;
-  } catch(e) { return text; }
+  return (typeof window.xfTranslate === 'function') ? window.xfTranslate(text, lang) : text;
 }
-function _langTI() { return localStorage.getItem('xf_lang') || 'en'; }
+function _langTI() { return localStorage.getItem('xenos_lang') || 'en'; }  // 2026-10-25: era 'xf_lang' (chiave vecchia, sempre EN)
 
 async function openModal(idea){
   if(!idea) return;

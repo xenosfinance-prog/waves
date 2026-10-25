@@ -2,7 +2,7 @@
 
 // Prevent flash immediately
 var _xfLang = localStorage.getItem('xenos_lang') || 'en';
-if (!['en','it','ru'].includes(_xfLang)) _xfLang = 'en';
+if (!['en','it'].includes(_xfLang)) { _xfLang = 'en'; try { localStorage.setItem('xenos_lang', 'en'); } catch (e) {} }
 if (_xfLang !== 'en') {
   document.write('<style id="xf-foil">[data-i18n]{visibility:hidden!important}</style>');
 }
@@ -10,7 +10,6 @@ if (_xfLang !== 'en') {
 var XF_LANGS = {
   en: { flag: '🇬🇧', label: 'EN' },
   it: { flag: '🇮🇹', label: 'IT' },
-  ru: { flag: '🇷🇺', label: 'RU' },
 };
 
 function xenosApplyLang(lang) {
@@ -35,7 +34,12 @@ function xenosApplyLang(lang) {
 // Global — called by dropdown onclick AND by any page script
 window.xenosSetLang = function(lang) {
   if (!XF_LANGS[lang]) return;
+  var prev = _xfLang;
   xenosApplyLang(lang);
+  // 2026-10-25: i contenuti dinamici (articoli, news, analisi AI) vengono
+  // caricati nella lingua attiva: al cambio lingua si ricarica la pagina,
+  // così TUTTO il contenuto passa alla nuova lingua, non solo le etichette.
+  if (prev !== lang) { try { setTimeout(function () { location.reload(); }, 60); } catch (e) {} }
 };
 
 // Helper for JS-generated content
