@@ -182,9 +182,20 @@ NAV = [("/", "Home"), ("/dashboard", "Dashboard"), ("/analysis", "Daily Analysis
        ("/calendar", "Calendar"), ("/elliottwave", "Elliott Wave"), ("/trade-setups", "Trade Setups"), ("/premium", "Premium")]
 
 
-def page_shell(title, desc, canonical, body, jsonld, keywords, active="/analysis"):
+def page_shell(title, desc, canonical, body, jsonld, keywords, active="/analysis", it_title=None):
     ld = "\n".join(f'<script type="application/ld+json">{json.dumps(x, ensure_ascii=False)}</script>' for x in jsonld)
     nav = "".join('<a href="%s"%s>%s</a>' % (h, ' class="on"' if h == active else "", t) for h, t in NAV)
+    # 2026-10-25: versione italiana (solo pagine che la forniscono: COT, Futures Flow).
+    # Le pagine /analysis non passano it_title e restano identiche a prima.
+    tag, disc, sw, js, css_it, meta_it = ("Market analysis &amp; trading education", DISC_EN, "", "", "", "")
+    if it_title:
+        import page_i18n as PI
+        nav = "".join('<a href="%s"%s>%s</a>' % (h, ' class="on"' if h == active else "", PI.L(t, PI.NAV_IT.get(t, t)))
+                      for h, t in NAV)
+        tag = PI.L(tag, PI.TAG_IT)
+        disc = PI.L(disc, PI.DISC_IT)
+        sw, js, css_it = PI.SWITCH_HTML, PI.SWITCH_JS, PI.SWITCH_CSS
+        meta_it = f'<meta name="xf-title-it" content="{esc(it_title)}">\n'
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -206,19 +217,24 @@ def page_shell(title, desc, canonical, body, jsonld, keywords, active="/analysis
 <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
 <link rel="apple-touch-icon" sizes="192x192" href="/favicon-192.png">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=PT+Serif:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<style>{CSS}</style>
-{ld}
+<style>{CSS}{css_it}</style>
+{meta_it}{ld}
 </head>
 <body>
-<header class="top"><div class="brand">Xenos<span>Finance</span></div><div class="tag">Market analysis &amp; trading education</div></header>
+<header class="top">{sw}<div class="brand">Xenos<span>Finance</span></div><div class="tag">{tag}</div></header>
 <nav>{nav}</nav>
 <main>
 {body}
-<div class="disc">Educational content only. This analysis is generated algorithmically from public market data for market analysis and trading education purposes and does not constitute investment advice or a recommendation to buy or sell any financial instrument. Trading involves a significant risk of loss. © XenosFinance</div>
+<div class="disc">{disc}</div>
 </main>
-</body>
+{js}</body>
 </html>
 """
+
+
+DISC_EN = ("Educational content only. This analysis is generated algorithmically from public market data for market "
+           "analysis and trading education purposes and does not constitute investment advice or a recommendation to "
+           "buy or sell any financial instrument. Trading involves a significant risk of loss. © XenosFinance")
 
 
 def build_instrument_page(inst, d, ai, now, all_rows):

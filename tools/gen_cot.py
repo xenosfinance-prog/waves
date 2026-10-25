@@ -309,76 +309,114 @@ def telegram_html(res, report_date, release_date, desk=None, oil=None, bias=None
     return "\n".join(lines)
 
 
-def build_page(res, report_date, release_date, now, desk=None, oil=None, bias=None):
+def build_page(res, report_date, release_date, now, desk=None, oil=None, bias=None, it=None):
+    """2026-10-25: pagina bilingue — HTML in inglese (SEO), italiano in data-it (tools/page_i18n.py).
+    it = {"desk": ..., "oil": ..., "bias": ...} testi variabili già tradotti (None = restano in inglese)."""
+    import page_i18n as PI
+    L, it = PI.L, (it or {})
     title = "COT Report — Futures Positioning: Oil, Gold, Indices, FX | XenosFinance"
+    title_it = "Report COT — Posizionamento sui futures: petrolio, oro, indici, valute | XenosFinance"
     desc = (f"Weekly Commitments of Traders analysis (week to {report_date}): managed money and leveraged fund "
             "positioning in WTI, natural gas, gold, silver, copper, S&P 500, Nasdaq 100, euro, yen, pound and "
             "Treasuries, with 3-year COT index and extremes.")
-    b = ['<div class="crumb"><a href="/">Home</a> › COT Positioning</div>',
-         "<h1>COT Report — Futures Positioning</h1>",
-         f'<div class="upd">Week to Tuesday {datetime.strptime(report_date, "%Y-%m-%d"):%d %B %Y} · '
-         f'CFTC release {release_date} · Updated {now:%d %b %Y, %H:%M} UTC</div>',
-         "<p>Positioning of speculative traders in the main futures markets, from the CFTC Commitments of Traders "
-         "report. Commodities show <b>managed money</b> (hedge funds, CTAs); financial futures show <b>leveraged "
-         "funds</b>. The COT index places this week's net position within its 3-year range: 0 is the most "
-         "short, 100 the most long. Readings above 90 or below 10 mark crowded positioning, where the risk of a "
-         "squeeze or a reversal rises.</p>"]
+    rd = datetime.strptime(report_date, "%Y-%m-%d")
+    mono_note = 'style="font-family:var(--mono);font-size:10px;color:var(--muted)"'
+    b = [f'<div class="crumb"><a href="/">Home</a> › {L("COT Positioning", "Posizionamento COT")}</div>',
+         f'<h1>{L("COT Report — Futures Positioning", "Report COT — Posizionamento sui futures")}</h1>',
+         '<div class="upd">' + L(
+             f'Week to Tuesday {rd:%d %B %Y} · CFTC release {release_date} · Updated {now:%d %b %Y, %H:%M} UTC',
+             f'Settimana fino a martedì {PI.d_long(rd)} · pubblicazione CFTC {PI.release_it(release_date)} · '
+             f'aggiornato {PI.d_short_time(now)} UTC') + '</div>',
+         "<p>" + L(
+             "Positioning of speculative traders in the main futures markets, from the CFTC Commitments of Traders "
+             "report. Commodities show <b>managed money</b> (hedge funds, CTAs); financial futures show <b>leveraged "
+             "funds</b>. The COT index places this week's net position within its 3-year range: 0 is the most "
+             "short, 100 the most long. Readings above 90 or below 10 mark crowded positioning, where the risk of a "
+             "squeeze or a reversal rises.",
+             "Il posizionamento degli operatori speculativi sui principali mercati futures, dal report CFTC "
+             "Commitments of Traders. Per le materie prime si guarda il <b>managed money</b> (hedge fund, CTA); per "
+             "i futures finanziari i <b>leveraged funds</b>. Il COT index colloca la posizione netta di questa "
+             "settimana nel suo range degli ultimi 3 anni: 0 è il massimo short, 100 il massimo long. Letture sopra "
+             "90 o sotto 10 indicano un posizionamento affollato, dove cresce il rischio di squeeze o di inversione.") + "</p>"]
     if desk:
         b.append("<h2>Desk read</h2>")
-        b.append(f"<p>{esc(desk)}</p>")
-        b.append('<p style="font-family:var(--mono);font-size:10px;color:var(--muted)">Written from the figures in the tables below — no external data.</p>')
+        b.append(f"<p>{L(esc(desk), esc(it['desk']) if it.get('desk') else '')}</p>")
+        b.append(f'<p {mono_note}>' + L("Written from the figures in the tables below — no external data.",
+                                         "Scritto dai dati delle tabelle qui sotto — nessun dato esterno.") + '</p>')
     if oil:
-        b.append("<h2>Oil desk — WTI &amp; Brent</h2>")
-        b.append(f"<p>{esc(oil)}</p>")
-        b.append('<p style="font-family:var(--mono);font-size:10px;color:var(--muted)">WTI and Brent are always covered here, whatever the theme of the week.</p>')
+        b.append(f"<h2>{L('Oil desk — WTI &amp; Brent', 'Desk petrolio — WTI e Brent')}</h2>")
+        b.append(f"<p>{L(esc(oil), esc(it['oil']) if it.get('oil') else '')}</p>")
+        b.append(f'<p {mono_note}>' + L("WTI and Brent are always covered here, whatever the theme of the week.",
+                                         "WTI e Brent sono sempre trattati qui, qualunque sia il tema della settimana.") + '</p>')
     ext = [r for r in res if r["flag"]]
     if ext:
-        b.append('<div class="box"><p><b>Key reads this week</b></p>' + "".join(
-            f"<p>{esc(r['name'])}: {esc(r['flag'].lower())} (COT index {int(r['cot_index'])})"
-            + (f" — {esc(r['divergence'].lower())}" if r["divergence"] else "") + ".</p>" for r in ext) + "</div>")
-    for groups, title_h, who in ((("Energy", "Metals"), "Commodities — managed money", "Managed money"),
-                                 (("Indices", "Currencies", "Rates"), "Financial futures — leveraged funds", "Leveraged funds")):
+        items = []
+        for r in ext:
+            en = (f"{esc(r['name'])}: {esc(r['flag'].lower())} (COT index {int(r['cot_index'])})"
+                  + (f" — {esc(r['divergence'].lower())}" if r["divergence"] else "") + ".")
+            itx = (f"{esc(PI.MARKET_IT.get(r['name'], r['name']))}: {esc(PI.FLAG_IT.get(r['flag'], r['flag']).lower())} "
+                   f"(COT index {int(r['cot_index'])})"
+                   + (f" — {esc(PI.DIV_IT.get(r['divergence'], r['divergence']).lower())}" if r["divergence"] else "") + ".")
+            items.append(f"<p>{L(en, itx)}</p>")
+        b.append(f'<div class="box"><p><b>{L("Key reads this week", "Letture chiave della settimana")}</b></p>'
+                 + "".join(items) + "</div>")
+    for groups, title_h, title_h_it, who in (
+            (("Energy", "Metals"), "Commodities — managed money", "Materie prime — managed money", "Managed money"),
+            (("Indices", "Currencies", "Rates"), "Financial futures — leveraged funds",
+             "Futures finanziari — leveraged funds", "Leveraged funds")):
         part = [r for r in res if r["group"] in groups]
         if not part:
             continue
-        b.append(f"<h2>{esc(title_h)}</h2>")
-        b.append("<table><tr><th>Market</th><th>Net</th><th>1 week</th><th>4 weeks</th><th>% of OI</th>"
-                 "<th>COT index</th><th>Price w/w</th><th></th></tr>")
+        b.append(f"<h2>{L(esc(title_h), esc(title_h_it))}</h2>")
+        b.append(f"<table><tr><th>{L('Market', 'Mercato')}</th><th>Net</th><th>{L('1 week', '1 settimana')}</th>"
+                 f"<th>{L('4 weeks', '4 settimane')}</th><th>{L('% of OI', '% dell’OI')}</th>"
+                 f"<th>COT index</th><th>{L('Price w/w', 'Prezzo sett.')}</th><th></th></tr>")
         for r in part:
             cls = "up" if r["chg"] > 0 else "dn" if r["chg"] < 0 else ""
             poi = "" if r["net_pct_oi"] is None else f"{r['net_pct_oi']:+.1f}%"
             pch = "" if r["price_chg"] is None else f"{r['price_chg']:+.1f}%"
-            b.append(f"<tr><td>{esc(r['name'])}</td><td>{kfmt(r['net'])}</td>"
+            b.append(f"<tr><td>{PI.market(r['name'], esc)}</td><td>{kfmt(r['net'])}</td>"
                      f'<td class="{cls}">{kfmt(r["chg"])}</td><td>{kfmt(r["chg4"])}</td>'
                      f"<td>{poi}</td><td><b>{int(r['cot_index'])}</b></td><td>{pch}</td>"
-                     f'<td class="m">{esc(r["flag"])}</td></tr>')
+                     f'<td class="m">{L(esc(r["flag"]), esc(PI.FLAG_IT.get(r["flag"], "")))}</td></tr>')
         b.append("</table>")
         b.append('<div class="grid">')
         for r in part:
-            extra = ""
+            extra, extra_it = "", ""
             if "am_net" in r:
                 extra = f" · asset managers {kfmt(r['am_net'])}"
+                extra_it = f" · asset manager {kfmt(r['am_net'])}"
             if r["key"] == "wti" and "pm_net" in r:
                 extra = (f" · producers {kfmt(r['pm_net'])} · swap dealers {kfmt(r.get('swap_net', 0))}"
                          + (f" · fund L/S {r['mm_ls_ratio']:.2f}" if r.get("mm_ls_ratio") else ""))
-            b.append(f'<div><p><b>{esc(r["name"])}</b> <span class="m" style="font-family:var(--mono);font-size:11px;'
-                     f'color:var(--muted)">{esc(who)} {kfmt(r["net"])}{esc(extra)}</span></p>{svg_chart(r["chart"])}</div>')
+                extra_it = (f" · produttori {kfmt(r['pm_net'])} · swap dealer {kfmt(r.get('swap_net', 0))}"
+                            + (f" · rapporto L/S fondi {r['mm_ls_ratio']:.2f}" if r.get("mm_ls_ratio") else ""))
+            b.append(f'<div><p><b>{PI.market(r["name"], esc)}</b> <span class="m" style="font-family:var(--mono);font-size:11px;'
+                     f'color:var(--muted)">{L(esc(who) + " " + kfmt(r["net"]) + esc(extra), esc(who) + " " + kfmt(r["net"]) + esc(extra_it))}'
+                     f'</span></p>{svg_chart(r["chart"])}</div>')
         b.append("</div>")
-    b.append('<p style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:12px">Charts: bars = '
-             'net position (52 weeks), blue line = futures price. Source: CFTC Commitments of Traders, futures only.</p>')
+    b.append('<p style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:12px">' + L(
+        "Charts: bars = net position (52 weeks), blue line = futures price. Source: CFTC Commitments of Traders, futures only.",
+        "Grafici: barre = posizione netta (52 settimane), linea blu = prezzo del future. Fonte: CFTC Commitments of "
+        "Traders, solo futures.") + '</p>')
     if bias:   # 2026-10-19: conclusione finale — bias e trend
-        b += D.bias_html("cot", bias[0], bias[1], esc)
-    b.append('<div class="box"><p><b>How to read it</b></p><p>Positioning is a context tool, not a timing signal: '
-             'crowded trades can stay crowded for weeks. It becomes useful when an extreme meets a technical '
-             'turning point — for example a completed Elliott Wave count at a support or resistance zone.</p>'
-             '<div class="cta"><a href="/analysis">Daily technical analysis</a><a href="/elliottwave">Elliott Wave</a>'
-             '<a href="https://t.me/xenoswavefinance">Telegram channel</a></div></div>')
+        b += D.bias_html("cot", bias[0], bias[1], esc, it.get("bias"))
+    b.append(f'<div class="box"><p><b>{L("How to read it", "Come leggerlo")}</b></p><p>' + L(
+        "Positioning is a context tool, not a timing signal: crowded trades can stay crowded for weeks. It becomes "
+        "useful when an extreme meets a technical turning point — for example a completed Elliott Wave count at a "
+        "support or resistance zone.",
+        "Il posizionamento è uno strumento di contesto, non un segnale di timing: un trade affollato può restarlo "
+        "per settimane. Diventa utile quando un estremo coincide con un punto di svolta tecnico — per esempio un "
+        "conteggio di Elliott completato su una zona di supporto o resistenza.") + '</p>'
+        f'<div class="cta"><a href="/analysis">{L("Daily technical analysis", "Analisi tecnica giornaliera")}</a>'
+        f'<a href="/elliottwave">{L("Elliott Wave", "Onde di Elliott")}</a>'
+        f'<a href="https://t.me/xenoswavefinance">{L("Telegram channel", "Canale Telegram")}</a></div></div>')
     jsonld = [{"@context": "https://schema.org", "@type": "Article", "headline": title, "description": desc,
                "dateModified": now.isoformat(), "author": {"@type": "Organization", "name": "XenosFinance"},
                "publisher": {"@type": "Organization", "name": "XenosFinance"}, "mainEntityOfPage": f"{SITE}/cot"}]
     return G.page_shell(title, desc, f"{SITE}/cot", "\n".join(b), jsonld,
                         "COT report, commitments of traders, managed money, hedge fund positioning, oil positioning, "
-                        "gold positioning, CFTC", active="/cot")
+                        "gold positioning, CFTC", active="/cot", it_title=title_it)
 
 
 def main():
@@ -404,7 +442,11 @@ def main():
     b_rows, b_txt, b_src = D.build_bias("cot", res)
     bias = (b_rows, b_txt)
     os.makedirs(OUT_DIR, exist_ok=True)
-    open(os.path.join(OUT_DIR, "index.html"), "w", encoding="utf-8").write(build_page(res, report_date, release_date, now, desk, oil, bias))
+    # 2026-10-25: versione italiana dei testi variabili (gratis, numeri controllati)
+    import page_i18n as PI
+    t_desk, t_oil, t_bias = PI.translate_texts([desk, oil, b_txt])
+    it = {"desk": t_desk, "oil": t_oil, "bias": t_bias}
+    open(os.path.join(OUT_DIR, "index.html"), "w", encoding="utf-8").write(build_page(res, report_date, release_date, now, desk, oil, bias, it))
     latest = {"report_date": report_date, "release_date": release_date, "generated": now.isoformat(),
               "desk_read": desk, "desk_read_source": desk_src, "oil_read": oil, "oil_read_source": oil_src,
               "bias_read": b_txt, "bias_read_source": b_src, "bias": b_rows,

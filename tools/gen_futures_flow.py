@@ -252,59 +252,82 @@ def telegram_html(res, day, desk=None, oil=None, bias=None):
     return "\n".join(lines)
 
 
-def build_page(res, prev_snap, day, now, desk=None, oil=None, bias=None):
+def build_page(res, prev_snap, day, now, desk=None, oil=None, bias=None, it=None):
+    """2026-10-25: pagina bilingue — HTML in inglese (SEO), italiano in data-it (tools/page_i18n.py)."""
+    import page_i18n as PI
+    L, it = PI.L, (it or {})
     title = "Futures Flow — Open Interest, Volume & Curves: Oil, Gas, Gold, Indices | XenosFinance"
+    title_it = "Futures Flow — Open interest, volumi e curve: petrolio, gas, oro, indici | XenosFinance"
     desc = (f"Daily futures flow for {day:%d %B %Y}: open interest and volume changes, positioning read and "
             "forward curves for WTI, Brent, natural gas, gold, silver, copper, S&P 500 and Nasdaq 100 futures.")
+    mono_note = 'style="font-family:var(--mono);font-size:10px;color:var(--muted)"'
     b = ['<div class="crumb"><a href="/">Home</a> › Futures Flow</div>',
-         "<h1>Futures Flow — Open Interest &amp; Curves</h1>",
-         f'<div class="upd">Session {day:%A %d %B %Y} · Updated {now:%d %b %Y, %H:%M} UTC</div>',
-         "<p>What changed in the futures market in the last session. Price change is set against the change in "
-         "total open interest across listed months: rising price with rising open interest means new longs; "
-         "falling price with rising open interest, new shorts; rising price with falling open interest, short "
-         "covering; falling price with falling open interest, long liquidation. Volume is compared with its "
-         "20-day average.</p>"]
+         f"<h1>{L('Futures Flow — Open Interest &amp; Curves', 'Futures Flow — Open interest e curve')}</h1>",
+         '<div class="upd">' + L(f'Session {day:%A %d %B %Y} · Updated {now:%d %b %Y, %H:%M} UTC',
+                                 f'Seduta di {PI.d_day_long(day)} · aggiornato {PI.d_short_time(now)} UTC') + '</div>',
+         "<p>" + L(
+             "What changed in the futures market in the last session. Price change is set against the change in "
+             "total open interest across listed months: rising price with rising open interest means new longs; "
+             "falling price with rising open interest, new shorts; rising price with falling open interest, short "
+             "covering; falling price with falling open interest, long liquidation. Volume is compared with its "
+             "20-day average.",
+             "Cosa è cambiato sul mercato dei futures nell'ultima seduta. La variazione di prezzo viene confrontata "
+             "con la variazione dell'open interest totale su tutte le scadenze quotate: prezzo in salita con open "
+             "interest in aumento indica nuovi long; prezzo in discesa con open interest in aumento, nuovi short; "
+             "prezzo in salita con open interest in calo, ricopertura degli short; prezzo in discesa con open "
+             "interest in calo, liquidazione dei long. Il volume è confrontato con la sua media a 20 sedute.") + "</p>"]
     if desk:
-        b += ["<h2>Desk read</h2>", f"<p>{esc(desk)}</p>",
-              '<p style="font-family:var(--mono);font-size:10px;color:var(--muted)">Written from the figures in the tables below — no external data.</p>']
+        b += ["<h2>Desk read</h2>", f"<p>{L(esc(desk), esc(it['desk']) if it.get('desk') else '')}</p>",
+              f'<p {mono_note}>' + L("Written from the figures in the tables below — no external data.",
+                                      "Scritto dai dati delle tabelle qui sotto — nessun dato esterno.") + '</p>']
     if oil:
-        b += ["<h2>Oil desk — WTI &amp; Brent</h2>", f"<p>{esc(oil)}</p>",
-              '<p style="font-family:var(--mono);font-size:10px;color:var(--muted)">WTI and Brent are always covered here, whatever the theme of the week.</p>']
-    b += ["<h2>Overview</h2>",
-         "<table><tr><th>Market</th><th>Most active</th><th>Price d/d</th><th>Open interest</th><th>OI d/d</th>"
-         "<th>Volume vs 20d</th><th>Flow</th></tr>"]
+        b += [f"<h2>{L('Oil desk — WTI &amp; Brent', 'Desk petrolio — WTI e Brent')}</h2>",
+              f"<p>{L(esc(oil), esc(it['oil']) if it.get('oil') else '')}</p>",
+              f'<p {mono_note}>' + L("WTI and Brent are always covered here, whatever the theme of the week.",
+                                      "WTI e Brent sono sempre trattati qui, qualunque sia il tema della settimana.") + '</p>']
+    b += [f"<h2>{L('Overview', 'Panoramica')}</h2>",
+          f"<table><tr><th>{L('Market', 'Mercato')}</th><th>{L('Most active', 'Più attivo')}</th>"
+          f"<th>{L('Price d/d', 'Prezzo g/g')}</th><th>Open interest</th><th>{L('OI d/d', 'OI g/g')}</th>"
+          f"<th>{L('Volume vs 20d', 'Volume vs 20g')}</th><th>{L('Flow', 'Flusso')}</th></tr>"]
     for r in res:
         cls = "up" if (r["price_chg"] or 0) > 0 else "dn" if (r["price_chg"] or 0) < 0 else ""
         pc = f"{r['price_chg']:+.2f}%" if r["price_chg"] is not None else "—"
         oc = kfmt(r["oi_chg"]) if r["oi_chg"] is not None else "—"
         vr = f"{r['vol_ratio']:.1f}x" if r["vol_ratio"] else "—"
-        b.append(f"<tr><td>{esc(r['name'])}</td><td>{esc(r['active'])} {fp(r['active_price'], r['dec'])}</td>"
+        b.append(f"<tr><td>{PI.market(r['name'], esc)}</td><td>{esc(r['active'])} {fp(r['active_price'], r['dec'])}</td>"
                  f'<td class="{cls}">{pc}</td><td>{r["oi_total"]:,}</td><td>{oc}</td><td>{vr}</td>'
-                 f'<td class="m">{esc(r["flow"])}</td></tr>')
+                 f'<td class="m">{L(esc(r["flow"]), esc(PI.FLOW_IT.get(r["flow"], "")))}</td></tr>')
     b.append("</table>")
-    b.append("<h2>Forward curves</h2>")
+    b.append(f"<h2>{L('Forward curves', 'Curve forward')}</h2>")
     b.append('<div class="grid">')
     for r in res:
         prev_rows = (prev_snap or {}).get(r["key"])
         extra = f"{r['m1']}–{r['m6']} {r['spread_m1m6']:+.{r['dec']}f} {r['unit']} · {r['structure']}"
+        extra_it = extra
         if r.get("top_oi_move"):
             extra += f" · largest OI change {r['top_oi_move'][1]} {kfmt(r['top_oi_move'][0])}"
-        b.append(f'<div><p><b>{esc(r["name"])}</b> <span style="font-family:var(--mono);font-size:11px;color:var(--muted)">'
-                 f'{esc(extra)}</span></p>{curve_svg(r, prev_rows)}</div>')
+            extra_it += f" · maggiore variazione di OI {r['top_oi_move'][1]} {kfmt(r['top_oi_move'][0])}"
+        b.append(f'<div><p><b>{PI.market(r["name"], esc)}</b> <span style="font-family:var(--mono);font-size:11px;color:var(--muted)">'
+                 f'{L(esc(extra), esc(extra_it))}</span></p>{curve_svg(r, prev_rows)}</div>')
     b.append("</div>")
-    b.append('<p style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:12px">Curves: blue = '
-             'latest settlement by contract month, dashed = previous session; bars = open interest by month. '
-             'Source: exchange futures quotes via Yahoo Finance; open-interest history stored by XenosFinance.</p>')
+    b.append('<p style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:12px">' + L(
+        "Curves: blue = latest settlement by contract month, dashed = previous session; bars = open interest by month. "
+        "Source: exchange futures quotes via Yahoo Finance; open-interest history stored by XenosFinance.",
+        "Curve: blu = ultimo settlement per scadenza, tratteggio = seduta precedente; barre = open interest per "
+        "scadenza. Fonte: quotazioni dei futures di borsa via Yahoo Finance; storico dell'open interest registrato "
+        "da XenosFinance.") + '</p>')
     if bias:   # 2026-10-19: conclusione finale — bias e trend
-        b += D.bias_html("flow", bias[0], bias[1], esc)
-    b.append('<div class="box"><p><b>Related</b></p><div class="cta"><a href="/cot">COT positioning</a>'
-             '<a href="/analysis">Daily technical analysis</a><a href="https://t.me/xenoswavefinance">Telegram channel</a></div></div>')
+        b += D.bias_html("flow", bias[0], bias[1], esc, it.get("bias"))
+    b.append(f'<div class="box"><p><b>{L("Related", "Correlati")}</b></p><div class="cta">'
+             f'<a href="/cot">{L("COT positioning", "Posizionamento COT")}</a>'
+             f'<a href="/analysis">{L("Daily technical analysis", "Analisi tecnica giornaliera")}</a>'
+             f'<a href="https://t.me/xenoswavefinance">{L("Telegram channel", "Canale Telegram")}</a></div></div>')
     jsonld = [{"@context": "https://schema.org", "@type": "Article", "headline": title, "description": desc,
                "dateModified": now.isoformat(), "author": {"@type": "Organization", "name": "XenosFinance"},
                "publisher": {"@type": "Organization", "name": "XenosFinance"}, "mainEntityOfPage": f"{SITE}/futures-flow"}]
     return G.page_shell(title, desc, f"{SITE}/futures-flow", "\n".join(b), jsonld,
                         "futures open interest, oil futures curve, WTI spread, contango backwardation, futures volume",
-                        active="/futures-flow")
+                        active="/futures-flow", it_title=title_it)
 
 
 def main():
@@ -352,7 +375,11 @@ def main():
     oil, oil_src = D.build_oil("flow", res)
     b_rows, b_txt, b_src = D.build_bias("flow", res)
     bias = (b_rows, b_txt)
-    open(os.path.join(OUT_DIR, "index.html"), "w", encoding="utf-8").write(build_page(res, prev_snap, sess, now, desk, oil, bias))
+    # 2026-10-25: versione italiana dei testi variabili (gratis, numeri controllati)
+    import page_i18n as PI
+    t_desk, t_oil, t_bias = PI.translate_texts([desk, oil, b_txt])
+    it = {"desk": t_desk, "oil": t_oil, "bias": t_bias}
+    open(os.path.join(OUT_DIR, "index.html"), "w", encoding="utf-8").write(build_page(res, prev_snap, sess, now, desk, oil, bias, it))
     latest = {"session": sess.isoformat(), "generated": now.isoformat(), "has_oi_change": prev_snap is not None,
               "desk_read": desk, "desk_read_source": desk_src, "oil_read": oil, "oil_read_source": oil_src,
               "bias_read": b_txt, "bias_read_source": b_src, "bias": b_rows,
