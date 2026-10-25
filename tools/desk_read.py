@@ -547,20 +547,34 @@ def build_bias(kind, res):
     return rows, rule_bias(kind, rows), "rules"
 
 
-def bias_html(kind, rows, text, esc):
-    """Sezione finale della pagina: tabella bias + conclusione."""
+def bias_html(kind, rows, text, esc, text_it=None):
+    """Sezione finale della pagina: tabella bias + conclusione.
+    2026-10-25: versione italiana (data-it, vedi tools/page_i18n.py); text_it = conclusione tradotta."""
+    import page_i18n as PI
+    L = PI.L
     hz = ("Medium-term bias (weeks) from speculative positioning." if kind == "cot" else
           "Short-term bias (next sessions) from the last session's flow and, for oil, the curve.")
+    hz_it = ("Bias di medio periodo (settimane) dal posizionamento speculativo." if kind == "cot" else
+             "Bias di breve periodo (prossime sedute) dal flusso dell'ultima seduta e, per il petrolio, dalla curva.")
     cls = lambda b: "up" if "ullish" in b else "dn" if "earish" in b else ""
-    h = ["<h2>Bias &amp; trend read</h2>", f"<p>{esc(text)}</p>",
-         "<table><tr><th>Market</th><th>Bias</th><th>Why</th></tr>"]
+    h = [f"<h2>{L('Bias &amp; trend read', 'Bias e lettura del trend')}</h2>",
+         f"<p>{L(esc(text), esc(text_it) if text_it else '')}</p>",
+         f"<table><tr><th>{L('Market', 'Mercato')}</th><th>Bias</th><th>{L('Why', 'Motivi')}</th></tr>"]
     for b in rows:
-        h.append(f'<tr><td>{esc(b["name"])}</td><td class="{cls(b["bias"])}"><b>{esc(b["bias"])}</b></td>'
-                 f'<td class="m">{esc("; ".join(b["why"]) or "no clear signal")}</td></tr>')
+        why_en = "; ".join(b["why"]) or "no clear signal"
+        parts_it = [PI.why_it(w) for w in (b["why"] or ["no clear signal"])]
+        why_html = L(esc(why_en), esc("; ".join(parts_it)) if all(parts_it) else "")
+        h.append(f'<tr><td>{PI.market(b["name"], esc)}</td><td class="{cls(b["bias"])}"><b>'
+                 f'{L(esc(b["bias"]), esc(PI.BIAS_IT.get(b["bias"], "")))}</b></td>'
+                 f'<td class="m">{why_html}</td></tr>')
     h.append("</table>")
-    h.append(f'<p style="font-family:var(--mono);font-size:10px;color:var(--muted)">{hz} Bias is computed in code '
-             "from the figures on this page with fixed rules (direction and persistence of positioning, price "
-             "confirmation, crowding" + (", curve" if kind == "flow" else "") + "). Context, not a trade signal.</p>")
+    foot_en = (f"{hz} Bias is computed in code from the figures on this page with fixed rules (direction and "
+               "persistence of positioning, price confirmation, crowding" + (", curve" if kind == "flow" else "")
+               + "). Context, not a trade signal.")
+    foot_it = (f"{hz_it} Il bias è calcolato in codice dai dati di questa pagina con regole fisse (direzione e "
+               "persistenza del posizionamento, conferma del prezzo, affollamento" + (", curva" if kind == "flow" else "")
+               + "). È contesto, non un segnale operativo.")
+    h.append(f'<p style="font-family:var(--mono);font-size:10px;color:var(--muted)">{L(foot_en, foot_it)}</p>')
     return h
 
 
