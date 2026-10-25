@@ -65,6 +65,7 @@ REGIME = {"above_cloud": "above the cloud", "below_cloud": "below the cloud", "i
 
 # 2026-10: intestazione chiara (il bias è su 1H/4H, la pagina si aggiorna ogni giorno)
 TF_LABEL = "Commentary twice a day · levels live · 1H/4H technical bias"
+TF_LABEL_IT = "Commento due volte al giorno · livelli live · bias tecnico 1H/4H"
 
 # 2026-10: spread Brent–WTI (calcolato in main quando ci sono entrambi i prezzi)
 SPREAD = None
@@ -82,11 +83,17 @@ def spread_html():
     """Riga sullo spread Brent–WTI: spiega perché i due benchmark possono avere bias diversi sull'1H."""
     if not SPREAD:
         return ""
+    import page_i18n as PI
     v = SPREAD
     side = "Brent premium" if v >= 0 else "WTI premium"
-    return (f'<p class="spread">Brent–WTI spread: <b>${abs(v):.2f}</b> ({side}). '
-            "The two benchmarks usually move together, but on 1-hour charts they can show different biases "
-            "while the spread is widening or narrowing.</p>")
+    side_it = "premio del Brent" if v >= 0 else "premio del WTI"
+    en = (f"Brent–WTI spread: <b>${abs(v):.2f}</b> ({side}). "
+          "The two benchmarks usually move together, but on 1-hour charts they can show different biases "
+          "while the spread is widening or narrowing.")
+    it = (f"Spread Brent–WTI: <b>${abs(v):.2f}</b> ({side_it}). "
+          "I due benchmark di solito si muovono insieme, ma sui grafici a 1 ora possono mostrare bias diversi "
+          "mentre lo spread si allarga o si restringe.")
+    return f'<p class="spread">{PI.L(en, it)}</p>'
 
 
 def esc(t):
@@ -185,16 +192,17 @@ NAV = [("/", "Home"), ("/dashboard", "Dashboard"), ("/analysis", "Daily Analysis
 def page_shell(title, desc, canonical, body, jsonld, keywords, active="/analysis", it_title=None):
     ld = "\n".join(f'<script type="application/ld+json">{json.dumps(x, ensure_ascii=False)}</script>' for x in jsonld)
     nav = "".join('<a href="%s"%s>%s</a>' % (h, ' class="on"' if h == active else "", t) for h, t in NAV)
-    # 2026-10-25: versione italiana (solo pagine che la forniscono: COT, Futures Flow).
-    # Le pagine /analysis non passano it_title e restano identiche a prima.
-    tag, disc, sw, js, css_it, meta_it = ("Market analysis &amp; trading education", DISC_EN, "", "", "", "")
+    # 2026-10-25: versione italiana. Tutte le pagine hanno le bandierine EN/IT
+    # (/xf-page-i18n.js); menu, tagline e disclaimer sono bilingui. Il contenuto
+    # è in italiano dove il generatore fornisce data-it (it_title = titolo IT).
+    import page_i18n as PI
+    nav = "".join('<a href="%s"%s>%s</a>' % (h, ' class="on"' if h == active else "", PI.L(t, PI.NAV_IT.get(t, t)))
+                  for h, t in NAV)
+    tag = PI.L("Market analysis &amp; trading education", PI.TAG_IT)
+    disc = PI.L(DISC_EN, PI.DISC_IT)
+    js = '<script src="/xf-page-i18n.js?v=1" defer></script>\n'
+    meta_it = ""
     if it_title:
-        import page_i18n as PI
-        nav = "".join('<a href="%s"%s>%s</a>' % (h, ' class="on"' if h == active else "", PI.L(t, PI.NAV_IT.get(t, t)))
-                      for h, t in NAV)
-        tag = PI.L(tag, PI.TAG_IT)
-        disc = PI.L(disc, PI.DISC_IT)
-        sw, js, css_it = PI.SWITCH_HTML, PI.SWITCH_JS, PI.SWITCH_CSS
         meta_it = f'<meta name="xf-title-it" content="{esc(it_title)}">\n'
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -217,11 +225,11 @@ def page_shell(title, desc, canonical, body, jsonld, keywords, active="/analysis
 <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
 <link rel="apple-touch-icon" sizes="192x192" href="/favicon-192.png">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=PT+Serif:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<style>{CSS}{css_it}</style>
+<style>{CSS}</style>
 {meta_it}{ld}
 </head>
 <body>
-<header class="top">{sw}<div class="brand">Xenos<span>Finance</span></div><div class="tag">{tag}</div></header>
+<header class="top"><div class="brand">Xenos<span>Finance</span></div><div class="tag">{tag}</div></header>
 <nav>{nav}</nav>
 <main>
 {body}
@@ -238,126 +246,181 @@ DISC_EN = ("Educational content only. This analysis is generated algorithmically
 
 
 def build_instrument_page(inst, d, ai, now, all_rows):
+    """2026-10-25: pagina bilingue — HTML in inglese (SEO), italiano in data-it (tools/page_i18n.py).
+    ai["_it"] = commento AI tradotto (stesse chiavi), se la traduzione è riuscita."""
+    import page_i18n as PI
+    L = PI.L
     slug, yf, name, short, dec, group, terms = inst
+    name_it = PI.iname(name)
     f = lambda v: fmt(v, dec)
     url = f"{SITE}/analysis/{slug}"
     date_h = now.strftime("%d %B %Y")
     dirw = d["bias"]["direction"]
     bias_word = {"bullish": "Bullish", "bearish": "Bearish", "neutral": "Neutral"}[dirw]
+    conf = d["bias"]["confidence"]
+    conf_it = PI.CONF_IT.get(conf, conf)
     chg = d.get("change_pct_day")
     sup = d["zones"]["supports"]
     res = d["zones"]["resistances"]
+    ai_it = (ai or {}).get("_it") or {}
+
+    def ai_p(key):
+        return f"<p>{L(esc(ai.get(key, '')), esc(ai_it[key]) if ai_it.get(key) else '')}</p>"
 
     title = f"{name} Technical Analysis Today — Levels, Bias & Scenarios ({short}) | XenosFinance"
+    title_it = f"{name_it} analisi tecnica oggi — livelli, bias e scenari ({short}) | XenosFinance"
     s1 = zone_txt(sup[0], dec) if sup else None
     r1 = zone_txt(res[0], dec) if res else None
     desc = (f"{name} ({short}) technical analysis for {date_h}: {bias_word.lower()} bias on the 1-hour chart"
             + (f", support {s1}" if s1 else "") + (f", resistance {r1}" if r1 else "")
             + ". Confluence zones, Elliott Wave, trade scenarios with risk/reward.")
 
-    b = [f'<div class="crumb"><a href="/">Home</a> › <a href="/analysis">Daily Analysis</a> › {esc(name)}</div>',
-         f"<h1>{esc(name)} Technical Analysis Today</h1>",
-         f'<div class="upd" id="lv-upd">Updated {now.strftime("%d %b %Y, %H:%M")} UTC · {TF_LABEL} · {esc(group)}</div>',
+    b = [f'<div class="crumb"><a href="/">Home</a> › <a href="/analysis">{L("Daily Analysis", "Analisi giornaliera")}</a> › '
+         f'{L(esc(name), esc(name_it))}</div>',
+         f"<h1>{L(esc(name) + ' Technical Analysis Today', esc(name_it) + ' — analisi tecnica di oggi')}</h1>",
+         f'<div class="upd" id="lv-upd">' + L(
+             f'Updated {now.strftime("%d %b %Y, %H:%M")} UTC · {TF_LABEL} · {esc(group)}',
+             f'Aggiornato {PI.d_short_time(now)} UTC · {TF_LABEL_IT} · {esc(PI.GROUP_IT.get(group, group))}') + '</div>',
          # 2026-10-16: configurazione per /analysis/live.js (numeri aggiornati dal vivo)
          f'<div id="lv-cfg" hidden data-yf="{esc(yf)}" data-dec="{dec}" data-short="{esc(short)}" data-name="{esc(name)}"></div>']
     if market_closed(now, group):
-        b.append('<div class="upd">Market closed — data as of Friday close</div>')
+        b.append('<div class="upd">' + L("Market closed — data as of Friday close",
+                                          "Mercato chiuso — dati alla chiusura di venerdì") + '</div>')
     if slug in ("wti-crude-oil", "brent-crude-oil"):
         b.append(spread_html())
     if ai and ai.get("headline"):
-        b.append(f'<div class="headline">{esc(ai["headline"])}</div>')
+        b.append(f'<div class="headline">{L(esc(ai["headline"]), esc(ai_it["headline"]) if ai_it.get("headline") else "")}</div>')
     b.append(f'<div class="px" id="lv-px">{esc(short)} <b>{f(d["live"])}</b>'
              + (f' <span class="{"up" if chg >= 0 else "dn"}">{chg:+.2f}%</span>' if chg is not None else "")
              + f' · ATR(14) {f(d["atr"])}</div>')
-    b.append(f'<div class="bias {dirw}" id="lv-bias"><span>Bias</span><b>{bias_word}</b><span>Confidence {d["bias"]["confidence"]} · score {d["bias"]["score"]:+d}/7</span></div>')
+    b.append(f'<div class="bias {dirw}" id="lv-bias"><span>Bias</span><b>{L(bias_word, PI.DIR_IT[dirw])}</b><span>'
+             + L(f'Confidence {conf} · score {d["bias"]["score"]:+d}/7',
+                 f'Affidabilità {conf_it} · punteggio {d["bias"]["score"]:+d}/7') + '</span></div>')
 
     if ai:
-        b.append("<h2>Summary</h2>")
-        b.append(f"<p>{esc(ai.get('summary', ''))}</p>")
+        b.append(f"<h2>{L('Summary', 'Sintesi')}</h2>")
+        b.append(ai_p("summary"))
 
     # Zone
     def zrows(zs):
         if not zs:
-            return '<tr><td colspan="3" class="m">No level within range</td></tr>'
-        return "".join(f'<tr><td>{zone_txt(z, dec)}</td><td class="m">{esc(" + ".join(MEMBER_NAME.get(m, m) for m in z["members"]))}</td><td>{"●" * min(z["strength"], 4)}</td></tr>' for z in zs)
-    b.append("<h2>Key levels — confluence zones</h2>")
-    b.append("<p>Zones where several technical levels cluster together (moving averages, SuperTrend, Fibonacci retracements, previous-day range, swing points). More converging levels mean a more relevant zone.</p>")
-    b.append('<div class="grid" id="lv-zones"><div><table><tr><th>Resistance</th><th>Levels</th><th>Strength</th></tr>' + zrows(res)
-             + '</table></div><div><table><tr><th>Support</th><th>Levels</th><th>Strength</th></tr>' + zrows(sup) + "</table></div></div>")
+            return f'<tr><td colspan="3" class="m">{L("No level within range", "Nessun livello nel range")}</td></tr>'
+        return "".join(
+            f'<tr><td>{zone_txt(z, dec)}</td><td class="m">'
+            + L(esc(" + ".join(MEMBER_NAME.get(m, m) for m in z["members"])),
+                esc(" + ".join(PI.MEMBER_IT.get(m, MEMBER_NAME.get(m, m)) for m in z["members"])))
+            + f'</td><td>{"●" * min(z["strength"], 4)}</td></tr>' for z in zs)
+    th_r = f"<tr><th>{L('Resistance', 'Resistenza')}</th><th>{L('Levels', 'Livelli')}</th><th>{L('Strength', 'Forza')}</th></tr>"
+    th_s = f"<tr><th>{L('Support', 'Supporto')}</th><th>{L('Levels', 'Livelli')}</th><th>{L('Strength', 'Forza')}</th></tr>"
+    b.append(f"<h2>{L('Key levels — confluence zones', 'Livelli chiave — zone di confluenza')}</h2>")
+    b.append("<p>" + L(
+        "Zones where several technical levels cluster together (moving averages, SuperTrend, Fibonacci retracements, "
+        "previous-day range, swing points). More converging levels mean a more relevant zone.",
+        "Zone in cui si concentrano più livelli tecnici (medie mobili, SuperTrend, ritracciamenti di Fibonacci, range "
+        "del giorno precedente, punti di swing). Più livelli convergono, più la zona è rilevante.") + "</p>")
+    b.append('<div class="grid" id="lv-zones"><div><table>' + th_r + zrows(res)
+             + '</table></div><div><table>' + th_s + zrows(sup) + "</table></div></div>")
 
     # Trend & momentum
     ind = d["indicators"]
-    b.append("<h2>Trend</h2>")
+    b.append(f"<h2>{L('Trend', 'Trend')}</h2>")
     if ai and ai.get("trend"):
-        b.append(f"<p>{esc(ai['trend'])}</p>")
+        b.append(ai_p("trend"))
     h1c = d.get("h1")
-    b.append('<div id="lv-trend"><table><tr><th>Indicator</th><th>Value</th><th>Reading</th></tr>'
-             f'<tr><td>SMA 20</td><td>{f(ind["sma20"])}</td><td class="m">{"price above" if ind["sma20"] and d["live"] > ind["sma20"] else "price below"}</td></tr>'
-             f'<tr><td>SMA 50</td><td>{f(ind["sma50"])}</td><td class="m">{"price above" if ind["sma50"] and d["live"] > ind["sma50"] else "price below"}</td></tr>'
-             f'<tr><td>SMA 200</td><td>{f(ind["sma200"])}</td><td class="m">{"price above" if ind["sma200"] and d["live"] > ind["sma200"] else "price below"}</td></tr>'
-             f'<tr><td>SuperTrend (10,3)</td><td>{f(ind["supertrend"])}</td><td class="m">{"bullish" if ind["supertrend_dir"] == "up" else "bearish"}</td></tr>'
-             + (f'<tr><td>Ichimoku 4H</td><td>{REGIME.get(h1c["regime"], h1c["regime"])}</td><td class="m">{h1c["bull_score"]}/4 bullish · {h1c["bear_score"]}/4 bearish</td></tr>' if h1c else "")
+    above = L("price above", "prezzo sopra")
+    below = L("price below", "prezzo sotto")
+    pos = lambda v: above if v and d["live"] > v else below
+    ich_row = ""
+    if h1c:
+        ich_en = f"{h1c['bull_score']}/4 bullish · {h1c['bear_score']}/4 bearish"
+        ich_it = f"{h1c['bull_score']}/4 rialzista · {h1c['bear_score']}/4 ribassista"
+        ich_row = (f'<tr><td>Ichimoku 4H</td><td>{L(REGIME.get(h1c["regime"], h1c["regime"]), PI.REGIME_IT.get(h1c["regime"], ""))}</td>'
+                   f'<td class="m">{L(ich_en, ich_it)}</td></tr>')
+    th3 = f"<tr><th>{L('Indicator', 'Indicatore')}</th><th>{L('Value', 'Valore')}</th><th>{L('Reading', 'Lettura')}</th></tr>"
+    b.append('<div id="lv-trend"><table>' + th3 +
+             f'<tr><td>SMA 20</td><td>{f(ind["sma20"])}</td><td class="m">{pos(ind["sma20"])}</td></tr>'
+             f'<tr><td>SMA 50</td><td>{f(ind["sma50"])}</td><td class="m">{pos(ind["sma50"])}</td></tr>'
+             f'<tr><td>SMA 200</td><td>{f(ind["sma200"])}</td><td class="m">{pos(ind["sma200"])}</td></tr>'
+             f'<tr><td>SuperTrend (10,3)</td><td>{f(ind["supertrend"])}</td><td class="m">'
+             + (L("bullish", "rialzista") if ind["supertrend_dir"] == "up" else L("bearish", "ribassista")) + '</td></tr>'
+             + ich_row
              + "</table></div>")
-    b.append("<h2>Momentum</h2>")
+    b.append(f"<h2>{L('Momentum', 'Momentum')}</h2>")
     if ai and ai.get("momentum"):
-        b.append(f"<p>{esc(ai['momentum'])}</p>")
-    b.append('<div id="lv-mom"><table><tr><th>Indicator</th><th>Value</th></tr>'
+        b.append(ai_p("momentum"))
+    th2 = f"<tr><th>{L('Indicator', 'Indicatore')}</th><th>{L('Value', 'Valore')}</th></tr>"
+    b.append('<div id="lv-mom"><table>' + th2 +
              f'<tr><td>RSI (14)</td><td>{ind["rsi"]}</td></tr>'
-             f'<tr><td>MACD / signal</td><td>{ind["macd"]} / {ind["macd_signal"]}</td></tr>'
-             + (f'<tr><td>Volume vs 40-bar average</td><td>×{ind["volume_ratio"]}</td></tr>' if ind.get("volume_ratio") else "")
+             f'<tr><td>{L("MACD / signal", "MACD / segnale")}</td><td>{ind["macd"]} / {ind["macd_signal"]}</td></tr>'
+             + (f'<tr><td>{L("Volume vs 40-bar average", "Volume vs media 40 barre")}</td><td>×{ind["volume_ratio"]}</td></tr>'
+                if ind.get("volume_ratio") else "")
              + "</table></div>")
 
     # Struttura
-    b.append("<h2>Structure — swing, Fibonacci and Elliott Wave</h2>")
+    b.append(f"<h2>{L('Structure — swing, Fibonacci and Elliott Wave', 'Struttura — swing, Fibonacci e onde di Elliott')}</h2>")
     if ai and ai.get("structure"):
-        b.append(f"<p>{esc(ai['structure'])}</p>")
+        b.append(ai_p("structure"))
     rows = ""
     if d.get("swing"):
         sw = d["swing"]
-        rows += f'<tr><td>Last swing</td><td>{f(sw["from"])} → {f(sw["to"])} ({sw["dir"]})</td></tr>'
+        dir_it = "rialzo" if sw["dir"] == "up" else "ribasso"
+        rows += (f'<tr><td>{L("Last swing", "Ultimo swing")}</td><td>{f(sw["from"])} → {f(sw["to"])} '
+                 f'({L(esc(sw["dir"]), dir_it)})</td></tr>')
     for k, v in (d.get("fib") or {}).items():
         rows += f"<tr><td>Fibonacci {k}%</td><td>{f(v)}</td></tr>"
     if d.get("elliott"):
         ew = d["elliott"]
-        rows += f'<tr><td>Elliott Wave</td><td>{esc(ew["desc"])}</td></tr>'
+        rows += f'<tr><td>{L("Elliott Wave", "Onda di Elliott")}</td><td>{L(esc(ew["desc"]), esc(PI.ew_desc_it(ew["desc"])))}</td></tr>'
         if ew.get("invalidation") is not None:
-            rows += f'<tr><td>Elliott invalidation</td><td>{f(ew["invalidation"])}</td></tr>'
+            rows += f'<tr><td>{L("Elliott invalidation", "Invalidazione Elliott")}</td><td>{f(ew["invalidation"])}</td></tr>'
         tps = [f(t) for t in (ew.get("tp1"), ew.get("tp2")) if t is not None]
         if tps:
-            rows += f'<tr><td>Elliott targets</td><td>{" · ".join(tps)}</td></tr>'
+            rows += f'<tr><td>{L("Elliott targets", "Target Elliott")}</td><td>{" · ".join(tps)}</td></tr>'
     pdv = d.get("prev_day") or {}
     if pdv.get("high") is not None and pdv.get("low") is not None:
-        rows += f'<tr><td>Previous-day range</td><td>{f(pdv["low"])} – {f(pdv["high"])}</td></tr>'
-    b.append(f'<div id="lv-struct">' + (f"<table><tr><th>Element</th><th>Level</th></tr>{rows}</table>" if rows else "") + "</div>")
+        rows += f'<tr><td>{L("Previous-day range", "Range del giorno precedente")}</td><td>{f(pdv["low"])} – {f(pdv["high"])}</td></tr>'
+    b.append('<div id="lv-struct">' + (f"<table><tr><th>{L('Element', 'Elemento')}</th><th>{L('Level', 'Livello')}</th></tr>{rows}</table>"
+                                       if rows else "") + "</div>")
 
     # Scenari
-    b.append("<h2>Trade scenarios</h2>")
-    b.append("<p>Educational scenarios built from the confluence zones. Entry, stop and target are calculated by our engine; risk/reward is computed from the published numbers, and scenarios with an unfavourable ratio are flagged rather than presented as opportunities.</p>")
+    b.append(f"<h2>{L('Trade scenarios', 'Scenari operativi')}</h2>")
+    b.append("<p>" + L(
+        "Educational scenarios built from the confluence zones. Entry, stop and target are calculated by our engine; "
+        "risk/reward is computed from the published numbers, and scenarios with an unfavourable ratio are flagged rather "
+        "than presented as opportunities.",
+        "Scenari a scopo educativo costruiti sulle zone di confluenza. Entry, stop e target sono calcolati dal nostro "
+        "motore; il rapporto rischio/rendimento è calcolato sui numeri pubblicati, e gli scenari con un rapporto "
+        "sfavorevole vengono segnalati invece di essere presentati come opportunità.") + "</p>")
     if d.get("scenarios"):
-        t = "<table><tr><th>Scenario</th><th>Entry</th><th>Stop</th><th>Target</th><th>R:R</th><th>Quality</th></tr>"
+        t = (f"<table><tr><th>{L('Scenario', 'Scenario')}</th><th>Entry</th><th>Stop</th><th>Target</th><th>R:R</th>"
+             f"<th>{L('Quality', 'Qualità')}</th></tr>")
         for sc in d["scenarios"]:
             ql = {"good": "good", "ok": "acceptable", "poor": "unfavourable"}[sc["quality"]]
-            t += (f'<tr class="{sc["quality"]}"><td>{SCEN_NAME.get(sc["key"], sc["key"])}</td><td>{f(sc["entry"])}</td>'
-                  f'<td>{f(sc["stop"])}</td><td>{f(sc["target"])}</td><td>{sc["rr"]:.2f}:1</td><td><span class="q {sc["quality"]}">{ql}</span></td></tr>')
+            t += (f'<tr class="{sc["quality"]}"><td>{L(SCEN_NAME.get(sc["key"], sc["key"]), PI.SCEN_IT.get(sc["key"], ""))}</td>'
+                  f'<td>{f(sc["entry"])}</td><td>{f(sc["stop"])}</td><td>{f(sc["target"])}</td><td>{sc["rr"]:.2f}:1</td>'
+                  f'<td><span class="q {sc["quality"]}">{L(ql, PI.QL_IT[sc["quality"]])}</span></td></tr>')
         b.append('<div id="lv-scen">' + t + "</table></div>")
     else:
-        b.append('<div id="lv-scen"><p>No scenario with valid levels at the moment.</p></div>')
+        b.append('<div id="lv-scen"><p>' + L("No scenario with valid levels at the moment.",
+                                              "Al momento nessuno scenario con livelli validi.") + '</p></div>')
 
-    b.append("<h2>Outlook and confirmation</h2>")
+    b.append(f"<h2>{L('Outlook and confirmation', 'Prospettive e conferme')}</h2>")
     if ai and ai.get("outlook"):
-        b.append(f"<p>{esc(ai['outlook'])}</p>")
+        b.append(ai_p("outlook"))
     tr = d.get("trigger") or {}
     trg = ""
     if tr.get("bull") is not None:
-        trg += f'<div class="trig up">▲ Bullish confirmation: hourly close above {f(tr["bull"])}</div>'
+        trg += '<div class="trig up">▲ ' + L(f"Bullish confirmation: hourly close above {f(tr['bull'])}",
+                                              f"Conferma rialzista: chiusura oraria sopra {f(tr['bull'])}") + '</div>'
     if tr.get("bear") is not None:
-        trg += f'<div class="trig dn">▼ Bearish confirmation: hourly close below {f(tr["bear"])}</div>'
+        trg += '<div class="trig dn">▼ ' + L(f"Bearish confirmation: hourly close below {f(tr['bear'])}",
+                                              f"Conferma ribassista: chiusura oraria sotto {f(tr['bear'])}") + '</div>'
     b.append(f'<div id="lv-trig">{trg}</div>')
 
     # FAQ deterministica (numeri dal motore, nessun testo AI)
     faq = [
         (f"What is the {name} trend today?",
-         f"On the 1-hour chart our engine reads a {bias_word.lower()} bias with {d['bias']['confidence']} confidence (score {d['bias']['score']:+d}/7), "
+         f"On the 1-hour chart our engine reads a {bias_word.lower()} bias with {conf} confidence (score {d['bias']['score']:+d}/7), "
          f"based on moving averages, MACD, RSI, SuperTrend and the 4-hour Ichimoku context. {name} trades at {f(d['live'])}."),
         (f"What are the key support levels for {name}?",
          ("The nearest support zones are " + ", ".join(zone_txt(z, dec) for z in sup) + ".") if sup else "No support zone is currently within range of the price."),
@@ -369,14 +432,39 @@ def build_instrument_page(inst, d, ai, now, all_rows):
              f"An hourly close below {f(tr['bear'])} would confirm the bearish case." if tr.get("bear") is not None else ""] if x)
          or "Wait for a decisive hourly close outside the nearest confluence zones."),
     ]
-    b.append('<h2>FAQ</h2><div class="faq">' + "".join(f"<h3>{esc(q)}</h3><p>{esc(a)}</p>" for q, a in faq) + "</div>")
+    faq_it = [
+        (f"{name_it}: qual è il trend oggi?",
+         f"Sul grafico a 1 ora il nostro motore legge un bias {PI.DIR_IT[dirw].lower()} con affidabilità {conf_it} "
+         f"(punteggio {d['bias']['score']:+d}/7), basato su medie mobili, MACD, RSI, SuperTrend e il contesto Ichimoku a 4 ore. "
+         f"{name_it} quota {f(d['live'])}."),
+        (f"{name_it}: quali sono i supporti chiave?",
+         ("Le zone di supporto più vicine sono " + ", ".join(zone_txt(z, dec) for z in sup) + ".") if sup
+         else "Al momento nessuna zona di supporto è nel range del prezzo."),
+        (f"{name_it}: quali sono le resistenze chiave?",
+         ("Le zone di resistenza più vicine sono " + ", ".join(zone_txt(z, dec) for z in res) + ".") if res
+         else "Al momento nessuna zona di resistenza è nel range del prezzo."),
+        (f"{name_it}: cosa confermerebbe un movimento?",
+         " ".join(x for x in [
+             f"Una chiusura oraria sopra {f(tr['bull'])} confermerebbe lo scenario rialzista." if tr.get("bull") is not None else "",
+             f"Una chiusura oraria sotto {f(tr['bear'])} confermerebbe lo scenario ribassista." if tr.get("bear") is not None else ""] if x)
+         or "Attendere una chiusura oraria decisa fuori dalle zone di confluenza più vicine."),
+    ]
+    b.append('<h2>FAQ</h2><div class="faq">' + "".join(
+        f"<h3>{L(esc(q), esc(qi))}</h3><p>{L(esc(a), esc(ai_))}</p>" for (q, a), (qi, ai_) in zip(faq, faq_it)) + "</div>")
 
-    b.append('<div class="box"><p><b>Live intraday analysis.</b> For a 15-minute read updated every candle, open the '
-             '<a href="/dashboard">XenosFinance dashboard</a> and click any instrument. Daily briefs and Elliott Wave studies are published on our '
-             '<a href="https://t.me/xenoswavefinance">Telegram channel</a>.</p><div class="cta"><a href="/dashboard">Open the dashboard</a><a href="/premium">Premium tools</a></div></div>')
+    b.append('<div class="box"><p>' + L(
+        '<b>Live intraday analysis.</b> For a 15-minute read updated every candle, open the '
+        '<a href="/dashboard">XenosFinance dashboard</a> and click any instrument. Daily briefs and Elliott Wave studies are published on our '
+        '<a href="https://t.me/xenoswavefinance">Telegram channel</a>.',
+        '<b>Analisi intraday dal vivo.</b> Per una lettura a 15 minuti aggiornata a ogni candela, apri la '
+        '<a href="/dashboard">dashboard di XenosFinance</a> e clicca su uno strumento. Brief giornalieri e studi sulle onde di Elliott '
+        'sono pubblicati sul nostro <a href="https://t.me/xenoswavefinance">canale Telegram</a>.')
+        + f'</p><div class="cta"><a href="/dashboard">{L("Open the dashboard", "Apri la dashboard")}</a>'
+          f'<a href="/premium">{L("Premium tools", "Strumenti Premium")}</a></div></div>')
 
     others = [r for r in all_rows if r[0] != slug]
-    b.append("<h2>Other daily analyses</h2><div class=\"rel\">" + "".join(f'<a href="/analysis/{r[0]}">{esc(r[2])}</a>' for r in others) + "</div>")
+    b.append(f"<h2>{L('Other daily analyses', 'Altre analisi giornaliere')}</h2><div class=\"rel\">"
+             + "".join(f'<a href="/analysis/{r[0]}">{L(esc(r[2]), esc(PI.iname(r[2])))}</a>' for r in others) + "</div>")
 
     iso = now.strftime("%Y-%m-%dT%H:%M:%SZ")
     jsonld = [
@@ -392,40 +480,57 @@ def build_instrument_page(inst, d, ai, now, all_rows):
             {"@type": "Question", "name": q, "acceptedAnswer": {"@type": "Answer", "text": a}} for q, a in faq]},
     ]
     kw = f"{name} technical analysis, {name} analysis today, {terms}, {short} support resistance, {short} forecast levels, Elliott Wave {name}"
-    b.append('<script src="/analysis/live.js" defer></script>')
-    return page_shell(title, desc, url, "\n".join(b), jsonld, kw)
+    b.append('<script src="/analysis/live.js?v=2" defer></script>')
+    return page_shell(title, desc, url, "\n".join(b), jsonld, kw, it_title=title_it)
 
 
 def build_index(rows, now):
+    import page_i18n as PI
+    L = PI.L
     url = f"{SITE}/analysis"
     title = "Daily Technical Analysis — Gold, Oil, Forex, Crypto & Indices | XenosFinance"
+    title_it = "Analisi tecnica giornaliera — oro, petrolio, forex, crypto e indici | XenosFinance"
     desc = "Daily technical analysis for Gold, Oil, Forex, Bitcoin and stock indices: bias, confluence zones, Elliott Wave and trade scenarios with risk/reward. Levels updated live."
-    b = ['<div class="crumb"><a href="/">Home</a> › Daily Analysis</div>',
-         "<h1>Daily Technical Analysis</h1>",
-         f'<div class="upd" id="lv-upd">Updated {now.strftime("%d %b %Y, %H:%M")} UTC · {TF_LABEL}</div>',
-         ('<div class="upd">Market closed — Forex, Commodities and Indices show data as of Friday close; Crypto is live.</div>'
+    b = [f'<div class="crumb"><a href="/">Home</a> › {L("Daily Analysis", "Analisi giornaliera")}</div>',
+         f"<h1>{L('Daily Technical Analysis', 'Analisi tecnica giornaliera')}</h1>",
+         f'<div class="upd" id="lv-upd">' + L(f'Updated {now.strftime("%d %b %Y, %H:%M")} UTC · {TF_LABEL}',
+                                               f'Aggiornato {PI.d_short_time(now)} UTC · {TF_LABEL_IT}') + '</div>',
+         ('<div class="upd">' + L("Market closed — Forex, Commodities and Indices show data as of Friday close; Crypto is live.",
+                                  "Mercati chiusi — Forex, materie prime e indici mostrano i dati alla chiusura di venerdì; "
+                                  "le crypto sono live.") + '</div>'
           if market_closed(now, "Forex") else ""),
-         "<p>Every analysis is built by the XenosFinance engine on real market data: moving averages, SuperTrend, MACD, RSI, Fibonacci, "
-         "Ichimoku and an Elliott Wave count combine into confluence zones and trade scenarios with calculated risk/reward. "
-         "Prices, levels and scenarios update live while the page is open; the written commentary is refreshed twice a day.</p>"]
+         "<p>" + L(
+             "Every analysis is built by the XenosFinance engine on real market data: moving averages, SuperTrend, MACD, RSI, Fibonacci, "
+             "Ichimoku and an Elliott Wave count combine into confluence zones and trade scenarios with calculated risk/reward. "
+             "Prices, levels and scenarios update live while the page is open; the written commentary is refreshed twice a day.",
+             "Ogni analisi è costruita dal motore di XenosFinance su dati di mercato reali: medie mobili, SuperTrend, MACD, RSI, "
+             "Fibonacci, Ichimoku e un conteggio delle onde di Elliott si combinano in zone di confluenza e scenari operativi con "
+             "rischio/rendimento calcolato. Prezzi, livelli e scenari si aggiornano dal vivo mentre la pagina è aperta; il commento "
+             "scritto viene aggiornato due volte al giorno.") + "</p>"]
     groups = []
     for r in rows:
         if r[5] not in groups:
             groups.append(r[5])
     for g in groups:
-        b.append(f"<h2>{esc(g)}</h2><table><tr><th>Instrument</th><th>Price</th><th>Bias</th><th>Nearest support</th><th>Nearest resistance</th></tr>")
+        b.append(f"<h2>{L(esc(g), esc(PI.GROUP_IT.get(g, g)))}</h2><table><tr><th>{L('Instrument', 'Strumento')}</th>"
+                 f"<th>{L('Price', 'Prezzo')}</th><th>Bias</th><th>{L('Nearest support', 'Supporto più vicino')}</th>"
+                 f"<th>{L('Nearest resistance', 'Resistenza più vicina')}</th></tr>")
         for slug, yf, name, short, dec, bias, price, s1, r1 in [(r[0], r[1], r[2], r[3], r[4], r[6], r[7], r[8], r[9]) for r in rows if r[5] == g]:
             cls = {"bullish": "up", "bearish": "dn"}.get(bias, "")
-            b.append(f'<tr class="lv-row" data-yf="{esc(yf)}" data-dec="{dec}"><td><a href="/analysis/{slug}">{esc(name)}</a></td><td class="lv-price">{esc(price)}</td>'
-                     f'<td class="lv-b {cls}">{esc(bias.capitalize() if bias else "—")}</td><td class="lv-s1">{esc(s1 or "—")}</td><td class="lv-r1">{esc(r1 or "—")}</td></tr>')
+            bias_en = bias.capitalize() if bias else "—"
+            b.append(f'<tr class="lv-row" data-yf="{esc(yf)}" data-dec="{dec}"><td><a href="/analysis/{slug}">'
+                     f'{L(esc(name), esc(PI.iname(name)))}</a></td><td class="lv-price">{esc(price)}</td>'
+                     f'<td class="lv-b {cls}">{L(esc(bias_en), esc(PI.DIR_IT.get(bias, "")))}</td>'
+                     f'<td class="lv-s1">{esc(s1 or "—")}</td><td class="lv-r1">{esc(r1 or "—")}</td></tr>')
         b.append("</table>")
         if g == "Commodities":
             b.append(spread_html())
-    b.append('<script src="/analysis/live.js" defer></script>')
+    b.append('<script src="/analysis/live.js?v=2" defer></script>')
     jsonld = [{"@context": "https://schema.org", "@type": "CollectionPage", "name": "Daily Technical Analysis",
                "description": desc, "url": url, "dateModified": now.strftime("%Y-%m-%dT%H:%M:%SZ")}]
     return page_shell(title, desc, url, "\n".join(b), jsonld,
-                      "daily technical analysis, gold technical analysis, oil technical analysis, forex technical analysis, bitcoin technical analysis, Elliott Wave analysis")
+                      "daily technical analysis, gold technical analysis, oil technical analysis, forex technical analysis, bitcoin technical analysis, Elliott Wave analysis",
+                      it_title=title_it)
 
 
 # ───────────────────────── sitemap ─────────────────────────
@@ -471,6 +576,18 @@ def main():
     if px.get("wti-crude-oil") and px.get("brent-crude-oil"):
         SPREAD = float(px["brent-crude-oil"]) - float(px["wti-crude-oil"])
         print(f"  Brent–WTI spread: {SPREAD:+.2f}")
+    # 2026-10-25: commento AI in italiano — tutti gli strumenti in una sola richiesta (Gemini free),
+    # con il controllo che ogni numero resti identico; se fallisce, il commento resta in inglese.
+    try:
+        import page_i18n as PI
+        keys = ("headline", "summary", "trend", "momentum", "structure", "outlook")
+        idx = [(i, k) for i, (inst, d, ai) in enumerate(built) if ai for k in keys if ai.get(k)]
+        tr_out = PI.translate_texts([built[i][2][k] for i, k in idx])
+        for (i, k), v in zip(idx, tr_out):
+            if v:
+                built[i][2].setdefault("_it", {})[k] = v
+    except Exception as e:
+        print(f"  ! traduzione IT commento AI: {e}")
     for inst, d, ai in built:
         path = os.path.join(OUT_DIR, f"{inst[0]}.html")
         with open(path, "w", encoding="utf-8") as fh:

@@ -153,36 +153,7 @@ def translate_texts(texts):
         return [None] * len(texts)
 
 
-# ── selettore lingua + script (solo per le pagine con versione IT) ─────────
-
-SWITCH_CSS = (".lang{position:absolute;top:14px;right:16px;font-family:var(--mono);font-size:10px;letter-spacing:1px;}"
-              ".lang a{color:var(--muted);border:1px solid var(--border);padding:3px 8px;margin-left:4px;cursor:pointer;}"
-              ".lang a.on{color:var(--gold);border-color:var(--gold);}.top{position:relative;}")
-
-SWITCH_HTML = ('<div class="lang"><a data-lang="en">🇬🇧 EN</a><a data-lang="it">🇮🇹 IT</a></div>')
-
-SWITCH_JS = """<script>
-(function(){
-  var l='en';
-  try{l=localStorage.getItem('xenos_lang')==='it'?'it':'en';}catch(e){}
-  function apply(){
-    if(l==='it'){
-      document.documentElement.lang='it';
-      document.querySelectorAll('[data-it]').forEach(function(el){el.innerHTML=el.getAttribute('data-it');});
-      var t=document.querySelector('meta[name="xf-title-it"]'); if(t) document.title=t.content;
-    }
-    document.querySelectorAll('.lang a').forEach(function(a){
-      if(a.getAttribute('data-lang')===l) a.className='on';
-      a.addEventListener('click',function(){
-        var n=a.getAttribute('data-lang'); if(n===l) return;
-        try{localStorage.setItem('xenos_lang',n);}catch(e){}
-        location.reload();
-      });
-    });
-  }
-  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',apply); else apply();
-})();
-</script>"""
+# ── menu, tagline e disclaimer comuni (page_shell) ─────────────────────────
 
 NAV_IT = {"Home": "Home", "Dashboard": "Dashboard", "Daily Analysis": "Analisi giornaliera",
           "COT Positioning": "Posizionamento COT", "Futures Flow": "Futures Flow", "Calendar": "Calendario",
@@ -193,3 +164,45 @@ DISC_IT = ("Contenuto solo educativo. Questa analisi è generata algoritmicament
            "scopo di analisi di mercato e formazione al trading e non costituisce consulenza finanziaria né una "
            "raccomandazione ad acquistare o vendere alcuno strumento finanziario. Il trading comporta un rischio "
            "significativo di perdita. © XenosFinance")
+
+
+# ── pagine /analysis ───────────────────────────────────────────────────────
+
+INSTRUMENT_IT = {"Gold": "Oro", "Silver": "Argento", "WTI Crude Oil": "Petrolio WTI",
+                 "Brent Crude Oil": "Petrolio Brent", "Natural Gas": "Gas naturale", "Copper": "Rame",
+                 "Bitcoin": "Bitcoin", "Ethereum": "Ethereum", "S&P 500": "S&P 500", "Nasdaq 100": "Nasdaq 100",
+                 "DAX 40": "DAX 40"}
+GROUP_IT = {"Commodities": "Materie prime", "Forex": "Forex", "Crypto": "Crypto", "Indices": "Indici"}
+SCEN_IT = {"long_pullback": "Rialzista aggressivo (pullback)", "long_breakout": "Rialzista conservativo (breakout)",
+           "short_rejection": "Ribassista aggressivo (rifiuto)", "short_breakdown": "Ribassista conservativo (rottura)"}
+MEMBER_IT = {"prev_high": "Massimo del giorno prima", "prev_low": "Minimo del giorno prima",
+             "swing_high": "Swing high", "swing_low": "Swing low", "ew_inv": "Invalidazione Elliott"}
+REGIME_IT = {"above_cloud": "sopra la nuvola", "below_cloud": "sotto la nuvola", "inside_cloud": "dentro la nuvola"}
+QL_IT = {"good": "buono", "ok": "accettabile", "poor": "sfavorevole"}
+DIR_IT = {"bullish": "Rialzista", "bearish": "Ribassista", "neutral": "Neutrale"}
+CONF_IT = {"high": "alta", "medium": "media", "low": "bassa"}
+
+_EW = [
+    (r"First Corrective Leg", "Prima gamba correttiva"),
+    (r"Retracement", "Ritracciamento"),
+    (r"Dominant Impulse", "Impulso dominante"),
+    (r"Consolidation", "Consolidamento"),
+    (r"Terminal Impulse", "Impulso terminale"),
+    (r"Corrective Bounce", "Rimbalzo correttivo"),
+    (r"Final Corrective Leg", "Gamba correttiva finale"),
+    (r"\[NEAR COMPLETION\]", "[VICINA AL COMPLETAMENTO]"),
+    (r"No valid wave count", "Nessun conteggio d'onda valido"),
+    (r"% of (W\d|A)\)", r"% di \1)"),
+    (r"^Wave ", "Onda "),
+]
+
+
+def ew_desc_it(desc):
+    out = desc or ""
+    for a, b in _EW:
+        out = re.sub(a, b, out)
+    return out
+
+
+def iname(name):
+    return INSTRUMENT_IT.get(name, name)

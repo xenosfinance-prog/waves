@@ -14,6 +14,32 @@
   var REGIME = { above_cloud: "above the cloud", below_cloud: "below the cloud", inside_cloud: "inside the cloud" };
   var QL = { good: "good", ok: "acceptable", poor: "unfavourable" };
 
+  // 2026-10-25: italiano quando la lingua del sito è IT (localStorage 'xenos_lang')
+  var IT = false;
+  try { IT = localStorage.getItem("xenos_lang") === "it"; } catch (e) {}
+  if (IT) {
+    SCEN = { long_pullback: "Rialzista aggressivo (pullback)", long_breakout: "Rialzista conservativo (breakout)",
+      short_rejection: "Ribassista aggressivo (rifiuto)", short_breakdown: "Ribassista conservativo (rottura)" };
+    MEMBER = { prev_high: "Massimo del giorno prima", prev_low: "Minimo del giorno prima", swing_high: "Swing high",
+      swing_low: "Swing low", ew_inv: "Invalidazione Elliott" };
+    REGIME = { above_cloud: "sopra la nuvola", below_cloud: "sotto la nuvola", inside_cloud: "dentro la nuvola" };
+    QL = { good: "buono", ok: "accettabile", poor: "sfavorevole" };
+  }
+  function T(en, it) { return IT ? it : en; }
+  var DIR_IT = { bullish: "Rialzista", bearish: "Ribassista", neutral: "Neutrale" };
+  var CONF_IT = { high: "alta", medium: "media", low: "bassa" };
+  function dirWord(dir) { return IT ? (DIR_IT[dir] || dir) : dir.charAt(0).toUpperCase() + dir.slice(1); }
+  function ewDesc(t) {
+    if (!IT) return t;
+    return String(t || "")
+      .replace(/First Corrective Leg/, "Prima gamba correttiva").replace(/Retracement/, "Ritracciamento")
+      .replace(/Dominant Impulse/, "Impulso dominante").replace(/Consolidation/, "Consolidamento")
+      .replace(/Terminal Impulse/, "Impulso terminale").replace(/Corrective Bounce/, "Rimbalzo correttivo")
+      .replace(/Final Corrective Leg/, "Gamba correttiva finale").replace(/\[NEAR COMPLETION\]/, "[VICINA AL COMPLETAMENTO]")
+      .replace(/No valid wave count/, "Nessun conteggio d'onda valido")
+      .replace(/% of (W\d|A)\)/, "% di $1)").replace(/^Wave /, "Onda ");
+  }
+
   function esc(t) {
     return String(t == null ? "" : t).replace(/[&<>"']/g, function (c) {
       return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
@@ -44,65 +70,68 @@
       (chg != null ? ' <span class="' + (chg >= 0 ? "up" : "dn") + '">' + (chg >= 0 ? "+" : "") + chg.toFixed(2) + "%</span>" : "") +
       " · ATR(14) " + f(d.atr));
 
-    var dir = d.bias.direction, bw = dir.charAt(0).toUpperCase() + dir.slice(1);
-    var be = set("lv-bias", "<span>Bias</span><b>" + bw + "</b><span>Confidence " + esc(d.bias.confidence) +
-      " · score " + (d.bias.score >= 0 ? "+" : "") + d.bias.score + "/7</span>");
+    var dir = d.bias.direction, bw = dirWord(dir);
+    var be = set("lv-bias", "<span>Bias</span><b>" + bw + "</b><span>" +
+      T("Confidence " + esc(d.bias.confidence), "Affidabilità " + esc(CONF_IT[d.bias.confidence] || d.bias.confidence)) +
+      T(" · score ", " · punteggio ") + (d.bias.score >= 0 ? "+" : "") + d.bias.score + "/7</span>");
     if (be) be.className = "bias " + dir;
 
     function zrows(zs) {
-      if (!zs || !zs.length) return '<tr><td colspan="3" class="m">No level within range</td></tr>';
+      if (!zs || !zs.length) return '<tr><td colspan="3" class="m">' + T("No level within range", "Nessun livello nel range") + '</td></tr>';
       return zs.map(function (z) {
         return "<tr><td>" + ztxt(z, dec) + '</td><td class="m">' + esc(z.members.map(function (m) { return MEMBER[m] || m; }).join(" + ")) +
           "</td><td>" + "●".repeat(Math.min(z.strength, 4)) + "</td></tr>";
       }).join("");
     }
-    set("lv-zones", "<div><table><tr><th>Resistance</th><th>Levels</th><th>Strength</th></tr>" + zrows(d.zones.resistances) +
-      "</table></div><div><table><tr><th>Support</th><th>Levels</th><th>Strength</th></tr>" + zrows(d.zones.supports) + "</table></div>");
+    var thLv = "<th>" + T("Levels", "Livelli") + "</th><th>" + T("Strength", "Forza") + "</th></tr>";
+    set("lv-zones", "<div><table><tr><th>" + T("Resistance", "Resistenza") + "</th>" + thLv + zrows(d.zones.resistances) +
+      "</table></div><div><table><tr><th>" + T("Support", "Supporto") + "</th>" + thLv + zrows(d.zones.supports) + "</table></div>");
 
     var ind = d.indicators;
-    function pos(v) { return v && d.live > v ? "price above" : "price below"; }
+    function pos(v) { return v && d.live > v ? T("price above", "prezzo sopra") : T("price below", "prezzo sotto"); }
     var h1 = d.h1;
-    set("lv-trend", "<table><tr><th>Indicator</th><th>Value</th><th>Reading</th></tr>" +
+    set("lv-trend", "<table><tr><th>" + T("Indicator", "Indicatore") + "</th><th>" + T("Value", "Valore") + "</th><th>" + T("Reading", "Lettura") + "</th></tr>" +
       "<tr><td>SMA 20</td><td>" + f(ind.sma20) + '</td><td class="m">' + pos(ind.sma20) + "</td></tr>" +
       "<tr><td>SMA 50</td><td>" + f(ind.sma50) + '</td><td class="m">' + pos(ind.sma50) + "</td></tr>" +
       "<tr><td>SMA 200</td><td>" + f(ind.sma200) + '</td><td class="m">' + pos(ind.sma200) + "</td></tr>" +
-      "<tr><td>SuperTrend (10,3)</td><td>" + f(ind.supertrend) + '</td><td class="m">' + (ind.supertrend_dir === "up" ? "bullish" : "bearish") + "</td></tr>" +
-      (h1 ? "<tr><td>Ichimoku 4H</td><td>" + esc(REGIME[h1.regime] || h1.regime) + '</td><td class="m">' + h1.bull_score + "/4 bullish · " + h1.bear_score + "/4 bearish</td></tr>" : "") +
+      "<tr><td>SuperTrend (10,3)</td><td>" + f(ind.supertrend) + '</td><td class="m">' + (ind.supertrend_dir === "up" ? T("bullish", "rialzista") : T("bearish", "ribassista")) + "</td></tr>" +
+      (h1 ? "<tr><td>Ichimoku 4H</td><td>" + esc(REGIME[h1.regime] || h1.regime) + '</td><td class="m">' + h1.bull_score + T("/4 bullish · ", "/4 rialzista · ") + h1.bear_score + T("/4 bearish", "/4 ribassista") + "</td></tr>" : "") +
       "</table>");
 
-    set("lv-mom", "<table><tr><th>Indicator</th><th>Value</th></tr>" +
+    set("lv-mom", "<table><tr><th>" + T("Indicator", "Indicatore") + "</th><th>" + T("Value", "Valore") + "</th></tr>" +
       "<tr><td>RSI (14)</td><td>" + ind.rsi + "</td></tr>" +
-      "<tr><td>MACD / signal</td><td>" + ind.macd + " / " + ind.macd_signal + "</td></tr>" +
-      (ind.volume_ratio ? "<tr><td>Volume vs 40-bar average</td><td>×" + ind.volume_ratio + "</td></tr>" : "") +
+      "<tr><td>" + T("MACD / signal", "MACD / segnale") + "</td><td>" + ind.macd + " / " + ind.macd_signal + "</td></tr>" +
+      (ind.volume_ratio ? "<tr><td>" + T("Volume vs 40-bar average", "Volume vs media 40 barre") + "</td><td>×" + ind.volume_ratio + "</td></tr>" : "") +
       "</table>");
 
     var rows = "";
-    if (d.swing) rows += "<tr><td>Last swing</td><td>" + f(d.swing.from) + " → " + f(d.swing.to) + " (" + d.swing.dir + ")</td></tr>";
+    if (d.swing) rows += "<tr><td>" + T("Last swing", "Ultimo swing") + "</td><td>" + f(d.swing.from) + " → " + f(d.swing.to) + " (" +
+      (IT ? (d.swing.dir === "up" ? "rialzo" : "ribasso") : d.swing.dir) + ")</td></tr>";
     Object.keys(d.fib || {}).forEach(function (k) { rows += "<tr><td>Fibonacci " + k + "%</td><td>" + f(d.fib[k]) + "</td></tr>"; });
     if (d.elliott) {
       var ew = d.elliott;
-      rows += "<tr><td>Elliott Wave</td><td>" + esc(ew.desc) + "</td></tr>";
-      if (ew.invalidation != null) rows += "<tr><td>Elliott invalidation</td><td>" + f(ew.invalidation) + "</td></tr>";
+      rows += "<tr><td>" + T("Elliott Wave", "Onda di Elliott") + "</td><td>" + esc(ewDesc(ew.desc)) + "</td></tr>";
+      if (ew.invalidation != null) rows += "<tr><td>" + T("Elliott invalidation", "Invalidazione Elliott") + "</td><td>" + f(ew.invalidation) + "</td></tr>";
       var tps = [ew.tp1, ew.tp2].filter(function (t) { return t != null; }).map(f);
-      if (tps.length) rows += "<tr><td>Elliott targets</td><td>" + tps.join(" · ") + "</td></tr>";
+      if (tps.length) rows += "<tr><td>" + T("Elliott targets", "Target Elliott") + "</td><td>" + tps.join(" · ") + "</td></tr>";
     }
     var pd = d.prev_day || {};
-    if (pd.high != null && pd.low != null) rows += "<tr><td>Previous-day range</td><td>" + f(pd.low) + " – " + f(pd.high) + "</td></tr>";
-    set("lv-struct", rows ? "<table><tr><th>Element</th><th>Level</th></tr>" + rows + "</table>" : "");
+    if (pd.high != null && pd.low != null) rows += "<tr><td>" + T("Previous-day range", "Range del giorno precedente") + "</td><td>" + f(pd.low) + " – " + f(pd.high) + "</td></tr>";
+    set("lv-struct", rows ? "<table><tr><th>" + T("Element", "Elemento") + "</th><th>" + T("Level", "Livello") + "</th></tr>" + rows + "</table>" : "");
 
     if (d.scenarios && d.scenarios.length) {
-      set("lv-scen", "<table><tr><th>Scenario</th><th>Entry</th><th>Stop</th><th>Target</th><th>R:R</th><th>Quality</th></tr>" +
+      set("lv-scen", "<table><tr><th>Scenario</th><th>Entry</th><th>Stop</th><th>Target</th><th>R:R</th><th>" + T("Quality", "Qualità") + "</th></tr>" +
         d.scenarios.map(function (sc) {
           return '<tr class="' + sc.quality + '"><td>' + (SCEN[sc.key] || sc.key) + "</td><td>" + f(sc.entry) + "</td><td>" + f(sc.stop) +
             "</td><td>" + f(sc.target) + "</td><td>" + sc.rr.toFixed(2) + ':1</td><td><span class="q ' + sc.quality + '">' + QL[sc.quality] + "</span></td></tr>";
         }).join("") + "</table>");
     } else {
-      set("lv-scen", "<p>No scenario with valid levels at the moment.</p>");
+      set("lv-scen", "<p>" + T("No scenario with valid levels at the moment.", "Al momento nessuno scenario con livelli validi.") + "</p>");
     }
 
     var tr = d.trigger || {}, t = "";
-    if (tr.bull != null) t += '<div class="trig up">▲ Bullish confirmation: hourly close above ' + f(tr.bull) + "</div>";
-    if (tr.bear != null) t += '<div class="trig dn">▼ Bearish confirmation: hourly close below ' + f(tr.bear) + "</div>";
+    if (tr.bull != null) t += '<div class="trig up">▲ ' + T("Bullish confirmation: hourly close above ", "Conferma rialzista: chiusura oraria sopra ") + f(tr.bull) + "</div>";
+    if (tr.bear != null) t += '<div class="trig dn">▼ ' + T("Bearish confirmation: hourly close below ", "Conferma ribassista: chiusura oraria sotto ") + f(tr.bear) + "</div>";
     set("lv-trig", t);
 
     stamp(d.computed_at);
@@ -116,7 +145,7 @@
     var c;
     if ((c = tr.querySelector(".lv-price"))) c.textContent = fmt(d.live, dec);
     if ((c = tr.querySelector(".lv-b"))) {
-      c.textContent = dir.charAt(0).toUpperCase() + dir.slice(1);
+      c.textContent = dirWord(dir);
       c.className = "lv-b " + ({ bullish: "up", bearish: "dn" }[dir] || "");
     }
     if ((c = tr.querySelector(".lv-s1"))) c.textContent = s ? ztxt(s, dec) : "—";
@@ -132,7 +161,8 @@
       stampEl.className = "upd";
       upd.parentNode.insertBefore(stampEl, upd.nextSibling);
     }
-    stampEl.textContent = "Live levels: " + hhmm(iso) + " UTC (refresh every 15 min) · written commentary from the update above";
+    stampEl.textContent = T("Live levels: " + hhmm(iso) + " UTC (refresh every 15 min) · written commentary from the update above",
+      "Livelli live: " + hhmm(iso) + " UTC (aggiornamento ogni 15 min) · commento scritto dall'aggiornamento qui sopra");
   }
 
   function runPage(cfg) {

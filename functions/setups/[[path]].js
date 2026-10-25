@@ -28,6 +28,18 @@ function clip(s, n) {
   return (sp > n * 0.6 ? cut.slice(0, sp) : cut) + '…';
 }
 function num(v) { const x = parseFloat(v); return isFinite(x) ? x : null; }
+// 2026-10-25: testo bilingue — inglese nell'HTML (SEO), italiano in data-it (applicato da /xf-page-i18n.js)
+function L(en, it) { return it && it !== en ? `<span data-it="${esc(it)}">${en}</span>` : en; }
+const MON_IT = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
+function dateIt(ts) {
+  const d = new Date(ts);
+  return isNaN(d) ? '' : `${String(d.getUTCDate()).padStart(2, '0')} ${MON_IT[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+}
+const NAV_IT = { 'Home': 'Home', 'Dashboard': 'Dashboard', 'Daily Analysis': 'Analisi giornaliera', 'Trade Setups': 'Trade Setups',
+  'COT Positioning': 'Posizionamento COT', 'Futures Flow': 'Futures Flow', 'Calendar': 'Calendario', 'Elliott Wave': 'Onde di Elliott',
+  'Premium': 'Premium' };
+const FACTOR_IT = { trend: 'Trend', momentum: 'Momentum', volume: 'Volume', volatility: 'Volatilità', structure: 'Struttura',
+  sentiment: 'Sentiment', regime: 'Regime', session: 'Sessione', liquidity: 'Liquidità', ichimoku: 'Ichimoku' };
 function decOf(v) { const m = String(v ?? '').match(/\.(\d+)/); return m ? m[1].length : 0; }
 
 // Decimali: quelli con cui il bot ha salvato target e stop (il prezzo a volte ha 16 decimali grezzi)
@@ -110,7 +122,7 @@ const NAV = [['/', 'Home'], ['/dashboard', 'Dashboard'], ['/analysis', 'Daily An
   ['/cot', 'COT Positioning'], ['/futures-flow', 'Futures Flow'], ['/calendar', 'Calendar'], ['/elliottwave', 'Elliott Wave'], ['/premium', 'Premium']];
 
 function shell({ title, desc, canonical, body, jsonld, robots }) {
-  const nav = NAV.map(([h, t]) => `<a href="${h}"${h === '/trade-setups' ? ' class="on"' : ''}>${t}</a>`).join('');
+  const nav = NAV.map(([h, t]) => `<a href="${h}"${h === '/trade-setups' ? ' class="on"' : ''}>${L(t, NAV_IT[t])}</a>`).join('');
   const ld = (jsonld || []).map(x => `<script type="application/ld+json">${JSON.stringify(x).replace(/</g, '\\u003c')}</script>`).join('\n');
   return `<!DOCTYPE html>
 <html lang="en">
@@ -137,12 +149,15 @@ ${robots ? `<meta name="robots" content="${robots}">` : ''}
 ${ld}
 </head>
 <body>
-<header class="top"><div class="brand">Xenos<span>Finance</span></div><div class="tag">Market analysis &amp; trading education</div></header>
+<header class="top"><div class="brand">Xenos<span>Finance</span></div><div class="tag">${L('Market analysis &amp; trading education', 'Analisi di mercato &amp; formazione al trading')}</div></header>
 <nav>${nav}</nav>
 <main>
 ${body}
-<div class="disc">Educational content only. Trade setups are produced by the XenosFinance engine from public market data for market analysis and trading education. They are not investment advice or a recommendation to buy or sell any financial instrument; levels refer to the time of publication and are not updated afterwards. Trading involves a significant risk of loss. © XenosFinance</div>
+<div class="disc">${L('Educational content only. Trade setups are produced by the XenosFinance engine from public market data for market analysis and trading education. They are not investment advice or a recommendation to buy or sell any financial instrument; levels refer to the time of publication and are not updated afterwards. Trading involves a significant risk of loss. © XenosFinance',
+  'Contenuto solo educativo. I trade setup sono prodotti dal motore di XenosFinance da dati di mercato pubblici a scopo di analisi di mercato e formazione al trading. Non costituiscono consulenza finanziaria né una raccomandazione ad acquistare o vendere alcuno strumento finanziario; i livelli si riferiscono al momento della pubblicazione e non vengono aggiornati. Il trading comporta un rischio significativo di perdita. © XenosFinance')}</div>
 </main>
+<script src="/xf-translate.js?v=1" defer></script>
+<script src="/xf-page-i18n.js?v=1" defer></script>
 </body>
 </html>`;
 }
@@ -167,43 +182,50 @@ function setupPage(s, all) {
   const ageDays = (Date.now() - new Date(s.timestamp).getTime()) / 864e5;
 
   const b = [];
+  const hm = esc(String(s.timestamp || '').slice(11, 16));
   b.push(`<div class="crumb"><a href="/">Home</a> › <a href="/trade-setups">Trade Setups</a> › ${esc(name)}</div>`);
-  b.push(`<h1>${esc(name)} ${sideW} Setup — ${esc(tf)} Chart</h1>`);
-  b.push(`<div class="upd">Published ${esc(dh)} ${esc(String(s.timestamp || '').slice(11, 16))} UTC · ${esc(plain(s.ticker))} · source: XenosFinance ${esc(plain(s.source || 'engine'))}</div>`);
-  if (ageDays > 2) b.push(`<div class="upd">Historical setup — levels refer to the publication time and are not updated.</div>`);
+  b.push(`<h1>${L(`${esc(name)} ${sideW} Setup — ${esc(tf)} Chart`, `Setup ${sideW} su ${esc(name)} — grafico ${esc(tf)}`)}</h1>`);
+  b.push(`<div class="upd">${L(`Published ${esc(dh)} ${hm} UTC · ${esc(plain(s.ticker))} · source: XenosFinance ${esc(plain(s.source || 'engine'))}`,
+    `Pubblicato il ${esc(dateIt(s.timestamp))} alle ${hm} UTC · ${esc(plain(s.ticker))} · fonte: XenosFinance ${esc(plain(s.source || 'engine'))}`)}</div>`);
+  if (ageDays > 2) b.push(`<div class="upd">${L('Historical setup — levels refer to the publication time and are not updated.',
+    'Setup storico — i livelli si riferiscono al momento della pubblicazione e non vengono aggiornati.')}</div>`);
   b.push(`<p><span class="side ${long ? 'up' : 'dn'}">${sideW}</span>`
     + (s.score ? `<span class="side">Score ${esc(plain(s.score))}/10${s.score_label ? ' · ' + esc(plain(s.score_label)) : ''}</span>` : '') + `</p>`);
 
-  b.push('<h2>Setup levels</h2>');
-  b.push('<table><tr><th>Level</th><th>Price</th><th></th></tr>'
-    + `<tr><td>Entry (price at publication)</td><td>${fmt(s.price, dec)}</td><td class="m"></td></tr>`
-    + `<tr><td>Stop / invalidation</td><td class="dn">${fmt(s.invalidation, dec)}</td><td class="m">${risk !== null ? 'risk ' + fmt(risk, dec) : ''}</td></tr>`
-    + `<tr><td>Target</td><td class="up">${fmt(s.target, dec)}</td><td class="m">${reward !== null ? 'reward ' + fmt(reward, dec) : ''}</td></tr>`
-    + (s.rr ? `<tr><td>Risk / reward</td><td>1:${esc(plain(s.rr))}</td><td class="m"></td></tr>` : '')
+  b.push(`<h2>${L('Setup levels', 'Livelli del setup')}</h2>`);
+  b.push(`<table><tr><th>${L('Level', 'Livello')}</th><th>${L('Price', 'Prezzo')}</th><th></th></tr>`
+    + `<tr><td>${L('Entry (price at publication)', 'Entry (prezzo alla pubblicazione)')}</td><td>${fmt(s.price, dec)}</td><td class="m"></td></tr>`
+    + `<tr><td>${L('Stop / invalidation', 'Stop / invalidazione')}</td><td class="dn">${fmt(s.invalidation, dec)}</td><td class="m">${risk !== null ? L('risk ', 'rischio ') + fmt(risk, dec) : ''}</td></tr>`
+    + `<tr><td>Target</td><td class="up">${fmt(s.target, dec)}</td><td class="m">${reward !== null ? L('reward ', 'rendimento ') + fmt(reward, dec) : ''}</td></tr>`
+    + (s.rr ? `<tr><td>${L('Risk / reward', 'Rischio / rendimento')}</td><td>1:${esc(plain(s.rr))}</td><td class="m"></td></tr>` : '')
     + '</table>');
 
   if (Object.keys(ms).length) {
-    b.push('<h2>Market state</h2><table><tr><th>Factor</th><th>Reading</th></tr>'
-      + Object.entries(ms).map(([k, v]) => `<tr><td>${esc(k.charAt(0).toUpperCase() + k.slice(1))}</td><td>${esc(plain(v))}</td></tr>`).join('')
+    b.push(`<h2>${L('Market state', 'Stato del mercato')}</h2><table><tr><th>${L('Factor', 'Fattore')}</th><th>${L('Reading', 'Lettura')}</th></tr>`
+      + Object.entries(ms).map(([k, v]) => `<tr><td>${L(esc(k.charAt(0).toUpperCase() + k.slice(1)), FACTOR_IT[k.toLowerCase()] ? esc(FACTOR_IT[k.toLowerCase()]) : '')}</td><td data-xft>${esc(plain(v))}</td></tr>`).join('')
       + '</table>');
   }
   if (text) {
-    b.push('<h2>Analysis</h2>');
-    b.push(paragraphs(s.analysis || s.narrative));
+    b.push(`<h2>${L('Analysis', 'Analisi')}</h2>`);
+    // 2026-10-25: testo del motore → tradotto al volo in italiano (data-xft, /xf-page-i18n.js)
+    b.push(paragraphs(s.analysis || s.narrative).replace(/<p>/g, '<p data-xft>'));
   }
   if (s.image_url && /^https:\/\/raw\.githubusercontent\.com\/xenosfinance-prog\//.test(s.image_url)) {
-    b.push('<h2>Chart</h2>');
+    b.push(`<h2>${L('Chart', 'Grafico')}</h2>`);
     b.push(`<img class="chart" src="${esc(s.image_url)}" alt="${esc(name)} ${sideW.toLowerCase()} setup chart, ${esc(tf)}, ${esc(dh)}" loading="lazy">`);
   }
-  b.push('<div class="box"><p><b>How to use this setup.</b> A setup is a study of where the engine sees a favourable risk/reward, '
+  b.push('<div class="box"><p>' + L('<b>How to use this setup.</b> A setup is a study of where the engine sees a favourable risk/reward, '
     + 'not a call to trade. Check the current price and structure first: the <a href="/analysis">daily technical analysis</a> '
-    + 'shows live levels, and the <a href="/dashboard">dashboard</a> a 15-minute read.</p>'
-    + `<div class="cta"><a href="/trade-setups">All trade setups</a><a href="/trading-signals">Live setups</a>`
-    + (s.tg_url && /^https:\/\/t\.me\//.test(s.tg_url) ? `<a href="${esc(s.tg_url)}">Telegram post</a>` : '') + '</div></div>');
+    + 'shows live levels, and the <a href="/dashboard">dashboard</a> a 15-minute read.',
+    '<b>Come usare questo setup.</b> Un setup è uno studio di dove il motore vede un rapporto rischio/rendimento favorevole, '
+    + 'non un invito a operare. Verifica prima prezzo e struttura attuali: l\'<a href="/analysis">analisi tecnica giornaliera</a> '
+    + 'mostra i livelli live, e la <a href="/dashboard">dashboard</a> una lettura a 15 minuti.') + '</p>'
+    + `<div class="cta"><a href="/trade-setups">${L('All trade setups', 'Tutti i trade setup')}</a><a href="/trading-signals">${L('Live setups', 'Setup live')}</a>`
+    + (s.tg_url && /^https:\/\/t\.me\//.test(s.tg_url) ? `<a href="${esc(s.tg_url)}">${L('Telegram post', 'Post su Telegram')}</a>` : '') + '</div></div>');
 
   const same = all.filter(x => x !== s && x.ticker === s.ticker).slice(0, 6);
   if (same.length) {
-    b.push(`<h2>Other ${esc(name)} setups</h2><table>` + same.map(x =>
+    b.push(`<h2>${L(`Other ${esc(name)} setups`, `Altri setup su ${esc(name)}`)}</h2><table>` + same.map(x =>
       `<tr><td><a href="/setups/${slugOf(x)}">${esc(dateH(x.timestamp))}</a></td><td class="${isLong(x) ? 'up' : 'dn'}">${isLong(x) ? 'Long' : 'Short'}</td><td class="m">${esc(plain(x.timeframe))}</td></tr>`).join('') + '</table>');
   }
 
@@ -227,11 +249,15 @@ function indexPage(list) {
   const desc = 'Trade setups from the XenosFinance engine for Forex, Gold, Oil, stock indices, US stocks and crypto: entry, stop, target, risk/reward and the reasoning behind each setup. For market analysis and trading education.';
   const b = ['<div class="crumb"><a href="/">Home</a> › Trade Setups</div>',
     '<h1>Trade Setups</h1>',
-    `<div class="upd">${list.length} setups · latest ${esc(dateH(list[0] && list[0].timestamp))} · updated as soon as a setup is published</div>`,
-    '<p>Every setup is built by the XenosFinance engine on real market data — trend, momentum, volume profile, order flow and '
+    `<div class="upd">${L(`${list.length} setups · latest ${esc(dateH(list[0] && list[0].timestamp))} · updated as soon as a setup is published`,
+      `${list.length} setup · ultimo ${esc(dateIt(list[0] && list[0].timestamp))} · aggiornato appena viene pubblicato un setup`)}</div>`,
+    '<p>' + L('Every setup is built by the XenosFinance engine on real market data — trend, momentum, volume profile, order flow and '
     + 'Ichimoku — and published with its entry, stop, target and risk/reward. Levels refer to the publication time. Setups are '
-    + 'studies for market analysis and trading education, not recommendations.</p>',
-    '<table><tr><th>Date (UTC)</th><th>Market</th><th>Side</th><th>TF</th><th>Entry</th><th>Stop</th><th>Target</th><th>R:R</th></tr>'];
+    + 'studies for market analysis and trading education, not recommendations.',
+    'Ogni setup è costruito dal motore di XenosFinance su dati di mercato reali — trend, momentum, volume profile, order flow e '
+    + 'Ichimoku — e pubblicato con entry, stop, target e rapporto rischio/rendimento. I livelli si riferiscono al momento della '
+    + 'pubblicazione. I setup sono studi a scopo di analisi di mercato e formazione al trading, non raccomandazioni.') + '</p>',
+    `<table><tr><th>${L('Date (UTC)', 'Data (UTC)')}</th><th>${L('Market', 'Mercato')}</th><th>${L('Side', 'Lato')}</th><th>TF</th><th>Entry</th><th>Stop</th><th>Target</th><th>R:R</th></tr>`];
   for (const s of list) {
     const dec = decimals(s), long = isLong(s);
     b.push(`<tr><td class="m">${esc(dateH(s.timestamp))}</td><td><a href="/setups/${slugOf(s)}">${esc(plain(s.name || s.ticker))}</a></td>`
@@ -240,9 +266,12 @@ function indexPage(list) {
       + `<td>${s.rr ? '1:' + esc(plain(s.rr)) : '—'}</td></tr>`);
   }
   b.push('</table>');
-  b.push('<div class="box"><p><b>Live setups and daily analysis.</b> New setups are posted first on our Telegram channel; '
-    + 'the daily analysis pages show live levels for the main markets.</p><div class="cta"><a href="/trading-signals">Live setups</a>'
-    + '<a href="/analysis">Daily analysis</a><a href="https://t.me/xenoswavefinance">Telegram channel</a></div></div>');
+  b.push('<div class="box"><p>' + L('<b>Live setups and daily analysis.</b> New setups are posted first on our Telegram channel; '
+    + 'the daily analysis pages show live levels for the main markets.',
+    '<b>Setup live e analisi giornaliera.</b> I nuovi setup vengono pubblicati prima sul nostro canale Telegram; '
+    + 'le pagine di analisi giornaliera mostrano i livelli live dei principali mercati.')
+    + `</p><div class="cta"><a href="/trading-signals">${L('Live setups', 'Setup live')}</a>`
+    + `<a href="/analysis">${L('Daily analysis', 'Analisi giornaliera')}</a><a href="https://t.me/xenoswavefinance">${L('Telegram channel', 'Canale Telegram')}</a></div></div>`);
   const jsonld = [
     { '@context': 'https://schema.org', '@type': 'CollectionPage', name: 'Trade Setups', description: desc, url,
       dateModified: list[0] ? list[0].timestamp : undefined },
