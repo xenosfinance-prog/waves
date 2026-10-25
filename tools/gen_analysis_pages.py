@@ -462,6 +462,14 @@ def build_instrument_page(inst, d, ai, now, all_rows):
         + f'</p><div class="cta"><a href="/dashboard">{L("Open the dashboard", "Apri la dashboard")}</a>'
           f'<a href="/premium">{L("Premium tools", "Strumenti Premium")}</a></div></div>')
 
+    # 2026-10-25: ultimi articoli del blog su questo strumento (link interni, SEO)
+    rel = RELATED.get(slug) or []
+    if rel:
+        b.append(f"<h2>{L('Latest articles on ' + esc(name), 'Ultimi articoli su ' + esc(name_it))}</h2><div class=\"faq\">"
+                 + "".join(f'<p><a href="/XenosBlog?slug={esc(s_)}">{L(esc(t_), esc(ti_) if ti_ else "")}</a>'
+                           f' <span class="m" style="font-family:var(--mono);font-size:10px;color:var(--muted)">{esc(d_)}</span></p>'
+                           for s_, t_, ti_, d_ in rel) + "</div>")
+
     others = [r for r in all_rows if r[0] != slug]
     b.append(f"<h2>{L('Other daily analyses', 'Altre analisi giornaliere')}</h2><div class=\"rel\">"
              + "".join(f'<a href="/analysis/{r[0]}">{L(esc(r[2]), esc(PI.iname(r[2])))}</a>' for r in others) + "</div>")
@@ -533,6 +541,68 @@ def build_index(rows, now):
                       it_title=title_it)
 
 
+# ───────────────────── articoli del blog collegati (2026-10-25, SEO) ─────────────────────
+# Stesse regole di functions/XenosBlog.js (articolo → analisi). Qui al contrario:
+# per ogni strumento, gli ultimi articoli del blog che ne parlano → link interni
+# dalle pagine /analysis agli articoli (e il blog linka già le analisi).
+_REL_RULES = [
+    (r"\b(wti|crude|oil|eia|opec\+?|petroleum|gasoline|distillates?|refiner\w*|barrels?)\b", ["wti-crude-oil", "brent-crude-oil"]),
+    (r"\bbrent\b", ["brent-crude-oil", "wti-crude-oil"]),
+    (r"\b(natural gas|natgas|lng|henry hub)\b", ["natural-gas"]),
+    (r"\b(gold|xau|bullion)\b", ["gold"]),
+    (r"\b(silver|xag)\b", ["silver"]),
+    (r"\bcopper\b", ["copper"]),
+    (r"\b(bitcoin|btc)\b", ["bitcoin"]),
+    (r"\b(ethereum|eth)\b", ["ethereum"]),
+    (r"\bcrypto\w*", ["bitcoin", "ethereum"]),
+    (r"\b(eur/?usd|euro|ecb)\b", ["eur-usd"]),
+    (r"\b(gbp/?usd|pound|sterling|boe|bank of england)\b", ["gbp-usd"]),
+    (r"\b(usd/?jpy|yen|boj|bank of japan)\b", ["usd-jpy"]),
+    (r"\b(usd/?chf|swiss franc|snb)\b", ["usd-chf"]),
+    (r"\b(nasdaq|ndx|nas100|tech stocks|megacap|mega-cap|semiconductor\w*)\b", ["nasdaq"]),
+    (r"(s&p|\bspx\b|\bspy\b|wall street|\bequit\w*|\bstocks?\b|\bpre-market\b|\bearnings\b)", ["sp500", "nasdaq"]),
+    (r"\b(dax|german\w*|bund|european (stocks|equities))\b", ["dax"]),
+    (r"\b(dollar|dxy|fed|fomc|forex|\bfx\b|treasur\w*|yields?)\b", ["eur-usd", "usd-jpy"]),
+]
+
+
+def _article_instruments(a):
+    txt = " ".join(str(a.get(k) or "") for k in ("title", "category", "categoryLabel", "excerpt")).lower()
+    out = []
+    for rx, pages in _REL_RULES:
+        if re.search(rx, txt):
+            for p in pages:
+                if p not in out:
+                    out.append(p)
+        if len(out) >= 4:
+            break
+    return out[:4]
+
+
+def related_articles(limit=5):
+    """slug strumento → [(slug articolo, titolo EN, titolo IT|None, data)] più recenti."""
+    try:
+        idx = json.load(open(os.path.join(ROOT, "articles", "index.json"), encoding="utf-8"))
+    except Exception:
+        return {}
+    try:
+        it = json.load(open(os.path.join(ROOT, "i18n", "it", "articles", "index.json"), encoding="utf-8"))
+    except Exception:
+        it = {}
+    idx = sorted([a for a in idx if a.get("slug") and a.get("title")],
+                 key=lambda a: str(a.get("publishedAt") or ""), reverse=True)
+    out = {}
+    for a in idx:
+        for p in _article_instruments(a):
+            lst = out.setdefault(p, [])
+            if len(lst) < limit:
+                lst.append((a["slug"], a["title"], (it.get(a["slug"]) or {}).get("title"), str(a.get("publishedAt") or "")[:10]))
+    return out
+
+
+RELATED = {}
+
+
 # ───────────────────────── sitemap ─────────────────────────
 def update_sitemap(urls, day):
     if not os.path.exists(SITEMAP):
@@ -588,6 +658,7 @@ def main():
                 built[i][2].setdefault("_it", {})[k] = v
     except Exception as e:
         print(f"  ! traduzione IT commento AI: {e}")
+    RELATED.update(related_articles())
     for inst, d, ai in built:
         path = os.path.join(OUT_DIR, f"{inst[0]}.html")
         with open(path, "w", encoding="utf-8") as fh:

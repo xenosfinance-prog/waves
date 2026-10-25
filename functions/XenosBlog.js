@@ -25,6 +25,80 @@ const SITE = 'https://xenosfinance.com';
 const RAW = 'https://raw.githubusercontent.com/xenosfinance-prog/waves/main/articles/';
 const SLUG_RE = /^[A-Za-z0-9_-]{1,120}$/;
 
+// ── Analisi tecniche collegate all'articolo (2026-10-25, SEO) ──────────────
+// Stesse regole in XenosBlog.html (relatedAnalysisFor) e in tools/gen_analysis_pages.py
+// (_REL_RULES): se cambi le regole qui, cambiale anche lì.
+const ANALYSIS_PAGES = {
+  'wti-crude-oil':   { en: 'WTI Crude Oil', it: 'Petrolio WTI' },
+  'brent-crude-oil': { en: 'Brent Crude Oil', it: 'Petrolio Brent' },
+  'natural-gas':     { en: 'Natural Gas', it: 'Gas naturale' },
+  'gold':            { en: 'Gold', it: 'Oro' },
+  'silver':          { en: 'Silver', it: 'Argento' },
+  'copper':          { en: 'Copper', it: 'Rame' },
+  'eur-usd':         { en: 'EUR/USD', it: 'EUR/USD' },
+  'gbp-usd':         { en: 'GBP/USD', it: 'GBP/USD' },
+  'usd-jpy':         { en: 'USD/JPY', it: 'USD/JPY' },
+  'usd-chf':         { en: 'USD/CHF', it: 'USD/CHF' },
+  'bitcoin':         { en: 'Bitcoin', it: 'Bitcoin' },
+  'ethereum':        { en: 'Ethereum', it: 'Ethereum' },
+  'sp500':           { en: 'S&P 500', it: 'S&P 500' },
+  'nasdaq':          { en: 'Nasdaq 100', it: 'Nasdaq 100' },
+  'dax':             { en: 'DAX 40', it: 'DAX 40' },
+};
+
+// [regex sul testo dell'articolo, pagine collegate] — in ordine di priorità
+const RULES = [
+  [/\b(wti|crude|oil|eia|opec\+?|petroleum|gasoline|distillates?|refiner\w*|barrels?)\b/, ['wti-crude-oil', 'brent-crude-oil']],
+  [/\bbrent\b/, ['brent-crude-oil', 'wti-crude-oil']],
+  [/\b(natural gas|natgas|lng|henry hub)\b/, ['natural-gas']],
+  [/\b(gold|xau|bullion)\b/, ['gold']],
+  [/\b(silver|xag)\b/, ['silver']],
+  [/\bcopper\b/, ['copper']],
+  [/\b(bitcoin|btc)\b/, ['bitcoin']],
+  [/\b(ethereum|eth)\b/, ['ethereum']],
+  [/\bcrypto\w*/, ['bitcoin', 'ethereum']],
+  [/\b(eur\/?usd|euro|ecb)\b/, ['eur-usd']],
+  [/\b(gbp\/?usd|pound|sterling|boe|bank of england)\b/, ['gbp-usd']],
+  [/\b(usd\/?jpy|yen|boj|bank of japan)\b/, ['usd-jpy']],
+  [/\b(usd\/?chf|swiss franc|snb)\b/, ['usd-chf']],
+  [/\b(nasdaq|ndx|nas100|tech stocks|megacap|mega-cap|semiconductor\w*)\b/, ['nasdaq']],
+  [/(s&p|\bspx\b|\bspy\b|wall street|\bequit\w*|\bstocks?\b|\bpre-market\b|\bearnings\b)/, ['sp500', 'nasdaq']],
+  [/\b(dax|german\w*|bund|european (stocks|equities))\b/, ['dax']],
+  [/\b(dollar|dxy|fed|fomc|forex|\bfx\b|treasur\w*|yields?)\b/, ['eur-usd', 'usd-jpy']],
+];
+const BY_MARKET = {
+  equity: ['sp500', 'nasdaq'], forex: ['eur-usd', 'usd-jpy'], crypto: ['bitcoin', 'ethereum'],
+  commodities: ['gold', 'wti-crude-oil'], macro: ['sp500', 'eur-usd', 'gold'], geopolitics: ['wti-crude-oil', 'gold'],
+};
+const OIL = /\b(wti|crude|oil|eia|opec\+?|brent|petroleum|natural gas)\b/;
+
+// → { pages: [slug…] (max 4), oil: bool } ; oil = collegare anche COT e Futures Flow
+function relatedFor(a) {
+  const txt = [a.title, a.category, a.categoryLabel, String(a.intro || '').slice(0, 800)]
+    .map(x => String(x || '')).join(' ').toLowerCase();
+  const out = [];
+  for (const [rx, pages] of RULES) {
+    if (rx.test(txt)) for (const p of pages) if (!out.includes(p)) out.push(p);
+    if (out.length >= 4) break;
+  }
+  if (!out.length) for (const p of (BY_MARKET[a.market] || ['gold', 'wti-crude-oil', 'sp500'])) if (!out.includes(p)) out.push(p);
+  return { pages: out.slice(0, 4), oil: OIL.test(txt) };
+}
+
+// Blocco HTML (stesso markup delle sezioni dell'articolo). Etichette con data-i18n:
+// il motore lingua del sito le mette in italiano.
+function relatedHtml(a, site, esc) {
+  const r = relatedFor(a);
+  const links = r.pages.map(p => `<a href="${site}/analysis/${p}"><span data-i18n="label_rel_an_${p.replace(/-/g, '_')}">${esc(ANALYSIS_PAGES[p].en)}</span></a>`);
+  if (r.oil) {
+    links.push(`<a href="${site}/futures-flow/"><span data-i18n="label_rel_futures_flow">Futures Flow</span></a>`);
+    links.push(`<a href="${site}/cot/"><span data-i18n="label_rel_cot">COT positioning</span></a>`);
+  }
+  links.push(`<a href="${site}/analysis/"><span data-i18n="label_rel_all_analyses">All daily analyses</span></a>`);
+  return `<div class="edu-section" id="xf-rel-an"><div class="edu-section-title">// <span data-i18n="label_rel_analysis_title">Today's technical analysis</span></div>`
+    + `<p>${links.join(' · ')}</p></div>`;
+}
+
 function esc(s) {
   return String(s ?? '')
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -202,7 +276,7 @@ export async function onRequestGet(context) {
       .on('#artTitle', new SetText(esc(clip(headline, 140)), true))
       .on('#artCat', new SetText(esc(a.categoryLabel || a.category || ''), true))
       .on('#artBody', new SetText(body, true))
-      .on('#artBody', new After(topicsHtml))
+      .on('#artBody', new After(relatedHtml(a, SITE, esc) + topicsHtml))
       .transform(res);
 
     const headers = new Headers(out.headers);
