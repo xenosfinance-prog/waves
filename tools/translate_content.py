@@ -38,7 +38,39 @@ import urllib.request
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, "i18n", "it")
 GEMINI_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
-GEMINI_MODELS = [m for m in [os.environ.get("GEMINI_MODEL", "gemini-2.5-flash"), "gemini-2.5-flash-lite"] if m]
+GEMINI_MODELS = []   # scelti all'avvio fra quelli disponibili per la chiave (discover_gemini_models)
+
+
+def _ver(name):
+    m = re.search(r"gemini-(\d+(?:\.\d+)?)", name)
+    return float(m.group(1)) if m else 0.0
+
+
+def discover_gemini_models():
+    """2026-10-25: Google ritira i modelli per i nuovi progetti (2.5-flash → 404).
+    Si chiede alla API l'elenco dei modelli della chiave e si sceglie il Flash più
+    recente (stabile prima delle preview), con il Flash-Lite come riserva."""
+    forced = os.environ.get("GEMINI_MODEL", "").strip()
+    if forced:
+        return [forced]
+    try:
+        url = "https://generativelanguage.googleapis.com/v1beta/models?pageSize=200&key=" + urllib.parse.quote(GEMINI_KEY)
+        with urllib.request.urlopen(urllib.request.Request(url), timeout=30) as r:
+            data = json.loads(r.read().decode("utf-8"))
+        names = [m["name"].split("/", 1)[-1] for m in data.get("models", [])
+                 if "generateContent" in (m.get("supportedGenerationMethods") or [])]
+    except Exception as e:
+        log(f"  gemini: elenco modelli non disponibile ({e})")
+        return ["gemini-flash-latest", "gemini-flash-lite-latest"]
+    bad = ("image", "tts", "audio", "live", "embedding", "thinking", "exp", "robotics", "computer", "native")
+    flash = [n for n in names if "flash" in n and not any(x in n for x in bad)]
+    def rank(n):
+        return (_ver(n), "preview" not in n, "lite" not in n, "latest" not in n)
+    full = sorted([n for n in flash if "lite" not in n], key=rank, reverse=True)
+    lite = sorted([n for n in flash if "lite" in n], key=rank, reverse=True)
+    out = full[:2] + lite[:1]
+    log(f"  gemini: modelli scelti {out}")
+    return out or ["gemini-flash-latest"]
 GEMINI_PAUSE = float(os.environ.get("GEMINI_PAUSE", "7"))   # piano free: ~10 richieste/minuto
 UA = "Mozilla/5.0 (XenosFinance translator)"
 
@@ -138,8 +170,7 @@ def gemini_translate(fields):
     )
     body = json.dumps({
         "contents": [{"role": "user", "parts": [{"text": prompt}]}],
-        "generationConfig": {"temperature": 0.2, "responseMimeType": "application/json",
-                             "thinkingConfig": {"thinkingBudget": 0}},
+        "generationConfig": {"temperature": 0.2, "responseMimeType": "application/json"},
     }).encode("utf-8")
     while _gemini_model_idx < len(GEMINI_MODELS):
         model = GEMINI_MODELS[_gemini_model_idx]
@@ -166,6 +197,8 @@ def gemini_translate(fields):
                     time.sleep(10 * (attempt + 1))
                     continue
                 log(f"  gemini {model}: HTTP {e.code} {msg}")
+                if e.code == 404:          # modello non disponibile per questa chiave → il successivo
+                    break
                 if e.code in (400, 401, 403):
                     _gemini_disabled = True
                     return {}
@@ -264,13 +297,17 @@ def translate_fields(fields):
             for k, v in g2.items():
                 if faithful(todo[k], v):
                     result[k] = v
+                    used.add("gemini")
             missing = [k for k in missing if not (k in g2 and faithful(todo[k], g2[k]))]
         for k in missing:
             try:
                 v = gtx_translate(todo[k])
             except Exception as e:
-                # errore di rete: NON si salva il file, si riprova al prossimo run
-                raise RuntimeError(f"traduttore non raggiungibile ({k}): {e}")
+                if not used:
+                    # nessun traduttore raggiungibile: NON si salva il file, si riprova al prossimo run
+                    raise RuntimeError(f"traduttore non raggiungibile ({k}): {e}")
+                v = ""                       # Gemini ha tradotto il resto: questo campo resta in inglese
+                used.add("partial")          # (il file verrà ritentato ai prossimi run)
             if faithful(todo[k], v):
                 result[k] = v
                 used.add("google")
@@ -343,7 +380,8 @@ def process_article(slug, path):
     dst = os.path.join(OUT, "articles", slug + ".json")
     if os.path.exists(dst):
         try:
-            if read_json(dst).get("_src_hash") == h:
+            prev = read_json(dst)
+            if prev.get("_src_hash") == h and "partial" not in str(prev.get("_translator", "")):
                 return False
         except Exception:
             pass
@@ -367,7 +405,8 @@ def process_education(key, path):
     dst = os.path.join(OUT, "daily_education", key + ".json")
     if os.path.exists(dst):
         try:
-            if read_json(dst).get("_src_hash") == h:
+            prev = read_json(dst)
+            if prev.get("_src_hash") == h and "partial" not in str(prev.get("_translator", "")):
                 return False
         except Exception:
             pass
@@ -413,7 +452,9 @@ def main():
     ap.add_argument("--only", choices=["articles", "education"], default=None)
     args = ap.parse_args()
 
-    log(f"Traduttore: {'Gemini (' + GEMINI_MODELS[0] + ') + Google fallback' if GEMINI_KEY else 'Google Translate (nessuna GEMINI_API_KEY)'}")
+    if GEMINI_KEY:
+        GEMINI_MODELS[:] = discover_gemini_models()
+    log(f"Traduttore: {'Gemini (' + ', '.join(GEMINI_MODELS) + ') + Google fallback' if GEMINI_KEY else 'Google Translate (nessuna GEMINI_API_KEY)'}")
     jobs = []
     if args.only in (None, "articles"):
         jobs += [("a", s, p) for s, p in article_jobs()]
