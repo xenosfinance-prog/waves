@@ -36,6 +36,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: main          # 2026-10-26: sempre l'ultima versione (un run in coda partiva dal commit vecchio e ritraduceva)
           fetch-depth: 20
 
       - uses: actions/setup-python@v5
@@ -49,17 +50,29 @@ jobs:
         run: python tools/translate_content.py
 
       - name: Commit translations
+        # 2026-10-26: niente più rebase con conflitti. Se main è andato avanti (altri bot o un altro run),
+        # si riparte da main e si sovrappongono i file tradotti in questo run (ogni documento è un file a sé),
+        # poi si ricostruisce l'indice IT del blog dai file presenti.
         run: |
           git config user.name  "xenos-translate-bot"
           git config user.email "xenos-translate-bot@users.noreply.github.com"
-          git add i18n/it
-          if git diff --cached --quiet; then
+          if git diff --quiet -- i18n/it && [ -z "$(git ls-files --others --exclude-standard i18n/it)" ]; then
             echo "Nessuna nuova traduzione."
             exit 0
           fi
-          git commit -m "Traduzioni IT $(date -u +'%Y-%m-%d %H:%M') UTC"
+          rm -rf /tmp/tr && mkdir -p /tmp/tr && cp -r i18n/it /tmp/tr/
           for i in 1 2 3 4 5; do
-            git pull --rebase --no-edit origin main && git push origin HEAD:main && exit 0
+            git fetch -q origin main
+            git reset -q --hard origin/main
+            mkdir -p i18n/it && cp -r /tmp/tr/it/. i18n/it/
+            python -c "import sys; sys.path.insert(0, 'tools'); import translate_content as T; T.rebuild_article_index()"
+            git add i18n/it
+            if git diff --cached --quiet; then
+              echo "Traduzioni già presenti su main."
+              exit 0
+            fi
+            git commit -q -m "Traduzioni IT $(date -u +'%Y-%m-%d %H:%M') UTC"
+            git push origin HEAD:main && exit 0
             echo "push rifiutato (altri commit in arrivo), nuovo tentativo $i…"
             sleep $((i * 5))
           done
