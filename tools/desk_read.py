@@ -14,8 +14,12 @@ numero non torna (o l'AI non risponde) si pubblica la sintesi deterministica.
 import json
 import os
 import re
+import sys
 
-MODEL = "claude-sonnet-4-6"
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import free_llm  # noqa: E402  (2026-10-26: Gemini gratuito al posto di Claude a pagamento)
+
+MODEL = "gemini (free_llm)"   # 2026-10-26: niente più Claude a pagamento
 
 # numeri di contesto ammessi anche se non presenti nei fatti (es. "3-year range", "20-day average")
 _CONTEXT_NUMS = {"0", "1", "2", "3", "4", "5", "6", "10", "20", "52", "90", "100"}
@@ -38,9 +42,8 @@ def numbers_ok(text, facts):
 
 def ai_read(kind, facts, n_sentences="4-5"):
     """kind: 'cot' | 'flow'. Ritorna (testo, None) oppure (None, motivo)."""
-    key = os.environ.get("ANTHROPIC_API_KEY", "")
-    if not key:
-        return None, "no ANTHROPIC_API_KEY"
+    if not free_llm.available():
+        return None, "no GEMINI_API_KEY"
     what = ("the weekly CFTC Commitments of Traders positioning of speculative traders (managed money for "
             "commodities, leveraged funds for financial futures)" if kind == "cot" else
             "yesterday's futures session: price change against the change in total open interest, volume against "
@@ -63,10 +66,10 @@ STRICT RULES:
 - No news, no fundamentals, no forecasts of price targets, never tell the reader to buy or sell.
 - Positioning is context, not a timing signal: say "risk of a squeeze" or "fragile", never "will rise/fall"."""
     try:
-        import anthropic
-        client = anthropic.Anthropic(api_key=key)
-        msg = client.messages.create(model=MODEL, max_tokens=700, messages=[{"role": "user", "content": prompt}])
-        txt = " ".join(msg.content[0].text.split()).strip()
+        raw = free_llm.generate(prompt, max_tokens=700)
+        if not raw:
+            return None, "AI unavailable (free quota)"
+        txt = " ".join(raw.split()).strip()
     except Exception as e:
         return None, f"AI error: {e}"
     if len(txt) < 80:
@@ -274,8 +277,7 @@ def oil_facts(kind, res):
 
 
 def ai_oil(kind, facts):
-    key = os.environ.get("ANTHROPIC_API_KEY", "")
-    if not key or not facts:
+    if not free_llm.available() or not facts:
         return None, "no key or no oil data"
     what = ("CFTC Commitments of Traders positioning (managed money; producers/merchants and swap dealers are the commercial side)"
             if kind == "cot" else "yesterday's futures session: price vs total open interest, volume vs its 20-day average, and the forward curve")
@@ -295,10 +297,10 @@ STRICT RULES:
 - Use "crowded", "extended" or "extreme" only if the FACTS say so.
 - No news, no fundamentals, no price targets, never tell the reader to buy or sell."""
     try:
-        import anthropic
-        client = anthropic.Anthropic(api_key=key)
-        msg = client.messages.create(model=MODEL, max_tokens=400, messages=[{"role": "user", "content": prompt}])
-        txt = " ".join(msg.content[0].text.split()).strip()
+        raw = free_llm.generate(prompt, max_tokens=400)
+        if not raw:
+            return None, "AI unavailable (free quota)"
+        txt = " ".join(raw.split()).strip()
     except Exception as e:
         return None, f"AI error: {e}"
     import re as _re   # il modello a volte ripete il titolo del blocco
@@ -487,8 +489,7 @@ def bias_facts(kind, rows):
 
 
 def ai_bias(kind, facts):
-    key = os.environ.get("ANTHROPIC_API_KEY", "")
-    if not key or not facts:
+    if not free_llm.available() or not facts:
         return None, "no key or no data"
     prompt = f"""You run the futures desk at XenosFinance and write the closing "Bias & trend read" of a page about {'CFTC COT positioning' if kind == 'cot' else "yesterday's futures flow (open interest, volume, curve)"}.
 The bias of each market is ALREADY computed from the data and given below: explain what it means for a possible trend. Do not change any bias.
@@ -505,10 +506,10 @@ STRICT RULES:
 - Positioning is context, not a timing signal: say "supports", "warns of", "risk of a squeeze", never "will rise/fall".
 - No news, no fundamentals, no price targets, never tell the reader to buy or sell."""
     try:
-        import anthropic
-        client = anthropic.Anthropic(api_key=key)
-        msg = client.messages.create(model=MODEL, max_tokens=600, messages=[{"role": "user", "content": prompt}])
-        txt = " ".join(msg.content[0].text.split()).strip()
+        raw = free_llm.generate(prompt, max_tokens=600)
+        if not raw:
+            return None, "AI unavailable (free quota)"
+        txt = " ".join(raw.split()).strip()
     except Exception as e:
         return None, f"AI error: {e}"
     txt = re.sub(r"^\s*\**\s*bias\s*(?:&|and)\s*trend read\s*\**[:\-—\s]*", "", txt, flags=re.I).strip()
