@@ -714,7 +714,6 @@ def get_wave_position(primary, live_price, dp, atr):
 # ─────────────────────────────────────────────────────────
 def generate_narrative(symbol, tf, live, dp, wave_num, wave_desc, scenario_text,
                        primary_prob, alt_desc, alt_prob, ind, mtf, key_levels):
-    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
     kl = key_levels
     scenario_type = "SCENARIO ONLY — no trade setup" if wave_num not in ["5"] else "SIGNAL WAVE"
@@ -773,12 +772,14 @@ to the data above:
 
 Write 3 sentences: (1) wave position + structure, (2) primary vs alternate probabilities with prices, (3) what to watch + invalidation, using only the levels given."""
 
-    msg = client.messages.create(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=200,
-        messages=[{"role":"user","content":prompt}]
-    )
-    return msg.content[0].text.strip()
+    # 2026-10-26: Gemini gratuito; Claude solo con ALLOW_PAID_AI=1
+    import free_llm
+    txt = free_llm.generate(prompt, max_tokens=200)
+    if not txt:
+        # quota gratuita esaurita: testo scritto dal codice con gli stessi livelli (mai pagina in errore)
+        return (f"Wave {wave_num}: {wave_desc}. {scenario_text} "
+                f"Invalidation {kl.get('stop_loss', '—')}, target {kl.get('tp1', '—')}–{kl.get('tp2', '—')}.").strip()
+    return txt.strip()
 
 # ─────────────────────────────────────────────────────────
 # ENDPOINT

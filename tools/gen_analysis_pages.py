@@ -28,11 +28,12 @@ from datetime import datetime, timezone
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 import ew_server as E  # noqa: E402  (motore condiviso con la dashboard)
+import free_llm  # noqa: E402  (2026-10-26: commento AI gratuito con Gemini)
 
 SITE = "https://xenosfinance.com"
 OUT_DIR = os.path.join(ROOT, "analysis")
 SITEMAP = os.path.join(ROOT, "sitemap.xml")
-MODEL = "claude-sonnet-4-6"
+MODEL = "gemini (free_llm)"   # 2026-10-26: niente più Claude a pagamento
 
 INSTRUMENTS = [
     # slug, yfinance, display name, short label, decimals, group, search terms
@@ -112,8 +113,7 @@ def zone_txt(z, dec):
 
 # ───────────────────────── AI commentary ─────────────────────────
 def ai_commentary(name, data):
-    key = os.environ.get("ANTHROPIC_API_KEY", "")
-    if not key:
+    if not free_llm.available():
         return None
     prompt = f"""You are a senior technical analyst at an institutional desk writing the daily analysis page for XenosFinance, a market analysis and trading education platform.
 Instrument: {name} — 1-hour chart with 4-hour context. All data below is ALREADY CALCULATED by our engine:
@@ -129,12 +129,24 @@ STRICT RULES:
 - If "elliott" is null, do not mention Elliott waves. If volume_ratio is null, do not mention volume.
 - Educational technical analysis only: no news, no fundamentals, never tell the reader to buy or sell."""
     try:
-        client = E.anthropic.Anthropic(api_key=key)
-        msg = client.messages.create(model=MODEL, max_tokens=1200,
-                                     messages=[{"role": "user", "content": prompt}])
-        txt = msg.content[0].text.strip().replace("```json", "").replace("```", "").strip()
+        raw = free_llm.generate(prompt, max_tokens=1200, json_mode=True)
+        if not raw:
+            print("  ! AI commentary: free quota unavailable — page without commentary")
+            return None
+        txt = raw.strip().replace("```json", "").replace("```", "").strip()
         a, b = txt.find("{"), txt.rfind("}")
         out = json.loads(txt[a:b + 1])
+        # 2026-10-26: ogni numero del commento deve esistere nei dati del motore; una sezione con
+        # numeri inventati viene tolta (meglio una sezione in meno che un livello sbagliato)
+        allowed = {n.replace(",", "") for n in re.findall(r"\d[\d,]*(?:\.\d+)?", json.dumps(data))}
+        allowed |= {"1", "2", "3", "4", "5", "7", "14", "20", "50", "100", "200", "0"}
+        for k in list(out.keys()):
+            v = out.get(k)
+            if isinstance(v, str):
+                bad = [n for n in re.findall(r"\d[\d,]*(?:\.\d+)?", v) if n.replace(",", "") not in allowed]
+                if bad:
+                    print(f"  ! AI section '{k}' dropped: numbers not in data {bad[:4]}")
+                    out[k] = ""
         return out if out.get("summary") else None
     except Exception as e:
         print(f"  ! AI commentary failed: {e}")
