@@ -44,6 +44,8 @@ jobs:
           python-version: "3.11"
 
       - name: Translate new content
+        timeout-minutes: 30
+        continue-on-error: true      # quanto già tradotto viene comunque salvato dal passo successivo
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           TRANSLATE_MAX: ${{ github.event.inputs.max || '40' }}
