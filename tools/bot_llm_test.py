@@ -1,5 +1,9 @@
 import os, json, re, time, logging, requests
-logging.basicConfig(level=logging.INFO); logger = logging.getLogger("t")
+LOG=[]
+class _L:
+    def info(self,m): LOG.append(m)
+    warning=info; error=info
+logger=_L()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
 ALLOW_PAID_AI = os.getenv("ALLOW_PAID_AI", "") == "1"
 _GEM_MODELS = None
@@ -77,7 +81,7 @@ def _gemini_messages(body, timeout):
         for attempt in range(2):
             try:
                 r = requests.post(f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
-                                  params={"key": GEMINI_API_KEY}, json=gb, timeout=max(30, min(timeout or 60, 90)))
+                                  params={"key": GEMINI_API_KEY}, json=gb, timeout=max(45, min(timeout or 60, 90)))
                 if r.status_code == 200:
                     cand = (r.json().get("candidates") or [{}])[0]
                     txt = "".join(p.get("text", "") for p in (cand.get("content") or {}).get("parts", [])
@@ -97,6 +101,8 @@ def _gemini_messages(body, timeout):
                 break
             except Exception as e:
                 logger.warning(f"gemini {model}: {type(e).__name__}: {str(e)[:120]}")
+                if attempt == 0:
+                    continue                  # un secondo tentativo dopo un timeout
                 break
     return None
 
@@ -122,4 +128,4 @@ out.append(f"status {r.status_code} {time.time()-t:.1f}s: {r.json()}")
 t=time.time()
 r=_llm_post("https://api.anthropic.com/v1/messages", headers={}, json={"model":"claude-haiku-4-5","max_tokens":100,"messages":[{"role":"user","content":[{"type":"text","text":"Reply only: OK"}]}]}, timeout=20)
 out.append(f"status {r.status_code} {time.time()-t:.1f}s: {r.json()['content'][0]['text']!r}")
-os.makedirs("seo_out",exist_ok=True); open("seo_out/bot_llm.txt","w").write("\n".join(out)); print("\n".join(out))
+out.append("log: "+" | ".join(LOG)[:1500]); os.makedirs("seo_out",exist_ok=True); open("seo_out/bot_llm.txt","w").write("\n".join(out)); print("\n".join(out))
