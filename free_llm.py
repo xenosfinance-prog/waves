@@ -22,6 +22,7 @@ import urllib.parse
 import urllib.request
 
 _MODELS = None
+LAST_ERRORS = []   # diagnostica: ultimi errori (modello, codice, messaggio)
 _BAD = ("image", "tts", "audio", "live", "embedding", "thinking", "exp", "robotics", "computer", "native")
 
 
@@ -63,8 +64,8 @@ def models():
     return _MODELS
 
 
-def _gemini_call(model, contents, system, max_tokens, json_mode, timeout, thinking_off=True):
-    cfg = {"temperature": 0.4, "maxOutputTokens": int(max(max_tokens, 256) + 2048)}
+def _gemini_call(model, contents, system, max_tokens, json_mode, timeout, thinking_off=False):
+    cfg = {"temperature": 0.4}
     if json_mode:
         cfg["responseMimeType"] = "application/json"
     if thinking_off:
@@ -88,7 +89,7 @@ def gemini(contents, system=None, max_tokens=1200, json_mode=False, timeout=90):
     if not _gkey():
         return None
     for model in models():
-        thinking_off = True
+        thinking_off = False
         for attempt in range(3):
             try:
                 txt = _gemini_call(model, contents, system, max_tokens, json_mode, timeout, thinking_off)
@@ -101,9 +102,7 @@ def gemini(contents, system=None, max_tokens=1200, json_mode=False, timeout=90):
                     msg = e.read().decode("utf-8", "ignore")[:300]
                 except Exception:
                     pass
-                if e.code == 400 and thinking_off and "thinking" in msg.lower():
-                    thinking_off = False          # modello che non accetta il parametro: si riprova senza
-                    continue
+                LAST_ERRORS.append((model, e.code, msg[:200]))
                 if e.code == 429 and attempt < 2:
                     time.sleep(20 * (attempt + 1))  # limite al minuto del piano gratuito
                     continue
@@ -111,7 +110,8 @@ def gemini(contents, system=None, max_tokens=1200, json_mode=False, timeout=90):
                     time.sleep(5)
                     continue
                 break                              # 404 / quota del giorno finita → modello successivo
-            except Exception:
+            except Exception as e:
+                LAST_ERRORS.append((model, type(e).__name__, str(e)[:200]))
                 if attempt < 2:
                     time.sleep(3)
                     continue
