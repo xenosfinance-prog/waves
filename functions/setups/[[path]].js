@@ -35,9 +35,7 @@ function dateIt(ts) {
   const d = new Date(ts);
   return isNaN(d) ? '' : `${String(d.getUTCDate()).padStart(2, '0')} ${MON_IT[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
 }
-const NAV_IT = { 'Home': 'Home', 'Dashboard': 'Dashboard', 'Daily Analysis': 'Analisi giornaliera', 'Trade Setups': 'Trade Setups',
-  'COT Positioning': 'Posizionamento COT', 'Futures Flow': 'Futures Flow', 'Calendar': 'Calendario', 'Elliott Wave': 'Onde di Elliott',
-  'Premium': 'Premium' };
+const NAV_IT = { 'Home': 'Home', 'Market Brief': 'Brief di mercato', 'Intelligence': 'Intelligence', 'Dashboard': 'Dashboard', 'Daily Analysis': 'Analisi giornaliera', 'COT Positioning': 'Posizionamento COT', 'Futures Flow': 'Futures Flow', 'Trade Setups': 'Trade Setups', 'Blog': 'Blog', 'Calendar': 'Calendario', 'Elliott Wave': 'Onde di Elliott', 'Premium': 'Premium' };
 const FACTOR_IT = { trend: 'Trend', momentum: 'Momentum', volume: 'Volume', volatility: 'Volatilità', structure: 'Struttura',
   sentiment: 'Sentiment', regime: 'Regime', session: 'Sessione', liquidity: 'Liquidità', ichimoku: 'Ichimoku' };
 function decOf(v) { const m = String(v ?? '').match(/\.(\d+)/); return m ? m[1].length : 0; }
@@ -118,8 +116,7 @@ td.m{color:var(--muted);font-size:11px;}
 .disc{font-family:var(--mono);font-size:10px;color:var(--muted);line-height:1.6;margin-top:34px;border-top:1px solid var(--border);padding-top:14px;}
 @media(max-width:720px){h1{font-size:25px;}table{font-size:11px;}th,td{padding:5px;}}`;
 
-const NAV = [['/', 'Home'], ['/dashboard', 'Dashboard'], ['/analysis/', 'Daily Analysis'], ['/trade-setups', 'Trade Setups'],
-  ['/cot/', 'COT Positioning'], ['/futures-flow/', 'Futures Flow'], ['/calendar', 'Calendar'], ['/elliottwave', 'Elliott Wave'], ['/premium', 'Premium']];
+const NAV = [['/', 'Home'], ['/market-brief', 'Market Brief'], ['/intelligence/', 'Intelligence'], ['/dashboard', 'Dashboard'], ['/analysis/', 'Daily Analysis'], ['/cot/', 'COT Positioning'], ['/futures-flow/', 'Futures Flow'], ['/trade-setups', 'Trade Setups'], ['/XenosBlog', 'Blog'], ['/calendar', 'Calendar'], ['/elliottwave', 'Elliott Wave'], ['/premium', 'Premium']];
 
 function shell({ title, desc, canonical, body, jsonld, robots }) {
   const nav = NAV.map(([h, t]) => `<a href="${h}"${h === '/trade-setups' ? ' class="on"' : ''}>${L(t, NAV_IT[t])}</a>`).join('');

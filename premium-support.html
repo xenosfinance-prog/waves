@@ -38,6 +38,14 @@ body{background:var(--bg);color:var(--ink);font-family:var(--mono);min-height:10
 .masthead-nav{border-top:1px solid var(--border);background:var(--bg2);display:flex;justify-content:center;flex-wrap:wrap;}
 .masthead-nav a{display:inline-block;padding:12px 20px;font-size:10px;letter-spacing:2px;text-transform:uppercase;text-decoration:none;color:var(--muted);border-bottom:2px solid transparent;transition:all 0.2s;}
 .masthead-nav a:hover,.masthead-nav a.active{color:var(--gold);border-bottom-color:var(--gold);}
+/* 2026-10-26: menu a tendina come nel resto del sito */
+.masthead-nav .nav-dropdown{position:relative;display:inline-block;}
+.masthead-nav .nav-caret{font-size:8px;margin-left:5px;opacity:0.55;}
+.masthead-nav .nav-dropdown-menu{display:none;position:absolute;top:100%;left:50%;transform:translateX(-50%);background:var(--bg);border:1px solid var(--border2);border-top:2px solid var(--gold);min-width:200px;box-shadow:0 10px 28px rgba(0,0,0,0.5);z-index:200;padding:6px 0;}
+.masthead-nav .nav-dropdown:hover .nav-dropdown-menu,.masthead-nav .nav-dropdown.open .nav-dropdown-menu{display:block;}
+.masthead-nav .nav-dropdown-menu a{display:block;padding:10px 20px;border-bottom:none;white-space:nowrap;text-align:left;}
+.masthead-nav .nav-dropdown-menu a:hover{background:var(--bg2);}
+@media (max-width:768px){.masthead-nav .nav-dropdown-menu{position:static;transform:none;box-shadow:none;border:none;background:var(--bg3);min-width:0;}}
 
 /* ── LAYOUT ── */
 .page-wrap{max-width:1100px;margin:0 auto;padding:0 24px 80px;}
@@ -159,7 +167,7 @@ body{background:var(--bg);color:var(--ink);font-family:var(--mono);min-height:10
   .page-footer{flex-direction:column;gap:12px;text-align:center;}
 }
 </style>
-<script src="/i18n.js?v=8"></script>
+<script src="/i18n.js?v=9"></script>
 <script src="/i18n-engine.js?v=8"></script>
 </head>
 <body>
@@ -181,15 +189,33 @@ body{background:var(--bg);color:var(--ink);font-family:var(--mono);min-height:10
     <a href="https://xenosfinance.com" data-i18n="nav_news">📰 News</a>
     <a href="https://xenosfinance.com/market-brief" data-i18n="nav_brief">🤖 Market Brief</a>
     <a href="https://xenosfinance.com/intelligence/">🛰 Intelligence</a>
-    <a href="https://xenosfinance.com/dashboard" data-i18n="nav_dashboard">📊 Dashboard</a>
+    <div class="nav-dropdown">
+      <a href="https://xenosfinance.com/dashboard" class="nav-trig"><span data-i18n="nav_dashboard">📊 Dashboard</span><span class="nav-caret">▾</span></a>
+      <div class="nav-dropdown-menu">
+        <a href="https://xenosfinance.com/portfolio">📈 Portfolio</a>
+        <a href="https://xenosfinance.com/cot/" data-i18n="nav_cot">🧭 COT Positioning</a>
+        <a href="https://xenosfinance.com/futures-flow/" data-i18n="nav_futures_flow">🛢 Futures Flow</a>
+        <a href="https://xenosfinance.com/analysis/" data-i18n="nav_analysis">📊 Daily Analysis</a>
+      </div>
+    </div>
     <a href="https://xenosfinance.com/xenoswaves_charts" data-i18n="nav_charts">◈ Charts</a>
     <a href="https://xenosfinance.com/XenosBlog" data-i18n="nav_blog">✦ AI Blog</a>
-    <a href="https://xenosfinance.com/trading-signals" data-i18n="nav_signals">📡 Live Signals</a>
-    <a href="https://xenosfinance.com/trading-ideas" data-i18n="nav_ideas">💡 Trading Ideas</a>
+    <div class="nav-dropdown">
+      <a href="https://xenosfinance.com/trading-ideas" class="nav-trig"><span data-i18n="nav_ideas">💡 Trading Ideas</span><span class="nav-caret">▾</span></a>
+      <div class="nav-dropdown-menu">
+        <a href="https://xenosfinance.com/trading-signals" data-i18n="nav_signals">📡 Trade Setups</a>
+        <a href="https://xenosfinance.com/trade-setups" data-i18n="nav_setup_archive">🗂 Setup Archive</a>
+      </div>
+    </div>
     <a href="https://xenosfinance.com/calendar" data-i18n="nav_calendar">🗓 Calendar</a>
     <a href="https://xenosfinance.com/elliottwave" data-i18n="nav_elliott">〜 Elliott Wave</a>
-    <a href="https://xenosfinance.com/daily-education" data-i18n="nav_education">📚 Education</a>
-    <a href="https://xenosfinance.com/premium-support" class="active" data-i18n="nav_premium">✦ Premium</a>
+    <div class="nav-dropdown">
+      <a href="https://xenosfinance.com/daily-education" class="nav-trig"><span data-i18n="nav_education">📚 Education</span><span class="nav-caret">▾</span></a>
+      <div class="nav-dropdown-menu">
+        <a href="https://xenosfinance.com/premium-support" class="active" data-i18n="nav_premium">✦ Premium</a>
+        <a href="https://xenosfinance.com/topics" data-i18n="nav_topics">🏷 Topics</a>
+      </div>
+    </div>
   </nav>
 </header>
 
@@ -551,7 +577,7 @@ function toggleFaq(el) {
 // Notify form — sends directly to xenosfinance@gmail.com via Cloudflare Worker (Email Routing)
 const NOTIFY_WORKER_URL = 'https://xenos-ai-proxy.xenosfinance.workers.dev';
 
-document.getElementById('notify-form').addEventListener('submit', function(e) {
+(document.getElementById('notify-form') || document.createElement('form')).addEventListener('submit', function(e) {
   e.preventDefault();
   const email = document.getElementById('notify-email').value;
   const btn   = this.querySelector('button[type=submit]');
@@ -602,6 +628,12 @@ const CARD_PAY_URL = CARD_REQUEST_BOT ? 'https://t.me/' + CARD_REQUEST_BOT + '?s
     if (el) el.style.display = el.getAttribute('data-show') || '';
   });
 })();
+</script>
+<script>
+/* 2026-10-26: menu a tendina — su touch il primo tap apre il sotto-menu */
+(function(){document.querySelectorAll('.masthead-nav .nav-dropdown').forEach(function(d){var t=d.querySelector(':scope > .nav-trig');if(!t)return;
+t.addEventListener('click',function(e){if(window.matchMedia('(hover: hover)').matches)return;if(!d.classList.contains('open')){e.preventDefault();document.querySelectorAll('.masthead-nav .nav-dropdown.open').forEach(function(o){o.classList.remove('open');});d.classList.add('open');}});});
+document.addEventListener('click',function(e){if(!e.target.closest('.masthead-nav .nav-dropdown'))document.querySelectorAll('.masthead-nav .nav-dropdown.open').forEach(function(o){o.classList.remove('open');});});})();
 </script>
 </body>
 </html>

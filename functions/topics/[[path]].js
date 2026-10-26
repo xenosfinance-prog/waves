@@ -97,8 +97,7 @@ const LINK_IT = { 'S&P 500 daily analysis': 'Analisi giornaliera S&P 500', 'Nasd
   'Bitcoin daily analysis': 'Analisi giornaliera Bitcoin', 'Ethereum daily analysis': 'Analisi giornaliera Ethereum', 'Economic calendar': 'Calendario economico',
   'Daily pre-market brief': 'Pre-market brief del giorno', 'Daily technical analysis': 'Analisi tecnica giornaliera', 'Elliott Wave': 'Onde di Elliott',
   'Trade setups': 'Trade setup', "Today's pre-market brief": 'Pre-market brief di oggi' };
-const NAV_IT = { 'Home': 'Home', 'Dashboard': 'Dashboard', 'Daily Analysis': 'Analisi giornaliera', 'Trade Setups': 'Trade Setups', 'Blog': 'Blog',
-  'Topics': 'Temi', 'COT Positioning': 'Posizionamento COT', 'Calendar': 'Calendario', 'Elliott Wave': 'Onde di Elliott' };
+const NAV_IT = { 'Home': 'Home', 'Market Brief': 'Brief di mercato', 'Intelligence': 'Intelligence', 'Dashboard': 'Dashboard', 'Daily Analysis': 'Analisi giornaliera', 'COT Positioning': 'Posizionamento COT', 'Futures Flow': 'Futures Flow', 'Trade Setups': 'Trade Setups', 'Blog': 'Blog', 'Topics': 'Temi', 'Calendar': 'Calendario', 'Elliott Wave': 'Onde di Elliott', 'Premium': 'Premium' };
 const MON_IT = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
 function dateIt(ts) {
   const d = new Date(ts);
@@ -184,8 +183,7 @@ p{color:var(--ink2);margin-bottom:10px;font-size:15px;}
 .disc{font-family:var(--mono);font-size:10px;color:var(--muted);line-height:1.6;margin-top:34px;border-top:1px solid var(--border);padding-top:14px;}
 @media(max-width:720px){h1{font-size:25px;}}`;
 
-const NAV = [['/', 'Home'], ['/dashboard', 'Dashboard'], ['/analysis/', 'Daily Analysis'], ['/trade-setups', 'Trade Setups'],
-  ['/XenosBlog', 'Blog'], ['/topics', 'Topics'], ['/cot/', 'COT Positioning'], ['/calendar', 'Calendar'], ['/elliottwave', 'Elliott Wave']];
+const NAV = [['/', 'Home'], ['/market-brief', 'Market Brief'], ['/intelligence/', 'Intelligence'], ['/dashboard', 'Dashboard'], ['/analysis/', 'Daily Analysis'], ['/cot/', 'COT Positioning'], ['/futures-flow/', 'Futures Flow'], ['/trade-setups', 'Trade Setups'], ['/XenosBlog', 'Blog'], ['/topics', 'Topics'], ['/calendar', 'Calendar'], ['/elliottwave', 'Elliott Wave'], ['/premium', 'Premium']];
 
 function shell({ title, desc, canonical, body, jsonld, robots }) {
   const nav = NAV.map(([h, n]) => `<a href="${h}"${h === '/topics' ? ' class="on"' : ''}>${L(n, NAV_IT[n])}</a>`).join('');
