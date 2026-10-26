@@ -179,7 +179,7 @@ def gemini_translate(fields):
         for attempt in range(3):
             try:
                 req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json"})
-                with urllib.request.urlopen(req, timeout=180) as r:
+                with urllib.request.urlopen(req, timeout=90) as r:
                     data = json.loads(r.read().decode("utf-8"))
                 time.sleep(GEMINI_PAUSE)
                 text = data["candidates"][0]["content"]["parts"][0]["text"]
@@ -472,8 +472,16 @@ def main():
 
     done = 0
     fails = 0
+    # 2026-10-26: tempo massimo per run — oltre non si inizia un nuovo documento, così il commit
+    # parte sempre (prima un run lento finiva per timeout del job e si perdeva tutto il lavoro)
+    import time as _t
+    t0 = _t.monotonic()
+    budget = float(os.environ.get("TRANSLATE_BUDGET_MIN", "22")) * 60
     for kind, key, path in mixed:
         if done >= args.max:
+            break
+        if _t.monotonic() - t0 > budget:
+            log(f"Tempo del run esaurito ({budget / 60:.0f} min): il resto al prossimo run.")
             break
         try:
             changed = process_article(key, path) if kind == "a" else process_education(key, path)
