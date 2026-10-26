@@ -185,8 +185,10 @@ tr.poor td{color:var(--muted);}
 @media(max-width:720px){h1{font-size:26px;}.grid{grid-template-columns:1fr;}table{font-size:11px;}th,td{padding:5px;}}"""
 
 
-NAV = [("/", "Home"), ("/dashboard", "Dashboard"), ("/analysis/", "Daily Analysis"), ("/cot/", "COT Positioning"), ("/futures-flow/", "Futures Flow"),
-       ("/calendar", "Calendar"), ("/elliottwave", "Elliott Wave"), ("/trade-setups", "Trade Setups"), ("/premium", "Premium")]
+NAV = [("/", "Home"), ("/market-brief", "Market Brief"), ("/intelligence/", "Intelligence"), ("/dashboard", "Dashboard"),
+       ("/analysis/", "Daily Analysis"), ("/cot/", "COT Positioning"), ("/futures-flow/", "Futures Flow"),
+       ("/trade-setups", "Trade Setups"), ("/XenosBlog", "Blog"), ("/calendar", "Calendar"), ("/elliottwave", "Elliott Wave"),
+       ("/premium", "Premium")]   # 2026-10-26: stessi servizi del menu principale del sito
 
 
 def page_shell(title, desc, canonical, body, jsonld, keywords, active="/analysis/", it_title=None):

@@ -157,7 +157,8 @@ def translate_texts(texts):
 
 NAV_IT = {"Home": "Home", "Dashboard": "Dashboard", "Daily Analysis": "Analisi giornaliera",
           "COT Positioning": "Posizionamento COT", "Futures Flow": "Futures Flow", "Calendar": "Calendario",
-          "Elliott Wave": "Onde di Elliott", "Trade Setups": "Trade Setups", "Premium": "Premium"}
+          "Elliott Wave": "Onde di Elliott", "Trade Setups": "Trade Setups", "Premium": "Premium",
+          "Market Brief": "Brief di mercato", "Intelligence": "Intelligence", "Blog": "Blog", "Topics": "Temi"}
 
 TAG_IT = "Analisi di mercato &amp; formazione al trading"
 DISC_IT = ("Contenuto solo educativo. Questa analisi è generata algoritmicamente da dati di mercato pubblici a "
