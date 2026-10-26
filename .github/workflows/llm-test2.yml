@@ -1,0 +1,21 @@
+name: bot free LLM test
+on:
+  push:
+    branches: [llm-test2]
+permissions:
+  contents: write
+jobs:
+  t:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install -q requests
+      - run: python tools/bot_llm_test.py
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      - if: always()
+        run: |
+          git config user.name t; git config user.email t@users.noreply.github.com
+          git add -f seo_out && git commit -qm "bot llm test output [skip ci]" && git push
