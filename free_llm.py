@@ -22,6 +22,7 @@ import urllib.parse
 import urllib.request
 
 _MODELS = None
+_DEAD = set()       # modelli con quota esaurita in questo processo: non si riprovano
 LAST_ERRORS = []   # diagnostica: ultimi errori (modello, codice, messaggio)
 _BAD = ("image", "tts", "audio", "live", "embedding", "thinking", "exp", "robotics", "computer", "native")
 
@@ -58,9 +59,11 @@ def models():
         rank = lambda n: (_ver(n), "preview" not in n, "latest" not in n)
         full = sorted([n for n in flash if "lite" not in n], key=rank, reverse=True)
         lite = sorted([n for n in flash if "lite" in n], key=rank, reverse=True)
-        _MODELS = (full[:2] + lite[:1]) or ["gemini-flash-latest", "gemini-flash-lite-latest"]
+        # Flash-Lite per primo: quota gratuita separata da quella usata dalle traduzioni (Flash),
+        # più richieste al giorno e meno spesso sovraccarico; il Flash resta come riserva
+        _MODELS = (lite[:1] + full[:2]) or ["gemini-flash-lite-latest", "gemini-flash-latest"]
     except Exception:
-        _MODELS = ["gemini-flash-latest", "gemini-flash-lite-latest"]
+        _MODELS = ["gemini-flash-lite-latest", "gemini-flash-latest"]
     return _MODELS
 
 
@@ -84,13 +87,13 @@ def _gemini_call(model, contents, system, max_tokens, json_mode, timeout, thinki
     return txt or None
 
 
-def gemini(contents, system=None, max_tokens=1200, json_mode=False, timeout=90):
+def gemini(contents, system=None, max_tokens=1200, json_mode=False, timeout=60):
     """contents in formato Gemini. Ritorna il testo o None."""
     if not _gkey():
         return None
-    for model in models():
+    for model in [m for m in models() if m not in _DEAD]:
         thinking_off = False
-        for attempt in range(3):
+        for attempt in range(2):
             try:
                 txt = _gemini_call(model, contents, system, max_tokens, json_mode, timeout, thinking_off)
                 if txt:
@@ -103,19 +106,20 @@ def gemini(contents, system=None, max_tokens=1200, json_mode=False, timeout=90):
                 except Exception:
                     pass
                 LAST_ERRORS.append((model, e.code, msg[:200]))
-                if e.code == 429 and attempt < 2:
-                    time.sleep(20 * (attempt + 1))  # limite al minuto del piano gratuito
-                    continue
-                if e.code in (500, 503) and attempt < 2:
-                    time.sleep(5)
+                if e.code == 429:
+                    if "PerDay" in msg or "per day" in msg.lower() or "quota" in msg.lower():
+                        _DEAD.add(model)              # quota del giorno finita: modello successivo, per sempre
+                        break
+                    if attempt < 1:
+                        time.sleep(15)                # limite al minuto
+                        continue
+                if e.code in (500, 503) and attempt < 1:
+                    time.sleep(4)
                     continue
                 break                              # 404 / quota del giorno finita → modello successivo
             except Exception as e:
                 LAST_ERRORS.append((model, type(e).__name__, str(e)[:200]))
-                if attempt < 2:
-                    time.sleep(3)
-                    continue
-                break
+                break                             # timeout: modello successivo
     return None
 
 
