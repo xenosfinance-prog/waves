@@ -1703,6 +1703,71 @@ def compute_bollinger_rsi_signal(df, bb_period=20, bb_std=2, rsi_period=14,
     }
 
 
+# ─────────────────────────────────────────────────────────
+# RSI(2) PULLBACK NEL TREND — giornaliero (2026-10-27)
+# Unica strategia del broker-engine positiva sia in-sample sia out-of-sample nel
+# backtest su dati reali Yahoo 2010-2026 (S&P 500, Nasdaq 100, DAX): long quando la
+# chiusura giornaliera è sopra la SMA200 e l'RSI(2) scende sotto 10; stop 2 ATR(14);
+# uscita alla prima chiusura sopra la SMA5. Solo candele giornaliere CHIUSE.
+# ─────────────────────────────────────────────────────────
+RSI2_ENTRY_MAX = float(os.getenv("RSI2_ENTRY_MAX", "10"))
+RSI2_STOP_ATR = float(os.getenv("RSI2_STOP_ATR", "2"))
+
+
+def compute_rsi2_signal(df):
+    c = df["Close"].values.astype(float)
+    if len(c) < 210:
+        return None
+    s = pd.Series(c)
+    sma200 = float(s.rolling(200).mean().iloc[-1])
+    sma5 = float(s.rolling(5).mean().iloc[-1])
+    d = np.diff(c)
+    g = np.where(d > 0, d, 0.0)[-2:].mean()
+    l = np.where(d < 0, -d, 0.0)[-2:].mean()
+    rsi2 = 100.0 if l == 0 else 100 - 100 / (1 + g / l)
+    atr = float(calc_atr(df, 14))
+    close = float(c[-1])
+    long_sig = close > sma200 and rsi2 < RSI2_ENTRY_MAX
+    dp = 2
+    return {
+        "direction": "UP" if long_sig else None,
+        "exit_long": bool(close > sma5),
+        "signal_date": str(df.index[-1])[:10],
+        "price": round(close, dp), "rsi2": round(float(rsi2), 1),
+        "sma5": round(sma5, dp), "sma200": round(sma200, dp), "atr": round(atr, dp),
+        "key_levels": {"stop_loss": round(close - RSI2_STOP_ATR * atr, dp)} if long_sig else None,
+    }
+
+
+@app.route("/rsi2-signal", methods=["POST", "OPTIONS"])
+def rsi2_signal():
+    if request.method == "OPTIONS":
+        return Response(status=200)
+    try:
+        body = request.get_json(force=True) or {}
+        sym_raw = body.get("symbol", "us500").lower().strip()
+        yf_sym = SYMBOL_MAP.get(sym_raw)
+        if not yf_sym:
+            return jsonify({"error": f"Unknown symbol: {sym_raw}"}), 400
+        df = yf.download(yf_sym, interval="1d", period="2y", progress=False, auto_adjust=True)
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns = df.columns.get_level_values(0)
+        df = df.dropna()
+        # solo candele chiuse: la candela di oggi (UTC) è ancora in formazione
+        today = pd.Timestamp.utcnow().strftime("%Y-%m-%d")
+        if len(df) and str(df.index[-1])[:10] >= today:
+            df = df.iloc[:-1]
+        res = compute_rsi2_signal(df)
+        if res is None:
+            return jsonify({"error": "Insufficient daily history for RSI(2) (need 210+ bars)."}), 400
+        logger.info(f"[rsi2] {sym_raw.upper()} {res['signal_date']}: dir={res['direction']} "
+                    f"rsi2={res['rsi2']} close={res['price']} sma5={res['sma5']} sma200={res['sma200']}")
+        return jsonify({"symbol": sym_raw.upper(), **res})
+    except Exception as e:
+        logger.error(f"rsi2_signal error: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/bollinger-rsi-chart", methods=["POST","OPTIONS"])
 def bollinger_rsi_chart():
     if request.method == "OPTIONS":
