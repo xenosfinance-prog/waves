@@ -113,6 +113,8 @@ export async function onRequestGet(context) {
       .on('nav.masthead-nav', new SetInner(NAV_HTML))
       .on('body', new AppendHtml(NAV_JS))
       .on('body', new AppendHtml('<script src="/tg-banner.js?v=1" defer></script>'))  // 2026-10-27: banner Telegram
+      // 2026-10-27: brief in italiano quando la lingua del sito è IT (traduzione gratuita nel browser)
+      .on('body', new AppendHtml('<script src="/xf-translate.js?v=1" defer></script><script src="/mb-it.js?v=1" defer></script>'))
       .on('.ai-title', new ToH1('Daily Pre-Market Brief'))
       .transform(res);
     return out;
