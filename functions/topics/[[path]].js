@@ -52,7 +52,7 @@ export const TOPICS = [
     match: a => /weekly|week ahead|week of/.test(t(a)) },
   { slug: 'technical-analysis', name: 'Technical Analysis & Elliott Wave', short: 'Technical analysis',
     intro: 'Technical studies: Elliott Wave counts, Fibonacci levels, order flow, trend and momentum, written for market analysis and trading education.',
-    links: [['/analysis/', 'Daily technical analysis'], ['/elliottwave', 'Elliott Wave'], ['/trade-setups', 'Trade setups']],
+    links: [['/analysis/', 'Daily technical analysis'], ['/elliottwave', 'Elliott Wave']],
     match: a => ['technical', 'elliott', 'orderflow'].includes(a.tech) || /technical|elliott|fibonacci/.test(t(a)) },
   { slug: 'pre-market-brief', name: 'Pre-Market Brief', short: 'Pre-market',
     intro: 'Pre-market briefs before the US open: futures, overnight moves, catalysts of the day and the market bias.',
@@ -183,7 +183,7 @@ p{color:var(--ink2);margin-bottom:10px;font-size:15px;}
 .disc{font-family:var(--mono);font-size:10px;color:var(--muted);line-height:1.6;margin-top:34px;border-top:1px solid var(--border);padding-top:14px;}
 @media(max-width:720px){h1{font-size:25px;}}`;
 
-const NAV = [['/', 'Home'], ['/market-brief', 'Market Brief'], ['/intelligence/', 'Intelligence'], ['/dashboard', 'Dashboard'], ['/analysis/', 'Daily Analysis'], ['/cot/', 'COT Positioning'], ['/futures-flow/', 'Futures Flow'], ['/trade-setups', 'Trade Setups'], ['/XenosBlog', 'Blog'], ['/topics', 'Topics'], ['/calendar', 'Calendar'], ['/elliottwave', 'Elliott Wave'], ['/premium', 'Premium']];
+const NAV = [['/', 'Home'], ['/market-brief', 'Market Brief'], ['/intelligence/', 'Intelligence'], ['/dashboard', 'Dashboard'], ['/analysis/', 'Daily Analysis'], ['/cot/', 'COT Positioning'], ['/futures-flow/', 'Futures Flow'], ['/XenosBlog', 'Blog'], ['/topics', 'Topics'], ['/calendar', 'Calendar'], ['/elliottwave', 'Elliott Wave'], ['/premium', 'Premium']];
 
 function shell({ title, desc, canonical, body, jsonld, robots }) {
   const nav = NAV.map(([h, n]) => `<a href="${h}"${h === '/topics' ? ' class="on"' : ''}>${L(n, NAV_IT[n])}</a>`).join('');

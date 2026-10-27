@@ -56,7 +56,6 @@ const NAV_HTML = `
       <a class="nav-btn nav-trig" href="${SITE}/trading-ideas"><span data-i18n="nav_ideas">💡 Trading Ideas</span><span class="nav-caret">▾</span></a>
       <div class="nav-dropdown-menu">
         <a href="${SITE}/trading-signals" data-i18n="nav_signals">📡 Trade Setups</a>
-        <a href="${SITE}/trade-setups" data-i18n="nav_setup_archive">🗂 Setup Archive</a>
       </div>
     </div>
     <a class="nav-btn" href="${SITE}/calendar"><span data-i18n="nav_calendar">🗓 Calendar</span></a>
