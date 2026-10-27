@@ -199,7 +199,7 @@ tr.poor td{color:var(--muted);}
 
 NAV = [("/", "Home"), ("/market-brief", "Market Brief"), ("/intelligence/", "Intelligence"), ("/dashboard", "Dashboard"),
        ("/analysis/", "Daily Analysis"), ("/cot/", "COT Positioning"), ("/futures-flow/", "Futures Flow"),
-       ("/trade-setups", "Trade Setups"), ("/XenosBlog", "Blog"), ("/calendar", "Calendar"), ("/elliottwave", "Elliott Wave"),
+       ("/XenosBlog", "Blog"), ("/calendar", "Calendar"), ("/elliottwave", "Elliott Wave"),
        ("/premium", "Premium")]   # 2026-10-26: stessi servizi del menu principale del sito
 
 
