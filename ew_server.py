@@ -306,8 +306,8 @@ def try_impulse(pivots):
                 # W3 must be at valid Fibonacci extension
                 if not near_fib(w3_ratio, 1.0, 1.382, 1.618, 2.0, 2.618, 4.236):
                     continue
-                # Rule II: W3 never shortest
-                if W5 and W4:
+                # Rule II: W3 never shortest (non con una W5 ancora in corso)
+                if W5 and W4 and W5 is not pivots[-1]:
                     w5_size = abs(W5["price"]-W4["price"])
                     if w3_size < w1_size and w3_size < w5_size: continue
 
@@ -319,10 +319,18 @@ def try_impulse(pivots):
                 w4_ret = abs(W4["price"]-W3["price"]) / w3_size if w3_size>0 else 1
                 if w4_ret < 0.15 or w4_ret > 0.65: continue
 
+            # FIX 2026-10-27: l'ultimo pivot dello zigzag è l'estremo PROVVISORIO (non ancora
+            # confermato da un'inversione). Se è la W5, l'onda 5 è IN CORSO: prima veniva o
+            # scartata (sotto 0.618×W1) o trattata come conclusa ("onda A") — "onda 5" non
+            # usciva mai. Ora resta W5 in corso, valida finché non supera la fine di W3 al
+            # contrario (troncamento oltre W3 = conteggio non valido).
+            w5_live = bool(W5 and W5 is pivots[-1])
             if W5 and W4:
                 w5_size = abs(W5["price"]-W4["price"])
                 w5_ratio = w5_size / w1_size
-                if not near_fib(w5_ratio, 0.618, 1.0, 1.618, 2.618): continue
+                if w5_live:
+                    pass
+                elif not near_fib(w5_ratio, 0.618, 1.0, 1.618, 2.618): continue
 
             # Score
             score = len(seq)*10 + (len(pivots)-start)
@@ -337,7 +345,7 @@ def try_impulse(pivots):
             candidates.append({
                 "W0":W0,"W1":W1,"W2":W2,"W3":W3,"W4":W4,"W5":W5,
                 "bull":bull,"w1_size":w1_size,"w3_size":w3_size,
-                "score":score,"wave_count":len(seq)
+                "score":score,"wave_count":len(seq),"w5_live":w5_live
             })
 
     candidates.sort(key=lambda x: x["score"], reverse=True)
@@ -564,8 +572,11 @@ def get_wave_position(primary, live_price, dp, atr):
         wave_map = {2:"1",3:"2",4:"3",5:"4",6:"5"}
         wn = wave_map.get(n, "?")
 
+        # Onda 5 in corso (W5 = estremo provvisorio): siamo ancora nell'impulso
+        if W5 and I.get("w5_live"):
+            wn = "5"
         # If all 5 waves confirmed → Wave A
-        if W5:
+        elif W5:
             wn = "A"
             cycle_high = W5["price"] if bull else W0["price"]
             cycle_low  = W0["price"] if bull else W5["price"]
