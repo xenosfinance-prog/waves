@@ -215,6 +215,7 @@ def page_shell(title, desc, canonical, body, jsonld, keywords, active="/analysis
     tag = PI.L("Market analysis &amp; trading education", PI.TAG_IT)
     disc = PI.L(DISC_EN, PI.DISC_IT)
     js = '<script src="/xf-page-i18n.js?v=1" defer></script>\n'
+    js += '<script src="/tg-banner.js?v=1" defer></script>\n'  # 2026-10-27: banner canale Telegram
     meta_it = ""
     if it_title:
         meta_it = f'<meta name="xf-title-it" content="{esc(it_title)}">\n'

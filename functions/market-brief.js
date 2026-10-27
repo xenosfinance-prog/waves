@@ -112,6 +112,7 @@ export async function onRequestGet(context) {
       .on('head', new AppendHtml(NAV_CSS))
       .on('nav.masthead-nav', new SetInner(NAV_HTML))
       .on('body', new AppendHtml(NAV_JS))
+      .on('body', new AppendHtml('<script src="/tg-banner.js?v=1" defer></script>'))  // 2026-10-27: banner Telegram
       .on('.ai-title', new ToH1('Daily Pre-Market Brief'))
       .transform(res);
     return out;
