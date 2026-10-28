@@ -161,12 +161,42 @@
       stampEl.className = "upd";
       upd.parentNode.insertBefore(stampEl, upd.nextSibling);
     }
-    stampEl.textContent = T("Live levels: " + hhmm(iso) + " UTC (refresh every 15 min) · written commentary from the update above",
+    stampEl.textContent = T("Live levels: " + hhmm(iso) + " UTC (refresh every 15 min) · written commentary from the session update above",
       "Livelli live: " + hhmm(iso) + " UTC (aggiornamento ogni 15 min) · commento scritto dall'aggiornamento qui sopra");
   }
 
+  // 2026-10-28: se i numeri live hanno superato quelli su cui è stato scritto il commento
+  // (bias girato, prezzo mosso di oltre 1 ATR, invalidazione Elliott attraversata) lo si dice
+  // in chiaro sopra il commento: il lettore non viene mai fuorviato da un testo vecchio.
+  function staleCheck(cfg, d) {
+    var box = document.getElementById("lv-stale");
+    if (!box || !cfg.bias || !cfg.px) return;
+    var why = [], dec = +cfg.dec, px0 = +cfg.px, atr0 = +cfg.atr, inv = cfg.inv ? +cfg.inv : null;
+    var dir = d.bias.direction;
+    if (dir !== cfg.bias)
+      why.push(T("bias now " + dirWord(dir) + " (was " + dirWord(cfg.bias) + ")",
+                 "bias ora " + dirWord(dir) + " (era " + dirWord(cfg.bias) + ")"));
+    if (atr0 > 0 && Math.abs(d.live - px0) >= atr0) {
+      var m = (d.live - px0) / atr0;
+      why.push(T("price " + (m > 0 ? "up " : "down ") + Math.abs(m).toFixed(1) + " ATR since then (" + fmt(px0, dec) + " → " + fmt(d.live, dec) + ")",
+                 "prezzo " + (m > 0 ? "salito di " : "sceso di ") + Math.abs(m).toFixed(1) + " ATR da allora (" + fmt(px0, dec) + " → " + fmt(d.live, dec) + ")"));
+    }
+    if (inv && (px0 - inv) * (d.live - inv) < 0)
+      why.push(T("Elliott invalidation " + fmt(inv, dec) + " crossed", "invalidazione Elliott " + fmt(inv, dec) + " superata"));
+    if (!why.length) { box.hidden = true; return; }
+    box.innerHTML = esc(T("⚠ The written commentary (" + cfg.built + " UTC) is out of date: ",
+                          "⚠ Il commento scritto (" + cfg.built + " UTC) non è più attuale: ") + why.join(" · ") + ". " +
+                        T("Live levels, zones and scenarios below are current; the commentary is rewritten at the next session update.",
+                          "Livelli, zone e scenari qui sotto sono aggiornati; il commento viene riscritto al prossimo aggiornamento di sessione."));
+    box.hidden = false;
+  }
+
   function runPage(cfg) {
-    get(cfg.yf, cfg.dec).then(function (d) { if (d) renderPage(cfg, d); });
+    get(cfg.yf, cfg.dec).then(function (d) {
+      if (!d) return;
+      try { staleCheck(cfg, d); } catch (e) {}
+      renderPage(cfg, d);
+    });
   }
   function runIndex(rows) {
     var latest = null;
@@ -186,7 +216,9 @@
   function run() {
     var cfgEl = document.getElementById("lv-cfg");
     if (cfgEl) {
-      var cfg = { yf: cfgEl.getAttribute("data-yf"), dec: cfgEl.getAttribute("data-dec"), short: cfgEl.getAttribute("data-short") };
+      var cfg = { yf: cfgEl.getAttribute("data-yf"), dec: cfgEl.getAttribute("data-dec"), short: cfgEl.getAttribute("data-short"),
+                  bias: cfgEl.getAttribute("data-bias"), px: cfgEl.getAttribute("data-px"), atr: cfgEl.getAttribute("data-atr"),
+                  inv: cfgEl.getAttribute("data-inv"), built: cfgEl.getAttribute("data-built") };
       runPage(cfg);
       setInterval(function () { runPage(cfg); }, REFRESH_MS);
       return;

@@ -65,8 +65,8 @@ MEMBER_NAME = {"prev_high": "Previous-day high", "prev_low": "Previous-day low",
 REGIME = {"above_cloud": "above the cloud", "below_cloud": "below the cloud", "inside_cloud": "inside the cloud"}
 
 # 2026-10: intestazione chiara (il bias è su 1H/4H, la pagina si aggiorna ogni giorno)
-TF_LABEL = "Commentary twice a day · levels live · 1H/4H technical bias"
-TF_LABEL_IT = "Commento due volte al giorno · livelli live · bias tecnico 1H/4H"
+TF_LABEL = "Commentary updated through the EU & US sessions · levels live · 1H/4H technical bias"
+TF_LABEL_IT = "Commento aggiornato durante le sessioni EU e USA · livelli live · bias tecnico 1H/4H"
 
 # 2026-10: spread Brent–WTI (calcolato in main quando ci sono entrambi i prezzi)
 SPREAD = None
@@ -170,6 +170,7 @@ main{max-width:980px;margin:0 auto;padding:26px 22px 60px;}
 h1{font-family:var(--serif);font-size:34px;line-height:1.2;margin-bottom:6px;}
 .upd{font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:1px;margin-bottom:16px;}
 .headline{font-family:var(--serif);font-size:21px;color:var(--ink2);margin:8px 0 14px;font-style:italic;}
+.stale{border:1px solid #f59e0b;background:rgba(245,158,11,0.08);color:#fbbf24;font-family:var(--mono);font-size:12px;line-height:1.6;padding:10px 14px;margin:10px 0;}
 .px{font-family:var(--mono);font-size:13px;margin-bottom:10px;}
 .up{color:var(--green2);} .dn{color:var(--red2);}
 .bias{display:inline-flex;gap:10px;align-items:center;font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;}
@@ -298,7 +299,11 @@ def build_instrument_page(inst, d, ai, now, all_rows):
              f'Updated {now.strftime("%d %b %Y, %H:%M")} UTC · {TF_LABEL} · {esc(group)}',
              f'Aggiornato {PI.d_short_time(now)} UTC · {TF_LABEL_IT} · {esc(PI.GROUP_IT.get(group, group))}') + '</div>',
          # 2026-10-16: configurazione per /analysis/live.js (numeri aggiornati dal vivo)
-         f'<div id="lv-cfg" hidden data-yf="{esc(yf)}" data-dec="{dec}" data-short="{esc(short)}" data-name="{esc(name)}"></div>']
+         f'<div id="lv-cfg" hidden data-yf="{esc(yf)}" data-dec="{dec}" data-short="{esc(short)}" data-name="{esc(name)}"'
+         # 2026-10-28: fotografia al momento del commento — live.js avvisa se i numeri live la superano
+         f' data-bias="{dirw}" data-px="{d["live"]}" data-atr="{d["atr"]}"'
+         f' data-inv="{(d.get("elliott") or {}).get("invalidation") or ""}" data-built="{now.strftime("%H:%M")}"></div>',
+         '<div id="lv-stale" class="stale" hidden></div>']
     if market_closed(now, group):
         b.append('<div class="upd">' + L("Market closed — data as of Friday close",
                                           "Mercato chiuso — dati alla chiusura di venerdì") + '</div>')
@@ -504,7 +509,7 @@ def build_instrument_page(inst, d, ai, now, all_rows):
             {"@type": "Question", "name": q, "acceptedAnswer": {"@type": "Answer", "text": a}} for q, a in faq]},
     ]
     kw = f"{name} technical analysis, {name} analysis today, {terms}, {short} support resistance, {short} forecast levels, Elliott Wave {name}"
-    b.append('<script src="/analysis/live.js?v=2" defer></script>')
+    b.append('<script src="/analysis/live.js?v=3" defer></script>')
     return page_shell(title, desc, url, "\n".join(b), jsonld, kw, it_title=title_it)
 
 
@@ -526,11 +531,11 @@ def build_index(rows, now):
          "<p>" + L(
              "Every analysis is built by the XenosFinance engine on real market data: moving averages, SuperTrend, MACD, RSI, Fibonacci, "
              "Ichimoku and an Elliott Wave count combine into confluence zones and trade scenarios with calculated risk/reward. "
-             "Prices, levels and scenarios update live while the page is open; the written commentary is refreshed twice a day.",
+             "Prices, levels and scenarios update live while the page is open; the written commentary is refreshed six times a day through the European and US sessions.",
              "Ogni analisi è costruita dal motore di XenosFinance su dati di mercato reali: medie mobili, SuperTrend, MACD, RSI, "
              "Fibonacci, Ichimoku e un conteggio delle onde di Elliott si combinano in zone di confluenza e scenari operativi con "
              "rischio/rendimento calcolato. Prezzi, livelli e scenari si aggiornano dal vivo mentre la pagina è aperta; il commento "
-             "scritto viene aggiornato due volte al giorno.") + "</p>"]
+             "scritto viene aggiornato sei volte al giorno durante le sessioni europea e americana.") + "</p>"]
     groups = []
     for r in rows:
         if r[5] not in groups:
@@ -549,7 +554,7 @@ def build_index(rows, now):
         b.append("</table>")
         if g == "Commodities":
             b.append(spread_html())
-    b.append('<script src="/analysis/live.js?v=2" defer></script>')
+    b.append('<script src="/analysis/live.js?v=3" defer></script>')
     jsonld = [{"@context": "https://schema.org", "@type": "CollectionPage", "name": "Daily Technical Analysis",
                "description": desc, "url": url, "dateModified": now.strftime("%Y-%m-%dT%H:%M:%SZ")}]
     return page_shell(title, desc, url, "\n".join(b), jsonld,

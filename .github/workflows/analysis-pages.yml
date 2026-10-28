@@ -1,4 +1,4 @@
-# XenosFinance — pagine /analysis (SEO), rigenerate due volte al giorno.
+# XenosFinance — pagine /analysis (SEO), rigenerate sei volte al giorno (sessioni EU e USA).
 # Richiede il secret del repository ANTHROPIC_API_KEY
 # (Settings → Secrets and variables → Actions → New repository secret).
 name: Daily analysis pages
@@ -25,26 +25,18 @@ jobs:
         with:
           fetch-depth: 50
 
-      # 2026-10-13: il bot Telegram avvia questo workflow all'orario esatto
-      # (05:20 / 12:20 UTC). Il cron qui sotto resta come riserva: se parte in
-      # ritardo e le pagine sono già state aggiornate da meno di 4 ore, si ferma
-      # (niente doppia generazione né doppie chiamate API).
-      # 2026-10-22: il cron di GitHub parte anche 5 ore in ritardo (10:08, 17:18):
-      # con la vecchia soglia "meno di 4 ore" la riserva rigenerava comunque le
-      # pagine → 4 generazioni al giorno invece di 2 (costo API doppio). Ora salta
-      # se le pagine sono già state create dopo l'orario dell'edizione corrente
-      # (05:20 o 12:20 UTC, la più recente già passata).
-      - name: Skip late scheduled run if this edition is already built
+      # 2026-10-28: sei edizioni al giorno avviate dal bot Telegram all'orario esatto
+      # (ora italiana 06:20 · 09:20 · 12:20 · 15:50 · 18:20 · 21:20, lun–ven; nel weekend
+      # solo le 06:20). Il cron qui sopra resta come riserva: se le pagine sono già state
+      # rigenerate da meno di 150 minuti si ferma (niente doppie generazioni).
+      - name: Skip late scheduled run if pages are fresh
         id: fresh
         if: github.event_name == 'schedule'
         run: |
           last=$(git log -1 --format=%ct -- analysis/index.html || echo 0)
           now=$(date -u +%s)
-          slot=$(date -u -d "$(date -u +%F) 12:20" +%s)
-          if [ "$now" -lt "$slot" ]; then slot=$(date -u -d "$(date -u +%F) 05:20" +%s); fi
-          if [ "$now" -lt "$slot" ]; then slot=$(( slot - 86400 + 25200 )); fi   # prima delle 05:20: edizione 12:20 di ieri
-          echo "last build: $(date -u -d @${last:-0}) | edition slot: $(date -u -d @$slot)"
-          if [ "${last:-0}" -ge "$slot" ]; then echo "skip=1" >> "$GITHUB_OUTPUT"; fi
+          echo "last build: $(date -u -d @${last:-0})"
+          if [ $(( now - ${last:-0} )) -lt 9000 ]; then echo "skip=1" >> "$GITHUB_OUTPUT"; fi
 
       - uses: actions/setup-python@v5
         if: steps.fresh.outputs.skip != '1'
