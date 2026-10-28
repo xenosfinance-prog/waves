@@ -129,7 +129,7 @@ body{background:var(--bg4);color:var(--ink);font-family:var(--mono);min-height:1
 .delete-btn:hover{background:var(--red);}
 .admin-mode .delete-btn{display:flex;}
 .admin-mode .card-badge{right:36px;}
-/* 2026-10-21: admin — promuove l'idea a Trade Setup (trading-signals) */
+/* 2026-10-21: admin — promuove l'idea a Trade Setup (live-setups) */
 .promote-btn{position:absolute;bottom:8px;right:8px;height:22px;padding:0 9px;border-radius:2px;background:rgba(59,130,246,0.9);border:none;color:#fff;font-size:9px;font-family:var(--mono);letter-spacing:1px;text-transform:uppercase;cursor:pointer;display:none;align-items:center;gap:4px;z-index:10;transition:background 0.15s;}
 .promote-btn:hover{background:var(--gold);}
 .promote-btn:disabled{opacity:0.6;cursor:default;}
@@ -223,7 +223,7 @@ body{background:var(--bg4);color:var(--ink);font-family:var(--mono);min-height:1
     <div class="nav-dropdown">
       <a class="nav-btn active" href="https://xenosfinance.com/trading-ideas"><span data-i18n="nav_ideas">💡 Trading Ideas</span><span class="nav-caret">▾</span></a>
       <div class="nav-dropdown-menu">
-        <a href="https://xenosfinance.com/trading-signals"><span data-i18n="nav_signals">📡 Live Setups</span></a>
+        <a href="https://xenosfinance.com/live-setups"><span data-i18n="nav_signals">📡 Live Setups</span></a>
       </div>
     </div>
     <a class="nav-btn" href="https://xenosfinance.com/calendar"><span data-i18n="nav_calendar">🗓 Calendar</span></a>
@@ -874,7 +874,7 @@ async function deleteIdea(ideaId,e){
 
 // ── 2026-10-21: PROMUOVI IDEA → TRADE SETUP ─────────────────────────────
 // Solo admin. Copia l'idea nel formato dei Trade Setups (cartella signals_cfd,
-// letta da trading-signals.html) con outcome "open". Il nome file deriva dall'id
+// letta da live-setups.html) con outcome "open". Il nome file deriva dall'id
 // dell'idea, quindi la stessa idea non può essere salvata due volte.
 function _setupTf(tf){
   const t=String(tf||'').toUpperCase().trim();
@@ -944,7 +944,7 @@ async function promoteIdea(ideaId,e,btn){
   if(!ok) return;
   const tick=String(idea.ticker||setup.pair).toUpperCase().replace(/[^A-Z0-9]/g,'');
   // Nome stabile (stessa idea = stesso file) e che in ordine alfabetico va DOPO tutti
-  // i file esistenti: trading-signals.html carica solo gli ultimi 50 per nome.
+  // i file esistenti: live-setups.html carica solo gli ultimi 50 per nome.
   const ts=String(idea.timestamp||'').replace(/[^0-9]/g,'').slice(0,14)||'00000000000000';
   const filename='signal_idea_'+ts+'_'+tick+'_'+String(ideaId).replace(/[^a-zA-Z0-9]/g,'').slice(0,8)+'.json';
   const url='https://api.github.com/repos/xenosfinance-prog/waves/contents/signals_cfd/'+filename;

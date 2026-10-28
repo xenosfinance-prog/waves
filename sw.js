@@ -5,11 +5,11 @@
 // nome alla cache, chi aveva già il sito/PWA continuava a vedere il vecchio logo XF.
 // 2026-10-14: v4 — svuota le cache vecchie (migliaia di copie di trades.json
 // "?t=..." accumulate dal portfolio, una ogni minuto per ogni visitatore).
-const CACHE_NAME = 'xenos-v6';  // 2026-10-26: v6 — menu completo su tutte le pagine
+const CACHE_NAME = 'xenos-v7';  // 2026-10-28: v7 — /trading-signals → /live-setups
 const SHELL_URLS = [
   '/',
   '/dashboard',
-  '/trading-signals',
+  '/live-setups',
   '/elliottwave',
   '/calendar',
   '/XenosBlog',

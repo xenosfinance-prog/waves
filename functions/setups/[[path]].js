@@ -217,7 +217,7 @@ function setupPage(s, all) {
     '<b>Come usare questo setup.</b> Un setup è uno studio di dove il motore vede un rapporto rischio/rendimento favorevole, '
     + 'non un invito a operare. Verifica prima prezzo e struttura attuali: l\'<a href="/analysis/">analisi tecnica giornaliera</a> '
     + 'mostra i livelli live, e la <a href="/dashboard">dashboard</a> una lettura a 15 minuti.') + '</p>'
-    + `<div class="cta"><a href="/trade-setups">${L('All trade setups', 'Tutti i trade setup')}</a><a href="/trading-signals">${L('Live setups', 'Setup live')}</a>`
+    + `<div class="cta"><a href="/trade-setups">${L('All trade setups', 'Tutti i trade setup')}</a><a href="/live-setups">${L('Live setups', 'Setup live')}</a>`
     + (s.tg_url && /^https:\/\/t\.me\//.test(s.tg_url) ? `<a href="${esc(s.tg_url)}">${L('Telegram post', 'Post su Telegram')}</a>` : '') + '</div></div>');
 
   const same = all.filter(x => x !== s && x.ticker === s.ticker).slice(0, 6);
@@ -267,7 +267,7 @@ function indexPage(list) {
     + 'the daily analysis pages show live levels for the main markets.',
     '<b>Setup live e analisi giornaliera.</b> I nuovi setup vengono pubblicati prima sul nostro canale Telegram; '
     + 'le pagine di analisi giornaliera mostrano i livelli live dei principali mercati.')
-    + `</p><div class="cta"><a href="/trading-signals">${L('Live setups', 'Setup live')}</a>`
+    + `</p><div class="cta"><a href="/live-setups">${L('Live setups', 'Setup live')}</a>`
     + `<a href="/analysis/">${L('Daily analysis', 'Analisi giornaliera')}</a><a href="https://t.me/xenoswavefinance">${L('Telegram channel', 'Canale Telegram')}</a></div></div>`);
   const jsonld = [
     { '@context': 'https://schema.org', '@type': 'CollectionPage', name: 'Trade Setups', description: desc, url,
