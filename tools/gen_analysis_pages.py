@@ -295,15 +295,13 @@ def build_instrument_page(inst, d, ai, now, all_rows):
     b = [f'<div class="crumb"><a href="/">Home</a> › <a href="/analysis/">{L("Daily Analysis", "Analisi giornaliera")}</a> › '
          f'{L(esc(name), esc(name_it))}</div>',
          f"<h1>{L(esc(name) + ' Technical Analysis Today', esc(name_it) + ' — analisi tecnica di oggi')}</h1>",
-         f'<div class="upd" id="lv-upd">' + L(
-             f'Updated {now.strftime("%d %b %Y, %H:%M")} UTC · {TF_LABEL} · {esc(group)}',
-             f'Aggiornato {PI.d_short_time(now)} UTC · {TF_LABEL_IT} · {esc(PI.GROUP_IT.get(group, group))}') + '</div>',
+         '<div id="lv-upd" hidden></div>',   # 2026-10-28: niente scritte su aggiornamenti/orari
          # 2026-10-16: configurazione per /analysis/live.js (numeri aggiornati dal vivo)
          f'<div id="lv-cfg" hidden data-yf="{esc(yf)}" data-dec="{dec}" data-short="{esc(short)}" data-name="{esc(name)}"'
          # 2026-10-28: fotografia al momento del commento — live.js avvisa se i numeri live la superano
          f' data-bias="{dirw}" data-px="{d["live"]}" data-atr="{d["atr"]}"'
          f' data-inv="{(d.get("elliott") or {}).get("invalidation") or ""}" data-built="{now.strftime("%H:%M")}"></div>',
-         '<div id="lv-stale" class="stale" hidden></div>']
+]
     if market_closed(now, group):
         b.append('<div class="upd">' + L("Market closed — data as of Friday close",
                                           "Mercato chiuso — dati alla chiusura di venerdì") + '</div>')
@@ -522,8 +520,7 @@ def build_index(rows, now):
     desc = "Daily technical analysis for Gold, Oil, Forex, Bitcoin and stock indices: bias, confluence zones, Elliott Wave and trade scenarios with risk/reward. Levels updated live."
     b = [f'<div class="crumb"><a href="/">Home</a> › {L("Daily Analysis", "Analisi giornaliera")}</div>',
          f"<h1>{L('Daily Technical Analysis', 'Analisi tecnica giornaliera')}</h1>",
-         f'<div class="upd" id="lv-upd">' + L(f'Updated {now.strftime("%d %b %Y, %H:%M")} UTC · {TF_LABEL}',
-                                               f'Aggiornato {PI.d_short_time(now)} UTC · {TF_LABEL_IT}') + '</div>',
+         '<div id="lv-upd" hidden></div>',
          ('<div class="upd">' + L("Market closed — Forex, Commodities and Indices show data as of Friday close; Crypto is live.",
                                   "Mercati chiusi — Forex, materie prime e indici mostrano i dati alla chiusura di venerdì; "
                                   "le crypto sono live.") + '</div>'
@@ -531,11 +528,10 @@ def build_index(rows, now):
          "<p>" + L(
              "Every analysis is built by the XenosFinance engine on real market data: moving averages, SuperTrend, MACD, RSI, Fibonacci, "
              "Ichimoku and an Elliott Wave count combine into confluence zones and trade scenarios with calculated risk/reward. "
-             "Prices, levels and scenarios update live while the page is open; the written commentary is refreshed six times a day through the European and US sessions.",
+             "Prices, levels and scenarios are live.",
              "Ogni analisi è costruita dal motore di XenosFinance su dati di mercato reali: medie mobili, SuperTrend, MACD, RSI, "
              "Fibonacci, Ichimoku e un conteggio delle onde di Elliott si combinano in zone di confluenza e scenari operativi con "
-             "rischio/rendimento calcolato. Prezzi, livelli e scenari si aggiornano dal vivo mentre la pagina è aperta; il commento "
-             "scritto viene aggiornato sei volte al giorno durante le sessioni europea e americana.") + "</p>"]
+             "rischio/rendimento calcolato. Prezzi, livelli e scenari sono live.") + "</p>"]
     groups = []
     for r in rows:
         if r[5] not in groups:
