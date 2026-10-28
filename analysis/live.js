@@ -154,6 +154,7 @@
 
   var stampEl = null;
   function stamp(iso) {
+    return;   // 2026-10-28: nessuna scritta su orari/aggiornamenti
     var upd = document.getElementById("lv-upd");
     if (!upd || !iso) return;
     if (!stampEl) {
@@ -194,7 +195,6 @@
   function runPage(cfg) {
     get(cfg.yf, cfg.dec).then(function (d) {
       if (!d) return;
-      try { staleCheck(cfg, d); } catch (e) {}
       renderPage(cfg, d);
     });
   }
