@@ -55,7 +55,7 @@ const NAV_HTML = `
     <div class="nav-dropdown">
       <a class="nav-btn nav-trig" href="${SITE}/trading-ideas"><span data-i18n="nav_ideas">💡 Trading Ideas</span><span class="nav-caret">▾</span></a>
       <div class="nav-dropdown-menu">
-        <a href="${SITE}/trading-signals" data-i18n="nav_signals">📡 Trade Setups</a>
+        <a href="${SITE}/live-setups" data-i18n="nav_signals">📡 Trade Setups</a>
       </div>
     </div>
     <a class="nav-btn" href="${SITE}/calendar"><span data-i18n="nav_calendar">🗓 Calendar</span></a>
