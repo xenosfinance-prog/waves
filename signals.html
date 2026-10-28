@@ -2680,30 +2680,18 @@ async function generateSignals() {
 }
 
 async function callClaudeAPI(prompt) {
-  // 2026-10-28: prima Gemini gratuito (Worker gemini-free-chat), Claude solo come riserva
-  try {
-    const g = await fetch(WORKER, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'gemini-free-chat',
-        email: localStorage.getItem('xenos_free_email') || 'xenosfinance@gmail.com', message: prompt }),
-      signal: AbortSignal.timeout(60000)
-    });
-    const gd = await g.json().catch(() => ({}));
-    if (g.ok && gd.reply && gd.reply.indexOf('[') >= 0) return gd.reply;
-    console.warn('Gemini free unavailable (' + g.status + ' ' + (gd.error || '') + ') — falling back to Claude');
-  } catch (e) { console.warn('Gemini free error — falling back to Claude:', e.message); }
-  const res = await fetch(WORKER, {
+  // 2026-10-28: commento AI gratuito dal server waves (Gemini, chiave già su Railway):
+  // nessuna email da autorizzare, nessun costo. Se non risponde, generateSignals()
+  // mostra i segnali algoritmici (livelli identici, testo scritto dal codice).
+  const res = await fetch('https://waves-production-ddbf.up.railway.app/signal-commentary', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 8000,  // FIX 2026-09-25: 4000 truncated the JSON array on larger scans
-      messages: [{ role: 'user', content: prompt }]
-    })
+    body: JSON.stringify({ prompt }),
+    signal: AbortSignal.timeout(90000)
   });
-  if (!res.ok) throw new Error(`HTTP ${res.status}: ${(await res.text()).slice(0,200)}`);
-  const data = await res.json();
-  return data?.content?.[0]?.text || '';
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.reply) throw new Error('AI ' + res.status + ' ' + (data.error || ''));
+  return data.reply;
 }
 
 function parseSignals(raw, minConf, dir) {
