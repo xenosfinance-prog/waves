@@ -2198,6 +2198,57 @@ def _earnings_one(sym):
             "eps_est": _num(eps), "rev_est": _num(rev)}
 
 
+# ─────────────────────────────────────────────────────────
+# SIGNAL ENGINE COMMENTARY (2026-10-28)
+# Il Signal Engine del sito (/signals) chiedeva il commento a Claude a pagamento
+# (o a Gemini via Worker, che richiede un'email in whitelist). Ora lo scrive
+# free_llm (Gemini gratuito, chiave GEMINI_API_KEY già su Railway): nessuna
+# email, nessun costo. I livelli restano dell'algoritmo; l'AI scrive solo testo.
+# Protezioni: solo dal sito, prompt max 24k caratteri, 20 richieste/ora per IP,
+# 150 al giorno in totale.
+# ─────────────────────────────────────────────────────────
+_SC_HITS = {}
+_SC_DAY = {"d": "", "n": 0}
+_SC_ORIGINS = ("https://xenosfinance.com", "https://www.xenosfinance.com", "http://localhost")
+
+
+@app.route("/signal-commentary", methods=["POST", "OPTIONS"])
+def signal_commentary():
+    if request.method == "OPTIONS":
+        return Response(status=200)
+    import time as _sct
+    from datetime import datetime as _scdt
+    origin = request.headers.get("Origin", "") or request.headers.get("Referer", "")
+    if not origin.startswith(_SC_ORIGINS):
+        return jsonify({"error": "forbidden"}), 403
+    ip = (request.headers.get("X-Forwarded-For", "") or request.remote_addr or "?").split(",")[0].strip()
+    now = _sct.time()
+    hits = [t for t in _SC_HITS.get(ip, []) if now - t < 3600]
+    if len(hits) >= 20:
+        return jsonify({"error": "rate_limited"}), 429
+    today = _scdt.utcnow().strftime("%Y-%m-%d")
+    if _SC_DAY["d"] != today:
+        _SC_DAY.update(d=today, n=0)
+    if _SC_DAY["n"] >= 150:
+        return jsonify({"error": "daily_limit_reached"}), 429
+    body = request.get_json(force=True, silent=True) or {}
+    prompt = str(body.get("prompt", ""))
+    if not prompt or len(prompt) > 24000:
+        return jsonify({"error": "bad_prompt"}), 400
+    hits.append(now)
+    _SC_HITS[ip] = hits
+    _SC_DAY["n"] += 1
+    try:
+        import free_llm
+        txt = free_llm.generate(prompt, max_tokens=6000)
+    except Exception as e:
+        logger.error(f"signal_commentary: {e}")
+        txt = None
+    if not txt:
+        return jsonify({"error": "ai_unavailable"}), 503
+    return jsonify({"reply": txt})
+
+
 @app.route("/earnings", methods=["POST", "OPTIONS"])
 def earnings_calendar():
     if request.method == "OPTIONS":
