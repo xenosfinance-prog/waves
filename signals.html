@@ -1003,22 +1003,9 @@ async function fetchLivePrices(pairs) {
     };
     const missingPairs = pairs.filter(p => !basePrices[p] || basePrices[p] === 0);
     const massivePairs = missingPairs.filter(p => MASSIVE_TICKER[p]);
-    if (massivePairs.length > 0) {
-      try {
-        const snapshots = await Promise.all(massivePairs.map(async p => {
-          const ticker = MASSIVE_TICKER[p];
-          const url = `https://api.massive.com/v2/snapshot/locale/global/markets/forex/tickers/${encodeURIComponent(ticker)}?apiKey=B9mR9m_8nCD3hzy69GnLKW3l1prM9EKD`;
-          const r = await fetch(url, {signal: AbortSignal.timeout(4000)});
-          if (!r.ok) return null;
-          const d = await r.json();
-          const price = d?.ticker?.lastTrade?.p || d?.ticker?.lastQuote?.P || d?.ticker?.prevDay?.c;
-          return price ? {pair: p, price: parseFloat(price)} : null;
-        }));
-        for (const s of snapshots) {
-          if (s) basePrices[s.pair] = s.price;
-        }
-      } catch(e) { console.warn('Massive prices:', e.message); }
-    }
+    // 2026-10-28: rimossa la chiamata diretta a Massive (chiave API in chiaro nella pagina).
+    // Per questi simboli il prezzo viene dall'ultima candela reale (analyzePair).
+    void massivePairs;
       const total = Object.keys(basePrices).length;
       if (total > 0) showToast(`Prezzi live: ${total}/${pairs.length} strumenti (FH+TD: ${fhCount})`);
 
@@ -1094,6 +1081,190 @@ async function fetchMarketNews() {
 }
 
 // ══════════════════════════════════════════════════════════════
+// 2026-10-28 — ORIZZONTE · ELLIOTT WAVE REALE · COORDINAMENTO CON IL BOT
+// • Ogni segnale dichiara l'orizzonte del suo timeframe, con le stesse etichette del
+//   bot (MKO = short-term H1, /elliott = swing Daily, EWS = swing 4H).
+// • Il contesto Elliott Wave non lo scrive più l'AI: viene dal motore XenosFinance
+//   (stesse regole di elliottwave.html e del bot) calcolato sulle stesse candele.
+// • Le viste EW/EWS pubblicate dal bot (data/ew_views.json) e gli MKO aperti
+//   (data/mko_track.json): un segnale H4/D1 contro una vista swing valida viene
+//   bloccato; M15/H1 contrari restano visibili con avviso; quelli allineati lo dicono.
+// ══════════════════════════════════════════════════════════════
+const COMMOD_INDEX_SET = new Set(['XAUUSD','XAGUSD','USOIL','UKOIL','NGAS','COPPER',
+  'US500','US30','NAS100','UK100','GER40','FRA40','JPN225','HK50','AUS200']);
+const SIG_HORIZON = {
+  M15: 'Intraday · M15 · within the session',
+  H1:  'Short-term · H1 · hours to a few days',
+  H4:  'Swing · 4H · several days to 2-3 weeks',
+  D1:  'Swing · Daily · days to weeks',
+};
+function sigHorizon(tf) { return SIG_HORIZON[tf] || SIG_HORIZON.H1; }
+function sigIsSwingTF(tf) { return tf === 'H4' || tf === 'D1'; }
+
+// Chiavi del bot (MARKETS / desk) per i simboli del Signal Engine
+const SIG_DESK_KEY = { XAUUSD:'GOLD', XAGUSD:'SILVER', USOIL:'OIL', US500:'SPX', NAS100:'NASDAQ',
+  US30:'DJI', GER40:'DAX', BTCUSDT:'BTCUSD', ETHUSDT:'ETHUSD', SOLUSDT:'SOLUSD', XRPUSDT:'XRPUSD',
+  BNBUSDT:'BNBUSD', QQQ:'NASDAQ', SPY:'SPX' };
+function sigDeskKey(p) { p = String(p || '').toUpperCase(); return SIG_DESK_KEY[p] || p; }
+
+let _sigDesk = { ts: 0, ew: {}, mko: [] };
+async function sigLoadDesk() {
+  if (Date.now() - _sigDesk.ts < 5 * 60 * 1000) return _sigDesk;
+  const get = async (path, empty) => {
+    try {
+      const r = await fetch(path + '?t=' + Date.now(), { cache: 'no-store', signal: AbortSignal.timeout(8000) });
+      return r.ok ? await r.json() : empty;
+    } catch (e) { return empty; }
+  };
+  const [ew, mko] = await Promise.all([get('/data/ew_views.json', {}), get('/data/mko_track.json', [])]);
+  _sigDesk = { ts: Date.now(), ew: (ew && typeof ew === 'object' && !Array.isArray(ew)) ? ew : {},
+               mko: Array.isArray(mko) ? mko : [] };
+  return _sigDesk;
+}
+// Vista swing EW/EWS ancora valida (10 giorni, invalidazione non toccata)
+function sigEwView(pair, price) {
+  const v = _sigDesk.ew[sigDeskKey(pair)];
+  if (!v || Date.now() / 1000 - (v.ts || 0) > 10 * 86400) return null;
+  if (price && v.inv && ((v.dir === 'BUY' && price <= v.inv) || (v.dir === 'SELL' && price >= v.inv))) return null;
+  return v;
+}
+// MKO pubblicato e ancora aperto (né TP1 né SL, entro 5 giorni)
+function sigMkoOpen(pair) {
+  const k = sigDeskKey(pair);
+  for (let i = _sigDesk.mko.length - 1; i >= 0; i--) {
+    const r = _sigDesk.mko[i];
+    if (sigDeskKey(r.sym) === k && r.status === 'open' && Date.now() / 1000 - (r.ts || 0) < 5 * 86400) return r;
+  }
+  return null;
+}
+function sigAge(ts) { const h = (Date.now() / 1000 - (ts || 0)) / 3600; return h < 48 ? Math.round(h) + 'h' : Math.round(h / 24) + 'd'; }
+
+// ── Motore EW XenosFinance (stesse regole di elliottwave.html e del bot) ──
+const SIG_EW_RULES = { w2:[0.28,0.786], w3Ext:[1.0,1.272,1.618,2.0,2.618], w3Tol:0.15, w4:[0.15,0.65], b:[0.236,1.0] };
+const SIG_EW_DEGREES = [ { name:'Minor', len:4 }, { name:'Intermediate', len:8 }, { name:'Primary', len:16 } ];
+const SIG_EW_LABELS = ['0','1','2','3','4','5','A','B','C'];
+function sigEwIn(x, r) { return x >= r[0] && x <= r[1]; }
+function sigEwNear(x, arr, tol) { return arr.some(e => Math.abs(x / e - 1) <= tol); }
+function sigEwZigzag(c, len) {
+  const n = c.length, piv = [];
+  for (let i = len; i < n - len; i++) {
+    const h = c[i].high, l = c[i].low; let isH = true, isL = true;
+    for (let j = i - len; j <= i + len; j++) {
+      if (j === i) continue;
+      if (c[j].high > h || (j < i && c[j].high === h)) isH = false;
+      if (c[j].low  < l || (j < i && c[j].low  === l)) isL = false;
+    }
+    if (isH && isL) continue;
+    if (isH) piv.push({ i, p: h, hi: true });
+    if (isL) piv.push({ i, p: l, hi: false });
+  }
+  const zz = [];
+  piv.forEach(q => {
+    const last = zz[zz.length - 1];
+    if (!last) { zz.push(q); return; }
+    if (last.hi === q.hi) { if (q.hi ? q.p > last.p : q.p < last.p) zz[zz.length - 1] = q; return; }
+    if (q.hi ? q.p > last.p : q.p < last.p) zz.push(q);
+  });
+  if (!zz.length) return zz;
+  const first = zz[0]; let anc = null;
+  for (let k = 0; k < first.i; k++) {
+    const va = first.hi ? c[k].low : c[k].high;
+    if (!anc || (first.hi ? va < anc.p : va > anc.p)) anc = { i: k, p: va, hi: !first.hi };
+  }
+  if (anc && (first.hi ? anc.p < first.p : anc.p > first.p)) zz.unshift(anc);
+  let last = zz[zz.length - 1];
+  for (let k = last.i + 1; k < n; k++) {
+    const v0 = last.hi ? c[k].high : c[k].low;
+    if (last.hi ? v0 > last.p : v0 < last.p) { last = { i: k, p: v0, hi: last.hi }; zz[zz.length - 1] = last; }
+  }
+  let best = null;
+  for (let k = last.i + 1; k < n; k++) {
+    const v = last.hi ? c[k].low : c[k].high;
+    if (!best || (last.hi ? v < best.p : v > best.p)) best = { i: k, p: v, hi: !last.hi };
+  }
+  if (best) zz.push(best);
+  return zz;
+}
+function sigEwCheck(P) {
+  const R = SIG_EW_RULES, L = P.length - 1, len = (a, b) => Math.abs(P[b] - P[a]);
+  for (let i = 1; i <= L; i++) {
+    const conf = i < L;
+    switch (i) {
+      case 1: if (!(P[1] > P[0])) return false; break;
+      case 2: { const r2 = (P[1] - P[2]) / (P[1] - P[0]); if (conf ? !sigEwIn(r2, R.w2) : !(r2 > 0 && r2 < 1)) return false; break; }
+      case 3: if (!(P[3] > P[2])) return false;
+        if (conf && (!(P[3] > P[1]) || !sigEwNear(len(2, 3) / len(0, 1), R.w3Ext, R.w3Tol))) return false; break;
+      case 4: { const r4 = (P[3] - P[4]) / (P[3] - P[2]); if (!(P[4] > P[1])) return false;
+        if (conf ? !sigEwIn(r4, R.w4) : !(r4 > 0 && r4 < 1)) return false; break; }
+      case 5: if (!(P[5] > P[4])) return false;
+        if (conf) { if (!(P[5] > P[3])) return false; if (len(2, 3) < len(0, 1) && len(2, 3) < len(4, 5)) return false; } break;
+      case 6: if (!(P[6] < P[5])) return false; break;
+      case 7: { const rb = (P[7] - P[6]) / (P[5] - P[6]); if (conf ? !sigEwIn(rb, R.b) : !(rb > 0 && rb < 1)) return false; break; }
+      case 8: if (!(P[8] < P[7])) return false; break;
+    }
+  }
+  return true;
+}
+function sigEwMatch(zz) {
+  const end = zz.length - 1;
+  for (let s = Math.max(0, end - 8); s <= end - 3; s++) {
+    const d = zz[s].hi ? -1 : 1;
+    if (sigEwCheck(zz.slice(s).map(z => d * z.p))) return { s, d };
+  }
+  return null;
+}
+function sigEwDescribe(m, zz, deg) {
+  const pts = zz.slice(m.s), d = m.d, k = pts.length, p = pts.map(z => z.p);
+  const wave = SIG_EW_LABELS[k - 1];
+  const corrective = ['A','B','C'].includes(wave);
+  const waveDir = ['1','3','5','B'].includes(wave) ? d : -d;
+  const biasDir = corrective ? -d : d;
+  const L = (a, b) => Math.abs(p[b] - p[a]);
+  const lv = (base, sign, size, rs) => rs.map(r => ({ r, v: base + sign * size * r }));
+  let fibs = [], inval = null;
+  switch (wave) {
+    case '3': fibs = lv(p[2], d,  L(0, 1), [1, 1.618, 2.618]); inval = p[2]; break;
+    case '4': fibs = lv(p[3], -d, L(2, 3), [0.236, 0.382, 0.5]); inval = p[1]; break;
+    case '5': fibs = lv(p[4], d,  L(0, 1), [0.618, 1, 1.618]); inval = p[4]; break;
+    case 'A': fibs = lv(p[5], -d, L(0, 5), [0.382, 0.5, 0.618]); inval = p[5]; break;
+    case 'B': fibs = lv(p[6], d,  L(5, 6), [0.382, 0.5, 0.618]); inval = p[5]; break;
+    case 'C': fibs = lv(p[7], -d, L(5, 6), [0.618, 1, 1.618]); inval = p[7]; break;
+  }
+  const cur = p[k - 1]; let tgt = null;
+  for (const f of fibs) { if ((f.v - cur) * waveDir > 0) { tgt = f; break; } }
+  let reached = false;
+  if (!tgt && fibs.length) { tgt = fibs[fibs.length - 1]; reached = true; }
+  return { degree: deg.name, wave, trend: d > 0 ? 'bullish' : 'bearish', structure: corrective ? 'correction' : 'impulse',
+           bias: (reached && ['3','5','A','C'].includes(wave)) ? 'neutral' : (biasDir > 0 ? 'bullish' : 'bearish'),
+           target: tgt ? tgt.v : null, targetRatio: tgt ? tgt.r : null, inval, targetsReached: reached };
+}
+function sigEwRun(candles) {
+  try {
+    const c = candles.map(x => ({ high: parseFloat(x.high), low: parseFloat(x.low) }))
+                     .filter(x => isFinite(x.high) && isFinite(x.low));
+    if (c.length < 30) return null;
+    const valid = SIG_EW_DEGREES.map(deg => {
+      const zz = sigEwZigzag(c, deg.len);
+      const m = zz.length >= 4 ? sigEwMatch(zz) : null;
+      return m ? Object.assign(sigEwDescribe(m, zz, deg), { len: deg.len, k: m ? zz.length - m.s : 0 }) : null;
+    }).filter(Boolean);
+    valid.sort((a, b) => (b.k - a.k) || (b.len - a.len));
+    return valid[0] || null;
+  } catch (e) { return null; }
+}
+// Testo EW deterministico (nessuna frase inventata)
+function sigEwText(ew, pair, tf, direction) {
+  if (!ew) return 'No rule-valid Elliott Wave count on ' + tf + ' — pattern signal only, no wave context.';
+  const f = v => v == null ? '—' : fmt(v, pair);
+  const sigDir = direction === 'BUY' ? 'bullish' : 'bearish';
+  const rel = ew.bias === 'neutral' ? 'EW count gives no directional edge (targets reached)'
+            : ew.bias === sigDir ? 'aligned with the signal' : 'AGAINST the signal direction';
+  return 'Wave ' + ew.wave + ' in progress · ' + ew.trend + ' ' + ew.structure + ' · ' + ew.degree + ' degree (' + tf + '). '
+    + 'EW bias ' + ew.bias + ' — ' + rel + '. Invalidation ' + f(ew.inval)
+    + (ew.target != null ? ' · next Fibonacci level ' + f(ew.target) + (ew.targetsReached ? ' (already reached)' : '') : '') + '.';
+}
+
+// ══════════════════════════════════════════════════════════════
 // XENOS SIGNAL ENGINE v3 — Pattern Recognition su Candele Reali
 // ══════════════════════════════════════════════════════════════
 
@@ -1148,7 +1319,7 @@ async function fetchCandles(pair) {
       'GBPAUD':{sym:'OANDA:GBP_AUD',type:'forex'},'GBPCAD':{sym:'OANDA:GBP_CAD',type:'forex'},
       'GBPNZD':{sym:'OANDA:GBP_NZD',type:'forex'},'NZDCAD':{sym:'OANDA:NZD_CAD',type:'forex'},
       'NZDCHF':{sym:'OANDA:NZD_CHF',type:'forex'},'NZDJPY':{sym:'OANDA:NZD_JPY',type:'forex'},
-      'XAUUSD':{sym:'OANDA:XAU_USD',type:'forex'},
+      // 2026-10-28: indici e commodity non passano più da Finnhub (dava ETF: SPY, QQQ, USO, UNG…)
       'BTCUSD':{sym:'BINANCE:BTCUSDT',type:'crypto'},'ETHUSD':{sym:'BINANCE:ETHUSDT',type:'crypto'},
       'XRPUSD':{sym:'BINANCE:XRPUSDT',type:'crypto'},'SOLUSD':{sym:'BINANCE:SOLUSDT',type:'crypto'},
       'DOGEUSD':{sym:'BINANCE:DOGEUSDT',type:'crypto'},'BNBUSD':{sym:'BINANCE:BNBUSDT',type:'crypto'},
@@ -1158,10 +1329,6 @@ async function fetchCandles(pair) {
       'ATOMUSD':{sym:'BINANCE:ATOMUSDT',type:'crypto'},'UNIUSD':{sym:'BINANCE:UNIUSDT',type:'crypto'},
       'XLMUSD':{sym:'BINANCE:XLMUSDT',type:'crypto'},'TRXUSD':{sym:'BINANCE:TRXUSDT',type:'crypto'},
       'ETCUSD':{sym:'BINANCE:ETCUSDT',type:'crypto'},'NEARUSD':{sym:'BINANCE:NEARUSDT',type:'crypto'},
-      'US500':{sym:'SPY',type:'stock'},'US30':{sym:'DIA',type:'stock'},
-      'NAS100':{sym:'QQQ',type:'stock'},'GER40':{sym:'EWG',type:'stock'},
-      'UK100':{sym:'EWU',type:'stock'},'USOIL':{sym:'USO',type:'stock'},
-      'XAGUSD':{sym:'SI=F',type:'stock'},'NGAS':{sym:'UNG',type:'stock'},
     };
     const fhEntry = FH_MAP[pair];
     if (fhEntry) {
@@ -1192,14 +1359,16 @@ async function fetchCandles(pair) {
       'AUDJPY':'AUDJPY=X','CADCHF':'CADCHF=X','CHFJPY':'CHFJPY=X','EURNZD':'EURNZD=X',
       'EURAUD':'EURAUD=X','EURCAD':'EURCAD=X','GBPAUD':'GBPAUD=X','GBPCAD':'GBPCAD=X',
       'GBPNZD':'GBPNZD=X','NZDCAD':'NZDCAD=X','NZDCHF':'NZDCHF=X','NZDJPY':'NZDJPY=X',
-      'XAUUSD':'GC=F','XAGUSD':'SI=F','USOIL':'CL=F','UKOIL':'BZ=F','NGAS':'NG=F',
-      'US500':'SPY','US30':'DIA','NAS100':'QQQ','UK100':'EWU','GER40':'EWG',
+      'XAUUSD':'GC=F','XAGUSD':'SI=F','USOIL':'CL=F','UKOIL':'BZ=F','NGAS':'NG=F','COPPER':'HG=F',
+      // 2026-10-28: indici veri (prima ETF: SPY, DIA, QQQ, EWU, EWG → livelli su un'altra scala)
+      'US500':'^GSPC','US30':'^DJI','NAS100':['^NDX','NQ=F'],'UK100':'^FTSE','GER40':'^GDAXI',
+      'FRA40':'^FCHI','JPN225':'^N225','HK50':'^HSI','AUS200':'^AXJO',
       'BTCUSD':'BTC-USD','ETHUSD':'ETH-USD','XRPUSD':'XRP-USD','SOLUSD':'SOL-USD',
       'DOGEUSD':'DOGE-USD','BNBUSD':'BNB-USD','ADAUSD':'ADA-USD','AVAXUSD':'AVAX-USD',
       'LINKUSD':'LINK-USD','DOTUSD':'DOT-USD','LTCUSD':'LTC-USD',
     };
-    const yfSym = YF_MAP[pair];
-    if (yfSym) {
+    for (const yfSym of [].concat(YF_MAP[pair] || [])) {
+      if (candles) break;
       try {
         const TF_YF  = {'M15':'15m','H1':'1h','H4':'1h','D1':'1d'};
         const RNG_YF = {'M15':'5d','H1':'30d','H4':'60d','D1':'1y'};
@@ -2098,7 +2267,8 @@ async function analyzePair(pair, livePrices) {
   const atr     = calcATR(candles);
   if (!atr) return null;
 
-  const price   = livePrices[pair] || closes[closes.length-1];
+  // 2026-10-28: per indici e commodity il prezzo è l'ultima candela (stessa fonte e scala dei livelli)
+  const price   = (!COMMOD_INDEX_SET.has(pair) && livePrices[pair]) || closes[closes.length-1];
   const ema20   = calcEMA(closes, 20);
   const ema50   = calcEMA(closes, 50);
   const rsi     = calcRSI(candles);
@@ -2155,6 +2325,7 @@ async function analyzePair(pair, livePrices) {
     key_sr:       detected.key_sr,
     cfd:          detected.cfd || null,
     candleCount:  candles.length,
+    ew:           sigEwRun(candles),          // 2026-10-28: conteggio del motore EW sulle stesse candele
   };
 }
 
@@ -2195,9 +2366,24 @@ function renderAnalysis(text, sig) {
   return html;
 }
 
+// 2026-10-28: orizzonte, conteggio EW del motore e coordinamento con il bot
+function sigDeskBadges(sig) {
+  const b = (txt, col) => '<span style="display:inline-block;margin:0 6px 6px 0;padding:3px 8px;border:1px solid ' + col
+    + ';color:' + col + ';font-family:\'IBM Plex Mono\',monospace;font-size:10px;letter-spacing:.5px;">' + txt + '</span>';
+  let h = b('⏱ ' + (sig.horizon || sigHorizon(selectedTF)), '#60a5fa');
+  const d = sig.desk || {};
+  const dirTxt = x => x === 'BUY' ? 'LONG' : 'SHORT';
+  if (d.ew === 'aligned') h += b('✓ Aligned with XENOS Wave swing view (' + dirTxt(d.ewInfo.dir) + ')', '#34d399');
+  if (d.ew === 'against') h += b('⚠ Against XENOS Wave swing view (' + dirTxt(d.ewInfo.dir) + ', ' + sigAge(d.ewInfo.ts) + ')', '#fbbf24');
+  if (d.mko === 'against') h += b('⚠ Opposite MKO open (' + dirTxt(d.mkoInfo.dir) + ', ' + sigAge(d.mkoInfo.ts) + ')', '#fbbf24');
+  if (d.mko === 'aligned') h += b('✓ Same direction as open MKO', '#34d399');
+  const ewLine = '<div class="analysis-title">Elliott Wave (XenosFinance engine)</div><p class="analysis-para">'
+    + (sig.ew_context || sigEwText(sig.ew, sig.pair, selectedTF, sig.direction)) + '</p>';
+  return '<div style="margin:6px 0 4px;">' + h + '</div>' + ewLine;
+}
+
 function renderLegacyAnalysis(sig) {
   let html = '';
-  if (sig.ew_context)     html += '<div class="analysis-title">Elliott Wave Context</div><p class="analysis-para">' + (sig.ew_context||'') + '</p>';
   if (sig.pattern_desc)   html += '<div class="analysis-title">Pattern Description</div><p class="analysis-para">' + (sig.pattern_desc||'') + '</p>';
   if (sig.key_levels)     html += '<div class="analysis-title">Key Levels</div><p class="analysis-para">' + (sig.key_levels||'') + '</p>';
   if (sig.invalidation)   html += '<div class="analysis-title">Invalidation</div><div class="analysis-invalidation">' + (sig.invalidation||'') + '</div>';
@@ -2237,7 +2423,8 @@ ${p} [${a.direction}] — Pattern detected: ${a.pattern}
   Swing Lows    : ${a.swingLows.map(fmt).join(', ')}
   Key S/R       : ${JSON.stringify(a.key_sr)}
   CFD Physics   : Reynolds=${a.cfd ? a.cfd.reynolds : 'N/A'} | Viscosity=${a.cfd ? a.cfd.viscosity : 'N/A'} | Flow=${a.cfd ? a.cfd.flowType : 'N/A'} | Momentum Aligned=${a.cfd ? a.cfd.momentumAligned : 'N/A'}
-  Evidence      : RSI=${fmtPct(a.rsi)}, EMA20${a.ema20>a.ema50?'>':'<'}EMA50`;
+  Evidence      : RSI=${fmtPct(a.rsi)}, EMA20${a.ema20>a.ema50?'>':'<'}EMA50
+  EW engine     : ${sigEwText(a.ew, p, tf, a.direction)}`;
   }).join('\n');
 
   const prevSection = prevSignals.length > 0 ? `
@@ -2255,7 +2442,11 @@ ${sentLines   ? `Sentiment: ${sentLines}` : ''}
 
   return `You are a senior institutional trader reviewing algorithmically detected chart patterns.
 
-The patterns below were detected by a technical analysis algorithm on REAL OHLCV candle data (${tf} timeframe). Your job is to:
+The patterns below were detected by a technical analysis algorithm on REAL OHLCV candle data (${tf} timeframe).
+Trading horizon of these setups: ${sigHorizon(tf)} — write the analysis for that horizon only.
+The "EW engine" line is the rule-validated XenosFinance Elliott Wave count: it is authoritative. Never invent a different wave count;
+if you mention Elliott Wave, cite only that line. Leave "ew_context" as an empty string (it is filled by the engine).
+Your job is to:
 1. Validate the pattern and write professional analysis
 2. Use EXACTLY the entry, SL, TP levels provided — do NOT change them
 3. Write ew_context, pattern_desc, key_levels, invalidation, market_context fields
@@ -2409,6 +2600,7 @@ async function generateSignals() {
     }
 
     // Merge dati algoritmici (forza entry/sl/tp/rr/confidence/direction dall'algo)
+    await sigLoadDesk();
     const merged = finalSignals.map(sig => {
       const algo = validAnalyses.find(a => a.pair === sig.pair);
       if (algo) {
@@ -2420,7 +2612,19 @@ async function generateSignals() {
         sig.confidence = algo.confidence;
         sig.cfd        = algo.cfd || null;
         sig.atr        = algo.atr;
+        // 2026-10-28: Elliott Wave dal motore, mai dall'AI
+        sig.ew         = algo.ew || null;
+        sig.ew_context = sigEwText(algo.ew, sig.pair, selectedTF, algo.direction);
       }
+      sig.timeframe = selectedTF;
+      sig.horizon   = sigHorizon(selectedTF);
+      // Coordinamento con il bot: vista swing EW/EWS pubblicata + MKO aperti
+      const px = parseFloat(sig.entry);
+      const v  = sigEwView(sig.pair, px);
+      const mk = sigMkoOpen(sig.pair);
+      const sd = sig.direction;
+      sig.desk = { ew: v ? (v.dir === sd ? 'aligned' : 'against') : null, ewInfo: v,
+                   mko: mk ? (mk.dir === sd ? 'aligned' : 'against') : null, mkoInfo: mk };
       return sig;
     });
 
@@ -2443,8 +2647,14 @@ async function generateSignals() {
     }
 
     // Block any signal that contradicts an already-active saved signal on same pair
+    // 2026-10-28: + segnali swing (H4/D1) contro una vista swing EW/EWS pubblicata e ancora valida
+    const deskBlocked = [];
     const dedupedSignals = Object.values(bestPerPair)
       .filter(sig => {
+        if (sig.desk && sig.desk.ew === 'against' && sigIsSwingTF(selectedTF)) {
+          deskBlocked.push(sig.pair);
+          return false;
+        }
         const active = activeSavedSignals.find(a => a.pair === sig.pair);
         if (active && active.direction !== sig.direction) {
           console.warn(`Blocked ${sig.pair} ${sig.direction} — conflicts with active ${active.direction}`);
@@ -2456,6 +2666,7 @@ async function generateSignals() {
     signals = dedupedSignals;
     renderSignals(dedupedSignals);
     updateStats(dedupedSignals);
+    if (deskBlocked.length) showToast('Bloccati (contro la vista swing EW/EWS pubblicata): ' + deskBlocked.join(', '));
 
   } catch(e) {
     clearInterval(loaderInterval);
@@ -2469,6 +2680,18 @@ async function generateSignals() {
 }
 
 async function callClaudeAPI(prompt) {
+  // 2026-10-28: prima Gemini gratuito (Worker gemini-free-chat), Claude solo come riserva
+  try {
+    const g = await fetch(WORKER, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'gemini-free-chat',
+        email: localStorage.getItem('xenos_free_email') || 'xenosfinance@gmail.com', message: prompt }),
+      signal: AbortSignal.timeout(60000)
+    });
+    const gd = await g.json().catch(() => ({}));
+    if (g.ok && gd.reply && gd.reply.indexOf('[') >= 0) return gd.reply;
+    console.warn('Gemini free unavailable (' + g.status + ' ' + (gd.error || '') + ') — falling back to Claude');
+  } catch (e) { console.warn('Gemini free error — falling back to Claude:', e.message); }
   const res = await fetch(WORKER, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -2549,6 +2772,7 @@ function renderSignals(list) {
             <div class="level-box"><div class="level-label">STOP LOSS</div><div class="level-val sl">${fmt(sig.sl, sig.pair)}</div></div>
             <div class="level-box"><div class="level-label">TAKE PROFIT</div><div class="level-val tp">${fmt(sig.tp, sig.pair)}</div></div>
           </div>
+          ${sigDeskBadges(sig)}
           <div class="full-analysis-block">
             ${sig.full_analysis ? renderAnalysis(sig.full_analysis, sig) : renderLegacyAnalysis(sig)}
           </div>
@@ -3578,6 +3802,12 @@ function saveTgConfig() {
 async function doSendToTelegram(idx) {
   const sig = signals[idx];
   if (!sig) return;
+  // 2026-10-28: avviso prima di pubblicare un segnale contrario a una vista swing o a un MKO aperto
+  if (sig.desk && (sig.desk.ew === 'against' || sig.desk.mko === 'against')) {
+    const why = [sig.desk.ew === 'against' ? 'la vista swing EW/EWS pubblicata' : '',
+                 sig.desk.mko === 'against' ? 'un MKO aperto' : ''].filter(Boolean).join(' e ');
+    if (!confirm('Questo segnale va contro ' + why + '. Sul canale sembrerà una contraddizione. Pubblicare comunque?')) return;
+  }
   const btn = document.querySelector(`[onclick="sendToTelegram(event, ${idx})"]`);
   if (btn) { btn.disabled = true; btn.textContent = '⏳ SENDING...'; }
 
@@ -3601,6 +3831,7 @@ async function doSendToTelegram(idx) {
     const lines = [
       `${dir} <b>${t(sig.pair)}</b> — ${t(sig.direction)}`,
       `📐 <b>${t(sig.pattern)}</b>  ·  ${t(selectedTF)}  ·  ${t(sig.confidence)}% confidence`,
+      `⏱ <i>${t(sig.horizon || sigHorizon(selectedTF))}</i>`,
       ``,
       `<b>Entry:</b>       ${t(fmt(sig.entry, sig.pair))}`,
       `<b>Stop Loss:</b>   ${t(fmt(sig.sl, sig.pair))}`,
@@ -3609,11 +3840,14 @@ async function doSendToTelegram(idx) {
       ``,
     ];
 
+    // 2026-10-28: Elliott Wave dal motore (non dall'AI) + coordinamento con le viste swing
+    lines.push(`<b>Elliott Wave:</b> ${t(sig.ew_context || sigEwText(sig.ew, sig.pair, selectedTF, sig.direction))}`);
+    if (sig.desk && sig.desk.ew === 'aligned') lines.push(`✓ Aligned with the XENOS Wave swing view`);
+    lines.push(``);
     // Full structured analysis if available, else legacy fields
     if (sig.full_analysis) {
       lines.push(stripMd(sig.full_analysis));
     } else {
-      if (sig.ew_context)     lines.push(`<b>Elliott Wave:</b>\n${t(sig.ew_context)}\n`);
       if (sig.pattern_desc)   lines.push(`<b>Pattern:</b>\n${t(sig.pattern_desc)}\n`);
       if (sig.key_levels)     lines.push(`<b>Key Levels:</b>\n${t(sig.key_levels)}\n`);
       if (sig.market_context) lines.push(`<b>Context:</b>\n${t(sig.market_context)}\n`);
