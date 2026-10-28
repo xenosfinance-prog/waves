@@ -199,8 +199,9 @@ tr.poor td{color:var(--muted);}
 
 NAV = [("/", "Home"), ("/market-brief", "Market Brief"), ("/intelligence/", "Intelligence"), ("/dashboard", "Dashboard"),
        ("/analysis/", "Daily Analysis"), ("/cot/", "COT Positioning"), ("/futures-flow/", "Futures Flow"),
-       ("/XenosBlog", "Blog"), ("/calendar", "Calendar"), ("/elliottwave", "Elliott Wave"),
-       ("/premium", "Premium")]   # 2026-10-26: stessi servizi del menu principale del sito
+       ("/xenoswaves_charts", "Charts"), ("/XenosBlog", "Blog"), ("/trading-ideas", "Trading Ideas"),
+       ("/trading-signals", "Live Setups"), ("/calendar", "Calendar"), ("/elliottwave", "Elliott Wave"),
+       ("/daily-education", "Education"), ("/premium", "Premium")]   # 2026-10-28: + Charts, Ideas, Setups, Education   # 2026-10-26: stessi servizi del menu principale del sito
 
 
 def page_shell(title, desc, canonical, body, jsonld, keywords, active="/analysis/", it_title=None):

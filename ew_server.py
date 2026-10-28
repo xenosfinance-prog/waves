@@ -1816,7 +1816,16 @@ TA_ALLOWED = {
     "CL=F","GC=F","SI=F","NG=F","EURUSD=X","GBPUSD=X","USDJPY=X","USDCHF=X",
     "BTC-USD","ETH-USD","^GSPC","^IXIC","^GDAXI","^FTSE","PL=F","PA=F","BZ=F",
     "HG=F","ZW=F","ZC=F","ZS=F","KC=F","SB=F","CT=F",
+    "^NDX",   # 2026-10-28: Nasdaq = Nasdaq 100 (la dashboard chiede ^NDX)
 }
+# 2026-10-28: la dashboard apre l'analisi anche sui titoli US (AAPL, NVDA, BRK-A…):
+# prima venivano respinti con "Unsupported symbol". Ticker azionari semplici ammessi.
+import re as _ta_re
+_TA_STOCK_RE = _ta_re.compile(r"^[A-Z]{1,5}(-[A-Z])?$")
+
+
+def _ta_allowed(sym):
+    return sym in TA_ALLOWED or bool(_TA_STOCK_RE.match(sym))
 TA_LANG = {"en":"English","it":"Italian","es":"Spanish","fr":"French","de":"German",
            "pt":"Portuguese","ru":"Russian","zh":"Chinese","ja":"Japanese","ar":"Arabic"}
 
@@ -2091,7 +2100,7 @@ def ta_brief():
     try:
         body = request.get_json(force=True) or {}
         yf_sym = str(body.get("yf", "")).replace("%3D", "=")
-        if yf_sym not in TA_ALLOWED:
+        if not _ta_allowed(yf_sym):
             return jsonify({"error": f"Unsupported symbol: {yf_sym}"}), 400
         name = str(body.get("name", yf_sym))[:60]
         lang = str(body.get("lang", "en"))[:5]
