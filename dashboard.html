@@ -235,6 +235,10 @@ body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:10
   .ev-tab.active { color: var(--gold); border-bottom-color: var(--gold); }
 /* FIX 2026-10-28: mobile — All Markets table was wider than the screen */
 @media(max-width:600px){.market-table th{letter-spacing:1px;padding:6px 5px;}.market-table td{padding:8px 5px;}.market-table .sym,.market-table .price{font-size:11px;}}
+
+/* FIX 2026-10-28: mobile — menu a capo (come home e blog) invece della riga a scorrimento:
+   i sotto-menu Dashboard / Trading Ideas / Education si aprivano fuori schermo */
+@media(max-width:600px){.masthead-nav{flex-wrap:wrap;overflow-x:visible;justify-content:center;}.masthead-nav .nav-btn,.masthead-nav > a{flex-shrink:1;padding:9px 10px;}.masthead-nav .nav-dropdown.open{flex-basis:100%;text-align:center;}}
 </style>
 <script src="/xf-translate.js?v=1"></script>
 <script src="/i18n.js?v=9"></script>
@@ -272,7 +276,7 @@ body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:10
     <div class="nav-dropdown">
       <a class="nav-btn" href="https://xenosfinance.com/trading-ideas"><span>💡 Trading Ideas</span><span class="nav-caret">▾</span></a>
       <div class="nav-dropdown-menu">
-        <a href="https://xenosfinance.com/trading-signals"><span data-i18n="nav_signals">📡 Live Signals</span></a>
+        <a href="https://xenosfinance.com/trading-signals"><span data-i18n="nav_signals">📡 Live Setups</span></a>
       </div>
     </div>
     <a class="nav-btn" href="https://xenosfinance.com/calendar"><span data-i18n="nav_calendar">🗓 Calendar</span></a>
@@ -298,7 +302,7 @@ body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:10
       <div class="page-title">📊 <span data-i18n="label_dashboard_title_text">Market Dashboard</span></div>
       <div class="page-sub"><span data-i18n="label_live_prices">Live prices · Multi-asset overview · Session tracker</span></div>
     </div>
-    <span class="status-pill" id="dash-status">⟳ <span data-i18n="label_connecting">Connecting...</span></span>
+    <span class="status-pill" id="dash-status"><span data-i18n="label_connecting">⟳ Connecting...</span></span>
   </div>
 
   <!-- Trading Sessions -->
@@ -408,7 +412,7 @@ body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:10
       <div style="font-family:var(--mono);font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--gold);">✦ <span data-i18n="label_ai_intermarket_title">AI Intermarket Analysis</span></div>
       <div style="display:flex;align-items:center;gap:10px;">
         <span id="ai-im-status" style="font-family:var(--mono);font-size:9px;color:var(--muted);">⟳ <span data-i18n="label_ai_ready">Ready</span></span>
-        <button id="ai-im-btn" onclick="runIntermarketAI()" style="font-family:var(--mono);font-size:8px;letter-spacing:2px;text-transform:uppercase;padding:4px 14px;background:var(--gold);color:#fff;border:none;cursor:pointer;transition:opacity 0.2s;">⟳ <span data-i18n="label_analyse">Analyse</span></button>
+        <button id="ai-im-btn" onclick="runIntermarketAI()" style="font-family:var(--mono);font-size:8px;letter-spacing:2px;text-transform:uppercase;padding:4px 14px;background:var(--gold);color:#fff;border:none;cursor:pointer;transition:opacity 0.2s;"><span data-i18n="label_analyse">⟳ Analyse</span></button>
       </div>
     </div>
     <div id="ai-im-body" style="padding:20px 24px;min-height:100px;font-family:var(--mono);font-size:11px;color:var(--muted);line-height:1.8;background:var(--bg);">
@@ -937,7 +941,7 @@ function updateDateTime() {
 async function updateAll() {
   const status = document.getElementById('dash-status');
   const tt = (k, f) => (typeof window.t === 'function') ? window.t(k) : f;
-  if (status) status.textContent = '⟳ ' + tt('label_loading', 'Loading...');
+  if (status) status.textContent = '⟳ ' + String(tt('label_loading', 'Loading...')).replace(/^⟳\s*/, '');
 
   // Single batch request for all symbols (+ Nasdaq 100 dal server waves)
   const [prices, ewPrices] = await Promise.all([fetchAllPrices(), fetchEwQuotes(['^NDX', 'CL=F'])]);
@@ -1378,7 +1382,7 @@ function promptFreeAccessDash() {
   // invece che a runIntermarketAI — l'utente vedeva il bottone ma
   // cliccandolo riapriva sempre il popup, mai l'analisi vera.
   const btn = document.getElementById('ai-im-btn');
-  if (btn) { btn.textContent = '⟳ ' + (typeof window.t === 'function' ? window.t('label_analyse') : 'Analyse'); btn.onclick = runIntermarketAI; }
+  if (btn) { btn.textContent = '⟳ ' + String(typeof window.t === 'function' ? window.t('label_analyse') : 'Analyse').replace(/^⟳\s*/, ''); btn.onclick = runIntermarketAI; }
 }
 
 // ── Admin-only check (separato da isPremium: qui vogliamo SOLO te,
@@ -1448,7 +1452,7 @@ function checkPremiumCode() {
     const gate = document.getElementById('ai-im-gate');
     if (gate) gate.style.display = 'none';
     const btn = document.getElementById('ai-im-btn');
-    if (btn) { btn.textContent = '⟳ ' + (typeof window.t === 'function' ? window.t('label_analyse') : 'Analyse'); btn.onclick = runIntermarketAI; }
+    if (btn) { btn.textContent = '⟳ ' + String(typeof window.t === 'function' ? window.t('label_analyse') : 'Analyse').replace(/^⟳\s*/, ''); btn.onclick = runIntermarketAI; }
   } else {
     document.getElementById('premium-error').style.display = 'block';
   }
@@ -1473,7 +1477,7 @@ function _lang() { return localStorage.getItem('xenos_lang') || 'en'; }
 // L'AI commenta questi numeri; barra e etichetta del sentiment usano il punteggio.
 const IM_FF_URL = 'https://waves-production-ddbf.up.railway.app/ff-calendar?weeks=thisweek';
 const IM_TREND_SYMS = {
-  'DX-Y.NYB':'DXY', '^GSPC':'S&P 500', '^IXIC':'NASDAQ', '^VIX':'VIX', '^TNX':'US 10Y',
+  'DX-Y.NYB':'DXY', '^GSPC':'S&P 500', '^NDX':'NASDAQ 100', '^VIX':'VIX', '^TNX':'US 10Y',
   'GC=F':'GOLD', 'CL=F':'OIL WTI', 'HG=F':'COPPER', 'USDJPY=X':'USD/JPY', 'EURUSD=X':'EUR/USD', 'BTC-USD':'BTC'
 };
 window._imCandleCache = window._imCandleCache || {};
@@ -1549,10 +1553,16 @@ async function imContext() {
   ]);
   const C = {};
   syms.forEach((s, i) => { if (settled[i].status === 'fulfilled') C[s] = settled[i].value; });
+  // 2026-10-28: Nasdaq = Nasdaq 100 (^NDX). Se il Worker non dà le candele ^NDX si usa il
+  // Composite (^IXIC) sotto la chiave ^NDX, ma con l'etichetta corretta "NASDAQ COMP".
+  let imNasLabel = 'NASDAQ 100';
+  if (!C['^NDX']) {
+    try { C['^NDX'] = await imFetchDaily('^IXIC'); imNasLabel = 'NASDAQ COMP'; } catch (e) {}
+  }
   if (Object.keys(C).length < 5) return null; // troppo pochi dati: analisi come prima
 
   const trend = syms.filter(s => C[s]).map(s => ({
-    label: IM_TREND_SYMS[s], d5: imChg(C[s], 5), m1: imChg(C[s], 21)
+    label: s === '^NDX' ? imNasLabel : IM_TREND_SYMS[s], d5: imChg(C[s], 5), m1: imChg(C[s], 21)
   }));
   const g = s => C[s] ? imChg(C[s], 5) : null;
 
@@ -1560,7 +1570,7 @@ async function imContext() {
     ['^GSPC', '^TNX', 'S&P 500 vs US 10Y yield'],
     ['GC=F', 'DX-Y.NYB', 'Gold vs DXY'],
     ['CL=F', '^GSPC', 'Oil vs S&P 500'],
-    ['BTC-USD', '^IXIC', 'BTC vs NASDAQ'],
+    ['BTC-USD', '^NDX', 'BTC vs ' + imNasLabel],
     ['USDJPY=X', '^TNX', 'USD/JPY vs US 10Y yield'],
   ];
   const corrs = corrPairs
@@ -1623,7 +1633,7 @@ async function runIntermarketAI() {
   const tt = (k, f) => (typeof window.t === 'function') ? window.t(k) : f;
 
   btn.disabled = true;
-  btn.textContent = '⟳ ' + tt('label_analysing', 'Analysing...');
+  btn.textContent = '⟳ ' + String(tt('label_analysing', 'Analysing...')).replace(/^⟳\s*/, '');
   status.textContent = '⟳ ' + tt('label_fetching_live_data', 'Fetching live data...');
   body.innerHTML = '<span style="color:var(--muted);letter-spacing:1px;">✦ ' + tt('label_fetching_prices_desc', 'Fetching live prices and generating analysis...') + '</span>';
   if(window.XF) XF.start(body);
@@ -1640,6 +1650,11 @@ async function runIntermarketAI() {
     });
     if (!r.ok) throw new Error('price fetch failed');
     const priceData = (await r.json()).prices || {};
+    // 2026-10-28: come le card — Nasdaq 100 e WTI sul contratto front dal server waves
+    const ewQ = await fetchEwQuotes(['^NDX', 'CL=F']);
+    if (ewQ['CL=F']?.price) priceData['CL=F'] = ewQ['CL=F'];
+    const nasQ = ewQ['^NDX']?.price ? ewQ['^NDX'] : priceData['^IXIC'];
+    const nasLbl = ewQ['^NDX']?.price ? 'NASDAQ 100' : 'NASDAQ COMPOSITE';
 
     // 2026-10-08: trend multi-giorno, correlazioni, regime e news (vedi imContext)
     status.textContent = '⟳ ' + tt('label_fetching_live_data', 'Fetching live data...');
@@ -1658,7 +1673,7 @@ async function runIntermarketAI() {
       `USD/JPY: ${fmt(priceData['USDJPY=X']?.price, 3)} (${chg(priceData['USDJPY=X']?.change_pct)})`,
       `USD/CHF: ${fmt(priceData['USDCHF=X']?.price, 4)} (${chg(priceData['USDCHF=X']?.change_pct)})`,
       `S&P 500: ${priceData['^GSPC']?.price ? Math.round(priceData['^GSPC'].price).toLocaleString('en-US') : '--'} (${chg(priceData['^GSPC']?.change_pct)})`,
-      `NASDAQ: ${priceData['^IXIC']?.price ? Math.round(priceData['^IXIC'].price).toLocaleString('en-US') : '--'} (${chg(priceData['^IXIC']?.change_pct)})`,
+      `${nasLbl}: ${nasQ?.price ? Math.round(nasQ.price).toLocaleString('en-US') : '--'} (${chg(nasQ?.change_pct)})`,
       `DAX: ${priceData['^GDAXI']?.price ? Math.round(priceData['^GDAXI'].price).toLocaleString('en-US') : '--'} (${chg(priceData['^GDAXI']?.change_pct)})`,
       `FTSE 100: ${priceData['^FTSE']?.price ? Math.round(priceData['^FTSE'].price).toLocaleString('en-US') : '--'} (${chg(priceData['^FTSE']?.change_pct)})`,
       `US 10Y Yield: ${fmt(priceData['^TNX']?.price, 3)}% (${chg(priceData['^TNX']?.change_pct)})`,
@@ -1843,7 +1858,7 @@ Be concise, professional, data-driven. Use the actual numbers provided. No discl
   }
 
   btn.disabled = false;
-  btn.textContent = '⟳ ' + tt('label_analyse', 'Analyse');
+  btn.textContent = '⟳ ' + String(tt('label_analyse', 'Analyse')).replace(/^⟳\s*/, '');
 }
 
 document.addEventListener('DOMContentLoaded', () => {

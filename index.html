@@ -571,7 +571,7 @@ const SYMS = [
   {id:'XAUUSD', wk:'GC=F',    dec:2, prefix:'$'},
   {id:'USOIL',  wk:'CL=F',    dec:2, prefix:'$'},
   {id:'XAGUSD', wk:'SI=F',    dec:2, prefix:'$'},
-  {id:'SPY',    wk:'SPY',     dec:2, prefix:'$'},
+  {id:'SPY',    wk:'^GSPC',   dec:0, prefix:'',  comma:true},   // 2026-10-28: indice S&P 500, non l'ETF SPY
   {id:'NASDAQ', wk:'^IXIC',   dec:0, prefix:'',  comma:true},
   {id:'DAX',    wk:'^GDAXI',  dec:0, prefix:'',  comma:true},
   {id:'BTCUSD', wk:'BTC-USD', dec:0, prefix:'$', comma:true},
@@ -593,6 +593,17 @@ async function updateMarkets() {
     });
     if (!res.ok) return;
     const prices = (await res.json()).prices || {};
+    // 2026-10-28: Nasdaq 100 (^NDX) e WTI sul contratto front dal server waves, come la dashboard.
+    let nasLbl = 'NASDAQ COMP';
+    try {
+      const q = await fetch('https://waves-production-ddbf.up.railway.app/quotes?symbols=' + encodeURIComponent('^NDX,CL=F'),
+                            {cache: 'no-store', signal: AbortSignal.timeout(12000)});
+      const ew = q.ok ? ((await q.json()).prices || {}) : {};
+      if (ew['^NDX']?.price) { prices['^IXIC'] = ew['^NDX']; nasLbl = 'NASDAQ 100'; }
+      if (ew['CL=F']?.price) prices['CL=F'] = ew['CL=F'];
+    } catch (e) {}
+    const nasRow = document.getElementById('p-NASDAQ')?.parentElement?.querySelector('.mkt-sym');
+    if (nasRow) nasRow.textContent = nasLbl;
     let th = '';
     for (const s of SYMS) {
       const p = prices[s.wk]; if (!p?.price) continue;
@@ -605,7 +616,7 @@ async function updateMarkets() {
       if (ce) { ce.textContent = arr + ' ' + cs; ce.className = 'mkt-chg ' + (up ? 't-up' : 't-dn'); }
       const be = document.getElementById('b-' + s.id);
       if (be) { be.style.width = Math.min(Math.abs(p.change_pct || 0) * 20 + 25, 95) + '%'; be.style.background = up ? 'var(--green2)' : 'var(--red2)'; }
-      th += `<span class="t-item"><span class="t-sym">${s.id.replace('USOIL','OIL').replace('XAUUSD','GOLD').replace('XAGUSD','SILVER')}</span><span class="${up?'t-up':'t-dn'}">${ps}</span><span class="${up?'t-up':'t-dn'}">${arr}${cs}</span></span>`;
+      th += `<span class="t-item"><span class="t-sym">${s.id === 'NASDAQ' ? nasLbl : s.id === 'SPY' ? 'S&amp;P 500' : s.id.replace('USOIL','OIL').replace('XAUUSD','GOLD').replace('XAGUSD','SILVER')}</span><span class="${up?'t-up':'t-dn'}">${ps}</span><span class="${up?'t-up':'t-dn'}">${arr}${cs}</span></span>`;
     }
     if (th) { const ti = document.getElementById('ticker-inner'); if (ti) ti.innerHTML = th + th; }
   } catch(e) {}
