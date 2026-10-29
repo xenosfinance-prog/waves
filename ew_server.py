@@ -1768,6 +1768,32 @@ def rsi2_signal():
         return jsonify({"error": str(e)}), 500
 
 
+# 2026-10-29: candele grezze per il registro ombra del broker-engine
+# (esito virtuale dei segnali scartati). Solo lettura, nessun effetto sul resto.
+_OHLC_ALLOWED = {("5m", "7d"), ("15m", "60d"), ("1d", "3mo")}
+
+@app.route("/ohlc", methods=["POST", "OPTIONS"])
+def ohlc():
+    if request.method == "OPTIONS":
+        return Response(status=200)
+    try:
+        body = request.get_json(force=True) or {}
+        sym_raw = body.get("symbol", "").lower().strip()
+        iv, per = body.get("interval", "5m"), body.get("period", "7d")
+        if (iv, per) not in _OHLC_ALLOWED:
+            return jsonify({"error": f"interval/period not allowed: {iv}/{per}"}), 400
+        yf_sym = SYMBOL_MAP.get(sym_raw)
+        if not yf_sym:
+            return jsonify({"error": f"Unknown symbol: {sym_raw}"}), 400
+        df = fetch_candles(yf_sym, iv, per, 10**6)
+        candles = [[int(pd.Timestamp(ts).timestamp()), float(r["Open"]), float(r["High"]),
+                    float(r["Low"]), float(r["Close"])] for ts, r in df.iterrows()]
+        return jsonify({"symbol": sym_raw.upper(), "interval": iv, "candles": candles})
+    except Exception as e:
+        logger.error(f"ohlc error: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/bollinger-rsi-chart", methods=["POST","OPTIONS"])
 def bollinger_rsi_chart():
     if request.method == "OPTIONS":
