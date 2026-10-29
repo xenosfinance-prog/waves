@@ -322,6 +322,8 @@ canvas { display: block; }
 .ews-sidebar-section {
   border-bottom: 1px solid var(--border);
 }
+/* 2026-10-29: lista azioni Dow con scroll proprio, così la sidebar non allunga il pannello */
+.ews-sidebar-section.ews-stocks { max-height: 300px; overflow-y: auto; }
 .ews-sidebar-label {
   font-family: var(--mono);
   font-size: 8px;
@@ -524,6 +526,7 @@ canvas { display: block; }
   .ews-layout { grid-template-columns: 1fr; }
   .ews-sidebar { display: flex; overflow-x: auto; border-right: none; border-bottom: 1px solid var(--border); flex-direction: row; }
   .ews-sidebar-section { display: flex; border-bottom: none; }
+  .ews-sidebar-section.ews-stocks { max-height: none; overflow: visible; }
   .ews-sidebar-label { display: none; }
   .ews-body { grid-template-columns: 1fr; }
   .ews-right { border-top: 1px solid var(--border); }
@@ -1140,6 +1143,34 @@ canvas { display: block; }
           <button class="ews-asset-btn" onclick="ewsSelectAsset('NAS100','Nasdaq','neutral',this)"><span>Nasdaq</span><span class="ews-asset-dot neut"></span></button>
           <button class="ews-asset-btn" onclick="ewsSelectAsset('US30','Dow Jones','neutral',this)"><span>Dow Jones</span><span class="ews-asset-dot neut"></span></button>
           <button class="ews-asset-btn" onclick="ewsSelectAsset('GER40','DAX','neutral',this)"><span>DAX</span><span class="ews-asset-dot neut"></span></button>
+        </div>
+        <!-- 2026-10-29: azioni del Dow Jones già servite dal Worker (prices + yahoocandles) -->
+        <div class="ews-sidebar-section ews-stocks">
+          <div class="ews-sidebar-label">US Stocks · Dow 30</div>
+          <button class="ews-asset-btn" onclick="ewsSelectAsset('AAPL','Apple (AAPL)','neutral',this)"><span>AAPL · Apple</span><span class="ews-asset-dot neut"></span></button>
+          <button class="ews-asset-btn" onclick="ewsSelectAsset('AMZN','Amazon (AMZN)','neutral',this)"><span>AMZN · Amazon</span><span class="ews-asset-dot neut"></span></button>
+          <button class="ews-asset-btn" onclick="ewsSelectAsset('BA','Boeing (BA)','neutral',this)"><span>BA · Boeing</span><span class="ews-asset-dot neut"></span></button>
+          <button class="ews-asset-btn" onclick="ewsSelectAsset('CAT','Caterpillar (CAT)','neutral',this)"><span>CAT · Caterpillar</span><span class="ews-asset-dot neut"></span></button>
+          <button class="ews-asset-btn" onclick="ewsSelectAsset('CRM','Salesforce (CRM)','neutral',this)"><span>CRM · Salesforce</span><span class="ews-asset-dot neut"></span></button>
+          <button class="ews-asset-btn" onclick="ewsSelectAsset('CVX','Chevron (CVX)','neutral',this)"><span>CVX · Chevron</span><span class="ews-asset-dot neut"></span></button>
+          <button class="ews-asset-btn" onclick="ewsSelectAsset('DIS','Disney (DIS)','neutral',this)"><span>DIS · Disney</span><span class="ews-asset-dot neut"></span></button>
+          <button class="ews-asset-btn" onclick="ewsSelectAsset('GOOGL','Alphabet (GOOGL)','neutral',this)"><span>GOOGL · Alphabet</span><span class="ews-asset-dot neut"></span></button>
+          <button class="ews-asset-btn" onclick="ewsSelectAsset('GS','Goldman Sachs (GS)','neutral',this)"><span>GS · Goldman Sachs</span><span class="ews-asset-dot neut"></span></button>
+          <button class="ews-asset-btn" onclick="ewsSelectAsset('HD','Home Depot (HD)','neutral',this)"><span>HD · Home Depot</span><span class="ews-asset-dot neut"></span></button>
+          <button class="ews-asset-btn" onclick="ewsSelectAsset('HON','Honeywell (HON)','neutral',this)"><span>HON · Honeywell</span><span class="ews-asset-dot neut"></span></button>
+          <button class="ews-asset-btn" onclick="ewsSelectAsset('IBM','IBM (IBM)','neutral',this)"><span>IBM · IBM</span><span class="ews-asset-dot neut"></span></button>
+          <button class="ews-asset-btn" onclick="ewsSelectAsset('JNJ','Johnson &amp; Johnson (JNJ)','neutral',this)"><span>JNJ · Johnson &amp; J.</span><span class="ews-asset-dot neut"></span></button>
+          <button class="ews-asset-btn" onclick="ewsSelectAsset('JPM','JPMorgan (JPM)','neutral',this)"><span>JPM · JPMorgan</span><span class="ews-asset-dot neut"></span></button>
+          <button class="ews-asset-btn" onclick="ewsSelectAsset('KO','Coca-Cola (KO)','neutral',this)"><span>KO · Coca-Cola</span><span class="ews-asset-dot neut"></span></button>
+          <button class="ews-asset-btn" onclick="ewsSelectAsset('MCD','McDonald\'s (MCD)','neutral',this)"><span>MCD · McDonald's</span><span class="ews-asset-dot neut"></span></button>
+          <button class="ews-asset-btn" onclick="ewsSelectAsset('MRK','Merck (MRK)','neutral',this)"><span>MRK · Merck</span><span class="ews-asset-dot neut"></span></button>
+          <button class="ews-asset-btn" onclick="ewsSelectAsset('MSFT','Microsoft (MSFT)','neutral',this)"><span>MSFT · Microsoft</span><span class="ews-asset-dot neut"></span></button>
+          <button class="ews-asset-btn" onclick="ewsSelectAsset('NKE','Nike (NKE)','neutral',this)"><span>NKE · Nike</span><span class="ews-asset-dot neut"></span></button>
+          <button class="ews-asset-btn" onclick="ewsSelectAsset('NVDA','Nvidia (NVDA)','neutral',this)"><span>NVDA · Nvidia</span><span class="ews-asset-dot neut"></span></button>
+          <button class="ews-asset-btn" onclick="ewsSelectAsset('PG','Procter &amp; Gamble (PG)','neutral',this)"><span>PG · Procter &amp; G.</span><span class="ews-asset-dot neut"></span></button>
+          <button class="ews-asset-btn" onclick="ewsSelectAsset('UNH','UnitedHealth (UNH)','neutral',this)"><span>UNH · UnitedHealth</span><span class="ews-asset-dot neut"></span></button>
+          <button class="ews-asset-btn" onclick="ewsSelectAsset('V','Visa (V)','neutral',this)"><span>V · Visa</span><span class="ews-asset-dot neut"></span></button>
+          <button class="ews-asset-btn" onclick="ewsSelectAsset('WMT','Walmart (WMT)','neutral',this)"><span>WMT · Walmart</span><span class="ews-asset-dot neut"></span></button>
         </div>
         <div class="ews-sidebar-section">
           <div class="ews-sidebar-label">Crypto</div>
