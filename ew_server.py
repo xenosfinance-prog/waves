@@ -1836,6 +1836,108 @@ def bollinger_rsi_chart():
         return jsonify({"error": str(e)}), 500
 
 # ─────────────────────────────────────────────────────────
+# ORDER BLOCK (SMC) — 2026-10-30. Regole oggettive in order_blocks.py.
+# /order-block-signal   → segnale live per il broker-engine
+# /order-block-backtest → backtest su dati reali Yahoo (stesso feed), IS/OOS
+# ─────────────────────────────────────────────────────────
+import order_blocks as _ob
+
+OB_TREND_FILTER = os.getenv("OB_TREND_FILTER", "1") != "0"
+OB_RR = float(os.getenv("OB_RR", "2"))
+
+# universo del broker-engine → ticker Yahoo, spread stimato (prezzo) per i costi
+_OB_UNIVERSE = {
+    "GER40": ("^GDAXI", 1.5), "US500": ("^GSPC", 0.5), "USTEC": ("^NDX", 1.5),
+    "UK100": ("^FTSE", 1.0), "XAU_USD": ("GC=F", 0.3), "WTI": ("CL=F", 0.03),
+    "EUR_USD": ("EURUSD=X", 0.00008), "GBP_USD": ("GBPUSD=X", 0.00012),
+    "USD_JPY": ("USDJPY=X", 0.010), "AUD_USD": ("AUDUSD=X", 0.00010),
+    "NZD_USD": ("NZDUSD=X", 0.00015), "USD_CHF": ("USDCHF=X", 0.00012),
+}
+_ob_bt_cache = {}
+
+
+@app.route("/order-block-signal", methods=["POST", "OPTIONS"])
+def order_block_signal():
+    if request.method == "OPTIONS":
+        return Response(status=200)
+    try:
+        body = request.get_json(force=True) or {}
+        sym_raw = body.get("symbol", "").lower().strip()
+        tf_raw = body.get("tf", "H1 (1-Hour)")
+        yf_sym = SYMBOL_MAP.get(sym_raw)
+        if not yf_sym:
+            return jsonify({"error": f"Unknown symbol: {sym_raw}"}), 400
+        if tf_raw not in ("H1 (1-Hour)", "H4 (4-Hour)"):
+            return jsonify({"error": f"Order block: timeframe non supportato {tf_raw} (solo H1/H4)"}), 400
+        is_h4 = tf_raw == "H4 (4-Hour)"
+        df = fetch_candles(yf_sym, "1h", "60d" if not is_h4 else "180d", 10**6, is_h4)
+        z = _ob.live_signal(df, OB_TREND_FILTER, OB_RR)
+        dp = 2 if float(df["Close"].iloc[-1]) > 10 else 5
+        out = {"symbol": sym_raw.upper(), "tf": tf_raw, "direction": None,
+               "price": round(float(df["Close"].iloc[-1]), dp),
+               "bar_time": int(pd.Timestamp(df.index[-1]).timestamp())}
+        if z:
+            out.update({
+                "direction": "UP" if z["side"] == "long" else "DOWN",
+                "zone": {"top": round(float(z["top"]), dp), "bottom": round(float(z["bottom"]), dp),
+                         "ob_time": int(pd.Timestamp(df.index[z["ob"]]).timestamp()),
+                         "bos_time": int(pd.Timestamp(df.index[z["created"]]).timestamp())},
+                "key_levels": {"stop_loss": round(float(z["stop"]), dp), "tp1": round(float(z["tp"]), dp)},
+            })
+        logger.info(f"[order_block] {sym_raw.upper()} {tf_raw}: direction={out['direction']}")
+        return jsonify(out)
+    except Exception as e:
+        logger.error(f"order_block_signal error: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/order-block-backtest", methods=["GET"])
+def order_block_backtest():
+    """Griglia piccola e fissa (tf × trend × RR), split per tempo 50/50:
+    la configurazione si sceglie sulla prima metà (IS), si giudica sulla seconda (OOS)."""
+    try:
+        import time as _bt_time
+        key = "all"
+        hit = _ob_bt_cache.get(key)
+        if hit and _bt_time.time() - hit[0] < 6 * 3600 and request.args.get("refresh") != "1":
+            return jsonify(hit[1])
+        data = {}
+        for name, (yf_sym, _sp) in _OB_UNIVERSE.items():
+            try:
+                df = fetch_candles(yf_sym, "1h", "730d", 10**6)
+                data[name] = {"H1": df, "H4": df.resample("4h").agg({"Open": "first", "High": "max",
+                              "Low": "min", "Close": "last", "Volume": "sum"}).dropna()}
+            except Exception as e:
+                logger.warning(f"[ob_backtest] {name}: {e}")
+        results = []
+        for tf in ("H1", "H4"):
+            for trend in (True, False):
+                for rr in (1.5, 2.0, 3.0):
+                    row = {"tf": tf, "trend": trend, "rr": rr, "symbols": {}}
+                    all_is, all_oos = [], []
+                    for name, frames in data.items():
+                        df = frames[tf]
+                        tr = _ob.backtest(df, trend, rr, _OB_UNIVERSE[name][1])
+                        mid = len(df) // 2
+                        is_t = [t for t in tr if t["t"] < mid]
+                        oos_t = [t for t in tr if t["t"] >= mid]
+                        all_is += is_t
+                        all_oos += oos_t
+                        row["symbols"][name] = {"is": _ob.stats(is_t), "oos": _ob.stats(oos_t),
+                                                "from": str(df.index[0])[:10], "to": str(df.index[-1])[:10]}
+                    row["is"], row["oos"] = _ob.stats(all_is), _ob.stats(all_oos)
+                    results.append(row)
+        out = {"generated": pd.Timestamp.utcnow().isoformat(), "results": results}
+        _ob_bt_cache[key] = (_bt_time.time(), out)
+        for r in results:
+            logger.info(f"[ob_backtest] {r['tf']} trend={r['trend']} rr={r['rr']} IS={r['is']} OOS={r['oos']}")
+        return jsonify(out)
+    except Exception as e:
+        logger.error(f"order_block_backtest error: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
+# ─────────────────────────────────────────────────────────
 # AI TECHNICAL ANALYSIS — dashboard (2026-10-01)
 # Analisi tecnica intraday M15 + contesto H1 per i titoli della dashboard.
 # TUTTI i numeri (indicatori, zone di confluenza, entrate/stop/target e
