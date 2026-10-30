@@ -577,6 +577,20 @@ def get_wave_position(primary, live_price, dp, atr):
             wn = "5"
         # If all 5 waves confirmed → Wave A
         elif W5:
+            # FIX 2026-10-30: l'onda A veniva dichiarata per QUALSIASI impulso concluso
+            # nella finestra, anche vecchio e già superato dal prezzo. Il 30/10: Brent
+            # impulso 106.83→111.02 con prezzo a 112.8 (oltre W5 = conteggio invalidato,
+            # ma "onda A" con target 109.42/108.42 sotto); WTI impulso ribassista
+            # 94.88→92.52 con prezzo a 104 (ben oltre W0) e "onda A" verso 93.4–94.0.
+            # Onda A valida solo se il prezzo è tra W0 e W5: oltre W5 l'impulso non è
+            # finito (o il conteggio è sbagliato), oltre W0 la correzione ha già
+            # ritracciato tutto l'impulso → conteggio superato.
+            if bull and (live > W5["price"] or live < W0["price"]):
+                return "?", "Count invalidated — price outside the W0–W5 range of the last impulse", \
+                       "The last completed impulse has been invalidated by price; no reliable count.", {}
+            if not bull and (live < W5["price"] or live > W0["price"]):
+                return "?", "Count invalidated — price outside the W0–W5 range of the last impulse", \
+                       "The last completed impulse has been invalidated by price; no reliable count.", {}
             wn = "A"
             cycle_high = W5["price"] if bull else W0["price"]
             cycle_low  = W0["price"] if bull else W5["price"]
@@ -2073,12 +2087,17 @@ def _ta_compute(yf_sym, dp, interval="15m", period="30d", htf_rule="1h"):
     try:
         ew_piv = find_pivots_zigzag(df.tail(300), atr_mult=0.9)
         primary, alternate, _tri, _ms = analyze_structure(ew_piv, live)
-        if primary:
-            wnum, wdesc, _scen, kl = get_wave_position(primary, live, dp, atr)
+        # 2026-10-30: se il conteggio primario è invalidato dal prezzo si prova l'alternativo;
+        # se anche quello non regge, nessuna onda (meglio niente che un conteggio sbagliato).
+        for cand in (primary, alternate):
+            if not cand:
+                continue
+            wnum, wdesc, _scen, kl = get_wave_position(cand, live, dp, atr)
             if wnum != "?":
                 ew = {"wave": wnum, "desc": wdesc, "invalidation": kl.get("stop_loss"),
                       "tp1": kl.get("tp1"), "tp2": kl.get("tp2"),
-                      "prob": primary.get("prob")}
+                      "prob": cand.get("prob")}
+                break
     except Exception as e:
         logger.warning(f"[ta] EW count failed for {yf_sym}: {e}")
 
