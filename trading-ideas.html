@@ -662,7 +662,10 @@ function buildCard(idea, idx){
       <div class="card-signal">${signalLine}</div>
       ${buildDivergenceBadge(idea)}
       <div class="conf-row">
-        <span class="conf-label">${isMKO?'<span data-i18n="label_score">Score</span>: '+(idea.score||7)+'/10 ░░░░░ <span data-i18n="label_high_probability">HIGH PROBABILITY</span>...':'<span data-i18n="label_confidence">Confidence</span>'}</span>
+        <span class="conf-label">${isMKO?(idea.confluence
+          ? 'Confluence: '+String(idea.confluence).replace(/</g,'&lt;')+(idea.score_label?' · '+String(idea.score_label).replace(/</g,'&lt;'):'')
+          : '<span data-i18n="label_score">Score</span>: '+(idea.score||7)+'/10'+(idea.score_label?' · '+String(idea.score_label).replace(/</g,'&lt;'):''))
+        :'<span data-i18n="label_confidence">Confidence</span>'}</span>
         <div class="conf-track"><div class="conf-fill" style="width:${conf}%;background:${confColor}"></div></div>
         <span class="conf-val">${isMKO?'':conf+'%'}</span>
       </div>
@@ -699,7 +702,8 @@ async function openModal(idea){
   document.getElementById('modal-bias').innerHTML=`<span style="color:${color}">${bias}</span>`;
   document.getElementById('modal-wave').textContent=isMKO?'Wave ? · MKO Signal':'Wave '+waveIcon(idea.wave_num)+(idea.wave_phase?' · '+idea.wave_phase:'');
   document.getElementById('modal-price').textContent=fmtPrice(idea.price,idea.ticker);
-  document.getElementById('modal-conf').textContent=(idea.confidence||0)+'%';
+  // 2026-10-30: per gli MKO la "confidence" era score×10 (es. 100%) — si mostra la confluenza reale
+  document.getElementById('modal-conf').textContent=(isMKO&&idea.confluence)?idea.confluence:(idea.confidence||0)+'%';
   document.getElementById('modal-target').textContent=fmtPrice(idea.target,idea.ticker);
   document.getElementById('modal-inv').textContent=fmtPrice(idea.invalidation,idea.ticker);
   document.getElementById('modal-rr').textContent=fmtRR(idea);
