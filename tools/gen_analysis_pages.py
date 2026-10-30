@@ -116,7 +116,7 @@ def ai_commentary(name, data):
     if not free_llm.available():
         return None
     prompt = f"""You are a senior technical analyst at an institutional desk writing the daily analysis page for XenosFinance, a market analysis and trading education platform.
-Instrument: {name} — 1-hour chart with 4-hour context. All data below is ALREADY CALCULATED by our engine:
+Instrument: {name} — 1-hour chart with 4-hour context. Swing and Fibonacci levels are on the 1-hour chart; the Elliott wave count ("elliott") is on the 4-hour chart — always say "on the 4-hour chart" when you mention it. All data below is ALREADY CALCULATED by our engine:
 
 {json.dumps(data, ensure_ascii=False)}
 
@@ -383,18 +383,18 @@ def build_instrument_page(inst, d, ai, now, all_rows):
     if d.get("swing"):
         sw = d["swing"]
         dir_it = "rialzo" if sw["dir"] == "up" else "ribasso"
-        rows += (f'<tr><td>{L("Last swing", "Ultimo swing")}</td><td>{f(sw["from"])} → {f(sw["to"])} '
+        rows += (f'<tr><td>{L("Last swing (1H)", "Ultimo swing (1H)")}</td><td>{f(sw["from"])} → {f(sw["to"])} '
                  f'({L(esc(sw["dir"]), dir_it)})</td></tr>')
     for k, v in (d.get("fib") or {}).items():
-        rows += f"<tr><td>Fibonacci {k}%</td><td>{f(v)}</td></tr>"
+        rows += f"<tr><td>Fibonacci {k}% (1H)</td><td>{f(v)}</td></tr>"
     if d.get("elliott"):
         ew = d["elliott"]
-        rows += f'<tr><td>{L("Elliott Wave", "Onda di Elliott")}</td><td>{L(esc(ew["desc"]), esc(PI.ew_desc_it(ew["desc"])))}</td></tr>'
+        rows += f'<tr><td>{L("Elliott Wave (4H)", "Onda di Elliott (4H)")}</td><td>{L(esc(ew["desc"]), esc(PI.ew_desc_it(ew["desc"])))}</td></tr>'
         if ew.get("invalidation") is not None:
-            rows += f'<tr><td>{L("Elliott invalidation", "Invalidazione Elliott")}</td><td>{f(ew["invalidation"])}</td></tr>'
+            rows += f'<tr><td>{L("Elliott invalidation (4H)", "Invalidazione Elliott (4H)")}</td><td>{f(ew["invalidation"])}</td></tr>'
         tps = [f(t) for t in (ew.get("tp1"), ew.get("tp2")) if t is not None]
         if tps:
-            rows += f'<tr><td>{L("Elliott targets", "Target Elliott")}</td><td>{" · ".join(tps)}</td></tr>'
+            rows += f'<tr><td>{L("Elliott targets (4H)", "Target Elliott (4H)")}</td><td>{" · ".join(tps)}</td></tr>'
     pdv = d.get("prev_day") or {}
     if pdv.get("high") is not None and pdv.get("low") is not None:
         rows += f'<tr><td>{L("Previous-day range", "Range del giorno precedente")}</td><td>{f(pdv["low"])} – {f(pdv["high"])}</td></tr>'
@@ -646,7 +646,8 @@ def main():
         slug, yf, name, short, dec, group, _ = inst
         print(f"→ {name} ({yf})")
         try:
-            d = E._ta_compute(yf, dec, interval="1h", period="60d", htf_rule="4h")
+            # 2026-10-30: Elliott sul 4 ore, identico alla pagina Elliott del sito (/ew-chart H4)
+            d = E._ta_compute(yf, dec, interval="1h", period="60d", htf_rule="4h", ew_tf="H4 (4-Hour)")
         except Exception as e:
             print(f"  ! compute failed, keeping previous page: {e}")
             continue
