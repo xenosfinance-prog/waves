@@ -1937,6 +1937,28 @@ def order_block_backtest():
         return jsonify({"error": str(e)}), 500
 
 
+def _ob_backtest_on_start():
+    """OB_BACKTEST_ON_START=1 → backtest completo in background all'avvio, risultati nei log."""
+    import time as _t
+    _t.sleep(20)
+    try:
+        with app.test_request_context("/order-block-backtest?refresh=1"):
+            resp = order_block_backtest()
+        data = resp.get_json() if hasattr(resp, "get_json") else None
+        for r in (data or {}).get("results", []):
+            for name, st in r["symbols"].items():
+                logger.info(f"[ob_backtest] {r['tf']} trend={r['trend']} rr={r['rr']} {name} "
+                            f"{st['from']}..{st['to']} IS={st['is']} OOS={st['oos']}")
+        logger.info("[ob_backtest] DONE")
+    except Exception as e:
+        logger.error(f"[ob_backtest] startup run failed: {e}", exc_info=True)
+
+
+if os.getenv("OB_BACKTEST_ON_START", "0") == "1":
+    import threading as _ob_th
+    _ob_th.Thread(target=_ob_backtest_on_start, daemon=True).start()
+
+
 # ─────────────────────────────────────────────────────────
 # AI TECHNICAL ANALYSIS — dashboard (2026-10-01)
 # Analisi tecnica intraday M15 + contesto H1 per i titoli della dashboard.
