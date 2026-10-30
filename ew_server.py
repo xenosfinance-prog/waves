@@ -1824,6 +1824,12 @@ def bollinger_rsi_chart():
 
         logger.info(f"[bollinger_rsi] {sym_raw.upper()} {tf_raw}: direction={result['direction']} "
                     f"warning={result['warning']} rsi={result['rsi']}")
+        # 2026-10-30: inizio (epoch UTC) dell'ultima candela — il broker-engine scarta
+        # i segnali calcolati su un feed fermo (es. ^GDAXI fuori orario Xetra).
+        try:
+            result["bar_time"] = int(pd.Timestamp(df.index[-1]).timestamp())
+        except Exception:
+            pass
         return jsonify({"symbol": sym_raw.upper(), "tf": tf_raw, **result})
     except Exception as e:
         logger.error(f"bollinger_rsi_chart error: {e}", exc_info=True)
