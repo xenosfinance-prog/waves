@@ -325,6 +325,15 @@ def try_impulse(pivots):
             # usciva mai. Ora resta W5 in corso, valida finché non supera la fine di W3 al
             # contrario (troncamento oltre W3 = conteggio non valido).
             w5_live = bool(W5 and W5 is pivots[-1])
+            # FIX 2026-10-30 (audit): il conteggio deve spiegare il prezzo FINO AD ORA.
+            # Un impulso concluso (W5 confermata) è valido solo se dopo W5 c'è al massimo
+            # UN pivot (l'estremo provvisorio dell'onda A). Prima un impulso vecchio di
+            # settimane, con molti pivot dopo, restava candidato (e lo score favoriva
+            # proprio gli inizi più vecchi) → "onda A" su strutture già superate.
+            last_idx = pivots.index(seq[-1])
+            pivots_after = len(pivots) - 1 - last_idx
+            if W5 and not w5_live and pivots_after > 1: continue
+            if not W5 and pivots_after > 0: continue
             if W5 and W4:
                 w5_size = abs(W5["price"]-W4["price"])
                 w5_ratio = w5_size / w1_size
@@ -394,17 +403,26 @@ def try_abc(pivots, live_price):
             # For now: b_size = abs(WB - WA), c_size = abs(WC - WB)
             # Zigzag: C/A >= 0.9; Flat: B/A >= 0.85
 
+            # FIX 2026-10-30 (audit): WA = inizio dell'onda A, WB = fine di A, WC = fine di B.
+            # L'ultimo pivot dello zigzag è un estremo PROVVISORIO:
+            #   WC è l'ultimo pivot          → onda B in corso
+            #   un solo pivot dopo WC        → onda C in corso (quel pivot = estremo provvisorio di C)
+            #   più pivot dopo WC            → struttura superata, scartata
+            #   nessuna WC (WB ultimo pivot) → onda A ancora in corso, non classificabile
+            # Prima "nessuna WC" veniva chiamata onda B e i target di C partivano dalla fine
+            # di A invece che dalla fine di B.
+            if not WC: continue
+            pivots_after = len(pivots) - 1 - pivots.index(WC)
+            if pivots_after > 1: continue
+            phase = "B" if pivots_after == 0 else "C"
+            b_ratio = abs(WC["price"]-WB["price"]) / a_size if a_size>0 else 0
+            # B: 30-150% di A (zigzag 38-79%, flat ~100%, expanded fino a ~138%)
+            if b_ratio < 0.30 or b_ratio > 1.50: continue
+            # Zigzag: B non supera l'inizio di A
             c_ratio = 0.0
-            if WC:
-                c_size = abs(WC["price"]-WB["price"])
-                c_ratio = c_size / a_size if a_size>0 else 0
-                # C must be 50-220% of A
-                if c_ratio < 0.50 or c_ratio > 2.20: continue
-            else:
-                # Check live price doesn't make C ratio absurd
-                c_size_live = abs(live_price-WB["price"])
-                c_ratio_live = c_size_live/a_size if a_size>0 else 0
-                if c_ratio_live > 2.20: continue
+            if phase == "C":
+                c_ratio = abs(pivots[-1]["price"]-WC["price"]) / a_size if a_size>0 else 0
+                if c_ratio > 2.20: continue
 
             # Structure still active: live price within range
             abc_high = max(WA["price"], WB["price"], WC["price"] if WC else live_price)
@@ -413,23 +431,22 @@ def try_abc(pivots, live_price):
             if live_price > abc_high + abc_range*0.50: continue
             if live_price < abc_low  - abc_range*0.50: continue
 
-            # Classify
-            if c_ratio > 1.02 and near_fib(a_size/a_size, 1.0):
+            # Classificazione dal ritracciamento di B (prima usava per errore la stessa misura come "C")
+            if b_ratio >= 1.05:
                 pat = "Expanded Flat (3-3-5)"
-            elif c_ratio > 0 and c_ratio < 0.90:
-                pat = "Running Flat (3-3-5)"
-            elif near_fib(c_ratio, 1.0) if c_ratio>0 else False:
+            elif b_ratio >= 0.85:
                 pat = "Regular Flat (3-3-5)"
             else:
                 pat = "Zigzag (5-3-5)"
 
-            score = (30 if WC else 20) + (len(pivots)-start)
-            if near_fib(c_ratio, 1.0):   score += 8
-            if near_fib(c_ratio, 1.618): score += 6
+            score = (30 if phase == "C" else 20) + start   # 2026-10-30: strutture più recenti preferite
+            if near_fib(b_ratio, 0.618, 0.5): score += 6
+            if phase == "C" and near_fib(c_ratio, 1.0): score += 8
+            if phase == "C" and near_fib(c_ratio, 1.618): score += 6
 
             candidates.append({
                 "WA":WA,"WB":WB,"WC":WC,"bear":bear,
-                "a_size":a_size,"c_ratio":c_ratio,
+                "a_size":a_size,"b_ratio":b_ratio,"c_ratio":c_ratio,"phase":phase,
                 "pattern":pat,"score":score
             })
 
@@ -536,7 +553,9 @@ def analyze_structure(pivots, live_price):
 
     return (
         {"type":"impulse" if use_impulse else "abc", "data":primary, "prob":p_pct},
-        {"type":"abc" if use_impulse else "impulse", "data":alt, "prob":a_pct} if alt else None,
+        # FIX 2026-10-30: il tipo dell'alternativo dipende dai dati, non dalla scelta del primario
+        # (un impulso alternativo veniva etichettato "abc").
+        {"type":"impulse" if "W0" in alt else "abc", "data":alt, "prob":a_pct} if alt else None,
         triangle,
         mkt_structure
     )
@@ -545,6 +564,23 @@ def analyze_structure(pivots, live_price):
 # WAVE POSITION LABELLING
 # ─────────────────────────────────────────────────────────
 def get_wave_position(primary, live_price, dp, atr):
+    """2026-10-30 (audit): guardia finale su ogni conteggio — se il prezzo è già oltre
+    il livello di invalidazione (lato sbagliato dello stop rispetto ai target) il
+    conteggio non viene pubblicato."""
+    wn, desc, scen, kl = _get_wave_position_raw(primary, live_price, dp, atr)
+    try:
+        stop, tp1 = kl.get("stop_loss"), kl.get("tp1")
+        if wn != "?" and stop is not None and tp1 is not None:
+            long_side = tp1 > stop
+            if (long_side and live_price <= stop) or (not long_side and live_price >= stop):
+                return ("?", "Count invalidated — price beyond the invalidation level",
+                        "Price has moved beyond this count's invalidation level; no reliable count.", {})
+    except Exception:
+        pass
+    return wn, desc, scen, kl
+
+
+def _get_wave_position_raw(primary, live_price, dp, atr):
     """
     Determine current wave position from primary structure.
     Returns waveNum, waveDesc, scenario text, key levels.
@@ -616,13 +652,15 @@ def get_wave_position(primary, live_price, dp, atr):
                        f"Support zone {a618:.{dec}f}–{a786:.{dec}f}. "
                        f"Invalidation beyond W0 ({W0['price']:.{dec}f}).")
             inv = W0["price"]
-            nt  = W1["price"] + w1s*1.618 if bull else W1["price"] - w1s*1.618
+            # FIX 2026-10-30: W3 = 161.8% di W1 proiettato dalla FINE di W2 (provvisoria), non da W1
+            w2e = W2["price"]
+            nt  = w2e + w1s*1.618 if bull else w2e - w1s*1.618
             # entry near W2 support/resistance, tp toward W3
             # a618 is the buy zone (below live for bull), nt is W3 target
             entry_w2 = a618  # ideal entry at 61.8% retrace
             return wn, desc, scenario, {
                 "entry":round(entry_w2,dec),"stop_loss":round(inv,dec),
-                "tp1":round(nt,dec),"tp2":round(W1["price"] + w1s*2.618 if bull else W1["price"] - w1s*2.618,dec)
+                "tp1":round(nt,dec),"tp2":round(w2e + w1s*2.618 if bull else w2e - w1s*2.618,dec)
             }
 
         if wn == "3":
@@ -651,16 +689,20 @@ def get_wave_position(primary, live_price, dp, atr):
             w3s = I["w3_size"] or w1s
             t382 = w3e - w3s*0.382 if bull else w3e + w3s*0.382
             t618 = w3e - w3s*0.618 if bull else w3e + w3s*0.618
-            w5eq  = W3["price"] + w1s if bull else W3["price"] - w1s
+            # FIX 2026-10-30: W5 = W1 proiettata dalla fine (provvisoria) di W4, non da W3
+            w4e   = W4["price"] if W4 else live
+            w5eq  = w4e + w1s if bull else w4e - w1s
             desc = f"Wave ④ — Consolidation ({abs(live-w3e)/w3s*100:.0f}% of W3)"
             scenario = (f"RULE III: W4 must stay above W1 ({W1['price']:.{dec}f}). "
                        f"Target zone {t382:.{dec}f}–{t618:.{dec}f} (38.2–61.8% W3). "
                        f"W5 equality target: {w5eq:.{dec}f}.")
             # entry near W4 support, tp toward W5
             entry_w4 = t382  # ideal entry at 38.2% retrace of W3
+            # FIX 2026-10-30: regola III — lo stop non può stare oltre la fine di W1
+            stop_w4 = max(t618, W1["price"]) if bull else min(t618, W1["price"])
             return wn, desc, scenario, {
-                "entry":round(entry_w4,dec),"stop_loss":round(t618,dec),
-                "tp1":round(w5eq,dec),"tp2":round(W3["price"] + w1s*1.618 if bull else W3["price"] - w1s*1.618,dec)
+                "entry":round(entry_w4,dec),"stop_loss":round(stop_w4,dec),
+                "tp1":round(w5eq,dec),"tp2":round(w4e + w1s*1.618 if bull else w4e - w1s*1.618,dec)
             }
 
         if wn == "5":
@@ -700,11 +742,12 @@ def get_wave_position(primary, live_price, dp, atr):
         pat  = A["pattern"]
         dec  = dp
 
-        if not WC:
-            # In Wave B
+        if A.get("phase", "C" if WC else "B") == "B":
+            # In Wave B (WC = estremo provvisorio di B). FIX 2026-10-30: C proiettata dalla fine di B
             wn = "B"
-            c100 = WB["price"] - a_size if bear else WB["price"] + a_size
-            c162 = WB["price"] - a_size*1.618 if bear else WB["price"] + a_size*1.618
+            b_end = WC["price"] if WC else live
+            c100 = b_end - a_size if bear else b_end + a_size
+            c162 = b_end - a_size*1.618 if bear else b_end + a_size*1.618
             desc = f"Wave 🅑 — Corrective Bounce ({pat})"
             scenario = (f"{pat} — Wave B counter-trend {'rally' if bear else 'decline'}. "
                        f"Classic {'bull' if bear else 'bear'} trap — do not chase. "
@@ -715,18 +758,20 @@ def get_wave_position(primary, live_price, dp, atr):
                 "tp1":round(c100,dec),"tp2":round(c162,dec)
             }
         else:
-            # In Wave C
-            c_ret = abs(live-WB["price"])/a_size if a_size>0 else 0
+            # In Wave C. FIX 2026-10-30: misure e target dalla FINE di B (WC), non dalla fine di A
+            b_end = WC["price"]
+            c_ret = abs(live-b_end)/a_size if a_size>0 else 0
             complete = c_ret >= 0.85
-            c100  = WB["price"] - a_size      if bear else WB["price"] + a_size
-            c1236 = WB["price"] - a_size*1.236 if bear else WB["price"] + a_size*1.236
-            c162  = WB["price"] - a_size*1.618 if bear else WB["price"] + a_size*1.618
+            c100  = b_end - a_size      if bear else b_end + a_size
+            c1236 = b_end - a_size*1.236 if bear else b_end + a_size*1.236
+            c162  = b_end - a_size*1.618 if bear else b_end + a_size*1.618
             desc  = f"Wave 🅒 — Final Corrective Leg ({c_ret*100:.1f}% of A)" + (" [NEAR COMPLETION]" if complete else "")
             scenario = (f"{pat} — Wave C internally 5-wave structure. "
                        f"Targets: {c100:.{dec}f} (100%A) | {c1236:.{dec}f} (123.6%A) | {c162:.{dec}f} (161.8%A). "
                        f"{'Near completion — watch for reversal.' if complete else 'In progress.'} "
-                       f"Invalidation: {WA['price']:.{dec}f}.")
-            inv = WA["price"] * (1.001 if bear else 0.999)
+                       f"Invalidation: {b_end:.{dec}f} (end of B).")
+            # FIX 2026-10-30: durante C l'invalidazione è la fine di B
+            inv = b_end * (1.001 if bear else 0.999)
             return "C", desc, scenario, {
                 "entry":round(live,dec),"stop_loss":round(inv,dec),
                 "tp1":round(c100,dec),"tp2":round(c162,dec)
@@ -2033,7 +2078,23 @@ def _ta_rr(entry, stop, target):
     return round(abs(target - entry) / risk, 2) if risk > 0 else None
 
 
-def _ta_compute(yf_sym, dp, interval="15m", period="30d", htf_rule="1h"):
+def _ew_count_site(yf_sym, tf_raw):
+    """2026-10-30: conteggio Elliott con la STESSA pipeline di /ew-chart (pagina Elliott del
+    sito): stesse candele, stesso zigzag, stesso fallback. Restituisce (primary, alternate,
+    live, atr) o None."""
+    iv, pd_, n, mult, _piv, _ppd = TF_CONFIG[tf_raw]
+    df = fetch_candles(yf_sym, iv, pd_, n, tf_raw == "H4 (4-Hour)")
+    pivots = find_pivots_zigzag(df, atr_mult=mult)
+    if len(pivots) < 3:
+        pivots = find_pivots_zigzag(df, atr_mult=mult * 0.65)
+    if len(pivots) < 3:
+        return None
+    live = float(df["Close"].iloc[-1])
+    primary, alternate, _tri, _ms = analyze_structure(pivots, live)
+    return primary, alternate, live, calc_atr(df, 14)
+
+
+def _ta_compute(yf_sym, dp, interval="15m", period="30d", htf_rule="1h", ew_tf=None):
     """Default M15 + contesto H1 (dashboard). Le pagine /analysis usano
     interval="1h", period="60d", htf_rule="4h" (H1 + contesto H4)."""
     df = fetch_candles(yf_sym, interval, period, 100000)
@@ -2085,18 +2146,26 @@ def _ta_compute(yf_sym, dp, interval="15m", period="30d", htf_rule="1h"):
     # Elliott (motore deterministico esistente) su M15
     ew = None
     try:
-        ew_piv = find_pivots_zigzag(df.tail(300), atr_mult=0.9)
-        primary, alternate, _tri, _ms = analyze_structure(ew_piv, live)
+        ew_live, ew_atr = live, atr
+        if ew_tf:
+            # 2026-10-30: pagine /analysis → conteggio del timeframe del sito (H4), identico a /ew-chart
+            res = _ew_count_site(yf_sym, ew_tf)
+            primary, alternate = (res[0], res[1]) if res else (None, None)
+            if res:
+                ew_live, ew_atr = res[2], res[3]
+        else:
+            ew_piv = find_pivots_zigzag(df.tail(300), atr_mult=0.9)
+            primary, alternate, _tri, _ms = analyze_structure(ew_piv, live)
         # 2026-10-30: se il conteggio primario è invalidato dal prezzo si prova l'alternativo;
         # se anche quello non regge, nessuna onda (meglio niente che un conteggio sbagliato).
         for cand in (primary, alternate):
             if not cand:
                 continue
-            wnum, wdesc, _scen, kl = get_wave_position(cand, live, dp, atr)
+            wnum, wdesc, _scen, kl = get_wave_position(cand, ew_live, dp, ew_atr)
             if wnum != "?":
                 ew = {"wave": wnum, "desc": wdesc, "invalidation": kl.get("stop_loss"),
                       "tp1": kl.get("tp1"), "tp2": kl.get("tp2"),
-                      "prob": cand.get("prob")}
+                      "prob": cand.get("prob"), "tf": (ew_tf or interval)}
                 break
     except Exception as e:
         logger.warning(f"[ta] EW count failed for {yf_sym}: {e}")
