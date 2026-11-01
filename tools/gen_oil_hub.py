@@ -46,6 +46,12 @@ def _f(v, dec=2, plus=False):
     return (f"{v:+,.{dec}f}" if plus else f"{v:,.{dec}f}")
 
 
+def _ord(x):
+    n = int(round(x))
+    suf = "th" if 10 <= n % 100 <= 20 else {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
+    return f"{n}{suf}"
+
+
 def _load(rel):
     try:
         return json.load(open(os.path.join(ROOT, rel), encoding="utf-8"))
@@ -232,7 +238,7 @@ def svg_line(points, w=900, h=240, pad=(46, 14, 26, 10), fmt=lambda v: f"{v:.2f}
     line = " ".join(f"{X(i):.1f},{Y(v):.1f}" for i, v in enumerate(vals))
     g.append(f'<polyline points="{line}" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linejoin="round"/>')
     g.append(f'<circle cx="{X(len(vals) - 1):.1f}" cy="{Y(vals[-1]):.1f}" r="4" fill="#3b82f6" stroke="#0f1724" stroke-width="2"/>')
-    data = json.dumps([[p[0][:10], round(p[1], 3)] + ([round(band[i][0], 1) if band[i][0] is not None else None,
+    data = json.dumps([[p[0][:10], round(p[1], 2)] + ([round(band[i][0], 1) if band[i][0] is not None else None,
                        round(band[i][1], 1) if band[i][1] is not None else None] if band else [])
                        for i, p in enumerate(points)], separators=(",", ":"))
     return (f'<figure class="chart" data-pts=\'{_esc(data)}\' data-unit="{_esc(unit)}" data-label="{_esc(label)}" '
@@ -345,8 +351,8 @@ def build(G, built, now):
                  f'<div class="kpi"><div class="k">{L("3-month average", "Media 3 mesi")}</div><div class="v">${avg3:.2f}</div>'
                  f'<div class="s">{L("daily closes", "chiusure giornaliere")}</div></div>'
                  f'<div class="kpi"><div class="k">{L("3-month range", "Range 3 mesi")}</div><div class="v">${lo3:.2f}–{hi3:.2f}</div>'
-                 f'<div class="s">{L(f"now at the {pct:.0f}th percentile", f"ora al {pct:.0f}° percentile")}</div></div></div>')
-        b.append(svg_line(hist, fmt=lambda v: f"{v:.1f}", label="Brent–WTI spread, daily close ($/bbl)", unit=" $"))
+                 f'<div class="s">{L(f"now at the {_ord(pct)} percentile", f"ora al {pct:.0f}° percentile")}</div></div></div>')
+        b.append(svg_line(hist, fmt=lambda v: f"{v:.1f}", label="Brent–WTI spread, daily close ($/bbl)", unit=" $/bbl"))
         b.append('<div class="legend"><i></i>' + L("Brent minus WTI, front-month futures, daily close ($/bbl)",
                                                    "Brent meno WTI, futures front month, chiusura giornaliera ($/bbl)") + "</div>")
         b.append("<p>" + L(
@@ -432,7 +438,7 @@ def build(G, built, now):
             b.append('<div class="kpis">' + "".join(sup) + "</div>")
         hist = rep.get("crude_history") or []
         if len(hist) >= 10:
-            pts = [(h["period"], h["value"] / 1000) for h in hist]
+            pts = [(h["period"], round(h["value"] / 1000, 1)) for h in hist]
             band = [((h.get("min5") or 0) / 1000 or None, (h.get("max5") or 0) / 1000 or None) for h in hist]
             ref = [(h.get("avg5") or 0) / 1000 or None for h in hist]
             b.append(svg_line(pts, fmt=lambda v: f"{v:.0f}", band=band, ref=ref,
