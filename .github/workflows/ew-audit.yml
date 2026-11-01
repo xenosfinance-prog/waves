@@ -31,14 +31,11 @@ jobs:
           python tools/ew_audit.py tools/_ew_main.py ew_server.py > tools/ew_audit_report.txt 2>&1
           echo "exit=$?" >> tools/ew_audit_report.txt
           rm -f tools/_ew_main.py
-          pip install pytz >/dev/null 2>&1
-          python tools/bot_ew_audit.py WMT > tools/bot_ew_audit_report.txt 2>&1
-          echo "exit=$?" >> tools/bot_ew_audit_report.txt
       # report sul branch di audit (push con GITHUB_TOKEN: non rilancia il workflow)
       - name: Save report
         if: github.ref == 'refs/heads/ew-audit'
         run: |
           git config user.name "xenos-audit-bot"
           git config user.email "xenosfinance@gmail.com"
-          git add tools/ew_audit_report.txt tools/bot_ew_audit_report.txt
+          git add tools/ew_audit_report.txt
           git commit -m "EW audit report" && git push origin HEAD:ew-audit

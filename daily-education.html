@@ -752,6 +752,15 @@ async function eduContentFor(post, enContent) {
 // ─────────────────────────────────────────────
 async function init() {
   await loadIndex();
+  // 2026-11-01: link diretto dal post Telegram (?d=YYYY-MM-DD): oggi → card in alto, archivio → finestra
+  try {
+    const d = new URLSearchParams(location.search).get('d');
+    if (d && allPosts.length) {
+      const post = allPosts.find(p => p.date === d);
+      if (post && post !== allPosts[0]) openModal(post);
+      else if (post) document.getElementById('todayCard')?.scrollIntoView({behavior: 'smooth', block: 'start'});
+    }
+  } catch (e) {}
 }
 
 async function loadIndex() {
@@ -1007,6 +1016,11 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModalDi
 function formatEduContent(raw) {
   if (!raw) return '';
 
+  // 2026-11-01: istruzioni del modello finite nei titoli (es. "KEY TAKEAWAYS — 4 TO 6 SHORT BULLETS")
+  raw = String(raw)
+    .replace(/\s*[—–-]+\s*(?:DA\s*)?\d+\s*(?:TO|A|-)\s*\d+\s*(?:SHORT|BREVI)\s*(?:BULLETS|PUNTI)/gi, '')
+    .replace(/\s*[—–-]+\s*(?:ONE\s+PRACTICAL\s+DESK-LEVEL\s+INSIGHT|UN\s+INSIGHT\s+PRATICO\s+A\s+LIVELLO\s+DI\s+DESK)/gi, '');
+
   // Split into lines
   const lines = raw.split('\n');
   let html = '';
@@ -1051,7 +1065,9 @@ function formatEduContent(raw) {
     // PRO TIP / SMART MONEY RULE — special callout
     if (/^(PRO TIP|💡\s*PRO TIP)/i.test(line)) {
       closeList();
-      const rest = line.replace(/^(💡\s*)?(PRO TIP)\s*[:\-]?\s*/i, '');
+      const rest = line.replace(/^(💡\s*)?(PRO TIP)\s*[:\-—–]*\s*/i, '').replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/gu, '').trim();
+      // 2026-11-01: titolo "PRO TIP" da solo → il testo è dopo la riga vuota
+      if (!rest) { while (i + 1 < lines.length && !lines[i+1].trim()) i++; }
       // grab next non-empty lines until next section
       let tipText = rest;
       while (i + 1 < lines.length && lines[i+1].trim() && !/^[📊📈🧠⚠️💡🔑]/.test(lines[i+1].trim()) && !/^(SMART MONEY|PRO TIP|━)/i.test(lines[i+1].trim())) {
