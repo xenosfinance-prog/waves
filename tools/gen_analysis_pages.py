@@ -94,7 +94,10 @@ def spread_html():
     it = (f"Spread Brent–WTI: <b>${abs(v):.2f}</b> ({side_it}). "
           "I due benchmark di solito si muovono insieme, ma sui grafici a 1 ora possono mostrare bias diversi "
           "mentre lo spread si allarga o si restringe.")
-    return f'<p class="spread">{PI.L(en, it)}</p>'
+    # 2026-11-01: collegamento all'hub del petrolio (SEO: link interno dalle pagine WTI/Brent e dall'indice)
+    hub = PI.L("Full oil market view: spread history, futures curve, EIA inventories and COT positioning",
+               "Quadro completo del petrolio: storico dello spread, curva dei futures, scorte EIA e posizionamento COT")
+    return f'<p class="spread">{PI.L(en, it)} <a href="/analysis/oil-market">{hub} →</a></p>'
 
 
 def esc(t):
@@ -684,7 +687,21 @@ def main():
         print(f"  ✓ analysis/{inst[0]}.html  (AI: {'yes' if ai else 'no'})")
     with open(os.path.join(OUT_DIR, "index.html"), "w", encoding="utf-8") as fh:
         fh.write(build_index(rows, now))
-    update_sitemap([f"{SITE}/analysis/"] + [f"{SITE}/analysis/{r[0]}" for r in rows], now.strftime("%Y-%m-%d"))
+    extra = []
+    # 2026-11-01: hub del petrolio — un errore qui non tocca le altre pagine
+    try:
+        import gen_oil_hub as OH
+        hub = OH.build(sys.modules[__name__], built, now)
+        if hub:
+            with open(os.path.join(OUT_DIR, "oil-market.html"), "w", encoding="utf-8") as fh:
+                fh.write(hub)
+            extra.append(f"{SITE}/analysis/oil-market")
+            print("  ✓ analysis/oil-market.html")
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        print(f"  ! oil hub failed (other pages unaffected): {e}")
+    update_sitemap([f"{SITE}/analysis/"] + [f"{SITE}/analysis/{r[0]}" for r in rows] + extra, now.strftime("%Y-%m-%d"))
     print(f"Done: {len(built)} pages + index, sitemap updated.")
     return 0
 
