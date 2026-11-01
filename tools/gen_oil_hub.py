@@ -531,7 +531,8 @@ def build(G, built, now):
              ("/analysis/brent-crude-oil", "Brent technical analysis", "Analisi tecnica Brent"),
              ("/analysis/natural-gas", "Natural gas analysis", "Analisi gas naturale"),
              ("/cot/", "COT positioning", "Posizionamento COT"), ("/futures-flow/", "Futures Flow", "Futures Flow"),
-             ("/elliottwave", "Elliott Wave", "Onde di Elliott")]
+             ("/elliottwave", "Elliott Wave", "Onde di Elliott"),
+             ("/topics/oil-market", "Oil market news &amp; articles", "Notizie e articoli sul petrolio")]
     b.append(f"<h2>{L('Related', 'Collegati')}</h2><div class=\"rel\">"
              + "".join(f'<a href="{h}">{L(en, it)}</a>' for h, en, it in links) + "</div>")
     arts = (getattr(G, "RELATED", {}) or {}).get("wti-crude-oil") or []
