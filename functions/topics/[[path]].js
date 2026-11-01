@@ -32,7 +32,7 @@ export const TOPICS = [
     match: a => a.market === 'commodities' },
   { slug: 'oil-market', name: 'Oil Market Analysis — WTI, Brent, EIA & OPEC', short: 'Oil',
     intro: 'Crude oil analysis from an oil-trading desk: WTI and Brent, EIA inventory reports, OPEC+ decisions, the futures curve and the geopolitics that move the energy complex.',
-    links: [['/analysis/wti-crude-oil', 'WTI daily analysis'], ['/analysis/brent-crude-oil', 'Brent daily analysis'], ['/futures-flow/', 'Futures flow & curves'], ['/cot/', 'COT positioning']],
+    links: [['/analysis/oil-market', 'Crude oil market today: EIA, spread, curve, COT'], ['/analysis/wti-crude-oil', 'WTI daily analysis'], ['/analysis/brent-crude-oil', 'Brent daily analysis'], ['/futures-flow/', 'Futures flow & curves'], ['/cot/', 'COT positioning']],
     match: a => /\b(oil|crude|wti|brent|eia|opec\+?|petroleum)\b/.test(t(a)) },
   { slug: 'crypto', name: 'Crypto Market Analysis', short: 'Crypto',
     intro: 'Bitcoin, Ethereum and the wider crypto market: trend, liquidity, sentiment and the macro backdrop for digital assets.',
@@ -89,7 +89,7 @@ const TOPICS_IT = {
   'market-sentiment': { name: 'Sentiment di mercato', short: 'Sentiment',
     intro: 'Sentiment e posizionamento di mercato: propensione al rischio, volatilità, flussi dei fondi e il comportamento della massa dietro i movimenti di prezzo.' },
 };
-const LINK_IT = { 'S&P 500 daily analysis': 'Analisi giornaliera S&P 500', 'Nasdaq 100 daily analysis': 'Analisi giornaliera Nasdaq 100',
+const LINK_IT = { 'Crude oil market today: EIA, spread, curve, COT': 'Petrolio oggi: EIA, spread, curva, COT', 'S&P 500 daily analysis': 'Analisi giornaliera S&P 500', 'Nasdaq 100 daily analysis': 'Analisi giornaliera Nasdaq 100',
   'DAX daily analysis': 'Analisi giornaliera DAX', 'Live dashboard': 'Dashboard live', 'EUR/USD daily analysis': 'Analisi giornaliera EUR/USD',
   'USD/JPY daily analysis': 'Analisi giornaliera USD/JPY', 'GBP/USD daily analysis': 'Analisi giornaliera GBP/USD', 'COT positioning': 'Posizionamento COT',
   'Gold daily analysis': 'Analisi giornaliera oro', 'Copper daily analysis': 'Analisi giornaliera rame', 'Futures flow': 'Futures flow',
