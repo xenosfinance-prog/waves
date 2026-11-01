@@ -55,11 +55,15 @@ def _load(rel):
 
 # ───────────────────────── dati ─────────────────────────
 def spread_history(E):
-    """Chiusure giornaliere WTI (contratto front, come le pagine) e Brent → [(data, spread)]."""
-    wti = E.fetch_candles("CL=F", "1d", "6mo", 10**6)
-    brn = E.fetch_candles("BZ=F", "1d", "6mo", 10**6)
-    a = {str(i)[:10]: float(v) for i, v in wti["Close"].items()}
-    b = {str(i)[:10]: float(v) for i, v in brn["Close"].items()}
+    """Chiusure giornaliere WTI e Brent, serie CONTINUE front-month di entrambi → [(data, spread)].
+    Non fetch_candles: per CL=F usa il contratto esplicito (es. CLZ26), e mesi fa quel contratto era
+    un mese lontano, sotto il front in backwardation → spread storico gonfiato (+$10–15)."""
+    def closes(sym):
+        df = E.yf.download(sym, interval="1d", period="6mo", progress=False, auto_adjust=True)
+        if E.pd.api.types.is_list_like(df.columns) and getattr(df.columns, "nlevels", 1) > 1:
+            df.columns = df.columns.get_level_values(0)
+        return {str(i)[:10]: float(v) for i, v in df["Close"].dropna().items()}
+    a, b = closes("CL=F"), closes("BZ=F")
     days = sorted(set(a) & set(b))
     return [(d, b[d] - a[d]) for d in days]
 
