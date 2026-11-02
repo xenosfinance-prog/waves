@@ -193,6 +193,7 @@ body { background: var(--bg); color: var(--ink); font-family: var(--mono); min-h
 @media(max-width:768px){.masthead-name{font-size:34px;letter-spacing:-1px;}.masthead-nav{flex-wrap:wrap;overflow-x:visible;justify-content:center;}.masthead-nav .nav-dropdown.open{flex-basis:100%;text-align:center;}.page-footer{flex-direction:column;align-items:center;text-align:center;gap:10px;padding:20px 16px;letter-spacing:1px;}.page-footer > div{flex-wrap:wrap;justify-content:center;gap:10px 18px !important;}}
 </style>
 
+<script src="/xf-free-access.js?v=1"></script>
 <script src="/i18n.js?v=9"></script>
 <script src="/i18n-engine.js?v=8"></script>
 </head>
@@ -1090,11 +1091,14 @@ function isPremium() {
 
 // ── FREE AI ACCESS (whitelist separata da premium — solo ETF AI) ──
 function isFreeUnlocked() {
-  return !!(localStorage.getItem('xenos_free_email') || '').trim();
+  // 2026-11-02: solo email autorizzate (xf-free-access.js)
+  const e = (localStorage.getItem('xenos_free_email') || '').trim();
+  return !!e && (typeof xfFreeOk !== 'function' || xfFreeOk(e));
 }
 function unlockXFResearchFree(ticker) {
   const email = (prompt('Accesso gratuito autorizzato — inserisci la tua email:') || '').trim();
   if (!email) return;
+  if (typeof xfFreeOk === 'function' && !xfFreeOk(email)) { alert('Accesso gratuito non disponibile per questa email.'); return; }
   localStorage.setItem('xenos_free_email', email.toLowerCase());
   const container = document.getElementById('xfr-content-' + ticker);
   if (container) {

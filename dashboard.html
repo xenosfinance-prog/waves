@@ -241,6 +241,7 @@ body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:10
 @media(max-width:600px){.masthead-nav{flex-wrap:wrap;overflow-x:visible;justify-content:center;}.masthead-nav .nav-btn,.masthead-nav > a{flex-shrink:1;padding:9px 10px;}.masthead-nav .nav-dropdown.open{flex-basis:100%;text-align:center;}}
 </style>
 <script src="/xf-translate.js?v=1"></script>
+<script src="/xf-free-access.js?v=1"></script>
 <script src="/i18n.js?v=9"></script>
 <script src="/i18n-engine.js?v=8"></script>
 <script src="/xf-hand.js"></script>
@@ -1367,11 +1368,14 @@ function isPremium() {
 
 // ── FREE AI ACCESS (whitelist separata da premium — solo Intermarket AI) ──
 function isFreeUnlocked() {
-  return !!(localStorage.getItem('xenos_free_email') || '').trim();
+  // 2026-11-02: solo email autorizzate (xf-free-access.js)
+  const e = (localStorage.getItem('xenos_free_email') || '').trim();
+  return !!e && (typeof xfFreeOk !== 'function' || xfFreeOk(e));
 }
 function promptFreeAccessDash() {
   const email = (prompt('Accesso gratuito autorizzato — inserisci la tua email:') || '').trim();
   if (!email) return;
+  if (typeof xfFreeOk === 'function' && !xfFreeOk(email)) { alert('Accesso gratuito non disponibile per questa email.'); return; }
   localStorage.setItem('xenos_free_email', email.toLowerCase());
   closePremiumModal();
   const gate = document.getElementById('ai-im-gate');
