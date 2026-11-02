@@ -197,7 +197,7 @@ def curve_svg(res, prev_rows, w=320, h=90):
                    f'fill="#243a5e"/>' for i, p in enumerate(pts))
     today = " ".join(f"{x(i):.1f},{y(p[1]):.1f}" for i, p in enumerate(pts))
     prev = " ".join(f"{x(i):.1f},{y(prev_map[p[0]]):.1f}" for i, p in enumerate(pts) if p[0] in prev_map)
-    labels = "".join(f'<text x="{x(i):.1f}" y="{h}" fill="#5a7a9a" font-size="7" text-anchor="middle" '
+    labels = "".join(f'<text x="{x(i):.1f}" y="{h}" fill="#b8cce0" font-size="8" text-anchor="middle" '
                      f'font-family="IBM Plex Mono">{p[0][2:]}</text>' for i, p in enumerate(pts) if i % 2 == 0)
     return (f'<svg viewBox="0 0 {w} {h + 4}" width="100%" height="{h + 4}" role="img" aria-label="futures curve">{bars}'
             + (f'<polyline points="{prev}" fill="none" stroke="#5a7a9a" stroke-dasharray="3 3" stroke-width="1.2"/>' if prev else "")
@@ -302,20 +302,22 @@ def build_page(res, prev_snap, day, now, desk=None, oil=None, bias=None, it=None
     b.append('<div class="grid">')
     for r in res:
         prev_rows = (prev_snap or {}).get(r["key"])
-        extra = f"{r['m1']}–{r['m6']} {r['spread_m1m6']:+.{r['dec']}f} {r['unit']} · {r['structure']}"
+        # 2026-11-02: valori in giallo (prima tutto grigio, poco leggibile)
+        Y = lambda v: f'<b style="color:#facc15;font-weight:500">{esc(v)}</b>'
+        sp_txt = f"{r['spread_m1m6']:+.{r['dec']}f} {r['unit']}"
+        extra = f"{esc(r['m1'])}–{esc(r['m6'])} " + Y(sp_txt) + f" · {esc(r['structure'])}"
         extra_it = extra
         if r.get("top_oi_move"):
-            extra += f" · largest OI change {r['top_oi_move'][1]} {kfmt(r['top_oi_move'][0])}"
-            extra_it += f" · maggiore variazione di OI {r['top_oi_move'][1]} {kfmt(r['top_oi_move'][0])}"
+            mv = f"{esc(r['top_oi_move'][1])} " + Y(kfmt(r['top_oi_move'][0]))
+            extra += f" · largest OI change {mv}"
+            extra_it += f" · maggiore variazione di OI {mv}"
         b.append(f'<div><p><b>{PI.market(r["name"], esc)}</b> <span style="font-family:var(--mono);font-size:11px;color:var(--muted)">'
-                 f'{L(esc(extra), esc(extra_it))}</span></p>{curve_svg(r, prev_rows)}</div>')
+                 f'{L(extra, extra_it)}</span></p>{curve_svg(r, prev_rows)}</div>')
     b.append("</div>")
     b.append('<p style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:12px">' + L(
-        "Curves: blue = latest settlement by contract month, dashed = previous session; bars = open interest by month. "
-        "Source: exchange futures quotes via Yahoo Finance; open-interest history stored by XenosFinance.",
+        "Curves: blue = latest settlement by contract month, dashed = previous session; bars = open interest by month.",
         "Curve: blu = ultimo settlement per scadenza, tratteggio = seduta precedente; barre = open interest per "
-        "scadenza. Fonte: quotazioni dei futures di borsa via Yahoo Finance; storico dell'open interest registrato "
-        "da XenosFinance.") + '</p>')
+        "scadenza.") + '</p>')
     if bias:   # 2026-10-19: conclusione finale — bias e trend
         b += D.bias_html("flow", bias[0], bias[1], esc, it.get("bias"))
     b.append(f'<div class="box"><p><b>{L("Related", "Correlati")}</b></p><div class="cta">'
