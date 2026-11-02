@@ -385,7 +385,7 @@ def build(G, built, now):
                      f"<td>{_f(p.get('spread_m1m6'), 2, True)}</td><td>{_f(p.get('oi_chg'), 0, True)}</td>"
                      f"<td>{_esc(p.get('flow') or '—')}</td></tr>")
         b.append("</table>")
-        b.append(f'<p class="src">{L("Session", "Sessione")} {_esc(fl.get("session", ""))} · '
+        b.append(f'<p class="src">CME · {L("session", "sessione")} {_esc(fl.get("session", ""))} · '
                  f'<a href="/futures-flow/">{L("Full Futures Flow report", "Report Futures Flow completo")}</a></p>')
         if fl.get("oil_read"):
             b.append(f"<p>{_esc(fl['oil_read'])}</p>")

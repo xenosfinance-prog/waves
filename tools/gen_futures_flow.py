@@ -315,9 +315,10 @@ def build_page(res, prev_snap, day, now, desk=None, oil=None, bias=None, it=None
                  f'{L(extra, extra_it)}</span></p>{curve_svg(r, prev_rows)}</div>')
     b.append("</div>")
     b.append('<p style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:12px">' + L(
-        "Curves: blue = latest settlement by contract month, dashed = previous session; bars = open interest by month.",
+        "Curves: blue = latest settlement by contract month, dashed = previous session; bars = open interest by month. "
+        "Open-interest history stored by XenosFinance.",
         "Curve: blu = ultimo settlement per scadenza, tratteggio = seduta precedente; barre = open interest per "
-        "scadenza.") + '</p>')
+        "scadenza. Storico dell'open interest registrato da XenosFinance.") + '</p>')
     if bias:   # 2026-10-19: conclusione finale — bias e trend
         b += D.bias_html("flow", bias[0], bias[1], esc, it.get("bias"))
     b.append(f'<div class="box"><p><b>{L("Related", "Correlati")}</b></p><div class="cta">'
