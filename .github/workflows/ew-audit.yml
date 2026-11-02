@@ -43,4 +43,7 @@ jobs:
           git config user.name "xenos-audit-bot"
           git config user.email "xenosfinance@gmail.com"
           git add tools/ew_audit_report.txt tools/bot_ew_audit_report.txt tools/oil_hub_test_log.txt tools/oil_hub_preview.html
-          git commit -m "EW audit report" && git push origin HEAD:ew-audit
+          git commit -m "EW audit report" || exit 0
+          # 2026-11-02: un push arrivato durante il run faceva fallire questo passo → riallinea e riprova
+          for i in 1 2 3; do git pull --rebase -X theirs origin ew-audit && git push origin HEAD:ew-audit && exit 0; sleep 5; done
+          exit 1
