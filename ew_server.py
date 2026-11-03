@@ -7,6 +7,13 @@ market structure, triangle/WXY detection, channeling targets.
 """
 
 import os, json, logging
+# 2026-11-03: yfinance + pandas 3 stampano un FutureWarning "inplace is deprecated" a OGNI
+# download: centinaia di righe al secondo, Railway scartava i log (500/s) e con loro gli
+# errori veri. Solo avvisi di deprecazione: nessun effetto sui dati.
+import warnings
+warnings.filterwarnings("ignore", message=r".*inplace keyword.*deprecated.*")
+warnings.filterwarnings("ignore", category=FutureWarning)
+warnings.filterwarnings("ignore", category=DeprecationWarning)
 import anthropic
 import yfinance as yf
 import pandas as pd
