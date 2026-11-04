@@ -399,19 +399,6 @@ body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:10
   </div>
 
 
-  <!-- ENERGY CALENDAR (2026-11-04) — scadenze futures (regole NYMEX/ICE), uscite
-       settimanali e report EIA/IEA/OPEC; dati in /data/energy_calendar.json (bot) -->
-  <div id="energy-cal-wrap" style="display:none;">
-    <div class="section-head" style="margin-bottom:12px;">
-      <div class="section-head-label"><span data-i18n="section_energy_calendar">◈ Energy Calendar</span></div>
-      <div class="section-head-line"></div>
-    </div>
-    <div class="col-box" style="margin-bottom:8px;">
-      <div id="energy-cal-rows"></div>
-    </div>
-    <div style="font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:.5px;margin-bottom:28px;" data-i18n="label_energy_note">Expiries from exchange rules (NYMEX, ICE) · report dates from EIA, IEA and OPEC · times CET</div>
-  </div>
-
   <!-- TOP MOVERS (2026-11-04) — gainers/losers tra le azioni USA della dashboard,
        con lettura tecnica calcolata da candele giornaliere reali -->
   <div class="section-head" style="margin-bottom:12px;">
@@ -1409,37 +1396,6 @@ async function loadUSStocks() {
   }
 }
 
-// ── ENERGY CALENDAR (2026-11-04) ───────────────────────────────────────────
-// Prossimi eventi energy da /data/energy_calendar.json (pubblicato dal bot ogni
-// giorno feriale). Sezione nascosta se il file manca o non ci sono eventi.
-async function loadEnergyCalendar() {
-  try {
-    const r = await fetch('/data/energy_calendar.json', {signal: AbortSignal.timeout(10000)});
-    if (!r.ok) return;
-    const d = await r.json();
-    const today = new Date().toLocaleDateString('en-CA', {timeZone: 'Europe/Rome'});
-    const ev = (d.events || []).filter(e => e.date >= today).slice(0, 10);
-    if (!ev.length) return;
-    const t0 = Date.parse(today + 'T00:00:00Z');
-    const esc = s => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
-    const rows = ev.map(e => {
-      const days = Math.round((Date.parse(e.date + 'T00:00:00Z') - t0) / 86400000);
-      const when = days === 0 ? 'TODAY' : days === 1 ? 'TOMORROW' : 'in ' + days + 'd';
-      const dt = new Date(e.date + 'T12:00:00Z').toLocaleDateString('en-GB', {weekday: 'short', day: '2-digit', month: 'short', timeZone: 'UTC'});
-      const isExp = e.type === 'expiry';
-      const col = isExp ? 'var(--gold)' : e.type === 'report' ? 'var(--text)' : 'var(--muted)';
-      return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-family:var(--mono);font-size:10px;">
-        <span style="min-width:92px;flex-shrink:0;color:var(--text);">${dt}</span>
-        <span style="min-width:44px;flex-shrink:0;color:var(--muted);">${e.time_cet || ''}</span>
-        <span style="flex:1;min-width:0;color:${col};${isExp ? 'font-weight:700;' : ''}">${isExp ? '⏳ ' : ''}${esc(e.title)}${e.note ? ` <span style="color:var(--muted);font-weight:400;">(${esc(e.note)})</span>` : ''}</span>
-        <span style="flex-shrink:0;color:${days <= 1 ? 'var(--gold)' : 'var(--muted)'};">${when}</span>
-      </div>`;
-    }).join('');
-    document.getElementById('energy-cal-rows').innerHTML = rows;
-    document.getElementById('energy-cal-wrap').style.display = '';
-  } catch (e) { /* extra: in caso di errore la sezione resta nascosta */ }
-}
-
 // ── TOP MOVERS (2026-11-04) ────────────────────────────────────────────────
 // I 5 migliori e 5 peggiori del giorno tra le azioni USA sopra (stessi prezzi
 // live, nessuna chiamata in più), più una lettura tecnica calcolata da 1 anno
@@ -2137,7 +2093,6 @@ document.addEventListener('DOMContentLoaded', () => {
   updateSessions();
   updateAll();
   loadUSStocks();
-  loadEnergyCalendar();
   setInterval(updateAll, 60000);
   setInterval(loadUSStocks, 60000);
 
