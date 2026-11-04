@@ -399,6 +399,19 @@ body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:10
   </div>
 
 
+  <!-- ENERGY CALENDAR (2026-11-04) — scadenze futures (regole NYMEX/ICE), uscite
+       settimanali e report EIA/IEA/OPEC; dati in /data/energy_calendar.json (bot) -->
+  <div id="energy-cal-wrap" style="display:none;">
+    <div class="section-head" style="margin-bottom:12px;">
+      <div class="section-head-label"><span data-i18n="section_energy_calendar">◈ Energy Calendar</span></div>
+      <div class="section-head-line"></div>
+    </div>
+    <div class="col-box" style="margin-bottom:8px;">
+      <div id="energy-cal-rows"></div>
+    </div>
+    <div style="font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:.5px;margin-bottom:28px;" data-i18n="label_energy_note">Expiries from exchange rules (NYMEX, ICE) · report dates from EIA, IEA and OPEC · times CET</div>
+  </div>
+
   <!-- TOP MOVERS (2026-11-04) — gainers/losers tra le azioni USA della dashboard,
        con lettura tecnica calcolata da candele giornaliere reali -->
   <div class="section-head" style="margin-bottom:12px;">
@@ -1113,9 +1126,33 @@ function earnFmt(iso) {
   return new Date(iso + 'T00:00:00Z').toLocaleDateString('en-GB', {day: '2-digit', month: 'short', timeZone: 'UTC'});
 }
 
+// 2026-11-04: fuori stagione (prossima trimestrale oltre 30 giorni o senza data)
+// il badge mostra il movimento dall'ultima trimestrale, col prezzo live:
+// % e multipli di ATR(14), più EPS e sorpresa nel tooltip. Senza chiusura di
+// riferimento affidabile (timing del report sconosciuto) resta il badge della data.
+function earnDriftTag(sym, e) {
+  const L = e && e.last, live = (window._usPrices || {})[sym]?.price;
+  if (!L || !L.base_close || !(live > 0)) return '';
+  const pct = (live / L.base_close - 1) * 100, upd = pct >= 0;
+  const atrm = L.atr > 0 ? (live - L.base_close) / L.atr : null;
+  const tip = 'Since last earnings (' + earnFmt(L.date) + ', ' + (L.timing === 'amc' ? 'after close' : 'before open') + '): '
+    + (upd ? '+' : '') + pct.toFixed(1) + '%'
+    + (atrm != null ? ' · ' + (atrm >= 0 ? '+' : '') + atrm.toFixed(1) + '× ATR(14)' : '')
+    + (L.eps != null ? ' · EPS ' + L.eps.toFixed(2) + (L.eps_est != null ? ' vs ' + L.eps_est.toFixed(2) + ' est.' : '') : '')
+    + (L.surprise_pct != null ? ' (' + (L.surprise_pct >= 0 ? '+' : '') + L.surprise_pct.toFixed(1) + '% surprise)' : '')
+    + (e.date ? ' · next report ' + earnFmt(e.date) + (e.date_end ? '~' : '') : '');
+  const col = upd ? 'var(--green2)' : 'var(--red2)';
+  return `<span title="${tip}" style="font-family:var(--mono);font-size:9px;letter-spacing:.5px;padding:1px 5px;border:1px solid var(--border);color:${col};white-space:nowrap;">ER ${upd ? '+' : ''}${pct.toFixed(1)}%</span>`;
+}
+
 function earnTag(sym) {
   const e = window._earn[sym];
-  if (!e || !e.date) return '';
+  if (!e) return '';
+  if (!e.date || earnDays(e.date) > 30) {
+    const drift = earnDriftTag(sym, e);
+    if (drift) return drift;
+    if (!e.date) return '';
+  }
   const days = earnDays(e.date);
   const soon = days <= 7;
   const when = days === 0 ? 'TODAY' : days === 1 ? 'TOMORROW' : earnFmt(e.date) + (e.date_end ? '~' : '');
@@ -1130,7 +1167,7 @@ async function loadEarnings() {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({symbols: US_STOCKS.map(s => s.yf)}),
-      signal: AbortSignal.timeout(60000)
+      signal: AbortSignal.timeout(90000)   // 2026-11-04: il server ora legge anche l'ultima trimestrale
     });
     if (!res.ok) return;
     const d = await res.json();
@@ -1344,6 +1381,7 @@ async function loadUSStocks() {
     ));
     const prices = Object.assign({}, ...results.map(d => (d && d.prices) || {}));
     if (!Object.keys(prices).length) throw new Error('fetch failed');
+    window._usPrices = prices;   // 2026-11-04: badge "since ER" con prezzo live
 
     const grid = document.getElementById('stocks-by-sector');
     if (grid) {
@@ -1369,6 +1407,37 @@ async function loadUSStocks() {
     const grid = document.getElementById('stocks-by-sector');
     if (grid) grid.innerHTML = '<div style="padding:16px;color:var(--muted);font-size:10px;font-family:var(--mono);"><span data-i18n="label_temporarily_unavailable">Temporarily unavailable</span></div>';
   }
+}
+
+// ── ENERGY CALENDAR (2026-11-04) ───────────────────────────────────────────
+// Prossimi eventi energy da /data/energy_calendar.json (pubblicato dal bot ogni
+// giorno feriale). Sezione nascosta se il file manca o non ci sono eventi.
+async function loadEnergyCalendar() {
+  try {
+    const r = await fetch('/data/energy_calendar.json', {signal: AbortSignal.timeout(10000)});
+    if (!r.ok) return;
+    const d = await r.json();
+    const today = new Date().toLocaleDateString('en-CA', {timeZone: 'Europe/Rome'});
+    const ev = (d.events || []).filter(e => e.date >= today).slice(0, 10);
+    if (!ev.length) return;
+    const t0 = Date.parse(today + 'T00:00:00Z');
+    const esc = s => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
+    const rows = ev.map(e => {
+      const days = Math.round((Date.parse(e.date + 'T00:00:00Z') - t0) / 86400000);
+      const when = days === 0 ? 'TODAY' : days === 1 ? 'TOMORROW' : 'in ' + days + 'd';
+      const dt = new Date(e.date + 'T12:00:00Z').toLocaleDateString('en-GB', {weekday: 'short', day: '2-digit', month: 'short', timeZone: 'UTC'});
+      const isExp = e.type === 'expiry';
+      const col = isExp ? 'var(--gold)' : e.type === 'report' ? 'var(--text)' : 'var(--muted)';
+      return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-family:var(--mono);font-size:10px;">
+        <span style="min-width:92px;flex-shrink:0;color:var(--text);">${dt}</span>
+        <span style="min-width:44px;flex-shrink:0;color:var(--muted);">${e.time_cet || ''}</span>
+        <span style="flex:1;min-width:0;color:${col};${isExp ? 'font-weight:700;' : ''}">${isExp ? '⏳ ' : ''}${esc(e.title)}${e.note ? ` <span style="color:var(--muted);font-weight:400;">(${esc(e.note)})</span>` : ''}</span>
+        <span style="flex-shrink:0;color:${days <= 1 ? 'var(--gold)' : 'var(--muted)'};">${when}</span>
+      </div>`;
+    }).join('');
+    document.getElementById('energy-cal-rows').innerHTML = rows;
+    document.getElementById('energy-cal-wrap').style.display = '';
+  } catch (e) { /* extra: in caso di errore la sezione resta nascosta */ }
 }
 
 // ── TOP MOVERS (2026-11-04) ────────────────────────────────────────────────
@@ -2068,6 +2137,7 @@ document.addEventListener('DOMContentLoaded', () => {
   updateSessions();
   updateAll();
   loadUSStocks();
+  loadEnergyCalendar();
   setInterval(updateAll, 60000);
   setInterval(loadUSStocks, 60000);
 
