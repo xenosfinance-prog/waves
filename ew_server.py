@@ -2442,11 +2442,64 @@ def _earnings_one(sym):
                         pass
         except Exception as e:
             logger.warning(f"[earnings] {sym} fallback: {e}")
+    last = _earnings_last(sym)
     if not ds:
-        return {"date": None}
+        return {"date": None, "last": last}
     return {"date": ds[0].isoformat(),
             "date_end": ds[-1].isoformat() if ds[-1] != ds[0] else None,  # finestra stimata
-            "eps_est": _num(eps), "rev_est": _num(rev)}
+            "eps_est": _num(eps), "rev_est": _num(rev), "last": last}
+
+
+_EARN_LAST_CACHE = {}   # sym -> (ts, dict|None) — 24h: cambia solo una volta a trimestre
+
+
+def _earnings_last(sym):
+    c = _EARN_LAST_CACHE.get(sym)
+    if c and _time.time() - c[0] < 24 * 3600:
+        return c[1]
+    res = _earnings_last_fetch(sym)
+    if res is not None:
+        _EARN_LAST_CACHE[sym] = (_time.time(), res)
+    return res
+
+
+def _earnings_last_fetch(sym):
+    """2026-11-04: ultima trimestrale GIÀ pubblicata, per il badge "since ER" della
+    dashboard fuori stagione: data, timing (bmo/amc), EPS reale, sorpresa %, chiusura
+    di riferimento prima della reazione al report e ATR 14 attuale. Il browser calcola
+    il movimento con il prezzo live. Timing sconosciuto → niente chiusura (mai indovinata)."""
+    try:
+        ed = yf.Ticker(sym).get_earnings_dates(limit=8)
+        if ed is None or not len(ed) or "Reported EPS" not in ed.columns:
+            return None
+        ed = ed[ed["Reported EPS"].notna()]
+        if not len(ed):
+            return None
+        ts = max(ed.index)
+        row = ed.loc[ts]
+        t = pd.Timestamp(ts)
+        t = t.tz_convert("America/New_York") if t.tzinfo else t.tz_localize("America/New_York")
+        timing = "amc" if t.hour >= 16 else "bmo" if 4 <= t.hour < 10 else ""
+        out = {"date": t.date().isoformat(), "timing": timing,
+               "eps": _num(row.get("Reported EPS")), "eps_est": _num(row.get("EPS Estimate")),
+               "surprise_pct": _num(row.get("Surprise(%)")), "base_close": None, "atr": None}
+        h = yf.Ticker(sym).history(period="6mo", interval="1d", auto_adjust=False)
+        if h is None or len(h) < 20:
+            return out
+        days = [pd.Timestamp(x).date() for x in h.index]
+        if timing:
+            rd = t.date()
+            # amc: chiusura del giorno del report; bmo: chiusura della seduta precedente
+            idx = [i for i, d in enumerate(days) if (d <= rd if timing == "amc" else d < rd)]
+            if idx:
+                out["base_close"] = round(float(h["Close"].iloc[idx[-1]]), 4)
+        hi, lo, cl = h["High"].astype(float), h["Low"].astype(float), h["Close"].astype(float)
+        tr = pd.concat([hi - lo, (hi - cl.shift()).abs(), (lo - cl.shift()).abs()], axis=1).max(axis=1)
+        out["atr"] = round(float(tr.ewm(alpha=1 / 14, adjust=False).mean().iloc[-1]), 4)
+        return out
+    except Exception as e:
+        logger.warning(f"[earnings] {sym} last report: {e}")
+        return None
 
 
 # ─────────────────────────────────────────────────────────

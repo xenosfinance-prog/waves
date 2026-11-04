@@ -87,6 +87,23 @@ self.addEventListener('fetch', event => {
     return;
   }
 
+  // 2026-11-04: dati generati dal bot (/data/*.json, es. energy_calendar.json) —
+  // network first: con cache-first la dashboard mostrerebbe un calendario vecchio
+  if (url.pathname.startsWith('/data/')) {
+    event.respondWith(
+      fetch(event.request)
+        .then(response => {
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put(url.pathname, clone));
+          }
+          return response;
+        })
+        .catch(() => caches.match(url.pathname))
+    );
+    return;
+  }
+
   // JS files — network first, fallback to cache
   // (prevents stale cached scripts from hiding newly deployed fixes/translations)
   if (url.pathname.endsWith('.js')) {
