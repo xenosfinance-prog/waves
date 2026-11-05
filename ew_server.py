@@ -7,6 +7,13 @@ market structure, triangle/WXY detection, channeling targets.
 """
 
 import os, json, logging
+# 2026-11-03: yfinance + pandas 3 stampano un FutureWarning "inplace is deprecated" a OGNI
+# download: centinaia di righe al secondo, Railway scartava i log (500/s) e con loro gli
+# errori veri. Solo avvisi di deprecazione: nessun effetto sui dati.
+import warnings
+warnings.filterwarnings("ignore", message=r".*inplace keyword.*deprecated.*")
+warnings.filterwarnings("ignore", category=FutureWarning)
+warnings.filterwarnings("ignore", category=DeprecationWarning)
 import anthropic
 import yfinance as yf
 import pandas as pd
@@ -563,6 +570,19 @@ def analyze_structure(pivots, live_price):
 # ─────────────────────────────────────────────────────────
 # WAVE POSITION LABELLING
 # ─────────────────────────────────────────────────────────
+def _targets_ahead(live, cands, bull):
+    """2026-11-05 (checkup): i target già superati dal prezzo non si pubblicano —
+    restituisce i primi due livelli ancora davanti al prezzo nella direzione del trade
+    (es. oro W3 al 242% di W1: il 161.8% era già alle spalle). Se sono tutti superati
+    restituisce gli ultimi due (il chiamante li vede comunque come estensioni massime)."""
+    ahead = [c for c in cands if (c > live if bull else c < live)]
+    if len(ahead) >= 2:
+        return ahead[0], ahead[1]
+    if len(ahead) == 1:
+        return ahead[0], cands[-1] if cands[-1] != ahead[0] else ahead[0]
+    return cands[-2], cands[-1]
+
+
 def get_wave_position(primary, live_price, dp, atr):
     """2026-10-30 (audit): guardia finale su ogni conteggio — se il prezzo è già oltre
     il livello di invalidazione (lato sbagliato dello stop rispetto ai target) il
@@ -667,10 +687,12 @@ def _get_wave_position_raw(primary, live_price, dp, atr):
             w3e  = W3["price"] if W3 else live
             w3s  = I["w3_size"] or w1s*1.618
             desc = f"Wave ③ — Dominant Impulse ({w3s/w1s*100:.0f}% of W1)"
-            t618 = W2["price"] + w1s*1.618 if bull else W2["price"] - w1s*1.618
-            t262 = W2["price"] + w1s*2.618 if bull else W2["price"] - w1s*2.618
+            # FIX 2026-11-05 (checkup): se W3 ha già superato il 161.8% (oro/argento al 200%+ di W1)
+            # i target passano alle estensioni successive invece di restare alle spalle del prezzo
+            _ext = [W2["price"] + w1s*r if bull else W2["price"] - w1s*r for r in (1.618, 2.618, 4.236)]
+            t618, t262 = _targets_ahead(live, _ext, bull)
             scenario = (f"Strongest wave. RULE II: W3 never shortest. "
-                       f"Target: {t618:.{dec}f} (161.8%) / {t262:.{dec}f} (261.8%). "
+                       f"Targets ahead of price (161.8/261.8/423.6% of W1): {t618:.{dec}f} / {t262:.{dec}f}. "
                        f"Invalidation: W2 end ({W2['price']:.{dec}f}).")
             # FIX 2026-09 (re-applied — was missing from the live file):
             # stop_loss was W1["price"] — too loose. The real EW
@@ -709,6 +731,8 @@ def _get_wave_position_raw(primary, live_price, dp, atr):
             w4e = W4["price"] if W4 else live
             w5eq  = w4e + w1s     if bull else w4e - w1s
             w5ext = w4e + w1s*1.618 if bull else w4e - w1s*1.618
+            # FIX 2026-11-05 (checkup): target già superati → estensioni successive
+            _t5 = _targets_ahead(live, [w4e + w1s*r if bull else w4e - w1s*r for r in (1.0, 1.618, 2.618)], bull)
             # FIX 2026-09: real, computed post-completion corrective
             # targets — previously this scenario gave the AI narrative
             # no correction-target numbers at all, and it was caught
@@ -730,7 +754,7 @@ def _get_wave_position_raw(primary, live_price, dp, atr):
                        f"of the full W0\u2192W5 move.")
             return wn, desc, scenario, {
                 "entry":round(live,dec),"stop_loss":round(w4e,dec),
-                "tp1":round(w5eq,dec),"tp2":round(w5ext,dec),
+                "tp1":round(_t5[0],dec),"tp2":round(_t5[1],dec),
                 "corrective_382":round(corr_382,dec),"corrective_500":round(corr_500,dec)
             }
 
@@ -772,9 +796,12 @@ def _get_wave_position_raw(primary, live_price, dp, atr):
                        f"Invalidation: {b_end:.{dec}f} (end of B).")
             # FIX 2026-10-30: durante C l'invalidazione è la fine di B
             inv = b_end * (1.001 if bear else 0.999)
+            # FIX 2026-11-05 (checkup): target di C già superati → livelli successivi (123.6/161.8/261.8%)
+            _tc = _targets_ahead(live, [b_end - a_size*r if bear else b_end + a_size*r
+                                        for r in (1.0, 1.236, 1.618, 2.618)], not bear)
             return "C", desc, scenario, {
                 "entry":round(live,dec),"stop_loss":round(inv,dec),
-                "tp1":round(c100,dec),"tp2":round(c162,dec)
+                "tp1":round(_tc[0],dec),"tp2":round(_tc[1],dec)
             }
 
     return "?", "Structure unclear", "No valid wave count on this timeframe.", {}
@@ -2435,11 +2462,64 @@ def _earnings_one(sym):
                         pass
         except Exception as e:
             logger.warning(f"[earnings] {sym} fallback: {e}")
+    last = _earnings_last(sym)
     if not ds:
-        return {"date": None}
+        return {"date": None, "last": last}
     return {"date": ds[0].isoformat(),
             "date_end": ds[-1].isoformat() if ds[-1] != ds[0] else None,  # finestra stimata
-            "eps_est": _num(eps), "rev_est": _num(rev)}
+            "eps_est": _num(eps), "rev_est": _num(rev), "last": last}
+
+
+_EARN_LAST_CACHE = {}   # sym -> (ts, dict|None) — 24h: cambia solo una volta a trimestre
+
+
+def _earnings_last(sym):
+    c = _EARN_LAST_CACHE.get(sym)
+    if c and _time.time() - c[0] < 24 * 3600:
+        return c[1]
+    res = _earnings_last_fetch(sym)
+    if res is not None:
+        _EARN_LAST_CACHE[sym] = (_time.time(), res)
+    return res
+
+
+def _earnings_last_fetch(sym):
+    """2026-11-04: ultima trimestrale GIÀ pubblicata, per il badge "since ER" della
+    dashboard fuori stagione: data, timing (bmo/amc), EPS reale, sorpresa %, chiusura
+    di riferimento prima della reazione al report e ATR 14 attuale. Il browser calcola
+    il movimento con il prezzo live. Timing sconosciuto → niente chiusura (mai indovinata)."""
+    try:
+        ed = yf.Ticker(sym).get_earnings_dates(limit=8)
+        if ed is None or not len(ed) or "Reported EPS" not in ed.columns:
+            return None
+        ed = ed[ed["Reported EPS"].notna()]
+        if not len(ed):
+            return None
+        ts = max(ed.index)
+        row = ed.loc[ts]
+        t = pd.Timestamp(ts)
+        t = t.tz_convert("America/New_York") if t.tzinfo else t.tz_localize("America/New_York")
+        timing = "amc" if t.hour >= 16 else "bmo" if 4 <= t.hour < 10 else ""
+        out = {"date": t.date().isoformat(), "timing": timing,
+               "eps": _num(row.get("Reported EPS")), "eps_est": _num(row.get("EPS Estimate")),
+               "surprise_pct": _num(row.get("Surprise(%)")), "base_close": None, "atr": None}
+        h = yf.Ticker(sym).history(period="6mo", interval="1d", auto_adjust=False)
+        if h is None or len(h) < 20:
+            return out
+        days = [pd.Timestamp(x).date() for x in h.index]
+        if timing:
+            rd = t.date()
+            # amc: chiusura del giorno del report; bmo: chiusura della seduta precedente
+            idx = [i for i, d in enumerate(days) if (d <= rd if timing == "amc" else d < rd)]
+            if idx:
+                out["base_close"] = round(float(h["Close"].iloc[idx[-1]]), 4)
+        hi, lo, cl = h["High"].astype(float), h["Low"].astype(float), h["Close"].astype(float)
+        tr = pd.concat([hi - lo, (hi - cl.shift()).abs(), (lo - cl.shift()).abs()], axis=1).max(axis=1)
+        out["atr"] = round(float(tr.ewm(alpha=1 / 14, adjust=False).mean().iloc[-1]), 4)
+        return out
+    except Exception as e:
+        logger.warning(f"[earnings] {sym} last report: {e}")
+        return None
 
 
 # ─────────────────────────────────────────────────────────
