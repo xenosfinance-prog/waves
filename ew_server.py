@@ -1201,6 +1201,44 @@ def econ_actuals():
     return jsonify({"events": out})
 
 # ─────────────────────────────────────────────────────────
+# 2026-11-05 — /fred-release: ultimo dato UFFICIALE di un evento USA da FRED,
+# per il flash macro del bot quando il calendario Yahoo non dà l'actual
+# (GDP, PCE, Claims… mai pubblicati nelle ultime settimane).
+#   GET /fred-release?event=Unemployment Claims
+#   → {"event","series","vintage" (YYYY-MM-DD, giorno di pubblicazione),
+#      "period","actual","last","unit"}  |  {"error": ...}
+# Solo serie in cui il numero FRED È il numero pubblicato (livelli e
+# variazioni assolute: Claims, NFP, disoccupazione, PIL). Le % m/m calcolate
+# dagli indici (CPI, PCE, vendite…) NON passano: l'arrotondamento può
+# differire dal comunicato ufficiale e un numero sbagliato non si pubblica.
+# Cache 60 s per evento.
+# ─────────────────────────────────────────────────────────
+_fred_rel_cache = {}
+
+@app.route("/fred-release", methods=["GET"])
+def fred_release():
+    import time as _t
+    name = (request.args.get("event") or "").strip()
+    cfg = _eh_lookup(name) if name else None
+    if not cfg or cfg.get("src") != "fred" or cfg.get("kind") not in ("level", "change"):
+        return jsonify({"error": "no exact FRED series for this event"}), 404
+    hit = _fred_rel_cache.get(cfg["series"])
+    if hit and _t.time() - hit[0] < 60:
+        return jsonify(hit[1])
+    try:
+        rows = _eh_fred(cfg, 1)
+    except Exception as e:
+        logger.warning(f"fred-release {name}: {e}")
+        return jsonify({"error": str(e)[:200]}), 200
+    if not rows:
+        return jsonify({"error": "no observations"}), 200
+    r0 = rows[0]
+    out = {"event": name, "series": cfg["series"], "vintage": r0["date"], "period": r0["period"],
+           "actual": r0["value"], "last": r0["prev"], "unit": cfg.get("unit", "")}
+    _fred_rel_cache[cfg["series"]] = (_t.time(), out)
+    return jsonify(out)
+
+# ─────────────────────────────────────────────────────────
 # 2026-10-08 — /ff-calendar: feed ForexFactory (faireconomy) servito da Railway.
 # Le chiamate calendario al Worker Cloudflare falliscono in silenzio e il Worker
 # non è aggiornabile (editor read-only) → calendar.html usa anche questa fonte.
@@ -2615,6 +2653,8 @@ _EH_MAP = [
     (("non-farm employment change", "nonfarm payrolls", "non-farm payrolls"), {"src": "fred", "series": "PAYEMS", "unit": "K jobs (m/m change)", "kind": "change"}),
     (("unemployment claims", "jobless claims"), {"src": "fred", "series": "ICSA", "unit": "claims (K)", "kind": "level", "scale": 0.001}),
     (("unemployment rate",),            {"src": "fred", "series": "UNRATE", "unit": "%", "kind": "level"}),
+    # 2026-11-05: PIL trimestrale annualizzato (advance/prelim/final) — il valore FRED è il dato pubblicato
+    (("gdp q/q",),                      {"src": "fred", "series": "A191RL1Q225SBEA", "unit": "% q/q ann.", "kind": "level"}),
     (("average hourly earnings m/m",),  {"src": "fred", "series": "CES0500000003", "unit": "% m/m", "kind": "pct_mom"}),
     (("core cpi m/m",),                 {"src": "fred", "series": "CPILFESL", "unit": "% m/m", "kind": "pct_mom"}),
     (("core cpi y/y",),                 {"src": "fred", "series": "CPILFESL", "unit": "% y/y", "kind": "pct_yoy"}),
