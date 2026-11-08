@@ -1,6 +1,8 @@
 // XenosFinance i18n Engine v3.0 — definitive fix
 
 // Prevent flash immediately
+// 2026-11-08 (SEO): ?lang=it / ?lang=en nell'URL sceglie la lingua (pagine italiane indicizzabili, es. /XenosBlog?slug=…&lang=it)
+try { var _xfUrlLang = new URLSearchParams(location.search).get('lang'); if (_xfUrlLang === 'it' || _xfUrlLang === 'en') localStorage.setItem('xenos_lang', _xfUrlLang); } catch (e) {}
 var _xfLang = localStorage.getItem('xenos_lang') || 'en';
 if (!['en','it'].includes(_xfLang)) { _xfLang = 'en'; try { localStorage.setItem('xenos_lang', 'en'); } catch (e) {} }
 if (_xfLang !== 'en') {
