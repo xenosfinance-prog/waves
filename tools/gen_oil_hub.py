@@ -369,7 +369,7 @@ def build(G, built, now):
     fl = _load("futures-flow/latest.json") or {}
     prods = {p.get("key"): p for p in fl.get("products", [])}
     if prods.get("cl") or prods.get("bz"):
-        b.append(f"<h2>{L('Futures curve &amp; flows', 'Curva dei futures e flussi')}</h2>")
+        b.append(f"<h2>{L('Oil futures forward curve &amp; flows', 'Curva forward dei futures sul petrolio e flussi')}</h2>")  # 2026-11-08 SEO: ricerca "oil price forward curve" (pos. ~10)
         b.append(f"<table><tr><th>{L('Contract', 'Contratto')}</th><th>{L('Settle', 'Settle')}</th><th>{L('Day', 'Giorno')}</th>"
                  f"<th>{L('Structure', 'Struttura')}</th><th>M1–M2</th><th>M1–M6</th><th>{L('Open interest', 'Open interest')}</th>"
                  f"<th>{L('Flow', 'Flusso')}</th></tr>")
@@ -543,8 +543,8 @@ def build(G, built, now):
     b.append(CHART_JS)
 
     wti, brent = by["wti-crude-oil"][1], by["brent-crude-oil"][1]
-    title = "Crude Oil Market Today — WTI & Brent Analysis, EIA Inventories, COT | XenosFinance"
-    title_it = "Petrolio oggi — Analisi WTI e Brent, scorte EIA, COT | XenosFinance"
+    title = "Crude Oil Market Today — WTI & Brent, Futures Forward Curve, EIA Inventories | XenosFinance"
+    title_it = "Petrolio oggi — WTI e Brent, curva forward dei futures, scorte EIA | XenosFinance"
     desc = (f"Crude oil market on {date_h}: WTI {G.fmt(wti['live'], 2)} ({wti['bias']['direction']} bias), "
             f"Brent {G.fmt(brent['live'], 2)}, Brent–WTI spread, futures curve, latest EIA inventories with desk read "
             f"and CFTC positioning.")
