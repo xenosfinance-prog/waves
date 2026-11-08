@@ -87,15 +87,17 @@ function relatedFor(a) {
 
 // Blocco HTML (stesso markup delle sezioni dell'articolo). Etichette con data-i18n:
 // il motore lingua del sito le mette in italiano.
-function relatedHtml(a, site, esc) {
+// 2026-11-08: lang = 'it' per la versione italiana renderizzata sul server (?lang=it)
+function relatedHtml(a, site, esc, lang = 'en') {
+  const it = lang === 'it';
   const r = relatedFor(a);
-  const links = r.pages.map(p => `<a href="${site}/analysis/${p}"><span data-i18n="label_rel_an_${p.replace(/-/g, '_')}">${esc(ANALYSIS_PAGES[p].en)}</span></a>`);
+  const links = r.pages.map(p => `<a href="${site}/analysis/${p}"><span data-i18n="label_rel_an_${p.replace(/-/g, '_')}">${esc(ANALYSIS_PAGES[p][it ? 'it' : 'en'])}</span></a>`);
   if (r.oil) {
     links.push(`<a href="${site}/futures-flow/"><span data-i18n="label_rel_futures_flow">Futures Flow</span></a>`);
-    links.push(`<a href="${site}/cot/"><span data-i18n="label_rel_cot">COT positioning</span></a>`);
+    links.push(`<a href="${site}/cot/"><span data-i18n="label_rel_cot">${it ? 'Posizionamento COT' : 'COT positioning'}</span></a>`);
   }
-  links.push(`<a href="${site}/analysis/"><span data-i18n="label_rel_all_analyses">All daily analyses</span></a>`);
-  return `<div class="edu-section" id="xf-rel-an"><div class="edu-section-title">// <span data-i18n="label_rel_analysis_title">Today's technical analysis</span></div>`
+  links.push(`<a href="${site}/analysis/"><span data-i18n="label_rel_all_analyses">${it ? 'Tutte le analisi giornaliere' : 'All daily analyses'}</span></a>`);
+  return `<div class="edu-section" id="xf-rel-an"><div class="edu-section-title">// <span data-i18n="label_rel_analysis_title">${it ? 'Analisi tecnica di oggi' : "Today's technical analysis"}</span></div>`
     + `<p>${links.join(' · ')}</p></div>`;
 }
 
@@ -132,10 +134,10 @@ function asList(v) {
   return [];
 }
 
-async function loadArticle(env, origin, slug) {
+async function loadArticle(env, origin, slug, dir = '/articles/') {
   try {
     if (env && env.ASSETS) {
-      const r = await env.ASSETS.fetch(new URL(`/articles/${slug}.json`, origin));
+      const r = await env.ASSETS.fetch(new URL(`${dir}${slug}.json`, origin));
       if (r.ok) return await r.json();
     }
   } catch (_) { /* fall through */ }
@@ -153,6 +155,10 @@ class SetText {
 class After {
   constructor(html) { this.html = html; }
   element(el) { if (this.html) el.after(this.html, { html: true }); }
+}
+class Before {
+  constructor(html) { this.html = html; }
+  element(el) { if (this.html) el.before(this.html, { html: true }); }
 }
 class AppendHead {
   constructor(html) { this.html = html; }
@@ -216,8 +222,15 @@ export async function onRequestGet(context) {
     if (!slug) return await renderIndex(env, url, res);
     if (!SLUG_RE.test(slug)) return res;
 
-    const a = await loadArticle(env, url.origin, slug);
-    if (!a || !a.title) return res;
+    const orig = await loadArticle(env, url.origin, slug);
+    if (!orig || !orig.title) return res;
+    // 2026-11-08 (SEO): versione italiana con un URL proprio (?slug=…&lang=it), resa sul server
+    // dalla traduzione già pronta in i18n/it/articles/ (Action "Italian translations").
+    // Senza traduzione → pagina inglese, con canonical inglese.
+    const itA = await loadArticle(env, url.origin, slug, '/i18n/it/articles/');
+    const hasIt = !!(itA && itA.title && itA.intro);
+    const isIt = hasIt && url.searchParams.get('lang') === 'it';
+    const a = isIt ? { ...orig, ...itA, imageUrl: orig.imageUrl, publishedAt: orig.publishedAt, generatedAt: orig.generatedAt } : orig;
 
     // Some auto-generated articles have a generic title ("Macro Update") and the
     // real headline in the intro — use the headline for search when that happens.
@@ -226,7 +239,17 @@ export async function onRequestGet(context) {
       ? clip(a.intro, 90) : rawTitle;
     const fullTitle = `${clip(headline, 65)} | XenosFinance`;
     const desc = clip(a.excerpt || a.intro || a.conclusion || headline, 158);
-    const canonical = `${SITE}/XenosBlog?slug=${encodeURIComponent(slug)}`;
+    const enUrl = `${SITE}/XenosBlog?slug=${encodeURIComponent(slug)}`;
+    const itUrl = `${enUrl}&lang=it`;
+    const canonical = isIt ? itUrl : enUrl;
+    const hreflang = hasIt
+      ? `<link rel="alternate" hreflang="en" href="${esc(enUrl)}"><link rel="alternate" hreflang="it" href="${esc(itUrl)}">`
+        + `<link rel="alternate" hreflang="x-default" href="${esc(enUrl)}">`
+      : '';
+    // link visibile all'altra lingua (anche per far trovare a Google la versione italiana)
+    const langLink = !hasIt ? ''
+      : isIt ? `<p style="font-family:'IBM Plex Mono',monospace;font-size:12px;margin:0 0 14px"><a href="${esc(enUrl)}" hreflang="en" lang="en">Read this article in English →</a></p>`
+             : `<p style="font-family:'IBM Plex Mono',monospace;font-size:12px;margin:0 0 14px"><a href="${esc(itUrl)}" hreflang="it" lang="it">Leggi questo articolo in italiano →</a></p>`;
     const image = a.imageUrl && /^https?:\/\//.test(a.imageUrl) ? a.imageUrl : `${SITE}/assets/blog/macro.png`;
 
     let body = paragraphs(a.intro);
@@ -235,14 +258,14 @@ export async function onRequestGet(context) {
       body += `<div class="edu-section"><div class="edu-section-title">${esc(plain(s.heading))}</div>${paragraphs(s.content)}</div>`;
     }
     if (a.quote) body += `<blockquote>${esc(plain(a.quote))}</blockquote>`;
-    if (a.conclusion) body += `<div class="edu-section"><div class="edu-section-title">// Conclusion</div>${paragraphs(a.conclusion)}</div>`;
+    if (a.conclusion) body += `<div class="edu-section"><div class="edu-section-title">// ${isIt ? 'Conclusione' : 'Conclusion'}</div>${paragraphs(a.conclusion)}</div>`;
     // 2026-10-17: link alle pagine tema (/topics/...) per collegare gli articoli tra loro
     // (fuori da #artBody: lo script della pagina riscrive #artBody, il blocco temi deve restare)
     const tps = topicsFor(a);
     const topicsHtml = tps.length
-      ? `<div class="edu-section"><div class="edu-section-title">// Topics</div><p>`
+      ? `<div class="edu-section"><div class="edu-section-title">// ${isIt ? 'Temi' : 'Topics'}</div><p>`
         + tps.map(tp => `<a href="${SITE}/topics/${tp.slug}">${esc(tp.name)}</a>`).join(' · ')
-        + ` · <a href="${SITE}/topics">All topics</a></p></div>`
+        + ` · <a href="${SITE}/topics">${isIt ? 'Tutti i temi' : 'All topics'}</a></p></div>`
       : '';
 
     const jsonLd = {
@@ -257,7 +280,7 @@ export async function onRequestGet(context) {
       publisher: { '@type': 'Organization', name: 'XenosFinance', logo: { '@type': 'ImageObject', url: `${SITE}/favicon-192.png` } },
       mainEntityOfPage: { '@type': 'WebPage', '@id': canonical },
       articleSection: a.categoryLabel || a.category || undefined,
-      inLanguage: a.lang || 'en',
+      inLanguage: isIt ? 'it' : 'en', // 2026-11-08: prima a.lang ("inglese"/"EN"), valore non valido
     };
     const ldTag = `<script type="application/ld+json">${JSON.stringify(jsonLd).replace(/</g, '\\u003c')}</script>`;
 
@@ -272,11 +295,13 @@ export async function onRequestGet(context) {
       .on('meta[property="og:image"]', new SetAttr('content', image))
       .on('meta[name="twitter:title"]', new SetAttr('content', fullTitle))
       .on('meta[name="twitter:description"]', new SetAttr('content', desc))
-      .on('head', new AppendHead(ldTag))
+      .on('html', new SetAttr('lang', isIt ? 'it' : 'en'))
+      .on('head', new AppendHead(ldTag + hreflang + (isIt ? '<meta property="og:locale" content="it_IT">' : '')))
       .on('#artTitle', new SetText(esc(clip(headline, 140)), true))
       .on('#artCat', new SetText(esc(a.categoryLabel || a.category || ''), true))
       .on('#artBody', new SetText(body, true))
-      .on('#artBody', new After(relatedHtml(a, SITE, esc) + topicsHtml))
+      .on('#artBody', new After(relatedHtml(a, SITE, esc, isIt ? 'it' : 'en') + topicsHtml))
+      .on('#artBody', new Before(langLink))
       .transform(res);
 
     const headers = new Headers(out.headers);
