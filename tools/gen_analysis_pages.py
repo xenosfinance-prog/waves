@@ -287,13 +287,14 @@ def build_instrument_page(inst, d, ai, now, all_rows):
     def ai_p(key):
         return f"<p>{L(esc(ai.get(key, '')), esc(ai_it[key]) if ai_it.get(key) else '')}</p>"
 
-    title = f"{name} Technical Analysis Today — Levels, Bias & Scenarios ({short}) | XenosFinance"
-    title_it = f"{name_it} analisi tecnica oggi — livelli, bias e scenari ({short}) | XenosFinance"
+    # 2026-11-08 SEO (Search Console): le ricerche reali sono "… technical analysis today" e "… support and resistance levels"
+    title = f"{name} Technical Analysis Today — Support & Resistance Levels ({short}) | XenosFinance"
+    title_it = f"{name_it} analisi tecnica oggi — supporti e resistenze ({short}) | XenosFinance"
     s1 = zone_txt(sup[0], dec) if sup else None
     r1 = zone_txt(res[0], dec) if res else None
     desc = (f"{name} ({short}) technical analysis for {date_h}: {bias_word.lower()} bias on the 1-hour chart"
             + (f", support {s1}" if s1 else "") + (f", resistance {r1}" if r1 else "")
-            + ". Confluence zones, Elliott Wave, trade scenarios with risk/reward.")
+            + ". Support and resistance levels, RSI & MACD, Elliott Wave and trade scenarios with risk/reward.")
 
     b = [f'<div class="crumb"><a href="/">Home</a> › <a href="/analysis/">{L("Daily Analysis", "Analisi giornaliera")}</a> › '
          f'{L(esc(name), esc(name_it))}</div>',
@@ -334,7 +335,7 @@ def build_instrument_page(inst, d, ai, now, all_rows):
             + f'</td><td>{"●" * min(z["strength"], 4)}</td></tr>' for z in zs)
     th_r = f"<tr><th>{L('Resistance', 'Resistenza')}</th><th>{L('Levels', 'Livelli')}</th><th>{L('Strength', 'Forza')}</th></tr>"
     th_s = f"<tr><th>{L('Support', 'Supporto')}</th><th>{L('Levels', 'Livelli')}</th><th>{L('Strength', 'Forza')}</th></tr>"
-    b.append(f"<h2>{L('Key levels — confluence zones', 'Livelli chiave — zone di confluenza')}</h2>")
+    b.append(f"<h2>{L(esc(name) + ' support and resistance levels — confluence zones', esc(name_it) + ': supporti e resistenze — zone di confluenza')}</h2>")
     b.append("<p>" + L(
         "Zones where several technical levels cluster together (moving averages, SuperTrend, Fibonacci retracements, "
         "previous-day range, swing points). More converging levels mean a more relevant zone.",
@@ -367,7 +368,7 @@ def build_instrument_page(inst, d, ai, now, all_rows):
              + (L("bullish", "rialzista") if ind["supertrend_dir"] == "up" else L("bearish", "ribassista")) + '</td></tr>'
              + ich_row
              + "</table></div>")
-    b.append(f"<h2>{L('Momentum', 'Momentum')}</h2>")
+    b.append(f"<h2>{L('Momentum — RSI &amp; MACD', 'Momentum — RSI e MACD')}</h2>")
     if ai and ai.get("momentum"):
         b.append(ai_p("momentum"))
     th2 = f"<tr><th>{L('Indicator', 'Indicatore')}</th><th>{L('Value', 'Valore')}</th></tr>"
