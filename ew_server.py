@@ -2170,8 +2170,19 @@ def _ta_compute(yf_sym, dp, interval="15m", period="30d", htf_rule="1h", ew_tf=N
                 continue
             wnum, wdesc, _scen, kl = get_wave_position(cand, ew_live, dp, ew_atr)
             if wnum != "?":
-                ew = {"wave": wnum, "desc": wdesc, "invalidation": kl.get("stop_loss"),
-                      "tp1": kl.get("tp1"), "tp2": kl.get("tp2"),
+                # 2026-11-09 (checkup): i target già superati dal prezzo mostrato in pagina
+                # non vanno pubblicati (es. EUR/USD ribassista con T1 sopra il prezzo).
+                # Direzione dedotta dal lato dell'invalidazione rispetto al prezzo.
+                inv = kl.get("stop_loss")
+                tps = [kl.get("tp1"), kl.get("tp2")]
+                if inv is not None:
+                    up = inv < live
+                    tps = [t for t in tps if t is not None and (t > live if up else t < live)]
+                else:
+                    tps = [t for t in tps if t is not None]
+                tps += [None] * (2 - len(tps))
+                ew = {"wave": wnum, "desc": wdesc, "invalidation": inv,
+                      "tp1": tps[0], "tp2": tps[1],
                       "prob": cand.get("prob"), "tf": (ew_tf or interval)}
                 break
     except Exception as e:
