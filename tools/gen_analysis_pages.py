@@ -642,6 +642,34 @@ def update_sitemap(urls, day):
     open(SITEMAP, "w", encoding="utf-8").write(s)
 
 
+def _drop_passed_ew_targets(d, name=""):
+    """2026-11-11 (checkup): niente target Elliott già superati dal prezzo.
+    La direzione si ricava dall'invalidazione: sopra il prezzo = scenario short (target sotto),
+    sotto il prezzo = scenario long (target sopra). Es. 11/11: Gold 4060 inv 4161.86 tp1 4089.30,
+    Natural Gas 3.288 inv 2.92 tp1 3.245. I target rimasti scalano su tp1/tp2."""
+    ew = d.get("elliott")
+    if not ew or ew.get("invalidation") is None or d.get("live") is None:
+        return
+    try:
+        px, inv = float(d["live"]), float(ew["invalidation"])
+    except (TypeError, ValueError):
+        return
+    if px == inv:
+        return
+    short = inv > px
+    keep = []
+    for k in ("tp1", "tp2"):
+        t = ew.get(k)
+        if t is None:
+            continue
+        if (short and float(t) < px) or (not short and float(t) > px):
+            keep.append(t)
+        else:
+            print(f"  ! {name}: Elliott {k} {t} already passed (price {px}, invalidation {inv}) — hidden")
+    ew["tp1"] = keep[0] if keep else None
+    ew["tp2"] = keep[1] if len(keep) > 1 else None
+
+
 def main():
     os.makedirs(OUT_DIR, exist_ok=True)
     now = datetime.now(timezone.utc)
@@ -655,6 +683,7 @@ def main():
         except Exception as e:
             print(f"  ! compute failed, keeping previous page: {e}")
             continue
+        _drop_passed_ew_targets(d, name)
         ai = ai_commentary(name, d)
         sup, res = d["zones"]["supports"], d["zones"]["resistances"]
         rows.append((slug, yf, name, short, dec, group, d["bias"]["direction"], fmt(d["live"], dec),
