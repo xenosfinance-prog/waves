@@ -378,8 +378,6 @@ textarea{resize:vertical;min-height:70px;}
   <div class="filter-bar">
     <span style="font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;">Account:</span>
     <button class="filter-btn active" data-acct="MT5" onclick="setAcctFilter(this)">RMG ACC 3</button>
-    <button class="filter-btn" data-acct="MT5-old" onclick="setAcctFilter(this)">RMG ACC 2</button>
-    <button class="filter-btn" data-acct="Dukascopy" onclick="setAcctFilter(this)">RMG ACC 1</button>
     <button class="filter-btn" data-acct="Manual" onclick="setAcctFilter(this)">Manual</button>
     <button class="filter-btn" data-acct="All" onclick="setAcctFilter(this)">All</button>
   </div>
@@ -552,11 +550,11 @@ let catFilter = 'All';
 // 10.000), MT5-old = RMG ACC 2 (chiuso il 12/10), Dukascopy = RMG ACC 1.
 const ACCOUNTS = {
   MT5:       { capital: 10000 },
-  'MT5-old': { capital: 10000 },
+  // 2026-11-11: RMG ACC 1 (Dukascopy) e RMG ACC 2 (MT5-old) tolti dal journal — i loro trade
+  // restano nel file ma non si vedono più da nessuna parte (né pulsante né All)
   // 2026-11-11: RMG ACC 3 scaduto l'11/11 → archiviato (visibile solo in All); il pulsante
   // RMG ACC 3 ora è il nuovo demo ActivTrades (dall'11/11, 10.000)
   'MT5-acc3': { capital: 10000 },
-  Dukascopy: { capital: 10000 },
   Manual:    { capital: 10000 },
 };
 const MT5_START = '2026-09-21';
@@ -612,7 +610,8 @@ let _ghTradesCache = null;
 // nel file — servono al sync per non ricrearle — ma la pagina non le mostra né le
 // conta. Le modifiche admin scrivono sul file remoto (upsert/delete), quindi
 // filtrarle qui non le cancella.
-function visibleTrades(arr) { return (arr || []).filter(t => !t.hidden); }
+const RETIRED_ACCOUNTS = new Set(['MT5-old', 'Dukascopy']);
+function visibleTrades(arr) { return (arr || []).filter(t => !t.hidden && !RETIRED_ACCOUNTS.has(tradeAccount(t))); }
 
 async function loadTrades() {
   try {
