@@ -51,6 +51,12 @@ SYMBOL_MAP = {
     "dax":"^GDAXI","ftse 100":"^FTSE",
     "us dollar dxy":"DX-Y.NYB","dxy":"DX-Y.NYB",
     "eur/gbp":"EURGBP=X","eurgbp":"EURGBP=X",
+    # 2026-11-12: cross aggiunti all'auto-trading (broker-engine)
+    "aud/jpy":"AUDJPY=X","audjpy":"AUDJPY=X",
+    "cad/jpy":"CADJPY=X","cadjpy":"CADJPY=X",
+    "aud/chf":"AUDCHF=X","audchf":"AUDCHF=X",
+    "aud/cad":"AUDCAD=X","audcad":"AUDCAD=X",
+    "aud/nzd":"AUDNZD=X","audnzd":"AUDNZD=X",
     "usd/mxn":"USDMXN=X","usdmxn":"USDMXN=X",
     "usd/brl":"USDBRL=X",
     "copper":"HG=F","cocoa":"CC=F","coffee":"KC=F","wheat":"ZW=F","corn":"ZC=F",
@@ -1918,6 +1924,10 @@ _OB_UNIVERSE = {
     "EUR_USD": ("EURUSD=X", 0.00008), "GBP_USD": ("GBPUSD=X", 0.00012),
     "USD_JPY": ("USDJPY=X", 0.010), "AUD_USD": ("AUDUSD=X", 0.00010),
     "NZD_USD": ("NZDUSD=X", 0.00015), "USD_CHF": ("USDCHF=X", 0.00012),
+    # 2026-11-12: cross dell'auto-trading (spread stimati ActivTrades)
+    "EUR_JPY": ("EURJPY=X", 0.015), "GBP_JPY": ("GBPJPY=X", 0.025), "AUD_JPY": ("AUDJPY=X", 0.015),
+    "CAD_JPY": ("CADJPY=X", 0.020), "AUD_CHF": ("AUDCHF=X", 0.00015), "AUD_CAD": ("AUDCAD=X", 0.00018),
+    "AUD_NZD": ("AUDNZD=X", 0.00020),
 }
 _ob_bt_cache = {}
 
