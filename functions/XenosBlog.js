@@ -199,7 +199,7 @@ function gridHtml(list) {
 }
 
 // 2026-10-17: barra dei temi sopra la griglia (link reali verso /topics/...)
-const TOPIC_BAR = '<div style="display:flex;flex-wrap:wrap;gap:8px;margin:0 0 18px;font-family:\'IBM Plex Mono\',monospace;font-size:11px">'
+const TOPIC_BAR = '<div id="xf-topic-bar" style="display:flex;flex-wrap:wrap;gap:8px;margin:0 0 18px;font-family:\'IBM Plex Mono\',monospace;font-size:11px">'
   + `<a href="${SITE}/topics" style="padding:5px 10px;border:1px solid currentColor;text-decoration:none">All topics</a>`
   + TOPICS.map(tp => `<a href="${SITE}/topics/${tp.slug}" style="padding:5px 10px;border:1px solid rgba(128,128,128,.4);text-decoration:none">${esc(tp.short)}</a>`).join('')
   + '</div>';
@@ -263,7 +263,7 @@ export async function onRequestGet(context) {
     // (fuori da #artBody: lo script della pagina riscrive #artBody, il blocco temi deve restare)
     const tps = topicsFor(a);
     const topicsHtml = tps.length
-      ? `<div class="edu-section"><div class="edu-section-title">// ${isIt ? 'Temi' : 'Topics'}</div><p>`
+      ? `<div class="edu-section" id="xf-topics"><div class="edu-section-title">// ${isIt ? 'Temi' : 'Topics'}</div><p>`
         + tps.map(tp => `<a href="${SITE}/topics/${tp.slug}">${esc(tp.name)}</a>`).join(' · ')
         + ` · <a href="${SITE}/topics">${isIt ? 'Tutti i temi' : 'All topics'}</a></p></div>`
       : '';
