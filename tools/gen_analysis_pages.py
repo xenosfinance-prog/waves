@@ -288,8 +288,14 @@ def build_instrument_page(inst, d, ai, now, all_rows):
         return f"<p>{L(esc(ai.get(key, '')), esc(ai_it[key]) if ai_it.get(key) else '')}</p>"
 
     # 2026-11-08 SEO (Search Console): le ricerche reali sono "… technical analysis today" e "… support and resistance levels"
-    title = f"{name} Technical Analysis Today — Support & Resistance Levels ({short}) | XenosFinance"
-    title_it = f"{name_it} analisi tecnica oggi — supporti e resistenze ({short}) | XenosFinance"
+    # 2026-11-13 CTR (Search Console: 2% di clic sulle impressioni): data e prezzo nel titolo —
+    # per le ricerche "… today" il risultato mostra che l'analisi è di oggi e con il prezzo reale
+    day_s = f"{now.day} {now.strftime('%b')}"
+    px_s = fmt(d.get("live"), dec) if d.get("live") is not None else ""
+    title = (f"{name} Technical Analysis Today ({day_s}) — {short}" + (f" at {px_s}" if px_s else "")
+             + " · Support & Resistance | XenosFinance")
+    title_it = (f"{name_it} analisi tecnica oggi ({now.day} {PI.MONTHS_IT_SHORT[now.month - 1]}) — {short}"
+                + (f" a {px_s}" if px_s else "") + " · supporti e resistenze | XenosFinance")
     s1 = zone_txt(sup[0], dec) if sup else None
     r1 = zone_txt(res[0], dec) if res else None
     desc = (f"{name} ({short}) technical analysis for {date_h}: {bias_word.lower()} bias on the 1-hour chart"

@@ -252,7 +252,11 @@ export async function onRequestGet(context) {
              : `<p style="font-family:'IBM Plex Mono',monospace;font-size:12px;margin:0 0 14px"><a href="${esc(itUrl)}" hreflang="it" lang="it">Leggi questo articolo in italiano →</a></p>`;
     const image = a.imageUrl && /^https?:\/\//.test(a.imageUrl) ? a.imageUrl : `${SITE}/assets/blog/macro.png`;
 
-    let body = paragraphs(a.intro);
+    // 2026-11-13: avviso "analisi superata" in cima agli articoli vecchi (campo notice = {text, url, label})
+    const ntc = a.notice && a.notice.text ? a.notice : null;
+    let body = ntc ? `<div style="border-left:3px solid #f5c542;background:rgba(245,197,66,.08);padding:12px 16px;margin:0 0 20px;font-family:'IBM Plex Mono',monospace;font-size:13px;line-height:1.6">`
+      + `⚠ ${esc(ntc.text)}` + (ntc.url ? ` <a href="${esc(ntc.url)}" style="color:#f5c542;font-weight:600">${esc(ntc.label || 'Read today\'s analysis →')}</a>` : '') + `</div>` : '';
+    body += paragraphs(a.intro);
     for (const s of asList(a.sections)) {
       if (!s) continue;
       body += `<div class="edu-section"><div class="edu-section-title">${esc(plain(s.heading))}</div>${paragraphs(s.content)}</div>`;
