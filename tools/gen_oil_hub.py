@@ -379,12 +379,25 @@ def build(G, built, now):
                 continue
             stc = p.get("structure") or "—"
             stc_it = {"backwardation": "backwardation", "contango": "contango"}.get(stc, stc)
-            b.append(f"<tr><td>{nm} {_esc(p.get('active', ''))}</td><td>{_f(p.get('active_price'))}</td>"
-                     f"<td class=\"{'up' if (p.get('price_chg') or 0) > 0 else 'dn'}\">{_f(p.get('price_chg'), 2, True)}%</td>"
+            # 2026-11-13: riga sul FRONT MONTH (M1), lo stesso contratto da cui partono gli spread M1–M2 / M1–M6.
+            # Prima mostrava il contratto più scambiato (es. BZG27 = M2) → settle ~$2.5 sotto il front e il prezzo
+            # live, e spread in tabella riferiti a un contratto diverso da quello mostrato.
+            cur = p.get("curve") or []
+            m1s = p.get("m1") or (cur[0][0] if cur else p.get("active", ""))
+            m1p = next((r[1] for r in cur if r[0] == m1s), None)
+            if m1p is None:
+                m1s, m1p = p.get("active", ""), p.get("active_price")
+            dchg = p.get("price_chg") if m1s == p.get("active") else p.get("m1_chg")
+            b.append(f"<tr><td>{nm} {_esc(m1s)}</td><td>{_f(m1p)}</td>"
+                     f"<td class=\"{'up' if (dchg or 0) > 0 else 'dn'}\">{_f(dchg, 2, True)}{'%' if dchg is not None else ''}</td>"
                      f"<td>{L(_esc(stc), _esc(stc_it))}</td><td>{_f(p.get('spread_m1m2'), 2, True)}</td>"
                      f"<td>{_f(p.get('spread_m1m6'), 2, True)}</td><td>{_f(p.get('oi_chg'), 0, True)}</td>"
                      f"<td>{_esc(p.get('flow') or '—')}</td></tr>")
         b.append("</table>")
+        _ct = " · ".join(f"{nm} M1 {_esc(prods[k].get('m1', ''))} / M2 {_esc(prods[k].get('m2', ''))} / M6 {_esc(prods[k].get('m6', ''))}"
+                         for k, nm in (("cl", "WTI"), ("bz", "Brent")) if prods.get(k))
+        if _ct:
+            b.append(f'<p class="src">{L("Front month (M1) settlement; spreads against", "Settlement del primo mese (M1); spread rispetto a")} {_ct}</p>')
         b.append(f'<p class="src">CME · {L("session", "sessione")} {_esc(fl.get("session", ""))} · '
                  f'<a href="/futures-flow/">{L("Full Futures Flow report", "Report Futures Flow completo")}</a></p>')
         if fl.get("oil_read"):

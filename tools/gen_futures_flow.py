@@ -154,6 +154,19 @@ def analyse(prod, rows, prev_rows, vol_now, vol_avg):
     except Exception as e:
         print(f"  ! closes {ref['sym']}: {e}")
     # (nessun fallback su price/previousClose di .info: a quell'ora è il movimento overnight, non la seduta)
+    # 2026-11-13: anche la variazione del FRONT MONTH (M1), per le tabelle che mostrano M1 e gli spread M1–Mx
+    m1_chg = pchg if rows[0]["sym"] == ref["sym"] else None
+    if m1_chg is None:
+        try:
+            import yfinance as yf
+            h1 = yf.Ticker(f"{rows[0]['sym']}.{prod[2]}").history(period="10d", interval="1d")
+            today = datetime.now(timezone.utc).date()
+            h1 = h1[[i.date() < today for i in h1.index]]
+            c1 = [float(x) for x in h1["Close"] if x and x > 0]
+            if len(c1) >= 2:
+                m1_chg = (c1[-1] / c1[-2] - 1) * 100
+        except Exception as e:
+            print(f"  ! closes {rows[0]['sym']}: {e}")
     by_oi_chg = []
     if prev_map:
         for r in rows:
@@ -174,6 +187,7 @@ def analyse(prod, rows, prev_rows, vol_now, vol_avg):
         "flow": quadrant(pchg, oi_chg), "top_oi_move": top_oi,
         "m1": m1["sym"], "m2": m2["sym"], "m6": m6["sym"],
         "spread_m1m2": sp12, "spread_m1m6": sp16,
+        "m1_price": rows[0]["price"], "m1_chg": m1_chg,
         # gas naturale: curva stagionale (inverno > primavera) → struttura letta su M1–M2
         "structure": ("backwardation" if (sp12 if key == "ng" else sp16) > 0 else "contango"),
         "curve": [[r["sym"], r["price"], r["oi"], r["vol"]] for r in rows],
