@@ -112,7 +112,12 @@
       var ew = d.elliott;
       rows += "<tr><td>" + T("Elliott Wave", "Onda di Elliott") + "</td><td>" + esc(ewDesc(ew.desc)) + "</td></tr>";
       if (ew.invalidation != null) rows += "<tr><td>" + T("Elliott invalidation", "Invalidazione Elliott") + "</td><td>" + f(ew.invalidation) + "</td></tr>";
-      var tps = [ew.tp1, ew.tp2].filter(function (t) { return t != null; }).map(f);
+      // 2026-11-13 (checkup): target già superati dal prezzo marcati come raggiunti
+      var bull = ew.invalidation != null && ew.invalidation < d.live;
+      var tps = [ew.tp1, ew.tp2].filter(function (t) { return t != null; }).map(function (t) {
+        var hit = ew.invalidation != null && (bull ? t <= d.live : t >= d.live);
+        return f(t) + (hit ? " " + T("(reached)", "(raggiunto)") : "");
+      });
       if (tps.length) rows += "<tr><td>" + T("Elliott targets", "Target Elliott") + "</td><td>" + tps.join(" · ") + "</td></tr>";
     }
     var pd = d.prev_day || {};

@@ -396,7 +396,17 @@ def build_instrument_page(inst, d, ai, now, all_rows):
         rows += f'<tr><td>{L("Elliott Wave (4H)", "Onda di Elliott (4H)")}</td><td>{L(esc(ew["desc"]), esc(PI.ew_desc_it(ew["desc"])))}</td></tr>'
         if ew.get("invalidation") is not None:
             rows += f'<tr><td>{L("Elliott invalidation (4H)", "Invalidazione Elliott (4H)")}</td><td>{f(ew["invalidation"])}</td></tr>'
-        tps = [f(t) for t in (ew.get("tp1"), ew.get("tp2")) if t is not None]
+        # 2026-11-13 (checkup): un target già superato dal prezzo veniva pubblicato come
+        # ancora da raggiungere (BTC 70,172 con prezzo 68,642; DAX 26,632 con 26,816;
+        # USD/JPY 159.935 con 159.965). Direzione dallo scenario: invalidazione sotto il
+        # prezzo = rialzo, sopra = ribasso. I target già toccati vengono marcati.
+        live, inv = d.get("live"), ew.get("invalidation")
+        def _tp(t):
+            hit = False
+            if live is not None and inv is not None:
+                hit = (t <= live) if inv < live else (t >= live)
+            return f(t) + (" " + L("(reached)", "(raggiunto)") if hit else "")
+        tps = [_tp(t) for t in (ew.get("tp1"), ew.get("tp2")) if t is not None]
         if tps:
             rows += f'<tr><td>{L("Elliott targets (4H)", "Target Elliott (4H)")}</td><td>{" · ".join(tps)}</td></tr>'
     pdv = d.get("prev_day") or {}
