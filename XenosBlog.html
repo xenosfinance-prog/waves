@@ -965,7 +965,13 @@ async function loadArticle(slug) {
       BASE2+'macro.png'
     ) : a.imageUrl;
     var heroHtml = '<div class="article-hero"><img src="' + artImgSrc + '" alt="' + (a.title||'') + '"></div>';
-    var html = heroHtml + formatBlogContent(a.intro||'');
+    var ntcHtml = '';
+    if (a.notice && a.notice.text) {   // 2026-11-13: avviso "analisi superata" (articoli vecchi)
+      var esc1 = function (x) { return String(x || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); };
+      ntcHtml = '<div style="border-left:3px solid #f5c542;background:rgba(245,197,66,.08);padding:12px 16px;margin:0 0 20px;font-family:\'IBM Plex Mono\',monospace;font-size:13px;line-height:1.6">⚠ '
+        + esc1(a.notice.text) + (a.notice.url ? ' <a href="' + esc1(a.notice.url) + '" style="color:#f5c542;font-weight:600">' + esc1(a.notice.label || "Read today's analysis →") + '</a>' : '') + '</div>';
+    }
+    var html = heroHtml + ntcHtml + formatBlogContent(a.intro||'');
     if (a.sections) {
       a.sections.forEach(function(s){
         html += '<div class="edu-section"><div class="edu-section-title">' + s.heading + '</div>' + formatBlogContent(s.content) + '</div>';
