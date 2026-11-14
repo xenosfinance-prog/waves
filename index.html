@@ -143,7 +143,10 @@ body{background:var(--bg4);color:var(--ink);font-family:var(--mono);min-height:1
 #xenos-lang-switcher{min-width:64px;min-height:20px;}
 @media(max-width:640px){
   /* 2026-10-23 PageSpeed: riga superiore ad altezza fissa (niente spostamenti) e testi più leggibili */
-  .masthead-top{padding:6px 16px;height:34px;flex-wrap:nowrap;overflow:hidden;white-space:nowrap;}
+  /* 2026-11-14: overflow visibile, altrimenti il menu lingue (assoluto, sotto la riga) veniva tagliato e su mobile non si poteva scegliere la lingua */
+  .masthead-top{padding:6px 16px;height:34px;flex-wrap:nowrap;overflow:visible;white-space:nowrap;position:relative;z-index:50;}
+  .masthead-top > span{min-width:0;overflow:hidden;text-overflow:ellipsis;letter-spacing:1px;}
+  #xenos-lang-switcher{flex-shrink:0;}
   .masthead-top > span:nth-child(2){display:none;}
   .news-desc{font-size:12px;}
   .ai-text{font-size:12px;}
