@@ -666,8 +666,9 @@ async function loadGrid() {
     var lang = getCurrentLang();
     // 2026-10-25: versione italiana pre-generata (i18n/it/articles/index.json);
     // gli articoli non ancora tradotti vengono tradotti al volo in un'unica richiesta.
-    var itMap = (lang === 'it') ? await loadItArticleIndex() : {};
-    if (lang === 'it') await fillMissingCardTranslations(articles, itMap);
+    // 2026-11-14: stessa cosa per ES/RU/UK (i18n/<lingua>/articles/)
+    var itMap = (lang !== 'en') ? await loadItArticleIndex() : {};
+    if (lang !== 'en') await fillMissingCardTranslations(articles, itMap);
     for (var _ai = 0; _ai < articles.length; _ai++) {
       var a = articles[_ai];
       var card = document.createElement('div');
@@ -705,8 +706,8 @@ async function loadGrid() {
           tThumb +
           '<div class="card-body">' +
           '<div class="card-cat">' + tCat + '</div>' +
-          '<div class="card-title">' + tTitle + '</div>' +
-          '<div class="card-excerpt">' + tExcerpt + '...</div>' +
+          '<div class="card-title"' + (itA ? ' data-no-xft' : '') + '>' + tTitle + '</div>' +
+          '<div class="card-excerpt"' + (itA ? ' data-no-xft' : '') + '>' + tExcerpt + '...</div>' +
           '<div class="card-footer"><span>' + tReadTime + '</span><span class="card-read"><span data-i18n="label_blog_read">Read →</span></span></div>' +
           '</div>' +
           '</a>';
@@ -737,14 +738,14 @@ async function ltTranslate(text, target) {
 
 function getCurrentLang() {
   var l = localStorage.getItem('xenos_lang') || 'en';
-  return l === 'it' ? 'it' : 'en';
+  return ['it', 'es', 'ru', 'uk'].indexOf(l) >= 0 ? l : 'en';   // 2026-11-14: + ES/RU/UK
 }
 
 // ── Versione italiana pre-generata (2026-10-25) ──────────────────────────
 // File creati dalla GitHub Action "Italian translations" (tools/translate_content.py).
 async function loadItArticleIndex() {
   try {
-    var r = await fetch('/i18n/it/articles/index.json?t=' + Date.now());
+    var r = await fetch('/i18n/' + getCurrentLang() + '/articles/index.json?t=' + Date.now());
     if (!r.ok) return {};
     var d = await r.json();
     return (d && typeof d === 'object') ? d : {};
@@ -753,7 +754,7 @@ async function loadItArticleIndex() {
 
 async function loadItArticle(slug) {
   try {
-    var r = await fetch('/i18n/it/articles/' + encodeURIComponent(slug) + '.json?t=' + Date.now());
+    var r = await fetch('/i18n/' + getCurrentLang() + '/articles/' + encodeURIComponent(slug) + '.json?t=' + Date.now());
     if (!r.ok) return null;
     return await r.json();
   } catch (e) { return null; }
@@ -767,8 +768,8 @@ async function fillMissingCardTranslations(articles, itMap) {
   var clean = function (t) { return String(t || '').replace(/\s*\n+\s*/g, ' ').trim() || '-'; };
   try {
     var res = await Promise.all([
-      window.xfTranslate(miss.map(function (a) { return clean(a.title); }).join('\n'), 'it'),
-      window.xfTranslate(miss.map(function (a) { return clean((a.excerpt || '').substring(0, 160)); }).join('\n'), 'it')
+      window.xfTranslate(miss.map(function (a) { return clean(a.title); }).join('\n'), getCurrentLang()),
+      window.xfTranslate(miss.map(function (a) { return clean((a.excerpt || '').substring(0, 160)); }).join('\n'), getCurrentLang())
     ]);
     var tl = res[0].split('\n'), el = res[1].split('\n');
     if (tl.length !== miss.length) return;
@@ -982,6 +983,8 @@ async function loadArticle(slug) {
       html += '<div class="edu-section"><div class="edu-section-title">// ' + (typeof window.t === 'function' ? window.t('label_conclusion') : 'Conclusion') + '</div>' + formatBlogContent(a.conclusion) + '</div>';
     }
     document.getElementById('artBody').innerHTML = html;
+    // 2026-11-14: articolo già nella lingua scelta → il traduttore automatico non lo ritocca
+    if (getCurrentLang() !== 'en') ['artBody', 'artTitle'].forEach(function (id) { var e = document.getElementById(id); if (e) e.setAttribute('data-no-xft', '1'); });
     setTimeout(function(){XF.panRead(document.getElementById('artBody'));},400);
     updateArticleSEO(a);
     // ── Hand pan-read animation ──

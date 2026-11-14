@@ -1,7 +1,8 @@
-# XenosFinance — versione italiana di blog e Daily Education (2026-10-25).
-# Crea/aggiorna i file in i18n/it/ con tools/translate_content.py.
+# XenosFinance — traduzioni pre-generate del sito (2026-10-25, multilingua dal 2026-11-14).
+#   content: blog e Daily Education → i18n/<lingua>/ (tools/translate_content.py), lingue it, es, ru, uk
+#   ui:      etichette dell'interfaccia (i18n.js) → i18n/ui/<lingua>.js (tools/translate_ui.py), es, ru, uk
 # Costo zero: Gemini piano gratuito se esiste il secret GEMINI_API_KEY,
-# altrimenti Google Translate pubblico. Gli articoli già tradotti non vengono
+# altrimenti Google Translate pubblico. I documenti già tradotti non vengono
 # ritradotti (solo se l'originale inglese cambia).
 name: Italian translations
 
@@ -11,16 +12,22 @@ on:
     paths:
       - "articles/**"
       - "daily_education/**"
+      - "i18n.js"
       - "tools/translate_content.py"          # riparte anche quando cambia lo script
+      - "tools/translate_ui.py"
       - ".github/workflows/translate-it.yml"
   schedule:
     - cron: "17 */4 * * *"   # ogni 4 ore (2026-10-28, prima 2): i nuovi articoli partono già dal push; qui solo recupero errori
   workflow_dispatch:
     inputs:
       max:
-        description: "Documenti massimi da tradurre in questo run"
+        description: "Documenti massimi da tradurre in questo run (per lingua)"
         required: false
         default: "40"
+      langs:
+        description: "Lingue dei contenuti (es. it,es,ru,uk)"
+        required: false
+        default: "it,es,ru,uk"
 
 permissions:
   contents: write
@@ -30,50 +37,115 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  translate:
+  ui:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: main          # 2026-10-26: sempre l'ultima versione (un run in coda partiva dal commit vecchio e ritraduceva)
+          ref: main
           fetch-depth: 20
 
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
+      - name: Translate UI labels
+        timeout-minutes: 15
+        continue-on-error: true
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python tools/translate_ui.py
+
+      - name: Commit UI translations
+        run: |
+          git config user.name  "xenos-translate-bot"
+          git config user.email "xenos-translate-bot@users.noreply.github.com"
+          if git diff --quiet -- i18n/ui && [ -z "$(git ls-files --others --exclude-standard i18n/ui)" ]; then
+            echo "Nessuna nuova traduzione UI."
+            exit 0
+          fi
+          rm -rf /tmp/trui && mkdir -p /tmp/trui && cp -r i18n/ui /tmp/trui/
+          for i in 1 2 3 4 5; do
+            git fetch -q origin main
+            git reset -q --hard origin/main
+            mkdir -p i18n/ui && cp -r /tmp/trui/ui/. i18n/ui/
+            git add i18n/ui
+            if git diff --cached --quiet; then
+              echo "Traduzioni UI già presenti su main."
+              exit 0
+            fi
+            git commit -q -m "Traduzioni UI $(date -u +'%Y-%m-%d %H:%M') UTC"
+            git push origin HEAD:main && exit 0
+            echo "push rifiutato (altri commit in arrivo), nuovo tentativo $i…"
+            sleep $((i * 5))
+          done
+          exit 1
+
+  translate:
+    needs: ui
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      max-parallel: 1          # una lingua alla volta: stessa quota Gemini gratuita
+      matrix:
+        lang: [it, es, ru, uk]
+    steps:
+      - name: Language selected?
+        id: sel
+        run: |
+          L="${{ github.event.inputs.langs || 'it,es,ru,uk' }}"
+          case ",$L," in *",${{ matrix.lang }},"*) echo "go=1" >> "$GITHUB_OUTPUT" ;; *) echo "go=0" >> "$GITHUB_OUTPUT" ;; esac
+
+      - uses: actions/checkout@v4
+        if: steps.sel.outputs.go == '1'
+        with:
+          ref: main          # 2026-10-26: sempre l'ultima versione (un run in coda partiva dal commit vecchio e ritraduceva)
+          fetch-depth: 20
+
+      - uses: actions/setup-python@v5
+        if: steps.sel.outputs.go == '1'
+        with:
+          python-version: "3.11"
+
       - name: Translate new content
+        if: steps.sel.outputs.go == '1'
         timeout-minutes: 30
         continue-on-error: true      # quanto già tradotto viene comunque salvato dal passo successivo
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           TRANSLATE_MAX: ${{ github.event.inputs.max || '40' }}
+          TRANSLATE_LANG: ${{ matrix.lang }}
         run: python tools/translate_content.py
 
       - name: Commit translations
+        if: steps.sel.outputs.go == '1'
         # 2026-10-26: niente più rebase con conflitti. Se main è andato avanti (altri bot o un altro run),
         # si riparte da main e si sovrappongono i file tradotti in questo run (ogni documento è un file a sé),
-        # poi si ricostruisce l'indice IT del blog dai file presenti.
+        # poi si ricostruisce l'indice del blog dai file presenti.
+        env:
+          L: ${{ matrix.lang }}
         run: |
           git config user.name  "xenos-translate-bot"
           git config user.email "xenos-translate-bot@users.noreply.github.com"
-          if git diff --quiet -- i18n/it && [ -z "$(git ls-files --others --exclude-standard i18n/it)" ]; then
-            echo "Nessuna nuova traduzione."
+          if git diff --quiet -- "i18n/$L" && [ -z "$(git ls-files --others --exclude-standard "i18n/$L")" ]; then
+            echo "Nessuna nuova traduzione ($L)."
             exit 0
           fi
-          rm -rf /tmp/tr && mkdir -p /tmp/tr && cp -r i18n/it /tmp/tr/
+          rm -rf /tmp/tr && mkdir -p /tmp/tr && cp -r "i18n/$L" /tmp/tr/
           for i in 1 2 3 4 5; do
             git fetch -q origin main
             git reset -q --hard origin/main
-            mkdir -p i18n/it && cp -r /tmp/tr/it/. i18n/it/
-            python -c "import sys; sys.path.insert(0, 'tools'); import translate_content as T; T.rebuild_article_index()"
-            git add i18n/it
+            mkdir -p "i18n/$L" && cp -r "/tmp/tr/$L/." "i18n/$L/"
+            python -c "import sys; sys.path.insert(0, 'tools'); import translate_content as T; T.set_lang('$L'); T.rebuild_article_index()"
+            git add "i18n/$L"
             if git diff --cached --quiet; then
               echo "Traduzioni già presenti su main."
               exit 0
             fi
-            git commit -q -m "Traduzioni IT $(date -u +'%Y-%m-%d %H:%M') UTC"
+            git commit -q -m "Traduzioni ${L^^} $(date -u +'%Y-%m-%d %H:%M') UTC"
             git push origin HEAD:main && exit 0
             echo "push rifiutato (altri commit in arrivo), nuovo tentativo $i…"
             sleep $((i * 5))
