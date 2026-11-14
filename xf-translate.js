@@ -192,7 +192,11 @@
 
   // Parole che restano come sono (marchio, nomi di sezioni) e brevi etichette che
   // Google traduce male fuori contesto (OPEN → "ABRIR" invece di "ABIERTO").
-  var KEEP = { 'premium': 1, '✦ premium': 1, 'xenosfinance': 1, 'xenos finance': 1, 'trading ideas': 1 };
+  var KEEP = {};
+  ['premium', '✦ premium', 'xenosfinance', 'xenos finance', 'trading ideas', 'live setups', 'market brief',
+   'swing high', 'swing low', 'bias', 'setup', 'setups', 'trade setups', 'pullback', 'breakout', 'stop loss',
+   'take profit', 'supertrend', 'futures flow', 'risk-on', 'risk-off', 'smart money']
+    .forEach(function (k) { KEEP[k] = 1; });
   var FIXED = {
     es: { 'OPEN': 'ABIERTO', '● OPEN': '● ABIERTO', 'CLOSED': 'CERRADO', '○ CLOSED': '○ CERRADO', 'LIVE': 'EN VIVO' },
     ru: { 'OPEN': 'ОТКРЫТ', '● OPEN': '● ОТКРЫТ', 'CLOSED': 'ЗАКРЫТ', '○ CLOSED': '○ ЗАКРЫТ', 'LIVE': 'ОНЛАЙН' },
@@ -207,7 +211,7 @@
   }
 
   function wanted(t) {
-    if (KEEP[t.toLowerCase()]) return false;
+    if (KEEP[t.toLowerCase().replace(/^[^a-z]+|[^a-z]+$/g, '')]) return false;   // anche con icone/punteggiatura intorno
     if (!t || t.length < 2 || t.length > 4000) return false;
     if (!/[A-Za-z]{2,}/.test(t)) return false;                // niente lettere latine: numeri o già tradotto (cirillico)
     if (TICKER.test(t) && t.split(/[\s\/]+/).every(function (w) { return w.length <= 4 || /\d/.test(w); })) return false;
