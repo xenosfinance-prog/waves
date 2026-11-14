@@ -163,7 +163,8 @@
   var AMEM = {};
   var SKIP_TAGS = { SCRIPT: 1, STYLE: 1, NOSCRIPT: 1, CODE: 1, PRE: 1, TEXTAREA: 1, SVG: 1, CANVAS: 1,
     IFRAME: 1, KBD: 1, SAMP: 1, VAR: 1, MATH: 1, INPUT: 1, SELECT: 0 };
-  var SKIP_SEL = '.notranslate,[translate="no"],[data-no-xft],#xenos-lang-switcher,.xf-lang,[contenteditable="true"]';
+  var SKIP_SEL = '.notranslate,[translate="no"],[data-no-xft],#xenos-lang-switcher,.xf-lang,[contenteditable="true"],' +
+    '.masthead-name,.footer-logo,.brand,.nav-logo,.logo';   // logo XENOS FINANCE
   var TICKER = /^[A-Z0-9&\/\.\-:+%$€£¥()·•|,\s]+$/;
   var seen = new WeakMap();          // nodo di testo → testo che ci abbiamo scritto noi
   var dictVals = null;
@@ -189,7 +190,24 @@
     return dictVals.has(t);
   }
 
+  // Parole che restano come sono (marchio, nomi di sezioni) e brevi etichette che
+  // Google traduce male fuori contesto (OPEN → "ABRIR" invece di "ABIERTO").
+  var KEEP = { 'premium': 1, '✦ premium': 1, 'xenosfinance': 1, 'xenos finance': 1, 'trading ideas': 1 };
+  var FIXED = {
+    es: { 'OPEN': 'ABIERTO', '● OPEN': '● ABIERTO', 'CLOSED': 'CERRADO', '○ CLOSED': '○ CERRADO', 'LIVE': 'EN VIVO' },
+    ru: { 'OPEN': 'ОТКРЫТ', '● OPEN': '● ОТКРЫТ', 'CLOSED': 'ЗАКРЫТ', '○ CLOSED': '○ ЗАКРЫТ', 'LIVE': 'ОНЛАЙН' },
+    uk: { 'OPEN': 'ВІДКРИТО', '● OPEN': '● ВІДКРИТО', 'CLOSED': 'ЗАКРИТО', '○ CLOSED': '○ ЗАКРИТО', 'LIVE': 'НАЖИВО' }
+  }[AUTO] || {};
+  // il marchio non si traduce mai ("XenosFinanzas", "Xenos Финансы"…)
+  function brand(src, out) {
+    if (!/xenos\s?finance/i.test(src)) return out;
+    return out.replace(/Xenos\s?(?:Financ|Finanz|Финанс|Фінанс)[A-Za-zÀ-ÿА-Яа-яЁёІіЇїЄєҐґ]*/gi, function (m) {
+      return m === m.toUpperCase() ? 'XENOSFINANCE' : 'XenosFinance';
+    });
+  }
+
   function wanted(t) {
+    if (KEEP[t.toLowerCase()]) return false;
     if (!t || t.length < 2 || t.length > 4000) return false;
     if (!/[A-Za-z]{2,}/.test(t)) return false;                // niente lettere latine: numeri o già tradotto (cirillico)
     if (TICKER.test(t) && t.split(/[\s\/]+/).every(function (w) { return w.length <= 4 || /\d/.test(w); })) return false;
@@ -207,6 +225,7 @@
 
   function enqueue(item) {
     var key = item.src;
+    if (FIXED[key]) { apply(item, FIXED[key]); return; }
     var hit = cacheGet(key);
     if (hit !== null && hit !== undefined) { apply(item, hit); return; }
     queue.push(item);
@@ -296,7 +315,7 @@
       return Promise.all(src.map(function (s) { return gtx(s, AUTO, 'auto').catch(function () { return s; }); }));
     }).then(function (lines) {
       batch.forEach(function (s, i) {
-        var t = (lines[i] || '').trim();
+        var t = brand(s, (lines[i] || '').trim());
         if (!t) return;
         cacheSet(s, t);
         (uniq[s] || []).forEach(function (it) { apply(it, t); });
