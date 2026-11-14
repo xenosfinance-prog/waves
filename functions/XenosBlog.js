@@ -227,10 +227,26 @@ export async function onRequestGet(context) {
     // 2026-11-08 (SEO): versione italiana con un URL proprio (?slug=…&lang=it), resa sul server
     // dalla traduzione già pronta in i18n/it/articles/ (Action "Italian translations").
     // Senza traduzione → pagina inglese, con canonical inglese.
-    const itA = await loadArticle(env, url.origin, slug, '/i18n/it/articles/');
-    const hasIt = !!(itA && itA.title && itA.intro);
-    const isIt = hasIt && url.searchParams.get('lang') === 'it';
-    const a = isIt ? { ...orig, ...itA, imageUrl: orig.imageUrl, publishedAt: orig.publishedAt, generatedAt: orig.generatedAt } : orig;
+    // 2026-11-14: stesse versioni per spagnolo, russo e ucraino (i18n/<lingua>/articles/).
+    const LANGS = ['it', 'es', 'ru', 'uk'];
+    const trs = {};
+    await Promise.all(LANGS.map(async l => {
+      const t = await loadArticle(env, url.origin, slug, `/i18n/${l}/articles/`);
+      if (t && t.title && t.intro) trs[l] = t;
+    }));
+    const avail = LANGS.filter(l => trs[l]);
+    const hasIt = avail.length > 0;
+    const reqLang = url.searchParams.get('lang');
+    const curLang = trs[reqLang] ? reqLang : 'en';
+    const isIt = curLang !== 'en';                 // versione tradotta (qualsiasi lingua)
+    const a = isIt ? { ...orig, ...trs[curLang], imageUrl: orig.imageUrl, publishedAt: orig.publishedAt, generatedAt: orig.generatedAt } : orig;
+    const W = {
+      en: { concl: 'Conclusion', topics: 'Topics', all: 'All topics' },
+      it: { concl: 'Conclusione', topics: 'Temi', all: 'Tutti i temi', read: 'Leggi questo articolo in italiano →', loc: 'it_IT' },
+      es: { concl: 'Conclusión', topics: 'Temas', all: 'Todos los temas', read: 'Leer este artículo en español →', loc: 'es_ES' },
+      ru: { concl: 'Заключение', topics: 'Темы', all: 'Все темы', read: 'Читать эту статью на русском →', loc: 'ru_RU' },
+      uk: { concl: 'Висновок', topics: 'Теми', all: 'Усі теми', read: 'Читати цю статтю українською →', loc: 'uk_UA' },
+    }[curLang];
 
     // Some auto-generated articles have a generic title ("Macro Update") and the
     // real headline in the intro — use the headline for search when that happens.
@@ -240,16 +256,20 @@ export async function onRequestGet(context) {
     const fullTitle = `${clip(headline, 65)} | XenosFinance`;
     const desc = clip(a.excerpt || a.intro || a.conclusion || headline, 158);
     const enUrl = `${SITE}/XenosBlog?slug=${encodeURIComponent(slug)}`;
-    const itUrl = `${enUrl}&lang=it`;
-    const canonical = isIt ? itUrl : enUrl;
+    const langUrl = l => `${enUrl}&lang=${l}`;
+    const canonical = isIt ? langUrl(curLang) : enUrl;
     const hreflang = hasIt
-      ? `<link rel="alternate" hreflang="en" href="${esc(enUrl)}"><link rel="alternate" hreflang="it" href="${esc(itUrl)}">`
+      ? `<link rel="alternate" hreflang="en" href="${esc(enUrl)}">`
+        + avail.map(l => `<link rel="alternate" hreflang="${l}" href="${esc(langUrl(l))}">`).join('')
         + `<link rel="alternate" hreflang="x-default" href="${esc(enUrl)}">`
       : '';
-    // link visibile all'altra lingua (anche per far trovare a Google la versione italiana)
+    // link visibili alle altre lingue (anche per far trovare a Google le versioni tradotte)
+    const READ = { it: 'Leggi questo articolo in italiano →', es: 'Leer este artículo en español →',
+      ru: 'Читать эту статью на русском →', uk: 'Читати цю статтю українською →' };
     const langLink = !hasIt ? ''
-      : isIt ? `<p style="font-family:'IBM Plex Mono',monospace;font-size:12px;margin:0 0 14px"><a href="${esc(enUrl)}" hreflang="en" lang="en">Read this article in English →</a></p>`
-             : `<p style="font-family:'IBM Plex Mono',monospace;font-size:12px;margin:0 0 14px"><a href="${esc(itUrl)}" hreflang="it" lang="it">Leggi questo articolo in italiano →</a></p>`;
+      : isIt ? `<p style="font-family:'IBM Plex Mono',monospace;font-size:12px;margin:0 0 14px" data-no-xft><a href="${esc(enUrl)}" hreflang="en" lang="en">Read this article in English →</a></p>`
+             : `<p style="font-family:'IBM Plex Mono',monospace;font-size:12px;margin:0 0 14px" data-no-xft>`
+               + avail.map(l => `<a href="${esc(langUrl(l))}" hreflang="${l}" lang="${l}">${READ[l]}</a>`).join(' &nbsp;·&nbsp; ') + `</p>`;
     const image = a.imageUrl && /^https?:\/\//.test(a.imageUrl) ? a.imageUrl : `${SITE}/assets/blog/macro.png`;
 
     // 2026-11-13: avviso "analisi superata" in cima agli articoli vecchi (campo notice = {text, url, label})
@@ -262,14 +282,14 @@ export async function onRequestGet(context) {
       body += `<div class="edu-section"><div class="edu-section-title">${esc(plain(s.heading))}</div>${paragraphs(s.content)}</div>`;
     }
     if (a.quote) body += `<blockquote>${esc(plain(a.quote))}</blockquote>`;
-    if (a.conclusion) body += `<div class="edu-section"><div class="edu-section-title">// ${isIt ? 'Conclusione' : 'Conclusion'}</div>${paragraphs(a.conclusion)}</div>`;
+    if (a.conclusion) body += `<div class="edu-section"><div class="edu-section-title">// ${W.concl}</div>${paragraphs(a.conclusion)}</div>`;
     // 2026-10-17: link alle pagine tema (/topics/...) per collegare gli articoli tra loro
     // (fuori da #artBody: lo script della pagina riscrive #artBody, il blocco temi deve restare)
     const tps = topicsFor(a);
     const topicsHtml = tps.length
-      ? `<div class="edu-section" id="xf-topics"><div class="edu-section-title">// ${isIt ? 'Temi' : 'Topics'}</div><p>`
+      ? `<div class="edu-section" id="xf-topics"><div class="edu-section-title">// ${W.topics}</div><p>`
         + tps.map(tp => `<a href="${SITE}/topics/${tp.slug}">${esc(tp.name)}</a>`).join(' · ')
-        + ` · <a href="${SITE}/topics">${isIt ? 'Tutti i temi' : 'All topics'}</a></p></div>`
+        + ` · <a href="${SITE}/topics">${W.all}</a></p></div>`
       : '';
 
     const jsonLd = {
@@ -284,7 +304,7 @@ export async function onRequestGet(context) {
       publisher: { '@type': 'Organization', name: 'XenosFinance', logo: { '@type': 'ImageObject', url: `${SITE}/favicon-192.png` } },
       mainEntityOfPage: { '@type': 'WebPage', '@id': canonical },
       articleSection: a.categoryLabel || a.category || undefined,
-      inLanguage: isIt ? 'it' : 'en', // 2026-11-08: prima a.lang ("inglese"/"EN"), valore non valido
+      inLanguage: curLang, // 2026-11-08: prima a.lang ("inglese"/"EN"), valore non valido
     };
     const ldTag = `<script type="application/ld+json">${JSON.stringify(jsonLd).replace(/</g, '\\u003c')}</script>`;
 
@@ -299,12 +319,12 @@ export async function onRequestGet(context) {
       .on('meta[property="og:image"]', new SetAttr('content', image))
       .on('meta[name="twitter:title"]', new SetAttr('content', fullTitle))
       .on('meta[name="twitter:description"]', new SetAttr('content', desc))
-      .on('html', new SetAttr('lang', isIt ? 'it' : 'en'))
-      .on('head', new AppendHead(ldTag + hreflang + (isIt ? '<meta property="og:locale" content="it_IT">' : '')))
+      .on('html', new SetAttr('lang', curLang))
+      .on('head', new AppendHead(ldTag + hreflang + (isIt ? `<meta property="og:locale" content="${W.loc}">` : '')))
       .on('#artTitle', new SetText(esc(clip(headline, 140)), true))
       .on('#artCat', new SetText(esc(a.categoryLabel || a.category || ''), true))
       .on('#artBody', new SetText(body, true))
-      .on('#artBody', new After(relatedHtml(a, SITE, esc, isIt ? 'it' : 'en') + topicsHtml))
+      .on('#artBody', new After(relatedHtml(a, SITE, esc, curLang === 'it' ? 'it' : 'en') + topicsHtml))
       .on('#artBody', new Before(langLink))
       .transform(res);
 

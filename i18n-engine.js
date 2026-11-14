@@ -2,21 +2,49 @@
 
 // Prevent flash immediately
 // 2026-11-08 (SEO): ?lang=it / ?lang=en nell'URL sceglie la lingua (pagine italiane indicizzabili, es. /XenosBlog?slug=…&lang=it)
-try { var _xfUrlLang = new URLSearchParams(location.search).get('lang'); if (_xfUrlLang === 'it' || _xfUrlLang === 'en') localStorage.setItem('xenos_lang', _xfUrlLang); } catch (e) {}
-var _xfLang = localStorage.getItem('xenos_lang') || 'en';
-if (!['en','it'].includes(_xfLang)) { _xfLang = 'en'; try { localStorage.setItem('xenos_lang', 'en'); } catch (e) {} }
+// 2026-11-14: lingue EN, IT, ES, RU, UK. ES/RU/UK: etichette da /i18n/ui/<lingua>.js
+// (GitHub Action "translations"), il resto tradotto da /xf-translate.js.
+var XF_SITE_LANGS = ['en', 'it', 'es', 'ru', 'uk'];
+var XF_EXTRA_LANGS = ['es', 'ru', 'uk'];
+try { var _xfUrlLang = new URLSearchParams(location.search).get('lang'); if (XF_SITE_LANGS.indexOf(_xfUrlLang) >= 0) localStorage.setItem('xenos_lang', _xfUrlLang); } catch (e) {}
+var _xfLang = 'en';
+try { _xfLang = localStorage.getItem('xenos_lang') || 'en'; } catch (e) {}
+if (XF_SITE_LANGS.indexOf(_xfLang) < 0) { _xfLang = 'en'; try { localStorage.setItem('xenos_lang', 'en'); } catch (e) {} }
+// script caricato in modo sincrono (non defer/async)? allora document.write funziona
+var _xfSync = (function () { try { var c = document.currentScript; return !!c && !c.defer && !c.async && document.readyState === 'loading'; } catch (e) { return false; } })();
 if (_xfLang !== 'en') {
-  document.write('<style id="xf-foil">[data-i18n]{visibility:hidden!important}</style>');
+  if (_xfSync) document.write('<style id="xf-foil">[data-i18n]{visibility:hidden!important}</style>');
+}
+// dizionario della lingua aggiuntiva + traduttore automatico (se la pagina non lo carica già)
+function _xfLoadScript(src, cb) {
+  var el = document.createElement('script');
+  el.src = src;
+  if (cb) { el.onload = cb; el.onerror = cb; }
+  (document.head || document.documentElement).appendChild(el);
+}
+if (XF_EXTRA_LANGS.indexOf(_xfLang) >= 0) {
+  if (_xfSync) document.write('<script src="/i18n/ui/' + _xfLang + '.js"><\/script>');
+  else _xfLoadScript('/i18n/ui/' + _xfLang + '.js', function () { if (window.__xfInitDone) xenosApplyLang(_xfLang); });
+  if (!document.querySelector('script[src*="xf-translate.js"]')) _xfLoadScript('/xf-translate.js?v=2');
+  setTimeout(function () { var f = document.getElementById('xf-foil'); if (f) f.remove(); }, 3000);
+}
+
+function xfDict(lang) {
+  var base = (typeof XENOS_I18N !== 'undefined') ? XENOS_I18N : {};
+  var extra = window.XF_I18N_EXTRA || {};
+  return base[lang] || extra[lang] || base['en'] || null;
 }
 
 var XF_LANGS = {
   en: { flag: '🇬🇧', label: 'EN' },
   it: { flag: '🇮🇹', label: 'IT' },
+  es: { flag: '🇪🇸', label: 'ES' },
+  ru: { flag: '🇷🇺', label: 'RU' },
+  uk: { flag: '🇺🇦', label: 'UA' },
 };
 
 function xenosApplyLang(lang) {
-  if (typeof XENOS_I18N === 'undefined') return;
-  var t = XENOS_I18N[lang] || XENOS_I18N['en'];
+  var t = xfDict(lang);
   if (!t) return;
   document.querySelectorAll('[data-i18n]').forEach(function(el) {
     var key = el.getAttribute('data-i18n');
@@ -48,9 +76,10 @@ window.xenosSetLang = function(lang) {
 window.t = function(key) {
   try {
     var lang = localStorage.getItem('xenos_lang') || 'en';
-    if (typeof XENOS_I18N === 'undefined') return key;
-    var dict = XENOS_I18N[lang] || XENOS_I18N['en'];
-    return (dict && dict[key]) ? dict[key] : key;
+    var dict = xfDict(lang);
+    if (dict && dict[key]) return dict[key];
+    var en = xfDict('en');                       // chiave non ancora tradotta: inglese
+    return (en && en[key]) ? en[key] : key;
   } catch(e) { return key; }
 };
 
@@ -86,6 +115,7 @@ function xenosBuildSwitcher() {
 function xenosInit() {
   xenosBuildSwitcher();
   xenosApplyLang(_xfLang);
+  window.__xfInitDone = true;
 }
 
 if (document.readyState === 'loading') {

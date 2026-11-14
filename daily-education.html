@@ -713,17 +713,17 @@ async function ltTranslateEdu(text, target) {
 
 function getCurrentLangEdu() {
   const l = localStorage.getItem('xenos_lang') || 'en';
-  return l === 'it' ? 'it' : 'en';
+  return ['it', 'es', 'ru', 'uk'].includes(l) ? l : 'en';   // 2026-11-14: + ES/RU/UK (i18n/<lingua>/daily_education/)
 }
 
 // Anteprima archivio: file italiano se esiste, altrimenti solo l'inizio tradotto al volo.
 async function eduPreviewSource(post, enContent) {
   try {
-    const r = await fetch(`/i18n/it/daily_education/${post.date}.json?t=${Date.now()}`);
+    const r = await fetch(`/i18n/${getCurrentLangEdu()}/daily_education/${post.date}.json?t=${Date.now()}`);
     if (r.ok) { const d = await r.json(); if (d && d.content) { _eduItCache[post.date] = d.content; return d.content; } }
   } catch (e) {}
   const head = String(enContent).replace(/━+/g, '').replace(/\n{3,}/g, '\n').trim().substring(0, 220);
-  return ltTranslateEdu(head, 'it');
+  return ltTranslateEdu(head, getCurrentLangEdu());
 }
 
 // 2026-10-25: contenuto nella lingua attiva. In italiano usa prima la versione
@@ -731,19 +731,19 @@ async function eduPreviewSource(post, enContent) {
 // translations"); se non c'è ancora, traduce al volo; in errore resta l'inglese.
 const _eduItCache = {};
 async function eduContentFor(post, enContent) {
-  if (getCurrentLangEdu() !== 'it' || !enContent) return enContent;
+  if (getCurrentLangEdu() === 'en' || !enContent) return enContent;
   const date = (post && (post.date || (post.file || '').replace(/^.*\//, '').replace(/\.json$/, ''))) || '';
   if (date && _eduItCache[date]) return _eduItCache[date];
   if (date) {
     try {
-      const r = await fetch(`/i18n/it/daily_education/${date}.json?t=${Date.now()}`);
+      const r = await fetch(`/i18n/${getCurrentLangEdu()}/daily_education/${date}.json?t=${Date.now()}`);
       if (r.ok) {
         const d = await r.json();
         if (d && d.content) { _eduItCache[date] = d.content; return d.content; }
       }
     } catch (e) {}
   }
-  const t = await ltTranslateEdu(enContent, 'it');
+  const t = await ltTranslateEdu(enContent, getCurrentLangEdu());
   if (date && t !== enContent) _eduItCache[date] = t;
   return t;
 }
@@ -801,6 +801,7 @@ async function renderToday() {
     const contentEl = document.createElement('div');
     contentEl.className = 'today-content';
     contentEl.innerHTML = formatEduContent(translatedContent);
+    if (getCurrentLangEdu() !== 'en') contentEl.setAttribute('data-no-xft', '1');   // già nella lingua scelta
 
     const card = document.getElementById('todayCard');
     card.innerHTML = '';
@@ -876,7 +877,7 @@ async function loadPreview(post) {
     const el = document.getElementById(`preview-${post.date}`);
     if (el) {
       // 2026-10-25: in italiano l'anteprima viene dalla versione italiana (pre-generata se c'è)
-      const srcText = getCurrentLangEdu() === 'it'
+      const srcText = getCurrentLangEdu() !== 'en'
         ? (_eduItCache[post.date] || await eduPreviewSource(post, data.content || ''))
         : data.content;
       let text = String(srcText || data.content || '')
@@ -885,6 +886,7 @@ async function loadPreview(post) {
         .trim()
         .substring(0, 180);
       el.textContent = text + '...';
+      if (getCurrentLangEdu() !== 'en') el.setAttribute('data-no-xft', '1');
     }
   } catch(e) {
     const el = document.getElementById(`preview-${post.date}`);
@@ -927,6 +929,7 @@ async function openModal(post) {
     const res = await fetch(`${GITHUB_RAW}/${post.file}?t=${Date.now()}`);
     const data = await res.json();
     document.getElementById('modalContent').innerHTML = formatEduContent(await eduContentFor(post, data.content || ''));
+    if (getCurrentLangEdu() !== 'en') document.getElementById('modalContent').setAttribute('data-no-xft', '1');
   } catch(e) {
     document.getElementById('modalContent').textContent = 'Error loading content.';
   }

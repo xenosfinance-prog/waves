@@ -9,7 +9,15 @@
 // Nessuna richiesta esterna, nessuna attesa. Errori → la pagina resta com'è.
 (function () {
   var lang = 'en';
-  try { lang = localStorage.getItem('xenos_lang') === 'it' ? 'it' : 'en'; } catch (e) {}
+  // 2026-11-14: anche ES, RU, UK — menu comune da dizionario, il resto della pagina
+  // tradotto in automatico da /xf-translate.js (caricato qui se manca).
+  var LANGS = [['en', '🇬🇧 EN'], ['it', '🇮🇹 IT'], ['es', '🇪🇸 ES'], ['ru', '🇷🇺 RU'], ['uk', '🇺🇦 UA']];
+  try {
+    var _u = new URLSearchParams(location.search).get('lang');
+    if (_u && LANGS.some(function (p) { return p[0] === _u; })) localStorage.setItem('xenos_lang', _u);
+    var _l = localStorage.getItem('xenos_lang') || 'en';
+    lang = LANGS.some(function (p) { return p[0] === _l; }) ? _l : 'en';
+  } catch (e) {}
 
   // Testi comuni dell'intestazione/menu (pagine non ancora rigenerate con data-it)
   var COMMON = {
@@ -19,6 +27,34 @@
     'Topics': 'Temi', 'Blog': 'Blog', 'Intelligence': 'Intelligence',
     'Market analysis & trading education': 'Analisi di mercato & formazione al trading'
   };
+
+  var COMMON_X = {
+    es: { 'Daily Analysis': 'Análisis diario', 'COT Positioning': 'Posicionamiento COT', 'Calendar': 'Calendario',
+      'Elliott Wave': 'Ondas de Elliott', 'Topics': 'Temas', 'Intelligence': 'Inteligencia',
+      'Market analysis & trading education': 'Análisis de mercado y formación en trading' },
+    ru: { 'Home': 'Главная', 'Dashboard': 'Панель', 'Daily Analysis': 'Ежедневный анализ', 'COT Positioning': 'Позиции COT',
+      'Calendar': 'Календарь', 'Elliott Wave': 'Волны Эллиотта', 'Topics': 'Темы', 'Blog': 'Блог', 'Intelligence': 'Аналитика',
+      'Premium': 'Премиум', 'Market analysis & trading education': 'Анализ рынков и обучение трейдингу' },
+    uk: { 'Home': 'Головна', 'Dashboard': 'Панель', 'Daily Analysis': 'Щоденний аналіз', 'COT Positioning': 'Позиції COT',
+      'Calendar': 'Календар', 'Elliott Wave': 'Хвилі Еліотта', 'Topics': 'Теми', 'Blog': 'Блог', 'Intelligence': 'Аналітика',
+      'Premium': 'Преміум', 'Market analysis & trading education': 'Аналіз ринків і навчання трейдингу' }
+  };
+
+  // ES/RU/UK: menu comune, poi traduzione automatica di tutto il resto
+  function toExtra() {
+    document.documentElement.lang = lang;
+    var dict = COMMON_X[lang] || {};
+    document.querySelectorAll('nav a, header .tag, .crumb a').forEach(function (el) {
+      if (el.children.length) return;
+      var k = el.textContent.trim();
+      if (dict[k]) el.textContent = dict[k];
+    });
+    if (!document.querySelector('script[src*="xf-translate.js"]')) {
+      var sc = document.createElement('script');
+      sc.src = '/xf-translate.js?v=2';
+      document.head.appendChild(sc);
+    }
+  }
 
   function css() {
     if (document.getElementById('xf-pi-css')) return;
@@ -45,7 +81,7 @@
     if (!top || top.querySelector('.xf-lang')) return;
     var box = document.createElement('div');
     box.className = 'xf-lang' + (inline ? ' inline' : '');
-    [['en', '🇬🇧 EN'], ['it', '🇮🇹 IT']].forEach(function (p) {
+    LANGS.forEach(function (p) {
       var a = document.createElement('a');
       a.setAttribute('data-lang', p[0]);
       a.setAttribute('role', 'button');
@@ -99,6 +135,7 @@
       css();
       switcher();
       if (lang === 'it') toItalian();
+      else if (lang !== 'en') toExtra();
     } catch (e) { /* mai bloccare la pagina */ }
   }
 

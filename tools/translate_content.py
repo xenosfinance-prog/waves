@@ -36,7 +36,11 @@ import urllib.parse
 import urllib.request
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-OUT = os.path.join(ROOT, "i18n", "it")
+# 2026-11-14: lingue multiple (it, es, ru, uk). Lingua scelta con TRANSLATE_LANG
+# (default "it", comportamento invariato) o con --lang; file in i18n/<lingua>/.
+LANG_NAMES = {"it": "Italian", "es": "Spanish", "ru": "Russian", "uk": "Ukrainian"}
+LANG = os.environ.get("TRANSLATE_LANG", "it").strip().lower() or "it"
+OUT = os.path.join(ROOT, "i18n", LANG)
 GEMINI_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
 GEMINI_MODELS = []   # scelti all'avvio fra quelli disponibili per la chiave (discover_gemini_models)
 
@@ -75,16 +79,49 @@ GEMINI_PAUSE = float(os.environ.get("GEMINI_PAUSE", "7"))   # piano free: ~10 ri
 UA = "Mozilla/5.0 (XenosFinance translator)"
 
 ARTICLE_TEXT_KEYS = ["title", "excerpt", "intro", "conclusion", "quote", "categoryLabel", "category"]
-IT_LANG_VALUES = {"it", "italiano", "italian"}
+SOURCE_LANG_VALUES = {
+    "it": {"it", "italiano", "italian"},
+    "es": {"es", "español", "espanol", "spanish", "spagnolo"},
+    "ru": {"ru", "русский", "russian", "russo"},
+    "uk": {"uk", "ua", "українська", "ukrainian", "ucraino"},
+}
+IT_LANG_VALUES = SOURCE_LANG_VALUES["it"]
 
-GLOSSARY = (
+_KEEP_EN = (
     "Keep these trading terms in English exactly as written: stop loss, take profit, bias, setup, "
     "trade setup, smart money, risk-on, risk-off, breakout, pullback, swing, trend, range, spread, "
     "call, put, straddle, iron condor, VWAP, COT, CFD, ETF, futures, Pre-Market, PRO TIP, SMART MONEY RULE, "
-    "TIP 1/2/3 labels. Elliott Wave → 'Onde di Elliott' (wave = onda, impulse = impulso, "
-    "corrective = correttiva). Crude oil = petrolio greggio, inventories = scorte, draw = calo delle scorte, "
-    "build = aumento delle scorte, yield = rendimento, rate cut = taglio dei tassi."
+    "TIP 1/2/3 labels. "
 )
+GLOSSARIES = {
+    "it": _KEEP_EN + "Elliott Wave → 'Onde di Elliott' (wave = onda, impulse = impulso, "
+          "corrective = correttiva). Crude oil = petrolio greggio, inventories = scorte, draw = calo delle scorte, "
+          "build = aumento delle scorte, yield = rendimento, rate cut = taglio dei tassi.",
+    "es": _KEEP_EN + "Elliott Wave → 'Ondas de Elliott' (wave = onda, impulse = impulso, "
+          "corrective = correctiva). Crude oil = petróleo crudo, inventories = inventarios, draw = caída de inventarios, "
+          "build = aumento de inventarios, yield = rendimiento, rate cut = recorte de tipos.",
+    "ru": _KEEP_EN + "Elliott Wave → 'волны Эллиотта' (wave = волна, impulse = импульс, "
+          "corrective = коррекционная). Crude oil = сырая нефть, inventories = запасы, draw = сокращение запасов, "
+          "build = рост запасов, yield = доходность, rate cut = снижение ставки.",
+    "uk": _KEEP_EN + "Elliott Wave → 'хвилі Еліотта' (wave = хвиля, impulse = імпульс, "
+          "corrective = корекційна). Crude oil = сира нафта, inventories = запаси, draw = скорочення запасів, "
+          "build = зростання запасів, yield = дохідність, rate cut = зниження ставки. "
+          "Write in Ukrainian, never in Russian.",
+}
+GLOSSARY = GLOSSARIES["it"]
+
+
+def set_lang(lang):
+    """Cambia lingua di destinazione (usato anche dal workflow per ricostruire l'indice)."""
+    global LANG, OUT, GLOSSARY
+    LANG = (lang or "it").strip().lower()
+    if LANG not in LANG_NAMES:
+        raise SystemExit(f"lingua non supportata: {LANG}")
+    OUT = os.path.join(ROOT, "i18n", LANG)
+    GLOSSARY = GLOSSARIES[LANG]
+
+
+set_lang(LANG)
 
 # ── utilità ────────────────────────────────────────────────────────────────
 
@@ -155,9 +192,11 @@ def gemini_translate(fields):
         return {}
     prompt = (
         "You are a senior financial translator for a professional trading website. "
-        "Translate every value of the JSON object below from English to Italian.\n"
-        "Rules:\n"
-        "- Faithful, natural professional Italian as written by an Italian trader/analyst. Do not add, "
+        + (f"Translate every value of the JSON object below from English to {LANG_NAMES[LANG]}.\n" if LANG == "it" else
+           f"Translate every value of the JSON object below into {LANG_NAMES[LANG]} (the source is usually English).\n")
+        + "Rules:\n"
+        f"- Faithful, natural professional {LANG_NAMES[LANG]} as written by a native {LANG_NAMES[LANG]}-speaking "
+        "trader/analyst. Do not add, "
         "remove, summarise or comment anything.\n"
         "- Keep EVERY number exactly as written in the source, including decimal points "
         "(write 3.1 not 3,1; 1.0850 not 1,0850), prices, levels, percentages, dates' digits.\n"
@@ -213,7 +252,7 @@ def gemini_translate(fields):
 
 
 def _gtx_call(text):
-    url = ("https://translate.googleapis.com/translate_a/single?client=gtx&dt=t&sl=en&tl=it&q="
+    url = (f"https://translate.googleapis.com/translate_a/single?client=gtx&dt=t&sl={'en' if LANG == 'it' else 'auto'}&tl={LANG}&q="
            + urllib.parse.quote(text))
     for attempt in range(4):
         try:
@@ -274,6 +313,8 @@ FIX_IT = [
 
 
 def fix_terms(s):
+    if LANG != "it":
+        return s
     for a, b in FIX_IT:
         s = re.sub(a, b, s, flags=re.I)
     return s
@@ -385,13 +426,13 @@ def process_article(slug, path):
                 return False
         except Exception:
             pass
-    if str(a.get("lang", "")).lower() in IT_LANG_VALUES:
+    if str(a.get("lang", "")).lower() in SOURCE_LANG_VALUES[LANG]:
         out = json.loads(json.dumps(a))
-        used = "source-it"
+        used = "source-" + LANG
     else:
         tr, used = translate_fields(article_fields(a))
         out = apply_article_fields(a, tr)
-    out["lang"] = "it"
+    out["lang"] = LANG
     out["_src_hash"] = h
     out["_translator"] = used
     write_json(dst, out)
@@ -450,10 +491,14 @@ def main():
     ap.add_argument("--max", type=int, default=int(os.environ.get("TRANSLATE_MAX", "40")),
                     help="documenti massimi tradotti per esecuzione")
     ap.add_argument("--only", choices=["articles", "education"], default=None)
+    ap.add_argument("--lang", choices=sorted(LANG_NAMES), default=None)
     args = ap.parse_args()
+    if args.lang:
+        set_lang(args.lang)
 
     if GEMINI_KEY:
         GEMINI_MODELS[:] = discover_gemini_models()
+    log(f"Lingua: {LANG} ({LANG_NAMES[LANG]})")
     log(f"Traduttore: {'Gemini (' + ', '.join(GEMINI_MODELS) + ') + Google fallback' if GEMINI_KEY else 'Google Translate (nessuna GEMINI_API_KEY)'}")
     jobs = []
     if args.only in (None, "articles"):
