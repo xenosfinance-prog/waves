@@ -135,6 +135,11 @@
   // Lingua corrente del sito (stessa chiave di i18n-engine.js)
   // 2026-11-14: lingue del sito EN, IT, ES, RU, UK.
   var SITE_LANGS = ['en', 'it', 'es', 'ru', 'uk'];
+  // ?lang=xx nell'URL vale subito (questo script può girare prima di i18n-engine.js, che la salva)
+  try {
+    var _ul = new URLSearchParams(location.search).get('lang');
+    if (SITE_LANGS.indexOf(_ul) >= 0) localStorage.setItem('xenos_lang', _ul);
+  } catch (e) {}
   window.xfLang = function () {
     try { var l = localStorage.getItem('xenos_lang') || 'en'; return SITE_LANGS.indexOf(l) >= 0 ? l : 'en'; }
     catch (e) { return 'en'; }
