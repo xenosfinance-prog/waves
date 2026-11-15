@@ -402,7 +402,16 @@ def build_instrument_page(inst, d, ai, now, all_rows):
         rows += f'<tr><td>{L("Elliott Wave (4H)", "Onda di Elliott (4H)")}</td><td>{L(esc(ew["desc"]), esc(PI.ew_desc_it(ew["desc"])))}</td></tr>'
         if ew.get("invalidation") is not None:
             rows += f'<tr><td>{L("Elliott invalidation (4H)", "Invalidazione Elliott (4H)")}</td><td>{f(ew["invalidation"])}</td></tr>'
-        tps = [f(t) for t in (ew.get("tp1"), ew.get("tp2")) if t is not None]
+        # CHECKUP 2026-11-15: non mostrare target già superati (DAX 15/11: prezzo 26,756,
+        # onda C rialzista, TP1 26,632 già oltre). Direzione dal lato dell'invalidazione.
+        _live, _inv = d.get("live"), ew.get("invalidation")
+        def _tp_ok(t):
+            if t is None:
+                return False
+            if _live is None or _inv is None:
+                return True
+            return t > _live if _inv < _live else t < _live
+        tps = [f(t) for t in (ew.get("tp1"), ew.get("tp2")) if _tp_ok(t)]
         if tps:
             rows += f'<tr><td>{L("Elliott targets (4H)", "Target Elliott (4H)")}</td><td>{" · ".join(tps)}</td></tr>'
     pdv = d.get("prev_day") or {}
