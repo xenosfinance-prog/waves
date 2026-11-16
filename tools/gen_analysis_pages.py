@@ -402,7 +402,19 @@ def build_instrument_page(inst, d, ai, now, all_rows):
         rows += f'<tr><td>{L("Elliott Wave (4H)", "Onda di Elliott (4H)")}</td><td>{L(esc(ew["desc"]), esc(PI.ew_desc_it(ew["desc"])))}</td></tr>'
         if ew.get("invalidation") is not None:
             rows += f'<tr><td>{L("Elliott invalidation (4H)", "Invalidazione Elliott (4H)")}</td><td>{f(ew["invalidation"])}</td></tr>'
-        tps = [f(t) for t in (ew.get("tp1"), ew.get("tp2")) if t is not None]
+        # FIX 2026-11-16: un target già superato dal prezzo veniva pubblicato come se fosse
+        # ancora davanti (WTI T1 88.00 con prezzo 88-89, DAX, argento, gas naturale il 16/11).
+        # Direzione dedotta da invalidazione vs T1; i target già toccati vengono marcati.
+        inv, live = ew.get("invalidation"), d.get("live")
+        bull = None
+        if inv is not None and ew.get("tp1") is not None:
+            bull = float(ew["tp1"]) > float(inv)
+
+        def _tp(t):
+            hit = bull is not None and live is not None and (
+                (bull and float(live) >= float(t)) or (not bull and float(live) <= float(t)))
+            return f(t) + (L(" (reached)", " (raggiunto)") if hit else "")
+        tps = [_tp(t) for t in (ew.get("tp1"), ew.get("tp2")) if t is not None]
         if tps:
             rows += f'<tr><td>{L("Elliott targets (4H)", "Target Elliott (4H)")}</td><td>{" · ".join(tps)}</td></tr>'
     pdv = d.get("prev_day") or {}
