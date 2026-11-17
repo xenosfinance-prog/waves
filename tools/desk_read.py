@@ -205,6 +205,10 @@ def flow_facts(res):
         if r.get("oi_chg"):   # 0 = open interest non aggiornato dalla fonte: non è un dato
             pct = r["oi_chg"] / (r["oi_total"] - r["oi_chg"]) * 100 if r["oi_total"] - r["oi_chg"] else None
             f += f"; total open interest across all months {_kfmt(r['oi_chg'])} contracts" + (f" ({pct:+.1f}%)" if pct is not None else "")
+            if r.get("oi_sessions", 1) > 1:   # 2026-11-17
+                f += " (this open-interest change spans two sessions: the source had not updated it on the previous run)"
+            elif not r.get("flow"):
+                f += " (too small to read as a flow)"
         if r.get("vol_ratio"):
             f += f"; volume {r['vol_ratio']:.1f}x its 20-day average"
         if r.get("flow"):
@@ -232,7 +236,7 @@ def rule_flow(res):
     s = []
     by = {}
     for r in res:
-        if r.get("flow"):
+        if r.get("flow") and r["flow"] != "Expiry roll":   # 2026-11-17: il roll ha la sua frase sotto
             by.setdefault(r["flow"], []).append(r["name"])
     if by:
         new = len(by.get("New longs", [])) + len(by.get("New shorts", []))
@@ -248,6 +252,9 @@ def rule_flow(res):
     fragile = [r for r in res if r.get("flow") in ("Short covering", "Long liquidation")]
     if fragile:
         s.append("Moves driven by closing positions, typically less durable: " + ", ".join(r["name"] for r in fragile) + ".")
+    if res and res[0].get("oi_sessions", 1) > 1:   # 2026-11-17
+        s.append("Open-interest changes span two sessions (the data source had not updated them on the previous run), "
+                 "so the flow reads are less precise.")
     rolls = [r for r in res if r.get("flow") == "Expiry roll"]
     if rolls:   # 2026-11-17
         s.append("Expiry roll under way, open-interest change not directional: " + ", ".join(

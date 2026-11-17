@@ -161,8 +161,15 @@ def kfmt(v):
     return ("+" if v > 0 else "-" if v < 0 else "") + s
 
 
-def quadrant(pchg, oichg):
+OI_MIN_PCT = 0.5   # 2026-11-17: sotto lo 0.5% dell'OI totale la variazione è rumore/roll, non un flusso
+
+
+def quadrant(pchg, oichg, oi_tot=None):
     if pchg is None or oichg is None or oichg == 0:
+        return ""
+    # 2026-11-17: il 16/11 oro (−1.6k, −0.4%) e rame (−0.9k, −0.3%) erano "long liquidation" mentre
+    # l'OI si stava solo spostando da dicembre ai mesi successivi (Z26 −11.3k / −8.9k)
+    if oi_tot and abs(oichg) / max(oi_tot - oichg, 1) * 100 < OI_MIN_PCT:
         return ""
     if pchg > 0 and oichg > 0:
         return "New longs"
@@ -239,7 +246,7 @@ def analyse(prod, rows, prev_rows, vol_now, vol_avg):
     m6 = rows[i0 + 5] if len(rows) > i0 + 5 else rows[-1]
     sp12 = m1["price"] - m2["price"]
     sp16 = m1["price"] - m6["price"]
-    flow = quadrant(pchg, oi_chg)
+    flow = quadrant(pchg, oi_chg, oi_tot)
     # il movimento di OI più grande è sul contratto in scadenza → è il roll, non un flusso direzionale
     if rolling and top_oi and top_oi[1] in rolling:
         flow = "Expiry roll"
@@ -457,6 +464,19 @@ def main():
     if len(res) < 4:
         print("Too few products — aborting without changes.")
         return 1
+    # 2026-11-17: Yahoo non aggiorna sempre l'open interest: lo snapshot di sabato 14/11 aveva l'OI
+    # IDENTICO a quello di venerdì 13/11 per tutti i prodotti. In quel caso la variazione di OI di oggi
+    # copre due sedute, mentre la variazione di prezzo ne copre una: va detto nel testo.
+    oi_sessions = 1
+    if prev_day:
+        older = max((d for d in hist if d < prev_day), default=None)
+        if older:
+            same = sum(1 for k in (prev_snap or {})
+                       if sum(r["oi"] for r in prev_snap[k]) == sum(r["oi"] for r in hist[older].get(k, [])))
+            if prev_snap and same >= len(prev_snap) - 1:
+                oi_sessions = 2
+    for r in res:
+        r["oi_sessions"] = oi_sessions
     # session = last US trading day (the run is in the European morning)
     sess = today - timedelta(days=1)
     while sess.weekday() >= 5:
@@ -475,6 +495,7 @@ def main():
     it = {"desk": t_desk, "oil": t_oil, "bias": t_bias}
     open(os.path.join(OUT_DIR, "index.html"), "w", encoding="utf-8").write(build_page(res, prev_snap, sess, now, desk, oil, bias, it))
     latest = {"session": sess.isoformat(), "generated": now.isoformat(), "has_oi_change": prev_snap is not None,
+              "oi_sessions": oi_sessions,
               "desk_read": desk, "desk_read_source": desk_src, "oil_read": oil, "oil_read_source": oil_src,
               "bias_read": b_txt, "bias_read_source": b_src, "bias": b_rows,
               "telegram_html": telegram_html(res, sess, desk, oil, bias),
