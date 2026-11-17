@@ -300,7 +300,7 @@ export async function onRequestGet(context) {
       image: [image],
       datePublished: a.publishedAt || a.generatedAt || undefined,
       dateModified: a.generatedAt || a.publishedAt || undefined,
-      author: { '@type': 'Person', '@id': `${SITE}/about#founder`, name: 'Matteo', url: `${SITE}/about` }, // 2026-11-17 E-E-A-T: autore reale
+      author: { '@type': 'Person', '@id': `${SITE}/about#founder`, name: 'Ben Carrow', url: `${SITE}/about` }, // 2026-11-17 E-E-A-T: autore reale
       publisher: { '@type': 'Organization', name: 'XenosFinance', logo: { '@type': 'ImageObject', url: `${SITE}/favicon-192.png` } },
       mainEntityOfPage: { '@type': 'WebPage', '@id': canonical },
       articleSection: a.categoryLabel || a.category || undefined,
