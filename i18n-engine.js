@@ -83,6 +83,7 @@ window.t = function(key) {
   } catch(e) { return key; }
 };
 
+// 2026-11-17: selettore lingua in giallo (#f5c542) — il blu/grigio non si leggeva
 function xenosBuildSwitcher() {
   var wrap = document.getElementById('xenos-lang-switcher');
   if (!wrap) return;
@@ -90,18 +91,18 @@ function xenosBuildSwitcher() {
   var items = Object.keys(XF_LANGS).map(function(code) {
     var info = XF_LANGS[code];
     return '<div onclick="xenosSetLang(\'' + code + '\')" ' +
-      'style="font-family:var(--mono);font-size:10px;letter-spacing:1px;padding:7px 14px;cursor:pointer;color:var(--muted);white-space:nowrap;" ' +
-      'onmouseover="this.style.background=\'var(--bg3)\';this.style.color=\'var(--gold)\'" ' +
-      'onmouseout="this.style.background=\'transparent\';this.style.color=\'var(--muted)\'">' +
+      'style="font-family:var(--mono);font-size:10px;letter-spacing:1px;padding:7px 14px;cursor:pointer;color:#f5c542;white-space:nowrap;" ' +
+      'onmouseover="this.style.background=\'var(--bg3)\';this.style.color=\'#fff\'" ' +
+      'onmouseout="this.style.background=\'transparent\';this.style.color=\'#f5c542\'">' +
       info.flag + ' ' + info.label + '</div>';
   }).join('');
   wrap.innerHTML =
     '<div style="position:relative;display:inline-block;">' +
     '<button id="xenos-lang-btn" ' +
     'onclick="var d=document.getElementById(\'xenos-lang-dd\');d.style.display=d.style.display===\'block\'?\'none\':\'block\'" ' +
-    'style="font-family:var(--mono);font-size:10px;letter-spacing:1px;background:none;border:1px solid var(--border);color:var(--muted);padding:3px 10px;cursor:pointer;" ' +
-    'onmouseover="this.style.color=\'var(--gold)\';this.style.borderColor=\'var(--gold)\'" ' +
-    'onmouseout="this.style.color=\'var(--muted)\';this.style.borderColor=\'var(--border)\'">' +
+    'style="font-family:var(--mono);font-size:10px;letter-spacing:1px;background:none;border:1px solid rgba(245,197,66,.55);color:#f5c542;padding:3px 10px;cursor:pointer;" ' +
+    'onmouseover="this.style.color=\'#fff\';this.style.borderColor=\'#f5c542\'" ' +
+    'onmouseout="this.style.color=\'#f5c542\';this.style.borderColor=\'rgba(245,197,66,.55)\'">' +
     cur.flag + ' ' + cur.label + ' ▾</button>' +
     '<div id="xenos-lang-dd" style="display:none;position:absolute;right:0;top:100%;margin-top:4px;background:var(--bg2);border:1px solid var(--border);z-index:9999;min-width:110px;box-shadow:0 4px 20px rgba(0,0,0,0.4);">' +
     items + '</div></div>';
