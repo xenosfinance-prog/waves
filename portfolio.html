@@ -1365,6 +1365,18 @@ async function saveTrade() {
 async function deleteTrade(id) {
   const t = trades.find(x => x.id === id);
   if (!confirm(`Delete ${t?.asset||'this trade'}?`)) return;
+  // 2026-11-17: un trade letto dallo storico del broker (ha il ticket) se cancellato viene
+  // riaggiunto dal sync al giro dopo (WTI manuale 16/11 ricomparso 3 volte). Lo nascondo:
+  // resta il ticket, sparisce da tabella e statistiche.
+  if (t && t.botOrderId) {
+    const upd = { ...t, hidden: true,
+      notes: ((t.notes || '') + ` | Hidden ${new Date().toISOString().slice(0,10)}: removed from the journal`).replace(/^ \| /, '') };
+    trades = trades.map(x => x.id === id ? upd : x);
+    await saveTrades(trades, { upsert: upd });
+    render();
+    toast('Trade removed');
+    return;
+  }
   trades = trades.filter(x => x.id !== id);
   await saveTrades(trades, { remove: id });
   render();
