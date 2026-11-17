@@ -87,28 +87,72 @@ def snapshot(prod, today):
 
 def total_volume_stats(prod, rows):
     """FIX 2026-10-14: volume TOTALE della curva (somma dei mesi quotati) vs la sua media a
-    20 sedute. Il volume del continuo (SI=F, HG=F) salta ai roll: argento risultava 262x."""
+    20 sedute. Il volume del continuo (SI=F, HG=F) salta ai roll: argento risultava 262x.
+    2026-11-17: ritorna anche, per OGNI contratto, chiusura e volume dell'ultima seduta conclusa
+    e la chiusura della seduta prima → (vol_now, vol_avg, {sym: (close, prev_close, volume)})."""
     import yfinance as yf
     syms = [f"{r['sym']}.{prod[2]}" for r in rows]
+    last = {}
     try:
         df = yf.download(syms, period="3mo", interval="1d", group_by="ticker", progress=False, threads=True)
+        today = datetime.now(timezone.utc).date()
         tot = None
         for sy in syms:
             try:
-                v = df[sy]["Volume"].fillna(0) if len(syms) > 1 else df["Volume"].fillna(0)
+                sub = df[sy] if len(syms) > 1 else df
+                sub = sub[[i.date() < today for i in sub.index]]   # solo sedute concluse
+                v = sub["Volume"].fillna(0)
+                c = sub["Close"].dropna()
+                c = c[c > 0]
+                if len(c) >= 2:
+                    last[sy.split(".")[0]] = (float(c.iloc[-1]), float(c.iloc[-2]),
+                                              int(v.loc[c.index[-1]]) if c.index[-1] in v.index else 0)
             except Exception:
                 continue
             tot = v if tot is None else tot.add(v, fill_value=0)
         if tot is None:
-            return None, None
-        today = datetime.now(timezone.utc).date()
-        tot = tot[[i.date() < today for i in tot.index]]   # solo sedute concluse (niente barra parziale)
+            return None, None, last
         tot = [float(x) for x in tot if x and x > 0]
         if len(tot) >= 21:
-            return tot[-1], sum(tot[-21:-1]) / 20
+            return tot[-1], sum(tot[-21:-1]) / 20, last
     except Exception as e:
         print(f"  ! volume {prod[0]}: {e}")
-    return None, None
+    return None, None, last
+
+
+def _bday_back(d, n):
+    """n giorni lavorativi (lun–ven) prima di d. Festività ignorate: errore massimo 1 giorno."""
+    while n > 0:
+        d -= timedelta(days=1)
+        if d.weekday() < 5:
+            n -= 1
+    return d
+
+
+def last_trade_day(key, ym):
+    """2026-11-17: ultimo giorno di negoziazione (regole CME) per i prodotti energia; None per gli altri.
+    CL: 3 giorni lavorativi prima del 25 del mese precedente la consegna (se il 25 non è lavorativo, si parte
+    dal giorno lavorativo precedente). NG: 3 giorni lavorativi prima del primo giorno del mese di consegna.
+    BZ (Brent NYMEX): ultimo giorno lavorativo del secondo mese prima della consegna."""
+    y, m = int(ym[:4]), int(ym[5:7])
+    if key == "cl":
+        py, pm = (y, m - 1) if m > 1 else (y - 1, 12)
+        d = date(py, pm, 25)
+        while d.weekday() >= 5:
+            d -= timedelta(days=1)
+        return _bday_back(d, 3)
+    if key == "ng":
+        return _bday_back(date(y, m, 1), 3)
+    if key == "bz":
+        py, pm = (y, m - 2) if m > 2 else (y - 1, m + 10)
+        d = date(py + (pm // 12), pm % 12 + 1, 1) - timedelta(days=1)   # ultimo giorno del mese pm
+        while d.weekday() >= 5:
+            d -= timedelta(days=1)
+        return d
+    return None
+
+
+ROLL_DAYS = 10
 
 
 def kfmt(v):
@@ -135,6 +179,22 @@ def analyse(prod, rows, prev_rows, vol_now, vol_avg):
     if len(rows) < 2:
         raise ValueError("not enough live contracts")
     front = rows[0]
+    # 2026-11-17: SETTIMANA DI SCADENZA. Il 16/11 il front WTI era CLZ26 (scade il 20/11) con 134k di
+    # OI contro i 266k di CLF27: il mercato era già passato a gennaio, ma curva e spread venivano
+    # misurati sul contratto in scadenza e il -29k di OI su CLZ26 (posizioni chiuse/rollate per la
+    # scadenza) diventava "long liquidation". Regola standard: il mese di riferimento (M1) è il primo
+    # con open interest non inferiore al successivo (al massimo 2 salti: es. oro Nov → Dic).
+    # Energia: si salta il front SOLO se scade entro ROLL_DAYS giorni E ha già meno OI del mese dopo
+    # (il Brent NYMEX ha più OI sui mesi successivi anche lontano dalla scadenza: col solo OI saltava
+    # BZF27, che scade il 30/11). Metalli/indici: mese di consegna con poco OI (es. oro Nov) → si salta.
+    today_ = datetime.now(timezone.utc).date()
+    i0 = 0
+    while i0 < 2 and i0 + 1 < len(rows) and rows[i0]["oi"] < rows[i0 + 1]["oi"]:
+        ltd = last_trade_day(key, rows[i0]["ym"])
+        if ltd is not None and (ltd - today_).days > ROLL_DAYS:
+            break
+        i0 += 1
+    rolling = [r["sym"] for r in rows[:i0]]
     active = max(rows, key=lambda r: r["vol"])
     oi_tot = sum(r["oi"] for r in rows)
     vol_tot = sum(r["vol"] for r in rows)
@@ -155,18 +215,18 @@ def analyse(prod, rows, prev_rows, vol_now, vol_avg):
         print(f"  ! closes {ref['sym']}: {e}")
     # (nessun fallback su price/previousClose di .info: a quell'ora è il movimento overnight, non la seduta)
     # 2026-11-13: anche la variazione del FRONT MONTH (M1), per le tabelle che mostrano M1 e gli spread M1–Mx
-    m1_chg = pchg if rows[0]["sym"] == ref["sym"] else None
+    m1_chg = pchg if rows[i0]["sym"] == ref["sym"] else None
     if m1_chg is None:
         try:
             import yfinance as yf
-            h1 = yf.Ticker(f"{rows[0]['sym']}.{prod[2]}").history(period="10d", interval="1d")
+            h1 = yf.Ticker(f"{rows[i0]['sym']}.{prod[2]}").history(period="10d", interval="1d")
             today = datetime.now(timezone.utc).date()
             h1 = h1[[i.date() < today for i in h1.index]]
             c1 = [float(x) for x in h1["Close"] if x and x > 0]
             if len(c1) >= 2:
                 m1_chg = (c1[-1] / c1[-2] - 1) * 100
         except Exception as e:
-            print(f"  ! closes {rows[0]['sym']}: {e}")
+            print(f"  ! closes {rows[i0]['sym']}: {e}")
     by_oi_chg = []
     if prev_map:
         for r in rows:
@@ -174,25 +234,34 @@ def analyse(prod, rows, prev_rows, vol_now, vol_avg):
             if p:
                 by_oi_chg.append((r["oi"] - p["oi"], r["sym"]))
     top_oi = max(by_oi_chg, key=lambda t: abs(t[0])) if by_oi_chg else None
-    m1, m2 = rows[0], rows[1]
-    m6 = rows[5] if len(rows) > 5 else rows[-1]
+    m1 = rows[i0]
+    m2 = rows[i0 + 1] if i0 + 1 < len(rows) else rows[-1]
+    m6 = rows[i0 + 5] if len(rows) > i0 + 5 else rows[-1]
     sp12 = m1["price"] - m2["price"]
     sp16 = m1["price"] - m6["price"]
+    flow = quadrant(pchg, oi_chg)
+    # il movimento di OI più grande è sul contratto in scadenza → è il roll, non un flusso direzionale
+    if rolling and top_oi and top_oi[1] in rolling:
+        flow = "Expiry roll"
     res = {
         "key": key, "name": name, "unit": unit, "dec": dec,
         "front": front["sym"], "active": active["sym"], "active_price": active["price"], "price_chg": pchg,
         "oi_total": oi_tot, "oi_chg": oi_chg, "vol_total": vol_tot,
         "vol_today": vol_now, "vol_avg20": vol_avg,
         "vol_ratio": (vol_now / vol_avg) if vol_now and vol_avg else None,
-        "flow": quadrant(pchg, oi_chg), "top_oi_move": top_oi,
+        "flow": flow, "top_oi_move": top_oi, "rolling": rolling,
         "m1": m1["sym"], "m2": m2["sym"], "m6": m6["sym"],
         "spread_m1m2": sp12, "spread_m1m6": sp16,
-        "m1_price": rows[0]["price"], "m1_chg": m1_chg,
+        "m1_price": m1["price"], "m1_chg": m1_chg,
         # gas naturale: curva stagionale (inverno > primavera) → struttura letta su M1–M2
         "structure": ("backwardation" if (sp12 if key == "ng" else sp16) > 0 else "contango"),
         "curve": [[r["sym"], r["price"], r["oi"], r["vol"]] for r in rows],
     }
-    if prev_map and m1["sym"] in prev_map and m6["sym"] in prev_map:
+    # 2026-11-17: variazione dello spread sulle due ULTIME CHIUSURE di ciascun contratto (stessa fonte,
+    # stessi orari); lo snapshot del giorno prima resta solo come ripiego
+    if m1.get("prev_close") and m6.get("prev_close"):
+        res["spread_m1m6_chg"] = sp16 - (m1["prev_close"] - m6["prev_close"])
+    elif prev_map and m1["sym"] in prev_map and m6["sym"] in prev_map:
         res["spread_m1m6_chg"] = sp16 - (prev_map[m1["sym"]]["price"] - prev_map[m6["sym"]]["price"])
     return res
 
@@ -371,8 +440,16 @@ def main():
         if not rows:
             print("  ! no contracts")
             continue
+        vn, va, last = total_volume_stats(prod, rows)
+        # 2026-11-17: FIX prezzi. Alle 05:30 UTC "regularMarketPrice" di Yahoo è già la quotazione
+        # overnight della seduta nuova: il 17/11 la pagina "Session Monday 16 November" mostrava CLZ26
+        # 84.98 (prezzo di martedì notte) invece della chiusura di lunedì 85.72, e gli spread mescolavano
+        # mesi quotati overnight e mesi fermi all'ultima chiusura. Ora prezzo e volume di ogni contratto
+        # sono quelli dell'ultima seduta conclusa (la stessa usata per la variazione %).
+        for r in rows:
+            if r["sym"] in last:
+                r["price"], r["prev_close"], r["vol"] = last[r["sym"]]
         snap[prod[0]] = rows
-        vn, va = total_volume_stats(prod, rows)
         try:
             res.append(analyse(prod, rows, (prev_snap or {}).get(prod[0]), vn, va))
         except Exception as e:

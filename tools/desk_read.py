@@ -217,6 +217,10 @@ def flow_facts(res):
         if r.get("top_oi_move"):
             f += (f"; largest single-contract open-interest change: {r['top_oi_move'][1]} {_kfmt(r['top_oi_move'][0])} "
                   "(single months include rolling between months; only the total is the net flow)")
+        if r.get("rolling"):   # 2026-11-17: settimana di scadenza
+            f += (f"; expiry roll: {', '.join(r['rolling'])} is expiring and open interest is moving to {r['m1']}, "
+                  f"which is used as the reference month; the open-interest change reflects the roll and is not a "
+                  f"directional flow")
         facts.append(f)
     bw = brent_wti(res)
     if bw:
@@ -244,6 +248,10 @@ def rule_flow(res):
     fragile = [r for r in res if r.get("flow") in ("Short covering", "Long liquidation")]
     if fragile:
         s.append("Moves driven by closing positions, typically less durable: " + ", ".join(r["name"] for r in fragile) + ".")
+    rolls = [r for r in res if r.get("flow") == "Expiry roll"]
+    if rolls:   # 2026-11-17
+        s.append("Expiry roll under way, open-interest change not directional: " + ", ".join(
+            f"{r['name']} ({', '.join(r['rolling'])} → {r['m1']})" for r in rolls) + ".")
     quiet = [r for r in res if r.get("vol_ratio") and r["vol_ratio"] < 0.7]
     if quiet:
         s.append("Light participation (volume below 0.7x the 20-day average) in " + ", ".join(r["name"] for r in quiet) + ".")
