@@ -47,6 +47,24 @@
     return ok;
   };
   if (!window._xfAdminPw && lsGet(K_PW)) window._xfAdminPw = lsGet(K_PW);
+  // Sessione admin di prima di questa versione (token senza password): la si chiude,
+  // così la pagina richiede il login una volta e il Worker riceve la password.
+  if (!lsGet(K_PW)) {
+    try { if (sessionStorage.getItem('xf_admin') === 'true') sessionStorage.removeItem('xf_admin'); } catch (e) {}
+    try {
+      for (var i = localStorage.length - 1; i >= 0; i--) {
+        var k = localStorage.key(i);
+        if (localStorage.getItem(k) === window.XF_ADMIN_TOKEN) localStorage.removeItem(k);
+      }
+      if (localStorage.getItem('xf_admin_mode') === 'true') localStorage.removeItem('xf_admin_mode');
+    } catch (e) {}
+    try {
+      for (var j = sessionStorage.length - 1; j >= 0; j--) {
+        var k2 = sessionStorage.key(j);
+        if (sessionStorage.getItem(k2) === window.XF_ADMIN_TOKEN) sessionStorage.removeItem(k2);
+      }
+    } catch (e) {}
+  }
 
   // ── Premium ────────────────────────────────────────────────────────────
   window.XF_PREMIUM = {
