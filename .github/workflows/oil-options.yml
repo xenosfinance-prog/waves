@@ -1,0 +1,65 @@
+# XenosFinance — daily Oil Options Monitor (/oil-options) + oil-options/latest.json for the bot.
+# 2026-11-18. Runs Tuesday–Saturday morning (US session of the previous day). The Telegram bot
+# dispatches it at 05:45 UTC; cron is a backup. Data: Yahoo (CBOE OVX, CL=F, USO option chain).
+name: Oil options
+
+on:
+  schedule:
+    - cron: "55 5 * * 2-6"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: oil-options
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 20
+
+      - name: Skip late scheduled run if already built today
+        id: fresh
+        if: github.event_name == 'schedule'
+        run: |
+          last=$(git log -1 --format=%cs -- oil-options/latest.json || true)
+          if [ "$last" = "$(date -u +%F)" ]; then echo "skip=1" >> "$GITHUB_OUTPUT"; fi
+
+      - uses: actions/setup-python@v5
+        if: steps.fresh.outputs.skip != '1'
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        if: steps.fresh.outputs.skip != '1'
+        run: pip install -r requirements.txt
+
+      - name: Generate Oil Options Monitor
+        if: steps.fresh.outputs.skip != '1'
+        env:
+          FORCE_OILOPT: ${{ github.event_name == 'workflow_dispatch' && '1' || '' }}
+        run: python tools/gen_oil_options.py
+
+      - name: Commit and push
+        if: steps.fresh.outputs.skip != '1'
+        run: |
+          git config user.name  "xenos-analysis-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add oil-options sitemap.xml
+          if git diff --cached --quiet; then
+            echo "No changes."
+            exit 0
+          fi
+          git commit -m "Oil options $(date -u '+%Y-%m-%d %H:%M') UTC"
+          for i in 1 2 3; do
+            git pull --rebase origin main && git push origin HEAD:main && exit 0
+            sleep 10
+          done
+          exit 1
