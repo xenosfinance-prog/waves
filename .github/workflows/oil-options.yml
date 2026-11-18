@@ -1,11 +1,12 @@
 # XenosFinance — daily Oil Options Monitor (/oil-options) + oil-options/latest.json for the bot.
-# 2026-11-18. Runs Tuesday–Saturday morning (US session of the previous day). The Telegram bot
-# dispatches it at 05:45 UTC; cron is a backup. Data: Yahoo (CBOE OVX, CL=F, USO option chain).
+# 2026-11-18. Runs Monday–Friday at 21:30 UTC, after the US close: Yahoo publishes open interest and
+# valid quotes only around the US session (a 07:27 UTC run got OI = 0). The bot posts the preview the
+# next morning. If the chain is incomplete the generator stops and nothing is committed. Data: Yahoo (CBOE OVX, CL=F, USO option chain).
 name: Oil options
 
 on:
   schedule:
-    - cron: "55 5 * * 2-6"
+    - cron: "30 21 * * 1-5"
   workflow_dispatch: {}
 
 permissions:

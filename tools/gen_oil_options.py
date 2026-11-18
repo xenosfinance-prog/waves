@@ -44,13 +44,17 @@ IV_MIN, IV_MAX = 0.05, 3.0   # IV Yahoo fuori da questo intervallo = quotazione 
 
 # ── download ────────────────────────────────────────────────────────────────
 def daily_closes(ticker, period="1y"):
-    """Chiusure giornaliere di sole sedute concluse (niente barra parziale di oggi)."""
+    """Chiusure giornaliere di sole sedute concluse. Il run è dopo la chiusura USA (≥ 21:20 UTC):
+    la barra di oggi è completa e si usa; prima di quell'ora si escludono le barre di oggi."""
     import yfinance as yf
     df = yf.Ticker(ticker).history(period=period, interval="1d", auto_adjust=False)
     if df is None or df.empty:
         return []
-    today = datetime.now(timezone.utc).date()
-    out = [(i.date(), float(c)) for i, c in zip(df.index, df["Close"]) if c == c and i.date() < today]
+    now = datetime.now(timezone.utc)
+    after_close = (now.hour, now.minute) >= (21, 20)
+    today = now.date()
+    out = [(i.date(), float(c)) for i, c in zip(df.index, df["Close"])
+           if c == c and (i.date() < today or (after_close and i.date() == today))]
     return out
 
 
@@ -241,6 +245,15 @@ def analyse(today):
                     "p_oi": sum(x["oi"] for x in r["p"])} for e, r in chain.items()]
     res["strikes"] = [{"k": k, **near[k]} for k in sorted(near)]
 
+    # 2026-11-18: controllo di qualità. Fuori dall'orario USA Yahoo pubblica la catena con open
+    # interest a zero e bid a zero (run delle 07:27 UTC: OI totale 170, IV non valide). Con dati
+    # così non si pubblica niente: meglio nessun aggiornamento che numeri falsi.
+    n_oi = sum(1 for a in agg.values() if a["c_oi"] > 0 or a["p_oi"] > 0)
+    if res["call_oi"] + res["put_oi"] < 20000 or n_oi < 10:
+        raise RuntimeError(f"option chain incomplete: total OI {res['call_oi'] + res['put_oi']}, "
+                           f"{n_oi} strikes with OI — Yahoo has not published open interest")
+    if res.get("atm_iv") is None and res.get("skew") is None:
+        raise RuntimeError("no valid implied volatility in the chain (quotes without bid)")
     # attività anomala di oggi: volume ≥ 1.000 e ≥ 2× l'open interest dello strike
     unusual = []
     for e, rows in chain.items():
@@ -537,8 +550,8 @@ def build_page(res, day, now, en, it, bl, bl_it, chg):
 def main():
     now = datetime.now(timezone.utc)
     today = now.date()
-    if today.weekday() in (6, 0) and os.environ.get("FORCE_OILOPT") != "1":
-        print("No new session since Saturday (Sunday/Monday) — nothing to do.")
+    if today.weekday() >= 5 and os.environ.get("FORCE_OILOPT") != "1":
+        print("Weekend — no US options session.")
         return 0
     os.makedirs(OUT_DIR, exist_ok=True)
     hist = {}
