@@ -595,7 +595,7 @@ canvas { display: block; }
 <script src="/xf-free-access.js?v=1"></script>
 <script src="/i18n.js?v=9"></script>
 <script src="/i18n-engine.js?v=10"></script>
-<script src="/xf-admin.js?v=1"></script>
+<script src="/xf-admin.js?v=2"></script>
 </head>
 <body>
 
@@ -1717,7 +1717,7 @@ async function adminLogin(){
   }
 }
 
-const PREMIUM_CODES = ['XENOS-PREMIUM-2026', 'XF-PRO-001', 'XF-PRO-002', 'XF-PRO-003'];
+const PREMIUM_CODES = window.XF_PREMIUM;
 const ADMIN_CODES = [window.XF_ADMIN_TOKEN];   // 2026-11-18: token, non più la password
 
 function isPremium() {
@@ -1784,7 +1784,7 @@ const XFPremium = {
     const err = document.getElementById('xf-pm-err');
     if (!input) return;
     let val = input.value.trim();
-    if (await xfAdminVerify(val)) { window._xfAdminPw = val; val = window.XF_ADMIN_TOKEN; }
+    if (await xfAdminVerify(val)) { window._xfAdminPw = val; val = window.XF_ADMIN_TOKEN; } else await xfPremiumVerify(val);
     if (PREMIUM_CODES.includes(val.toUpperCase()) || ADMIN_CODES.includes(val)) {
       localStorage.setItem('xenos_premium_code', ADMIN_CODES.includes(val) ? val : val.toUpperCase());
       document.getElementById('xf-premium-modal').style.display = 'none';
@@ -1799,7 +1799,7 @@ const XFPremium = {
 
 async function premiumLogin(){
   let code = document.getElementById('premiumPw').value.trim();
-  if (await xfAdminVerify(code)) { window._xfAdminPw = code; code = window.XF_ADMIN_TOKEN; }
+  if (await xfAdminVerify(code)) { window._xfAdminPw = code; code = window.XF_ADMIN_TOKEN; } else await xfPremiumVerify(code);
   if(ADMIN_CODES.includes(code)){
     localStorage.setItem('xenos_premium_code', code);
     isAdminUnlocked = true;
@@ -3793,7 +3793,7 @@ let currentBotTab = 'ew';
 
 async function unlockBotSignals() {
   let code = document.getElementById('botSignalsPw').value.trim();
-  if (await xfAdminVerify(code)) { window._xfAdminPw = code; code = window.XF_ADMIN_TOKEN; }
+  if (await xfAdminVerify(code)) { window._xfAdminPw = code; code = window.XF_ADMIN_TOKEN; } else await xfPremiumVerify(code);
   if (PREMIUM_CODES.includes(code.toUpperCase()) || ADMIN_CODES.includes(code)) {
     localStorage.setItem('xenos_premium_code', code);
     botSignalsUnlocked = true;
@@ -4009,6 +4009,7 @@ async function deleteEWChartImg(signalId) {
 
 // ── Global Logout ──────────────────────────────────────────────
 function xfLogout() {
+  if (typeof xfAuthClear === 'function') xfAuthClear();
   localStorage.removeItem('xenos_premium_code');
   localStorage.removeItem('xenos_free_email');
   sessionStorage.removeItem('xf_admin');

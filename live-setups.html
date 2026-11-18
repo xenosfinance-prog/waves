@@ -305,7 +305,7 @@ body{background:var(--bg);color:var(--ink);font-family:var(--mono);min-height:10
 <script src="/i18n.js?v=9"></script>
 <script src="/i18n-engine.js?v=10"></script>
 <script src="/xf-hand.js"></script>
-<script src="/xf-admin.js?v=1"></script>
+<script src="/xf-admin.js?v=2"></script>
 </head>
 <body>
 
@@ -1858,8 +1858,7 @@ async function sendToTelegram(event, i, type) {
 // ── AI OPTIONS INTERPRETER ────────────────────────────────────
 async function unlockInterpreter() {
   const pw = document.getElementById('interpreter-pw-input').value.trim();
-  const valid = ['XENOS-PREMIUM-2026','XF-PRO-001','XF-PRO-002','XF-PRO-003'];
-  if (valid.includes(pw) || await xfAdminVerify(pw)) {
+  if ((await xfPremiumVerify(pw)) || await xfAdminVerify(pw)) {
     sessionStorage.setItem('xf_interpreter', 'true');
     document.getElementById('interpreter-locked').style.display = 'none';
     document.getElementById('interpreter-unlocked').style.display = 'block';
@@ -2191,6 +2190,7 @@ async function publishOptionsToBlog() {
 
 // ── Global Logout ──────────────────────────────────────────────
 function xfLogout() {
+  if (typeof xfAuthClear === 'function') xfAuthClear();
   localStorage.removeItem('xenos_premium_code');
   sessionStorage.removeItem('xf_admin');
   sessionStorage.removeItem('xf_interpreter');

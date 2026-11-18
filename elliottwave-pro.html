@@ -352,7 +352,7 @@ canvas { display: block; }
   <span><span data-i18n="label_not_investment_advice">Not investment advice</span></span>
 </div>
 
-<script src="/xf-admin.js?v=1"></script>
+<script src="/xf-admin.js?v=2"></script>
 <script>
 // ── DATE ──
 (function(){
@@ -423,10 +423,11 @@ async function adminLogin(){
   }
 }
 
-const PREMIUM_CODES = ['XENOS-PREMIUM-2026', 'XF-PRO-001', 'XF-PRO-002', 'XF-PRO-003'];
+const PREMIUM_CODES = window.XF_PREMIUM;
 
-function premiumLogin(){
+async function premiumLogin(){
   const code = document.getElementById('premiumPw').value.trim().toUpperCase();
+  await xfPremiumVerify(code);   // codice premium verificato dal Worker
   if(PREMIUM_CODES.includes(code)){
     document.getElementById('admin-login-area').style.display='none';
     document.getElementById('adminPanel').style.display='block';
@@ -2226,10 +2227,11 @@ async function adminLogin(){
   }
 }
 
-const PREMIUM_CODES = ['XENOS-PREMIUM-2026', 'XF-PRO-001', 'XF-PRO-002', 'XF-PRO-003'];
+const PREMIUM_CODES = window.XF_PREMIUM;
 
-function premiumLogin(){
+async function premiumLogin(){
   const code = document.getElementById('premiumPw').value.trim().toUpperCase();
+  await xfPremiumVerify(code);   // codice premium verificato dal Worker
   if(PREMIUM_CODES.includes(code)){
     document.getElementById('admin-login-area').style.display='none';
     document.getElementById('adminPanel').style.display='block';

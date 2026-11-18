@@ -18,7 +18,7 @@ const XFPremium = (() => {
   const FREE_LIMIT = 1; // uses per tool per day for free users
 
   // ── Premium check ────────────────────────────────────────────────────────────
-  const XF_PREMIUM_CODES = ['XENOS-PREMIUM-2026','XF-PRO-001','XF-PRO-002','XF-PRO-003'];
+  // Codici premium: secret PREMIUM_CODES del Worker, verificati da xf-admin.js (window.XF_PREMIUM)
 
   function isAdmin() {
     return localStorage.getItem('xf_admin_mode') === 'true' ||
@@ -27,7 +27,7 @@ const XFPremium = (() => {
 
   function isPremiumCode() {
     const code = localStorage.getItem('xf_premium_code') || '';
-    return XF_PREMIUM_CODES.includes(code);
+    return !!(window.XF_PREMIUM && window.XF_PREMIUM.includes(code));
   }
 
   function _getPremiumRecord() {
