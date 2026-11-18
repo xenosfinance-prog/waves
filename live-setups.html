@@ -305,6 +305,7 @@ body{background:var(--bg);color:var(--ink);font-family:var(--mono);min-height:10
 <script src="/i18n.js?v=9"></script>
 <script src="/i18n-engine.js?v=10"></script>
 <script src="/xf-hand.js"></script>
+<script src="/xf-admin.js?v=1"></script>
 </head>
 <body>
 
@@ -1323,9 +1324,9 @@ function closeAdminLogin() {
   document.getElementById('admin-err').textContent = '';
 }
 
-function doAdminLogin() {
+async function doAdminLogin() {
   const pw = document.getElementById('admin-pw').value;
-  if (pw === 'RMG@Manu78' || pw === 'RMG@manu78') {
+  if (await xfAdminVerify(pw)) {
     isAdmin = true;
     sessionStorage.setItem('xf_admin', 'true');
     sessionStorage.setItem('xf_interpreter', 'true');
@@ -1855,10 +1856,10 @@ async function sendToTelegram(event, i, type) {
 }
 
 // ── AI OPTIONS INTERPRETER ────────────────────────────────────
-function unlockInterpreter() {
+async function unlockInterpreter() {
   const pw = document.getElementById('interpreter-pw-input').value.trim();
-  const valid = ['RMG@Manu78','RMG@manu78','XENOS-PREMIUM-2026','XF-PRO-001','XF-PRO-002','XF-PRO-003'];
-  if (valid.includes(pw)) {
+  const valid = ['XENOS-PREMIUM-2026','XF-PRO-001','XF-PRO-002','XF-PRO-003'];
+  if (valid.includes(pw) || await xfAdminVerify(pw)) {
     sessionStorage.setItem('xf_interpreter', 'true');
     document.getElementById('interpreter-locked').style.display = 'none';
     document.getElementById('interpreter-unlocked').style.display = 'block';

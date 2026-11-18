@@ -548,6 +548,7 @@
 }
 </style>
 <script src="xf-premium.js"></script>
+<script src="/xf-admin.js?v=1"></script>
 </head>
 <body>
 
@@ -849,10 +850,10 @@ const CFD_PAIRS = {
 const ALL_PAIRS = [...CFD_PAIRS.FX, ...CFD_PAIRS.INDICES, ...CFD_PAIRS.COMMODITIES, ...CFD_PAIRS.CRYPTO];
 const PATTERNS = ['Elliott Wave 3','Elliott Wave 5','Elliott Wave C','Head & Shoulders','Inverse Head & Shoulders','Double Top','Double Bottom','Triple Top','Triple Bottom','Ascending Triangle','Descending Triangle','Symmetrical Triangle','Broadening Triangle','Bull Flag','Bear Flag','Bull Pennant','Bear Pennant','Rising Channel','Falling Channel','Horizontal Channel','Cup & Handle','Rounding Bottom','Rounding Top','Rising Wedge','Falling Wedge','Breakout Key Level','Fib 61.8% Bounce','Fib 38.2% Bounce','Fib 50% Bounce','Gartley Pattern','Butterfly Pattern','Bat Pattern','Crab Pattern','ABCD Pattern','Cypher Pattern','Bullish Engulfing','Bearish Engulfing','Doji Reversal','Hammer','Shooting Star','Morning Star','Evening Star','Bullish Harami','Bearish Harami','Island Reversal','Diamond Pattern','Wolfe Wave'];
 
-function doLogin() {
+async function doLogin() {
   const pwd = document.getElementById('pwd-input').value;
   if (!pwd) { showToast('Inserisci la password'); return; }
-  if (pwd !== 'RMG@Manu78') { showToast('Password errata'); return; }
+  if (!(await xfAdminVerify(pwd))) { showToast('Password errata'); return; }
   sessionStorage.setItem('xf_admin', 'true');
   WORKER = 'https://xenos-ai-proxy.xenosfinance.workers.dev';
   document.getElementById('auth-screen').style.display = 'none';

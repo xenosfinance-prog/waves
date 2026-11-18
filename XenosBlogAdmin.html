@@ -224,6 +224,7 @@ to   { transform: rotate(1.5deg); }
 
 </style>
 <script src="/xf-hand.js"></script>
+<script src="/xf-admin.js?v=1"></script>
 </head>
 <body>
 <script>
@@ -942,9 +943,9 @@ window.addEventListener('DOMContentLoaded', function() {
   }
 });
 
-function doLogin() {
+async function doLogin() {
   // FIX 2026-09-23: trim — mobile keyboards/autofill often add a trailing space
-  if (document.getElementById('loginPw').value.trim() === 'RMG@Manu78') {
+  if (await xfAdminVerify(document.getElementById('loginPw').value)) {
     isAdmin = true;
     sessionStorage.setItem('xf_admin', 'true');
     document.getElementById('loginScreen').style.display = 'none';

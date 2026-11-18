@@ -571,6 +571,7 @@
 <script src="/xf-translate.js?v=1"></script>
 <script src="/i18n.js?v=9"></script>
 <script src="/i18n-engine.js?v=10"></script>
+<script src="/xf-admin.js?v=1"></script>
 </head>
 <body>
 
@@ -690,7 +691,6 @@
 // ─────────────────────────────────────────────
 const WORKER_URL = 'https://xenos-ai-proxy.xenosfinance.workers.dev';
 const GITHUB_RAW = '';  // 2026-10-22: dati dal sito stesso (repo privato)
-const ADMIN_PASSWORD = 'RMG@Manu78';
 
 // ─────────────────────────────────────────────
 // STATE
@@ -951,9 +951,10 @@ function toggleAdminPanel() {
   document.getElementById('adminPanel').classList.toggle('open');
 }
 
-function adminLogin() {
+async function adminLogin() {
   const pwd = document.getElementById('adminPwd').value;
-  if (pwd === ADMIN_PASSWORD) {
+  if (await xfAdminVerify(pwd)) {
+    window._xfAdminPw = pwd.trim();
     isAdmin = true;
     document.getElementById('adminActions').style.display = 'block';
     setAdminStatus('Logged in ✓', 'ok');
@@ -976,7 +977,7 @@ async function adminDelete() {
     const res = await fetch(`${WORKER_URL}/delete-education`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ date, password: ADMIN_PASSWORD })
+      body: JSON.stringify({ date, password: window._xfAdminPw || '' })
     });
     const data = await res.json();
     if (data.success) {

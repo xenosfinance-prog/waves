@@ -19,7 +19,6 @@ const XFPremium = (() => {
 
   // ── Premium check ────────────────────────────────────────────────────────────
   const XF_PREMIUM_CODES = ['XENOS-PREMIUM-2026','XF-PRO-001','XF-PRO-002','XF-PRO-003'];
-  const XF_ADMIN_PWD     = 'RMG@Manu78';
 
   function isAdmin() {
     return localStorage.getItem('xf_admin_mode') === 'true' ||

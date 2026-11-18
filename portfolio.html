@@ -198,6 +198,7 @@ textarea{resize:vertical;min-height:70px;}
 ::-webkit-scrollbar-track{background:var(--bg);}
 ::-webkit-scrollbar-thumb{background:var(--border2);}
 </style>
+<script src="/xf-admin.js?v=1"></script>
 </head>
 <body>
 
@@ -527,7 +528,6 @@ textarea{resize:vertical;min-height:70px;}
 // ═══════════════════════════════════════════════════════
 // CONFIG
 // ═══════════════════════════════════════════════════════
-const ADMIN_PWD   = 'RMG@Manu78';
 const WORKER      = 'https://xenos-ai-proxy.xenosfinance.workers.dev';
 const REPO        = 'xenosfinance-prog/waves';
 const GH_FILE     = 'portfolio/trades.json';
@@ -1222,9 +1222,9 @@ function toggleAdminLogin() {
   setTimeout(() => document.getElementById('adminPwd').focus(), 100);
 }
 
-function doLogin() {
+async function doLogin() {
   const pw = document.getElementById('adminPwd').value;
-  if (pw === ADMIN_PWD || pw === 'RMG@manu78') {
+  if (await xfAdminVerify(pw)) {
     isAdmin = true;
     sessionStorage.setItem('xf_portfolio_admin', 'true');
     closeModal('loginOverlay');

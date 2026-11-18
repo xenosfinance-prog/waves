@@ -245,6 +245,7 @@ body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:10
 <script src="/i18n.js?v=10"></script>
 <script src="/i18n-engine.js?v=10"></script>
 <script src="/xf-hand.js"></script>
+<script src="/xf-admin.js?v=1"></script>
 </head>
 <body>
 <div class="masthead">
@@ -1584,7 +1585,7 @@ let lastDashPrices = {};
 })();
 function isPremium() {
   const codes = ['XENOS-PREMIUM-2026','XF-PRO-001','XF-PRO-002','XF-PRO-003'];
-  const adminCodes = ['RMG@Manu78','RMG@manu78'];
+  const adminCodes = [window.XF_ADMIN_TOKEN];
   const stored = localStorage.getItem('xenos_premium_code') || '';
   return codes.includes(stored.toUpperCase()) || adminCodes.includes(stored);
 }
@@ -1616,7 +1617,7 @@ function promptFreeAccessDash() {
 // non i premium generici né gli utenti free-whitelist, per evitare che
 // chiunque possa pubblicare sul canale Telegram reale) ──
 function isAdminDash() {
-  const adminCodes = ['RMG@Manu78','RMG@manu78'];
+  const adminCodes = [window.XF_ADMIN_TOKEN];
   return adminCodes.includes(localStorage.getItem('xenos_premium_code') || '');
 }
 
@@ -1667,10 +1668,11 @@ function closePremiumModal() {
   if (modal) modal.style.display = 'none';
 }
 
-function checkPremiumCode() {
+async function checkPremiumCode() {
   const codes = ['XENOS-PREMIUM-2026','XF-PRO-001','XF-PRO-002','XF-PRO-003'];
-  const adminCodes = ['RMG@Manu78','RMG@manu78'];
-  const val = (document.getElementById('premium-code-input').value || '').trim();
+  const adminCodes = [window.XF_ADMIN_TOKEN];
+  let val = (document.getElementById('premium-code-input').value || '').trim();
+  if (await xfAdminVerify(val)) val = window.XF_ADMIN_TOKEN;   // 2026-11-18: password admin → token
   const valUpper = val.toUpperCase();
   if (codes.includes(valUpper) || adminCodes.includes(val)) {
     localStorage.setItem('xenos_premium_code', adminCodes.includes(val) ? val : valUpper);

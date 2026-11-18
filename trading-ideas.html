@@ -190,6 +190,7 @@ body{background:var(--bg4);color:var(--ink);font-family:var(--mono);min-height:1
 .ti-modal-actions .ti-modal-cancel{background:transparent;border:1px solid rgba(255,255,255,0.15);color:#cbd5e1;}
 .ti-modal-actions .ti-modal-ok{background:#3b82f6;color:#fff;}
 </style>
+<script src="/xf-admin.js?v=1"></script>
 </head>
 <body>
 
@@ -847,9 +848,8 @@ async function toggleAdmin(){
   }
   const pwd=await tiModalPrompt('Admin password:','Password');
   if(!pwd) return;
-  const hash=await simpleHash(pwd);
-  const refHash=await simpleHash('RMG@Manu78');
-  if(hash!==refHash){tiModalError('❌ Password errata');return;}
+  if(!(await xfAdminVerify(pwd))){tiModalError('❌ Password errata');return;}
+  window._xfAdminPw=pwd.trim();
   isAdmin=true;
   document.getElementById('admin-btn').classList.add('admin-active');
   document.getElementById('ideas-grid').classList.add('admin-mode');
@@ -863,7 +863,7 @@ async function deleteIdea(ideaId,e){
     const res=await fetch(WORKER,{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({type:'delete-idea',idea_id:ideaId,admin_pwd:'RMG@Manu78'})
+      body:JSON.stringify({type:'delete-idea',idea_id:ideaId,admin_pwd:window._xfAdminPw||''})
     });
     const data=await res.json();
     if(!data.ok){tiModalError('❌ Errore: '+(data.error||'unknown'));return;}

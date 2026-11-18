@@ -352,6 +352,7 @@ canvas { display: block; }
   <span><span data-i18n="label_not_investment_advice">Not investment advice</span></span>
 </div>
 
+<script src="/xf-admin.js?v=1"></script>
 <script>
 // ── DATE ──
 (function(){
@@ -411,9 +412,9 @@ function switchAccessTab(tab) {
   document.getElementById('adminErr').textContent = '';
 }
 
-function adminLogin(){
+async function adminLogin(){
   const pw=document.getElementById('adminPw').value;
-  if(pw==='RMG@Manu78'){
+  if(await xfAdminVerify(pw)){
     document.getElementById('admin-login-area').style.display='none';
     document.getElementById('adminPanel').style.display='block';
   } else {
@@ -2214,9 +2215,9 @@ function switchAccessTab(tab) {
   document.getElementById('adminErr').textContent = '';
 }
 
-function adminLogin(){
+async function adminLogin(){
   const pw=document.getElementById('adminPw').value;
-  if(pw==='RMG@Manu78'){
+  if(await xfAdminVerify(pw)){
     document.getElementById('admin-login-area').style.display='none';
     document.getElementById('adminPanel').style.display='block';
   } else {
