@@ -1587,6 +1587,14 @@ async function renderPublicFeed(preloadedNotes) {
     var setup = document.createElement('span');
     setup.className = 'wave-note-setup';
     setup.textContent = n.setup || '';
+    // 2026-11-18: setup pubblicati da /ews → link al grafico 4H del post
+    if (n.chart && /^https:\/\/xenosfinance\.com\//.test(n.chart)) {
+      var cl = document.createElement('a');
+      cl.href = n.chart; cl.target = '_blank'; cl.rel = 'noopener';
+      cl.textContent = ' · chart ↗';
+      cl.style.cssText = 'color:var(--gold2);text-decoration:none;white-space:nowrap;';
+      setup.appendChild(cl);
+    }
     var date = document.createElement('span');
     date.className = 'wave-note-date';
     date.textContent = n.date || '';
