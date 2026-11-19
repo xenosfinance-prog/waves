@@ -130,6 +130,8 @@ STRICT RULES:
 - Use ONLY numbers present in the data. Never invent prices, percentages or levels; never recompute risk/reward.
 - The bias is already decided ({data['bias']['direction']}, confidence {data['bias']['confidence']}): stay consistent with it.
 - If "elliott" is null, do not mention Elliott waves. If volume_ratio is null, do not mention volume.
+- Write like a desk analyst, not like software: never quote internal engine fields or scores (no "bear score", "bull score", "score 4/7", "confidence medium", field names). Describe what they mean instead (e.g. "all four 4-hour Ichimoku conditions point lower").
+- No filler phrases ("challenging the immediate structure", "it remains to be seen"): every sentence must say something concrete about price and levels.
 - Educational technical analysis only: no news, no fundamentals, never tell the reader to buy or sell."""
     try:
         raw = free_llm.generate(prompt, max_tokens=1200, json_mode=True)
