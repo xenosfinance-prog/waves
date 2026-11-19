@@ -2793,6 +2793,111 @@ def event_history():
 # 2026-10-14: in produzione (Railway) il server gira con gunicorn — 1 worker, 8 thread,
 # worker riciclato ogni ~300 richieste (la memoria cresceva fino a ~2 GB col server
 # di sviluppo Flask) + MALLOC_ARENA_MAX=2. Il blocco sotto resta per l'uso locale.
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 2026-11-19: /ews-chart — stesso motore e stesso grafico del /ews del bot Telegram
+# (ews_engine.py, generato da bot.py con tools/sync_ews_engine.py) per la Live Analysis
+# del sito, su ogni timeframe. Nessun numero viene dall'AI: onda, bias, invalidazione e
+# target sono quelli del motore, come su Telegram.
+# ═══════════════════════════════════════════════════════════════════════════
+import threading as _ews_threading
+import base64 as _ews_b64
+import time as _ews_time
+import re as _ews_re
+import ews_engine as _EWS
+
+_EWS_LOCK = _ews_threading.Lock()          # matplotlib non è thread-safe
+_EWS_CACHE = {}
+# codici del sito → chiavi MARKETS del bot
+_EWS_ALIAS = {"XAUUSD": "GOLD", "XAGUSD": "SILVER", "USOIL": "OIL", "NATGAS": "NGAS",
+              "US500": "SPX", "NAS100": "NASDAQ", "US30": "DJI", "GER40": "DAX"}
+# strumenti del sito che il bot non ha
+_EWS_EXTRA = {"UKOIL": {"name": "Brent", "emoji": "🛢", "yf": "BZ=F", "cat": "commodities"},
+              "CVX": {"name": "Chevron", "emoji": "🏛", "yf": "CVX", "cat": "bluechip"},
+              "HON": {"name": "Honeywell", "emoji": "🏛", "yf": "HON", "cat": "bluechip"},
+              "IBM": {"name": "IBM", "emoji": "🏛", "yf": "IBM", "cat": "bluechip"},
+              "MRK": {"name": "Merck", "emoji": "🏛", "yf": "MRK", "cat": "bluechip"},
+              "NKE": {"name": "Nike", "emoji": "🏛", "yf": "NKE", "cat": "bluechip"}}
+# tf → (intervallo Yahoo, giorni, giorni azioni, etichetta testo, etichetta grafico, orizzonte, 4H?)
+_EWS_TF = {
+    "M15": ("15m", 20, 30, "15M", "15m", "Intraday · 15-minute count · hours to 1-2 days", False),
+    "H1":  ("1h", 30, 90, "1H", "1h", "Short swing · 1H count · 1 to 5 days", False),
+    "H4":  ("1h", _EWS.EWS_BARS_DAYS, _EWS.EWS_BARS_DAYS_STOCKS, "4H", "4h",
+            "Swing · 4H count · several days to 2-3 weeks", True),
+    "D1":  ("1d", 730, 730, "1D", "1D", "Position · Daily count · weeks to months", False),
+    "W1":  ("1wk", 3650, 3650, "1W", "1W", "Long term · Weekly count · months to years", False),
+}
+_EWS_TTL = {"M15": 120, "H1": 300, "H4": 600, "D1": 1800, "W1": 3600}
+
+
+def _ews_payload(sym_key, tf):
+    interval, days, days_st, t_txt, t_chart, horizon, is4h = _EWS_TF[tf]
+    stock = sym_key in _EWS.EWS_STOCKS or _EWS.MARKETS[sym_key].get("cat") == "bluechip"
+    df = _EWS.fetch_data(sym_key, days_st if stock else days, interval)
+    if df is not None and len(df) and is4h:
+        df = _EWS.resample_4h_tv(df, _EWS.MARKETS[sym_key]["yf"])
+    if df is None or len(df) < 60:
+        return {"ok": False, "error": "not enough data for this timeframe"}
+    with _EWS_LOCK:
+        _EWS.EWS_TF_TXT, _EWS.EWS_TF_CHART = t_txt, t_chart
+        _EWS.HORIZON_TXT["ews"] = horizon
+        r = _EWS._ews_build(sym_key, df)
+    ds, eng = r.get("ds") or {}, r.get("eng")
+    pf = _EWS._ews_pf(sym_key)
+    out = {"ok": True, "symbol": sym_key, "name": r.get("name"), "tf": tf,
+           "last": r.get("last"), "last_txt": _EWS._ews_num(r.get("last"), pf),
+           "candle_time": str(df.index[-1]), "count": bool(eng)}
+    if not eng:
+        out.update({"bias": "neutral", "summary": "No valid Elliott Wave count on this timeframe right now."})
+        return out
+    td = r.get("td", 0)
+    targets = []
+    for m in _ews_re.finditer(r"(✅|🎯) T(\d)\s+([^\s·]+)(?:\s+·\s+([^\n]*?))?(?:\s+·\s+reached)?$", r.get("text", ""), _ews_re.M):
+        targets.append({"n": int(m.group(2)), "value": m.group(3), "label": (m.group(4) or "").replace("  ·  reached", ""),
+                        "reached": m.group(1) == "✅"})
+    inv = ds.get("invalidation")
+    out.update({
+        "wave": ds.get("wave_num"), "wave_desc": ds.get("wave_desc"), "degree": eng.get("degree"),
+        "structure": eng.get("desc"), "trend": eng.get("trend"),
+        "bias": "bullish" if td > 0 else "bearish" if td < 0 else "neutral",
+        "terminal": "TERMINAL" in str(ds.get("bias", "")),
+        "invalidation": inv, "invalidation_txt": _EWS._ews_num(inv, pf) if inv is not None else None,
+        "entry": r.get("entry"), "entry_txt": _EWS._ews_num(r["entry"], pf) if r.get("entry") is not None else None,
+        "targets": targets, "text_html": r.get("text", ""),
+        "png": _ews_b64.b64encode(r["img"]).decode() if r.get("img") else None,
+    })
+    return out
+
+
+@app.route("/ews-chart", methods=["POST", "OPTIONS"])
+def ews_chart():
+    if request.method == "OPTIONS":
+        return Response(status=200)
+    try:
+        body = request.get_json(force=True) or {}
+        raw = str(body.get("symbol", "")).upper().strip()
+        tf = str(body.get("tf", "H4")).upper().strip()[:3]
+        tf = {"M15": "M15", "H1": "H1", "H4": "H4", "D1": "D1", "W1": "W1"}.get(tf)
+        if not tf:
+            return jsonify({"ok": False, "error": "timeframe not supported"}), 400
+        key = _EWS_ALIAS.get(raw, raw)
+        if key not in _EWS.MARKETS and key in _EWS_EXTRA:
+            _EWS.MARKETS[key] = dict(_EWS_EXTRA[key])
+        if key not in _EWS.MARKETS:
+            return jsonify({"ok": False, "error": f"symbol not supported: {raw}"}), 400
+        ck = (key, tf)
+        hit = _EWS_CACHE.get(ck)
+        if hit and _ews_time.time() - hit[0] < _EWS_TTL[tf]:
+            return jsonify(hit[1])
+        out = _ews_payload(key, tf)
+        if out.get("ok"):
+            _EWS_CACHE[ck] = (_ews_time.time(), out)
+        return jsonify(out)
+    except Exception as e:
+        logger.error(f"/ews-chart: {e}", exc_info=True)
+        return jsonify({"ok": False, "error": "engine error"}), 500
+
+
 if __name__ == "__main__":
     port = int(os.getenv("PORT", os.getenv("EW_PORT",5001)))
     logger.info(f"EW Server v3 on port {port}")
