@@ -422,6 +422,12 @@ EW_ENGINE_DEGREES = [("Minor", 4), ("Intermediate", 8), ("Primary", 16)]
 EW_WAVE_LABELS = ["0", "1", "2", "3", "4", "5", "A", "B", "C"]
 
 
+EW_W4_MIN_RETR = 0.236
+
+
+EW_W4_MIN_TIME = 0.5
+
+
 def _ew_in(x, r):
     return r[0] <= x <= r[1]
 
@@ -560,6 +566,21 @@ def ew_engine_match(zz):
     return None
 
 
+def _ew_w4_too_early(zz, s, n_bars):
+    """True se il conteggio trovato è "onda 4 in corso" ma il rimbalzo è ancora troppo piccolo
+    (sotto EW_W4_MIN_RETR dell'onda 3) e troppo breve (sotto EW_W4_MIN_TIME della sua durata)."""
+    pts = zz[s:]
+    if len(pts) != 5:
+        return False
+    w3 = abs(pts[3]["p"] - pts[2]["p"])
+    t3 = pts[3]["i"] - pts[2]["i"]
+    if w3 <= 0 or t3 <= 0:
+        return False
+    retr = abs(pts[3]["p"] - pts[4]["p"]) / w3
+    t4 = (n_bars - 1) - pts[3]["i"]
+    return retr < EW_W4_MIN_RETR and t4 < EW_W4_MIN_TIME * t3
+
+
 def ew_engine_describe(s, d, zz, index, degree, length):
     pts = zz[s:]
     k = len(pts)
@@ -672,7 +693,13 @@ def ew_engine_run(df):
     for name, length in EW_ENGINE_DEGREES:
         zz = ew_engine_zigzag(highs, lows, length)
         m = ew_engine_match(zz) if len(zz) >= 4 else None
-        degrees.append(ew_engine_describe(m[0], m[1], zz, df.index, name, length) if m
+        zc = zz
+        if m and _ew_w4_too_early(zz, m[0], len(highs)):
+            # rimbalzo ancora piccolo: si conta senza il tratto in corso → la 3 resta in corso
+            m2 = ew_engine_match(zz[:-1]) if len(zz) >= 5 else None
+            if m2:
+                zc, m = zz[:-1], m2
+        degrees.append(ew_engine_describe(m[0], m[1], zc, df.index, name, length) if m
                        else {"degree": name, "len": length, "none": True})
         try:
             t = ew_engine_triangle(zz, df.index, name, length) if len(zz) >= 7 else None
