@@ -28,7 +28,7 @@ ENDPOINT = "https://api.indexnow.org/indexnow"
 LANGS = ("it", "es", "ru", "uk")
 
 STATIC = ["/", "/dashboard", "/calendar", "/elliottwave", "/XenosBlog", "/daily-education", "/analysis/",
-          "/analysis/oil-market", "/cot/", "/futures-flow/", "/intelligence/", "/market-brief",
+          "/analysis/oil-market", "/cot/", "/futures-flow/", "/oil-options/", "/intelligence/", "/market-brief",
           "/trading-ideas", "/live-setups", "/xenoswaves_charts", "/topics", "/premium", "/llms.txt"]
 
 
