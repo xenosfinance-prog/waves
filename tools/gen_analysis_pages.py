@@ -506,12 +506,16 @@ def build_instrument_page(inst, d, ai, now, all_rows):
     # FAQ deterministica (numeri dal motore, nessun testo AI)
     faq = [
         (f"What is the {name} trend today?",
-         f"On the 1-hour chart our engine reads a {bias_word.lower()} bias with {conf} confidence (score {d['bias']['score']:+d}/7), "
-         f"based on moving averages, MACD, RSI, SuperTrend and the 4-hour Ichimoku context. {name} trades at {f(d['live'])}."),
-        (f"What are the key support levels for {name}?",
-         ("The nearest support zones are " + ", ".join(zone_txt(z, dec) for z in sup) + ".") if sup else "No support zone is currently within range of the price."),
-        (f"What are the key resistance levels for {name}?",
-         ("The nearest resistance zones are " + ", ".join(zone_txt(z, dec) for z in res) + ".") if res else "No resistance zone is currently within range of the price."),
+         # 2026-11-19: niente punteggio interno ("score -7/7") nel testo pubblico — se ne descrive il significato
+         f"On the 1-hour chart the bias is {bias_word.lower()}: {abs(d['bias']['score'])} of 7 trend and momentum signals "
+         f"point {'lower' if d['bias']['score'] < 0 else 'higher' if d['bias']['score'] > 0 else 'nowhere in particular'} "
+         f"(moving averages, MACD, RSI, SuperTrend and the 4-hour Ichimoku context). {name} trades at {f(d['live'])}."),
+        # 2026-11-19 (Search Console): domande con le parole delle ricerche reali — "gold support levels",
+        # "silver support and resistance levels", "gold price support level" — e la data del giorno.
+        (f"What are the {name} support levels today?",
+         (f"{name} support levels today ({day_s}): " + ", ".join(zone_txt(z, dec) for z in sup) + ".") if sup else "No support zone is currently within range of the price."),
+        (f"What are the {name} resistance levels today?",
+         (f"{name} resistance levels today ({day_s}): " + ", ".join(zone_txt(z, dec) for z in res) + ".") if res else "No resistance zone is currently within range of the price."),
         (f"What would confirm a move in {name}?",
          " ".join(x for x in [
              f"An hourly close above {f(tr['bull'])} would confirm the bullish case." if tr.get("bull") is not None else "",
