@@ -115,6 +115,59 @@ def zone_txt(z, dec):
 
 
 # ───────────────────────── AI commentary ─────────────────────────
+# 2026-11-19: soglie di "movimento forte" per classe (USD/JPY +0.33% titolato "Surges").
+_STRONG_THR = {"Forex": 1.0, "Indices": 1.5, "Commodities": 2.0, "Crypto": 4.0}
+_STRONG_RE = re.compile(r"\b(surg(?:es|ing|ed)?|soar(?:s|ing|ed)?|plung(?:es|ing|ed)?|crash(?:es|ing|ed)?|"
+                        r"rocket(?:s|ing|ed)?|tumbl(?:es|ing|ed)?|slump(?:s|ing|ed)?|skyrocket(?:s|ing|ed)?|"
+                        r"explod(?:es|ing|ed)?|collaps(?:es|ing|ed)?)\b", re.I)
+_CUR_GROUP = {"g": "Forex"}
+
+
+def _strong_thr(data):
+    return _STRONG_THR.get(_CUR_GROUP["g"], 1.5)
+
+
+def _fix_ai(ai, d, group, name, dec=5):
+    """Controlli deterministici sul testo AI: verbo del titolo proporzionato al movimento,
+    onda citata nel titolo ⇒ onda e invalidazione anche nel sommario."""
+    if not ai:
+        return ai
+    hl = str(ai.get("headline") or "")
+    chg = d.get("change_pct_day")
+    thr = _STRONG_THR.get(group, 1.5)
+    if hl and _STRONG_RE.search(hl) and (chg is None or abs(chg) < thr):
+        mild = {"surg": "Edges Up", "soar": "Edges Up", "rocket": "Edges Up", "skyrocket": "Edges Up",
+                "explod": "Edges Up", "plung": "Slips", "crash": "Slips", "tumbl": "Slips", "slump": "Slips",
+                "collaps": "Slips"}
+
+        def _rep(m):
+            w = m.group(0).lower()
+            for k, v in mild.items():
+                if w.startswith(k):
+                    return v                       # direzione del verbo originale, solo più misurata
+            return m.group(0)
+        new = _STRONG_RE.sub(_rep, hl)
+        print(f"  ~ headline toned down ({chg}% < {thr}%): {hl!r} → {new!r}")
+        ai["headline"] = hl = new
+    ew = d.get("elliott")
+    if hl and re.search(r"\bwave\b", hl, re.I):
+        if not ew:
+            ai["headline"] = re.sub(r"\s*(as|with|in|on)?\s*(the\s+)?(elliott\s+)?wave\s*\w*(\s+\w+){0,2}\s*(extends|builds|unfolds|continues)?\s*(higher|lower)?",
+                                    "", hl, flags=re.I).strip(" ,:-") or f"{name} Technical Picture"
+            print(f"  ~ headline wave removed (no EW count): {ai['headline']!r}")
+        else:
+            summ = str(ai.get("summary") or "")
+            if not re.search(rf"\bwave\s*{re.escape(str(ew.get('wave')))}\b", summ, re.I):
+                inv = ew.get("invalidation")
+                live = d.get("live")
+                side = "above" if inv is not None and live is not None and inv < live else "below"
+                add = f" On the 4-hour chart the Elliott count is in wave {ew.get('wave')}"
+                add += f", valid while price holds {side} {fmt(inv, dec)}." if inv is not None else "."
+                ai["summary"] = summ.rstrip() + add
+                print(f"  ~ summary: added wave {ew.get('wave')} line")
+    return ai
+
+
 def ai_commentary(name, data):
     if not free_llm.available():
         return None
@@ -132,6 +185,8 @@ STRICT RULES:
 - If "elliott" is null, do not mention Elliott waves. If volume_ratio is null, do not mention volume.
 - Write like a desk analyst, not like software: never quote internal engine fields or scores (no "bear score", "bull score", "score 4/7", "confidence medium", field names). Describe what they mean instead (e.g. "all four 4-hour Ichimoku conditions point lower").
 - No filler phrases ("challenging the immediate structure", "it remains to be seen"): every sentence must say something concrete about price and levels.
+- Headline verbs must match the size of today's move (change_pct_day): words like "surges", "soars", "plunges", "crashes", "rockets", "tumbles", "slumps" only for a large move (at least {_strong_thr(data)}% on this instrument); otherwise use measured words ("edges higher", "presses resistance", "holds support", "slips").
+- If the headline mentions an Elliott wave, the summary must state that wave on the 4-hour chart and its invalidation level from "elliott".
 - Educational technical analysis only: no news, no fundamentals, never tell the reader to buy or sell."""
     try:
         raw = free_llm.generate(prompt, max_tokens=1200, json_mode=True)
@@ -663,7 +718,8 @@ def main():
         except Exception as e:
             print(f"  ! compute failed, keeping previous page: {e}")
             continue
-        ai = ai_commentary(name, d)
+        _CUR_GROUP["g"] = group
+        ai = _fix_ai(ai_commentary(name, d), d, group, name, dec)
         sup, res = d["zones"]["supports"], d["zones"]["resistances"]
         rows.append((slug, yf, name, short, dec, group, d["bias"]["direction"], fmt(d["live"], dec),
                      zone_txt(sup[0], dec) if sup else None, zone_txt(res[0], dec) if res else None))
