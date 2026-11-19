@@ -4272,6 +4272,9 @@ async function ewsRenderCustomChart(sym, tf) {
   _ewsCandleSeries.setData(candleData);
   _ewsLastCandleTime  = candleData[candleData.length - 1].time;
   _ewsLastCandleClose = candleData[candleData.length - 1].close;
+  // 2026-11-19: prezzo mostrato = ultima candela del grafico (una sola fonte sullo schermo)
+  var _lpEl = document.getElementById('ews-live-price');
+  if (_lpEl && sym === _ewsAsset) _lpEl.textContent = Number(_ewsLastCandleClose).toFixed(_ewsPrec);
 
   // EMA Ribbon
   EWS_EMA_RIBBON_PERIODS.forEach(function(period, idx) {
@@ -4708,6 +4711,8 @@ async function ewsFetchPrice(sym) {
     });
     var d = await r.json();
     var p = d.prices && d.prices[sym];
+    // il grafico ha già scritto il prezzo della sua ultima candela: non lo si sovrascrive
+    if (_ewsLastCandleClose !== null && _ewsEngine && _ewsEngine.sym === sym) return;
     if (p && p.price) {
       el.textContent = p.price.toFixed(ewsPricePrecision(sym));
     } else {
@@ -4758,113 +4763,141 @@ function ewsFormatAnalysisText(text) {
   return '<p>' + esc + '</p>';
 }
 
+// server EW (Railway): /ew-chart (Free Analysis) e /ews-chart (Live Analysis, motore del /ews)
+var EW_SERVER_URL = 'https://waves-production-ddbf.up.railway.app';
+
 async function ewsRunAnalysis() {
+  // 2026-11-19: stesso motore e stesso grafico del /ews di Telegram (endpoint /ews-chart del
+  // server EW). Onda, bias, target e invalidazione vengono SOLO dal motore; l'AI scrive solo il
+  // commento, e un commento con numeri che il motore non ha calcolato viene scartato.
   var btn = document.getElementById('ews-run-btn');
   var status = document.getElementById('ews-status');
-
-  // Check premium gate
   if (typeof XFPremium !== 'undefined' && !XFPremium.gate('elliott')) return;
-
   btn.disabled = true;
   btn.textContent = '⟳ Analysing…';
-  status.textContent = 'Fetching live price and running AI…';
-
-  // Sync inputs to existing engine
-  var symEl = document.getElementById('aiSymbol');
-  if (symEl) symEl.value = _ewsAssetName;
-  var tfEl = document.getElementById('aiTf');
-  if (tfEl) {
-    var map = {'M15':'M15 (15-Min)','H1':'H1 (1-Hour)','H4':'H4 (4-Hour)','D1':'D1 (Daily)','W1':'W1 (Weekly)'};
-    for (var i = 0; i < tfEl.options.length; i++) {
-      if (tfEl.options[i].text.indexOf(_ewsTf) === 0) { tfEl.selectedIndex = i; break; }
-    }
-  }
-
+  status.textContent = 'Counting the waves…';
+  var asset = _ewsAsset, tf = _ewsTf, assetName = _ewsAssetName;
   try {
-    await ewsFetchPrice(_ewsAsset);
-
-    // Build prompt and call AI via existing runAIAnalysis logic
-    var WORKER = 'https://xenos-ai-proxy.xenosfinance.workers.dev';
-    var price = document.getElementById('ews-live-price').textContent;
-    var eng = await ewsEnsureEngine();
-    var prompt = 'You are a senior Elliott Wave analyst. Analyse ' + _ewsAssetName + ' on the ' + _ewsTf + ' timeframe.' +
-      (price && price !== '—' ? ' Current price: ' + price + '.' : '') +
-      (eng ? ewsEnginePromptBlock(eng) : '') +
-      ' Provide:\n1. Current wave count (which wave are we in?)\n2. Bias: bullish, bearish, or neutral\n3. Conviction score 1-5 stars\n4. Probability score X/5\n5. Key target level\n6. Invalidation level\n7. Full analysis (3-5 sentences)\n\n' +
-      'Reply in this exact JSON format:\n' +
-      'Rules: "wave" must be ONE label only (1, 2, 3, 4, 5, A, B, C, W, X or Y) — the wave currently in progress. "structure" is "impulse" or "correction". "bias" is the direction of the wave in progress.\n' +
-      '{"wave":"3","structure":"impulse","bias":"bearish","conviction":4,"probability":4,"target":"1.0650","invalidation":"1.1050","summary":"One sentence summary.","analysis":"Full 3-5 sentence professional analysis."}';
-
-    var _ewsUseFree = !isPremium() && !isAdmin() && isFreeUnlocked();
-    var r = await fetch(WORKER, {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify(_ewsUseFree ? {
-        type: 'gemini-free-chat',
-        email: localStorage.getItem('xenos_free_email') || '',
-        message: prompt,
-        json_mode: true
-      } : {
-        model: 'claude-sonnet-4-6',
-        max_tokens: 600,
-        messages: [{role:'user', content: prompt}]
-      })
+    var er = await fetch(EW_SERVER_URL + '/ews-chart', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({symbol: asset, tf: tf}), signal: AbortSignal.timeout(90000)
     });
-    var d = await r.json();
-    if (_ewsUseFree && !r.ok) {
-      if (d.error === 'not_authorized') { localStorage.removeItem('xenos_free_email'); throw new Error('Email non autorizzata.'); }
-      throw new Error(d.message || 'Servizio momentaneamente non disponibile.');
+    var e = await er.json();
+    if (asset !== _ewsAsset || tf !== _ewsTf) return;          // l'utente ha cambiato asset/TF
+    if (!e || !e.ok) throw new Error((e && e.error) || ('engine error ' + er.status));
+
+    document.getElementById('ews-live-price').textContent = e.last_txt || '—';
+    ewsShowEngineImage(e.png, assetName + ' · ' + tf);
+
+    var tgt = (e.targets || []).filter(function(t) { return !t.reached; })[0] || (e.targets || [])[0] || null;
+    var json = {
+      wave: e.count ? e.wave : '?', structure: e.structure || '', degree: e.degree || '',
+      bias: e.bias || 'neutral', target: tgt ? tgt.value : '', invalidation: e.invalidation_txt || '',
+      conviction: 0, probability: 0, summary: '', analysis: ''
+    };
+    var deskNote = '';
+    var mDesk = /📝 <b>Desk note<\/b>\n([\s\S]*)$/.exec(e.text_html || '');
+    if (mDesk) deskNote = mDesk[1].replace(/<[^>]+>/g, '').trim();
+    var countLine = e.count ? ('Wave ' + e.wave + ' in progress · ' + e.degree + ' degree · ' +
+      (e.bias === 'bullish' ? 'Bullish' : e.bias === 'bearish' ? 'Bearish' : 'Neutral') + ' scenario') : (e.summary || 'No valid count');
+
+    // Pannelli: solo dati del motore
+    ewsSetBias(json.bias);
+    document.getElementById('ews-wave-label').textContent = e.count ? ('Wave ' + e.wave + ' · ' + e.degree) : '—';
+    document.getElementById('ews-kl-target').textContent = tgt ? ('T' + tgt.n + ' ' + tgt.value + (tgt.label ? ' · ' + tgt.label : '')) : '—';
+    document.getElementById('ews-kl-inval').textContent = e.invalidation_txt || '—';
+    document.getElementById('ews-summary-bar').classList.add('ews-callout');
+    document.getElementById('ews-summary-bar').innerHTML = '🎯 <b>' + ewsFormatAnalysisText(countLine).replace(/^<p>|<\/p>$/g, '') + '</b>';
+    document.getElementById('ews-full-analysis').innerHTML = ewsFormatAnalysisText(deskNote || countLine);
+    document.getElementById('ews-conviction').textContent = '— — — —';
+    document.getElementById('ews-probability').textContent = '— / 5';
+
+    // Commento AI sul conteggio del motore (facoltativo: se manca o sbaglia un numero, resta la nota del desk)
+    if (e.count) {
+      status.textContent = 'Writing the desk commentary…';
+      var plain = (e.text_html || '').replace(/<[^>]+>/g, '');
+      var prompt = 'You are a senior Elliott Wave analyst at XenosFinance. Below is the OFFICIAL count of our rule-validated engine for ' +
+        assetName + ' on the ' + tf + ' chart. It is authoritative: do not change the wave, bias, targets or invalidation, and do not add any other price.\n\n' +
+        plain + '\n\nReturn ONLY minified JSON: {"conviction":1-5,"probability":1-5,"summary":"one sentence","analysis":"3-5 sentences commenting this count: what confirms it, what invalidates it, how to manage it"}. ' +
+        'Use only prices that appear above. Educational analysis, never tell the reader to buy or sell.';
+      var WORKER = 'https://xenos-ai-proxy.xenosfinance.workers.dev';
+      var useFree = !isPremium() && !isAdmin() && isFreeUnlocked();
+      try {
+        var r = await fetch(WORKER, {
+          method: 'POST', headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(useFree ? { type: 'gemini-free-chat', email: localStorage.getItem('xenos_free_email') || '', message: prompt, json_mode: true }
+                                       : { model: 'claude-sonnet-4-6', max_tokens: 600, messages: [{role: 'user', content: prompt}] })
+        });
+        var d = await r.json();
+        var text = useFree ? (d.reply || '') : (d.content && d.content[0] && d.content[0].text || '');
+        var m = text.match(/\{[\s\S]*\}/), ai = m ? JSON.parse(m[0]) : null;
+        if (ai && asset === _ewsAsset && tf === _ewsTf) {
+          var allowed = {};
+          (plain.match(/\d[\d,]*(?:\.\d+)?/g) || []).forEach(function(n) { allowed[n.replace(/,/g, '')] = 1; });
+          ['1','2','3','4','5','0'].forEach(function(n) { allowed[n] = 1; });
+          var clean = function(t) {
+            t = String(t || '');
+            var bad = (t.match(/\d[\d,]*(?:\.\d+)?/g) || []).filter(function(n) { return !allowed[n.replace(/,/g, '')]; });
+            return bad.length ? '' : t;
+          };
+          var sum = clean(ai.summary), ana = clean(ai.analysis);
+          var cv = Math.max(1, Math.min(5, parseInt(ai.conviction, 10) || 0)), pb = Math.max(1, Math.min(5, parseInt(ai.probability, 10) || 0));
+          if (ai.conviction && ai.probability) { json.conviction = cv; json.probability = pb; ewsSetScores(cv, pb); }
+          if (sum) { json.summary = sum; }
+          if (ana) {
+            json.analysis = ana;
+            document.getElementById('ews-full-analysis').innerHTML = ewsFormatAnalysisText(ana) +
+              (deskNote ? '<p style="margin-top:10px;color:var(--muted);">📝 ' + ewsFormatAnalysisText(deskNote).replace(/^<p>|<\/p>$/g, '') + '</p>' : '');
+          }
+        }
+      } catch (aiErr) { /* il commento è facoltativo: restano i dati del motore */ }
     }
-    var text = _ewsUseFree ? (d.reply || '') : (d.content && d.content[0] && d.content[0].text || '');
+    if (!json.summary) json.summary = countLine;
+    if (!json.analysis) json.analysis = deskNote;
 
-    // Parse JSON from response
-    var json = null;
-    try {
-      var match = text.match(/\{[\s\S]*\}/);
-      if (match) json = JSON.parse(match[0]);
-    } catch(e) {}
-
-    if (json) {
-      // Il conteggio del motore vince sempre su quello dell'AI
-      if (eng) ewsApplyEngineToJson(json, eng);
-      // Update all panels
-      ewsSetBias(json.bias || 'neutral');
-      ewsSetScores(json.conviction || 3, json.probability || 3);
-      document.getElementById('ews-wave-label').textContent = 'Wave ' + (json.wave || '?');
-      document.getElementById('ews-kl-target').textContent = json.target || '—';
-      document.getElementById('ews-kl-inval').textContent = json.invalidation || '—';
-      document.getElementById('ews-summary-bar').classList.add('ews-callout');
-      document.getElementById('ews-summary-bar').innerHTML = json.summary ? ('🎯 <b>' + ewsFormatAnalysisText(json.summary).replace(/^<p>|<\/p>$/g,'') + '</b>') : '';
-      document.getElementById('ews-full-analysis').innerHTML = ewsFormatAnalysisText(json.analysis || '');
-
-      // Update sidebar dot for this asset
-      document.querySelectorAll('.ews-asset-btn.active .ews-asset-dot').forEach(function(dot) {
-        dot.className = 'ews-asset-dot ' + (json.bias === 'bullish' ? 'bull' : json.bias === 'bearish' ? 'bear' : 'neut');
-      });
-
-      // Updated timestamp
-      var now = new Date();
-      document.getElementById('ews-updated').textContent = 'Updated ' + now.toLocaleDateString('en-GB', {day:'numeric',month:'short',year:'numeric'});
-
-      status.textContent = '✓ Analysis complete';
-      if (typeof XFPremium !== 'undefined' && typeof XFPremium.recordUse === 'function') {
-        try { XFPremium.recordUse('elliott'); } catch(e) {}
-      }
-
-      // Store result for Telegram / Save-as-Active-Setup actions
-      _ewsLastResult = { asset: _ewsAsset, assetName: _ewsAssetName, tf: _ewsTf, price: price, json: json };
-      ewsDrawWaveOverlay();
-      ewsRefreshAdminButtons();
-    } else {
-      status.textContent = 'Could not parse AI response. Try again.';
-      document.getElementById('ews-full-analysis').textContent = text.slice(0, 500);
-    }
-  } catch(e) {
-    status.textContent = 'Error: ' + e.message;
+    document.querySelectorAll('.ews-asset-btn.active .ews-asset-dot').forEach(function(dot) {
+      dot.className = 'ews-asset-dot ' + (json.bias === 'bullish' ? 'bull' : json.bias === 'bearish' ? 'bear' : 'neut');
+    });
+    document.getElementById('ews-updated').textContent = 'Updated ' + new Date().toLocaleDateString('en-GB', {day: 'numeric', month: 'short', year: 'numeric'});
+    status.textContent = '✓ Analysis complete · same engine as the Telegram /ews';
+    if (typeof XFPremium !== 'undefined' && typeof XFPremium.recordUse === 'function') { try { XFPremium.recordUse('elliott'); } catch (x) {} }
+    _ewsLastResult = { asset: asset, assetName: assetName, tf: tf, price: e.last_txt, json: json, engine: e };
+    ewsRefreshAdminButtons();
+  } catch (err) {
+    status.textContent = 'Error: ' + err.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '⚡ Generate Analysis';
   }
+}
 
-  btn.disabled = false;
-  btn.textContent = '⚡ Generate Analysis';
+// Grafico del motore (stesso PNG del /ews) al posto del grafico interattivo; torna interattivo
+// quando si cambia asset o timeframe.
+function ewsShowEngineImage(b64, alt) {
+  var wrap = document.getElementById('ews-analysis-wrap');
+  if (!wrap) return;
+  var box = document.getElementById('ews-engine-img-box');
+  if (!b64) { if (box) box.remove(); return; }
+  if (!box) {
+    box = document.createElement('div');
+    box.id = 'ews-engine-img-box';
+    box.style.cssText = 'background:#0f1724;';
+    wrap.insertBefore(box, wrap.firstChild);
+  }
+  box.innerHTML = '<img src="data:image/png;base64,' + b64 + '" alt="' + String(alt).replace(/"/g, '') +
+    ' Elliott Wave chart" style="display:block;width:100%;height:auto;">' +
+    '<div style="padding:6px 10px;font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:1px;">' +
+    'XenosFinance EW engine · same count as the Telegram /ews · ' +
+    '<a href="#" onclick="ewsHideEngineImage();return false;" style="color:var(--gold2);">interactive chart</a></div>';
+  Array.prototype.forEach.call(wrap.children, function(c) { if (c !== box) c.style.display = 'none'; });
+}
+
+function ewsHideEngineImage() {
+  var wrap = document.getElementById('ews-analysis-wrap');
+  var box = document.getElementById('ews-engine-img-box');
+  if (box) box.remove();
+  if (wrap) Array.prototype.forEach.call(wrap.children, function(c) { c.style.display = ''; });
+  if (_ewsChart && typeof _ewsChart.timeScale === 'function') { try { _ewsChart.timeScale().fitContent(); } catch (x) {} }
 }
 
 // Mostra Telegram / Active Setup solo ad admin e solo se c'è un'analisi.

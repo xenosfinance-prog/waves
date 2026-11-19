@@ -2869,12 +2869,13 @@ def _ews_payload(sym_key, tf):
     return out
 
 
-@app.route("/ews-chart", methods=["POST", "OPTIONS"])
+@app.route("/ews-chart", methods=["GET", "POST", "OPTIONS"])
 def ews_chart():
     if request.method == "OPTIONS":
         return Response(status=200)
     try:
-        body = request.get_json(force=True) or {}
+        # GET ?symbol=&tf=[&fmt=png] per controlli e link diretti al grafico
+        body = (request.get_json(force=True, silent=True) or {}) if request.method == "POST" else request.args
         raw = str(body.get("symbol", "")).upper().strip()
         tf = str(body.get("tf", "H4")).upper().strip()[:3]
         tf = {"M15": "M15", "H1": "H1", "H4": "H4", "D1": "D1", "W1": "W1"}.get(tf)
@@ -2888,10 +2889,18 @@ def ews_chart():
         ck = (key, tf)
         hit = _EWS_CACHE.get(ck)
         if hit and _ews_time.time() - hit[0] < _EWS_TTL[tf]:
-            return jsonify(hit[1])
-        out = _ews_payload(key, tf)
-        if out.get("ok"):
-            _EWS_CACHE[ck] = (_ews_time.time(), out)
+            out = hit[1]
+        else:
+            out = _ews_payload(key, tf)
+            if out.get("ok"):
+                _EWS_CACHE[ck] = (_ews_time.time(), out)
+        if str(body.get("fmt", "")).lower() == "png":
+            if not out.get("png"):
+                return jsonify({k: v for k, v in out.items() if k != "png"}), 404
+            return Response(_ews_b64.b64decode(out["png"]), mimetype="image/png",
+                            headers={"Cache-Control": "public, max-age=120"})
+        if request.method == "GET":
+            return jsonify({k: v for k, v in out.items() if k != "png"})
         return jsonify(out)
     except Exception as e:
         logger.error(f"/ews-chart: {e}", exc_info=True)
