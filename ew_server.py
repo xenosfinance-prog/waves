@@ -2864,6 +2864,7 @@ def _ews_payload(sym_key, tf):
         "invalidation": inv, "invalidation_txt": _EWS._ews_num(inv, pf) if inv is not None else None,
         "entry": r.get("entry"), "entry_txt": _EWS._ews_num(r["entry"], pf) if r.get("entry") is not None else None,
         "targets": targets, "text_html": r.get("text", ""),
+        "no_trade": bool(r.get("no_trade")), "rr": round(r["rr"], 2) if r.get("rr") is not None else None,
         "png": _ews_b64.b64encode(r["img"]).decode() if r.get("img") else None,
     })
     return out

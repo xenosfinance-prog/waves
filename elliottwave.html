@@ -4799,7 +4799,8 @@ async function ewsRunAnalysis() {
     var mDesk = /📝 <b>Desk note<\/b>\n([\s\S]*)$/.exec(e.text_html || '');
     if (mDesk) deskNote = mDesk[1].replace(/<[^>]+>/g, '').trim();
     var countLine = e.count ? ('Wave ' + e.wave + ' in progress · ' + e.degree + ' degree · ' +
-      (e.bias === 'bullish' ? 'Bullish' : e.bias === 'bearish' ? 'Bearish' : 'Neutral') + ' scenario') : (e.summary || 'No valid count');
+      (e.bias === 'bullish' ? 'Bullish' : e.bias === 'bearish' ? 'Bearish' : 'Neutral') + ' scenario' +
+      (e.no_trade && e.rr != null ? ' · no trade setup (reward/risk 1:' + Number(e.rr).toFixed(1) + ')' : '')) : (e.summary || 'No valid count');
 
     // Pannelli: solo dati del motore
     ewsSetBias(json.bias);

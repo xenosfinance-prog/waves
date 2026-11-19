@@ -1522,6 +1522,9 @@ EWS_STOCKS = ["AAPL", "AMZN", "BA", "CAT", "CRM", "DIS", "GOOGL", "GS", "HD", "J
               "JPM", "KO", "MCD", "MMM", "MSFT", "NVDA", "PG", "UNH", "V", "WMT"]
 
 
+EWS_MIN_RR = 1.5                         # 2026-11-19: sotto questo R:R il /ews mostra solo il conteggio
+
+
 EWS_BARS_DAYS = 60                       # 60 giorni di 1H → ~360 barre 4H
 
 
@@ -1602,7 +1605,13 @@ def _ews_desk_note(df4, ds, td, pf):
             r_prev = float(rsi(c).iloc[-4])
             rising = r > r_prev
             zone = "above 50" if r >= 50 else "below 50"
-            if (td > 0) == rising and ((r >= 50) == (td > 0)):
+            if wn in ("4", "B") and (td > 0) == rising:
+                # 2026-11-19: in onda 4/B si aspetta il rimbalzo/pullback: un RSI che va già nel verso
+                # dello scenario NON è "momentum" a favore, vuol dire che la correzione non è partita
+                # (Caterpillar 4H: "bounce under way" + "momentum is building in the direction of the scenario")
+                notes.append(f"RSI {r:.0f} still {'rising' if rising else 'falling'}: the wave {wn} "
+                             f"{'pullback' if td > 0 else 'bounce'} has not developed yet — no entry before the entry zone")
+            elif (td > 0) == rising and ((r >= 50) == (td > 0)):
                 notes.append(f"RSI {r:.0f} {'rising' if rising else 'falling'} {zone}: momentum is building in the direction of the scenario")
             elif (td > 0) == rising:
                 # 2026-11-13: RSI che gira nel verso giusto ma ancora dal lato opposto di 50 non è momentum
@@ -1665,10 +1674,19 @@ def _ews_build(sym, df4):
     waiting = wn in ("4", "B") or (wn == "E" and "likely complete" not in ds.get("wave_desc", ""))
     out["targets"] = [float(v) for v, _ in plan["targets"]]          # 2026-11-18: per gli Active Setups
     out["entry"] = ds.get("entry") if waiting else None
+    # 2026-11-19: R:R minimo per un setup operativo. Dal prezzo d'ingresso (zona di ingresso in onda
+    # 4/B, altrimenti l'ultimo prezzo) allo stop = invalidazione, contro il target più lontano. Sotto
+    # EWS_MIN_RR il post resta solo il conteggio: niente ingresso, niente piano, niente Active Setup.
+    no_trade, rr_val = False, None
+    _ref = out["entry"] if (waiting and out["entry"] is not None) else last
+    if td != 0 and inv is not None and plan["targets"] and abs(inv - _ref) > 0:
+        rr_val = abs(float(plan["targets"][-1][0]) - _ref) / abs(inv - _ref)
+        no_trade = rr_val < EWS_MIN_RR
+    out["no_trade"], out["rr"] = no_trade, rr_val
     lines.append("")
     if wn == "E" and td != 0 and "likely complete" in ds.get("wave_desc", ""):
         lines.append(f"<b>Trigger:</b> break of {_ews_num(eng.get('d_level'), pf)} (end of wave D)")
-    elif waiting and td != 0:
+    elif waiting and td != 0 and not no_trade:
         lines.append(f"<b>Entry zone:</b> {_ews_num(ds.get('entry'), pf)} · "
                      + (plan["entry_note"] or f"end of wave {wn}"))
     k0 = 2 if plan["reached"] else 1
@@ -1684,7 +1702,13 @@ def _ews_build(sym, df4):
 
     # nota da desk: piano operativo sulla posizione tecnica (ingresso, stop, R:R, trigger di
     # breakout/pullback, segnale di fine onda) + al massimo una lettura degli indicatori
-    notes = _ews_trade_plan(ds, eng, plan, df4, last, td, pf, wn, waiting, k0)
+    notes = _ews_trade_plan(ds, eng, plan, df4, last, td, pf, wn, waiting, k0) if not no_trade else []
+    if no_trade:
+        lines.insert(lines.index(next(x for x in lines if x.startswith("<b>Bias:</b>"))) + 1,
+                     f"⚖️ <b>No trade setup</b> — reward/risk 1:{rr_val:.1f} from {_ews_num(_ref, pf)}, below 1:{EWS_MIN_RR:g}")
+        notes = [f"the count is shown for reference only: with the stop at {_ews_num(inv, pf)} "
+                 f"({plan['inv_note'] or 'invalidation'}) the reward to T{k0 + len(plan['targets']) - 1} does not pay the risk "
+                 f"— wait for a better entry or a new structure"]
     dn = _ews_desk_note(df4, ds, td, pf) if td != 0 else ""
     if dn:
         notes += [x.strip().rstrip(".") for x in dn.split(";") if x.strip()][:1]
