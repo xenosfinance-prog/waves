@@ -47,6 +47,7 @@ const NAV_HTML = `
         <a href="${SITE}/portfolio">📈 Portfolio</a>
         <a href="${SITE}/cot/" data-i18n="nav_cot">🧭 COT Positioning</a>
         <a href="${SITE}/futures-flow/" data-i18n="nav_futures_flow">🛢 Futures Flow</a>
+        <a href="${SITE}/oil-options/">🧮 Oil Options</a>
         <a href="${SITE}/analysis/" data-i18n="nav_analysis">📊 Daily Analysis</a>
       </div>
     </div>

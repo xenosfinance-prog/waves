@@ -544,7 +544,7 @@ def build_page(res, day, now, en, it, bl, bl_it, chg):
                "publisher": {"@type": "Organization", "name": "XenosFinance"}, "mainEntityOfPage": f"{SITE}/oil-options/"}]
     return G.page_shell(title, desc, f"{SITE}/oil-options/", "\n".join(x for x in b if x), jsonld,
                         "crude oil options, OVX, oil implied volatility, oil skew, USO options open interest, WTI options",
-                        active="/futures-flow/", it_title=title_it)
+                        active="/oil-options/", it_title=title_it)
 
 
 def main():

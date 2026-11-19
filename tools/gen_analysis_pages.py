@@ -202,7 +202,7 @@ tr.poor td{color:var(--muted);}
 
 
 NAV = [("/", "Home"), ("/market-brief", "Market Brief"), ("/intelligence/", "Intelligence"), ("/dashboard", "Dashboard"),
-       ("/analysis/", "Daily Analysis"), ("/cot/", "COT Positioning"), ("/futures-flow/", "Futures Flow"),
+       ("/analysis/", "Daily Analysis"), ("/cot/", "COT Positioning"), ("/futures-flow/", "Futures Flow"), ("/oil-options/", "Oil Options"),
        ("/xenoswaves_charts", "Charts"), ("/XenosBlog", "Blog"), ("/trading-ideas", "Trading Ideas"),
        ("/live-setups", "Live Setups"), ("/calendar", "Calendar"), ("/elliottwave", "Elliott Wave"),
        ("/daily-education", "Education"), ("/premium", "Premium")]   # 2026-10-28: + Charts, Ideas, Setups, Education   # 2026-10-26: stessi servizi del menu principale del sito
