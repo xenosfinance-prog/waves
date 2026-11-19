@@ -1555,13 +1555,65 @@ def compute_ichimoku_signal(df, htf_df=None, sr_df=None, quality=False, min_room
             elif htf_full:
                 conviction = 85.0
 
-        # 2) Spazio fino al livello (swing confermati da almeno 3 barre:
-        #    un minimo fatto nelle ultime 3 barre è rottura in corso, non supporto)
+        # 2) ENTRATA SUL RITORNO, NON SULLA ROTTURA (2026-11-19)
+        #    Prima il filtro "spazio fino al livello" faceva aspettare la rottura del supporto e
+        #    poi entrava subito, inseguendo il prezzo, con lo stop lontano alla Kijun (oro 19/11:
+        #    trend 4/4 dalle 14:06, short solo alle 15:40 appena sotto 3694.5, stop 50$ sopra).
+        #    a) livello appena rotto (swing confermato, superato nelle ultime ICHI_RETEST_BARS
+        #       candele): si entra solo se il prezzo è tornato entro ICHI_RETEST_ATR × ATR dal
+        #       livello; lo stop va sopra/sotto il livello di ICHI_STOP_ATR × ATR (se più vicino
+        #       della Kijun) → rischio più piccolo, stesso € di rischio, più lotti, R:R migliore.
+        #    b) prezzo tirato: oltre ICHI_STRETCH_ATR × ATR dalla Tenkan → si aspetta il pullback.
         if filter_reason is None:
             src = sr_df if sr_df is not None else df
             pivots = find_pivots_zigzag(src, atr_mult=1.5)
             last_ok_idx = len(src) - 1 - 3
-            risk_dist = abs(float(kijun_now) - price_now)
+            atr_v = calc_atr(df, 14)
+            retest_atr = float(os.environ.get("ICHI_RETEST_ATR", "0.5"))
+            retest_bars = int(os.environ.get("ICHI_RETEST_BARS", "12"))
+            stop_atr = float(os.environ.get("ICHI_STOP_ATR", "1.0"))
+            stretch_atr = float(os.environ.get("ICHI_STRETCH_ATR", "1.0"))
+            recent = close.iloc[-retest_bars:]
+            if direction == "DOWN":
+                brk = [p["price"] for p in pivots
+                       if p["type"] == "L" and p["idx"] <= last_ok_idx and p["price"] >= price_now]
+                broken = min(brk) if brk else None
+                if broken is not None and float(recent.max()) <= broken:
+                    broken = None            # rotto da tempo: non è una rottura di adesso
+            else:
+                brk = [p["price"] for p in pivots
+                       if p["type"] == "H" and p["idx"] <= last_ok_idx and p["price"] <= price_now]
+                broken = max(brk) if brk else None
+                if broken is not None and float(recent.min()) >= broken:
+                    broken = None
+            if broken is not None and atr_v > 0:
+                dist = (broken - price_now) if direction == "DOWN" else (price_now - broken)
+                nearest_level = broken
+                if dist > retest_atr * atr_v:
+                    filter_reason = "breakout_wait_retest"
+                else:
+                    lvl_stop = broken + stop_atr * atr_v if direction == "DOWN" else broken - stop_atr * atr_v
+                    k_stop = float(kijun_now)
+                    tighter = (lvl_stop < k_stop) if direction == "DOWN" else (lvl_stop > k_stop)
+                    stop = lvl_stop if tighter else k_stop
+                    risk = (stop - price_now) if direction == "DOWN" else (price_now - stop)
+                    if risk > 0:
+                        sgn = -1 if direction == "DOWN" else 1
+                        key_levels = {"stop_loss": round(stop, dp),
+                                      "tp1": round(price_now + sgn * risk * 2, dp),
+                                      "tp2": round(price_now + sgn * risk * 3, dp)}
+            if filter_reason is None and atr_v > 0:
+                stretch = ((float(tenkan_now) - price_now) if direction == "DOWN"
+                           else (price_now - float(tenkan_now))) / atr_v
+                if stretch > stretch_atr:
+                    filter_reason = "stretched_from_tenkan"
+
+        # 3) Spazio fino al prossimo livello (swing confermati da almeno 3 barre:
+        #    un minimo fatto nelle ultime 3 barre è rottura in corso, non supporto),
+        #    misurato con il rischio finale (stop eventualmente stretto al livello rotto)
+        if filter_reason is None:
+            stop_now = float(key_levels["stop_loss"]) if key_levels else float(kijun_now)
+            risk_dist = abs(stop_now - price_now)
             if direction == "DOWN":
                 lv = [p["price"] for p in pivots
                       if p["type"] == "L" and p["idx"] <= last_ok_idx and p["price"] < price_now]
