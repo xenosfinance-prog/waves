@@ -184,7 +184,7 @@ export async function onRequestGet(context) {
       educationalLevel: 'Intermediate',
       isAccessibleForFree: true,
       teaches: 'Trading and financial market analysis',
-      author: { '@type': 'Person', '@id': `${SITE}/about#founder`, name: 'Matteo Benedetto', url: `${SITE}/about` }, // 2026-11-17 E-E-A-T
+      author: { '@type': 'Person', '@id': `${SITE}/about#founder`, name: 'Manolis Evlogimenos', url: `${SITE}/about` }, // 2026-11-17 E-E-A-T
       publisher: { '@type': 'Organization', '@id': `${SITE}/#org`, name: 'XenosFinance', url: `${SITE}/` },
       isPartOf: { '@type': 'Course', name: 'XenosFinance Daily Market Education', url: baseUrl,
         provider: { '@id': `${SITE}/#org` } },

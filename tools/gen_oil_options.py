@@ -540,7 +540,7 @@ def build_page(res, day, now, en, it, bl, bl_it, chg):
           f'<a href="https://t.me/xenoswavefinance">{Lg("Telegram channel", "Canale Telegram")}</a></div></div>']
     jsonld = [{"@context": "https://schema.org", "@type": "Article", "headline": title, "description": desc,
                "dateModified": now.isoformat(),
-               "author": {"@type": "Person", "@id": f"{SITE}/about#founder", "name": "Matteo Benedetto", "url": f"{SITE}/about"},
+               "author": {"@type": "Person", "@id": f"{SITE}/about#founder", "name": "Manolis Evlogimenos", "url": f"{SITE}/about"},
                "publisher": {"@type": "Organization", "name": "XenosFinance"}, "mainEntityOfPage": f"{SITE}/oil-options/"}]
     return G.page_shell(title, desc, f"{SITE}/oil-options/", "\n".join(x for x in b if x), jsonld,
                         "crude oil options, OVX, oil implied volatility, oil skew, USO options open interest, WTI options",

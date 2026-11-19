@@ -230,7 +230,7 @@ function setupPage(s, all) {
     { '@context': 'https://schema.org', '@type': 'Article', headline: `${name} ${sideW} Setup — ${tf}`, description: desc,
       datePublished: s.timestamp, dateModified: s.timestamp, mainEntityOfPage: url,
       ...(s.image_url ? { image: s.image_url } : {}),
-      author: { '@type': 'Person', '@id': `${SITE}/about#founder`, name: 'Matteo Benedetto', url: `${SITE}/about` }, // 2026-11-17 E-E-A-T
+      author: { '@type': 'Person', '@id': `${SITE}/about#founder`, name: 'Manolis Evlogimenos', url: `${SITE}/about` }, // 2026-11-17 E-E-A-T
       publisher: { '@type': 'Organization', name: 'XenosFinance', logo: { '@type': 'ImageObject', url: `${SITE}/favicon-192.png` } } },
     { '@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: [
       { '@type': 'ListItem', position: 1, name: 'Home', item: SITE },
