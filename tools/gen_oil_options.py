@@ -313,13 +313,23 @@ def desk_read(res):
                       "the market is paying for a supply-driven spike.")
             it.append(f"Skew al rialzo: call 10% OTM a {ci:.1f}% di IV contro put a {pi:.1f}% (più care di {-s:.1f} punti) — "
                       "il mercato paga per coprirsi da uno spike di offerta.")
+        elif s <= -1.5:
+            en.append(f"Calls richer than puts: 10% OTM calls at {ci:.1f}% IV vs puts at {pi:.1f}% ({-s:.1f} pts) — "
+                      "more is paid for upside protection than for downside.")
+            it.append(f"Call più care delle put: call 10% OTM a {ci:.1f}% di IV contro put a {pi:.1f}% ({-s:.1f} punti) — "
+                      "si paga di più la protezione dal rialzo che dal ribasso.")
+        elif s >= 1.5:
+            en.append(f"Puts richer than calls: 10% OTM puts at {pi:.1f}% IV vs calls at {ci:.1f}% ({s:.1f} pts) — "
+                      "more is paid for downside protection.")
+            it.append(f"Put più care delle call: put 10% OTM a {pi:.1f}% di IV contro call a {ci:.1f}% ({s:.1f} punti) — "
+                      "si paga di più la protezione dal ribasso.")
         else:
             en.append(f"Balanced skew: 10% OTM puts {pi:.1f}% vs calls {ci:.1f}% IV ({s:+.1f} pts).")
             it.append(f"Skew equilibrato: put 10% OTM {pi:.1f}% contro call {ci:.1f}% di IV ({s:+.1f} punti).")
     if res.get("call_wall") and res.get("put_wall"):
         cw, pw = res["call_wall"], res["put_wall"]
         cww, pww = to_wti(res, cw), to_wti(res, pw)
-        wt_en = f" (≈ WTI {pww:.2f}–{cww:.2f})" if cww and pww else ""
+        wt_en = f" (≈ WTI {pww:.1f}–{cww:.1f})" if cww and pww else ""
         en.append(f"Largest put open interest at USO {pw:g}, largest call open interest at USO {cw:g}{wt_en}: "
                   "the range where options positioning is concentrated.")
         it.append(f"Massimo open interest sulle put a USO {pw:g}, sulle call a USO {cw:g}{wt_en}: "
@@ -332,13 +342,27 @@ def desk_read(res):
                   + (f", {res['pc_vol']:.2f} sui volumi." if res.get("pc_vol") is not None else "."))
     # sintesi
     skew, vrp = res.get("skew"), res.get("vrp")
-    if skew is not None and skew <= -3 and (vrp or 0) >= 3:
+    sk = skew if skew is not None else 0
+    un = res.get("unusual") or []
+    calls_un = [u for u in un if u["side"] == "c"]
+    puts_un = [u for u in un if u["side"] == "p"]
+    if vrp is not None and vrp <= -3 and sk <= -1.5:
+        bl = ("Volatility is cheap but calls are bid: the market underprices movement while paying for upside protection"
+              + (" — unusual call buying confirms it." if calls_un and len(calls_un) >= len(puts_un) else "."),
+              "Volatilità a buon mercato ma call richieste: il mercato sottoprezza il movimento mentre paga la protezione dal rialzo"
+              + (" — gli acquisti anomali di call lo confermano." if calls_un and len(calls_un) >= len(puts_un) else "."))
+    elif vrp is not None and vrp <= -3 and sk >= 1.5:
+        bl = ("Volatility is cheap but puts are bid: movement is underpriced while downside protection is in demand"
+              + (" — unusual put buying confirms it." if puts_un and len(puts_un) > len(calls_un) else "."),
+              "Volatilità a buon mercato ma put richieste: il movimento è sottoprezzato mentre si cerca protezione dal ribasso"
+              + (" — gli acquisti anomali di put lo confermano." if puts_un and len(puts_un) > len(calls_un) else "."))
+    elif sk <= -3 and (vrp or 0) >= 3:
         bl = ("Options are positioned for upside risk in crude: calls bid and implied volatility above realised.",
               "Le opzioni sono posizionate per un rischio al rialzo sul petrolio: call richieste e volatilità implicita sopra la realizzata.")
-    elif skew is not None and skew >= 3 and (vrp or 0) >= 3:
+    elif sk >= 3 and (vrp or 0) >= 3:
         bl = ("Options are positioned for downside risk in crude: puts bid and implied volatility above realised.",
               "Le opzioni sono posizionate per un rischio al ribasso sul petrolio: put richieste e volatilità implicita sopra la realizzata.")
-    elif (vrp or 0) <= -3:
+    elif vrp is not None and vrp <= -3:
         bl = ("Complacent options market: volatility is cheap relative to how oil is actually moving.",
               "Mercato delle opzioni compiacente: la volatilità costa poco rispetto a come si muove davvero il petrolio.")
     else:
@@ -390,34 +414,77 @@ def oi_svg(res, w=760, h=230):
     return "".join(out)
 
 
+def _dmy(iso):
+    try:
+        return datetime.strptime(str(iso)[:10], "%Y-%m-%d").strftime("%d %b").lstrip("0")
+    except Exception:
+        return str(iso)
+
+
 def telegram_html(res, day, en, bl, chg):
+    """2026-11-19: post riscritto — prezzo WTI in testa, una sezione per tema, niente doppioni,
+    strike sempre tradotti in WTI. Il bot inserisce la vista Elliott (riga "Elliott Wave")
+    prima del Bottom line e la collega allo strike anomalo se coincide con l'invalidazione."""
     import html as H
+    e = H.escape
     L = ["<b>XENOS WAVE · OIL OPTIONS MONITOR</b>",
-         f"<b>Session {day:%a %d %b} · what the options market prices for crude</b>", ""]
-    tab = [f"OVX        {res['ovx']:>6.2f}  {res['ovx_chg']:+.2f}  p{res['ovx_pct']:.0f}"]
-    if res.get("rv20") is not None:
-        tab.append(f"WTI RV20   {res['rv20']:>6.1f}  prem {res['vrp']:+.1f}")
+         f"<b>Close {day:%a %d %b} · what options price for crude</b>", ""]
+    head = f"<b>WTI {res['wti']:.2f}</b>" if res.get("wti") else ""
+    head += (" · " if head else "") + f"OVX {res['ovx']:.1f} ({res['ovx_chg']:+.2f}, {_ord(res['ovx_pct'])} pct 1y)"
+    L += [head, ""]
+    if res.get("vrp") is not None:
+        v, rv = res["vrp"], res["rv20"]
+        if v <= -3:
+            t = f"OVX {res['ovx']:.1f} vs 20-day realised {rv:.1f}% → options cheap by {-v:.1f} pts. Protection is underpriced."
+        elif v >= 5:
+            t = f"OVX {res['ovx']:.1f} vs 20-day realised {rv:.1f}% → options rich by {v:.1f} pts. Event risk is being paid for."
+        else:
+            t = f"OVX {res['ovx']:.1f} vs 20-day realised {rv:.1f}% → implied and realised aligned ({v:+.1f} pts)."
+        L.append(f"<b>Volatility:</b> {e(t)}")
     if res.get("skew") is not None:
-        tab.append(f"Skew 10%   P {res['put10_iv']:.1f} / C {res['call10_iv']:.1f}  {res['skew']:+.1f}")
-    if res.get("pc_oi") is not None:
-        tab.append(f"P/C OI     {res['pc_oi']:>6.2f}" + (f"  vol {res['pc_vol']:.2f}" if res.get("pc_vol") is not None else ""))
+        sk, pi, ci = res["skew"], res["put10_iv"], res["call10_iv"]
+        if sk <= -1.5:
+            t = (f"calls richer than puts ({ci:.1f}% vs {pi:.1f}% IV, 10% OTM). "
+                 "The market pays more for upside protection than for downside.")
+        elif sk >= 1.5:
+            t = (f"puts richer than calls ({pi:.1f}% vs {ci:.1f}% IV, 10% OTM). "
+                 "The market pays more for downside protection.")
+        else:
+            t = f"balanced (puts {pi:.1f}% vs calls {ci:.1f}% IV, 10% OTM)."
+        L += ["", f"<b>Skew:</b> {e(t)}"]
+    un = res.get("unusual") or []
+    if un:
+        u = un[0]
+        uw = to_wti(res, u["k"])
+        mult = u["vol"] / max(u["oi"], 1)
+        side = "calls" if u["side"] == "c" else "puts"
+        t = (f"{u['vol']:,} USO {u['k']:g} {side}" + (f" (≈ WTI {uw:.1f})" if uw else "")
+             + f" expiring {_dmy(u['exp'])} traded against {u['oi']:,} open"
+             + (f", {mult:.0f}× the open interest." if mult >= 3 else "."))
+        same = [x for x in un if x["side"] == u["side"]]
+        if len(un) >= 3 and len(same) == len(un):
+            ks = [to_wti(res, x["k"]) for x in un]
+            if all(ks):
+                t += f" All {len(un)} unusual strikes are {side}, WTI ≈{min(ks):.1f}–{max(ks):.1f}."
+        L += ["", f"<b>The signal:</b> {e(t)}"]
+    pos = []
     if res.get("put_wall") and res.get("call_wall"):
         pw, cw = to_wti(res, res["put_wall"]), to_wti(res, res["call_wall"])
-        tab.append(f"Walls USO  {res['put_wall']:g} / {res['call_wall']:g}" + (f"  ≈WTI {pw:.1f}/{cw:.1f}" if pw and cw else ""))
-    L.append("<pre>" + H.escape("\n".join(tab)) + "</pre>")
-    L += ["<b>Desk read</b>"] + [H.escape(x) for x in en]
+        if pw and cw:
+            pos.append(f"open interest concentrated between WTI ≈{pw:.0f} (puts) and ≈{cw:.0f} (calls).")
+    if res.get("pc_oi") is not None:
+        pos.append(f"Put/call {res['pc_oi']:.2f} OI" + (f" · {res['pc_vol']:.2f} volume." if res.get("pc_vol") is not None else "."))
+    if pos:
+        L += ["", "<b>Positioning:</b> " + e(" ".join(pos))]
     if chg:
-        L += ["", "<b>Largest open-interest changes (USO)</b>"]
-        for c in chg[:4]:
-            L.append(H.escape(f"{'Calls' if c['side'] == 'c' else 'Puts'} {c['k']:g} {c['chg']:+,}"
-                              + (f" (≈ WTI {c['wti']:.2f})" if c.get("wti") else "")))
-    if res.get("unusual"):
-        u = res["unusual"][0]
-        L += ["", "<b>Unusual volume</b>: " + H.escape(
-            f"{'calls' if u['side'] == 'c' else 'puts'} {u['k']:g} exp {u['exp']} — {u['vol']:,} traded vs {u['oi']:,} open")]
-    L += ["", f"<b>Bottom line:</b> {H.escape(bl)}", "",
-          "<i>Data: CBOE OVX, NYMEX WTI front month, USO option chain. WTI levels ≈ USO strike × WTI/USO ratio.</i>",
-          f'Strike map and tables: <a href="{SITE}/oil-options/">xenosfinance.com/oil-options</a>']
+        bits = []
+        for c in chg[:3]:
+            bits.append(f"{'calls' if c['side'] == 'c' else 'puts'} {c['k']:g} {c['chg']:+,}"
+                        + (f" (≈ WTI {c['wti']:.1f})" if c.get("wti") else ""))
+        L += ["", "<b>Biggest OI changes:</b> " + e("; ".join(bits)) + "."]
+    L += ["", f"<b>Bottom line:</b> {e(bl)}", "",
+          "<i>Data: CBOE OVX, NYMEX WTI front month, USO options.</i>",
+          f'Charts: <a href="{SITE}/oil-options/">xenosfinance.com/oil-options</a>']
     return "\n".join(L)
 
 
