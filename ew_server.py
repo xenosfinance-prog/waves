@@ -1918,6 +1918,85 @@ def ohlc():
         return jsonify({"error": str(e)}), 500
 
 
+# ─────────────────────────────────────────────────────────
+# 2026-11-19 — FILTRI QUALITÀ BOLLINGER+RSI (solo auto-trading)
+# 1) MA50 multi-TF: M30 → H1 e H4, H1 → H4, H4 → H4. BUY solo con close
+#    sopra la SMA50 di tutti i TF di controllo, SELL solo sotto.
+# 2) Volume: la candela che ha forato la banda (chiusa) o quella di rientro
+#    deve avere volume ≥ media 20 candele precedenti. Senza volume reale
+#    (forex Yahoo = 0) il controllo è saltato e segnalato "n/a".
+# ─────────────────────────────────────────────────────────
+BB_MA_PERIOD = int(os.getenv("BB_MA_PERIOD", "50"))
+BB_VOL_PERIOD = int(os.getenv("BB_VOL_PERIOD", "20"))
+BB_VOL_MIN_RATIO = float(os.getenv("BB_VOL_MIN_RATIO", "1.0"))
+_BB_MA_TFS = {
+    "M15 (15-Min)": ["H1 (1-Hour)", "H4 (4-Hour)"],
+    "M30 (30-Min)": ["H1 (1-Hour)", "H4 (4-Hour)"],
+    "H1 (1-Hour)":  ["H4 (4-Hour)"],
+    "H4 (4-Hour)":  ["H4 (4-Hour)"],
+}
+_bb_ma_cache = {}
+
+
+def _bb_htf_ma(yf_sym, tf):
+    """(close, sma50) sull'ultima candela del TF. Cache 5 min."""
+    import time as _t
+    key = (yf_sym, tf)
+    hit = _bb_ma_cache.get(key)
+    if hit and _t.time() - hit[0] < 300:
+        return hit[1]
+    iv, pd_, *_ = TF_CONFIG[tf]
+    is_h4 = tf == "H4 (4-Hour)"
+    # H4: 60d di 1h bastano per >50 candele 4h anche sugli indici (7h/giorno)
+    d = fetch_candles(yf_sym, iv, "90d" if is_h4 else pd_, 10**6, is_h4)
+    c = d["Close"].astype(float)
+    if len(c) < BB_MA_PERIOD:
+        val = None
+    else:
+        val = (float(c.iloc[-1]), float(c.rolling(BB_MA_PERIOD).mean().iloc[-1]))
+    _bb_ma_cache[key] = (_t.time(), val)
+    return val
+
+
+def _bb_quality_filter(yf_sym, tf_raw, df, direction):
+    info = {"ma": {}, "volume": None}
+    # 1) MA50
+    for tf in _BB_MA_TFS.get(tf_raw, ["H4 (4-Hour)"]):
+        try:
+            if tf == tf_raw:
+                c = df["Close"].astype(float)
+                v = (float(c.iloc[-1]), float(c.rolling(BB_MA_PERIOD).mean().iloc[-1])) \
+                    if len(c) >= BB_MA_PERIOD else _bb_htf_ma(yf_sym, tf)
+            else:
+                v = _bb_htf_ma(yf_sym, tf)
+        except Exception as e:
+            return f"ma50_unavailable_{tf.split()[0]}", {**info, "error": str(e)}
+        if v is None or v[1] != v[1]:
+            return f"ma50_unavailable_{tf.split()[0]}", info
+        close, ma = v
+        info["ma"][tf.split()[0]] = {"close": round(close, 6), "sma50": round(ma, 6)}
+        if direction == "UP" and close <= ma:
+            return f"ma50_not_aligned_{tf.split()[0]}", info
+        if direction == "DOWN" and close >= ma:
+            return f"ma50_not_aligned_{tf.split()[0]}", info
+    # 2) Volume
+    try:
+        vol = df["Volume"].astype(float).values
+    except Exception:
+        vol = None
+    if vol is None or len(vol) < BB_VOL_PERIOD + 2 or float(np.nansum(vol[-(BB_VOL_PERIOD + 2):])) <= 0:
+        info["volume"] = "n/a"
+        return None, info
+    avg = float(np.nanmean(vol[-(BB_VOL_PERIOD + 2):-2]))
+    best = max(float(vol[-2]), float(vol[-1]))
+    ratio = best / avg if avg > 0 else 0.0
+    info["volume"] = {"pierce": float(vol[-2]), "current": float(vol[-1]), "avg20": round(avg, 1),
+                      "ratio": round(ratio, 2)}
+    if ratio < BB_VOL_MIN_RATIO:
+        return "volume_weak", info
+    return None, info
+
+
 @app.route("/bollinger-rsi-chart", methods=["POST","OPTIONS"])
 def bollinger_rsi_chart():
     if request.method == "OPTIONS":
@@ -1945,6 +2024,15 @@ def bollinger_rsi_chart():
         result = compute_bollinger_rsi_signal(df)
         if result is None:
             return jsonify({"error":"Insufficient history for Bollinger/RSI (need 25+ bars)."}), 400
+
+        # 2026-11-19: filtri qualità per l'auto-trading (body "quality": true).
+        # Il sito resta invariato (senza flag nessun filtro).
+        if body.get("quality") and result.get("direction") in ("UP", "DOWN"):
+            why, qinfo = _bb_quality_filter(yf_sym, tf_raw, df, result["direction"])
+            result["quality"] = qinfo
+            if why:
+                result["filter_reason"] = why
+                result["direction"] = None
 
         logger.info(f"[bollinger_rsi] {sym_raw.upper()} {tf_raw}: direction={result['direction']} "
                     f"warning={result['warning']} rsi={result['rsi']}")
