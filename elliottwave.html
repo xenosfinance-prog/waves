@@ -1289,6 +1289,13 @@ canvas { display: block; }
     <div id="publicWaveFeed" style="margin-bottom:40px;">
       <div style="font-size:9px;letter-spacing:4px;color:var(--gold);text-transform:uppercase;margin-bottom:16px;"><span data-i18n="label_ew_active">Active Setups</span></div>
       <div id="publicNotesList"></div>
+      <!-- 2026-11-20: EWS track record (solo admin) — esiti reali dei setup /ews pubblicati, da /data/ews_track.json -->
+      <div id="ewsTrackBox" style="display:none;margin-top:28px;background:var(--bg2);border:1px solid var(--border);padding:20px 22px;">
+        <div style="font-size:9px;letter-spacing:4px;color:var(--gold);text-transform:uppercase;margin-bottom:12px;">EWS Track Record · admin</div>
+        <div id="ewsTrackStats" style="font-family:var(--mono);font-size:11px;color:var(--text);line-height:1.7;"></div>
+        <div id="ewsTrackRows" style="margin-top:12px;font-family:var(--mono);font-size:10.5px;"></div>
+        <div style="margin-top:12px;font-size:9.5px;color:var(--muted);line-height:1.6;">Real H1 candles after each publication. Stop = invalidation; with two targets half closes at T1 and the stop moves to break-even. A candle touching both stop and target counts as stop. Horizon 21 days.</div>
+      </div>
       <div id="publicNotesEmpty" style="display:none;background:var(--bg2);border:1px solid var(--border);padding:32px;text-align:center;">
         <div style="font-size:11px;color:var(--muted);letter-spacing:2px;"><span data-i18n="label_ew_no_setups">No active wave setups published yet.</span></div>
         <a href="https://t.me/xenoswavefinance" target="_blank" rel="noopener" style="display:inline-block;margin-top:16px;font-family:var(--mono);font-size:10px;color:var(--gold);text-decoration:none;letter-spacing:2px;">📡 <span data-i18n="label_follow_updates">Follow @xenoswavefinance for updates</span></a>
@@ -1559,6 +1566,46 @@ function noteAutoBias() {
   sel.value = (bull && !bear) ? 'bullish' : (bear && !bull) ? 'bearish' : '';
 }
 
+// 2026-11-20: EWS track record (solo admin)
+const EWS_ST = {open:'in progress', t1_open:'T1 hit · runner at BE', pending:'waiting for entry', t2:'T2', t1:'T1',
+  be:'T1 + break-even', sl:'stop', expired:'expired', cancelled:'cancelled', not_triggered:'entry never hit', replaced:'replaced'};
+async function renderEwsTrack() {
+  var box = document.getElementById('ewsTrackBox');
+  if (!box) return;
+  if (!isAdminUnlocked) { box.style.display = 'none'; return; }
+  var data = [];
+  try {
+    var r = await fetch('/data/ews_track.json?t=' + Date.now(), { cache: 'no-store', signal: AbortSignal.timeout(6000) });
+    if (r.ok) { var j = await r.json(); if (Array.isArray(j)) data = j; }
+  } catch(e) {}
+  box.style.display = 'block';
+  var st = document.getElementById('ewsTrackStats'), rows = document.getElementById('ewsTrackRows');
+  if (!data.length) { st.textContent = 'No EWS setups tracked yet.'; rows.innerHTML = ''; return; }
+  var closed = data.filter(function(x){ return ['t2','t1','be','sl','expired','replaced'].indexOf(x.status) >= 0 && x.entry != null; });
+  var live = data.filter(function(x){ return x.status === 'open' || x.status === 't1_open'; });
+  var pend = data.filter(function(x){ return x.status === 'pending'; });
+  var line = 'Published ' + data.length + ' · closed ' + closed.length + ' · in progress ' + live.length + ' · waiting for entry ' + pend.length;
+  if (closed.length) {
+    var tot = closed.reduce(function(a,x){ return a + (x.r || 0); }, 0);
+    var w = closed.filter(function(x){ return (x.r || 0) > 0; }).length;
+    line += '<br>Win rate ' + Math.round(100 * w / closed.length) + '% · expectancy ' + (tot / closed.length >= 0 ? '+' : '') +
+            (tot / closed.length).toFixed(2) + 'R per setup · total ' + (tot >= 0 ? '+' : '') + tot.toFixed(1) + 'R';
+  }
+  st.innerHTML = line;
+  rows.innerHTML = '';
+  data.slice().sort(function(a,b){ return b.ts - a.ts; }).slice(0, 30).forEach(function(x) {
+    var d = document.createElement('div');
+    d.style.cssText = 'display:flex;gap:12px;padding:5px 0;border-top:1px solid var(--border);';
+    var col = x.r > 0 ? 'var(--green,#3fb950)' : x.r < 0 ? 'var(--red,#f85149)' : 'var(--muted)';
+    var dt = new Date(x.ts * 1000).toLocaleDateString('en-GB', {day:'2-digit', month:'short'});
+    var res = (x.r != null) ? ((x.r > 0 ? '+' : '') + x.r.toFixed(2) + 'R') : (x.r_t1 != null ? ('T1 ' + (x.r_t1 > 0 ? '+' : '') + x.r_t1.toFixed(2) + 'R on half') : '—');
+    [[dt,'60px','var(--muted)'], [(x.name || x.sym) + ' ' + (x.dir === 'BUY' ? '▲' : '▼'),'150px','var(--text)'],
+     ['wave ' + (x.wave || '?'),'70px','var(--muted)'], [EWS_ST[x.status] || x.status,'170px','var(--text)'], [res,'auto',col]]
+      .forEach(function(c){ var s = document.createElement('span'); s.textContent = c[0]; s.style.cssText = 'width:' + c[1] + ';color:' + c[2] + ';'; d.appendChild(s); });
+    rows.appendChild(d);
+  });
+}
+
 async function renderPublicFeed(preloadedNotes) {
   var notes = preloadedNotes || await loadNotes();
   var list = document.getElementById('publicNotesList');
@@ -1571,6 +1618,7 @@ async function renderPublicFeed(preloadedNotes) {
     else wrap.classList.remove('admin-active');
   }
   if (typeof ewsRefreshAdminButtons === 'function') ewsRefreshAdminButtons();
+  renderEwsTrack();
   if (!notes.length) {
     if (empty) empty.style.display = 'block';
     return;
