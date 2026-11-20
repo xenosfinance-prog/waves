@@ -901,6 +901,11 @@ def count_elliott_waves_engine(df):
             # L'onda ha già superato tutti i livelli Fibonacci: niente nuovo ingresso
             if wn in ("4", "B"):
                 entry = p
+                # FIX 2026-11-20: l'onda è già oltre l'ultimo Fibonacci → la 5 / la C si proiettano dall'estremo
+                # REALE della 4 / della B, non dal livello teorico (EUR/JPY 4H 20/11: B a 0.83 di A, T2 calcolato
+                # dallo 0.618 = 176.698 invece di 176.358, R:R 1:6.9 invece di ~1:5.7).
+                _ext = pv[-1]
+                nt = _ext + d * w1z if wn == "4" else _ext - d * abs(pv[5] - pv[6])
             else:
                 trade_dir = 0
                 bi = "NEUTRAL"
@@ -983,47 +988,97 @@ def _ewp_minor(degrees, eng):
     return min(cands, key=lambda o: o["len"]) if cands else None
 
 
-def _ewp_abc(df, i0, i1, p0, p1):
-    """2026-10-26: suddivisione a-b-c di un'onda correttiva completata (onde 2, 4, B) dai prezzi reali.
-    i0/p0 = inizio della correzione (pivot), i1/p1 = fine. Cerca a (primo estremo nella direzione della
-    correzione), b (rimbalzo contrario 23.6–90% di a) e c = fine dell'onda (oltre a, o vicino ad a nei flat).
-    Ritorna [(ia, pa), (ib, pb)] oppure None se dentro l'onda non c'è una struttura a-b-c leggibile."""
+EWP_ABC_MIN_BARS = 5
+
+
+EWP_ABC_TOL = 0.15                                   # ±15% sui rapporti, come le regole del motore
+
+
+EWP_ABC_B_FIBS = (0.382, 0.5, 0.618, 0.786)          # ritracciamento di b su a
+
+
+EWP_ABC_C_FIBS = (0.618, 1.0, 1.272, 1.618)          # lunghezza di c rispetto ad a
+
+
+EWP_ABC_B_RANGE = (0.236, 0.886)                     # fuori da qui non è una b
+
+
+def _ewp_fib_err(x, fibs):
+    """errore relativo dal livello Fibonacci più vicino → (errore, livello)."""
+    return min((abs(x - f) / f, f) for f in fibs)
+
+
+def _ewp_abc(df, i0, i1, p0, p1, tag=""):
+    """Suddivisione a-b-c di un'onda correttiva completata (2, 4, B) dai prezzi reali.
+    i0/p0 = inizio della correzione (pivot), i1/p1 = fine (= fine di c).
+    Candidati: a = nuovo estremo della prima gamba, b = estremo opposto tra a e la fine.
+    Regole: gamba a ≥ 25% della correzione; b ritraccia 23.6–88.6% di a; c arriva oltre a (zigzag)
+    o entro il 10% di a (flat); c/a entro ±15% di 0.618 / 1.0 / 1.272 / 1.618.
+    Tra i candidati validi vince quello con i rapporti b/a e c/a più vicini a Fibonacci.
+    Ritorna [(ia, pa), (ib, pb)] oppure None; il motivo dello scarto va nel log ([ew-abc])."""
+    def skip(why):
+        logger.info(f"[ew-abc] {tag} skipped: {why}")
+        return None
     try:
-        if i1 - i0 < 6:
-            return None
+        if i1 - i0 < EWP_ABC_MIN_BARS:
+            return skip(f"too short ({i1 - i0} bars < {EWP_ABC_MIN_BARS})")
         dn = p1 < p0                                   # correzione verso il basso?
         hi = df["high"].values.astype(float)
         lo = df["low"].values.astype(float)
         size = abs(p0 - p1)
-        best, best_sc = None, 0.0
-        for ia in range(i0 + 2, i1 - 3):
+        if size <= 0:
+            return skip("zero-size wave")
+        mid = lo[i0 + 1:i1] if dn else hi[i0 + 1:i1]
+        if (dn and mid.min() < p1 - 1e-12) or (not dn and mid.max() > p1 + 1e-12):
+            return skip("price beyond the end of the wave inside it")
+        best, best_err = None, None
+        seen = {"a": 0, "b": 0, "c": 0, "fib": 0}
+        for ia in range(i0 + 1, i1 - 1):
             pa = lo[ia] if dn else hi[ia]
             seg_a = lo[i0 + 1:ia + 1] if dn else hi[i0 + 1:ia + 1]
             if (dn and pa > seg_a.min()) or (not dn and pa < seg_a.max()):
                 continue                               # a = estremo della prima gamba
-            rng_b = range(ia + 2, i1 - 1)
-            if not len(rng_b):
-                continue
-            ib = max(rng_b, key=lambda k: hi[k]) if dn else min(rng_b, key=lambda k: lo[k])
-            pb = hi[ib] if dn else lo[ib]
             leg_a = abs(p0 - pa)
-            if leg_a < 0.3 * size or ib - ia < 2 or i1 - ib < 2:
+            if leg_a < 0.25 * size:
                 continue
-            retr = abs(pb - pa) / leg_a
-            if not 0.236 <= retr <= 0.9:
+            seen["a"] += 1
+            seg_b = hi[ia + 1:i1] if dn else lo[ia + 1:i1]
+            if not len(seg_b):
                 continue
-            # c deve arrivare almeno vicino ad a (zigzag: oltre; flat: ±10% della gamba a)
+            ib = ia + 1 + (int(np.argmax(seg_b)) if dn else int(np.argmin(seg_b)))
+            pb = hi[ib] if dn else lo[ib]
+            if ib >= i1:
+                continue
+            b_r = abs(pb - pa) / leg_a
+            if not EWP_ABC_B_RANGE[0] <= b_r <= EWP_ABC_B_RANGE[1]:
+                continue
+            seen["b"] += 1
+            # c arriva oltre a (zigzag) o vicino ad a (flat, ±10% di a)
             if (dn and p1 > pa + 0.1 * leg_a) or (not dn and p1 < pa - 0.1 * leg_a):
                 continue
-            # nessun prezzo oltre la fine dell'onda dentro la correzione
-            mid = lo[i0 + 1:i1] if dn else hi[i0 + 1:i1]
-            if (dn and mid.min() < p1 - 1e-12) or (not dn and mid.max() > p1 + 1e-12):
-                return None
-            sc = abs(pb - pa) * min(ib - ia, i1 - ib)
-            if sc > best_sc:
-                best, best_sc = [(ia, pa), (ib, pb)], sc
-        return best
-    except Exception:
+            seen["c"] += 1
+            c_r = abs(p1 - pb) / leg_a
+            e_c, f_c = _ewp_fib_err(c_r, EWP_ABC_C_FIBS)
+            if e_c > EWP_ABC_TOL:
+                continue
+            seen["fib"] += 1
+            e_b, f_b = _ewp_fib_err(b_r, EWP_ABC_B_FIBS)
+            err = e_c + 0.5 * min(e_b, 0.5)            # c/a pesa di più; b fuori dai livelli penalizza
+            if best_err is None or err < best_err:
+                best, best_err = ([(ia, pa), (ib, pb)], (b_r, f_b, c_r, f_c)), err
+        if not best:
+            if not seen["a"]:
+                return skip("no first leg a (≥25% of the wave)")
+            if not seen["b"]:
+                return skip("no b retracing 23.6–88.6% of a")
+            if not seen["c"]:
+                return skip("c does not reach the end of a")
+            return skip(f"c/a not within ±{EWP_ABC_TOL:.0%} of 0.618/1.0/1.272/1.618")
+        b_r, f_b, c_r, f_c = best[1]
+        logger.info(f"[ew-abc] {tag} drawn: b = {b_r:.3f} of a (fib {f_b:g}), c = {c_r:.3f}×a (fib {f_c:g})")
+        return best[0]
+    except Exception as e:
+        logger.warning(f"[ew-abc] {tag} error: {e}")
         return None
 
 
@@ -1168,9 +1223,14 @@ def _ew_pro_panel(ax, df, eng, degrees, pf, setup, compact=False, base_bars=70, 
                 if piv[k]["label"] not in ("2", "4", "B"):
                     continue
                 i0, i1 = piv[k - 1]["i"], piv[k]["i"]
-                if i0 < start or any(i0 < q < i1 for q in mn_idx):
+                _tag = f"wave {piv[k]['label']} {str(df.index[i0])[:16]} → {str(df.index[i1])[:16]}"
+                if i0 < start:
+                    logger.info(f"[ew-abc] {_tag} skipped: starts before the visible chart")
                     continue
-                abc = _ewp_abc(df, i0, i1, piv[k - 1]["p"], piv[k]["p"])
+                if any(i0 < q < i1 for q in mn_idx):
+                    logger.info(f"[ew-abc] {_tag} skipped: minor-degree count already drawn inside")
+                    continue
+                abc = _ewp_abc(df, i0, i1, piv[k - 1]["p"], piv[k]["p"], _tag)
                 if not abc:
                     continue
                 (ia, pa), (ib, pb) = abc
@@ -1346,6 +1406,16 @@ def _ew_mature_note(eng, wn, fmt):
         return out
     if wn in ("4", "B"):
         base = "wave 3" if wn == "4" else "wave A"
+        # FIX 2026-11-20: se l'onda è andata oltre l'ultimo livello si dice il ritracciamento REALE
+        # (prima "B has reached the 0.618" con B già a 0.83 di A)
+        k0_, k1_, kc_, ki_ = ("2", "3", "4", "1") if wn == "4" else ("5", "A", "B", "5")
+        if all(k in pv for k in (k0_, k1_, kc_)) and pv[k1_] != pv[k0_]:
+            act = abs(pv[kc_] - pv[k1_]) / abs(pv[k1_] - pv[k0_])
+            if act > f["r"] + 0.02:
+                hold = "below" if up else "above"
+                return [f"Wave {wn} has gone past the {r} retracement of {base} ({lvl}) and now retraces "
+                        f"{act:.3f} of it ({fmt(pv[kc_])}): deep correction, the count holds while price stays "
+                        f"{hold} {fmt(pv[ki_])} ({'end of wave 1' if wn == '4' else 'start of wave A'})"]
         return [f"Wave {wn} has reached the {r} retracement of {base} ({lvl}), the usual end zone for this correction"]
     return []
 
