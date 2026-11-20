@@ -484,7 +484,9 @@ def telegram_html(res, day, en, bl, chg):
         L += ["", "<b>Biggest OI changes:</b> " + e("; ".join(bits)) + "."]
     L += ["", f"<b>Bottom line:</b> {e(bl)}", "",
           "<i>Data: CBOE OVX, NYMEX WTI front month, USO options.</i>",
-          f'Charts: <a href="{SITE}/oil-options/">xenosfinance.com/oil-options</a>']
+          # 2026-11-20: ?d=<sessione> → URL nuovo ogni giorno, così Telegram non riusa l'anteprima
+          # in cache del giorno prima (titolo/descrizione con la data vecchia)
+          f'Charts: <a href="{SITE}/oil-options/?d={res["session"]}">xenosfinance.com/oil-options</a>']
     return "\n".join(L)
 
 
