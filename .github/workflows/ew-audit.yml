@@ -27,10 +27,14 @@ jobs:
       - name: Audit (v0 = main, v1 = this branch)
         run: |
           git show origin/main:ew_server.py > tools/_ew_main.py
+          # 2026-11-20: ew_server.py importa ews_engine (sync col bot): senza il modulo
+          # di main l'audit della versione v0 crasha con ModuleNotFoundError
+          git show origin/main:ews_engine.py > ews_engine.py 2>/dev/null || rm -f ews_engine.py
           set +e
           python tools/ew_audit.py tools/_ew_main.py ew_server.py > tools/ew_audit_report.txt 2>&1
           echo "exit=$?" >> tools/ew_audit_report.txt
           rm -f tools/_ew_main.py
+          git checkout -- ews_engine.py 2>/dev/null || rm -f ews_engine.py
           pip install pytz >/dev/null 2>&1
           python tools/bot_ew_audit.py WMT > tools/bot_ew_audit_report.txt 2>&1
           echo "exit=$?" >> tools/bot_ew_audit_report.txt
