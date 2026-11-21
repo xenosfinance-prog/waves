@@ -1402,7 +1402,9 @@ const SYM_MAP = {
 };
 
 async function fetchLivePrices() {
-  const open = trades.filter(t => t.status === 'Open');
+  // 2026-11-21: le posizioni sincronizzate dal broker hanno già il prezzo del broker (currentSrc 'broker'):
+  // Yahoo (future CL=F, spot ecc.) è un altro strumento e dava un P&L diverso da MT5. Yahoo solo per le altre.
+  const open = trades.filter(t => t.status === 'Open' && t.currentSrc !== 'broker');
   if (!open.length) return;
   const symMap = {};
   open.forEach(t => {
