@@ -459,7 +459,12 @@ def build_instrument_page(inst, d, ai, now, all_rows):
         rows += f'<tr><td>{L("Elliott Wave (4H)", "Onda di Elliott (4H)")}</td><td>{L(esc(ew["desc"]), esc(PI.ew_desc_it(ew["desc"])))}</td></tr>'
         if ew.get("invalidation") is not None:
             rows += f'<tr><td>{L("Elliott invalidation (4H)", "Invalidazione Elliott (4H)")}</td><td>{f(ew["invalidation"])}</td></tr>'
-        tps = [f(t) for t in (ew.get("tp1"), ew.get("tp2")) if t is not None]
+        raw_tps = [t for t in (ew.get("tp1"), ew.get("tp2")) if t is not None]
+        # 2026-11-21 checkup: niente target già superati (S&P 500 a 6918 mostrava T1 7061.83 su un'onda 3 ribassista)
+        if d.get("live") is not None and ew.get("invalidation") is not None:
+            up = float(ew["invalidation"]) < float(d["live"])
+            raw_tps = [t for t in raw_tps if (float(t) > float(d["live"])) == up]
+        tps = [f(t) for t in raw_tps]
         if tps:
             rows += f'<tr><td>{L("Elliott targets (4H)", "Target Elliott (4H)")}</td><td>{" · ".join(tps)}</td></tr>'
     pdv = d.get("prev_day") or {}
