@@ -2320,8 +2320,16 @@ def _ta_compute(yf_sym, dp, interval="15m", period="30d", htf_rule="1h", ew_tf=N
                 continue
             wnum, wdesc, _scen, kl = get_wave_position(cand, ew_live, dp, ew_atr)
             if wnum != "?":
-                ew = {"wave": wnum, "desc": wdesc, "invalidation": kl.get("stop_loss"),
-                      "tp1": kl.get("tp1"), "tp2": kl.get("tp2"),
+                # FIX 2026-11-22 (checkup): niente target già raggiunti/superati dal prezzo.
+                # Es. S&P 500 22/11: onda ③ al 211% di W1, tp1 (161.8%) 7061.83 sopra il prezzo 6918 in un ribasso.
+                _inv = kl.get("stop_loss")
+                _tps = [t for t in (kl.get("tp1"), kl.get("tp2")) if t is not None]
+                if _inv is not None and _tps:
+                    _long = _tps[0] > _inv
+                    _tps = [t for t in _tps if (t > ew_live if _long else t < ew_live)]
+                _tps += [None, None]
+                ew = {"wave": wnum, "desc": wdesc, "invalidation": _inv,
+                      "tp1": _tps[0], "tp2": _tps[1],
                       "prob": cand.get("prob"), "tf": (ew_tf or interval)}
                 break
     except Exception as e:
