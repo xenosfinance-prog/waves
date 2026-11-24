@@ -1290,6 +1290,83 @@ def quotes():
     return jsonify({"prices": out})
 
 # ─────────────────────────────────────────────────────────
+# 2026-11-24 — Workstation (workstation.html): livelli giornalieri e mercati correlati.
+#   GET /ws-levels?symbol=^NDX  → ieri H/L/C, oggi O/H/L/last, settimana H/L, pivot classici
+#   GET /ws-quotes?symbols=^GSPC,^VIX → come /quotes, con la whitelist della Workstation
+# Solo ticker in whitelist (niente proxy Yahoo aperto), cache 2 min.
+# ─────────────────────────────────────────────────────────
+WS_WHITELIST = {
+    "EURUSD=X", "GBPUSD=X", "USDJPY=X", "AUDUSD=X", "NZDUSD=X", "USDCHF=X", "USDCAD=X", "EURGBP=X", "EURJPY=X",
+    "GBPJPY=X", "AUDJPY=X", "CADJPY=X", "EURCHF=X", "AUDCAD=X", "AUDCHF=X", "DX-Y.NYB",
+    "GC=F", "SI=F", "CL=F", "BZ=F", "NG=F", "HG=F",
+    "^GSPC", "^NDX", "^DJI", "^GDAXI", "^FTSE", "^N225", "^VIX", "^TNX",
+    "BTC-USD", "ETH-USD", "SOL-USD", "XRP-USD",
+    "AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "TSLA", "JPM", "GS", "V", "WMT", "CVX", "XOM"}
+_ws_lv_cache = {}
+
+
+@app.route("/ws-levels", methods=["GET"])
+def ws_levels():
+    import time as _t
+    sym = request.args.get("symbol", "").strip()
+    if sym not in WS_WHITELIST:
+        return jsonify({"ok": False, "error": "symbol not supported"}), 400
+    hit = _ws_lv_cache.get(sym)
+    if hit and _t.time() - hit[0] < 120:
+        return jsonify(hit[1])
+    try:
+        ysym = (_cl_front_contract() or sym) if sym == "CL=F" else sym
+        d = yf.Ticker(ysym).history(period="1mo", interval="1d")
+        d = d.dropna(subset=["Open", "High", "Low", "Close"]) if not d.empty else d
+        if d is None or len(d) < 3:
+            return jsonify({"ok": False, "error": "no daily data"}), 404
+        today, prev = d.iloc[-1], d.iloc[-2]
+        ph, pl, pc = float(prev["High"]), float(prev["Low"]), float(prev["Close"])
+        pp = (ph + pl + pc) / 3
+        idx = d.index.tz_convert("UTC") if d.index.tz is not None else d.index.tz_localize("UTC")
+        wk = idx.isocalendar()
+        cur_w = (wk.year.iloc[-1], wk.week.iloc[-1])
+        same = [(y, w) == cur_w for y, w in zip(wk.year, wk.week)]
+        this_w = d[same]
+        prev_rows = d[[not x for x in same]]
+        if len(prev_rows):
+            pw = prev_rows.iloc[-1:]
+            pidx = idx[[not x for x in same]]
+            pkey = (pidx.isocalendar().year.iloc[-1], pidx.isocalendar().week.iloc[-1])
+            pw = prev_rows[[(y, w) == pkey for y, w in zip(pidx.isocalendar().year, pidx.isocalendar().week)]]
+        else:
+            pw = None
+        r = lambda v: round(float(v), 6)
+        out = {"ok": True, "symbol": sym, "contract": ysym if ysym != sym else None,
+               "date": str(idx[-1].date()),
+               "today": {"open": r(today["Open"]), "high": r(today["High"]), "low": r(today["Low"]), "last": r(today["Close"])},
+               "prev": {"high": r(ph), "low": r(pl), "close": r(pc)},
+               "week": {"high": r(this_w["High"].max()), "low": r(this_w["Low"].min())},
+               "prev_week": ({"high": r(pw["High"].max()), "low": r(pw["Low"].min())} if pw is not None and len(pw) else None),
+               "pivot": {"p": r(pp), "r1": r(2 * pp - pl), "s1": r(2 * pp - ph), "r2": r(pp + (ph - pl)), "s2": r(pp - (ph - pl))}}
+        _ws_lv_cache[sym] = (_t.time(), out)
+        return jsonify(out)
+    except Exception as e:
+        logger.warning(f"ws-levels {sym}: {e}")
+        return jsonify({"ok": False, "error": "data error"}), 500
+
+
+@app.route("/ws-quotes", methods=["GET"])
+def ws_quotes():
+    syms = [x.strip() for x in request.args.get("symbols", "").split(",") if x.strip()]
+    out = {}
+    for sym in syms[:8]:
+        if sym not in WS_WHITELIST:
+            continue
+        try:
+            q = _quote(sym)
+            if q:
+                out[sym] = q
+        except Exception as e:
+            logger.warning(f"ws-quotes: {sym} failed: {e}")
+    return jsonify({"prices": out})
+
+# ─────────────────────────────────────────────────────────
 # 2026-10-19 — /week-change: variazione a 5 sedute per il pannello "Weekly Performance"
 # della dashboard (prima mostrava la variazione giornaliera con l'etichetta "5-day change").
 #   GET /week-change?symbols=CL=F,GC=F,EURUSD=X  → {"changes": {"CL=F": -2.31, ...}}

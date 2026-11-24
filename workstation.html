@@ -74,6 +74,19 @@ button{font-family:var(--mono);cursor:pointer}
 .toast.show{opacity:1}
 .zoom{position:fixed;inset:0;background:rgba(5,10,18,.93);display:none;align-items:center;justify-content:center;z-index:40;cursor:zoom-out}
 .zoom img{max-width:96vw;max-height:94vh}
+.ev{display:grid;grid-template-columns:44px 34px 1fr;gap:6px;padding:5px 0;border-bottom:1px solid #1a2640;font-size:10.5px;align-items:baseline}
+.ev:last-child{border-bottom:none}
+.ev .t{color:var(--muted);font-size:9.5px}.ev .c{color:var(--blue2);font-size:9.5px;font-weight:600}
+.ev .n{color:var(--text)}.ev .n small{display:block;color:var(--dim);font-size:9px;margin-top:1px}
+.ev.past .n,.ev.past .t{opacity:.55}
+.day{font-size:8.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);padding:7px 0 2px}
+.lv{width:100%;border-collapse:collapse;font-size:10.5px}
+.lv td{padding:3px 0;border-bottom:1px solid #1a2640}.lv td:last-child{text-align:right;color:var(--text)}
+.lv td:first-child{color:var(--muted)}.lv tr.sub td{text-align:left;color:var(--dim);font-size:8.5px;letter-spacing:.16em;text-transform:uppercase;padding-top:8px;border-bottom:none}
+.lv .r{color:var(--red)}.lv .s{color:var(--green)}
+.cq{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #1a2640;font-size:10.5px}
+.cq:last-child{border-bottom:none}.cq span:first-child{color:var(--muted)}
+.src{font-size:8.5px;color:var(--dim);margin-top:6px;line-height:1.4}
 .disc{font-size:8.5px;color:var(--dim);line-height:1.5;padding:10px 14px}
 /* 2026-11-24: solo desktop — da telefono un avviso al posto della Workstation */
 .mob{display:none}
@@ -135,6 +148,18 @@ button{font-family:var(--mono);cursor:pointer}
           • 🔗 Link saves market + timeframe + preset in the address.
         </p>
       </div>
+      <div class="box">
+        <h3>Key events · next 48h</h3>
+        <div id="p-ev" class="muted">Loading…</div>
+      </div>
+      <div class="box">
+        <h3>Key levels</h3>
+        <div id="p-lv" class="muted">Loading…</div>
+      </div>
+      <div class="box">
+        <h3>Related markets</h3>
+        <div id="p-cq" class="muted">Loading…</div>
+      </div>
       <p class="disc">Educational market analysis. Not investment advice.</p>
     </aside>
   </div>
@@ -148,24 +173,46 @@ button{font-family:var(--mono);cursor:pointer}
 
 <script>
 // ── Markets: [label, TradingView symbol, Xenos engine key (null = not covered)] ──
+// [label, TradingView symbol, ticker dati (livelli/correlati), tipo]
 var MARKETS = [
-  ['Forex', [['EUR/USD','FX:EURUSD','EURUSD'],['GBP/USD','FX:GBPUSD','GBPUSD'],['USD/JPY','FX:USDJPY','USDJPY'],
-             ['AUD/USD','FX:AUDUSD','AUDUSD'],['NZD/USD','FX:NZDUSD','NZDUSD'],['USD/CHF','FX:USDCHF','USDCHF'],
-             ['USD/CAD','FX:USDCAD','USDCAD'],['EUR/GBP','FX:EURGBP','EURGBP'],['EUR/JPY','FX:EURJPY','EURJPY'],
-             ['GBP/JPY','FX:GBPJPY','GBPJPY'],['AUD/JPY','FX:AUDJPY','AUDJPY'],['CAD/JPY','FX:CADJPY','CADJPY'],
-             ['EUR/CHF','FX:EURCHF','EURCHF'],['AUD/CAD','FX:AUDCAD','AUDCAD'],['AUD/CHF','FX:AUDCHF','AUDCHF'],
-             ['DXY','CAPITALCOM:DXY','DXY']]],
-  ['Commodities', [['Gold','TVC:GOLD','XAUUSD'],['Silver','TVC:SILVER','XAGUSD'],['WTI Crude','TVC:USOIL','USOIL'],
-             ['Brent','TVC:UKOIL','UKOIL'],['Natural Gas','CAPITALCOM:NATURALGAS','NATGAS'],['Copper','CAPITALCOM:COPPER',null]]],
-  ['Indices', [['S&P 500','CAPITALCOM:US500','US500'],['Nasdaq 100','CAPITALCOM:US100','NAS100'],['Dow Jones','CAPITALCOM:US30','US30'],
-             ['DAX 40','PEPPERSTONE:GER40','GER40'],['FTSE 100','PEPPERSTONE:UK100',null],['Nikkei 225','PEPPERSTONE:JPN225',null]]],
-  ['Crypto', [['Bitcoin','BITSTAMP:BTCUSD','BTCUSD'],['Ethereum','BITSTAMP:ETHUSD','ETHUSD'],['Solana','COINBASE:SOLUSD','SOLUSD'],
-             ['XRP','BITSTAMP:XRPUSD','XRPUSD']]],
-  ['US Stocks', [['Apple','NASDAQ:AAPL','AAPL'],['Microsoft','NASDAQ:MSFT','MSFT'],['Nvidia','NASDAQ:NVDA','NVDA'],
-             ['Amazon','NASDAQ:AMZN','AMZN'],['Alphabet','NASDAQ:GOOGL','GOOGL'],['Tesla','NASDAQ:TSLA',null],
-             ['JPMorgan','NYSE:JPM','JPM'],['Goldman Sachs','NYSE:GS','GS'],['Visa','NYSE:V','V'],['Walmart','NYSE:WMT','WMT'],
-             ['Chevron','NYSE:CVX','CVX'],['Exxon Mobil','NYSE:XOM',null]]]
+  ['Forex', [['EUR/USD','FX:EURUSD','EURUSD=X','fx'],['GBP/USD','FX:GBPUSD','GBPUSD=X','fx'],['USD/JPY','FX:USDJPY','USDJPY=X','fx'],
+             ['AUD/USD','FX:AUDUSD','AUDUSD=X','fx'],['NZD/USD','FX:NZDUSD','NZDUSD=X','fx'],['USD/CHF','FX:USDCHF','USDCHF=X','fx'],
+             ['USD/CAD','FX:USDCAD','USDCAD=X','fx'],['EUR/GBP','FX:EURGBP','EURGBP=X','fx'],['EUR/JPY','FX:EURJPY','EURJPY=X','fx'],
+             ['GBP/JPY','FX:GBPJPY','GBPJPY=X','fx'],['AUD/JPY','FX:AUDJPY','AUDJPY=X','fx'],['CAD/JPY','FX:CADJPY','CADJPY=X','fx'],
+             ['EUR/CHF','FX:EURCHF','EURCHF=X','fx'],['AUD/CAD','FX:AUDCAD','AUDCAD=X','fx'],['AUD/CHF','FX:AUDCHF','AUDCHF=X','fx'],
+             ['DXY','CAPITALCOM:DXY','DX-Y.NYB','dxy']]],
+  ['Commodities', [['Gold','TVC:GOLD','GC=F','metal'],['Silver','TVC:SILVER','SI=F','metal'],['WTI Crude','TVC:USOIL','CL=F','oil'],
+             ['Brent','TVC:UKOIL','BZ=F','oil'],['Natural Gas','CAPITALCOM:NATURALGAS','NG=F','gas'],['Copper','CAPITALCOM:COPPER','HG=F','copper']]],
+  ['Indices', [['S&P 500','CAPITALCOM:US500','^GSPC','us_idx'],['Nasdaq 100','CAPITALCOM:US100','^NDX','us_idx'],['Dow Jones','CAPITALCOM:US30','^DJI','us_idx'],
+             ['DAX 40','PEPPERSTONE:GER40','^GDAXI','dax'],['FTSE 100','PEPPERSTONE:UK100','^FTSE','ftse'],['Nikkei 225','PEPPERSTONE:JPN225','^N225','nikkei']]],
+  ['Crypto', [['Bitcoin','BITSTAMP:BTCUSD','BTC-USD','crypto'],['Ethereum','BITSTAMP:ETHUSD','ETH-USD','crypto'],['Solana','COINBASE:SOLUSD','SOL-USD','crypto'],
+             ['XRP','BITSTAMP:XRPUSD','XRP-USD','crypto']]],
+  ['US Stocks', [['Apple','NASDAQ:AAPL','AAPL','stock'],['Microsoft','NASDAQ:MSFT','MSFT','stock'],['Nvidia','NASDAQ:NVDA','NVDA','stock'],
+             ['Amazon','NASDAQ:AMZN','AMZN','stock'],['Alphabet','NASDAQ:GOOGL','GOOGL','stock'],['Tesla','NASDAQ:TSLA','TSLA','stock'],
+             ['JPMorgan','NYSE:JPM','JPM','stock'],['Goldman Sachs','NYSE:GS','GS','stock'],['Visa','NYSE:V','V','stock'],['Walmart','NYSE:WMT','WMT','stock'],
+             ['Chevron','NYSE:CVX','CVX','stock'],['Exxon Mobil','NYSE:XOM','XOM','stock']]]
 ];
+// nomi dei ticker dati mostrati nel pannello (cash index / futures / spot)
+var DATA_NAME = {'^GSPC':'S&P 500 index','^NDX':'Nasdaq 100 index','^DJI':'Dow Jones index','^GDAXI':'DAX index (Xetra)',
+  '^FTSE':'FTSE 100 index','^N225':'Nikkei 225 index','GC=F':'Gold futures','SI=F':'Silver futures','CL=F':'WTI futures, front month',
+  'BZ=F':'Brent futures','NG=F':'Natural gas futures','HG=F':'Copper futures','DX-Y.NYB':'US Dollar Index'};
+var Q_NAME = {'^GSPC':'S&P 500','^NDX':'Nasdaq 100','^DJI':'Dow Jones','^GDAXI':'DAX','^FTSE':'FTSE 100','^N225':'Nikkei',
+  '^VIX':'VIX','^TNX':'US 10Y yield','DX-Y.NYB':'DXY','GC=F':'Gold','SI=F':'Silver','CL=F':'WTI','BZ=F':'Brent','NG=F':'Nat gas',
+  'HG=F':'Copper','BTC-USD':'Bitcoin','ETH-USD':'Ethereum','EURUSD=X':'EUR/USD','GBPUSD=X':'GBP/USD','USDJPY=X':'USD/JPY'};
+// mercati correlati per tipo
+var CORR = {fx:['DX-Y.NYB','^TNX','GC=F','^GSPC'], dxy:['EURUSD=X','^TNX','GC=F','^GSPC'], metal:['DX-Y.NYB','^TNX','SI=F','^GSPC'],
+  oil:['BZ=F','DX-Y.NYB','^GSPC','GC=F'], gas:['CL=F','DX-Y.NYB','^GSPC'], copper:['^GSPC','DX-Y.NYB','GC=F','^N225'],
+  us_idx:['^GSPC','^NDX','^VIX','^TNX','DX-Y.NYB'], dax:['^GSPC','EURUSD=X','^VIX','^FTSE'], ftse:['^GSPC','GBPUSD=X','^GDAXI','BZ=F'],
+  nikkei:['USDJPY=X','^GSPC','^VIX'], crypto:['BTC-USD','ETH-USD','^NDX','DX-Y.NYB'], stock:['^NDX','^GSPC','^VIX','^TNX'],
+  other:['^GSPC','DX-Y.NYB','^TNX','^VIX']};
+// valute/paesi per gli eventi macro (country del calendario)
+function eventCcys(m) {
+  if (!m) return ['USD'];
+  var k = m[3];
+  if (k === 'fx') { var p = m[0].split('/'); return [p[0], p[1]]; }
+  return {dxy:['USD'], metal:['USD'], oil:['USD'], gas:['USD'], copper:['USD','CNY'], us_idx:['USD'], dax:['EUR'], ftse:['GBP'],
+          nikkei:['JPY'], crypto:['USD'], stock:['USD']}[k] || ['USD'];
+}
 var PRESETS = {
   clean: [],
   // 2026-11-24: con l'id semplice TradingView usa lunghezza 9 per entrambe → EMA20/EMA50/SMA200
@@ -178,7 +225,8 @@ var PRESETS = {
 };
 var TF_EW = {'15': 'M15', '60': 'H1', '240': 'H4', 'D': 'D1', 'W': 'W1'};
 
-var st = {label: 'EUR/USD', tv: 'FX:EURUSD', ew: 'EURUSD', tf: '240', preset: 'momentum'};
+var st = {label: 'EUR/USD', tv: 'FX:EURUSD', m: null, tf: '240', preset: 'momentum'};
+var EW_SERVER = 'https://waves-production-ddbf.up.railway.app';
 
 function $(id) { return document.getElementById(id); }
 function toast(t) { var e = $('toast'); e.textContent = t; e.classList.add('show'); setTimeout(function () { e.classList.remove('show'); }, 2200); }
@@ -225,14 +273,110 @@ function loadChart() {
   [].forEach.call(document.querySelectorAll('#tfs button'), function (b) { b.classList.toggle('on', b.dataset.tf === st.tf); });
   [].forEach.call(document.querySelectorAll('#presets button'), function (b) { b.classList.toggle('on', b.dataset.p === st.preset); });
   renderList($('q').value);
+  if (st.tv !== panelTv) loadPanel();
   history.replaceState(null, '', '?s=' + encodeURIComponent(st.tv) + '&tf=' + st.tf + '&i=' + st.preset);
+}
+
+// ── Pannello: eventi macro, livelli, correlati (dati reali, niente AI) ──
+var panelTv = null, panelTimer = null, evCache = null;
+function esc(t) { return String(t == null ? '' : t).replace(/[&<>"']/g, function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+function dec(v, y) {
+  if (/JPY=X$/.test(y || '')) return 3;
+  if (/=X$/.test(y || '')) return 5;
+  var a = Math.abs(v);
+  return a >= 1000 ? 1 : a >= 10 ? 2 : a >= 1 ? 3 : 4;
+}
+function f(v, y) { return v == null ? '—' : Number(v).toLocaleString('en-US', {minimumFractionDigits: dec(v, y), maximumFractionDigits: dec(v, y)}); }
+
+async function loadEvents() {
+  var box = $('p-ev'), ccys = eventCcys(st.m), tv = st.tv;
+  try {
+    if (!evCache || Date.now() - evCache.t > 10 * 60 * 1000) {
+      var r = await fetch(EW_SERVER + '/ff-calendar?weeks=thisweek,nextweek');
+      evCache = {t: Date.now(), ev: (await r.json()).events || []};
+    }
+    if (tv !== st.tv) return;
+    var now = Date.now(), from = now - 6 * 3600e3, to = now + 48 * 3600e3;
+    var list = evCache.ev.filter(function (e) {
+      var t = Date.parse(e.time);
+      return e.impact === 'high' && ccys.indexOf(e.country) >= 0 && t >= from && t <= to;
+    }).sort(function (a, b) { return Date.parse(a.time) - Date.parse(b.time); });
+    if (!list.length) { box.innerHTML = 'No high-impact events for ' + esc(ccys.join(' / ')) + ' in the next 48 hours.'; return; }
+    var h = '', lastDay = '';
+    list.forEach(function (e) {
+      var d = new Date(e.time), day = d.toLocaleDateString('en-GB', {weekday: 'short', day: '2-digit', month: 'short'});
+      if (day !== lastDay) { h += '<div class="day">' + esc(day) + '</div>'; lastDay = day; }
+      var past = d.getTime() < now, det = [];
+      if (e.actual) det.push('Act ' + e.actual);
+      if (e.estimate) det.push('Exp ' + e.estimate);
+      if (e.prev) det.push('Prev ' + e.prev);
+      h += '<div class="ev' + (past ? ' past' : '') + '"><span class="t">' +
+        esc(d.toLocaleTimeString('en-GB', {hour: '2-digit', minute: '2-digit'})) + '</span><span class="c">' + esc(e.country) +
+        '</span><span class="n">' + esc(e.event) + (det.length ? '<small>' + esc(det.join(' · ')) + '</small>' : '') + '</span></div>';
+    });
+    box.innerHTML = h + '<div class="src">Your local time · high impact only</div>';
+  } catch (e) { box.textContent = 'Calendar not available right now.'; }
+}
+
+async function loadLevels() {
+  var box = $('p-lv'), y = st.m && st.m[2], tv = st.tv;
+  if (!y) { box.textContent = 'Levels are available for the markets in the list.'; return; }
+  try {
+    var r = await fetch(EW_SERVER + '/ws-levels?symbol=' + encodeURIComponent(y)), j = await r.json();
+    if (tv !== st.tv) return;
+    if (!j.ok) throw 0;
+    var P = j.pivot, row = function (k, v, c) { return '<tr><td>' + k + '</td><td' + (c ? ' class="' + c + '"' : '') + '>' + f(v, y) + '</td></tr>'; };
+    box.innerHTML = '<table class="lv">' +
+      '<tr class="sub"><td colspan="2">Today</td></tr>' + row('Last', j.today.last) + row('High', j.today.high) + row('Low', j.today.low) + row('Open', j.today.open) +
+      '<tr class="sub"><td colspan="2">Previous day</td></tr>' + row('High', j.prev.high) + row('Low', j.prev.low) + row('Close', j.prev.close) +
+      '<tr class="sub"><td colspan="2">Week</td></tr>' + row('This week high', j.week.high) + row('This week low', j.week.low) +
+      (j.prev_week ? row('Last week high', j.prev_week.high) + row('Last week low', j.prev_week.low) : '') +
+      '<tr class="sub"><td colspan="2">Daily pivots</td></tr>' + row('R2', P.r2, 'r') + row('R1', P.r1, 'r') + row('Pivot', P.p) + row('S1', P.s1, 's') + row('S2', P.s2, 's') +
+      '</table><div class="src">Daily data of the ' + esc(DATA_NAME[y] || st.label) +
+      (j.contract ? ' (' + esc(j.contract.split('.')[0]) + ')' : '') + ' — CFD charts can differ slightly.</div>';
+  } catch (e) { box.textContent = 'Levels not available right now.'; }
+}
+
+async function loadCorr() {
+  var box = $('p-cq'), k = st.m ? st.m[3] : 'other', self = st.m && st.m[2], tv = st.tv;
+  var syms = (CORR[k] || CORR.other).filter(function (x) { return x !== self; }).slice(0, 4);
+  try {
+    var r = await fetch(EW_SERVER + '/ws-quotes?symbols=' + encodeURIComponent(syms.join(','))), j = (await r.json()).prices || {};
+    if (tv !== st.tv) return;
+    var h = syms.filter(function (x) { return j[x]; }).map(function (x) {
+      var q = j[x], c = q.change_pct, up = c >= 0;
+      return '<div class="cq"><span>' + esc(Q_NAME[x] || x) + '</span><span>' + (x === '^TNX' ? Number(q.price).toFixed(3) + '%' : f(q.price, x)) +
+        ' <b style="color:var(--' + (up ? 'green' : 'red') + ');font-weight:500">' + (up ? '+' : '') + Number(c).toFixed(2) + '%</b></span></div>';
+    }).join('');
+    box.innerHTML = h ? h + '<div class="src">Change vs previous close</div>' : 'Quotes not available right now.';
+  } catch (e) { box.textContent = 'Quotes not available right now.'; }
+}
+
+function loadPanel() {
+  panelTv = st.tv;
+  $('p-ev').textContent = $('p-lv').textContent = $('p-cq').textContent = 'Loading…';
+  loadEvents(); loadLevels(); loadCorr();
+  clearInterval(panelTimer);
+  panelTimer = setInterval(function () { loadLevels(); loadCorr(); loadEvents(); }, 120000);
+}
+
+function link() { return location.origin + location.pathname + '?s=' + encodeURIComponent(st.tv) + '&tf=' + st.tf + '&i=' + st.preset; }
+function copyLink() {
+  var u = link();
+  (navigator.clipboard ? navigator.clipboard.writeText(u) : Promise.reject()).then(function () { toast('Link copied'); },
+    function () { prompt('Copy this link:', u); });
+}
+function shareLink() {
+  var u = link(), t = st.label + ' · ' + TF_EW[st.tf] + ' · XenosFinance';
+  if (navigator.share) navigator.share({title: t, url: u}).catch(function () {});
+  else copyLink();
 }
 
 function pick(tv) {
   var m = findByTv(tv);
   st.tv = m ? m[1] : tv.toUpperCase();
   st.label = m ? m[0] : st.tv.split(':').pop();
-  st.ew = m ? m[2] : null;
+  st.m = m;
   loadChart();
 }
 
@@ -252,9 +396,10 @@ $('presets').addEventListener('click', function (e) { var b = e.target.closest('
 // ── start: ?s=FX:EURUSD&tf=240&i=momentum ──
 (function () {
   var p = new URLSearchParams(location.search);
+  st.m = findByTv(st.tv);
   if (TF_EW[p.get('tf')]) st.tf = p.get('tf');
   if (PRESETS[p.get('i')]) st.preset = p.get('i');
-  if (p.get('s')) { var m = findByTv(p.get('s')); st.tv = m ? m[1] : p.get('s').toUpperCase(); st.label = m ? m[0] : st.tv.split(':').pop(); st.ew = m ? m[2] : null; }
+  if (p.get('s')) { var m = findByTv(p.get('s')); st.tv = m ? m[1] : p.get('s').toUpperCase(); st.label = m ? m[0] : st.tv.split(':').pop(); st.m = m; }
   loadChart();
 })();
 </script>
