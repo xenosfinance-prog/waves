@@ -132,7 +132,6 @@ button{font-family:var(--mono);cursor:pointer}
       <button data-p="volatility">Volatility</button><button data-p="ichimoku">Ichimoku</button><button data-p="volume">Volume</button>
     </div>
     <div class="sep"></div>
-    <button class="act" id="det-btn" onclick="toggleDetails()">ⓘ Info panel</button>
     <button class="act" onclick="copyLink()">🔗 Link</button>
   </div>
 
@@ -148,16 +147,6 @@ button{font-family:var(--mono);cursor:pointer}
     <section class="chart"><div id="tv"></div></section>
 
     <aside class="side" id="side">
-      <div class="box">
-        <details><summary class="hsum">How to use</summary>
-        <p class="muted" style="margin-top:8px">
-          • Pick a market on the left or type any TradingView symbol.<br>
-          • Every TradingView indicator is in the chart's <b>Indicators</b> menu; presets above load common setups.<br>
-          • Drawing tools are on the chart's left toolbar.<br>
-          • 📷 camera icon on the chart: download the chart image or copy its link.<br>
-          • 🔗 Link saves market + timeframe + preset in the address.
-        </p></details>
-      </div>
       <div class="box">
         <h3>Key events · next 48h</h3>
         <div id="p-ev" class="muted">Loading…</div>
@@ -236,14 +225,7 @@ var PRESETS = {
 };
 var TF_EW = {'15': 'M15', '60': 'H1', '240': 'H4', 'D': 'D1', 'W': 'W1'};
 
-var st = {label: 'EUR/USD', tv: 'FX:EURUSD', m: null, tf: '240', preset: 'momentum', details: true};
-// 2026-11-24: colonna info di TradingView (prezzo, performance, seasonals) attivabile; scelta ricordata nel browser
-try { st.details = localStorage.getItem('xf_ws_details') !== '0'; } catch (e) {}
-function toggleDetails() {
-  st.details = !st.details;
-  try { localStorage.setItem('xf_ws_details', st.details ? '1' : '0'); } catch (e) {}
-  loadChart();
-}
+var st = {label: 'EUR/USD', tv: 'FX:EURUSD', m: null, tf: '240', preset: 'momentum'};
 var EW_SERVER = 'https://waves-production-ddbf.up.railway.app';
 
 function $(id) { return document.getElementById(id); }
@@ -281,14 +263,13 @@ function loadChart() {
   s.text = JSON.stringify({
     autosize: true, symbol: st.tv, interval: st.tf, timezone: 'Etc/UTC', theme: 'dark', style: '1', locale: 'en',
     backgroundColor: '#0f1724', gridColor: 'rgba(34,50,76,0.45)',
-    allow_symbol_change: true, hide_side_toolbar: false, withdateranges: true, details: st.details, calendar: false,
+    allow_symbol_change: true, hide_side_toolbar: false, withdateranges: true, details: true, calendar: false,
     save_image: true, hide_volume: true, studies: PRESETS[st.preset] || [],
     support_host: 'https://www.tradingview.com'
   });
   w.appendChild(s);
   box.appendChild(w);
   $('cur').innerHTML = st.label + '<small>' + st.tv + '</small>';
-  $('det-btn').classList.toggle('on', st.details);
   [].forEach.call(document.querySelectorAll('#tfs button'), function (b) { b.classList.toggle('on', b.dataset.tf === st.tf); });
   [].forEach.call(document.querySelectorAll('#presets button'), function (b) { b.classList.toggle('on', b.dataset.p === st.preset); });
   renderList($('q').value);
