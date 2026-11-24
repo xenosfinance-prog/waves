@@ -44,6 +44,7 @@ button{font-family:var(--mono);cursor:pointer}
 .act.admin{border-color:rgba(240,180,41,.5);color:var(--amber)}
 /* main */
 .main{display:grid;grid-template-columns:200px minmax(0,1fr) 340px;min-height:0}
+@media (max-width:1600px){.main{grid-template-columns:180px minmax(0,1fr) 290px}}
 .list{border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0;background:#0d1522}
 .search{padding:8px;border-bottom:1px solid var(--line)}
 .search input{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--text);font-family:var(--mono);font-size:11px;padding:7px 8px;outline:none}
@@ -57,7 +58,7 @@ button{font-family:var(--mono);cursor:pointer}
 .chart{position:relative;min-height:0;background:#0f1724}
 #tv{position:absolute;inset:0}
 .side{border-left:1px solid var(--line);overflow-y:auto;background:#0d1522;min-height:0}
-.box{padding:12px 14px;border-bottom:1px solid var(--line)}
+.box{padding:10px 12px;border-bottom:1px solid var(--line)}
 .hsum{font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--blue2);font-weight:600;cursor:pointer}
 .box h3{font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--blue2);font-weight:600;margin-bottom:8px}
 .run{width:100%;background:var(--blue);border:none;color:#fff;font-size:10px;letter-spacing:.18em;text-transform:uppercase;padding:9px;font-weight:600}
@@ -76,7 +77,7 @@ button{font-family:var(--mono);cursor:pointer}
 .toast.show{opacity:1}
 .zoom{position:fixed;inset:0;background:rgba(5,10,18,.93);display:none;align-items:center;justify-content:center;z-index:40;cursor:zoom-out}
 .zoom img{max-width:96vw;max-height:94vh}
-.ev{display:grid;grid-template-columns:48px 38px 1fr;gap:6px;padding:6px 0;border-bottom:1px solid #1a2640;font-size:12.5px;align-items:baseline}
+.ev{display:grid;grid-template-columns:42px 34px 1fr;gap:6px;padding:5px 0;border-bottom:1px solid #1a2640;font-size:12px;align-items:baseline}
 .ev:last-child{border-bottom:none}
 .ev .t{color:var(--muted);font-size:11.5px}.ev .c{color:var(--blue2);font-size:11.5px;font-weight:600}
 .ev .n{color:var(--text)}.ev .n small{display:block;color:var(--dim);font-size:11px;margin-top:2px}
@@ -88,6 +89,13 @@ button{font-family:var(--mono);cursor:pointer}
 .lv .r{color:var(--red)}.lv .s{color:var(--green)}
 .cq{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #1a2640;font-size:12.5px}
 .cq:last-child{border-bottom:none}.cq span:first-child{color:var(--muted)}
+.kg{display:grid;gap:4px;margin-bottom:8px}.kg.c2{grid-template-columns:1fr 1fr}.kg.c3{grid-template-columns:repeat(3,1fr)}.kg.c5{grid-template-columns:repeat(5,1fr)}
+.kc{background:var(--panel2);border:1px solid #1d2b45;padding:5px 7px;min-width:0}
+.kc span{display:block;font-size:9.5px;letter-spacing:.06em;color:var(--dim);text-transform:uppercase;white-space:nowrap}
+.kc b{display:block;font-size:12.5px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kg.c5 .kc{padding:5px 4px;text-align:center}.kg.c5 .kc b{font-size:11px}
+.kc.r b{color:var(--red)}.kc.s b{color:var(--green)}
+.kh{font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);margin:2px 0 4px}
 .src{font-size:10px;color:var(--dim);margin-top:6px;line-height:1.4}
 .disc{font-size:8.5px;color:var(--dim);line-height:1.5;padding:10px 14px}
 /* 2026-11-24: solo desktop — da telefono un avviso al posto della Workstation */
@@ -336,15 +344,14 @@ async function loadLevels() {
     var r = await fetch(EW_SERVER + '/ws-levels?symbol=' + encodeURIComponent(y)), j = await r.json();
     if (tv !== st.tv) return;
     if (!j.ok) throw 0;
-    var P = j.pivot, row = function (k, v, c) { return '<tr><td>' + k + '</td><td' + (c ? ' class="' + c + '"' : '') + '>' + f(v, y) + '</td></tr>'; };
-    box.innerHTML = '<table class="lv">' +
-      '<tr class="sub"><td colspan="2">Today</td></tr>' + row('Last', j.today.last) + row('High', j.today.high) + row('Low', j.today.low) + row('Open', j.today.open) +
-      '<tr class="sub"><td colspan="2">Previous day</td></tr>' + row('High', j.prev.high) + row('Low', j.prev.low) + row('Close', j.prev.close) +
-      '<tr class="sub"><td colspan="2">Week</td></tr>' + row('This week high', j.week.high) + row('This week low', j.week.low) +
-      (j.prev_week ? row('Last week high', j.prev_week.high) + row('Last week low', j.prev_week.low) : '') +
-      '<tr class="sub"><td colspan="2">Daily pivots</td></tr>' + row('R2', P.r2, 'r') + row('R1', P.r1, 'r') + row('Pivot', P.p) + row('S1', P.s1, 's') + row('S2', P.s2, 's') +
-      '</table><div class="src">Daily data of the ' + esc(DATA_NAME[y] || st.label) +
-      (j.contract ? ' (' + esc(j.contract.split('.')[0]) + ')' : '') + ' — CFD charts can differ slightly.</div>';
+    var P = j.pivot, c = function (k, v, cls) { return '<div class="kc' + (cls ? ' ' + cls : '') + '"><span>' + k + '</span><b>' + f(v, y) + '</b></div>'; };
+    box.innerHTML =
+      '<div class="kh">Today</div><div class="kg c2">' + c('Last', j.today.last) + c('Open', j.today.open) + c('High', j.today.high) + c('Low', j.today.low) + '</div>' +
+      '<div class="kh">Previous day</div><div class="kg c3">' + c('High', j.prev.high) + c('Low', j.prev.low) + c('Close', j.prev.close) + '</div>' +
+      '<div class="kh">Week</div><div class="kg c2">' + c('This wk high', j.week.high) + c('This wk low', j.week.low) +
+      (j.prev_week ? c('Last wk high', j.prev_week.high) + c('Last wk low', j.prev_week.low) : '') + '</div>' +
+      '<div class="kh">Daily pivots</div><div class="kg c3">' + c('R1', P.r1, 'r') + c('Pivot', P.p) + c('S1', P.s1, 's') + c('R2', P.r2, 'r') + '<div></div>' + c('S2', P.s2, 's') + '</div>' +
+      '<div class="src">' + esc(DATA_NAME[y] || st.label) + (j.contract ? ' (' + esc(j.contract.split('.')[0]) + ')' : '') + ' · CFD charts can differ slightly</div>';
   } catch (e) { box.textContent = 'Levels not available right now.'; }
 }
 
