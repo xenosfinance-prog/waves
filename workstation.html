@@ -41,7 +41,6 @@ button{font-family:var(--mono);cursor:pointer}
 .act{background:none;border:1px solid var(--line);color:var(--text);font-size:10px;padding:6px 10px}
 .act:hover{border-color:var(--blue);color:var(--blue2)}
 .act.admin{border-color:rgba(240,180,41,.5);color:var(--amber)}
-.sidebtn{display:none}
 /* main */
 .main{display:grid;grid-template-columns:210px 1fr 330px;min-height:0}
 .list{border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0;background:#0d1522}
@@ -77,16 +76,14 @@ button{font-family:var(--mono);cursor:pointer}
 .zoom{position:fixed;inset:0;background:rgba(5,10,18,.93);display:none;align-items:center;justify-content:center;z-index:40;cursor:zoom-out}
 .zoom img{max-width:96vw;max-height:94vh}
 .disc{font-size:8.5px;color:var(--dim);line-height:1.5;padding:10px 14px}
-/* mobile */
+/* 2026-11-24: solo desktop — da telefono un avviso al posto della Workstation */
+.mob{display:none}
 @media (max-width:1000px){
-  .app{grid-template-rows:46px auto 1fr}
-  .top nav{display:none}
-  .main{grid-template-columns:1fr}
-  .list,.side{position:fixed;top:86px;bottom:0;width:86vw;max-width:340px;z-index:30;transition:transform .25s;box-shadow:0 0 40px rgba(0,0,0,.6)}
-  .list{left:0;transform:translateX(-105%)}.side{right:0;transform:translateX(105%)}
-  .list.open,.side.open{transform:none}
-  .sidebtn{display:inline-block}
-  .bar{flex-wrap:nowrap}
+  .app{display:none}
+  .mob{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:14px;height:100vh;padding:28px}
+  .mob .brand{font-size:22px}
+  .mob p{color:var(--muted);font-size:12px;line-height:1.6;max-width:300px}
+  .mob a.act{display:inline-block;padding:10px 16px}
 }
 </style>
 </head>
@@ -101,8 +98,7 @@ button{font-family:var(--mono);cursor:pointer}
   </div>
 
   <div class="bar">
-    <button class="act sidebtn" onclick="tog('list')">☰ Markets</button>
-    <div class="cur" id="cur">EUR/USD<small id="cur-tv">FX:EURUSD</small></div>
+        <div class="cur" id="cur">EUR/USD<small id="cur-tv">FX:EURUSD</small></div>
     <span class="lbl">TF</span>
     <div class="grp" id="tfs">
       <button data-tf="15">15m</button><button data-tf="60">1H</button><button data-tf="240">4H</button><button data-tf="D">1D</button><button data-tf="W">1W</button>
@@ -116,7 +112,6 @@ button{font-family:var(--mono);cursor:pointer}
     <div class="sep"></div>
     <button class="act" onclick="copyLink()">🔗 Link</button>
     <button class="act" onclick="shareLink()">↗ Share</button>
-    <button class="act sidebtn" onclick="tog('side')">〜 Xenos</button>
   </div>
 
   <div class="main">
@@ -167,6 +162,11 @@ button{font-family:var(--mono);cursor:pointer}
     </aside>
   </div>
 </div>
+<div class="mob">
+  <div class="brand">Xenos<i>Finance</i></div>
+  <p>The Workstation is built for desktop screens. Open xenosfinance.com/workstation on a computer.</p>
+  <a class="act" href="/xenoswaves_charts">Go to Charts</a>
+</div>
 <div class="toast" id="toast"></div>
 <div class="zoom" id="zoom" onclick="this.style.display='none'"><img id="zoom-img" alt=""></div>
 
@@ -207,7 +207,6 @@ var last = null;   // ultimo risultato /ews-chart
 
 function $(id) { return document.getElementById(id); }
 function toast(t) { var e = $('toast'); e.textContent = t; e.classList.add('show'); setTimeout(function () { e.classList.remove('show'); }, 2200); }
-function tog(id) { $(id).classList.toggle('open'); $(id === 'list' ? 'side' : 'list').classList.remove('open'); }
 function isAdmin() { return !!window._xfAdminPw; }
 
 function findByTv(tv) {
@@ -267,7 +266,6 @@ function pick(tv) {
   st.label = m ? m[0] : st.tv.split(':').pop();
   st.ew = m ? m[2] : null;
   loadChart();
-  $('list').classList.remove('open');
 }
 
 // ── Xenos EW (motore /ews-chart: numeri del motore, niente AI) ──
