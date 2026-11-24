@@ -2997,7 +2997,9 @@ def _ews_payload(sym_key, tf):
                         "reached": m.group(1) == "✅"})
     inv = ds.get("invalidation")
     out.update({
-        "wave": ds.get("wave_num"), "wave_desc": ds.get("wave_desc"), "degree": eng.get("degree"),
+        # 2026-11-24: "iii of 3" quando la 3 è estesa con la iii in corso (stessa etichetta del grafico)
+        "wave": ds.get("wave_label") or ds.get("wave_num"), "wave_num": ds.get("wave_num"),
+        "wave_desc": ds.get("wave_desc"), "degree": eng.get("degree"),
         "structure": eng.get("desc"), "trend": eng.get("trend"),
         "bias": "bullish" if td > 0 else "bearish" if td < 0 else "neutral",
         "terminal": "TERMINAL" in str(ds.get("bias", "")),

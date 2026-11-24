@@ -740,6 +740,55 @@ def _ew_fmt(v):
     return f"{v:.5f}" if abs(v) < 10 else f"{v:.2f}"
 
 
+EW_III_FIBS = (1.0, 1.618, 2.618)            # iii rispetto a i, proiettata dalla fine della ii
+
+
+def _ew_w3_extension(df, e, last, degrees=None):
+    """2026-11-24: onda 3 oltre tutte le proiezioni ×W1 MA con un i-ii interno valido e il prezzo già
+    oltre la i → non è una 3 "matura", è una 3 estesa con la iii in corso (GBP/USD 4H 24/11: grafico
+    con i-ii, testo "Neutral — wait" e invalidazione alla fine di ② a 400 pips).
+    i-ii presi (1) dal conteggio di grado minore del motore — quello disegnato sul grafico — se è un
+    impulso nello stesso verso con la sua onda 3 in corso, altrimenti (2) da _ewp_i_ii dalla fine della 2.
+    Ritorna None se non c'è o se la iii ha già superato tutte le sue proiezioni."""
+    try:
+        pv = e.get("pivots") or []
+        if e.get("wave") != "3" or len(pv) < 3:
+            return None
+        d = 1 if e["dir"] > 0 else -1
+        mn = _ewp_minor(degrees, e) if degrees else None
+        fibs = None
+        if (mn and mn.get("structure") == "impulse" and mn.get("wave") == "3" and (mn.get("dir") or 0) == d
+                and not mn.get("targets_reached") and len(mn.get("pivots") or []) >= 4
+                and mn["pivots"][0]["i"] >= pv[-2]["i"]):
+            q = {x["label"]: x for x in mn["pivots"]}
+            i0, p0 = q["0"]["i"], float(q["0"]["p"])
+            ia, pa, ib, pb = q["1"]["i"], float(q["1"]["p"]), q["2"]["i"], float(q["2"]["p"])
+            fibs = [{"r": f["r"], "v": float(f["v"])} for f in (mn.get("fibs") or [])]
+        else:
+            i0, p0 = pv[-2]["i"], float(pv[-2]["p"])      # fine dell'onda 2
+            w = _ewp_i_ii(df, i0, p0, d > 0)
+            if not w:
+                return None
+            (ia, pa), (ib, pb) = w
+            pa, pb = float(pa), float(pb)
+        if (last - pb) * d <= 0:                           # prezzo tornato oltre la ii: niente iii
+            return None
+        seg = df.iloc[ib:]
+        ext = float(seg["high"].max()) if d > 0 else float(seg["low"].min())
+        if (ext - pa) * d <= 0:                            # i non ancora superata
+            return None
+        if not fibs:
+            li = abs(pa - p0)
+            fibs = [{"r": r, "v": pb + d * r * li} for r in EW_III_FIBS]
+        left = [f for f in fibs if (f["v"] - ext) * d > 0]
+        if not left:
+            return None
+        return {"i0": int(i0), "p0": float(p0), "ia": int(ia), "pa": pa, "ib": int(ib), "pb": pb,
+                "fibs": fibs, "target": left[0]["v"]}
+    except Exception:
+        return None
+
+
 def count_elliott_waves_engine(df):
     """
     Conteggio EW dal motore validato, restituito nello stesso formato di
@@ -897,6 +946,31 @@ def count_elliott_waves_engine(df):
             bi = "BEARISH (TERMINAL ⚠️)" if direction_up else "BULLISH (TERMINAL ⚠️)"
         wc = (f"Rule-validated count ({degree} degree, {e['desc']}). "
               f"Fibonacci ({e['fib_basis']}): {lvl_txt}.")
+        # 2026-11-24: 3 oltre le proiezioni ×W1 ma con i-ii interno e prezzo oltre la i → 3 estesa,
+        # iii in corso: bias nel verso del trend, invalidazione alla fine della ii (stesso grado del setup)
+        sub3 = _ew_w3_extension(df, e, p, res.get("degrees")) if (wn == "3" and e.get("targets_reached")) else None
+        if sub3:
+            e["sub3"] = sub3
+            e["w3_fibs"] = fibs
+            e["fibs"] = sub3["fibs"]
+            e["target"] = sub3["target"]
+            e["inval"] = sub3["pb"]
+            e["fib_basis"] = "wave i projected from the end of wave ii"
+            e["targets_reached"] = False
+            extended = True
+            inv = sub3["pb"]
+            entry, ct = p, sub3["target"]
+            _nx = [f["v"] for f in sub3["fibs"] if (f["v"] - ct) * d > 0]
+            nt = _nx[0] if _nx else ct
+            trade_dir = d
+            bi = "BULLISH" if direction_up else "BEARISH"
+            wd = "Wave ③ — extended, sub-wave iii in progress"
+            action = (f"{side(trade_dir)} — wave iii of 3 in progress, target {_ew_fmt(ct)}, "
+                      f"invalidation {_ew_fmt(inv)} (end of wave ii)")
+            wc = (f"Rule-validated count ({degree} degree, {e['desc']}): wave 3 already beyond its ×W1 projections "
+                  f"with a valid i-ii inside — extended wave 3, sub-wave iii in progress. "
+                  f"iii targets (wave i projected from the end of wave ii): "
+                  + ", ".join(f"{f['r']:g} = {_ew_fmt(f['v'])}" for f in sub3["fibs"]) + ".")
         if e.get("targets_reached"):
             # L'onda ha già superato tutti i livelli Fibonacci: niente nuovo ingresso
             if wn in ("4", "B"):
@@ -947,6 +1021,7 @@ def count_elliott_waves_engine(df):
         "cfd_validation": validate_elliott_with_cfd(wn, df["close"], df["volume"]),
         "engine": e, "engine_degrees": res["degrees"],
         "trade_dir": trade_dir, "entry": entry,
+        "wave_label": ("iii of 3" if (e and e.get("sub3")) else wn),
     }
 
 
@@ -1214,7 +1289,7 @@ def _ew_pro_panel(ax, df, eng, degrees, pf, setup, compact=False, base_bars=70, 
                     xe = min(m - 1, max(tp.get("E", (x2, 0))[0] + 6, x2 + 6))
                     ax.plot([x1, xe], [y1, y1 + sl * (xe - x1)], color=EWP["tri"], lw=1.0, zorder=4)
         # grado minore (suddivisione dell'onda più recente)
-        mn = _ewp_minor(degrees, eng)
+        mn = None if eng.get("sub3") else _ewp_minor(degrees, eng)
         # 2026-10-26: correzioni completate (2, 4, B) disegnate come zigzag a-b-c
         if not tri:
             piv = eng["pivots"]
@@ -1251,8 +1326,11 @@ def _ew_pro_panel(ax, df, eng, degrees, pf, setup, compact=False, base_bars=70, 
             if not mn and piv[-1]["label"] in ("3", "5") and len(piv) >= 2:
                 i0, p0 = piv[-2]["i"], piv[-2]["p"]
                 up = piv[-1]["p"] > p0
+                _s3 = eng.get("sub3")
+                if _s3:
+                    i0, p0 = _s3["i0"], _s3["p0"]
                 if i0 >= start:
-                    w = _ewp_i_ii(df, i0, p0, up)
+                    w = ([(_s3["ia"], _s3["pa"]), (_s3["ib"], _s3["pb"])] if _s3 else _ewp_i_ii(df, i0, p0, up))
                     if w:
                         (ia, pa), (ib, pb) = w
                         ax.plot([i0 - start, ia - start, ib - start], [p0, pa, pb], color=EWP["imp2"], lw=0.9,
@@ -1278,6 +1356,8 @@ def _ew_pro_panel(ax, df, eng, degrees, pf, setup, compact=False, base_bars=70, 
         plan = _ew_panel_plan(df, eng, st, pf, base_bars, max_bars)
         if inv is not None:
             inv_x = next((q[0] for q in pts if abs(q[1] - inv) <= abs(inv) * 1e-9), max(0, m - 1 - int(m * 0.35)))
+            if eng.get("sub3") and abs(eng["sub3"]["pb"] - inv) <= abs(inv) * 1e-9 and eng["sub3"]["ib"] >= start:
+                inv_x = eng["sub3"]["ib"] - start
             ax.hlines(inv, inv_x, x_end, colors=EWP["inval"], linewidth=1.0, zorder=5)
             tags.append((inv, f"INV {inv:{pf}}" if not compact else f"{inv:{pf}}", EWP["inval"], "#ffffff", fs_lvl))
             ylo, yhi = min(ylo, inv), max(yhi, inv)
@@ -1462,6 +1542,11 @@ def _ew_target_plan(eng, setup, last, rng, pf=".2f", extreme=None):
             if mf and abs(entry - last) > rng * 0.01:
                 out["entry_note"] = f"{_ew_fr(mf['r'])} retracement of wave D"
             out["basis"] = "triangle width projected from the end of wave E"
+        elif wave == "3" and eng.get("sub3"):
+            # 2026-11-24: 3 estesa, iii in corso → target della iii, invalidazione fine della ii
+            t = [(f["v"], f"iii = {_ew_fr(f['r'])}×i") for f in fibs if (f["v"] - ref) * td > 0]
+            out["basis"] = f"wave i projected from the end of wave ii ({num(eng['sub3']['pb'])})"
+            out["inv_note"] = "end of wave ii"
         elif wave == "3":
             t = [(f["v"], f"W3 = {_ew_fr(f['r'])}×W1") for f in fibs if (f["v"] - ref) * td > 0]
             out["basis"] = f"wave 1 projected from the end of wave 2 ({num(pv['2'])})"
@@ -1514,7 +1599,9 @@ def _ew_target_plan(eng, setup, last, rng, pf=".2f", extreme=None):
             done = [f for f in fibs if (f["v"] - ref) * td <= 0 and (wave == "A" or f["r"] >= 1)]
             if done:
                 f = done[-1]
-                lab = (f"{_ew_fr(f['r'])}× triangle width" if tri else lab_of[wave].format(_ew_fr(f["r"])))
+                lab = (f"{_ew_fr(f['r'])}× triangle width" if tri else
+                       f"iii = {_ew_fr(f['r'])}×i" if (wave == "3" and eng.get("sub3")) else
+                       lab_of[wave].format(_ew_fr(f["r"])))
                 out["reached"] = (f["v"], lab)
     # solo livelli nella direzione del trade, senza doppioni; oltre il primo, entro ~1 range visibile
     seen, clean = [], []
@@ -1726,7 +1813,8 @@ def _ews_build(sym, df4):
     if td != 0 and "TERMINAL" in str(ds.get("bias", "")):
         bias_txt += " · terminal wave"
     count_txt = (f"<b>{ds['wave_desc']}</b>\n{eng['trend'].capitalize()} trend · {eng['degree']} degree" if eng.get("triangle")
-                 else f"<b>Wave {wn} in progress</b>\n{eng['desc']} · {eng['degree']} degree")
+                 else f"<b>Wave iii of ③ in progress</b>\n{eng['desc']} · {eng['degree']} degree · extended wave 3"
+                 if eng.get("sub3") else f"<b>Wave {wn} in progress</b>\n{eng['desc']} · {eng['degree']} degree")
     lines = [
         "<b>XENOS WAVE · ELLIOTT WAVE</b>",
         f"{mkt.get('emoji', '')} <b>{mkt['name']}</b> · {EWS_TF_TXT} · {datetime.utcnow():%d %b %Y}",
@@ -1883,8 +1971,9 @@ def _ews_trade_plan(ds, eng, plan, df4, last, td, pf, wn, waiting, k0):
                     f"count is in doubt — stand aside until it recovers {num(p1)}; the count fails at {num(inv)}"]
         if e21 is not None and not out:
             if (e21 - last) * td < 0 and (inv is None or (e21 - inv) * td > 0):
+                _stp = (f"wave ii ({num(eng['sub3']['pb'])})" if eng.get("sub3") else f"wave 2 ({num(pv['2']['p'])})")
                 out.append(f"Trend leg: {buy_sell} pullbacks toward the EMA21 ({num(e21)}), stop {beyond} the end of "
-                           f"wave 2 ({num(pv['2']['p'])})")
+                           f"{_stp}")
             else:
                 out.append(f"Price is at the EMA21 ({num(e21)}): {side} only on a "
                            f"{'bullish' if td > 0 else 'bearish'} reversal candle, stop {beyond} {num(inv)}")
@@ -1987,7 +2076,7 @@ def _ews_chart(sym, df4, eng, ds, pf):
         if eng and eng.get("triangle"):
             sub = str(ds.get("wave_desc") or "Triangle")
         elif wn_:
-            sub = f"Wave {wn_} in progress"
+            sub = "Wave iii of 3 in progress" if (eng and eng.get("sub3")) else f"Wave {wn_} in progress"
             if eng and eng.get("degree"):
                 sub += f" · {eng['degree']} degree"
         else:
