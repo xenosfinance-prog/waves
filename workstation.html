@@ -123,7 +123,6 @@ button{font-family:var(--mono);cursor:pointer}
     </div>
     <div class="sep"></div>
     <button class="act" onclick="copyLink()">🔗 Link</button>
-    <button class="act" onclick="shareLink()">↗ Share</button>
   </div>
 
   <div class="main">
@@ -365,11 +364,6 @@ function copyLink() {
   var u = link();
   (navigator.clipboard ? navigator.clipboard.writeText(u) : Promise.reject()).then(function () { toast('Link copied'); },
     function () { prompt('Copy this link:', u); });
-}
-function shareLink() {
-  var u = link(), t = st.label + ' · ' + TF_EW[st.tf] + ' · XenosFinance';
-  if (navigator.share) navigator.share({title: t, url: u}).catch(function () {});
-  else copyLink();
 }
 
 function pick(tv) {
