@@ -182,7 +182,7 @@ var MARKETS = [
              ['DXY','CAPITALCOM:DXY','DX-Y.NYB','dxy']]],
   ['Commodities', [['Gold','TVC:GOLD','GC=F','metal'],['Silver','TVC:SILVER','SI=F','metal'],['WTI Crude','TVC:USOIL','CL=F','oil'],
              ['Brent','TVC:UKOIL','BZ=F','oil'],['Natural Gas','CAPITALCOM:NATURALGAS','NG=F','gas'],['Copper','CAPITALCOM:COPPER','HG=F','copper']]],
-  ['Indices', [['S&P 500','CAPITALCOM:US500','^GSPC','us_idx'],['Nasdaq 100','CAPITALCOM:US100','^NDX','us_idx'],['Dow Jones','CAPITALCOM:US30','^DJI','us_idx'],
+  ['Indices', [['S&P 500','CAPITALCOM:US500','ES=F','us_idx'],['Nasdaq 100','CAPITALCOM:US100','NQ=F','us_idx'],['Dow Jones','CAPITALCOM:US30','YM=F','us_idx'],
              ['DAX 40','PEPPERSTONE:GER40','^GDAXI','dax'],['FTSE 100','PEPPERSTONE:UK100','^FTSE','ftse'],['Nikkei 225','PEPPERSTONE:JPN225','^N225','nikkei']]],
   ['Crypto', [['Bitcoin','BITSTAMP:BTCUSD','BTC-USD','crypto'],['Ethereum','BITSTAMP:ETHUSD','ETH-USD','crypto'],['Solana','COINBASE:SOLUSD','SOL-USD','crypto'],
              ['XRP','BITSTAMP:XRPUSD','XRP-USD','crypto']]],
@@ -192,7 +192,7 @@ var MARKETS = [
              ['Chevron','NYSE:CVX','CVX','stock'],['Exxon Mobil','NYSE:XOM','XOM','stock']]]
 ];
 // nomi dei ticker dati mostrati nel pannello (cash index / futures / spot)
-var DATA_NAME = {'^GSPC':'S&P 500 index','^NDX':'Nasdaq 100 index','^DJI':'Dow Jones index','^GDAXI':'DAX index (Xetra)',
+var DATA_NAME = {'ES=F':'S&P 500 futures (front month)','NQ=F':'Nasdaq 100 futures (front month)','YM=F':'Dow futures (front month)','^GSPC':'S&P 500 index','^NDX':'Nasdaq 100 index','^DJI':'Dow Jones index','^GDAXI':'DAX index (Xetra)',
   '^FTSE':'FTSE 100 index','^N225':'Nikkei 225 index','GC=F':'Gold futures','SI=F':'Silver futures','CL=F':'WTI futures, front month',
   'BZ=F':'Brent futures','NG=F':'Natural gas futures','HG=F':'Copper futures','DX-Y.NYB':'US Dollar Index'};
 var Q_NAME = {'^GSPC':'S&P 500','^NDX':'Nasdaq 100','^DJI':'Dow Jones','^GDAXI':'DAX','^FTSE':'FTSE 100','^N225':'Nikkei',
@@ -338,7 +338,8 @@ async function loadLevels() {
 
 async function loadCorr() {
   var box = $('p-cq'), k = st.m ? st.m[3] : 'other', self = st.m && st.m[2], tv = st.tv;
-  var syms = (CORR[k] || CORR.other).filter(function (x) { return x !== self; }).slice(0, 4);
+  var same = {'ES=F':'^GSPC','NQ=F':'^NDX','YM=F':'^DJI'}[self];
+  var syms = (CORR[k] || CORR.other).filter(function (x) { return x !== self && x !== same; }).slice(0, 4);
   try {
     var r = await fetch(EW_SERVER + '/ws-quotes?symbols=' + encodeURIComponent(syms.join(','))), j = (await r.json()).prices || {};
     if (tv !== st.tv) return;
