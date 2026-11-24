@@ -40,6 +40,7 @@ button{font-family:var(--mono);cursor:pointer}
 .lbl{font-size:8.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--dim);margin-right:2px}
 .act{background:none;border:1px solid var(--line);color:var(--text);font-size:10px;padding:6px 10px}
 .act:hover{border-color:var(--blue);color:var(--blue2)}
+.act.on{border-color:var(--blue);color:var(--blue2);background:rgba(59,130,246,.12)}
 .act.admin{border-color:rgba(240,180,41,.5);color:var(--amber)}
 /* main */
 .main{display:grid;grid-template-columns:200px minmax(0,1fr) 340px;min-height:0}
@@ -123,6 +124,7 @@ button{font-family:var(--mono);cursor:pointer}
       <button data-p="volatility">Volatility</button><button data-p="ichimoku">Ichimoku</button><button data-p="volume">Volume</button>
     </div>
     <div class="sep"></div>
+    <button class="act" id="det-btn" onclick="toggleDetails()">ⓘ Info panel</button>
     <button class="act" onclick="copyLink()">🔗 Link</button>
   </div>
 
@@ -226,7 +228,14 @@ var PRESETS = {
 };
 var TF_EW = {'15': 'M15', '60': 'H1', '240': 'H4', 'D': 'D1', 'W': 'W1'};
 
-var st = {label: 'EUR/USD', tv: 'FX:EURUSD', m: null, tf: '240', preset: 'momentum'};
+var st = {label: 'EUR/USD', tv: 'FX:EURUSD', m: null, tf: '240', preset: 'momentum', details: true};
+// 2026-11-24: colonna info di TradingView (prezzo, performance, seasonals) attivabile; scelta ricordata nel browser
+try { st.details = localStorage.getItem('xf_ws_details') !== '0'; } catch (e) {}
+function toggleDetails() {
+  st.details = !st.details;
+  try { localStorage.setItem('xf_ws_details', st.details ? '1' : '0'); } catch (e) {}
+  loadChart();
+}
 var EW_SERVER = 'https://waves-production-ddbf.up.railway.app';
 
 function $(id) { return document.getElementById(id); }
@@ -264,13 +273,14 @@ function loadChart() {
   s.text = JSON.stringify({
     autosize: true, symbol: st.tv, interval: st.tf, timezone: 'Etc/UTC', theme: 'dark', style: '1', locale: 'en',
     backgroundColor: '#0f1724', gridColor: 'rgba(34,50,76,0.45)',
-    allow_symbol_change: true, hide_side_toolbar: false, withdateranges: true, details: false, calendar: false,
+    allow_symbol_change: true, hide_side_toolbar: false, withdateranges: true, details: st.details, calendar: false,
     save_image: true, hide_volume: true, studies: PRESETS[st.preset] || [],
     support_host: 'https://www.tradingview.com'
   });
   w.appendChild(s);
   box.appendChild(w);
   $('cur').innerHTML = st.label + '<small>' + st.tv + '</small>';
+  $('det-btn').classList.toggle('on', st.details);
   [].forEach.call(document.querySelectorAll('#tfs button'), function (b) { b.classList.toggle('on', b.dataset.tf === st.tf); });
   [].forEach.call(document.querySelectorAll('#presets button'), function (b) { b.classList.toggle('on', b.dataset.p === st.preset); });
   renderList($('q').value);
