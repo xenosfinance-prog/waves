@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Workstation · XenosFinance</title>
+<!-- 2026-11-24: anteprima — non collegata al menu, non indicizzata -->
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+<link rel="apple-touch-icon" sizes="192x192" href="/favicon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+<script src="/xf-admin.js?v=3"></script>
+<style>
+:root{--bg:#0f1724;--panel:#141e2e;--panel2:#18243a;--line:#22324c;--text:#e2e8f0;--muted:#8a9bb5;--dim:#5d6f8c;
+--blue:#3b82f6;--blue2:#60a5fa;--green:#34d399;--red:#f87171;--amber:#f0b429;--mono:'IBM Plex Mono',monospace}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--mono);font-size:12px;overflow:hidden}
+a{color:inherit;text-decoration:none}
+button{font-family:var(--mono);cursor:pointer}
+.app{display:grid;grid-template-rows:46px 40px 1fr;height:100vh}
+/* top bar */
+.top{display:flex;align-items:center;gap:16px;padding:0 14px;border-bottom:1px solid var(--line);background:#0c1320}
+.brand{font-family:'Playfair Display',serif;font-weight:700;font-size:17px;white-space:nowrap}.brand i{font-style:normal;color:var(--blue)}
+.tag{font-size:9px;letter-spacing:.25em;text-transform:uppercase;color:var(--dim)}
+.top nav{margin-left:auto;display:flex;gap:4px}
+.top nav a{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);padding:6px 9px;border:1px solid transparent}
+.top nav a:hover{color:var(--text);border-color:var(--line)}
+/* toolbar */
+.bar{display:flex;align-items:center;gap:6px;padding:0 10px;border-bottom:1px solid var(--line);background:var(--panel);overflow-x:auto;white-space:nowrap}
+.cur{font-weight:600;font-size:13px;margin-right:6px;min-width:120px}
+.cur small{display:block;font-size:8.5px;color:var(--dim);letter-spacing:.12em;font-weight:400}
+.grp{display:flex;border:1px solid var(--line)}
+.grp button{background:none;border:none;border-right:1px solid var(--line);color:var(--muted);font-size:10px;letter-spacing:.06em;padding:6px 9px}
+.grp button:last-child{border-right:none}
+.grp button.on{background:rgba(59,130,246,.18);color:var(--blue2)}
+.grp button:hover{color:var(--text)}
+.sep{width:1px;height:20px;background:var(--line);margin:0 4px}
+.lbl{font-size:8.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--dim);margin-right:2px}
+.act{background:none;border:1px solid var(--line);color:var(--text);font-size:10px;padding:6px 10px}
+.act:hover{border-color:var(--blue);color:var(--blue2)}
+.act.admin{border-color:rgba(240,180,41,.5);color:var(--amber)}
+/* main */
+.main{display:grid;grid-template-columns:210px 1fr 330px;min-height:0}
+.list{border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0;background:#0d1522}
+.search{padding:8px;border-bottom:1px solid var(--line)}
+.search input{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--text);font-family:var(--mono);font-size:11px;padding:7px 8px;outline:none}
+.search input:focus{border-color:var(--blue)}
+.search .hint{font-size:8.5px;color:var(--dim);margin-top:5px;line-height:1.4}
+.syms{overflow-y:auto;flex:1}
+.cat{font-size:8.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);padding:10px 10px 4px}
+.sym{display:flex;justify-content:space-between;align-items:center;padding:6px 10px;cursor:pointer;border-left:2px solid transparent;color:#cbd5e1;font-size:11px}
+.sym:hover{background:var(--panel2)}
+.sym.on{border-left-color:var(--blue);background:rgba(59,130,246,.1);color:#fff}
+.sym .ew{font-size:8px;color:var(--blue2);border:1px solid rgba(96,165,250,.35);padding:0 4px;letter-spacing:.08em}
+.chart{position:relative;min-height:0;background:#0f1724}
+#tv{position:absolute;inset:0}
+.side{border-left:1px solid var(--line);overflow-y:auto;background:#0d1522;min-height:0}
+.box{padding:12px 14px;border-bottom:1px solid var(--line)}
+.box h3{font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:var(--blue2);font-weight:600;margin-bottom:8px}
+.run{width:100%;background:var(--blue);border:none;color:#fff;font-size:10px;letter-spacing:.18em;text-transform:uppercase;padding:9px;font-weight:600}
+.run:disabled{opacity:.5;cursor:default}
+.muted{color:var(--muted);font-size:10.5px;line-height:1.55}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:5px 10px;font-size:11px;margin-top:8px}
+.kv dt{color:var(--dim);font-size:9px;letter-spacing:.12em;text-transform:uppercase;padding-top:2px}
+.kv dd{color:var(--text)}
+.chip{display:inline-block;font-size:9px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;padding:2px 7px;border:1px solid}
+.bull{color:var(--green);border-color:rgba(52,211,153,.45)}.bear{color:var(--red);border-color:rgba(248,113,113,.45)}.neu{color:var(--amber);border-color:rgba(240,180,41,.45)}
+.ewimg{width:100%;margin-top:10px;border:1px solid var(--line);display:none;cursor:zoom-in}
+.tgts{margin-top:6px;font-size:10.5px;line-height:1.7}
+.row{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.row .act{flex:1;text-align:center}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#1e2b44;border:1px solid var(--blue);color:#fff;padding:9px 16px;font-size:11px;opacity:0;transition:.25s;pointer-events:none;z-index:50}
+.toast.show{opacity:1}
+.zoom{position:fixed;inset:0;background:rgba(5,10,18,.93);display:none;align-items:center;justify-content:center;z-index:40;cursor:zoom-out}
+.zoom img{max-width:96vw;max-height:94vh}
+.disc{font-size:8.5px;color:var(--dim);line-height:1.5;padding:10px 14px}
+/* 2026-11-24: solo desktop — da telefono un avviso al posto della Workstation */
+.mob{display:none}
+@media (max-width:1000px){
+  .app{display:none}
+  .mob{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:14px;height:100vh;padding:28px}
+  .mob .brand{font-size:22px}
+  .mob p{color:var(--muted);font-size:12px;line-height:1.6;max-width:300px}
+  .mob a.act{display:inline-block;padding:10px 16px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <a class="brand" href="/">Xenos<i>Finance</i></a>
+    <span class="tag">Workstation</span>
+    <nav>
+      <a href="/dashboard">Dashboard</a><a href="/elliottwave">Elliott Wave</a><a href="/calendar">Calendar</a><a href="/trading-ideas">Trading Ideas</a>
+    </nav>
+  </div>
+
+  <div class="bar">
+        <div class="cur" id="cur">EUR/USD<small id="cur-tv">FX:EURUSD</small></div>
+    <span class="lbl">TF</span>
+    <div class="grp" id="tfs">
+      <button data-tf="15">15m</button><button data-tf="60">1H</button><button data-tf="240">4H</button><button data-tf="D">1D</button><button data-tf="W">1W</button>
+    </div>
+    <div class="sep"></div>
+    <span class="lbl">Indicators</span>
+    <div class="grp" id="presets">
+      <button data-p="clean">Clean</button><button data-p="trend">Trend</button><button data-p="momentum">Momentum</button>
+      <button data-p="volatility">Volatility</button><button data-p="ichimoku">Ichimoku</button><button data-p="volume">Volume</button>
+    </div>
+    <div class="sep"></div>
+    <button class="act" onclick="copyLink()">🔗 Link</button>
+    <button class="act" onclick="shareLink()">↗ Share</button>
+  </div>
+
+  <div class="main">
+    <aside class="list" id="list">
+      <div class="search">
+        <input id="q" placeholder="Search or type any symbol…" autocomplete="off">
+        <div class="hint">Enter loads any TradingView symbol, e.g. NASDAQ:TSLA, BINANCE:DOGEUSDT, XETR:SAP</div>
+      </div>
+      <div class="syms" id="syms"></div>
+    </aside>
+
+    <section class="chart"><div id="tv"></div></section>
+
+    <aside class="side" id="side">
+      <div class="box">
+        <h3>Xenos Elliott Wave count</h3>
+        <p class="muted" id="ew-note" style="display:none;margin-bottom:8px"></p>
+        <button class="run" id="ew-run" onclick="runEW()">Run count</button>
+        <div id="ew-out" style="display:none">
+          <dl class="kv">
+            <dt>Bias</dt><dd id="o-bias">—</dd>
+            <dt>Wave</dt><dd id="o-wave">—</dd>
+            <dt>Last</dt><dd id="o-last">—</dd>
+            <dt>Invalid.</dt><dd id="o-inv">—</dd>
+          </dl>
+          <div class="tgts" id="o-tgts"></div>
+          <img class="ewimg" id="o-img" alt="XenosFinance Elliott Wave chart" onclick="zoom(this.src)">
+          <div class="row">
+            <button class="act" onclick="dlPNG()">⬇ PNG</button>
+            <button class="act" onclick="shareLink()">↗ Share</button>
+          </div>
+          <div class="row" id="tg-row" style="display:none">
+            <button class="act admin" id="tg-btn" onclick="sendTG()">📡 Send to channel</button>
+          </div>
+        </div>
+      </div>
+      <div class="box">
+        <h3>How to use</h3>
+        <p class="muted">
+          • Pick a market on the left or type any TradingView symbol.<br>
+          • Every TradingView indicator is in the chart's <b>Indicators</b> menu; presets above load common setups.<br>
+          • Drawing tools are on the chart's left toolbar.<br>
+          • 📷 camera icon on the chart: download the chart image or copy its link.<br>
+          • 🔗 Link saves market + timeframe + preset in the address.
+        </p>
+      </div>
+      <p class="disc">Educational market analysis. Not investment advice. Elliott Wave counts are probabilities, not certainties.</p>
+    </aside>
+  </div>
+</div>
+<div class="mob">
+  <div class="brand">Xenos<i>Finance</i></div>
+  <p>The Workstation is built for desktop screens. Open xenosfinance.com/workstation on a computer.</p>
+  <a class="act" href="/xenoswaves_charts">Go to Charts</a>
+</div>
+<div class="toast" id="toast"></div>
+<div class="zoom" id="zoom" onclick="this.style.display='none'"><img id="zoom-img" alt=""></div>
+
+<script>
+// ── Markets: [label, TradingView symbol, Xenos engine key (null = not covered)] ──
+var MARKETS = [
+  ['Forex', [['EUR/USD','FX:EURUSD','EURUSD'],['GBP/USD','FX:GBPUSD','GBPUSD'],['USD/JPY','FX:USDJPY','USDJPY'],
+             ['AUD/USD','FX:AUDUSD','AUDUSD'],['NZD/USD','FX:NZDUSD','NZDUSD'],['USD/CHF','FX:USDCHF','USDCHF'],
+             ['USD/CAD','FX:USDCAD','USDCAD'],['EUR/GBP','FX:EURGBP','EURGBP'],['EUR/JPY','FX:EURJPY','EURJPY'],
+             ['GBP/JPY','FX:GBPJPY','GBPJPY'],['AUD/JPY','FX:AUDJPY','AUDJPY'],['CAD/JPY','FX:CADJPY','CADJPY'],
+             ['EUR/CHF','FX:EURCHF','EURCHF'],['AUD/CAD','FX:AUDCAD','AUDCAD'],['AUD/CHF','FX:AUDCHF','AUDCHF'],
+             ['DXY','CAPITALCOM:DXY','DXY']]],
+  ['Commodities', [['Gold','TVC:GOLD','XAUUSD'],['Silver','TVC:SILVER','XAGUSD'],['WTI Crude','TVC:USOIL','USOIL'],
+             ['Brent','TVC:UKOIL','UKOIL'],['Natural Gas','CAPITALCOM:NATURALGAS','NATGAS'],['Copper','CAPITALCOM:COPPER',null]]],
+  ['Indices', [['S&P 500','CAPITALCOM:US500','US500'],['Nasdaq 100','CAPITALCOM:US100','NAS100'],['Dow Jones','CAPITALCOM:US30','US30'],
+             ['DAX 40','PEPPERSTONE:GER40','GER40'],['FTSE 100','PEPPERSTONE:UK100',null],['Nikkei 225','PEPPERSTONE:JPN225',null]]],
+  ['Crypto', [['Bitcoin','BITSTAMP:BTCUSD','BTCUSD'],['Ethereum','BITSTAMP:ETHUSD','ETHUSD'],['Solana','COINBASE:SOLUSD','SOLUSD'],
+             ['XRP','BITSTAMP:XRPUSD','XRPUSD']]],
+  ['US Stocks', [['Apple','NASDAQ:AAPL','AAPL'],['Microsoft','NASDAQ:MSFT','MSFT'],['Nvidia','NASDAQ:NVDA','NVDA'],
+             ['Amazon','NASDAQ:AMZN','AMZN'],['Alphabet','NASDAQ:GOOGL','GOOGL'],['Tesla','NASDAQ:TSLA',null],
+             ['JPMorgan','NYSE:JPM','JPM'],['Goldman Sachs','NYSE:GS','GS'],['Visa','NYSE:V','V'],['Walmart','NYSE:WMT','WMT'],
+             ['Chevron','NYSE:CVX','CVX'],['Exxon Mobil','NYSE:XOM',null]]]
+];
+var PRESETS = {
+  clean: [],
+  trend: ['MAExp@tv-basicstudies', 'MASimple@tv-basicstudies'],
+  momentum: ['RSI@tv-basicstudies', 'MACD@tv-basicstudies'],
+  volatility: ['BB@tv-basicstudies', 'ATR@tv-basicstudies'],
+  ichimoku: ['IchimokuCloud@tv-basicstudies'],
+  volume: ['VWAP@tv-basicstudies', 'Volume@tv-basicstudies']
+};
+var TF_EW = {'15': 'M15', '60': 'H1', '240': 'H4', 'D': 'D1', 'W': 'W1'};
+var EW_SERVER = 'https://waves-production-ddbf.up.railway.app';
+var WORKER = 'https://xenos-ai-proxy.xenosfinance.workers.dev';
+
+var st = {label: 'EUR/USD', tv: 'FX:EURUSD', ew: 'EURUSD', tf: '240', preset: 'momentum'};
+var last = null;   // ultimo risultato /ews-chart
+
+function $(id) { return document.getElementById(id); }
+function toast(t) { var e = $('toast'); e.textContent = t; e.classList.add('show'); setTimeout(function () { e.classList.remove('show'); }, 2200); }
+function isAdmin() { return !!window._xfAdminPw; }
+
+function findByTv(tv) {
+  for (var i = 0; i < MARKETS.length; i++) for (var j = 0; j < MARKETS[i][1].length; j++)
+    if (MARKETS[i][1][j][1].toUpperCase() === tv.toUpperCase()) return MARKETS[i][1][j];
+  return null;
+}
+
+function renderList(filter) {
+  var f = (filter || '').trim().toUpperCase(), h = '';
+  MARKETS.forEach(function (g) {
+    var items = g[1].filter(function (m) { return !f || m[0].toUpperCase().indexOf(f) >= 0 || m[1].toUpperCase().indexOf(f) >= 0; });
+    if (!items.length) return;
+    h += '<div class="cat">' + g[0] + '</div>';
+    items.forEach(function (m) {
+      h += '<div class="sym' + (m[1] === st.tv ? ' on' : '') + '" data-tv="' + m[1] + '"><span>' + m[0] + '</span>' +
+           (m[2] ? '<span class="ew">EW</span>' : '') + '</div>';
+    });
+  });
+  $('syms').innerHTML = h || '<div class="cat">Press Enter to load "' + f + '"</div>';
+}
+
+function loadChart() {
+  var box = $('tv');
+  box.innerHTML = '';
+  var w = document.createElement('div'); w.className = 'tradingview-widget-container'; w.style.height = '100%';
+  var inner = document.createElement('div'); inner.className = 'tradingview-widget-container__widget'; inner.style.height = '100%';
+  w.appendChild(inner);
+  var s = document.createElement('script');
+  s.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
+  s.async = true;
+  s.text = JSON.stringify({
+    autosize: true, symbol: st.tv, interval: st.tf, timezone: 'Etc/UTC', theme: 'dark', style: '1', locale: 'en',
+    backgroundColor: '#0f1724', gridColor: 'rgba(34,50,76,0.45)',
+    allow_symbol_change: true, hide_side_toolbar: false, withdateranges: true, details: true, calendar: false,
+    save_image: true, hide_volume: st.preset !== 'volume', studies: PRESETS[st.preset] || [],
+    support_host: 'https://www.tradingview.com'
+  });
+  w.appendChild(s);
+  box.appendChild(w);
+  $('cur').innerHTML = st.label + '<small>' + st.tv + '</small>';
+  [].forEach.call(document.querySelectorAll('#tfs button'), function (b) { b.classList.toggle('on', b.dataset.tf === st.tf); });
+  [].forEach.call(document.querySelectorAll('#presets button'), function (b) { b.classList.toggle('on', b.dataset.p === st.preset); });
+  renderList($('q').value);
+  // pannello Xenos: azzera e indica se il mercato è coperto dal motore
+  last = null; $('ew-out').style.display = 'none';
+  $('ew-run').disabled = !st.ew;
+  $('ew-note').textContent = st.ew ? '' : st.label + ' is not covered by the Xenos Elliott Wave engine yet.';
+  $('ew-note').style.display = st.ew ? 'none' : 'block';
+  history.replaceState(null, '', '?s=' + encodeURIComponent(st.tv) + '&tf=' + st.tf + '&i=' + st.preset);
+}
+
+function pick(tv) {
+  var m = findByTv(tv);
+  st.tv = m ? m[1] : tv.toUpperCase();
+  st.label = m ? m[0] : st.tv.split(':').pop();
+  st.ew = m ? m[2] : null;
+  loadChart();
+}
+
+// ── Xenos EW (motore /ews-chart: numeri del motore, niente AI) ──
+async function runEW() {
+  if (!st.ew) return;
+  var btn = $('ew-run'); btn.disabled = true; btn.textContent = 'Counting…';
+  var want = st.ew + '|' + st.tf;
+  try {
+    var r = await fetch(EW_SERVER + '/ews-chart', {method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({symbol: st.ew, tf: TF_EW[st.tf]})});
+    var j = await r.json();
+    if (want !== st.ew + '|' + st.tf) return;            // l'utente ha cambiato mercato nel frattempo
+    if (!j.ok) throw new Error(j.error || 'engine error');
+    last = j;
+    var b = j.bias || 'neutral';
+    $('o-bias').innerHTML = '<span class="chip ' + (b === 'bullish' ? 'bull' : b === 'bearish' ? 'bear' : 'neu') + '">' +
+      (b === 'neutral' ? 'Neutral — wait' : b) + '</span>' + (j.no_trade ? ' <span class="muted">· count only</span>' : '');
+    $('o-wave').textContent = j.count ? ('Wave ' + j.wave + (j.degree ? ' · ' + j.degree : '')) : 'No valid count';
+    $('o-last').textContent = j.last_txt || '—';
+    $('o-inv').textContent = j.invalidation_txt || '—';
+    $('o-tgts').innerHTML = (j.targets || []).map(function (t) {
+      return (t.reached ? '✅' : '🎯') + ' T' + t.n + ' ' + t.value + (t.label ? ' <span class="muted">· ' + t.label + '</span>' : '');
+    }).join('<br>') || (j.summary ? '<span class="muted">' + j.summary + '</span>' : '');
+    var img = $('o-img');
+    if (j.png) { img.src = 'data:image/png;base64,' + j.png; img.style.display = 'block'; } else img.style.display = 'none';
+    $('ew-out').style.display = 'block';
+    $('tg-row').style.display = isAdmin() && j.png ? 'flex' : 'none';
+  } catch (e) {
+    toast('Engine: ' + e.message);
+  } finally {
+    btn.disabled = !st.ew; btn.textContent = 'Run count';
+  }
+}
+
+function dlPNG() {
+  if (!last || !last.png) return;
+  var a = document.createElement('a');
+  a.href = 'data:image/png;base64,' + last.png;
+  a.download = 'XenosFinance_' + st.label.replace(/[^A-Za-z0-9]+/g, '') + '_' + TF_EW[st.tf] + '.png';
+  a.click();
+}
+
+function link() { return location.origin + location.pathname + '?s=' + encodeURIComponent(st.tv) + '&tf=' + st.tf + '&i=' + st.preset; }
+function copyLink() {
+  var u = link();
+  (navigator.clipboard ? navigator.clipboard.writeText(u) : Promise.reject()).then(function () { toast('Link copied'); },
+    function () { prompt('Copy this link:', u); });
+}
+function shareLink() {
+  var u = link(), t = st.label + ' · ' + TF_EW[st.tf] + ' · XenosFinance';
+  if (navigator.share) navigator.share({title: t, url: u}).catch(function () {});
+  else copyLink();
+}
+
+async function sendTG() {
+  if (!last || !last.png || !isAdmin()) return;
+  var b = last.bias === 'bullish' ? '🟢 Bullish' : last.bias === 'bearish' ? '🔴 Bearish' : '⚪ Neutral — wait';
+  var cap = '〜 ' + (last.name || st.label) + ' · ' + TF_EW[st.tf] + ' · XenosFinance\n' + b +
+    (last.count ? ' · Wave ' + last.wave : '') + '\n' +
+    (last.invalidation_txt ? 'Invalidation: ' + last.invalidation_txt + '\n' : '') +
+    (last.targets || []).filter(function (t) { return !t.reached; }).slice(0, 2).map(function (t) { return 'T' + t.n + ' ' + t.value; }).join(' · ') +
+    '\n\nEducational analysis — not investment advice.';
+  if (!confirm('Publish this chart to the Telegram channel?\n\n' + cap)) return;
+  var btn = $('tg-btn'); btn.disabled = true; btn.textContent = 'Sending…';
+  try {
+    var r = await fetch(WORKER, {method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({type: 'telegram_photo', image_base64: last.png, image_mime: 'image/png', caption: cap.slice(0, 1000)})});
+    var d = await r.json();
+    var tg = d && d.result && typeof d.result === 'object' && 'ok' in d.result ? d.result : d;
+    if (r.ok && tg && tg.ok === true) toast('Published to the channel ✓');
+    else alert('Telegram did not publish: ' + ((tg && (tg.description || tg.error)) || r.status));
+  } catch (e) { alert('Error: ' + e.message); }
+  finally { btn.disabled = false; btn.textContent = '📡 Send to channel'; }
+}
+
+function zoom(src) { $('zoom-img').src = src; $('zoom').style.display = 'flex'; }
+
+// ── events ──
+$('syms').addEventListener('click', function (e) { var s = e.target.closest('.sym'); if (s) pick(s.dataset.tv); });
+$('q').addEventListener('input', function () { renderList(this.value); });
+$('q').addEventListener('keydown', function (e) {
+  if (e.key !== 'Enter') return;
+  var v = this.value.trim(); if (!v) return;
+  var first = document.querySelector('#syms .sym');
+  pick(first && v.indexOf(':') < 0 ? first.dataset.tv : v);
+});
+$('tfs').addEventListener('click', function (e) { var b = e.target.closest('button'); if (b) { st.tf = b.dataset.tf; loadChart(); } });
+$('presets').addEventListener('click', function (e) { var b = e.target.closest('button'); if (b) { st.preset = b.dataset.p; loadChart(); } });
+
+// ── start: ?s=FX:EURUSD&tf=240&i=momentum ──
+(function () {
+  var p = new URLSearchParams(location.search);
+  if (TF_EW[p.get('tf')]) st.tf = p.get('tf');
+  if (PRESETS[p.get('i')]) st.preset = p.get('i');
+  if (p.get('s')) { var m = findByTv(p.get('s')); st.tv = m ? m[1] : p.get('s').toUpperCase(); st.label = m ? m[0] : st.tv.split(':').pop(); st.ew = m ? m[2] : null; }
+  loadChart();
+})();
+</script>
+</body>
+</html>
