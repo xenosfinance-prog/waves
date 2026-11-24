@@ -27,7 +27,31 @@ from datetime import datetime, timezone
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
-import ew_server as E  # noqa: E402  (motore condiviso con la dashboard)
+import urllib.parse as _up  # noqa: E402
+import urllib.request as _ur  # noqa: E402
+
+
+class E:  # noqa: N801
+    """2026-11-24: il motore (ew_server.py) è in un repo privato e gira su Railway.
+    Stesso calcolo di prima (H1 + contesto H4 + Elliott H4), letto da /analysis-data."""
+    URL = os.environ.get("EW_SERVER_URL", "https://waves-production-ddbf.up.railway.app")
+
+    @staticmethod
+    def _ta_compute(yf, dec, **_):
+        q = _up.urlencode({"yf": yf, "dec": dec})
+        last = None
+        for _i in range(3):
+            try:
+                with _ur.urlopen(f"{E.URL}/analysis-data?{q}", timeout=240) as r:
+                    d = json.loads(r.read().decode("utf-8"))
+                if "error" in d:
+                    raise ValueError(d["error"])
+                return d
+            except Exception as e:  # noqa: BLE001
+                last = e
+        raise ValueError(f"engine: {last}")
+
+
 import free_llm  # noqa: E402  (2026-10-26: commento AI gratuito con Gemini)
 
 SITE = "https://xenosfinance.com"
