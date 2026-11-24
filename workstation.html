@@ -53,7 +53,6 @@ button{font-family:var(--mono);cursor:pointer}
 .sym{display:flex;justify-content:space-between;align-items:center;padding:6px 10px;cursor:pointer;border-left:2px solid transparent;color:#cbd5e1;font-size:11px}
 .sym:hover{background:var(--panel2)}
 .sym.on{border-left-color:var(--blue);background:rgba(59,130,246,.1);color:#fff}
-.sym .ew{font-size:8px;color:var(--blue2);border:1px solid rgba(96,165,250,.35);padding:0 4px;letter-spacing:.08em}
 .chart{position:relative;min-height:0;background:#0f1724}
 #tv{position:absolute;inset:0}
 .side{border-left:1px solid var(--line);overflow-y:auto;background:#0d1522;min-height:0}
@@ -127,28 +126,6 @@ button{font-family:var(--mono);cursor:pointer}
 
     <aside class="side" id="side">
       <div class="box">
-        <h3>Xenos Elliott Wave count</h3>
-        <p class="muted" id="ew-note" style="display:none;margin-bottom:8px"></p>
-        <button class="run" id="ew-run" onclick="runEW()">Run count</button>
-        <div id="ew-out" style="display:none">
-          <dl class="kv">
-            <dt>Bias</dt><dd id="o-bias">—</dd>
-            <dt>Wave</dt><dd id="o-wave">—</dd>
-            <dt>Last</dt><dd id="o-last">—</dd>
-            <dt>Invalid.</dt><dd id="o-inv">—</dd>
-          </dl>
-          <div class="tgts" id="o-tgts"></div>
-          <img class="ewimg" id="o-img" alt="XenosFinance Elliott Wave chart" onclick="zoom(this.src)">
-          <div class="row">
-            <button class="act" onclick="dlPNG()">⬇ PNG</button>
-            <button class="act" onclick="shareLink()">↗ Share</button>
-          </div>
-          <div class="row" id="tg-row" style="display:none">
-            <button class="act admin" id="tg-btn" onclick="sendTG()">📡 Send to channel</button>
-          </div>
-        </div>
-      </div>
-      <div class="box">
         <h3>How to use</h3>
         <p class="muted">
           • Pick a market on the left or type any TradingView symbol.<br>
@@ -158,7 +135,7 @@ button{font-family:var(--mono);cursor:pointer}
           • 🔗 Link saves market + timeframe + preset in the address.
         </p>
       </div>
-      <p class="disc">Educational market analysis. Not investment advice. Elliott Wave counts are probabilities, not certainties.</p>
+      <p class="disc">Educational market analysis. Not investment advice.</p>
     </aside>
   </div>
 </div>
@@ -168,7 +145,6 @@ button{font-family:var(--mono);cursor:pointer}
   <a class="act" href="/xenoswaves_charts">Go to Charts</a>
 </div>
 <div class="toast" id="toast"></div>
-<div class="zoom" id="zoom" onclick="this.style.display='none'"><img id="zoom-img" alt=""></div>
 
 <script>
 // ── Markets: [label, TradingView symbol, Xenos engine key (null = not covered)] ──
@@ -199,11 +175,8 @@ var PRESETS = {
   volume: ['VWAP@tv-basicstudies', 'Volume@tv-basicstudies']
 };
 var TF_EW = {'15': 'M15', '60': 'H1', '240': 'H4', 'D': 'D1', 'W': 'W1'};
-var EW_SERVER = 'https://waves-production-ddbf.up.railway.app';
-var WORKER = 'https://xenos-ai-proxy.xenosfinance.workers.dev';
 
 var st = {label: 'EUR/USD', tv: 'FX:EURUSD', ew: 'EURUSD', tf: '240', preset: 'momentum'};
-var last = null;   // ultimo risultato /ews-chart
 
 function $(id) { return document.getElementById(id); }
 function toast(t) { var e = $('toast'); e.textContent = t; e.classList.add('show'); setTimeout(function () { e.classList.remove('show'); }, 2200); }
@@ -222,8 +195,7 @@ function renderList(filter) {
     if (!items.length) return;
     h += '<div class="cat">' + g[0] + '</div>';
     items.forEach(function (m) {
-      h += '<div class="sym' + (m[1] === st.tv ? ' on' : '') + '" data-tv="' + m[1] + '"><span>' + m[0] + '</span>' +
-           (m[2] ? '<span class="ew">EW</span>' : '') + '</div>';
+      h += '<div class="sym' + (m[1] === st.tv ? ' on' : '') + '" data-tv="' + m[1] + '"><span>' + m[0] + '</span></div>';
     });
   });
   $('syms').innerHTML = h || '<div class="cat">Press Enter to load "' + f + '"</div>';
@@ -251,11 +223,6 @@ function loadChart() {
   [].forEach.call(document.querySelectorAll('#tfs button'), function (b) { b.classList.toggle('on', b.dataset.tf === st.tf); });
   [].forEach.call(document.querySelectorAll('#presets button'), function (b) { b.classList.toggle('on', b.dataset.p === st.preset); });
   renderList($('q').value);
-  // pannello Xenos: azzera e indica se il mercato è coperto dal motore
-  last = null; $('ew-out').style.display = 'none';
-  $('ew-run').disabled = !st.ew;
-  $('ew-note').textContent = st.ew ? '' : st.label + ' is not covered by the Xenos Elliott Wave engine yet.';
-  $('ew-note').style.display = st.ew ? 'none' : 'block';
   history.replaceState(null, '', '?s=' + encodeURIComponent(st.tv) + '&tf=' + st.tf + '&i=' + st.preset);
 }
 
@@ -267,80 +234,6 @@ function pick(tv) {
   loadChart();
 }
 
-// ── Xenos EW (motore /ews-chart: numeri del motore, niente AI) ──
-async function runEW() {
-  if (!st.ew) return;
-  var btn = $('ew-run'); btn.disabled = true; btn.textContent = 'Counting…';
-  var want = st.ew + '|' + st.tf;
-  try {
-    var r = await fetch(EW_SERVER + '/ews-chart', {method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({symbol: st.ew, tf: TF_EW[st.tf]})});
-    var j = await r.json();
-    if (want !== st.ew + '|' + st.tf) return;            // l'utente ha cambiato mercato nel frattempo
-    if (!j.ok) throw new Error(j.error || 'engine error');
-    last = j;
-    var b = j.bias || 'neutral';
-    $('o-bias').innerHTML = '<span class="chip ' + (b === 'bullish' ? 'bull' : b === 'bearish' ? 'bear' : 'neu') + '">' +
-      (b === 'neutral' ? 'Neutral — wait' : b) + '</span>' + (j.no_trade ? ' <span class="muted">· count only</span>' : '');
-    $('o-wave').textContent = j.count ? ('Wave ' + j.wave + (j.degree ? ' · ' + j.degree : '')) : 'No valid count';
-    $('o-last').textContent = j.last_txt || '—';
-    $('o-inv').textContent = j.invalidation_txt || '—';
-    $('o-tgts').innerHTML = (j.targets || []).map(function (t) {
-      return (t.reached ? '✅' : '🎯') + ' T' + t.n + ' ' + t.value + (t.label ? ' <span class="muted">· ' + t.label + '</span>' : '');
-    }).join('<br>') || (j.summary ? '<span class="muted">' + j.summary + '</span>' : '');
-    var img = $('o-img');
-    if (j.png) { img.src = 'data:image/png;base64,' + j.png; img.style.display = 'block'; } else img.style.display = 'none';
-    $('ew-out').style.display = 'block';
-    $('tg-row').style.display = isAdmin() && j.png ? 'flex' : 'none';
-  } catch (e) {
-    toast('Engine: ' + e.message);
-  } finally {
-    btn.disabled = !st.ew; btn.textContent = 'Run count';
-  }
-}
-
-function dlPNG() {
-  if (!last || !last.png) return;
-  var a = document.createElement('a');
-  a.href = 'data:image/png;base64,' + last.png;
-  a.download = 'XenosFinance_' + st.label.replace(/[^A-Za-z0-9]+/g, '') + '_' + TF_EW[st.tf] + '.png';
-  a.click();
-}
-
-function link() { return location.origin + location.pathname + '?s=' + encodeURIComponent(st.tv) + '&tf=' + st.tf + '&i=' + st.preset; }
-function copyLink() {
-  var u = link();
-  (navigator.clipboard ? navigator.clipboard.writeText(u) : Promise.reject()).then(function () { toast('Link copied'); },
-    function () { prompt('Copy this link:', u); });
-}
-function shareLink() {
-  var u = link(), t = st.label + ' · ' + TF_EW[st.tf] + ' · XenosFinance';
-  if (navigator.share) navigator.share({title: t, url: u}).catch(function () {});
-  else copyLink();
-}
-
-async function sendTG() {
-  if (!last || !last.png || !isAdmin()) return;
-  var b = last.bias === 'bullish' ? '🟢 Bullish' : last.bias === 'bearish' ? '🔴 Bearish' : '⚪ Neutral — wait';
-  var cap = '〜 ' + (last.name || st.label) + ' · ' + TF_EW[st.tf] + ' · XenosFinance\n' + b +
-    (last.count ? ' · Wave ' + last.wave : '') + '\n' +
-    (last.invalidation_txt ? 'Invalidation: ' + last.invalidation_txt + '\n' : '') +
-    (last.targets || []).filter(function (t) { return !t.reached; }).slice(0, 2).map(function (t) { return 'T' + t.n + ' ' + t.value; }).join(' · ') +
-    '\n\nEducational analysis — not investment advice.';
-  if (!confirm('Publish this chart to the Telegram channel?\n\n' + cap)) return;
-  var btn = $('tg-btn'); btn.disabled = true; btn.textContent = 'Sending…';
-  try {
-    var r = await fetch(WORKER, {method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({type: 'telegram_photo', image_base64: last.png, image_mime: 'image/png', caption: cap.slice(0, 1000)})});
-    var d = await r.json();
-    var tg = d && d.result && typeof d.result === 'object' && 'ok' in d.result ? d.result : d;
-    if (r.ok && tg && tg.ok === true) toast('Published to the channel ✓');
-    else alert('Telegram did not publish: ' + ((tg && (tg.description || tg.error)) || r.status));
-  } catch (e) { alert('Error: ' + e.message); }
-  finally { btn.disabled = false; btn.textContent = '📡 Send to channel'; }
-}
-
-function zoom(src) { $('zoom-img').src = src; $('zoom').style.display = 'flex'; }
 
 // ── events ──
 $('syms').addEventListener('click', function (e) { var s = e.target.closest('.sym'); if (s) pick(s.dataset.tv); });
