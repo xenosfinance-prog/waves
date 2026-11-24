@@ -489,6 +489,7 @@ a:hover {{ color: var(--ink); }}
     <a class="nav-btn active" href="https://xenosfinance.com/market-brief"><span data-i18n="nav_brief">🤖 Market Brief</span></a>
     <a class="nav-btn" href="https://xenosfinance.com/dashboard"><span data-i18n="nav_dashboard">📊 Dashboard</span></a>
     <a class="nav-btn" href="https://xenosfinance.com/xenoswaves_charts"><span data-i18n="nav_charts">◈ Charts</span></a>
+    <a class="nav-btn" href="https://xenosfinance.com/workstation"><span>🖥 Workstation</span></a>
     <a class="nav-btn" href="https://xenosfinance.com/XenosBlog"><span data-i18n="nav_blog">✦ AI Blog</span></a>
     <a class="nav-btn" href="https://xenosfinance.com/live-setups"><span data-i18n="nav_signals">📡 Live Signals</span></a>
     <a class="nav-btn" href="https://xenosfinance.com/calendar"><span data-i18n="nav_calendar">🗓 Calendar</span></a>
