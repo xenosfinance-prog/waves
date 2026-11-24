@@ -27,6 +27,9 @@ jobs:
       - name: Audit (v0 = main, v1 = this branch)
         run: |
           git show origin/main:ew_server.py > tools/_ew_main.py
+          # 2026-11-24: da 20/11 ew_server.py di main importa ews_engine (modulo nella root):
+          # se il branch non lo ha, prendilo da main, altrimenti v0 non si carica (ModuleNotFoundError)
+          [ -f ews_engine.py ] || git show origin/main:ews_engine.py > ews_engine.py
           set +e
           python tools/ew_audit.py tools/_ew_main.py ew_server.py > tools/ew_audit_report.txt 2>&1
           echo "exit=$?" >> tools/ew_audit_report.txt
