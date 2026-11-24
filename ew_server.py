@@ -1958,7 +1958,22 @@ def _bb_htf_ma(yf_sym, tf):
     return val
 
 
-def _bb_quality_filter(yf_sym, tf_raw, df, direction):
+def _candles_df(rows):
+    """2026-11-24: candele passate dal broker-engine (MT5) → DataFrame come fetch_candles."""
+    d = pd.DataFrame(rows, columns=["t", "Open", "High", "Low", "Close", "Volume"])
+    d.index = pd.to_datetime(d.pop("t").astype("int64"), unit="s", utc=True)
+    return d.astype(float).sort_index()
+
+
+def _bb_htf_from(htf_df, tf):
+    d = htf_df.get(tf) if htf_df else None
+    if d is None:
+        return None
+    c = d["Close"].astype(float)
+    return (float(c.iloc[-1]), float(c.rolling(BB_MA_PERIOD).mean().iloc[-1])) if len(c) >= BB_MA_PERIOD else None
+
+
+def _bb_quality_filter(yf_sym, tf_raw, df, direction, htf_df=None):
     info = {"ma": {}, "volume": None}
     # 1) MA50
     for tf in _BB_MA_TFS.get(tf_raw, ["H4 (4-Hour)"]):
@@ -1968,7 +1983,7 @@ def _bb_quality_filter(yf_sym, tf_raw, df, direction):
                 v = (float(c.iloc[-1]), float(c.rolling(BB_MA_PERIOD).mean().iloc[-1])) \
                     if len(c) >= BB_MA_PERIOD else _bb_htf_ma(yf_sym, tf)
             else:
-                v = _bb_htf_ma(yf_sym, tf)
+                v = _bb_htf_from(htf_df, tf) or _bb_htf_ma(yf_sym, tf)
         except Exception as e:
             return f"ma50_unavailable_{tf.split()[0]}", {**info, "error": str(e)}
         if v is None or v[1] != v[1]:
@@ -2018,8 +2033,20 @@ def bollinger_rsi_chart():
         iv, pd_, n, _mult, _piv, _ppd = cfg
         is_h4 = (tf_raw == "H4 (4-Hour)")
 
-        logger.info(f"[bollinger_rsi] Fetching {yf_sym} {iv} {pd_}")
-        df = fetch_candles(yf_sym, iv, pd_, max(n, 40), is_h4)
+        # 2026-11-24: candele MT5 dal broker-engine (GER40/UK100) al posto di Yahoo
+        htf_df, src = None, "yahoo"
+        cand = body.get("candles") if isinstance(body.get("candles"), dict) else None
+        if cand and cand.get(tf_raw):
+            try:
+                htf_df = {k: _candles_df(v) for k, v in cand.items() if v}
+                df = htf_df[tf_raw].tail(max(n, 40))
+                src = "mt5"
+            except Exception as e:
+                logger.warning(f"[bollinger_rsi] MT5 candles unusable ({e}), using Yahoo")
+                htf_df = None
+        if src == "yahoo":
+            logger.info(f"[bollinger_rsi] Fetching {yf_sym} {iv} {pd_}")
+            df = fetch_candles(yf_sym, iv, pd_, max(n, 40), is_h4)
 
         result = compute_bollinger_rsi_signal(df)
         if result is None:
@@ -2028,7 +2055,7 @@ def bollinger_rsi_chart():
         # 2026-11-19: filtri qualità per l'auto-trading (body "quality": true).
         # Il sito resta invariato (senza flag nessun filtro).
         if body.get("quality") and result.get("direction") in ("UP", "DOWN"):
-            why, qinfo = _bb_quality_filter(yf_sym, tf_raw, df, result["direction"])
+            why, qinfo = _bb_quality_filter(yf_sym, tf_raw, df, result["direction"], htf_df)
             result["quality"] = qinfo
             if why:
                 result["filter_reason"] = why
@@ -2042,6 +2069,7 @@ def bollinger_rsi_chart():
             result["bar_time"] = int(pd.Timestamp(df.index[-1]).timestamp())
         except Exception:
             pass
+        result["data_source"] = src
         return jsonify({"symbol": sym_raw.upper(), "tf": tf_raw, **result})
     except Exception as e:
         logger.error(f"bollinger_rsi_chart error: {e}", exc_info=True)
