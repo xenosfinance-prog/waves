@@ -215,8 +215,10 @@ function eventCcys(m) {
 var PRESETS = {
   clean: [],
   // 2026-11-24: con l'id semplice TradingView usa lunghezza 9 per entrambe → EMA20/EMA50/SMA200
-  trend: [{id: 'MAExp@tv-basicstudies', inputs: {length: 20}}, {id: 'MAExp@tv-basicstudies', inputs: {length: 50}},
-          {id: 'MASimple@tv-basicstudies', inputs: {length: 200}}],
+  // colori come il layout di Manolis: EMA20 rossa sottile, EMA50 bianca, SMA200 gialla spessa
+  trend: [{id: 'MAExp@tv-basicstudies', inputs: {length: 20}, override: {'Plot.color': '#f23645', 'Plot.linewidth': 1}},
+          {id: 'MAExp@tv-basicstudies', inputs: {length: 50}, override: {'Plot.color': '#ffffff', 'Plot.linewidth': 2}},
+          {id: 'MASimple@tv-basicstudies', inputs: {length: 200}, override: {'Plot.color': '#ffeb3b', 'Plot.linewidth': 3}}],
   momentum: ['RSI@tv-basicstudies', 'MACD@tv-basicstudies'],
   volatility: ['BB@tv-basicstudies', 'ATR@tv-basicstudies'],
   ichimoku: ['IchimokuCloud@tv-basicstudies'],
@@ -264,6 +266,9 @@ function loadChart() {
     backgroundColor: '#0f1724', gridColor: 'rgba(34,50,76,0.45)',
     allow_symbol_change: true, hide_side_toolbar: false, withdateranges: true, details: true, calendar: false,
     save_image: true, hide_volume: true, studies: PRESETS[st.preset] || [],
+    // default se il widget ignora l'override del singolo studio
+    studies_overrides: st.preset === 'trend' ? {'moving average exponential.plot.color': '#f23645',
+      'moving average.plot.color': '#ffeb3b', 'moving average.plot.linewidth': 3} : {},
     support_host: 'https://www.tradingview.com'
   });
   w.appendChild(s);
