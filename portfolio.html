@@ -389,7 +389,7 @@ textarea{resize:vertical;min-height:70px;}
     <div class="acc-item">
       <div class="acc-label">Capital</div>
       <div class="acc-value" id="acc-capital">$10,000</div>
-      <div class="acc-sub">Starting balance</div>
+      <div class="acc-sub" id="acc-capital-sub">Starting balance</div>
     </div>
     <div class="acc-item">
       <div class="acc-label">Equity</div>
@@ -896,7 +896,14 @@ function renderAccSummary(open, closed) {
   // by JS at all — changing the CAPITAL constant above did nothing
   // to this box until now. Setting it here means CAPITAL is the only
   // place that ever needs editing again.
-  set('acc-capital', '$' + cap.toLocaleString('en-US'));
+  // 2026-11-24: Capital = saldo aggiornato (capitale iniziale + P&L realizzato),
+  // come il balance del broker. Equity = Capital + P&L aperto: senza posizioni
+  // aperte i due valori coincidono. La % dell'equity resta vs capitale iniziale.
+  const balance = cap + realPnL;
+  set('acc-capital', '$' + balance.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}),
+      balance >= cap ? 'green' : 'red');
+  const capSubEl = document.getElementById('acc-capital-sub');
+  if(capSubEl) capSubEl.textContent = 'Start $' + cap.toLocaleString('en-US');
 
   set('acc-equity', '$' + equity.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}),
       equity >= cap ? 'green' : 'red');
