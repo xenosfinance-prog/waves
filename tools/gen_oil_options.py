@@ -188,10 +188,13 @@ def analyse(today):
     if not chain:
         raise RuntimeError("USO option chain unavailable")
 
-    sess = ovx[-1][0]
+    # 2026-11-25: la seduta è quella della catena USO, non l'ultima barra OVX. Alle 21:30 UTC Yahoo
+    # non ha ancora la barra OVX del giorno (indice CBOE pubblicato più tardi): il run del 24/11 era
+    # etichettato "Monday 23" pur con la catena del 24. USO (titolo) ha la barra del giorno già al run.
+    sess = max(uso[-1][0], ovx[-1][0])
     o_last, o_prev = ovx[-1][1], ovx[-2][1]
     o_1y = [c for _, c in ovx[-252:]]
-    res = {"session": sess.isoformat(),
+    res = {"session": sess.isoformat(), "ovx_date": ovx[-1][0].isoformat(),
            "ovx": round(o_last, 2), "ovx_chg": round(o_last - o_prev, 2),
            "ovx_chg5": round(o_last - ovx[-6][1], 2) if len(ovx) >= 6 else None,
            "ovx_pct": round(percentile_rank(o_1y, o_last), 0),
@@ -499,10 +502,16 @@ def build_page(res, day, now, en, it, bl, bl_it, chg):
     desc = (f"What the options market prices for crude oil on {day:%d %B %Y}: OVX implied volatility vs realised, "
             "put/call skew, open-interest walls and unusual activity in USO options, with WTI-equivalent levels.")
     note = 'style="font-family:var(--mono);font-size:10px;color:var(--muted)"'
+    # 2026-11-25: se Yahoo non ha ancora la barra OVX della seduta, lo dichiariamo
+    ovx_note_en = ovx_note_it = ""
+    if res.get("ovx_date") and res["ovx_date"] != res["session"]:
+        od = date.fromisoformat(res["ovx_date"])
+        ovx_note_en = f" · OVX: {od:%d %b} close (latest published)"
+        ovx_note_it = f" · OVX: chiusura {od.day} {PI.MONTHS_IT_SHORT[od.month - 1]} (ultima pubblicata)"
     b = ['<div class="crumb"><a href="/">Home</a> › Oil Options</div>',
          f"<h1>{Lg('Oil Options Monitor', 'Oil Options Monitor — opzioni sul petrolio')}</h1>",
-         '<div class="upd">' + Lg(f'Session {day:%A %d %B %Y} · Updated {now:%d %b %Y, %H:%M} UTC',
-                                  f'Seduta di {PI.d_day_long(day)} · aggiornato {PI.d_short_time(now)} UTC') + '</div>',
+         '<div class="upd">' + Lg(f'Session {day:%A %d %B %Y} · Updated {now:%d %b %Y, %H:%M} UTC' + ovx_note_en,
+                                  f'Seduta di {PI.d_day_long(day)} · aggiornato {PI.d_short_time(now)} UTC' + ovx_note_it) + '</div>',
          "<p>" + Lg(
              "What the options market is pricing for crude oil: how much movement it expects (implied volatility), "
              "whether it fears a drop or a spike more (skew), and where positions are concentrated (open interest "
