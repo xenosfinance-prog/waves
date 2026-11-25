@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex,nofollow">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Font preview — XenosFinance</title>
+<style>
+  html,body{margin:0;height:100%;background:#0d1421;font-family:system-ui,sans-serif}
+  .bar{position:fixed;top:0;left:0;right:0;z-index:10;display:flex;gap:6px;flex-wrap:wrap;align-items:center;
+       padding:8px 10px;background:#0d1421;border-bottom:1px solid #1e2a3d;color:#8ba3c7;font-size:13px}
+  .bar b{color:#e6edf7;margin-right:6px}
+  .bar a{color:#8ba3c7;text-decoration:none;border:1px solid #1e2a3d;border-radius:4px;padding:5px 9px}
+  .bar a.on{background:#2962ff;border-color:#2962ff;color:#fff}
+  iframe{position:fixed;top:46px;left:0;width:100%;height:calc(100% - 46px);border:0;background:#fff}
+</style>
+</head>
+<body>
+<!-- Pagina temporanea (noindex) per confrontare i font prima di applicarli al sito. -->
+<div class="bar" id="bar"><b>Font preview</b></div>
+<iframe id="f" title="preview"></iframe>
+<script>
+const OPTIONS = {
+  A: {label: "A · Attuale (Playfair + PT Serif)", fam: null},
+  B: {label: "B · Inter", fam: "Inter:wght@400;500;600;700;800;900",
+      serif: "'Inter',sans-serif", body: "'Inter',sans-serif"},
+  C: {label: "C · IBM Plex Sans", fam: "IBM+Plex+Sans:wght@400;500;600;700",
+      serif: "'IBM Plex Sans',sans-serif", body: "'IBM Plex Sans',sans-serif"},
+  D: {label: "D · Playfair titoli + Inter testo", fam: "Inter:wght@400;500;600;700",
+      serif: null, body: "'Inter',sans-serif"},
+  E: {label: "E · Space Grotesk titoli + Inter testo", fam: "Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600",
+      serif: "'Space Grotesk',sans-serif", body: "'Inter',sans-serif"},
+};
+const q = new URLSearchParams(location.search);
+const opt = OPTIONS[q.get("f")] ? q.get("f") : "A";
+const page = (q.get("p") || "/").startsWith("/") ? (q.get("p") || "/") : "/";
+const bar = document.getElementById("bar");
+for (const k of Object.keys(OPTIONS)) {
+  const a = document.createElement("a");
+  a.href = `?f=${k}&p=${encodeURIComponent(page)}`;
+  a.textContent = OPTIONS[k].label;
+  if (k === opt) a.className = "on";
+  bar.appendChild(a);
+}
+const fr = document.getElementById("f");
+fr.addEventListener("load", () => {
+  const o = OPTIONS[opt];
+  if (!o.fam) return;
+  try {
+    const d = fr.contentDocument;
+    const l = d.createElement("link");
+    l.rel = "stylesheet";
+    l.href = `https://fonts.googleapis.com/css2?family=${o.fam}&display=swap`;
+    d.head.appendChild(l);
+    const s = d.createElement("style");
+    let css = ":root{";
+    if (o.serif) css += `--serif:${o.serif};--font-display:${o.serif};`;
+    if (o.body) css += `--body:${o.body};--sans:${o.body};`;
+    css += "}";
+    if (o.serif) css += `h1,h2,h3,.masthead-name{font-family:${o.serif}!important}`;
+    s.textContent = css;
+    d.head.appendChild(s);
+  } catch (e) { console.warn(e); }
+});
+fr.src = page;
+</script>
+</body>
+</html>
