@@ -24,16 +24,11 @@ jobs:
           python-version: "3.11"
           cache: pip
       - run: pip install -r requirements.txt
-      - name: Audit (v0 = main, v1 = this branch)
+      # 2026-11-25: l'audit del motore Elliott (R1-R5, B1-B5) è stato spostato nel repo
+      # xenosfinance-bot (branch ew-audit), dove vive ew-server/ dal 24/11. Qui resta il test oil hub.
+      - name: Oil hub test
         run: |
-          git show origin/main:ew_server.py > tools/_ew_main.py
           set +e
-          python tools/ew_audit.py tools/_ew_main.py ew_server.py > tools/ew_audit_report.txt 2>&1
-          echo "exit=$?" >> tools/ew_audit_report.txt
-          rm -f tools/_ew_main.py
-          pip install pytz >/dev/null 2>&1
-          python tools/bot_ew_audit.py WMT > tools/bot_ew_audit_report.txt 2>&1
-          echo "exit=$?" >> tools/bot_ew_audit_report.txt
           python tools/test_oil_hub.py > tools/oil_hub_test_log.txt 2>&1
           echo "exit=$?" >> tools/oil_hub_test_log.txt
       # report sul branch di audit (push con GITHUB_TOKEN: non rilancia il workflow)
@@ -42,7 +37,7 @@ jobs:
         run: |
           git config user.name "xenos-audit-bot"
           git config user.email "xenosfinance@gmail.com"
-          git add tools/ew_audit_report.txt tools/bot_ew_audit_report.txt tools/oil_hub_test_log.txt tools/oil_hub_preview.html
+          git add tools/oil_hub_test_log.txt tools/oil_hub_preview.html
           git commit -m "EW audit report" || exit 0
           # 2026-11-02: un push arrivato durante il run faceva fallire questo passo → riallinea e riprova
           for i in 1 2 3; do git pull --rebase -X theirs origin ew-audit && git push origin HEAD:ew-audit && exit 0; sleep 5; done
