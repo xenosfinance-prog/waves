@@ -137,7 +137,7 @@ class HTMLWriter:
 <title>XenosFinance · Market Intelligence Brief</title>
 <meta name="description" content="AI-powered daily financial market intelligence brief — Macro, Equities, Commodities, Crypto, Forex. Powered by XenosFinance.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=IBM+Plex+Mono:wght@400;500&family=PT+Serif:ital,wght@0,400;1,400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root {{
   --bg:     #0a1020;
@@ -153,7 +153,7 @@ class HTMLWriter:
   --red:    #ef4444;
   --yellow: #f0c040;
   --mono:   'IBM Plex Mono', monospace;
-  --serif:  'PT Serif', Georgia, serif;
+  --serif:  'Inter',system-ui,sans-serif;
   --head:   'Playfair Display', Georgia, serif;
 }}
 * {{ box-sizing: border-box; margin: 0; padding: 0; }}

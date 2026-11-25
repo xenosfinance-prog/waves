@@ -23,7 +23,7 @@
     '.xtg .xtg-tx{flex:1;min-width:220px}' +
     '.xtg .xtg-t1{font-family:"IBM Plex Mono",monospace;font-size:13px;letter-spacing:.06em;' +
     'text-transform:uppercase;color:#e2eaf4;font-weight:600}' +
-    '.xtg .xtg-t2{font-family:"PT Serif",Georgia,serif;font-size:15px;color:#b8cce0;margin-top:4px;line-height:1.45}' +
+    '.xtg .xtg-t2{font-family:"Inter",system-ui,sans-serif;font-size:15px;color:#b8cce0;margin-top:4px;line-height:1.45}' +
     '.xtg .xtg-bt{font-family:"IBM Plex Mono",monospace;font-size:13px;font-weight:600;color:#fff !important;' +
     'background:#229ED9;padding:10px 16px;border-radius:4px;text-decoration:none !important;white-space:nowrap}' +
     '.xtg .xtg-bt:hover{background:#1c8cc2}' +

@@ -122,7 +122,7 @@ const XFPremium = (() => {
             font-family:'Playfair Display',Georgia,serif;
             font-size:1.4rem;color:#e8eaf0;margin-bottom:10px;font-weight:700;
           ">Free limit reached</div>
-          <div style="font-size:0.82rem;color:#8899aa;margin-bottom:24px;line-height:1.6;font-family:'PT Serif',serif;">
+          <div style="font-size:0.82rem;color:#8899aa;margin-bottom:24px;line-height:1.6;font-family:'Inter',system-ui,sans-serif;">
             You've used your free <b style="color:#e8eaf0">${label}</b> for today.<br>
             Upgrade to Premium for unlimited access to all AI tools.
           </div>
