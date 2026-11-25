@@ -58,7 +58,7 @@ def url_for(path):
     m = re.fullmatch(r"analysis/([a-z0-9-]+)\.html", p)
     if m:
         return f"{SITE}/analysis/" if m.group(1) == "index" else f"{SITE}/analysis/{m.group(1)}"
-    for d in ("cot", "futures-flow", "intelligence"):
+    for d in ("cot", "futures-flow", "intelligence", "oil-options"):
         if p == f"{d}/index.html":
             return f"{SITE}/{d}/"
     if p == "llms.txt":
@@ -72,6 +72,40 @@ def url_for(path):
     return None
 
 
+TOPICS = ["stock-market", "forex", "commodities", "oil-market", "crypto", "macro", "geopolitics",
+          "weekly-market-outlook", "technical-analysis", "pre-market-brief", "market-sentiment"]
+
+
+def _setup_slug(s):
+    """Stesso slug di functions/setups/[[path]].js e functions/sitemap-setups.xml.js."""
+    t = re.sub(r"[^a-z0-9]+", "-", str(s.get("ticker") or s.get("name") or "setup").lower()).strip("-")
+    sid = re.sub(r"[^a-z0-9]", "", str(s.get("id") or "").lower())[:8]
+    side = "long" if re.match(r"^(BUY|LONG|BULL)", str(s.get("bias") or ""), re.I) else "short"
+    return f"{t}-{side}-{str(s.get('timestamp') or '')[:10]}-{sid}"
+
+
+def derived_urls(files, days=3):
+    """2026-11-25: pagine generate dalle Pages Functions (nessun file .html nel repo):
+    setup di trading (ideas.json) e pagine tema del blog (articles/index.json)."""
+    out = []
+    fs = set(files)
+    if "trading_ideas/ideas.json" in fs:
+        out.append(f"{SITE}/trade-setups")
+        try:
+            from datetime import datetime, timedelta, timezone
+            cut = (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%d")
+            ideas = json.load(open(os.path.join(ROOT, "trading_ideas", "ideas.json"), encoding="utf-8"))
+            for s in ideas if isinstance(ideas, list) else []:
+                if s.get("timestamp") and s.get("id") and str(s["timestamp"])[:10] >= cut:
+                    out.append(f"{SITE}/setups/{_setup_slug(s)}")
+        except Exception as e:
+            print(f"::warning::ideas.json: {e}")
+    if "articles/index.json" in fs:
+        out.append(f"{SITE}/topics")
+        out += [f"{SITE}/topics/{t}" for t in TOPICS]
+    return out
+
+
 def changed_since(since):
     out = subprocess.run(["git", "-C", ROOT, "log", f"--since={since}", "--name-only", "--pretty=format:"],
                          capture_output=True, text=True, check=True).stdout
@@ -83,6 +117,7 @@ def all_urls():
     files = glob.glob(os.path.join(ROOT, "analysis", "*.html"))
     files += glob.glob(os.path.join(ROOT, "articles", "*.json"))
     files += glob.glob(os.path.join(ROOT, "daily_education", "*.json"))
+    urls += derived_urls(["trading_ideas/ideas.json", "articles/index.json"], days=60)
     for f in files:
         u = url_for(os.path.relpath(f, ROOT))
         if u:
@@ -120,8 +155,8 @@ def main():
     if a.all:
         submit(all_urls())
     else:
-        files = changed_since(a.since or "2 hours 15 minutes ago")
-        submit([u for u in (url_for(f) for f in files) if u])
+        files = changed_since(a.since or "26 hours ago")
+        submit([u for u in (url_for(f) for f in files) if u] + derived_urls(files))
 
 
 if __name__ == "__main__":

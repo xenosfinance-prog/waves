@@ -15,6 +15,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   ping:
@@ -28,10 +29,25 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      # 2026-11-25: GitHub esegue il cron "ogni 2 ore" solo 2-3 volte al giorno, quindi la finestra fissa
+      # di 2h15m perdeva quasi tutte le pagine (Bing: "pages not submitted via IndexNow"). Ora la finestra
+      # parte dall'ultimo invio riuscito (−15 min di margine), massimo 3 giorni.
       - name: Submit to IndexNow
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           if [ "${{ github.event.inputs.all }}" = "true" ]; then
             python tools/indexnow.py --all
           else
-            python tools/indexnow.py --since "2 hours 15 minutes ago"
+            last=$(gh run list -R "${{ github.repository }}" --workflow indexnow.yml --status success -L 1 \
+                     --json createdAt -q '.[0].createdAt' 2>/dev/null || true)
+            if [ -n "$last" ]; then
+              since=$(date -u -d "$last - 15 minutes" '+%Y-%m-%dT%H:%M:%SZ')
+              floor=$(date -u -d '3 days ago' '+%Y-%m-%dT%H:%M:%SZ')
+              [ "$since" \< "$floor" ] && since="$floor"
+            else
+              since=$(date -u -d '26 hours ago' '+%Y-%m-%dT%H:%M:%SZ')
+            fi
+            echo "Changes since $since"
+            python tools/indexnow.py --since "$since"
           fi
