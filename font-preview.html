@@ -37,7 +37,7 @@ for (const k of Object.keys(OPTIONS)) {
 bar += "</div>";
 
 const o = OPTIONS[opt];
-let inject = "";
+let inject = "", barScript = "";
 if (o.fam) {
   inject += `<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=${o.fam}&display=swap">`;
   let css = ":root{";
@@ -46,12 +46,21 @@ if (o.fam) {
   css += "}";
   if (o.serif) css += `h1,h2,h3,.masthead-name{font-family:${o.serif}!important}`;
   inject += `<style>${css}</style>`;
+  // Come farebbe la sostituzione vera: ogni testo in Playfair / PT Serif / Georgia passa al nuovo font
+  // (anche dove il font è scritto direttamente e non tramite variabile).
+  const sw = `(function(){var S=${JSON.stringify(o.serif || "")},B=${JSON.stringify(o.body || "")};
+    function fix(){document.querySelectorAll('body *').forEach(function(el){
+      var f=getComputedStyle(el).fontFamily;
+      if(S&&/Playfair/i.test(f))el.style.setProperty('font-family',S,'important');
+      else if(B&&/(PT Serif|Georgia|serif$)/i.test(f)&&!/Playfair|Mono|sans/i.test(f))el.style.setProperty('font-family',B,'important');});}
+    fix();setTimeout(fix,1500);setTimeout(fix,4000);})();`;
+  barScript = `<scr` + `ipt>${sw}</scr` + `ipt>`;
 }
 
 fetch(page, {credentials: "same-origin"}).then(r => r.text()).then(html => {
   html = html.replace(/<head([^>]*)>/i, `<head$1><base href="${page}">`);
   html = html.replace(/<\/head>/i, inject + "</head>");
-  html = html.replace(/<\/body>/i, bar + "</body>");
+  html = html.replace(/<\/body>/i, bar + barScript + "</body>");
   document.open();
   document.write(html);
   document.close();
