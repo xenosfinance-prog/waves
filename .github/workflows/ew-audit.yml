@@ -24,21 +24,49 @@ jobs:
           python-version: "3.11"
           cache: pip
       - run: pip install -r requirements.txt
-      # 2026-11-25: l'audit del motore Elliott (R1-R5, B1-B5) è stato spostato nel repo
-      # xenosfinance-bot (branch ew-audit), dove vive ew-server/ dal 24/11. Qui resta il test oil hub.
-      - name: Oil hub test
+      # 2026-11-25: ew-server/ (ew_server.py + ews_engine.py) è privato in xenosfinance-bot
+      # dal 24/11 e le Actions del repo privato non partono → l'audit gira qui leggendo il
+      # codice di PRODUZIONE (main del bot) con il secret BOT_REPO_TOKEN (sola lettura).
+      - name: Production engine (xenosfinance-bot main)
+        uses: actions/checkout@v4
+        with:
+          repository: xenosfinance-prog/xenosfinance-bot
+          token: ${{ secrets.BOT_REPO_TOKEN }}
+          path: _botrepo
+      - name: Build bot engine copy from bot.py
+        run: |
+          pip install -r _botrepo/ew-server/requirements.txt pytz >/dev/null 2>&1
+          python - <<'PY'
+          import sys; sys.path.insert(0, "_botrepo/tools")
+          import sync_ews_engine as S
+          S.ROOTS += ["EWS_SYMBOLS", "_ew_target_plan", "_ew_wave_extreme", "_ewp_setup_from",
+                      "_ews_desk_note", "_ews_trade_plan", "count_elliott_waves_engine"]
+          S.main("_botrepo/bot.py", "tools/_bot_ew_engine.py")
+          PY
+      - name: Audit
         run: |
           set +e
+          MAIN=$(git -C _botrepo log -1 --format='%h %ci')
+          cp tools/ew_audit.py _botrepo/ew-server/_ew_audit.py   # così importa order_blocks/free_llm/ews_engine di produzione, non le vecchie copie di waves
+          { echo "bot main: $MAIN"; python _botrepo/ew-server/_ew_audit.py _botrepo/ew-server/ew_server.py; echo "exit=$?"; } > tools/ew_audit_report.txt 2>&1
+          { echo "bot main: $MAIN"; python tools/bot_ew_audit.py WMT; echo "exit=$?"; } > tools/bot_ew_audit_report.txt 2>&1
           python tools/test_oil_hub.py > tools/oil_hub_test_log.txt 2>&1
           echo "exit=$?" >> tools/oil_hub_test_log.txt
+          rm -rf _botrepo
+          git checkout -- tools/_bot_ew_engine.py   # la copia rigenerata dal codice privato non va committata
+          tail -3 tools/ew_audit_report.txt; tail -3 tools/bot_ew_audit_report.txt
       # report sul branch di audit (push con GITHUB_TOKEN: non rilancia il workflow)
       - name: Save report
         if: github.ref == 'refs/heads/ew-audit'
         run: |
           git config user.name "xenos-audit-bot"
           git config user.email "xenosfinance@gmail.com"
-          git add tools/oil_hub_test_log.txt tools/oil_hub_preview.html
+          git add tools/ew_audit_report.txt tools/bot_ew_audit_report.txt tools/oil_hub_test_log.txt tools/oil_hub_preview.html
           git commit -m "EW audit report" || exit 0
           # 2026-11-02: un push arrivato durante il run faceva fallire questo passo → riallinea e riprova
           for i in 1 2 3; do git pull --rebase -X theirs origin ew-audit && git push origin HEAD:ew-audit && exit 0; sleep 5; done
           exit 1
+      - name: Fail on crash or violations
+        run: |
+          grep -q '^exit=0$' tools/ew_audit_report.txt || { echo "ew_audit: crash o violazioni R1-R5"; exit 1; }
+          grep -q 'TOTAL violations: 0' tools/bot_ew_audit_report.txt || { echo "bot_ew_audit: crash o violazioni B1-B5"; exit 1; }
