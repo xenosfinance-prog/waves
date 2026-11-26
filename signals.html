@@ -3782,9 +3782,10 @@ function drawPatternShape(ctx, pat, isBull, entry, sl, tp,
 // Livelli chiave leggibili (fallback senza AI): {resistance:x, support:y} -> "Resistance: 0.5865 · Support: 0.5806"
 function fmtKeyLevels(sr, pair) {
   if (!sr || typeof sr !== 'object') return 'N/A';
-  const names = {resistance:'Resistance', support:'Support', fib382:'Fib 38.2%', rim:'Rim', bottom:'Bottom'};
-  const parts = Object.keys(sr).filter(k => sr[k] != null && !isNaN(parseFloat(sr[k])))
-    .map(k => (names[k] || k) + ': ' + fmtPrice(sr[k], pair));
+  const names = {resistance:'Resistance', support:'Support', fib382:'Fib 38.2%', rim:'Rim', bottom:'Bottom', level:'Key level'};
+  const parts = Object.keys(sr).filter(k => k !== 'touches' && sr[k] != null && !isNaN(parseFloat(sr[k])))
+    .map(k => (names[k] || k) + ': ' + fmtPrice(sr[k], pair)
+              + (k === 'level' && sr.touches ? ' (' + parseInt(sr.touches) + ' touches)' : ''));
   return parts.length ? parts.join(' · ') : 'N/A';
 }
 
