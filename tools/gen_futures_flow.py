@@ -284,13 +284,13 @@ def curve_svg(res, prev_rows, w=320, h=90):
     y = lambda v: h - 10 - (v - lo) / sp * (h - 22)
     oimax = max(p[2] for p in pts) or 1
     bars = "".join(f'<rect x="{x(i) - 5:.1f}" y="{h - 4 - p[2] / oimax * 26:.1f}" width="10" height="{p[2] / oimax * 26:.1f}" '
-                   f'fill="#243a5e"/>' for i, p in enumerate(pts))
+                   f'fill="#355281"/>' for i, p in enumerate(pts))
     today = " ".join(f"{x(i):.1f},{y(p[1]):.1f}" for i, p in enumerate(pts))
     prev = " ".join(f"{x(i):.1f},{y(prev_map[p[0]]):.1f}" for i, p in enumerate(pts) if p[0] in prev_map)
-    labels = "".join(f'<text x="{x(i):.1f}" y="{h}" fill="#b8cce0" font-size="8" text-anchor="middle" '
+    labels = "".join(f'<text x="{x(i):.1f}" y="{h}" fill="#c8d7e6" font-size="8" text-anchor="middle" '
                      f'font-family="IBM Plex Mono">{p[0][2:]}</text>' for i, p in enumerate(pts) if i % 2 == 0)
     return (f'<svg viewBox="0 0 {w} {h + 4}" width="100%" height="{h + 4}" role="img" aria-label="futures curve">{bars}'
-            + (f'<polyline points="{prev}" fill="none" stroke="#5a7a9a" stroke-dasharray="3 3" stroke-width="1.2"/>' if prev else "")
+            + (f'<polyline points="{prev}" fill="none" stroke="#8aa2bb" stroke-dasharray="3 3" stroke-width="1.2"/>' if prev else "")
             + f'<polyline points="{today}" fill="none" stroke="#3b82f6" stroke-width="1.8"/>{labels}</svg>')
 
 

@@ -267,7 +267,7 @@ def svg_chart(points, w=300, h=80):
         line = f'<polyline points="{" ".join(pts)}" fill="none" stroke="#3b82f6" stroke-width="1.6"/>'
     return (f'<svg viewBox="0 0 {w} {h}" width="100%" height="{h}" preserveAspectRatio="none" role="img" '
             f'aria-label="52-week net positioning and price"><line x1="0" y1="{zero}" x2="{w}" y2="{zero}" '
-            f'stroke="#243a5e"/>{"".join(bars)}{line}</svg>')
+            f'stroke="#355281"/>{"".join(bars)}{line}</svg>')
 
 
 def telegram_html(res, report_date, release_date, desk=None, oil=None, bias=None):

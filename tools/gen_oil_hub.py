@@ -219,7 +219,7 @@ def svg_line(points, w=900, h=240, pad=(46, 14, 26, 10), fmt=lambda v: f"{v:.2f}
     g = []
     for k in range(5):                                   # griglia recessiva
         v = lo + (hi - lo) * k / 4
-        g.append(f'<line x1="{L_}" x2="{w - R_}" y1="{Y(v):.1f}" y2="{Y(v):.1f}" stroke="#1e3050" stroke-width="1"/>'
+        g.append(f'<line x1="{L_}" x2="{w - R_}" y1="{Y(v):.1f}" y2="{Y(v):.1f}" stroke="#2e4570" stroke-width="1"/>'
                  f'<text x="{L_ - 6}" y="{Y(v) + 3:.1f}" text-anchor="end">{_esc(fmt(v))}</text>')
     for i in sorted({0, len(points) // 3, 2 * len(points) // 3, len(points) - 1}):
         d = datetime.strptime(points[i][0][:10], "%Y-%m-%d")
@@ -229,22 +229,22 @@ def svg_line(points, w=900, h=240, pad=(46, 14, 26, 10), fmt=lambda v: f"{v:.2f}
         dn = [(X(i), Y(b[0])) for i, b in enumerate(band) if b[0] is not None and b[1] is not None]
         if up:
             path = " ".join(f"{x:.1f},{y:.1f}" for x, y in up + dn[::-1])
-            g.append(f'<polygon points="{path}" fill="#5a7a9a" fill-opacity="0.18"/>')
+            g.append(f'<polygon points="{path}" fill="#8aa2bb" fill-opacity="0.18"/>')
     if ref:
         pts = " ".join(f"{X(i):.1f},{Y(v):.1f}" for i, v in enumerate(ref) if v is not None)
-        g.append(f'<polyline points="{pts}" fill="none" stroke="#5a7a9a" stroke-width="1.5" stroke-dasharray="4 4"/>')
+        g.append(f'<polyline points="{pts}" fill="none" stroke="#8aa2bb" stroke-width="1.5" stroke-dasharray="4 4"/>')
     if lo < 0 < hi:
-        g.append(f'<line x1="{L_}" x2="{w - R_}" y1="{Y(0):.1f}" y2="{Y(0):.1f}" stroke="#5a7a9a" stroke-width="1"/>')
+        g.append(f'<line x1="{L_}" x2="{w - R_}" y1="{Y(0):.1f}" y2="{Y(0):.1f}" stroke="#8aa2bb" stroke-width="1"/>')
     line = " ".join(f"{X(i):.1f},{Y(v):.1f}" for i, v in enumerate(vals))
     g.append(f'<polyline points="{line}" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linejoin="round"/>')
-    g.append(f'<circle cx="{X(len(vals) - 1):.1f}" cy="{Y(vals[-1]):.1f}" r="4" fill="#3b82f6" stroke="#0f1724" stroke-width="2"/>')
+    g.append(f'<circle cx="{X(len(vals) - 1):.1f}" cy="{Y(vals[-1]):.1f}" r="4" fill="#3b82f6" stroke="#1a273d" stroke-width="2"/>')
     data = json.dumps([[p[0][:10], round(p[1], 2)] + ([round(band[i][0], 1) if band[i][0] is not None else None,
                        round(band[i][1], 1) if band[i][1] is not None else None] if band else [])
                        for i, p in enumerate(points)], separators=(",", ":"))
     return (f'<figure class="chart" data-pts=\'{_esc(data)}\' data-unit="{_esc(unit)}" data-label="{_esc(label)}" '
             f'data-l="{L_}" data-r="{R_}" data-w="{w}">'
             f'<svg viewBox="0 0 {w} {h}" role="img" aria-label="{_esc(label)}" preserveAspectRatio="none">'
-            + "".join(g) + f'<line class="xh" x1="0" x2="0" y1="{T_}" y2="{h - B_}" stroke="#b8cce0" stroke-width="1" '
+            + "".join(g) + f'<line class="xh" x1="0" x2="0" y1="{T_}" y2="{h - B_}" stroke="#c8d7e6" stroke-width="1" '
             f'visibility="hidden"/></svg><div class="tip" hidden></div></figure>')
 
 
@@ -265,12 +265,12 @@ document.querySelectorAll('figure.chart').forEach(function(f){
 
 EXTRA_CSS = """<style>
 figure.chart{position:relative;margin:10px 0 4px;border:1px solid var(--border);background:var(--bg2);padding:6px 4px 0;}
-figure.chart svg{width:100%;height:240px;display:block;font-family:var(--mono);font-size:10px;fill:#5a7a9a;}
-figure.chart .tip{position:absolute;top:6px;background:#0f1724;border:1px solid var(--border2);color:var(--ink);font-family:var(--mono);
+figure.chart svg{width:100%;height:240px;display:block;font-family:var(--mono);font-size:10px;fill:#8aa2bb;}
+figure.chart .tip{position:absolute;top:6px;background:#1a273d;border:1px solid var(--border2);color:var(--ink);font-family:var(--mono);
   font-size:11px;padding:4px 8px;white-space:nowrap;pointer-events:none;}
 .legend{font-family:var(--mono);font-size:10px;color:var(--muted);margin:4px 0 12px;}
 .legend i{display:inline-block;width:14px;height:2px;vertical-align:middle;margin:0 4px 0 12px;background:#3b82f6;}
-.legend i.band{height:8px;background:rgba(90,122,154,.35);} .legend i.ref{background:none;border-top:2px dashed #5a7a9a;}
+.legend i.band{height:8px;background:rgba(138,162,187,.35);} .legend i.ref{background:none;border-top:2px dashed #8aa2bb;}
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:8px 0 6px;}
 .kpi{border:1px solid var(--border);background:var(--bg2);padding:10px 12px;}
 .kpi .k{font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);}

@@ -153,7 +153,7 @@ function clean(list) {
     .sort((x, y) => String(y.publishedAt || '').localeCompare(String(x.publishedAt || '')));
 }
 
-const CSS = `:root{--bg:#0f1724;--bg2:#131f2e;--ink:#e2eaf4;--ink2:#b8cce0;--muted:#5a7a9a;--border:#1e3050;--border2:#243a5e;--gold:#3b82f6;--mono:'IBM Plex Mono',monospace;--serif:'Playfair Display',Georgia,serif;--body:'Inter',system-ui,sans-serif;}
+const CSS = `:root{--bg:#1a273d;--bg2:#1e3149;--ink:#edf2f8;--ink2:#c8d7e6;--muted:#8aa2bb;--border:#2e4570;--border2:#355281;--gold:#3b82f6;--mono:'IBM Plex Mono',monospace;--serif:'Playfair Display',Georgia,serif;--body:'Inter',system-ui,sans-serif;}
 *{box-sizing:border-box;margin:0;padding:0;}
 body{background:var(--bg);color:var(--ink);font-family:var(--body);line-height:1.7;}
 a{color:var(--gold);text-decoration:none;} a:hover{text-decoration:underline;}

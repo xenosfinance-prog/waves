@@ -108,7 +108,7 @@ const XFPremium = (() => {
         display:flex;align-items:center;justify-content:center;padding:20px;
       ">
         <div style="
-          background:#141e2e;border:1px solid rgba(59,130,246,0.4);
+          background:#203049;border:1px solid rgba(59,130,246,0.4);
           border-radius:16px;padding:36px;max-width:440px;width:100%;
           box-shadow:0 24px 80px rgba(0,0,0,0.6);text-align:center;
           font-family:'IBM Plex Mono',monospace;

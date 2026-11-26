@@ -53,12 +53,12 @@
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
 :root {
-  --bg:            #0f1724;
-  --bg2:           #131f2e;
-  --bg3:           #172032;
-  --bg4:           #1c2840;
-  --border:        #1e3050;
-  --border2:       #243a5e;
+  --bg:            #1a273d;
+  --bg2:           #1e3149;
+  --bg3:           #24324d;
+  --bg4:           #293b5f;
+  --border:        #2e4570;
+  --border2:       #355281;
   --border-bright: #2d4a78;
   --gold:          #3b82f6;
   --gold2:         #60a5fa;
@@ -72,10 +72,10 @@
   --green:         #10b981;
   --green2:        #34d399;
   --yellow:        #f59e0b;
-  --ink:           #e2eaf4;
-  --ink2:          #b8cce0;
-  --muted:         #5a7a9a;
-  --bright:        #e2eaf4;
+  --ink:           #edf2f8;
+  --ink2:          #c8d7e6;
+  --muted:         #8aa2bb;
+  --bright:        #edf2f8;
   --serif:         'Playfair Display', Georgia, serif;
   --body:          'Inter',system-ui,sans-serif;
   --mono:          'IBM Plex Mono', 'PT Mono', monospace;
@@ -1266,7 +1266,7 @@ canvas { display: block; }
 
         <!-- Generate button -->
         <div style="padding:16px;border-top:1px solid var(--border);display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--bg2);">
-          <button onclick="ewsRunAnalysis()" id="ews-run-btn" style="font-family:var(--mono);font-size:9px;letter-spacing:3px;text-transform:uppercase;padding:10px 24px;background:var(--gold2);color:#0a1020;border:none;cursor:pointer;font-weight:600;transition:opacity 0.2s;">
+          <button onclick="ewsRunAnalysis()" id="ews-run-btn" style="font-family:var(--mono);font-size:9px;letter-spacing:3px;text-transform:uppercase;padding:10px 24px;background:var(--gold2);color:#161f36;border:none;cursor:pointer;font-weight:600;transition:opacity 0.2s;">
             ⚡ Generate Analysis
           </button>
           <button onclick="ewsSendToTelegram()" id="ews-tg-btn" style="display:none;font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;padding:10px 18px;background:none;border:1px solid var(--gold2);color:var(--gold2);cursor:pointer;font-weight:600;">
@@ -1817,7 +1817,7 @@ const XFPremium = {
       // Fallback: crea modal al volo
       const m = document.createElement('div');
       m.id = 'xf-premium-modal';
-      m.style.cssText = 'position:fixed;inset:0;background:rgba(10,15,25,0.92);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+      m.style.cssText = 'position:fixed;inset:0;background:rgba(20,29,48,0.92);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
       m.innerHTML = `<div style="background:var(--bg2);border:1px solid var(--border);padding:32px;max-width:380px;width:100%;text-align:center;">
         <div style="font-family:var(--mono);font-size:9px;letter-spacing:3px;color:#3b82f6;margin-bottom:12px;">✦ PREMIUM FEATURE</div>
         <p style="font-size:12px;color:var(--ink2);line-height:1.6;margin:0 0 16px;">AI Elliott Wave Analysis is available to Premium members only.</p>
@@ -3030,7 +3030,7 @@ async function runFreeAnalysis() {
       { l:'Stop Loss',   v: data.invalidation ? (+data.invalidation).toFixed(dp) : '—', c:'#ef4444' },
       { l:'Target 1',    v: data.tp1 ? (+data.tp1).toFixed(dp) : '—',            c:'#10b981' },
       { l:'Target 2',    v: data.tp2 ? (+data.tp2).toFixed(dp) : '—',            c:'#059669' },
-    ].map(m => '<div style="background:#131f2e;border:1px solid var(--border);padding:12px 14px;">' +
+    ].map(m => '<div style="background:#1e3149;border:1px solid var(--border);padding:12px 14px;">' +
       '<div style="font-size:9px;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;margin-bottom:6px;">' + m.l + '</div>' +
       '<div style="font-size:15px;font-weight:500;color:' + m.c + ';">' + m.v + '</div></div>').join('');
 
@@ -3080,12 +3080,12 @@ function drawFreeCanvas(candles, wavePts, isBull, sl, tp1, tp2, livePrice, symNa
   const toX = i => ML + (i + 0.5) * barW;
 
   // Background
-  ctx.fillStyle = '#090f1a'; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = '#141e30'; ctx.fillRect(0, 0, W, H);
 
   // Grid
   for (let i = 0; i <= 7; i++) {
     const y = MT + (i/7)*CH;
-    ctx.strokeStyle='#1a2a40'; ctx.lineWidth=0.5; ctx.globalAlpha=0.5;
+    ctx.strokeStyle='#273e5f'; ctx.lineWidth=0.5; ctx.globalAlpha=0.5;
     ctx.beginPath(); ctx.moveTo(ML, y); ctx.lineTo(W-MR, y); ctx.stroke();
     const pr = maxP - (i/7)*pR;
     ctx.fillStyle='#4a6a8a'; ctx.font='8px monospace'; ctx.textAlign='right'; ctx.globalAlpha=0.9;
@@ -3093,10 +3093,10 @@ function drawFreeCanvas(candles, wavePts, isBull, sl, tp1, tp2, livePrice, symNa
   }
   const step = Math.max(1, Math.floor(nBars/8));
   for (let i = 0; i < nBars; i += step) {
-    ctx.globalAlpha=0.2; ctx.strokeStyle='#1a2a40'; ctx.lineWidth=0.5;
+    ctx.globalAlpha=0.2; ctx.strokeStyle='#273e5f'; ctx.lineWidth=0.5;
     const x = toX(i); ctx.beginPath(); ctx.moveTo(x, MT); ctx.lineTo(x, MT+CH); ctx.stroke();
     if (candles[i]?.datetime) {
-      ctx.fillStyle='#2a4060'; ctx.globalAlpha=0.7; ctx.font='8px monospace'; ctx.textAlign='center';
+      ctx.fillStyle='#3a5985'; ctx.globalAlpha=0.7; ctx.font='8px monospace'; ctx.textAlign='center';
       ctx.fillText(candles[i].datetime.slice(5,10), x, H-MB+16);
     }
   }
@@ -3156,7 +3156,7 @@ function drawFreeCanvas(candles, wavePts, isBull, sl, tp1, tp2, livePrice, symNa
     const x=toX(p.i), y=toY(p.price);
     const isCur = p.label === curWave;
     // Dot
-    ctx.fillStyle='rgba(6,12,22,0.92)';
+    ctx.fillStyle='rgba(17,26,42,0.92)';
     ctx.beginPath(); ctx.arc(x, y, isCur?7:5.5, 0, Math.PI*2); ctx.fill();
     ctx.fillStyle=wCol2;
     ctx.beginPath(); ctx.arc(x, y, isCur?5:3.5, 0, Math.PI*2); ctx.fill();
@@ -3166,7 +3166,7 @@ function drawFreeCanvas(candles, wavePts, isBull, sl, tp1, tp2, livePrice, symNa
     ctx.font = 'bold ' + (isCur?14:12) + 'px Arial';
     ctx.textAlign='center'; ctx.textBaseline='middle';
     ctx.lineWidth=3.5; ctx.lineJoin='round';
-    ctx.strokeStyle='rgba(6,12,22,0.96)';
+    ctx.strokeStyle='rgba(17,26,42,0.96)';
     ctx.strokeText('('+p.label+')', x, ly);
     ctx.fillStyle=wCol2;
     ctx.fillText('('+p.label+')', x, ly);
@@ -3280,12 +3280,12 @@ function drawBasicWave(){
   const above=[false,true,false,true,false,true,false,true,false];
 
   // Divider
-  ctx.strokeStyle='#1e3050';ctx.lineWidth=1;ctx.setLineDash([4,4]);
+  ctx.strokeStyle='#2e4570';ctx.lineWidth=1;ctx.setLineDash([4,4]);
   ctx.beginPath();ctx.moveTo(440,15);ctx.lineTo(440,235);ctx.stroke();
   ctx.setLineDash([]);
 
   // Section labels
-  ctx.font='9px monospace';ctx.fillStyle='#5a7a9a';ctx.fillText('IMPULSE',90,248);
+  ctx.font='9px monospace';ctx.fillStyle='#8aa2bb';ctx.fillText('IMPULSE',90,248);
   ctx.fillText('CORRECTIVE',468,248);
 
   // Impulse line (blue) 0→5
@@ -3311,7 +3311,7 @@ function drawBasicWave(){
     const tw=ctx.measureText(labels[i]).width;
     const offsetY=above[i]?-14:18;
     const lx=p.x-tw/2, ly=p.y+offsetY;
-    ctx.fillStyle='rgba(10,16,28,0.8)';
+    ctx.fillStyle='rgba(21,31,50,0.8)';
     ctx.fillRect(lx-3,ly-13,tw+6,17);
     ctx.fillStyle=col;
     ctx.fillText(labels[i],lx,ly);
@@ -3345,14 +3345,14 @@ function drawCorrectivePatterns(){
       // background pill
       ctx.font='bold 12px monospace';
       const tw = ctx.measureText(subLabels[i]).width;
-      ctx.fillStyle='rgba(13,21,33,0.75)';
+      ctx.fillStyle='rgba(23,37,57,0.75)';
       ctx.fillRect(startX+pts[i][0]-tw/2-4, pts[i][1]+offsetY-12, tw+8, 16);
       // label text
       ctx.fillStyle=color;
       ctx.fillText(subLabels[i], startX+pts[i][0]-tw/2, pts[i][1]+offsetY);
     });
     ctx.font='9px monospace';
-    ctx.fillStyle='#5a7a9a';
+    ctx.fillStyle='#8aa2bb';
     ctx.fillText(label,startX+4,H-8);
   }
 
@@ -3424,7 +3424,7 @@ function drawMiniWave(id){
   const lOffY=goingUp?-12:18;
   ctx.font='bold 14px monospace';
   const ltw=ctx.measureText(s.label).width;
-  ctx.fillStyle='rgba(10,16,28,0.8)';
+  ctx.fillStyle='rgba(21,31,50,0.8)';
   ctx.fillRect(hlEnd[0]-ltw/2-3,hlEnd[1]+lOffY-13,ltw+6,17);
   ctx.fillStyle=s.color;
   ctx.fillText(s.label,hlEnd[0]-ltw/2,hlEnd[1]+lOffY);
@@ -3489,8 +3489,8 @@ function renderEWSketch(analysis, symbol, tf){
   var waveN    = (analysis.current_wave||'?').toString().toUpperCase();
   var isABC    = ['A','B','C'].indexOf(waveN)>=0;
   var drawUp   = isABC ? !analysis.bear_abc : (analysis.trend==='UP');
-  var mainCol  = drawUp ? '#1a3a6e' : '#7f1d1d';
-  var corrCol  = '#374151';
+  var mainCol  = drawUp ? '#375586' : '#7f1d1d';
+  var corrCol  = '#4c5a70';
   var scenOnly = analysis.scenario_only===true;
 
   var wp  = analysis.wave_points||{};
@@ -3622,7 +3622,7 @@ function renderEWSketch(analysis, symbol, tf){
     ctx.fillStyle='#7a6a5a'; ctx.font='8px IBM Plex Mono,monospace';
     ctx.fillText('Conf: '+(analysis.confidence||'—')+'%',bx+8,yy); yy+=14;
     if(!scenOnly){
-      ctx.fillStyle='#2a3a4a'; ctx.fillText('Entry  '+fP(kl.entry),bx+8,yy); yy+=12;
+      ctx.fillStyle='#3c5269'; ctx.fillText('Entry  '+fP(kl.entry),bx+8,yy); yy+=12;
       ctx.fillStyle='#dc2626'; ctx.fillText('SL     '+fP(kl.stop_loss),bx+8,yy); yy+=12;
       ctx.fillStyle='#059669';
       ctx.fillText('TP1    '+fP(kl.tp1),bx+8,yy); yy+=12;
@@ -3718,7 +3718,7 @@ function renderEWSketch(analysis, symbol, tf){
     ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2);
     ctx.fillStyle='rgba(250,248,243,0.98)'; ctx.fill();
     ctx.strokeStyle=mainCol; ctx.lineWidth=isCurrent?2.8:1.5; ctx.stroke();
-    ctx.fillStyle=isCurrent?mainCol:'#2a3a4a';
+    ctx.fillStyle=isCurrent?mainCol:'#3c5269';
     ctx.font='bold '+(isCurrent?14:11)+'px serif';
     ctx.textAlign='center'; ctx.textBaseline='middle';
     ctx.fillText(lbl,x,y+1);
@@ -4935,7 +4935,7 @@ function ewsShowEngineImage(b64, alt) {
   if (!box) {
     box = document.createElement('div');
     box.id = 'ews-engine-img-box';
-    box.style.cssText = 'background:#0f1724;';
+    box.style.cssText = 'background:#1a273d;';
     wrap.insertBefore(box, wrap.firstChild);
   }
   box.innerHTML = '<img src="data:image/png;base64,' + b64 + '" alt="' + String(alt).replace(/"/g, '') +

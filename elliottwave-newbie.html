@@ -49,12 +49,12 @@
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
 :root {
-  --bg:            #0f1724;
-  --bg2:           #131f2e;
-  --bg3:           #172032;
-  --bg4:           #1c2840;
-  --border:        #1e3050;
-  --border2:       #243a5e;
+  --bg:            #1a273d;
+  --bg2:           #1e3149;
+  --bg3:           #24324d;
+  --bg4:           #293b5f;
+  --border:        #2e4570;
+  --border2:       #355281;
   --border-bright: #2d4a78;
   --gold:          #3b82f6;
   --gold2:         #60a5fa;
@@ -68,10 +68,10 @@
   --green:         #10b981;
   --green2:        #34d399;
   --yellow:        #f59e0b;
-  --ink:           #e2eaf4;
-  --ink2:          #b8cce0;
-  --muted:         #5a7a9a;
-  --bright:        #e2eaf4;
+  --ink:           #edf2f8;
+  --ink2:          #c8d7e6;
+  --muted:         #8aa2bb;
+  --bright:        #edf2f8;
   --serif:         'Playfair Display', Georgia, serif;
   --body:          'Inter',system-ui,sans-serif;
   --mono:          'IBM Plex Mono', 'PT Mono', monospace;
@@ -304,7 +304,7 @@ canvas { display: block; }
   <div id="freeChartWrap" style="display:none;">
 
     <!-- Chart header bar -->
-    <div style="background:#131f2e;border:1px solid var(--border);margin-bottom:12px;">
+    <div style="background:#1e3149;border:1px solid var(--border);margin-bottom:12px;">
       <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 16px;border-bottom:1px solid var(--border);">
         <span style="color:var(--text);font-size:12px;font-weight:500;" id="freeChartTitle">—</span>
         <div style="display:flex;gap:8px;">
@@ -312,7 +312,7 @@ canvas { display: block; }
           <span id="freeWaveBadge" style="display:none;padding:3px 12px;font-size:9px;border:1px solid var(--border);color:var(--muted);"></span>
         </div>
       </div>
-      <canvas id="freeChartCanvas" style="display:block;width:100%;background:#090f1a;"></canvas>
+      <canvas id="freeChartCanvas" style="display:block;width:100%;background:#141e30;"></canvas>
     </div>
 
     <!-- Metrics -->
@@ -1276,11 +1276,11 @@ function renderEWChartFromAPI(ew, symbol, tf) {
 
   // ── Background ──
   const bg = ctx.createLinearGradient(0,0,0,H);
-  bg.addColorStop(0,'#090f1a'); bg.addColorStop(1,'#0c1523');
+  bg.addColorStop(0,'#141e30'); bg.addColorStop(1,'#18253a');
   ctx.fillStyle = bg; ctx.fillRect(0,0,W,H);
 
   // ── Grid ──
-  ctx.strokeStyle='#1a2a40'; ctx.lineWidth=0.5; ctx.globalAlpha=0.5;
+  ctx.strokeStyle='#273e5f'; ctx.lineWidth=0.5; ctx.globalAlpha=0.5;
   for(let i=0;i<=7;i++){
     const y = MT+(i/7)*CH;
     ctx.beginPath(); ctx.moveTo(ML,y); ctx.lineTo(W-MR,y); ctx.stroke();
@@ -1289,12 +1289,12 @@ function renderEWChartFromAPI(ew, symbol, tf) {
     ctx.fillText(pr.toFixed(pr>100?2:5), ML-4, y+3);
   }
   const step = Math.max(1, Math.floor(nBars/8));
-  ctx.globalAlpha=0.2; ctx.strokeStyle='#1a2a40';
+  ctx.globalAlpha=0.2; ctx.strokeStyle='#273e5f';
   for(let i=0;i<nBars;i+=step){
     const x = toXBar(i);
     ctx.beginPath(); ctx.moveTo(x,MT); ctx.lineTo(x,MT+CH); ctx.stroke();
     if(candles[i]?.datetime){
-      ctx.fillStyle='#2a4060'; ctx.globalAlpha=0.7; ctx.font='8px monospace'; ctx.textAlign='center';
+      ctx.fillStyle='#3a5985'; ctx.globalAlpha=0.7; ctx.font='8px monospace'; ctx.textAlign='center';
       ctx.fillText(candles[i].datetime.slice(5,10), x, H-MB+18);
     }
   }
@@ -1367,7 +1367,7 @@ function renderEWChartFromAPI(ew, symbol, tf) {
     const y = toY(wp.price);
 
     // Dot
-    ctx.fillStyle = 'rgba(8,14,24,0.9)';
+    ctx.fillStyle = 'rgba(19,29,45,0.9)';
     ctx.beginPath(); ctx.arc(x, y, 5.5, 0, Math.PI*2); ctx.fill();
     ctx.fillStyle = col;
     ctx.beginPath(); ctx.arc(x, y, isCur ? 4 : 3, 0, Math.PI*2); ctx.fill();
@@ -1399,7 +1399,7 @@ function renderEWChartFromAPI(ew, symbol, tf) {
     // Number with dark outline
     ctx.font = `bold ${isCur?14:12}px Arial, sans-serif`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(8,14,24,0.95)';
+    ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(19,29,45,0.95)';
     ctx.lineJoin = 'round';
     ctx.strokeText(label, x, labelY);
     ctx.fillStyle = col;
@@ -1520,11 +1520,11 @@ function renderEWChart(analysis, symbol, tf, liveData) {
 
   // ── Background ────────────────────────────────────
   const bg=ctx.createLinearGradient(0,0,0,H);
-  bg.addColorStop(0,'#090f1a'); bg.addColorStop(1,'#0c1523');
+  bg.addColorStop(0,'#141e30'); bg.addColorStop(1,'#18253a');
   ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
 
   // ── Grid ──────────────────────────────────────────
-  ctx.strokeStyle='#1a2a40'; ctx.lineWidth=0.5; ctx.globalAlpha=0.6;
+  ctx.strokeStyle='#273e5f'; ctx.lineWidth=0.5; ctx.globalAlpha=0.6;
   for(let i=0;i<=7;i++){
     const y=MT+(i/7)*CH;
     ctx.beginPath(); ctx.moveTo(ML,y); ctx.lineTo(W-MR,y); ctx.stroke();
@@ -1533,7 +1533,7 @@ function renderEWChart(analysis, symbol, tf, liveData) {
     ctx.fillText(pr.toFixed(pr>100?2:5), ML-4, y+3);
   }
   // Vertical grid lines
-  ctx.globalAlpha=0.2; ctx.strokeStyle='#1a2a40';
+  ctx.globalAlpha=0.2; ctx.strokeStyle='#273e5f';
   if(useCandles){
     const step=Math.max(1,Math.floor(nBars/8));
     for(let i=0;i<nBars;i+=step){
@@ -1542,7 +1542,7 @@ function renderEWChart(analysis, symbol, tf, liveData) {
       // Date label
       if(candles[i]?.datetime){
         const d=candles[i].datetime.slice(5,10);
-        ctx.fillStyle='#2a4060'; ctx.globalAlpha=0.8; ctx.font='8px monospace'; ctx.textAlign='center';
+        ctx.fillStyle='#3a5985'; ctx.globalAlpha=0.8; ctx.font='8px monospace'; ctx.textAlign='center';
         ctx.fillText(d,x,H-MB+18);
       }
     }
@@ -1686,7 +1686,7 @@ function renderEWChart(analysis, symbol, tf, liveData) {
     ctx.textBaseline = 'middle';
     ctx.lineWidth = 3.5;
     ctx.lineJoin = 'round';
-    ctx.strokeStyle = 'rgba(6,12,22,0.95)';
+    ctx.strokeStyle = 'rgba(17,26,42,0.95)';
     ctx.strokeText(pt.label, pt.x, clampedY);
     ctx.fillStyle = col;
     ctx.fillText(pt.label, pt.x, clampedY);
@@ -1802,7 +1802,7 @@ async function runFreeAnalysis() {
       { l:'Stop Loss',   v: data.invalidation?(+data.invalidation).toFixed(dp):'—', c:'#ef4444' },
       { l:'Target 1',    v: data.tp1?(+data.tp1).toFixed(dp):'—', c:'#10b981' },
       { l:'Target 2',    v: data.tp2?(+data.tp2).toFixed(dp):'—', c:'#059669' },
-    ].map(m => `<div style="background:#131f2e;border:1px solid var(--border);padding:12px 14px;">
+    ].map(m => `<div style="background:#1e3149;border:1px solid var(--border);padding:12px 14px;">
       <div style="font-size:9px;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;margin-bottom:6px;">${m.l}</div>
       <div style="font-size:15px;font-weight:500;color:${m.c};">${m.v}</div>
     </div>`).join('');
@@ -1849,12 +1849,12 @@ function drawFreeCanvas(candles, wavePts, isBull, sl, tp1, tp2, livePrice, cfg, 
   const toX=i=>ML+(i+0.5)*barW;
 
   // Background
-  ctx.fillStyle='#090f1a'; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#141e30'; ctx.fillRect(0,0,W,H);
 
   // Grid
   for(let i=0;i<=7;i++){
     const y=MT+(i/7)*CH;
-    ctx.strokeStyle='#1a2a40'; ctx.lineWidth=0.5; ctx.globalAlpha=0.5;
+    ctx.strokeStyle='#273e5f'; ctx.lineWidth=0.5; ctx.globalAlpha=0.5;
     ctx.beginPath(); ctx.moveTo(ML,y); ctx.lineTo(W-MR,y); ctx.stroke();
     const pr=maxP-(i/7)*pR;
     ctx.fillStyle='#4a6a8a'; ctx.font='8px monospace'; ctx.textAlign='right'; ctx.globalAlpha=0.9;
@@ -1862,10 +1862,10 @@ function drawFreeCanvas(candles, wavePts, isBull, sl, tp1, tp2, livePrice, cfg, 
   }
   const step=Math.max(1,Math.floor(nBars/8));
   for(let i=0;i<nBars;i+=step){
-    ctx.globalAlpha=0.2; ctx.strokeStyle='#1a2a40'; ctx.lineWidth=0.5;
+    ctx.globalAlpha=0.2; ctx.strokeStyle='#273e5f'; ctx.lineWidth=0.5;
     const x=toX(i); ctx.beginPath(); ctx.moveTo(x,MT); ctx.lineTo(x,MT+CH); ctx.stroke();
     if(candles[i]?.datetime){
-      ctx.fillStyle='#2a4060'; ctx.globalAlpha=0.7; ctx.font='8px monospace'; ctx.textAlign='center';
+      ctx.fillStyle='#3a5985'; ctx.globalAlpha=0.7; ctx.font='8px monospace'; ctx.textAlign='center';
       ctx.fillText(candles[i].datetime.slice(5,10), x, H-MB+16);
     }
   }
@@ -1924,14 +1924,14 @@ function drawFreeCanvas(candles, wavePts, isBull, sl, tp1, tp2, livePrice, cfg, 
   wavePts.forEach(p=>{
     const x=toX(p.i), y=toY(p.price);
     const isCur = p.label === curWave;
-    ctx.fillStyle='rgba(6,12,22,0.92)';
+    ctx.fillStyle='rgba(17,26,42,0.92)';
     ctx.beginPath(); ctx.arc(x,y,isCur?7:5.5,0,Math.PI*2); ctx.fill();
     ctx.fillStyle=wCol2;
     ctx.beginPath(); ctx.arc(x,y,isCur?5:3.5,0,Math.PI*2); ctx.fill();
     const isHigh = p.type==='high';
     const ly=Math.max(MT+12,Math.min(isHigh?y-16:y+16, MT+CH-12));
     ctx.font=`bold ${isCur?14:12}px Arial`; ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.lineWidth=3.5; ctx.lineJoin='round'; ctx.strokeStyle='rgba(6,12,22,0.96)';
+    ctx.lineWidth=3.5; ctx.lineJoin='round'; ctx.strokeStyle='rgba(17,26,42,0.96)';
     ctx.strokeText('('+p.label+')', x, ly);
     ctx.fillStyle=wCol2; ctx.fillText('('+p.label+')', x, ly);
     ctx.lineJoin='miter'; ctx.textBaseline='alphabetic';
@@ -1990,12 +1990,12 @@ function drawBasicWave(){
   const above=[false,true,false,true,false,true,false,true,false];
 
   // Divider
-  ctx.strokeStyle='#1e3050';ctx.lineWidth=1;ctx.setLineDash([4,4]);
+  ctx.strokeStyle='#2e4570';ctx.lineWidth=1;ctx.setLineDash([4,4]);
   ctx.beginPath();ctx.moveTo(440,15);ctx.lineTo(440,235);ctx.stroke();
   ctx.setLineDash([]);
 
   // Section labels
-  ctx.font='9px monospace';ctx.fillStyle='#5a7a9a';ctx.fillText('IMPULSE',90,248);
+  ctx.font='9px monospace';ctx.fillStyle='#8aa2bb';ctx.fillText('IMPULSE',90,248);
   ctx.fillText('CORRECTIVE',468,248);
 
   // Impulse line (blue) 0→5
@@ -2021,7 +2021,7 @@ function drawBasicWave(){
     const tw=ctx.measureText(labels[i]).width;
     const offsetY=above[i]?-14:18;
     const lx=p.x-tw/2, ly=p.y+offsetY;
-    ctx.fillStyle='rgba(10,16,28,0.8)';
+    ctx.fillStyle='rgba(21,31,50,0.8)';
     ctx.fillRect(lx-3,ly-13,tw+6,17);
     ctx.fillStyle=col;
     ctx.fillText(labels[i],lx,ly);
@@ -2055,14 +2055,14 @@ function drawCorrectivePatterns(){
       // background pill
       ctx.font='bold 12px monospace';
       const tw = ctx.measureText(subLabels[i]).width;
-      ctx.fillStyle='rgba(13,21,33,0.75)';
+      ctx.fillStyle='rgba(23,37,57,0.75)';
       ctx.fillRect(startX+pts[i][0]-tw/2-4, pts[i][1]+offsetY-12, tw+8, 16);
       // label text
       ctx.fillStyle=color;
       ctx.fillText(subLabels[i], startX+pts[i][0]-tw/2, pts[i][1]+offsetY);
     });
     ctx.font='9px monospace';
-    ctx.fillStyle='#5a7a9a';
+    ctx.fillStyle='#8aa2bb';
     ctx.fillText(label,startX+4,H-8);
   }
 
@@ -2134,7 +2134,7 @@ function drawMiniWave(id){
   const lOffY=goingUp?-12:18;
   ctx.font='bold 14px monospace';
   const ltw=ctx.measureText(s.label).width;
-  ctx.fillStyle='rgba(10,16,28,0.8)';
+  ctx.fillStyle='rgba(21,31,50,0.8)';
   ctx.fillRect(hlEnd[0]-ltw/2-3,hlEnd[1]+lOffY-13,ltw+6,17);
   ctx.fillStyle=s.color;
   ctx.fillText(s.label,hlEnd[0]-ltw/2,hlEnd[1]+lOffY);
@@ -2231,7 +2231,7 @@ async function runFreeAnalysis() {
       { l:'Stop Loss',   v: data.invalidation?(+data.invalidation).toFixed(dp):'—', c:'#ef4444' },
       { l:'Target 1',    v: data.tp1?(+data.tp1).toFixed(dp):'—', c:'#10b981' },
       { l:'Target 2',    v: data.tp2?(+data.tp2).toFixed(dp):'—', c:'#059669' },
-    ].map(m => `<div style="background:#131f2e;border:1px solid var(--border);padding:12px 14px;">
+    ].map(m => `<div style="background:#1e3149;border:1px solid var(--border);padding:12px 14px;">
       <div style="font-size:9px;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;margin-bottom:6px;">${m.l}</div>
       <div style="font-size:15px;font-weight:500;color:${m.c};">${m.v}</div>
     </div>`).join('');
@@ -2278,12 +2278,12 @@ function drawFreeCanvas(candles, wavePts, isBull, sl, tp1, tp2, livePrice, cfg, 
   const toX=i=>ML+(i+0.5)*barW;
 
   // Background
-  ctx.fillStyle='#090f1a'; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#141e30'; ctx.fillRect(0,0,W,H);
 
   // Grid
   for(let i=0;i<=7;i++){
     const y=MT+(i/7)*CH;
-    ctx.strokeStyle='#1a2a40'; ctx.lineWidth=0.5; ctx.globalAlpha=0.5;
+    ctx.strokeStyle='#273e5f'; ctx.lineWidth=0.5; ctx.globalAlpha=0.5;
     ctx.beginPath(); ctx.moveTo(ML,y); ctx.lineTo(W-MR,y); ctx.stroke();
     const pr=maxP-(i/7)*pR;
     ctx.fillStyle='#4a6a8a'; ctx.font='8px monospace'; ctx.textAlign='right'; ctx.globalAlpha=0.9;
@@ -2291,10 +2291,10 @@ function drawFreeCanvas(candles, wavePts, isBull, sl, tp1, tp2, livePrice, cfg, 
   }
   const step=Math.max(1,Math.floor(nBars/8));
   for(let i=0;i<nBars;i+=step){
-    ctx.globalAlpha=0.2; ctx.strokeStyle='#1a2a40'; ctx.lineWidth=0.5;
+    ctx.globalAlpha=0.2; ctx.strokeStyle='#273e5f'; ctx.lineWidth=0.5;
     const x=toX(i); ctx.beginPath(); ctx.moveTo(x,MT); ctx.lineTo(x,MT+CH); ctx.stroke();
     if(candles[i]?.datetime){
-      ctx.fillStyle='#2a4060'; ctx.globalAlpha=0.7; ctx.font='8px monospace'; ctx.textAlign='center';
+      ctx.fillStyle='#3a5985'; ctx.globalAlpha=0.7; ctx.font='8px monospace'; ctx.textAlign='center';
       ctx.fillText(candles[i].datetime.slice(5,10), x, H-MB+16);
     }
   }
@@ -2353,14 +2353,14 @@ function drawFreeCanvas(candles, wavePts, isBull, sl, tp1, tp2, livePrice, cfg, 
   wavePts.forEach(p=>{
     const x=toX(p.i), y=toY(p.price);
     const isCur = p.label === curWave;
-    ctx.fillStyle='rgba(6,12,22,0.92)';
+    ctx.fillStyle='rgba(17,26,42,0.92)';
     ctx.beginPath(); ctx.arc(x,y,isCur?7:5.5,0,Math.PI*2); ctx.fill();
     ctx.fillStyle=wCol2;
     ctx.beginPath(); ctx.arc(x,y,isCur?5:3.5,0,Math.PI*2); ctx.fill();
     const isHigh = p.type==='high';
     const ly=Math.max(MT+12,Math.min(isHigh?y-16:y+16, MT+CH-12));
     ctx.font=`bold ${isCur?14:12}px Arial`; ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.lineWidth=3.5; ctx.lineJoin='round'; ctx.strokeStyle='rgba(6,12,22,0.96)';
+    ctx.lineWidth=3.5; ctx.lineJoin='round'; ctx.strokeStyle='rgba(17,26,42,0.96)';
     ctx.strokeText('('+p.label+')', x, ly);
     ctx.fillStyle=wCol2; ctx.fillText('('+p.label+')', x, ly);
     ctx.lineJoin='miter'; ctx.textBaseline='alphabetic';

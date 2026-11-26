@@ -396,20 +396,20 @@ def oi_svg(res, w=760, h=230):
     k0, k1 = rows[0]["k"], rows[-1]["k"]
     x = lambda k: pad + (k - k0) / ((k1 - k0) or 1) * (w - 2 * pad - bw) + bw / 2
     out = [f'<svg viewBox="0 0 {w} {h + 22}" width="100%" role="img" aria-label="USO options open interest by strike" '
-           f'style="background:var(--bg2,#131f2e);border:1px solid var(--border,#1e3050)">']
+           f'style="background:var(--bg2,#1e3149);border:1px solid var(--border,#2e4570)">']
     for r in rows:
         cx = x(r["k"])
         hc = r["c_oi"] / mx * (mid - 14)
         hp = r["p_oi"] / mx * (mid - 14)
         out.append(f'<rect x="{cx - bw * 0.4:.1f}" y="{mid - hc:.1f}" width="{bw * 0.8:.1f}" height="{hc:.1f}" fill="#10b981" opacity=".85"/>')
         out.append(f'<rect x="{cx - bw * 0.4:.1f}" y="{mid:.1f}" width="{bw * 0.8:.1f}" height="{hp:.1f}" fill="#ef4444" opacity=".85"/>')
-    out.append(f'<line x1="{pad}" x2="{w - pad}" y1="{mid}" y2="{mid}" stroke="#7f9ab5" stroke-width=".6"/>')
+    out.append(f'<line x1="{pad}" x2="{w - pad}" y1="{mid}" y2="{mid}" stroke="#9db1c8" stroke-width=".6"/>')
     sx = x(min(max(res["uso"], k0), k1))
     out.append(f'<line x1="{sx:.1f}" x2="{sx:.1f}" y1="6" y2="{h - 6}" stroke="#facc15" stroke-dasharray="4 3"/>')
     out.append(f'<text x="{sx + 4:.1f}" y="16" fill="#facc15" font-size="10" font-family="monospace">USO {res["uso"]:g}</text>')
     step = max(1, len(rows) // 10)
     for r in rows[::step]:
-        out.append(f'<text x="{x(r["k"]):.1f}" y="{h + 14}" fill="#7f9ab5" font-size="9" font-family="monospace" '
+        out.append(f'<text x="{x(r["k"]):.1f}" y="{h + 14}" fill="#9db1c8" font-size="9" font-family="monospace" '
                    f'text-anchor="middle">{r["k"]:g}</text>')
     out.append(f'<text x="{pad}" y="14" fill="#10b981" font-size="10" font-family="monospace">calls</text>')
     out.append(f'<text x="{pad}" y="{h - 4}" fill="#ef4444" font-size="10" font-family="monospace">puts</text>')

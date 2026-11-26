@@ -34,12 +34,12 @@ async function weekTable() {
     if (!ev.length) return '';
     const day = t => t.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
     const hm = t => t.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
-    const td = 'style="padding:6px 10px;border-bottom:1px solid var(--border,#1e3050)"';
+    const td = 'style="padding:6px 10px;border-bottom:1px solid var(--border,#2e4570)"';
     const rows = ev.slice(0, 20).map(e =>
       `<tr><td ${td}>${esc(day(e.t))}</td><td ${td}>${esc(hm(e.t))}</td><td ${td}>${esc(e.event)}</td>` +
       `<td ${td}>${esc(e.actual || '—')}</td><td ${td}>${esc(e.estimate || '—')}</td><td ${td}>${esc(e.prev || '—')}</td></tr>`
     ).join('');
-    const th = 'style="text-align:left;padding:6px 10px;border-bottom:1px solid var(--border,#1e3050);color:var(--ink,#e2e8f0);font-weight:500"';
+    const th = 'style="text-align:left;padding:6px 10px;border-bottom:1px solid var(--border,#2e4570);color:var(--ink,#e2e8f0);font-weight:500"';
     return `<h2 style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--ink,#e2e8f0);margin:16px 0 6px;font-weight:500">` +
       `High-impact US events for gold this week</h2>` +
       `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-family:var(--mono,monospace);font-size:11px;color:var(--muted)">` +

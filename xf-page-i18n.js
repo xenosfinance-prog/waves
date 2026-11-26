@@ -63,8 +63,8 @@
     st.textContent =
       'header.top{position:relative;}' +
       '.xf-lang{position:absolute;top:14px;right:16px;display:flex;gap:4px;z-index:5;}' +
-      '.xf-lang a{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:1px;color:#5a7a9a;' +
-      'border:1px solid #1e3050;padding:3px 8px;cursor:pointer;text-decoration:none;background:transparent;}' +
+      '.xf-lang a{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:1px;color:#8aa2bb;' +
+      'border:1px solid #2e4570;padding:3px 8px;cursor:pointer;text-decoration:none;background:transparent;}' +
       '.xf-lang a:hover{color:#3b82f6;border-color:#3b82f6;text-decoration:none;}' +
       '.xf-lang a.on{color:#3b82f6;border-color:#3b82f6;}' +
       '.xf-lang.inline{position:static;justify-content:center;margin-top:12px;}' +

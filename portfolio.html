@@ -11,10 +11,10 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
 :root{
-  --bg:#0f1724;--bg2:#131f2e;--bg3:#172032;--bg4:#1c2840;
-  --border:#1e3050;--border2:#243a5e;--border-bright:#2d4a78;
+  --bg:#1a273d;--bg2:#1e3149;--bg3:#24324d;--bg4:#293b5f;
+  --border:#2e4570;--border2:#355281;--border-bright:#2d4a78;
   --gold:#3b82f6;--gold2:#60a5fa;--gold3:#1d4ed8;
-  --text:#c8d8ea;--dim:#6b8aaa;--muted:#5a7a9a;--ink:#e2eaf4;--ink2:#b8cce0;
+  --text:#c8d8ea;--dim:#6b8aaa;--muted:#8aa2bb;--ink:#edf2f8;--ink2:#c8d7e6;
   --red:#ef4444;--red2:#f87171;--green:#10b981;--green2:#34d399;--yellow:#f59e0b;
   --serif:'Playfair Display',Georgia,serif;
   --body:'Inter',system-ui,sans-serif;
@@ -104,7 +104,7 @@ thead tr{border-bottom:1px solid var(--border);}
 th{font-size:8px;letter-spacing:3px;color:var(--muted);text-transform:uppercase;padding:10px 14px;text-align:left;cursor:pointer;user-select:none;white-space:nowrap;background:var(--bg);}
 th:hover{color:var(--ink2);}
 th.sorted{color:var(--gold2);}
-td{padding:12px 14px;border-bottom:1px solid rgba(30,48,80,0.5);font-size:11px;vertical-align:middle;white-space:nowrap;}
+td{padding:12px 14px;border-bottom:1px solid rgba(46,69,112,0.5);font-size:11px;vertical-align:middle;white-space:nowrap;}
 tr:last-child td{border-bottom:none;}
 tr:hover td{background:rgba(255,255,255,0.015);}
 .asset-name{font-weight:600;color:var(--ink);font-size:12px;letter-spacing:0.5px;}
@@ -997,12 +997,12 @@ function _renderChartsNow(closed, open) {
     data:{ labels, datasets:[{ data, borderColor:eqCol, backgroundColor:eqCol+'18',
       fill:true, tension:0.4, pointRadius:3, pointBackgroundColor:eqCol, borderWidth:2 }] },
     options:{ responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{display:false}, tooltip:{ backgroundColor:'#131f2e',
-        titleColor:'#5a7a9a', bodyColor:'#c8d8ea', borderColor:'#1e3050', borderWidth:1,
+      plugins:{ legend:{display:false}, tooltip:{ backgroundColor:'#1e3149',
+        titleColor:'#8aa2bb', bodyColor:'#c8d8ea', borderColor:'#2e4570', borderWidth:1,
         callbacks:{ label: ctx => (ctx.parsed.y >= 0 ? '+$' : '-$') + Math.abs(ctx.parsed.y).toFixed(2) }
       }},
-      scales:{ x:{ grid:{color:'rgba(30,48,80,0.4)'}, ticks:{color:'#5a7a9a',font:{family:'IBM Plex Mono',size:9},autoSkip:true,maxTicksLimit:8,maxRotation:0} },
-               y:{ grid:{color:'rgba(30,48,80,0.4)'}, ticks:{color:'#5a7a9a',font:{family:'IBM Plex Mono',size:9},callback:v=>'$'+v} } }
+      scales:{ x:{ grid:{color:'rgba(46,69,112,0.4)'}, ticks:{color:'#8aa2bb',font:{family:'IBM Plex Mono',size:9},autoSkip:true,maxTicksLimit:8,maxRotation:0} },
+               y:{ grid:{color:'rgba(46,69,112,0.4)'}, ticks:{color:'#8aa2bb',font:{family:'IBM Plex Mono',size:9},callback:v=>'$'+v} } }
     }
   });
 
@@ -1020,10 +1020,10 @@ function _renderChartsNow(closed, open) {
     type:'doughnut',
     data:{ labels: Object.keys(catMap), datasets:[{ data: Object.values(catMap),
       backgroundColor: pieColors.slice(0, Object.keys(catMap).length),
-      borderColor:'#0f1724', borderWidth:3 }] },
+      borderColor:'#1a273d', borderWidth:3 }] },
     options:{ responsive:true, maintainAspectRatio:false,
       plugins:{ legend:{ labels:{ color:'#6b8aaa', font:{family:'IBM Plex Mono',size:9}, boxWidth:10, padding:10 }},
-        tooltip:{ backgroundColor:'#131f2e', borderColor:'#1e3050', borderWidth:1, bodyColor:'#c8d8ea' }
+        tooltip:{ backgroundColor:'#1e3149', borderColor:'#2e4570', borderWidth:1, bodyColor:'#c8d8ea' }
       }, cutout:'65%' }
   });
 }
@@ -1171,7 +1171,7 @@ function renderClosedPagination(totalRows, totalPages) {
 
   const btn = (label, page, disabled, active) =>
     `<button onclick="goToClosedPage(${page})" ${disabled?'disabled':''} style="
-      padding:4px 10px; border-radius:4px; border:1px solid var(--line,#1e3050);
+      padding:4px 10px; border-radius:4px; border:1px solid var(--line,#2e4570);
       background:${active?'var(--accent,#3b82f6)':'transparent'}; color:${active?'#fff':disabled?'var(--muted)':'var(--ink2)'};
       cursor:${disabled?'default':'pointer'}; font-family:inherit; font-size:12px;
     ">${label}</button>`;

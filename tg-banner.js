@@ -15,15 +15,15 @@
           bt: 'Unisciti al canale →' }
   };
   var CSS =
-    '.xtg{margin:28px 0;border:1px solid #243a5e;border-left:3px solid #229ED9;' +
-    'background:linear-gradient(90deg,rgba(34,158,217,.10),rgba(19,31,46,.6));border-radius:6px;' +
+    '.xtg{margin:28px 0;border:1px solid #355281;border-left:3px solid #229ED9;' +
+    'background:linear-gradient(90deg,rgba(34,158,217,.10),rgba(30,49,73,.6));border-radius:6px;' +
     'padding:16px 18px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;box-sizing:border-box}' +
     '.xtg .xtg-ic{width:40px;height:40px;border-radius:50%;background:#229ED9;color:#fff;display:flex;' +
     'align-items:center;justify-content:center;flex:none}' +
     '.xtg .xtg-tx{flex:1;min-width:220px}' +
     '.xtg .xtg-t1{font-family:"IBM Plex Mono",monospace;font-size:13px;letter-spacing:.06em;' +
-    'text-transform:uppercase;color:#e2eaf4;font-weight:600}' +
-    '.xtg .xtg-t2{font-family:"Inter",system-ui,sans-serif;font-size:15px;color:#b8cce0;margin-top:4px;line-height:1.45}' +
+    'text-transform:uppercase;color:#edf2f8;font-weight:600}' +
+    '.xtg .xtg-t2{font-family:"Inter",system-ui,sans-serif;font-size:15px;color:#c8d7e6;margin-top:4px;line-height:1.45}' +
     '.xtg .xtg-bt{font-family:"IBM Plex Mono",monospace;font-size:13px;font-weight:600;color:#fff !important;' +
     'background:#229ED9;padding:10px 16px;border-radius:4px;text-decoration:none !important;white-space:nowrap}' +
     '.xtg .xtg-bt:hover{background:#1c8cc2}' +
