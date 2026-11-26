@@ -7,7 +7,7 @@ jobs:
   t:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
       - env:
           GH_MODELS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: python -c "import free_llm as f; print('RESULT:', f.github_models('Reply with one short sentence about gold markets.', max_tokens=60)); print(f.LAST_ERRORS)"
+        run: |
+          curl -sS -i https://models.github.ai/inference/chat/completions -H "Authorization: Bearer $GH_MODELS_TOKEN" -H "Content-Type: application/json" -d '{"model":"openai/gpt-4.1-mini","messages":[{"role":"user","content":"Say hi"}],"max_tokens":20}' | head -c 1500
