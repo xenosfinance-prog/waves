@@ -105,7 +105,9 @@ def openai_compat(prompt, system=None, max_tokens=1200, json_mode=False, timeout
                 try:
                     req = urllib.request.Request(url, data=json.dumps(body).encode("utf-8"),
                                                  headers={"Content-Type": "application/json",
-                                                          "Authorization": f"Bearer {key}"})
+                                                          "Authorization": f"Bearer {key}",
+                                                          # Cloudflare (Groq) blocca lo user-agent di urllib (errore 1010)
+                                                          "User-Agent": "XenosFinance/1.0 (+https://xenosfinance.com)"})
                     with urllib.request.urlopen(req, timeout=timeout) as r:
                         data = json.loads(r.read().decode("utf-8"))
                     txt = ((data.get("choices") or [{}])[0].get("message") or {}).get("content") or ""
