@@ -1794,7 +1794,13 @@ function detectPattern(candles, atr, currentPrice) {
       const noHigherHigh = Math.max(...highs.slice(h1.idx)) <= topH + atr*0.3;
       const realDip = topH - neckLow >= atr*1.5;
       const nearNeck = price <= neckLow + atr*1.5 && price >= neckLow - atr*1.0;
-      if (!strongUptrend && preLow < neckLow && noHigherHigh && realDip && nearNeck &&
+      // 2026-11-26 (AUDJPY): il doppio massimo è un'inversione → deve chiudere un RIALZO.
+      // I due massimi devono essere i più alti delle ~60 candele precedenti: in un downtrend
+      // sono solo massimi decrescenti di un rimbalzo, non un Double Top.
+      const priorMax = Math.max(...highs.slice(Math.max(0, h1.idx-60), Math.max(1, h1.idx)));
+      const topsAreHighs = priorMax <= topH + atr*0.3;
+      const realRise = topH - preLow >= atr*3.0;
+      if (!strongUptrend && preLow < neckLow && noHigherHigh && realDip && nearNeck && topsAreHighs && realRise &&
           price < h2.price - atr*0.2 && dtDist < 0.10) {
         const conf=Math.min(90, 62+(rsi>60?8:0)+(trendDown?8:0)+(macdBear?6:0)+(vol.volumeExpanding?4:0)+(hDiff<atr?4:0));
         results.push({ pattern:'Double Top', direction:'SELL',
@@ -1824,7 +1830,12 @@ function detectPattern(candles, atr, currentPrice) {
       const noLowerLow = Math.min(...lows.slice(l1.idx)) >= botL - atr*0.3;
       const realBounce = neckHigh - botL >= atr*1.5;
       const nearNeck = price >= neckHigh - atr*1.5 && price <= neckHigh + atr*1.0;
-      if (!strongDowntrend && preHigh > neckHigh && noLowerLow && realBounce && nearNeck &&
+      // 2026-11-26: speculare al Double Top — i due minimi devono chiudere un RIBASSO
+      // (i più bassi delle ~60 candele precedenti), non essere minimi crescenti di un uptrend.
+      const priorMin = Math.min(...lows.slice(Math.max(0, l1.idx-60), Math.max(1, l1.idx)));
+      const bottomsAreLows = priorMin >= botL - atr*0.3;
+      const realDrop = preHigh - botL >= atr*3.0;
+      if (!strongDowntrend && preHigh > neckHigh && noLowerLow && realBounce && nearNeck && bottomsAreLows && realDrop &&
           price > l2.price + atr*0.2 && dbDist < 0.10) {
         const conf=Math.min(90, 62+(rsi<45?8:0)+(trendUp?8:0)+(macdBull?6:0)+(vol.volumeExpanding?4:0)+(lDiff<atr?4:0));
         results.push({ pattern:'Double Bottom', direction:'BUY',
