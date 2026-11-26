@@ -174,7 +174,9 @@ DISC_IT = ("Contenuto solo educativo. Questa analisi è generata algoritmicament
 INSTRUMENT_IT = {"Gold": "Oro", "Silver": "Argento", "WTI Crude Oil": "Petrolio WTI",
                  "Brent Crude Oil": "Petrolio Brent", "Natural Gas": "Gas naturale", "Copper": "Rame",
                  "Bitcoin": "Bitcoin", "Ethereum": "Ethereum", "S&P 500": "S&P 500", "Nasdaq 100": "Nasdaq 100",
-                 "DAX 40": "DAX 40"}
+                 "DAX 40": "DAX 40", "FTSE 100": "FTSE 100", "Platinum": "Platino", "Palladium": "Palladio",
+                 "Wheat": "Grano", "Corn": "Mais", "Soybeans": "Soia", "Coffee": "Caffè", "Sugar": "Zucchero",
+                 "Cotton": "Cotone"}
 GROUP_IT = {"Commodities": "Materie prime", "Forex": "Forex", "Crypto": "Crypto", "Indices": "Indici"}
 SCEN_IT = {"long_pullback": "Rialzista aggressivo (pullback)", "long_breakout": "Rialzista conservativo (breakout)",
            "short_rejection": "Ribassista aggressivo (rifiuto)", "short_breakdown": "Ribassista conservativo (rottura)"}

@@ -67,6 +67,15 @@ INSTRUMENTS = [
     ("brent-crude-oil", "BZ=F",     "Brent Crude Oil", "Brent",    2, "Commodities", "Brent oil price, Brent crude"),
     ("natural-gas",     "NG=F",     "Natural Gas",     "NG",       3, "Commodities", "natural gas price, NG futures"),
     ("copper",          "HG=F",     "Copper",          "HG",       4, "Commodities", "copper price, HG futures"),
+    # 2026-11-26: tutti gli strumenti della dashboard hanno la loro pagina "Technical Analysis Today"
+    ("platinum",        "PL=F",     "Platinum",        "XPT/USD",  2, "Commodities", "platinum price, XPT/USD, PL futures"),
+    ("palladium",       "PA=F",     "Palladium",       "XPD/USD",  2, "Commodities", "palladium price, XPD/USD, PA futures"),
+    ("wheat",           "ZW=F",     "Wheat",           "ZW",       2, "Commodities", "wheat price, wheat futures, ZW"),
+    ("corn",            "ZC=F",     "Corn",            "ZC",       2, "Commodities", "corn price, corn futures, ZC"),
+    ("soybeans",        "ZS=F",     "Soybeans",        "ZS",       2, "Commodities", "soybean price, soybean futures, ZS"),
+    ("coffee",          "KC=F",     "Coffee",          "KC",       2, "Commodities", "coffee price, arabica coffee futures, KC"),
+    ("sugar",           "SB=F",     "Sugar",           "SB",       2, "Commodities", "sugar price, sugar No.11 futures, SB"),
+    ("cotton",          "CT=F",     "Cotton",          "CT",       2, "Commodities", "cotton price, cotton futures, CT"),
     ("eur-usd",         "EURUSD=X", "EUR/USD",         "EUR/USD",  5, "Forex",       "euro dollar, EURUSD"),
     ("gbp-usd",         "GBPUSD=X", "GBP/USD",         "GBP/USD",  5, "Forex",       "pound dollar, cable, GBPUSD"),
     ("usd-jpy",         "USDJPY=X", "USD/JPY",         "USD/JPY",  3, "Forex",       "dollar yen, USDJPY"),
@@ -76,6 +85,7 @@ INSTRUMENTS = [
     ("sp500",           "^GSPC",    "S&P 500",         "SPX",      2, "Indices",     "S&P 500, SPX, US stocks"),
     ("nasdaq",          "^NDX",     "Nasdaq 100",      "NAS100",   2, "Indices",     "Nasdaq 100, NAS100, tech stocks"),
     ("dax",             "^GDAXI",   "DAX 40",          "DAX",      2, "Indices",     "DAX, German stocks"),
+    ("ftse-100",        "^FTSE",    "FTSE 100",        "UK100",    2, "Indices",     "FTSE 100, UK stocks, UK100"),
 ]
 
 SCEN_NAME = {
