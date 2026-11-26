@@ -31,6 +31,7 @@ on:
 
 permissions:
   contents: write
+  models: read      # 2026-11-26: GitHub Models gratuito come riserva di Gemini
 
 concurrency:
   group: translate-it
@@ -55,6 +56,7 @@ jobs:
         continue-on-error: true
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GH_MODELS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python tools/translate_ui.py
 
       - name: Commit UI translations
@@ -116,6 +118,7 @@ jobs:
         continue-on-error: true      # quanto già tradotto viene comunque salvato dal passo successivo
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GH_MODELS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TRANSLATE_MAX: ${{ github.event.inputs.max || '40' }}
           TRANSLATE_LANG: ${{ matrix.lang }}
         run: python tools/translate_content.py

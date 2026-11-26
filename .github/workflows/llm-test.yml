@@ -1,0 +1,13 @@
+name: llm-test (temporary)
+on: workflow_dispatch
+permissions:
+  contents: read
+  models: read
+jobs:
+  t:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - env:
+          GH_MODELS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python -c "import free_llm as f; print('RESULT:', f.github_models('Reply with one short sentence about gold markets.', max_tokens=60)); print(f.LAST_ERRORS)"

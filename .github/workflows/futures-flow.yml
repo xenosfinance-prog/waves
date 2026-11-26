@@ -11,6 +11,7 @@ on:
 
 permissions:
   contents: write
+  models: read      # 2026-11-26: GitHub Models gratuito come riserva di Gemini
 
 concurrency:
   group: futures-flow
@@ -47,6 +48,7 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}   # 2026-10-25: traduzione IT gratuita
+          GH_MODELS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python tools/gen_futures_flow.py
 
       - name: Commit and push

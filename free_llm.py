@@ -6,6 +6,8 @@ Wave usano questo modulo invece di chiamare Claude a pagamento:
 
   1. Gemini, piano gratuito (GEMINI_API_KEY). Si sceglie il Flash più recente
      disponibile per la chiave, con il Flash-Lite come riserva.
+  1b. (2026-11-26) Se Gemini ha finito la quota gratuita: GitHub Models, gratuito con il
+      token di GitHub Actions (permesso "models: read", variabile GH_MODELS_TOKEN).
   2. Claude a pagamento SOLO se la variabile ALLOW_PAID_AI=1 (spenta di serie).
   3. Altrimenti None: chi chiama pubblica la versione scritta dal codice
      (ogni pipeline ne ha già una), quindi nessuna pagina resta vuota.
@@ -31,8 +33,58 @@ def _gkey():
     return os.environ.get("GEMINI_API_KEY", "").strip()
 
 
+def _ghkey():
+    return (os.environ.get("GH_MODELS_TOKEN") or "").strip()
+
+
+GH_MODELS = ["openai/gpt-4.1-mini", "openai/gpt-4o-mini", "meta/Llama-3.3-70B-Instruct"]
+_GH_DEAD = set()
+
+
+def github_models(prompt, system=None, max_tokens=1200, json_mode=False, timeout=90):
+    """2026-11-26: riserva gratuita quando Gemini è a quota zero. Ritorna il testo o None."""
+    tok = _ghkey()
+    if not tok:
+        return None
+    msgs = ([{"role": "system", "content": system}] if system else []) + [{"role": "user", "content": prompt}]
+    for model in [m for m in GH_MODELS if m not in _GH_DEAD]:
+        body = {"model": model, "messages": msgs, "max_tokens": max_tokens, "temperature": 0.4}
+        if json_mode and model.startswith("openai/"):
+            body["response_format"] = {"type": "json_object"}
+        for attempt in range(2):
+            try:
+                req = urllib.request.Request(
+                    "https://models.github.ai/inference/chat/completions",
+                    data=json.dumps(body).encode("utf-8"),
+                    headers={"Content-Type": "application/json", "Accept": "application/vnd.github+json",
+                             "Authorization": f"Bearer {tok}"})
+                with urllib.request.urlopen(req, timeout=timeout) as r:
+                    data = json.loads(r.read().decode("utf-8"))
+                txt = ((data.get("choices") or [{}])[0].get("message") or {}).get("content") or ""
+                if txt.strip():
+                    return txt.strip()
+                break
+            except urllib.error.HTTPError as e:
+                msg = ""
+                try:
+                    msg = e.read().decode("utf-8", "ignore")[:300]
+                except Exception:
+                    pass
+                LAST_ERRORS.append(("gh:" + model, e.code, msg[:200]))
+                if e.code == 429 and attempt < 1 and "day" not in msg.lower():
+                    time.sleep(20)               # limite al minuto
+                    continue
+                if e.code in (401, 403, 404, 429):
+                    _GH_DEAD.add(model)
+                break
+            except Exception as e:
+                LAST_ERRORS.append(("gh:" + model, type(e).__name__, str(e)[:200]))
+                break
+    return None
+
+
 def available():
-    return bool(_gkey()) or (os.environ.get("ALLOW_PAID_AI") == "1" and bool(os.environ.get("ANTHROPIC_API_KEY")))
+    return bool(_gkey()) or bool(_ghkey()) or (os.environ.get("ALLOW_PAID_AI") == "1" and bool(os.environ.get("ANTHROPIC_API_KEY")))
 
 
 def _ver(name):
@@ -145,6 +197,9 @@ def generate(prompt, max_tokens=1200, json_mode=False, system=None):
     """Testo AI gratuito (Gemini); Claude a pagamento solo con ALLOW_PAID_AI=1; altrimenti None."""
     txt = gemini([{"role": "user", "parts": [{"text": prompt}]}], system=system,
                  max_tokens=max_tokens, json_mode=json_mode)
+    if txt:
+        return txt
+    txt = github_models(prompt, system=system, max_tokens=max_tokens, json_mode=json_mode)
     if txt:
         return txt
     return _claude_paid(prompt, system, max_tokens)
