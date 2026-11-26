@@ -381,7 +381,7 @@ def build_instrument_page(inst, d, ai, now, all_rows):
     r1 = zone_txt(res[0], dec) if res else None
     desc = (f"{name} ({short}) technical analysis for {date_h}: {bias_word.lower()} bias on the 1-hour chart"
             + (f", support {s1}" if s1 else "") + (f", resistance {r1}" if r1 else "")
-            + ". Support and resistance levels, RSI & MACD, Elliott Wave and trade scenarios with risk/reward.")
+            + ". Elliott Wave and trade scenarios.")   # 2026-11-26: ~160 car., oltre Google taglia
 
     b = [f'<div class="crumb"><a href="/">Home</a> › <a href="/analysis/">{L("Daily Analysis", "Analisi giornaliera")}</a> › '
          f'{L(esc(name), esc(name_it))}</div>',
