@@ -67,15 +67,6 @@ INSTRUMENTS = [
     ("brent-crude-oil", "BZ=F",     "Brent Crude Oil", "Brent",    2, "Commodities", "Brent oil price, Brent crude"),
     ("natural-gas",     "NG=F",     "Natural Gas",     "NG",       3, "Commodities", "natural gas price, NG futures"),
     ("copper",          "HG=F",     "Copper",          "HG",       4, "Commodities", "copper price, HG futures"),
-    # 2026-11-26: tutti gli strumenti della dashboard hanno la loro pagina "Technical Analysis Today"
-    ("platinum",        "PL=F",     "Platinum",        "XPT/USD",  2, "Commodities", "platinum price, XPT/USD, PL futures"),
-    ("palladium",       "PA=F",     "Palladium",       "XPD/USD",  2, "Commodities", "palladium price, XPD/USD, PA futures"),
-    ("wheat",           "ZW=F",     "Wheat",           "ZW",       2, "Commodities", "wheat price, wheat futures, ZW"),
-    ("corn",            "ZC=F",     "Corn",            "ZC",       2, "Commodities", "corn price, corn futures, ZC"),
-    ("soybeans",        "ZS=F",     "Soybeans",        "ZS",       2, "Commodities", "soybean price, soybean futures, ZS"),
-    ("coffee",          "KC=F",     "Coffee",          "KC",       2, "Commodities", "coffee price, arabica coffee futures, KC"),
-    ("sugar",           "SB=F",     "Sugar",           "SB",       2, "Commodities", "sugar price, sugar No.11 futures, SB"),
-    # cotone escluso: Yahoo non ha abbastanza storico orario (CT=F) per un'analisi reale
     ("eur-usd",         "EURUSD=X", "EUR/USD",         "EUR/USD",  5, "Forex",       "euro dollar, EURUSD"),
     ("gbp-usd",         "GBPUSD=X", "GBP/USD",         "GBP/USD",  5, "Forex",       "pound dollar, cable, GBPUSD"),
     ("usd-jpy",         "USDJPY=X", "USD/JPY",         "USD/JPY",  3, "Forex",       "dollar yen, USDJPY"),
