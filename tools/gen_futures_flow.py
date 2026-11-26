@@ -346,10 +346,15 @@ def build_page(res, prev_snap, day, now, desk=None, oil=None, bias=None, it=None
     """2026-10-25: pagina bilingue — HTML in inglese (SEO), italiano in data-it (tools/page_i18n.py)."""
     import page_i18n as PI
     L, it = PI.L, (it or {})
-    title = "Futures Flow — Open Interest, Volume & Curves: Oil, Gas, Gold, Indices | XenosFinance"
-    title_it = "Futures Flow — Open interest, volumi e curve: petrolio, gas, oro, indici | XenosFinance"
-    desc = (f"Daily futures flow for {day:%d %B %Y}: open interest and volume changes, positioning read and "
-            "forward curves for WTI, Brent, natural gas, gold, silver, copper, S&P 500 and Nasdaq 100 futures.")
+    # 2026-11-26: Bing — "wti crude oil forward curve contango backwardation" in pos. 4 con 0 clic:
+    # titolo e descrizione dicono subito lo stato della curva WTI del giorno
+    _cl = next((r for r in res if r.get("key") == "cl"), None)
+    _st = _cl.get("structure") if _cl else None
+    title = ("WTI Forward Curve: Contango or Backwardation? Oil, Gas, Gold Futures Flow | XenosFinance")
+    title_it = "Curva forward WTI: contango o backwardation? Futures flow petrolio, gas, oro | XenosFinance"
+    desc = ((f"WTI crude oil forward curve on {day:%d %B %Y}: {_st} (M1–M6 spread {_cl['spread_m1m6']:+.2f} {_cl['unit']}). "
+             if _st else f"WTI crude oil forward curve on {day:%d %B %Y}. ") +
+            "Open interest, volume and curves for WTI, Brent, natural gas, gold, silver, copper, S&P 500 and Nasdaq 100 futures.")
     mono_note = 'style="font-family:var(--mono);font-size:10px;color:var(--muted)"'
     b = ['<div class="crumb"><a href="/">Home</a> › Futures Flow</div>',
          f"<h1>{L('Futures Flow — Open Interest &amp; Curves', 'Futures Flow — Open interest e curve')}</h1>",

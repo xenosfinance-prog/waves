@@ -497,9 +497,9 @@ def build_page(res, day, now, en, it, bl, bl_it, chg):
     import page_i18n as PI
     Lg = PI.L
     esc = G.esc
-    title = "Oil Options Monitor — Crude Implied Volatility, Skew & Open Interest | XenosFinance"
+    title = "Crude Oil Implied Volatility Today (OVX) — Options Skew & Open Interest | XenosFinance"
     title_it = "Oil Options Monitor — Volatilità implicita, skew e open interest sul petrolio | XenosFinance"
-    desc = (f"What the options market prices for crude oil on {day:%d %B %Y}: OVX implied volatility vs realised, "
+    desc = (f"Crude oil implied volatility on {day:%d %B %Y}: OVX {res.get('ovx', '')} vs realised volatility, "
             "put/call skew, open-interest walls and unusual activity in USO options, with WTI-equivalent levels.")
     note = 'style="font-family:var(--mono);font-size:10px;color:var(--muted)"'
     # 2026-11-25: se Yahoo non ha ancora la barra OVX della seduta, lo dichiariamo
