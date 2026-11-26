@@ -85,10 +85,36 @@ def github_models(prompt, system=None, max_tokens=1200, json_mode=False, timeout
 
 # 2026-11-26: altre riserve gratuite, API compatibili OpenAI (si attivano solo se c'è la chiave)
 OPENAI_COMPAT = [
-    ("GROQ_API_KEY", "https://api.groq.com/openai/v1/chat/completions", ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]),
+    # i modelli Groq cambiano spesso: la lista vera si legge da /models (vedi _groq_models)
+    ("GROQ_API_KEY", "https://api.groq.com/openai/v1/chat/completions", ["openai/gpt-oss-120b", "openai/gpt-oss-20b"]),
     ("OPENROUTER_API_KEY", "https://openrouter.ai/api/v1/chat/completions", ["meta-llama/llama-3.3-70b-instruct:free"]),
 ]
 _OC_DEAD = set()
+
+
+_UA = "XenosFinance/1.0 (+https://xenosfinance.com)"
+_GROQ_LIST = None
+_GROQ_PREF = ("openai/gpt-oss-120b", "llama-4", "llama-3.3-70b", "qwen", "openai/gpt-oss-20b", "llama")
+_GROQ_SKIP = ("guard", "whisper", "orpheus", "safeguard", "allam", "tts", "playai", "compound")
+
+
+def _groq_models(default):
+    """Modelli testuali disponibili ora sulla chiave Groq, in ordine di preferenza."""
+    global _GROQ_LIST
+    if _GROQ_LIST is not None:
+        return _GROQ_LIST
+    try:
+        req = urllib.request.Request("https://api.groq.com/openai/v1/models",
+                                     headers={"Authorization": f"Bearer {os.environ['GROQ_API_KEY'].strip()}",
+                                              "User-Agent": _UA})
+        with urllib.request.urlopen(req, timeout=20) as r:
+            ids = [m["id"] for m in json.loads(r.read().decode("utf-8")).get("data", [])]
+        ids = [i for i in ids if not any(k in i.lower() for k in _GROQ_SKIP)]
+        rank = lambda i: next((n for n, p in enumerate(_GROQ_PREF) if p in i.lower()), 99)
+        _GROQ_LIST = sorted(ids, key=rank)[:3] or list(default)
+    except Exception:
+        _GROQ_LIST = list(default)
+    return _GROQ_LIST
 
 
 def openai_compat(prompt, system=None, max_tokens=1200, json_mode=False, timeout=90):
@@ -97,8 +123,13 @@ def openai_compat(prompt, system=None, max_tokens=1200, json_mode=False, timeout
         key = (os.environ.get(env) or "").strip()
         if not key:
             continue
+        if env == "GROQ_API_KEY":
+            models_ = _groq_models(models_)
         for model in [m for m in models_ if (env, m) not in _OC_DEAD]:
             body = {"model": model, "messages": msgs, "max_tokens": max_tokens, "temperature": 0.4}
+            if "gpt-oss" in model:
+                body["reasoning_effort"] = "low"      # modello "ragionante": poco ragionamento, più testo
+                body["max_tokens"] = max_tokens + 1500
             if json_mode:
                 body["response_format"] = {"type": "json_object"}
             for attempt in range(2):
@@ -107,7 +138,7 @@ def openai_compat(prompt, system=None, max_tokens=1200, json_mode=False, timeout
                                                  headers={"Content-Type": "application/json",
                                                           "Authorization": f"Bearer {key}",
                                                           # Cloudflare (Groq) blocca lo user-agent di urllib (errore 1010)
-                                                          "User-Agent": "XenosFinance/1.0 (+https://xenosfinance.com)"})
+                                                          "User-Agent": _UA})
                     with urllib.request.urlopen(req, timeout=timeout) as r:
                         data = json.loads(r.read().decode("utf-8"))
                     txt = ((data.get("choices") or [{}])[0].get("message") or {}).get("content") or ""
