@@ -83,8 +83,56 @@ def github_models(prompt, system=None, max_tokens=1200, json_mode=False, timeout
     return None
 
 
+# 2026-11-26: altre riserve gratuite, API compatibili OpenAI (si attivano solo se c'è la chiave)
+OPENAI_COMPAT = [
+    ("GROQ_API_KEY", "https://api.groq.com/openai/v1/chat/completions", ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]),
+    ("OPENROUTER_API_KEY", "https://openrouter.ai/api/v1/chat/completions", ["meta-llama/llama-3.3-70b-instruct:free"]),
+]
+_OC_DEAD = set()
+
+
+def openai_compat(prompt, system=None, max_tokens=1200, json_mode=False, timeout=90):
+    msgs = ([{"role": "system", "content": system}] if system else []) + [{"role": "user", "content": prompt}]
+    for env, url, models_ in OPENAI_COMPAT:
+        key = (os.environ.get(env) or "").strip()
+        if not key:
+            continue
+        for model in [m for m in models_ if (env, m) not in _OC_DEAD]:
+            body = {"model": model, "messages": msgs, "max_tokens": max_tokens, "temperature": 0.4}
+            if json_mode:
+                body["response_format"] = {"type": "json_object"}
+            for attempt in range(2):
+                try:
+                    req = urllib.request.Request(url, data=json.dumps(body).encode("utf-8"),
+                                                 headers={"Content-Type": "application/json",
+                                                          "Authorization": f"Bearer {key}"})
+                    with urllib.request.urlopen(req, timeout=timeout) as r:
+                        data = json.loads(r.read().decode("utf-8"))
+                    txt = ((data.get("choices") or [{}])[0].get("message") or {}).get("content") or ""
+                    if txt.strip():
+                        return txt.strip()
+                    break
+                except urllib.error.HTTPError as e:
+                    msg = ""
+                    try:
+                        msg = e.read().decode("utf-8", "ignore")[:300]
+                    except Exception:
+                        pass
+                    LAST_ERRORS.append((env + ":" + model, e.code, msg[:200]))
+                    if e.code == 429 and attempt < 1 and "day" not in msg.lower():
+                        time.sleep(20)
+                        continue
+                    if e.code in (401, 403, 404, 429):
+                        _OC_DEAD.add((env, model))
+                    break
+                except Exception as e:
+                    LAST_ERRORS.append((env + ":" + model, type(e).__name__, str(e)[:200]))
+                    break
+    return None
+
+
 def available():
-    return bool(_gkey()) or bool(_ghkey()) or (os.environ.get("ALLOW_PAID_AI") == "1" and bool(os.environ.get("ANTHROPIC_API_KEY")))
+    return (bool(_gkey()) or bool(_ghkey()) or any(os.environ.get(e) for e, _, _ in OPENAI_COMPAT) or (os.environ.get("ALLOW_PAID_AI") == "1" and bool(os.environ.get("ANTHROPIC_API_KEY"))))
 
 
 def _ver(name):
@@ -200,6 +248,9 @@ def generate(prompt, max_tokens=1200, json_mode=False, system=None):
     if txt:
         return txt
     txt = github_models(prompt, system=system, max_tokens=max_tokens, json_mode=json_mode)
+    if txt:
+        return txt
+    txt = openai_compat(prompt, system=system, max_tokens=max_tokens, json_mode=json_mode)
     if txt:
         return txt
     return _claude_paid(prompt, system, max_tokens)
