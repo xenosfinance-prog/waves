@@ -73,7 +73,10 @@ const recolor = `(function(){
       var c=parse(cs.color);if(c){var nc=fg(c,acc);if(nc)el.style.setProperty('color',nc,'important');}
       ['Top','Right','Bottom','Left'].forEach(function(s){var w=parseFloat(cs['border'+s+'Width']);if(!w)return;
         var k=parse(cs['border'+s+'Color']);if(k){var nk=bd(k);if(nk)el.style.setProperty('border-'+s.toLowerCase()+'-color',nk,'important');}});
-      if(cs.backgroundImage&&cs.backgroundImage.indexOf('gradient')>=0&&m==='light')el.style.setProperty('background-image','none','important');
+      if(cs.backgroundImage&&cs.backgroundImage.indexOf('gradient')>=0&&!NAV){
+        var g=cs.backgroundImage.match(/rgba?\([^)]+\)/);var gc=g?parse(g[0]):null;
+        el.style.setProperty('background-image','none','important');
+        if(gc){var ng=bg(gc);if(ng)el.style.setProperty('background-color',ng,'important');}}
     });
   }
   run();setTimeout(run,1200);setTimeout(run,3500);setInterval(run,5000);
