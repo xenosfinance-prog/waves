@@ -1443,16 +1443,32 @@ function calcEMA(values, period) {
 }
 
 function calcRSI(candles, period = 14) {
+  // 2026-11-26: RSI di Wilder (stesso valore di TradingView/MT5), non la media semplice degli ultimi 14
   if (candles.length < period + 1) return null;
   const closes = candles.map(c => parseFloat(c.close));
-  let gains = 0, losses = 0;
-  for (let i = closes.length - period; i < closes.length; i++) {
-    const diff = closes[i] - closes[i-1];
-    if (diff > 0) gains += diff; else losses -= diff;
+  let ag = 0, al = 0;
+  for (let i = 1; i <= period; i++) {
+    const d = closes[i] - closes[i-1];
+    if (d > 0) ag += d; else al -= d;
   }
-  const rs = gains / (losses || 0.001);
-  return 100 - 100 / (1 + rs);
+  ag /= period; al /= period;
+  for (let i = period + 1; i < closes.length; i++) {
+    const d = closes[i] - closes[i-1];
+    ag = (ag * (period - 1) + Math.max(d, 0)) / period;
+    al = (al * (period - 1) + Math.max(-d, 0)) / period;
+  }
+  if (al === 0) return 100;
+  return 100 - 100 / (1 + ag / al);
 }
+function rsiState(r) {
+  if (r == null || !isFinite(r)) return 'N/A';
+  if (r >= 70) return 'OVERBOUGHT (>=70)';
+  if (r <= 30) return 'OVERSOLD (<=30)';
+  if (r >= 50) return 'neutral-bullish momentum (50-70, NOT overbought)';
+  return 'neutral-bearish momentum (30-50, NOT oversold)';
+}
+
+const MIN_RR = 1.5;   // 2026-11-26: R:R minimo dei segnali
 
 // ── CFD Market Physics Validator ─────────────────────────────
 // Traduzione del framework CFD (Fluidodinamica) in JS su candele reali.
@@ -1765,15 +1781,23 @@ function detectPattern(candles, atr, currentPrice) {
     const h1=swingH[swingH.length-2], h2=swingH[swingH.length-1];
     const hDiff=Math.abs(h1.price-h2.price);
     const gap=h2.idx-h1.idx;
-    if (hDiff < atr*3.0 && gap>=6 && gap<=100) {
+    if (hDiff < atr*1.0 && gap>=6 && gap<=100) {
       const neckLow=Math.min(...lows.slice(h1.idx,h2.idx+1));
       const dtDist=(h2.price-price)/h2.price;
       // Hard filter: price must NOT be in strong uptrend
       const strongUptrend = ema20 > ema50 + atr && price > ema50;
-      if (!strongUptrend && price < h2.price - atr*0.2 && dtDist < 0.10 && price < neckLow+atr*3) {
+      // 2026-11-26: vero doppio massimo — rialzo PRIMA del primo massimo (partenza sotto il neckline),
+      // ribasso reale tra i due massimi, nessun massimo più alto dopo, prezzo vicino al neckline
+      const topH = Math.max(h1.price, h2.price);
+      const preLow = Math.min(...lows.slice(Math.max(0, h1.idx-30), Math.max(1, h1.idx)));
+      const noHigherHigh = Math.max(...highs.slice(h1.idx)) <= topH + atr*0.3;
+      const realDip = topH - neckLow >= atr*1.5;
+      const nearNeck = price <= neckLow + atr*1.5 && price >= neckLow - atr*1.0;
+      if (!strongUptrend && preLow < neckLow && noHigherHigh && realDip && nearNeck &&
+          price < h2.price - atr*0.2 && dtDist < 0.10) {
         const conf=Math.min(90, 62+(rsi>60?8:0)+(trendDown?8:0)+(macdBear?6:0)+(vol.volumeExpanding?4:0)+(hDiff<atr?4:0));
         results.push({ pattern:'Double Top', direction:'SELL',
-          entry:price, sl:h2.price+atr*(selectedTF==='D1'?1.8:1.0),
+          entry:price, sl:Math.max(h1.price,h2.price)+atr*0.5,   // 2026-11-26: stop appena oltre il doppio massimo (= invalidazione)
           tp:neckLow-(h2.price-neckLow)*0.9,
           confidence:conf, key_sr:{resistance:h2.price, support:neckLow},
           evidence:{hDiff,gap,rsi,neckLow,trendDown,macdBear} });
@@ -1786,15 +1810,24 @@ function detectPattern(candles, atr, currentPrice) {
     const l1=swingL[swingL.length-2], l2=swingL[swingL.length-1];
     const lDiff=Math.abs(l1.price-l2.price);
     const gap=l2.idx-l1.idx;
-    if (lDiff < atr*3.0 && gap>=6 && gap<=100) {
+    if (lDiff < atr*1.0 && gap>=6 && gap<=100) {
       const neckHigh=Math.max(...highs.slice(l1.idx,l2.idx+1));
       const dbDist=(price-l2.price)/l2.price;
       // Hard filter: price must NOT be in strong downtrend (ema20 << ema50 by more than 1 ATR)
       const strongDowntrend = ema20 < ema50 - atr && price < ema50;
-      if (!strongDowntrend && price > l2.price + atr*0.2 && dbDist < 0.10 && price > neckHigh-atr*3) {
+      // 2026-11-26: vero doppio minimo — ribasso PRIMA del primo minimo (partenza sopra il neckline),
+      // rimbalzo reale tra i due minimi, nessun minimo più basso dopo, prezzo vicino al neckline.
+      // (GBPNZD D1 26/11: trend rialzista + laterale etichettato "Double Bottom")
+      const botL = Math.min(l1.price, l2.price);
+      const preHigh = Math.max(...highs.slice(Math.max(0, l1.idx-30), Math.max(1, l1.idx)));
+      const noLowerLow = Math.min(...lows.slice(l1.idx)) >= botL - atr*0.3;
+      const realBounce = neckHigh - botL >= atr*1.5;
+      const nearNeck = price >= neckHigh - atr*1.5 && price <= neckHigh + atr*1.0;
+      if (!strongDowntrend && preHigh > neckHigh && noLowerLow && realBounce && nearNeck &&
+          price > l2.price + atr*0.2 && dbDist < 0.10) {
         const conf=Math.min(90, 62+(rsi<45?8:0)+(trendUp?8:0)+(macdBull?6:0)+(vol.volumeExpanding?4:0)+(lDiff<atr?4:0));
         results.push({ pattern:'Double Bottom', direction:'BUY',
-          entry:price, sl:l2.price-atr*(selectedTF==='D1'?1.8:1.0),
+          entry:price, sl:Math.min(l1.price,l2.price)-atr*0.5,   // 2026-11-26: stop appena sotto il doppio minimo (= invalidazione)
           tp:neckHigh+(neckHigh-l2.price)*0.9,
           confidence:conf, key_sr:{support:l2.price, resistance:neckHigh},
           evidence:{lDiff,gap,rsi,neckHigh,trendUp,macdBull} });
@@ -1977,7 +2010,7 @@ function detectPattern(candles, atr, currentPrice) {
   }
 
   // ── 12. BULL FLAG ────────────────────────────────────────────
-  if (swingH.length >= 2 && n >= 30) {
+  if (swingH.length >= 2 && swingL.length >= 2 && n >= 30) {
     const rH=swingH.slice(-2), rL=swingL.slice(-2);
     const poleMove=rH[1].price-rL[0].price;
     const flagRange=rH[1].price-rL[1].price;
@@ -1995,7 +2028,7 @@ function detectPattern(candles, atr, currentPrice) {
   }
 
   // ── 13. BEAR FLAG ────────────────────────────────────────────
-  if (swingL.length >= 2 && n >= 30) {
+  if (swingL.length >= 2 && swingH.length >= 2 && n >= 30) {
     const rH=swingH.slice(-2), rL=swingL.slice(-2);
     const poleMove=rH[0].price-rL[1].price;
     const flagRange=rH[1].price-rL[1].price;
@@ -2255,9 +2288,14 @@ function detectPattern(candles, atr, currentPrice) {
     } catch(e) {}
     validated.push(r);
   }
-  if (validated.length === 0) return null;
-  validated.sort((a,b)=>b.confidence-a.confidence);
-  return validated[0];
+  // 2026-11-26: solo setup con R:R >= 1:1.5 (prima vinceva il pattern più "confident" anche a 1:1)
+  const tradable = validated.filter(r => {
+    const sd = Math.abs(r.sl - r.entry), td = Math.abs(r.tp - r.entry);
+    return sd > 0 && td / sd >= MIN_RR;
+  });
+  if (tradable.length === 0) return null;
+  tradable.sort((a,b)=>b.confidence-a.confidence);
+  return tradable[0];
 }
 
 async function analyzePair(pair, livePrices) {
@@ -2285,9 +2323,9 @@ async function analyzePair(pair, livePrices) {
 
   // Calcola RR
   const entryVal = parseFloat(detected.entry);
-  const slVal    = parseFloat(detected.sl);
+  let   slVal    = parseFloat(detected.sl);
   const tpVal    = parseFloat(detected.tp);
-  const slDist   = Math.abs(slVal - entryVal);
+  let   slDist   = Math.abs(slVal - entryVal);
   const tpDist   = Math.abs(tpVal - entryVal);
   if (!isFinite(entryVal) || !isFinite(slVal) || !isFinite(tpVal) || slDist < 0.000001) return null;
 
@@ -2296,13 +2334,24 @@ async function analyzePair(pair, livePrices) {
   if (dir === 'BUY'  && !(slVal < entryVal && tpVal > entryVal)) return null;
   if (dir === 'SELL' && !(slVal > entryVal && tpVal < entryVal)) return null;
 
+  // 2026-11-26: stop legato all'invalidazione EW quando il conteggio è allineato e l'invalidazione
+  // sta tra entry e stop (GBPNZD: invalidazione 2.3664 ma stop 2.3543 = 120 pip di rischio inutile)
+  const ew = sigEwRun(candles);
+  const ewBias = dir === 'BUY' ? 'bullish' : 'bearish';
+  if (ew && ew.inval != null && ew.bias === ewBias) {
+    const inv = parseFloat(ew.inval);
+    if (dir === 'BUY' && inv > slVal && inv < entryVal - atr * 0.5) { slVal = inv - atr * 0.2; detected.sl = slVal; }
+    if (dir === 'SELL' && inv < slVal && inv > entryVal + atr * 0.5) { slVal = inv + atr * 0.2; detected.sl = slVal; }
+    slDist = Math.abs(slVal - entryVal);
+  }
+
   // ── Cap SL: max 3x ATR for intraday, 5x for D1 ──
   const maxSlATR = selectedTF === 'D1' ? 5.0 : selectedTF === 'H4' ? 4.0 : 3.0;
   if (atr && slDist > atr * maxSlATR) return null;
 
-  // ── Minimum RR: 1:1 ──
+  // ── Minimum RR: 1:1.5 ──
   const rawRR = tpDist / slDist;
-  if (rawRR < 1.0) return null;
+  if (rawRR < MIN_RR) return null;
 
   const rrStr = '1:' + rawRR.toFixed(1);
 
@@ -2326,13 +2375,22 @@ async function analyzePair(pair, livePrices) {
     key_sr:       detected.key_sr,
     cfd:          detected.cfd || null,
     candleCount:  candles.length,
-    ew:           sigEwRun(candles),          // 2026-10-28: conteggio del motore EW sulle stesse candele
+    ew,                                       // 2026-10-28: conteggio del motore EW sulle stesse candele
   };
 }
 
 // ── Prompt a Claude con dati tecnici reali ───────────────────
+// 2026-11-26: pulizia dei testi già salvati (frasi "CFD physics / Reynolds / laminar flow")
+function sigCleanText(text) {
+  return String(text || '')
+    .replace(/Macro & Flow Context/g, 'Macro Context')
+    .split('\n').map(line => line.split(/(?<=[.!?])\s+/)
+      .filter(x => !/reynolds|viscosity|laminar|turbulent flow|cfd (physics|model|flow|metrics|data)/i.test(x))
+      .join(' ')).join('\n');
+}
 function renderAnalysis(text, sig) {
   if (!text) return renderLegacyAnalysis(sig);
+  text = sigCleanText(text);
   let html = '';
   const lines = text.split('\n');
   let inList = false;
@@ -2355,15 +2413,6 @@ function renderAnalysis(text, sig) {
     html += '<p class="analysis-para">' + para + '</p>';
   }
   if (inList) html += '</ul>';
-  if (sig && sig.cfd) {
-    html += '<div class="analysis-title">Flow Diagnostics (CFD Model)</div>'
-      + '<div class="flow-grid">'
-      + '<div class="flow-cell"><div class="flow-cell-label">REYNOLDS (thrust)</div><div class="flow-cell-val" style="color:' + (sig.cfd.reynolds > 50 ? '#10b981' : '#f59e0b') + '">' + sig.cfd.reynolds + '</div></div>'
-      + '<div class="flow-cell"><div class="flow-cell-label">VISCOSITY (friction)</div><div class="flow-cell-val" style="color:' + (sig.cfd.viscosity < 0.5 ? '#10b981' : '#f59e0b') + '">' + sig.cfd.viscosity + '</div></div>'
-      + '<div class="flow-cell"><div class="flow-cell-label">FLOW TYPE</div><div class="flow-cell-val" style="color:' + ((sig.cfd.flowType||'').includes('TURBULENT') ? '#10b981' : '#94a3b8') + '">' + (sig.cfd.flowType||'—') + '</div></div>'
-      + '<div class="flow-cell"><div class="flow-cell-label">MOMENTUM</div><div class="flow-cell-val" style="color:' + (sig.cfd.momentumAligned ? '#10b981' : '#f59e0b') + '">' + (sig.cfd.momentumAligned ? '✓ ALIGNED' : '⚠ DIVERGING') + '</div></div>'
-      + '</div>';
-  }
   return html;
 }
 
@@ -2389,15 +2438,6 @@ function renderLegacyAnalysis(sig) {
   if (sig.key_levels)     html += '<div class="analysis-title">Key Levels</div><p class="analysis-para">' + (sig.key_levels||'') + '</p>';
   if (sig.invalidation)   html += '<div class="analysis-title">Invalidation</div><div class="analysis-invalidation">' + (sig.invalidation||'') + '</div>';
   if (sig.market_context) html += '<div class="analysis-title">Market Context</div><p class="analysis-para">' + (sig.market_context||'') + '</p>';
-  if (sig.cfd) {
-    html += '<div class="analysis-title">Flow Diagnostics (CFD Model)</div>'
-      + '<div class="flow-grid">'
-      + '<div class="flow-cell"><div class="flow-cell-label">REYNOLDS</div><div class="flow-cell-val" style="color:' + (sig.cfd.reynolds > 50 ? '#10b981' : '#f59e0b') + '">' + sig.cfd.reynolds + '</div></div>'
-      + '<div class="flow-cell"><div class="flow-cell-label">VISCOSITY</div><div class="flow-cell-val" style="color:' + (sig.cfd.viscosity < 0.5 ? '#10b981' : '#f59e0b') + '">' + sig.cfd.viscosity + '</div></div>'
-      + '<div class="flow-cell"><div class="flow-cell-label">FLOW TYPE</div><div class="flow-cell-val" style="color:#94a3b8">' + (sig.cfd.flowType||'—') + '</div></div>'
-      + '<div class="flow-cell"><div class="flow-cell-label">MOMENTUM</div><div class="flow-cell-val" style="color:' + (sig.cfd.momentumAligned ? '#10b981' : '#f59e0b') + '">' + (sig.cfd.momentumAligned ? '✓ ALIGNED' : '⚠ DIVERGING') + '</div></div>'
-      + '</div>';
-  }
   return html || '<p class="analysis-para" style="color:#3a5070">No analysis available.</p>';
 }
 
@@ -2414,7 +2454,7 @@ function buildPromptFromAnalysis(analyses, tf, marketNews, prevSignals = []) {
 ${p} [${a.direction}] — Pattern detected: ${a.pattern}
   Current Price : ${fmt(a.entry)}
   ATR (${tf})   : ${fmt(a.atr)}
-  RSI (14)      : ${fmtPct(a.rsi)}
+  RSI (14)      : ${a.rsi != null ? a.rsi.toFixed(1) : 'N/A'} → ${rsiState(a.rsi)}
   EMA20 / EMA50 : ${fmt(a.ema20)} / ${fmt(a.ema50)} → trend: ${a.ema20 > a.ema50 ? 'BULLISH' : 'BEARISH'}
   Algo Entry    : ${fmt(a.entry)}
   Algo SL       : ${fmt(a.sl)} (${a.atr && Math.abs(a.sl - a.entry)/a.atr < 1 ? 'tight' : 'normal'} — ${a.atr ? (Math.abs(a.sl - a.entry)/a.atr).toFixed(1) : '?'}x ATR)
@@ -2423,8 +2463,7 @@ ${p} [${a.direction}] — Pattern detected: ${a.pattern}
   Swing Highs   : ${a.swingHighs.map(fmt).join(', ')}
   Swing Lows    : ${a.swingLows.map(fmt).join(', ')}
   Key S/R       : ${JSON.stringify(a.key_sr)}
-  CFD Physics   : Reynolds=${a.cfd ? a.cfd.reynolds : 'N/A'} | Viscosity=${a.cfd ? a.cfd.viscosity : 'N/A'} | Flow=${a.cfd ? a.cfd.flowType : 'N/A'} | Momentum Aligned=${a.cfd ? a.cfd.momentumAligned : 'N/A'}
-  Evidence      : RSI=${fmtPct(a.rsi)}, EMA20${a.ema20>a.ema50?'>':'<'}EMA50
+  Evidence      : RSI=${a.rsi != null ? a.rsi.toFixed(1) : 'N/A'}, EMA20${a.ema20>a.ema50?'>':'<'}EMA50
   EW engine     : ${sigEwText(a.ew, p, tf, a.direction)}`;
   }).join('\n');
 
@@ -2474,8 +2513,8 @@ Return ONLY a raw JSON array. Each object:
   "pattern_desc": "Clear double bottom formed over 18 candles with near-identical lows. Neckline at 1.0856 represents the key trigger level.",
   "key_levels": "Support: 1.0795 (swing low). Resistance: 1.0856 (neckline), 1.0900 (prior structure)",
   "invalidation": "Close below 1.0790 on ${tf} timeframe negates the pattern",
-  "market_context": "USD weakness amid Fed dovish repricing supports EUR recovery from oversold levels",
-  "full_analysis": "## Market Structure & Technical Context\n\n[2-3 sentences: overall structure, wave position, why this pattern is significant at this exact price level. Use real numbers from the data.]\n\n[1-2 sentences: RSI value, EMA alignment (EMA20 vs EMA50), ATR context, momentum state.]\n\n## Key Levels\n\n- **Resistance**: [exact price] ([context — swing high / breakout level / prior structure])\n- **Support**: [exact price] ([context])\n\n## Invalidation Level\n\n[Complete sentence: exactly what candle close would negate this setup and why it matters structurally.]\n\n## Macro & Flow Context\n\n[1-2 sentences: macro backdrop relevant to this instrument, how CFD flow data confirms or challenges the setup.]",
+  "market_context": "USD weakness amid Fed dovish repricing supports the EUR recovery",
+  "full_analysis": "## Market Structure & Technical Context\n\n[2-3 sentences: overall structure, wave position, why this pattern is significant at this exact price level. Use real numbers from the data.]\n\n[1-2 sentences: RSI value, EMA alignment (EMA20 vs EMA50), ATR context, momentum state.]\n\n## Key Levels\n\n- **Resistance**: [exact price] ([context — swing high / breakout level / prior structure])\n- **Support**: [exact price] ([context])\n\n## Invalidation Level\n\n[Complete sentence: exactly what candle close would negate this setup and why it matters structurally.]\n\n## Macro Context\n\n[1-2 sentences: macro backdrop relevant to this instrument and how it supports or challenges the setup.]",
   "tags": ["double_bottom","key_support","mean_reversion"]
 }
 
@@ -2485,6 +2524,10 @@ CRITICAL RULES:
 - rr string must match the algo rr exactly
 - confidence: algo value ±5 only
 - Return empty array [] if no patterns are convincing
+- Describe RSI ONLY with the given RSI state: a reading between 30 and 70 is never "overbought" or "oversold"
+- The invalidation level IS the stop loss: write it as a ${tf} close beyond the algo SL, never a different price
+- Describe the pattern only as the structure the data shows; do not call a trend continuation a reversal pattern
+- Never mention fluid dynamics, "CFD physics", Reynolds number, viscosity, laminar or turbulent flow
 - full_analysis: write REAL numbers from the data provided. Minimum 120 words. Use the section structure shown exactly.
 - Output only the JSON array, no markdown`;
 }
@@ -3835,7 +3878,7 @@ async function doSendToTelegram(idx) {
     lines.push(``);
     // Full structured analysis if available, else legacy fields
     if (sig.full_analysis) {
-      lines.push(stripMd(sig.full_analysis));
+      lines.push(stripMd(sigCleanText(sig.full_analysis)));
     } else {
       if (sig.pattern_desc)   lines.push(`<b>Pattern:</b>\n${t(sig.pattern_desc)}\n`);
       if (sig.key_levels)     lines.push(`<b>Key Levels:</b>\n${t(sig.key_levels)}\n`);
@@ -3843,11 +3886,6 @@ async function doSendToTelegram(idx) {
       if (sig.invalidation)   lines.push(`<b>Invalidation:</b> ${t(sig.invalidation)}`);
     }
 
-    // CFD diagnostics
-    if (sig.cfd) {
-      lines.push(`\n⚡ <b>Flow:</b> Reynolds ${sig.cfd.reynolds} · Viscosity ${sig.cfd.viscosity} · ${sig.cfd.flowType}`);
-      lines.push(sig.cfd.momentumAligned ? '✅ Momentum aligned' : '⚠️ Momentum diverging');
-    }
 
     // Tags + footer
     lines.push(``);
