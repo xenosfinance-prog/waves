@@ -2637,8 +2637,8 @@ async function generateSignals() {
         pattern:      a.pattern,
         ew_context:   'Elliott Wave analysis: ' + (a.direction === 'BUY' ? 'bullish' : 'bearish') + ' structure detected on ' + selectedTF,
         pattern_desc: a.pattern + ' pattern identified with ' + a.confidence + '% confidence. Entry at key level.',
-        key_levels:   'Support: ' + (a.key_sr ? JSON.stringify(a.key_sr) : 'N/A'),
-        invalidation: 'Close beyond stop loss ' + a.sl,
+        key_levels:   fmtKeyLevels(a.key_sr, a.pair),
+        invalidation: 'Close beyond stop loss ' + fmtPrice(a.sl, a.pair),
         market_context: 'Technical setup on ' + selectedTF + ' timeframe.',
         tags: [a.pattern.toLowerCase().replace(/ /g,'_')]
       }));
@@ -3778,6 +3778,15 @@ function drawPatternShape(ctx, pat, isBull, entry, sl, tp,
 }
 
 
+
+// Livelli chiave leggibili (fallback senza AI): {resistance:x, support:y} -> "Resistance: 0.5865 · Support: 0.5806"
+function fmtKeyLevels(sr, pair) {
+  if (!sr || typeof sr !== 'object') return 'N/A';
+  const names = {resistance:'Resistance', support:'Support', fib382:'Fib 38.2%', rim:'Rim', bottom:'Bottom'};
+  const parts = Object.keys(sr).filter(k => sr[k] != null && !isNaN(parseFloat(sr[k])))
+    .map(k => (names[k] || k) + ': ' + fmtPrice(sr[k], pair));
+  return parts.length ? parts.join(' · ') : 'N/A';
+}
 
 function fmtPrice(v, pair) {
   const n = parseFloat(v);
