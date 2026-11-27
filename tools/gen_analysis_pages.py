@@ -105,6 +105,31 @@ def market_closed(now, group):
     return wd == 5 or (wd == 6 and h < 22) or (wd == 4 and h >= 21)
 
 
+def _bar_dt(bar_time):
+    """bar_time di /analysis-data (str dell'indice pandas, UTC naive o con offset) → datetime UTC."""
+    if not bar_time:
+        return None
+    try:
+        t = datetime.fromisoformat(str(bar_time).strip().replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return t.replace(tzinfo=timezone.utc) if t.tzinfo is None else t.astimezone(timezone.utc)
+
+
+def bar_age_hours(bar_time, now):
+    """Ore trascorse dall'inizio dell'ultima candela H1 (+1h = sua chiusura). None se non leggibile."""
+    t = _bar_dt(bar_time)
+    if t is None:
+        return None
+    n = now if now.tzinfo else now.replace(tzinfo=timezone.utc)
+    return max(0.0, (n - t).total_seconds() / 3600 - 1)
+
+
+def bar_time_label(bar_time):
+    t = _bar_dt(bar_time)
+    return t.strftime("%d %b %H:%M") if t else str(bar_time)
+
+
 def spread_html():
     """Riga sullo spread Brent–WTI: spiega perché i due benchmark possono avere bias diversi sull'1H."""
     if not SPREAD:
@@ -397,6 +422,18 @@ def build_instrument_page(inst, d, ai, now, all_rows):
     if market_closed(now, group):
         b.append('<div class="upd">' + L("Market closed — data as of Friday close",
                                           "Mercato chiuso — dati alla chiusura di venerdì") + '</div>')
+    else:
+        # 2026-11-27 (checkup): dopo il Thanksgiving i futures 1H di Yahoo sono rimasti fermi a mer 23:00 NY
+        # mentre il prezzo reale era già +2/+6% → pagine datate "27 Nov" con livelli Elliott già invalidati.
+        # Se l'ultima candela H1 è vecchia, lo si dice chiaramente invece di mostrarla come prezzo di oggi.
+        age_h = bar_age_hours(d.get("bar_time"), now)
+        if age_h is not None and age_h > (3 if group == "Crypto" else 4):
+            ts = bar_time_label(d.get("bar_time"))
+            b.append('<div class="stale">' + L(
+                f"Data delay: the last hourly candle is from {ts} UTC ({age_h:.0f}h ago). "
+                "Price and levels below may not reflect the current market.",
+                f"Dati in ritardo: l'ultima candela oraria è del {ts} UTC ({age_h:.0f} ore fa). "
+                "Prezzo e livelli qui sotto potrebbero non riflettere il mercato attuale.") + '</div>')
     if slug in ("wti-crude-oil", "brent-crude-oil"):
         b.append(spread_html())
     if ai and ai.get("headline"):
