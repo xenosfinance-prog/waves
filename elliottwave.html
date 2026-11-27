@@ -1313,21 +1313,12 @@ canvas { display: block; }
     <!-- ADMIN LOGIN GATE -->
     <div class="admin-gate" id="admin-login-area" style="display:none;">
       <div class="admin-gate-title"><span data-i18n="label_ew_engine">Analysis Engine — Restricted Access</span></div>
-      <div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:20px;">
-        <button id="tab-admin-btn" onclick="switchAccessTab('admin')" style="padding:8px 20px;font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;background:none;border:none;border-bottom:2px solid var(--gold);color:var(--gold);cursor:pointer;"><span data-i18n="label_admin_tab">Admin</span></button>
-        <button id="tab-premium-btn" onclick="switchAccessTab('premium')" style="padding:8px 20px;font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);cursor:pointer;"><span data-i18n="label_premium_tab">Premium</span></button>
-      </div>
+      <!-- 2026-11-27: pannello solo admin. La scheda "Premium" è stata tolta: il codice premium qui sbloccava
+           solo l'archivio della sezione 09, che ha già il suo sblocco; Generate Analysis ha il proprio controllo Premium. -->
       <div id="admin-pw-area">
         <div class="admin-login-row">
           <input class="admin-pw-input" type="password" id="adminPw" placeholder="Admin password" onkeydown="if(event.key==='Enter')adminLogin()">
           <button class="admin-btn" onclick="adminLogin()"><span data-i18n="label_unlock_btn">Unlock</span></button>
-        </div>
-      </div>
-      <div id="premium-pw-area" style="display:none;">
-        <div style="font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:1px;margin-bottom:10px;"><span data-i18n="label_premium_wave_analysis_msg">Enter your premium subscription code to access AI Wave Analysis.</span></div>
-        <div class="admin-login-row">
-          <input class="admin-pw-input" type="password" id="premiumPw" placeholder="Subscription code" onkeydown="if(event.key==='Enter')premiumLogin()">
-          <button class="admin-btn" onclick="premiumLogin()"><span data-i18n="label_unlock_btn">Unlock</span></button>
         </div>
       </div>
       <div class="admin-err" id="adminErr"></div>
@@ -1747,6 +1738,7 @@ async function publishFromAnalysis() {
 
 // ── ADMIN ──
 function switchAccessTab(tab) {
+  if (!document.getElementById('premium-pw-area')) return;   // 2026-11-27: pannello solo admin
   const isAdminTab = tab === 'admin';
   document.getElementById('admin-pw-area').style.display = isAdminTab ? '' : 'none';
   document.getElementById('premium-pw-area').style.display = isAdminTab ? 'none' : '';
@@ -1855,6 +1847,7 @@ const XFPremium = {
 };
 
 async function premiumLogin(){
+  if (!document.getElementById('premiumPw')) return;   // 2026-11-27: scheda Premium rimossa
   let code = document.getElementById('premiumPw').value.trim();
   if (await xfAdminVerify(code)) { window._xfAdminPw = code; code = window.XF_ADMIN_TOKEN; } else await xfPremiumVerify(code);
   if(ADMIN_CODES.includes(code)){
