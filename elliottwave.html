@@ -4301,76 +4301,100 @@ async function ewsRenderCustomChart(sym, tf) {
     return;
   }
 
+  // 2026-11-27: grafico interattivo nello stesso stile del grafico del motore (/ews-chart, Telegram /ews):
+  // fondo navy, candele monocromatiche (rialzo vuota, ribasso piena), intestazione, solo RSI 14 viola,
+  // piè di pagina XENOSFINANCE. Niente nastro EMA né MACD (il grafico dell'analisi non li ha).
+  var EWP = { bg: '#0f1724', grid: '#18243a', text: '#e2eaf4', muted: '#7f93b0',
+              upEdge: '#cbd5e1', dn: '#7c8ba1', wick: '#8b9bb3', rsi: '#a78bfa' };
+  var tfLabel = { M15: '15m', H1: '1h', H4: '4h', D1: '1D', W1: '1W' }[tf] || tf;
+  var nm = (sym === _ewsAsset && _ewsAssetName) ? _ewsAssetName : sym;
+  var esc = function(t) { return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;'); };
+  var now = new Date();
+  var stamp = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' }) + '  ' +
+              now.toISOString().slice(11, 16) + ' UTC';
   wrap.innerHTML =
-    '<div id="ews-main-chart" style="height:420px;width:100%;"></div>' +
-    '<div id="ews-rsi-chart" style="height:90px;width:100%;border-top:1px solid rgba(255,255,255,0.06);position:relative;"><span style="position:absolute;top:4px;left:8px;font-family:var(--mono);font-size:8px;color:var(--muted);letter-spacing:1px;z-index:2;">RSI 14</span></div>' +
-    '<div id="ews-macd-chart" style="height:90px;width:100%;border-top:1px solid rgba(255,255,255,0.06);position:relative;"><span style="position:absolute;top:4px;left:8px;font-family:var(--mono);font-size:8px;color:var(--muted);letter-spacing:1px;z-index:2;">MACD 12/26/9</span></div>';
+    '<div class="ews-pro-chart" style="background:' + EWP.bg + ';border:1px solid ' + EWP.grid + ';">' +
+      '<div style="display:flex;justify-content:space-between;align-items:baseline;padding:12px 14px 2px;font-family:var(--mono);">' +
+        '<span style="font-size:14px;font-weight:700;color:' + EWP.text + ';letter-spacing:.3px;">' + esc(nm) + '  ·  ' + tfLabel + '  ·  XenosFinance</span>' +
+        '<span style="font-size:10px;color:' + EWP.muted + ';">' + stamp + '</span>' +
+      '</div>' +
+      '<div style="padding:0 14px 8px;font-family:var(--mono);font-size:10px;color:' + EWP.muted + ';">Live chart · Generate Analysis for the Elliott Wave count</div>' +
+      '<div id="ews-main-chart" style="height:420px;width:100%;"></div>' +
+      '<div id="ews-rsi-chart" style="height:110px;width:100%;border-top:1px solid ' + EWP.grid + ';position:relative;"><span style="position:absolute;top:5px;left:8px;font-family:var(--mono);font-size:9px;color:' + EWP.muted + ';z-index:2;">RSI 14</span></div>' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 14px 10px;font-family:var(--mono);">' +
+        '<span style="font-size:11px;font-weight:700;color:#2a3a55;letter-spacing:1px;">XENOSFINANCE</span>' +
+        '<span style="font-size:9px;color:' + EWP.muted + ';">Elliott Wave scenario · probabilities, not certainties</span>' +
+      '</div>' +
+    '</div>';
 
   // Nuovo grafico → i riferimenti all'overlay precedente non valgono più
   _ewsStructSeries = []; _ewsOverlayLines = [];
   _ewsEngine = { sym: sym, tf: tf, candles: candles, res: ewsEngineRun(candles) };
 
   var chartOpts = {
-    layout: { background: { color: 'transparent' }, textColor: '#8ba3c7', fontFamily: 'IBM Plex Mono, monospace', fontSize: 10 },
-    grid: { vertLines: { color: 'rgba(255,255,255,0.04)' }, horzLines: { color: 'rgba(255,255,255,0.04)' } },
-    rightPriceScale: { borderColor: 'rgba(255,255,255,0.08)' },
-    timeScale: { borderColor: 'rgba(255,255,255,0.08)', timeVisible: true },
+    layout: { background: { type: 'solid', color: EWP.bg }, textColor: EWP.muted, fontFamily: 'IBM Plex Mono, monospace', fontSize: 10 },
+    grid: { vertLines: { color: EWP.grid }, horzLines: { color: EWP.grid } },
+    rightPriceScale: { borderColor: EWP.grid, minimumWidth: 92 },  // stessa larghezza nei due pannelli → candele e RSI allineati
+    timeScale: { borderColor: EWP.grid, timeVisible: true, rightOffset: 6 },
     crosshair: { mode: LightweightCharts.CrosshairMode.Normal }
   };
 
-  _ewsChart = LightweightCharts.createChart(document.getElementById('ews-main-chart'), Object.assign({ height: 420 }, chartOpts));
+  _ewsChart = LightweightCharts.createChart(document.getElementById('ews-main-chart'),
+    Object.assign({}, chartOpts, { height: 420, timeScale: Object.assign({}, chartOpts.timeScale, { visible: false }) }));
   var _ewsPrec = ewsPricePrecision(sym);
   _ewsCandleSeries = _ewsChart.addCandlestickSeries({
-    upColor: '#34d399', downColor: '#f87171', borderVisible: false, wickUpColor: '#34d399', wickDownColor: '#f87171',
+    upColor: EWP.bg, downColor: EWP.dn, borderVisible: true, borderUpColor: EWP.upEdge, borderDownColor: EWP.dn,
+    wickUpColor: EWP.wick, wickDownColor: EWP.wick, lastValueVisible: false, priceLineVisible: false,
     priceFormat: ewsPriceFormat(_ewsPrec)
   });
   var candleData = candles.map(function(c) { return { time: ewsTimeToUnix(c.datetime), open: c.open, high: c.high, low: c.low, close: c.close }; });
   _ewsCandleSeries.setData(candleData);
   _ewsLastCandleTime  = candleData[candleData.length - 1].time;
   _ewsLastCandleClose = candleData[candleData.length - 1].close;
+  // cartellino del prezzo come nel grafico del motore (bianco, testo scuro)
+  try {
+    _ewsCandleSeries.createPriceLine({ price: _ewsLastCandleClose, color: 'rgba(226,234,244,0.35)', lineWidth: 1,
+      lineStyle: LightweightCharts.LineStyle.Dotted, axisLabelVisible: true, axisLabelColor: EWP.text, axisLabelTextColor: EWP.bg, title: '' });
+  } catch (x) {}
   // 2026-11-19: prezzo mostrato = ultima candela del grafico (una sola fonte sullo schermo)
   var _lpEl = document.getElementById('ews-live-price');
   if (_lpEl && sym === _ewsAsset) _lpEl.textContent = Number(_ewsLastCandleClose).toFixed(_ewsPrec);
 
-  // EMA Ribbon
-  EWS_EMA_RIBBON_PERIODS.forEach(function(period, idx) {
-    var ema = ewsComputeEMA(candles, period);
-    var s = _ewsChart.addLineSeries({ color: EWS_EMA_RIBBON_COLORS[idx], lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false, priceFormat: ewsPriceFormat(_ewsPrec) });
-    s.setData(candles.map(function(c, i) { return ema[i] === null ? null : { time: ewsTimeToUnix(c.datetime), value: ema[i] }; }).filter(Boolean));
-  });
-
   // Il conteggio onde NON viene da uno zigzag grezzo: lo disegna ewsDrawWaveOverlay()
   // solo se il motore XenosFinance trova una struttura che rispetta le regole
   // (W2 28–78.6%, W3 estensioni ±15%, W4 15–65% senza overlap, ABC validato).
-  _ewsChart.timeScale().fitContent();
 
-  // RSI sub-panel
+  // RSI 14 (Wilder), scala fissa 0–100, 70/30 tratteggiate — come il pannello del motore
   var rsi = ewsComputeRSI(candles, 14);
-  _ewsRsiChart = LightweightCharts.createChart(document.getElementById('ews-rsi-chart'), Object.assign({ height: 90 }, chartOpts));
-  var rsiSeries = _ewsRsiChart.addLineSeries({ color: '#60a5fa', lineWidth: 1, priceLineVisible: false, priceFormat: ewsPriceFormat(2) });
-  rsiSeries.setData(candles.map(function(c, i) { return rsi[i] === null ? null : { time: ewsTimeToUnix(c.datetime), value: rsi[i] }; }).filter(Boolean));
-  rsiSeries.createPriceLine({ price: 70, color: 'rgba(248,113,113,0.4)', lineWidth: 1, lineStyle: LightweightCharts.LineStyle.Dashed, axisLabelVisible: false });
-  rsiSeries.createPriceLine({ price: 30, color: 'rgba(52,211,153,0.4)', lineWidth: 1, lineStyle: LightweightCharts.LineStyle.Dashed, axisLabelVisible: false });
+  _ewsRsiChart = LightweightCharts.createChart(document.getElementById('ews-rsi-chart'), Object.assign({ height: 110 }, chartOpts));
+  var rsiSeries = _ewsRsiChart.addLineSeries({ color: EWP.rsi, lineWidth: 1, priceLineVisible: false, crosshairMarkerVisible: false,
+    priceFormat: { type: 'price', precision: 0, minMove: 1 },
+    autoscaleInfoProvider: function() { return { priceRange: { minValue: 0, maxValue: 100 } }; } });
+  // stessi indici delle candele (whitespace dove l'RSI non c'è ancora), altrimenti la sincronizzazione sposta l'RSI
+  rsiSeries.setData(candles.map(function(c, i) { var t = ewsTimeToUnix(c.datetime); return rsi[i] === null ? { time: t } : { time: t, value: rsi[i] }; }));
+  rsiSeries.createPriceLine({ price: 70, color: 'rgba(127,147,176,0.7)', lineWidth: 1, lineStyle: LightweightCharts.LineStyle.Dashed, axisLabelVisible: false });
+  rsiSeries.createPriceLine({ price: 30, color: 'rgba(127,147,176,0.7)', lineWidth: 1, lineStyle: LightweightCharts.LineStyle.Dashed, axisLabelVisible: false });
+  _ewsMacdChart = null;
 
-  // MACD sub-panel
-  var macd = ewsComputeMACD(candles, 12, 26, 9);
-  _ewsMacdChart = LightweightCharts.createChart(document.getElementById('ews-macd-chart'), Object.assign({ height: 90 }, chartOpts));
-  var _ewsMacdFmt = ewsPriceFormat(_ewsPrec + 1);
-  var macdLineSeries = _ewsMacdChart.addLineSeries({ color: '#60a5fa', lineWidth: 1, priceLineVisible: false, priceFormat: _ewsMacdFmt });
-  macdLineSeries.setData(candles.map(function(c, i) { return macd.macdLine[i] === null ? null : { time: ewsTimeToUnix(c.datetime), value: macd.macdLine[i] }; }).filter(Boolean));
-  var signalSeries = _ewsMacdChart.addLineSeries({ color: '#f59e0b', lineWidth: 1, priceLineVisible: false, priceFormat: _ewsMacdFmt });
-  signalSeries.setData(candles.map(function(c, i) { return macd.signalLine[i] === null ? null : { time: ewsTimeToUnix(c.datetime), value: macd.signalLine[i] }; }).filter(Boolean));
-  var histSeries = _ewsMacdChart.addHistogramSeries({ priceLineVisible: false, priceFormat: _ewsMacdFmt });
-  histSeries.setData(candles.map(function(c, i) { return macd.hist[i] === null ? null : { time: ewsTimeToUnix(c.datetime), value: macd.hist[i], color: macd.hist[i] >= 0 ? 'rgba(52,211,153,0.5)' : 'rgba(248,113,113,0.5)' }; }).filter(Boolean));
-
-  // Sync time scales across the three panels
-  var allCharts = [_ewsChart, _ewsRsiChart, _ewsMacdChart];
+  // Sync time scales between the two panels
+  var allCharts = [_ewsChart, _ewsRsiChart];
   allCharts.forEach(function(c) {
     c.timeScale().subscribeVisibleLogicalRangeChange(function(range) {
       if (!range) return;
       allCharts.forEach(function(other) { if (other !== c) other.timeScale().setVisibleLogicalRange(range); });
     });
   });
+  // larghezza della scala prezzi uguale nei due pannelli (candele e RSI sulla stessa verticale)
+  setTimeout(function() {
+    try {
+      var w = Math.max(_ewsChart.priceScale('right').width(), _ewsRsiChart.priceScale('right').width());
+      allCharts.forEach(function(c) { c.priceScale('right').applyOptions({ minimumWidth: w }); });
+    } catch (x) {}
+  }, 0);
+  // stessa finestra del grafico del motore: ultime ~150 candele (si può sempre zoomare indietro)
+  var nBars = candleData.length;
+  if (nBars > 150) _ewsChart.timeScale().setVisibleLogicalRange({ from: nBars - 150, to: nBars + 5 });
+  else _ewsChart.timeScale().fitContent();
 
   // Conteggio del motore + pannelli Wave / Key Levels
   ewsDrawWaveOverlay();
@@ -4938,7 +4962,7 @@ function ewsShowEngineImage(b64, alt) {
   if (!box) {
     box = document.createElement('div');
     box.id = 'ews-engine-img-box';
-    box.style.cssText = 'background:#1a273d;';
+    box.style.cssText = 'background:#0f1724;border:1px solid #18243a;';
     wrap.insertBefore(box, wrap.firstChild);
   }
   box.innerHTML = '<img src="data:image/png;base64,' + b64 + '" alt="' + String(alt).replace(/"/g, '') +
@@ -4954,7 +4978,13 @@ function ewsHideEngineImage() {
   var box = document.getElementById('ews-engine-img-box');
   if (box) box.remove();
   if (wrap) Array.prototype.forEach.call(wrap.children, function(c) { c.style.display = ''; });
-  if (_ewsChart && typeof _ewsChart.timeScale === 'function') { try { _ewsChart.timeScale().fitContent(); } catch (x) {} }
+  if (_ewsChart && typeof _ewsChart.timeScale === 'function') {
+    try {
+      var nB = _ewsEngine && _ewsEngine.candles ? _ewsEngine.candles.length : 0;
+      if (nB > 150) _ewsChart.timeScale().setVisibleLogicalRange({ from: nB - 150, to: nB + 5 });
+      else _ewsChart.timeScale().fitContent();
+    } catch (x) {}
+  }
 }
 
 // Mostra Telegram / Active Setup solo ad admin e solo se c'è un'analisi.
