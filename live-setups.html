@@ -618,23 +618,98 @@ function _bsNormCDF(x) {
     return c * Math.exp(-x*x/2) * t * (t*(t*(t*(t*b5+b4)+b3)+b2)+b1);
   }
 }
-const _IV_BY_ASSET = { crypto: 0.55, energy: 0.35, metal: 0.18, index: 0.16, forex: 0.085 }; // annualized, rough class-level estimate
+// 2026-11-27: volatilità e tasso REALI, non più stime fisse per classe (indici 16%, forex 8.5%…).
+// Volatilità: indice di volatilità implicita CBOE dove esiste (VIX, VXN, VXD, GVZ, OVX, VXSLV, EVZ),
+// altrimenti volatilità realizzata a 30 giorni dalle chiusure giornaliere reali del sottostante.
+// Tasso: rendimento del T-bill USA a 13 settimane (^IRX). Valori presi alla data del setup.
+// Se un dato manca, il premio NON viene mostrato (niente numeri inventati).
 const _EXPIRY_TO_YEARS = {
   '1 Week': 7/365, '2 Weeks': 14/365, '1 Month': 30/365,
   '2 Months': 60/365, '3 Months': 90/365
 };
-const _RISK_FREE_RATE = 0.045; // approx short-term rate
+const _VOL_INDEX = {
+  US500:'^VIX', SPX500:'^VIX', SPX:'^VIX', SP500:'^VIX',
+  NAS100:'^VXN', NASDAQ:'^VXN', NDX:'^VXN',
+  US30:'^VXD', DJ30:'^VXD', DJI:'^VXD',
+  XAUUSD:'^GVZ', GOLD:'^GVZ', XAGUSD:'^VXSLV', SILVER:'^VXSLV',
+  USOIL:'^OVX', WTIUSD:'^OVX', OIL:'^OVX', CRUDEOIL:'^OVX', WTI:'^OVX',
+  EURUSD:'^EVZ'
+};
+const _VOL_INDEX_NAME = { '^VIX':'VIX', '^VXN':'VXN', '^VXD':'VXD', '^GVZ':'GVZ', '^VXSLV':'VXSLV', '^OVX':'OVX', '^EVZ':'EVZ' };
+const _UNDERLYING_YF = {
+  US500:'^GSPC', SPX500:'^GSPC', SPX:'^GSPC', US30:'^DJI', DJ30:'^DJI', DJI:'^DJI', NAS100:'^NDX', NASDAQ:'^NDX',
+  GER40:'^GDAXI', DAX40:'^GDAXI', DAX:'^GDAXI', UK100:'^FTSE', FTSE100:'^FTSE', FRA40:'^FCHI', JPN225:'^N225', JP225:'^N225',
+  NIKKEI:'^N225', HK50:'^HSI', AUS200:'^AXJO', ESP35:'^IBEX',
+  XAUUSD:'GC=F', GOLD:'GC=F', XAGUSD:'SI=F', SILVER:'SI=F', XPTUSD:'PL=F', XPDUSD:'PA=F',
+  USOIL:'CL=F', WTIUSD:'CL=F', OIL:'CL=F', CRUDEOIL:'CL=F', UKOIL:'BZ=F', BCOUSD:'BZ=F', BRENT:'BZ=F',
+  NGAS:'NG=F', NATGAS:'NG=F', NATURALGAS:'NG=F', COPPER:'HG=F'
+};
+function _underlyingYf(key) {
+  if (_UNDERLYING_YF[key]) return _UNDERLYING_YF[key];
+  const c = key.match(/^(BTC|ETH|SOL|XRP|DOGE|AVAX|BNB|ADA|LINK|DOT)(USDT|USD)?$/);
+  if (c) return c[1] + '-USD';
+  if (/^[A-Z]{6}$/.test(key)) return key + '=X';
+  return key;   // azioni
+}
+const _yfDailyCache = {};
+function _yahooDaily(ySym) {
+  if (!_yfDailyCache[ySym]) {
+    _yfDailyCache[ySym] = fetch('https://xenos-ai-proxy.xenosfinance.workers.dev', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'yahoocandles', symbol: ySym, interval: '1d', range: '1y' })
+    }).then(r => r.json()).then(d => (d.candles || []).filter(c => c && c.close > 0 && isFinite(new Date(c.datetime).getTime())))
+      .catch(() => []);
+  }
+  return _yfDailyCache[ySym];
+}
+function _upTo(candles, asOfMs) { return candles.filter(c => new Date(c.datetime).getTime() <= asOfMs); }
+function _dShort(iso) { return new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }); }
+const _volCache = {};
+// → { sigma, r, volLabel, rateLabel } oppure null se un dato reale manca
+function getOptionVol(pair, assetClass, asOfIso) {
+  const key = normalizePair(pair);
+  const asOfMs = asOfIso ? new Date(asOfIso).getTime() : Date.now();
+  const ck = key + '|' + new Date(asOfMs).toISOString().slice(0, 10);
+  if (_volCache[ck]) return _volCache[ck];
+  const maxAge = 7 * 86400000;   // un valore di più di 7 giorni prima della data non vale
+  _volCache[ck] = (async () => {
+    const irx = _upTo(await _yahooDaily('^IRX'), asOfMs).pop();
+    if (!irx || asOfMs - new Date(irx.datetime).getTime() > maxAge) return null;
+    const r = irx.close / 100;
+    const rateLabel = '13-week T-bill ' + irx.close.toFixed(2) + '%';
+    const idx = _VOL_INDEX[key];
+    if (idx) {
+      const v = _upTo(await _yahooDaily(idx), asOfMs).pop();
+      if (v && asOfMs - new Date(v.datetime).getTime() <= maxAge && v.close > 1 && v.close < 300) {
+        return { sigma: v.close / 100, r, rateLabel, volLabel: _VOL_INDEX_NAME[idx] + ' ' + v.close.toFixed(1) + ' (CBOE implied, ' + _dShort(v.datetime) + ')' };
+      }
+    }
+    // volatilità realizzata 30 giorni (log-rendimenti giornalieri annualizzati)
+    const u = _upTo(await _yahooDaily(_underlyingYf(key)), asOfMs).slice(-31);
+    if (u.length < 26 || asOfMs - new Date(u[u.length - 1].datetime).getTime() > maxAge) return null;
+    const rets = [];
+    for (let i = 1; i < u.length; i++) rets.push(Math.log(u[i].close / u[i - 1].close));
+    const m = rets.reduce((a, b) => a + b, 0) / rets.length;
+    const sd = Math.sqrt(rets.reduce((a, b) => a + (b - m) * (b - m), 0) / (rets.length - 1));
+    const sigma = sd * Math.sqrt(assetClass === 'crypto' ? 365 : 252);
+    if (!(sigma > 0)) return null;
+    return { sigma, r, rateLabel, volLabel: '30-day realized ' + (sigma * 100).toFixed(1) + '% (' + _dShort(u[u.length - 1].datetime) + ')' };
+  })();
+  return _volCache[ck];
+}
 
-function computeIndicativeOption(spot, isCall, expiryTenor, assetClass) {
-  if (!spot || !expiryTenor || !_EXPIRY_TO_YEARS[expiryTenor]) return null;
-  const T = _EXPIRY_TO_YEARS[expiryTenor];
-  const sigma = _IV_BY_ASSET[assetClass] || _IV_BY_ASSET.forex;
-  const r = _RISK_FREE_RATE;
+function optionStrike(spot, isCall, assetClass) {
   // Slightly OTM in the trade direction — standard practical choice for
   // directional/hedging plays: cheaper premium, still meaningful delta.
   const otmPct = (assetClass === 'crypto' || assetClass === 'energy') ? 0.05 : 0.015;
-  const strike = isCall ? spot * (1 + otmPct) : spot * (1 - otmPct);
+  return isCall ? spot * (1 + otmPct) : spot * (1 - otmPct);
+}
 
+function computeIndicativeOption(spot, isCall, expiryTenor, assetClass, vol) {
+  if (!spot || !expiryTenor || !_EXPIRY_TO_YEARS[expiryTenor] || !vol) return null;
+  const T = _EXPIRY_TO_YEARS[expiryTenor];
+  const sigma = vol.sigma, r = vol.r;
+  const strike = optionStrike(spot, isCall, assetClass);
   const d1 = (Math.log(spot / strike) + (r + sigma * sigma / 2) * T) / (sigma * Math.sqrt(T));
   const d2 = d1 - sigma * Math.sqrt(T);
   let premium;
@@ -962,17 +1037,17 @@ function renderOptions() {
     const isCall  = ['CALL','BUY'].includes((sig.action||sig.direction||'').toUpperCase());
     const confW   = Math.round((sig.confidence||0) / 100 * 50);
     const openPx  = sig.entry != null ? fmtPrice(sig.entry, sig.pair) : '—';
-    const closePx = sig.close_price != null ? fmtPrice(sig.close_price, sig.pair) : '—';
+    // 2026-11-27: il target del sottostante è il TP del setup (prima solo close_price, mai valorizzato → "—")
+    const closeVal = sig.close_price != null ? sig.close_price : sig.tp;
+    const closePx = closeVal != null ? fmtPrice(closeVal, sig.pair) : '—';
+    const stopPx  = sig.sl != null ? fmtPrice(sig.sl, sig.pair) : null;
     const expiryTenor = _resolveExpiryTenor(sig);
     const expiry  = expiryTenor;
     let analysis = sig.analysis || sig.pattern_desc || sig.ew_context || '';
     const outcome  = sig.outcome || 'open';
 
     const assetClass = _resolveAssetClass(sig.pair);
-    const opt = sig.entry != null ? computeIndicativeOption(sig.entry, isCall, expiryTenor, assetClass) : null;
-    const strikeStr  = opt ? fmtPrice(opt.strike, sig.pair) : '—';
-    const premiumStr = opt ? fmtPrice(opt.premium, sig.pair) : '—';
-    const ivStr = opt ? (opt.impliedVol * 100).toFixed(0) + '%' : '—';
+    const strikeStr  = sig.entry != null ? fmtPrice(optionStrike(sig.entry, isCall, assetClass), sig.pair) : '—';
 
     return `
     <div class="opt-card ${isCall?'call':'put'}" onclick="toggleOptDetail(${i})" data-pair="${sig.pair||''}" data-tf="${sig.expiry||sig.timeframe||''}" data-tv="${sig.tv_symbol||''}">
@@ -993,10 +1068,11 @@ function renderOptions() {
           <div class="level-pill"><div class="level-pill-label"><span data-i18n="th_expiry">Expiry</span></div><div class="level-pill-val" style="color:var(--yellow)">${expiry}</div></div>
           <div class="level-pill"><div class="level-pill-label"><span data-i18n="label_confidence">Confidence</span></div><div class="level-pill-val">${sig.confidence||'—'}%</div></div>
           <div class="level-pill"><div class="level-pill-label">Strike</div><div class="level-pill-val" style="color:var(--ink)">${strikeStr}</div></div>
-          <div class="level-pill"><div class="level-pill-label">Premium (indic.)</div><div class="level-pill-val" style="color:var(--gold,#d4af37)">${premiumStr}</div></div>
+          <div class="level-pill"><div class="level-pill-label">Premium (indic.)</div><div class="level-pill-val" id="opt-prem-${i}" style="color:var(--gold,#d4af37)">…</div></div>
         </div>
-        <div style="font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:0.5px;margin:-8px 0 12px;">
-          Strike ${(assetClass==='crypto'||assetClass==='energy')?'5%':'1.5%'} OTM · Premium estimated via Black-Scholes (IV ≈ ${ivStr}, indicative — not a live quote)
+        <div style="font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:0.5px;margin:-8px 0 12px;line-height:1.7;">
+          ${closeVal != null ? `Underlying: target ${closePx}${stopPx ? ` · stop ${stopPx}` : ''} · ` : ''}Strike ${(assetClass==='crypto'||assetClass==='energy')?'5%':'1.5%'} OTM ·
+          <span id="opt-note-${i}">loading market volatility…</span>
         </div>
         <div id="tv-opt-${i}" style="margin:0 0 12px;background:var(--bg2);border:1px solid var(--border);"></div>
         ${analysis ? `<div class="detail-block" style="margin-bottom:12px;"><div class="detail-block-label"><span data-i18n="th_analysis">Analysis</span></div><div class="detail-block-text">${analysis}</div></div>` : ''}
@@ -1020,6 +1096,28 @@ function renderOptions() {
       </div>
     </div>`;
   }).join('');
+  _fillOptionPremiums(filtered.slice());
+}
+
+// Premio Black-Scholes con volatilità e tasso reali alla data del setup (vedi getOptionVol)
+function _fillOptionPremiums(list) {
+  list.forEach((sig, i) => {
+    if (sig.entry == null) return;
+    const isCall = ['CALL','BUY'].includes((sig.action||sig.direction||'').toUpperCase());
+    const assetClass = _resolveAssetClass(sig.pair);
+    getOptionVol(sig.pair, assetClass, sig.saved_at).then(vol => {
+      const pEl = document.getElementById('opt-prem-' + i), nEl = document.getElementById('opt-note-' + i);
+      if (!pEl || filtered[i] !== sig) return;   // lista cambiata nel frattempo
+      const opt = computeIndicativeOption(sig.entry, isCall, _resolveExpiryTenor(sig), assetClass, vol);
+      if (!opt) {
+        pEl.textContent = '—';
+        if (nEl) nEl.textContent = 'premium not shown: market volatility data unavailable for the setup date';
+        return;
+      }
+      pEl.textContent = fmtPrice(opt.premium, sig.pair);
+      if (nEl) nEl.textContent = 'Black-Scholes premium at setup time · volatility: ' + vol.volLabel + ' · rate: ' + vol.rateLabel + ' · indicative, not a live quote';
+    });
+  });
 }
 
 function toggleOptDetail(i) {
@@ -1795,7 +1893,7 @@ async function sendToTelegram(event, i, type) {
       const action = isCall ? '🟢 CALL SETUP' : '🔴 PUT SETUP';
       const expiry  = sig.expiry || sig.timeframe || '—';
       const entry   = sig.entry != null ? fmtPrice(sig.entry, sig.pair) : '—';
-      const close   = sig.close_price != null ? fmtPrice(sig.close_price, sig.pair) : '—';
+      const close   = (sig.close_price != null || sig.tp != null) ? fmtPrice(sig.close_price != null ? sig.close_price : sig.tp, sig.pair) : '—';
       const conf    = sig.confidence ? sig.confidence + '%' : '—';
       const _tsLangR = _langTS();
       let analysis = sig.analysis || sig.pattern_desc || sig.ew_context || '';
@@ -1904,6 +2002,12 @@ async function runAIInterpreter() {
   body.innerHTML = '<span style="color:var(--muted);letter-spacing:1px;">✦ AI is reading the data...</span>';
 
   // Build enriched signal data for the prompt
+  // 2026-11-27: volatilità reale (CBOE o realizzata 30g) per ogni coppia, prima di costruire i dati
+  const _reportVols = {};
+  await Promise.all(cached.data.map(async r => {
+    const cls = r.pair.cls || (tab === 'crypto' ? 'crypto' : _resolveAssetClass(r.pair.s));
+    try { _reportVols[r.pair.s] = await getOptionVol(r.pair.s, cls, null); } catch (e) { _reportVols[r.pair.s] = null; }
+  }));
   const signalSummary = cached.data.map(r => {
     const label = (sig) => sig ? sig.l : '—';
     const score = (sig) => sig ? sig.sc : 0;
@@ -1968,11 +2072,12 @@ async function runAIInterpreter() {
     // Indicative strike/premium for both directions — the AI picks the
     // matching one once it decides Call vs Put from confluence.
     const assetClass = r.pair.cls || (tab === 'crypto' ? 'crypto' : _resolveAssetClass(r.pair.s));
-    const callOpt = r.price ? computeIndicativeOption(r.price, true, expiry, assetClass) : null;
-    const putOpt  = r.price ? computeIndicativeOption(r.price, false, expiry, assetClass) : null;
+    const vol = _reportVols[r.pair.s] || null;
+    const callOpt = r.price ? computeIndicativeOption(r.price, true, expiry, assetClass, vol) : null;
+    const putOpt  = r.price ? computeIndicativeOption(r.price, false, expiry, assetClass, vol) : null;
     const optLine = (callOpt && putOpt)
-      ? `  Indicative pricing @ ${expiry}: CALL strike ${fmtPrice(callOpt.strike, r.pair.s)} / premium ${fmtPrice(callOpt.premium, r.pair.s)} | PUT strike ${fmtPrice(putOpt.strike, r.pair.s)} / premium ${fmtPrice(putOpt.premium, r.pair.s)}`
-      : '';
+      ? `  Indicative pricing @ ${expiry} (vol ${vol.volLabel}, rate ${vol.rateLabel}): CALL strike ${fmtPrice(callOpt.strike, r.pair.s)} / premium ${fmtPrice(callOpt.premium, r.pair.s)} | PUT strike ${fmtPrice(putOpt.strike, r.pair.s)} / premium ${fmtPrice(putOpt.premium, r.pair.s)}`
+      : `  Indicative pricing: not available (no real volatility data) — do not quote any strike or premium for this pair`;
 
     return [
       `${r.pair.s} | Price: ${priceStr}`,
